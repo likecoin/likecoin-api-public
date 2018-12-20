@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "backpack dev",
     "build": "backpack build",
-    "test": "npm run lint",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "start": "NODE_ENV=production node build/main.js",
+    "test": "npm run lint"
   },
   "repository": {
     "type": "git",
