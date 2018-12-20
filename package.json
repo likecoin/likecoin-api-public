@@ -20,7 +20,9 @@
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "dependencies": {
-    "express": "^4.16.4"
+    "bignumber.js": "^8.0.1",
+    "express": "^4.16.4",
+    "web3": "^1.0.0-beta.37"
   },
   "devDependencies": {
     "@babel/core": "^7.2.2",
