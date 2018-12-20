@@ -21,8 +21,11 @@
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "dependencies": {
     "bignumber.js": "^8.0.1",
+    "cors": "^2.8.5",
     "express": "^4.16.4",
-    "web3": "^1.0.0-beta.37"
+    "firebase-admin": "^6.4.0",
+    "web3": "^1.0.0-beta.37",
+    "xml": "^1.0.1"
   },
   "devDependencies": {
     "backpack-core": "^0.8.3",
