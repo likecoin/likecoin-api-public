@@ -1,0 +1,38 @@
+{
+  "name": "likecoin-api-public",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "backpack dev",
+    "build": "backpack build",
+    "lint": "eslint src",
+    "start": "NODE_ENV=production node build/main.js",
+    "test": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/likecoin/likecoin-api-public.git"
+  },
+  "author": "William Chong",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/likecoin/likecoin-api-public/issues"
+  },
+  "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
+  "dependencies": {
+    "bignumber.js": "^8.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
+    "firebase-admin": "^6.4.0",
+    "web3": "^1.0.0-beta.37",
+    "xml": "^1.0.1"
+  },
+  "devDependencies": {
+    "backpack-core": "^0.8.3",
+    "eslint": "^5.10.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-loader": "^2.1.1",
+    "eslint-plugin-import": "^2.14.0"
+  }
+}
