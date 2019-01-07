@@ -15,6 +15,9 @@ jobs:
           name: Lint Test
           command: npm run lint
       - run:
+          name: API Test
+          command: npm run test
+      - run:
           name: Build
           command: npm run build
       - run:

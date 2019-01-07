@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "backpack dev",
     "build": "backpack build",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "start": "NODE_ENV=production node build/main.js",
-    "test": "npm run lint"
+    "test": "npm run test:stub",
+    "test:stub": "node ./test/stub/runner",
+    "test:api": "IS_TESTNET=true ava -v test/api/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +22,11 @@
     "url": "https://github.com/likecoin/likecoin-api-public/issues"
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
+  "ava": {
+    "require": [
+      "./test/_register"
+    ]
+  },
   "dependencies": {
     "bignumber.js": "^8.0.1",
     "cors": "^2.8.5",
@@ -29,10 +36,14 @@
     "xml": "^1.0.1"
   },
   "devDependencies": {
+    "@babel/register": "^7.0.0",
+    "ava": "^1.0.1",
+    "axiosist": "^0.3.0",
     "backpack-core": "^0.8.3",
     "eslint": "^5.10.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-loader": "^2.1.1",
-    "eslint-plugin-import": "^2.14.0"
+    "eslint-plugin-import": "^2.14.0",
+    "lodash.clonedeep": "^4.5.0"
   }
 }

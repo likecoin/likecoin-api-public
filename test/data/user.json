@@ -1,0 +1,86 @@
+{
+    "users": [
+        {
+            "id": "testing",
+            "displayName": "testing",
+            "email": "testing@likecoin.store",
+            "wallet": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
+            "merchantId": "testmerchantid",
+            "collection": {
+                "referrals": [
+                    {
+                        "id": "testuser"
+                    }
+                ],
+                "mission": [
+                    {
+                        "id": "verifyEmail",
+                        "done": true
+                    },
+                    {
+                        "id": "gettingStart",
+                        "done": true
+                    }
+                ],
+                "bonus": [
+                    {
+                        "id": "00000000-0000-0000-0000-000000000000",
+                        "txHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "type": "mission-gettingStart",
+                        "value": "3000000000000000000"
+                    }
+                ],
+                "social": [
+                    {
+                        "id": "link0",
+                        "iconType": "profile",
+                        "siteDisplayName": "like.co",
+                        "url": "https://like.co",
+                        "isExternalLink": true,
+                        "isPublic": true
+                    },
+                    {
+                        "id": "meta",
+                        "externalLinkOrder": [
+                          "link0"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "testuser",
+            "displayName": "testuser",
+            "email": "testuser@likecoin.store",
+            "wallet": "0x76ECdE1CC1D2D87D7f20c2C6EAe7529a7379920c",
+            "verificationUUID": "00000000-0000-0000-0000-000000000000",
+            "referrer": "testing",
+            "collection": {
+                "referrals": [
+                ]
+            }
+        },
+        {
+            "id": "testacctreferrer",
+            "displayName": "testacctReferrer",
+            "email": "testacctreferrer@likecoin.store",
+            "wallet": "0x0ecE4870B4D37e725c08FCFe2a24c794a651d6d8",
+            "isEmailVerified": true,
+            "collection": {
+              "referrals": [
+                {
+                  "id": "testacctreferee"
+                }
+              ]
+            }
+        },
+        {
+            "id": "testacctreferee",
+            "displayName": "testacctReferee",
+            "email": "testacctreferee@likecoin.store",
+            "wallet": "0x0FB3aE1eb4e2e9c3F0f241d5c73fB5D5069c21A5",
+            "verificationUUID": "00000000-0000-0000-0000-000000000001",
+            "referrer": "testacctreferrer"
+        }
+    ]
+}

@@ -2,6 +2,8 @@ export const { IS_TESTNET } = process.env;
 
 export const ETH_NETWORK_NAME = IS_TESTNET ? 'rinkeby' : 'mainnet';
 
+export const INFURA_HOST = IS_TESTNET ? 'https://rinkeby.infura.io/v3/9a6771595426445cb247e83d4ad85645' : 'https://mainnet.infura.io/v3/9a6771595426445cb247e83d4ad85645';
+
 export const PUBSUB_TOPIC_MISC = 'misc';
 
 export const TEST_MODE = process.env.NODE_ENV !== 'production' || process.env.CI;
