@@ -11,14 +11,16 @@ import {
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
 
+let db;
+if (!process.env.CI) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: FIREBASE_STORAGE_BUCKET,
+  });
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: FIREBASE_STORAGE_BUCKET,
-});
-
-const db = admin.firestore();
-db.settings({ timestampsInSnapshots: true });
+  db = admin.firestore();
+  db.settings({ timestampsInSnapshots: true });
+}
 
 export const userCollection = FIRESTORE_USER_ROOT ? db.collection(FIRESTORE_USER_ROOT) : null;
 export const userAuthCollection = FIRESTORE_USER_AUTH_ROOT

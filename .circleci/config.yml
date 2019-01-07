@@ -1,0 +1,32 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/likecoin-api-public
+    docker:
+      - image: node:10
+    steps:
+      - checkout
+      - restore_cache:
+          key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+      - run:
+          name: Dependencies
+          command: npm install
+      - run:
+          name: Lint Test
+          command: npm run lint
+      - run:
+          name: Build
+          command: npm run build
+      - run:
+          name: Server Test
+          command: npm start
+          background: true
+      - run:
+          name: wget Test
+          command: |
+            sleep 5
+            wget -O- --retry-connrefused --waitretry=5 -t 10 http://127.0.0.1:3000/healthz > /dev/null
+      - save_cache:
+          key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+          paths:
+            - ./node_modules
