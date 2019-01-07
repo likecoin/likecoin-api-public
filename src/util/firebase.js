@@ -3,6 +3,7 @@ import {
   FIREBASE_STORAGE_BUCKET,
   FIRESTORE_USER_ROOT,
   FIRESTORE_USER_AUTH_ROOT,
+  FIRESTORE_SUBSCRIPTION_USER_ROOT,
   FIRESTORE_TX_ROOT,
   FIRESTORE_IAP_ROOT,
   FIRESTORE_MISSION_ROOT,
@@ -22,16 +23,16 @@ if (!process.env.CI) {
   db.settings({ timestampsInSnapshots: true });
 }
 
-export const userCollection = FIRESTORE_USER_ROOT ? db.collection(FIRESTORE_USER_ROOT) : null;
-export const userAuthCollection = FIRESTORE_USER_AUTH_ROOT
-  ? db.collection(FIRESTORE_USER_ROOT) : null;
-export const txCollection = FIRESTORE_TX_ROOT ? db.collection(FIRESTORE_TX_ROOT) : null;
-export const iapCollection = FIRESTORE_IAP_ROOT
-  ? db.collection(FIRESTORE_IAP_ROOT) : null;
-export const missionCollection = FIRESTORE_MISSION_ROOT
-  ? db.collection(FIRESTORE_MISSION_ROOT) : null;
-export const payoutCollection = FIRESTORE_PAYOUT_ROOT ? db.collection(FIRESTORE_PAYOUT_ROOT) : null;
-export const configCollection = FIRESTORE_CONFIG_ROOT ? db.collection(FIRESTORE_CONFIG_ROOT) : null;
+const getCollectionIfDefined = root => (root ? db.collection(root) : null);
+
+export const userCollection = getCollectionIfDefined(FIRESTORE_USER_ROOT);
+export const userAuthCollection = getCollectionIfDefined(FIRESTORE_USER_AUTH_ROOT);
+export const subscriptionUserCollection = getCollectionIfDefined(FIRESTORE_SUBSCRIPTION_USER_ROOT);
+export const txCollection = getCollectionIfDefined(FIRESTORE_TX_ROOT);
+export const iapCollection = getCollectionIfDefined(FIRESTORE_IAP_ROOT);
+export const missionCollection = getCollectionIfDefined(FIRESTORE_MISSION_ROOT);
+export const payoutCollection = getCollectionIfDefined(FIRESTORE_PAYOUT_ROOT);
+export const configCollection = getCollectionIfDefined(FIRESTORE_CONFIG_ROOT);
 export const bucket = FIREBASE_STORAGE_BUCKET ? admin.storage().bucket() : null;
 
 export { admin };
