@@ -12,18 +12,19 @@ import {
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
 
-let db;
+let database;
 if (!process.env.CI) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     storageBucket: FIREBASE_STORAGE_BUCKET,
   });
 
-  db = admin.firestore();
-  db.settings({ timestampsInSnapshots: true });
+  database = admin.firestore();
+  database.settings({ timestampsInSnapshots: true });
 }
+export const db = database;
 
-const getCollectionIfDefined = root => (root ? db.collection(root) : null);
+const getCollectionIfDefined = root => (root ? database.collection(root) : null);
 
 export const userCollection = getCollectionIfDefined(FIRESTORE_USER_ROOT);
 export const userAuthCollection = getCollectionIfDefined(FIRESTORE_USER_AUTH_ROOT);
