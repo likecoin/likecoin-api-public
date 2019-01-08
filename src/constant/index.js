@@ -35,6 +35,9 @@ export const OTHER_CONNECTION_LIST = [
 ];
 
 export const IS_LOGIN_SOCIAL = new Set(LOGIN_CONNECTION_LIST);
+
+export const LINK_ICON_TYPES = ['profile', 'blog', 'photo', 'mail', 'contact', 'link'];
+
 export const DISPLAY_SOCIAL_MEDIA_OPTIONS = [
   'all', // default
   'wp',
@@ -68,4 +71,5 @@ export const CSRF_COOKIE_OPTION = {
 };
 
 // TODO: duplicate with ../../constant.js
-export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+export const W3C_EMAIL_REGEX = IS_TESTNET ? /.*/ : EMAIL_REGEX;

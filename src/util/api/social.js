@@ -1,13 +1,51 @@
+import parse from 'url-parse';
 import { fetchFacebookUser } from '../oauth/facebook';
 import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../oauth/twitter';
 import { tryToLinkOAuthLogin } from './users';
 import { ValidationError } from '../ValidationError';
-import { IS_LOGIN_SOCIAL } from '../../constant';
-
-const {
-  userCollection: dbRef,
+import { IS_LOGIN_SOCIAL, EMAIL_REGEX } from '../../constant';
+import {
+  userCollection as dbRef,
   FieldValue,
-} = require('../firebase');
+} from '../firebase';
+
+export function getLinkOrderMap(socialCol) {
+  const linkOrderMap = {};
+  socialCol.docs.forEach((doc) => {
+    if (doc.id === 'meta') {
+      const { externalLinkOrder } = doc.data();
+      if (externalLinkOrder) {
+        externalLinkOrder.forEach((id, index) => {
+          linkOrderMap[id] = index;
+        });
+      }
+    }
+  });
+  return linkOrderMap;
+}
+
+const hasHttp = link => /https?:\/\//.test(link);
+export const getUrlWithPrefix = link => (hasHttp(link) ? link : `https://${link}`);
+
+export const isValidSocialLink = (link) => {
+  if (link.length >= 2048) return false;
+  let isValid = EMAIL_REGEX.test(link);
+  if (!isValid) {
+    try {
+      let url = getUrlWithPrefix(link);
+      if (process.client) {
+        url = new URL(getUrlWithPrefix(link));
+        isValid = true;
+      } else {
+        const parsedLink = parse(url);
+        if (parsedLink.protocol && parsedLink.host) isValid = true;
+      }
+    } catch (err) {
+      // skip
+    }
+  }
+  return isValid;
+};
 
 export async function checkPlatformAlreadyLinked(user, platform) {
   const doc = await dbRef.doc(user).collection('social').doc(platform).get();
