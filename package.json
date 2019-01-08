@@ -29,6 +29,8 @@
   },
   "dependencies": {
     "@google-cloud/pubsub": "^0.22.2",
+    "@likecoin/likecoin-email-templates": "^1.1.0",
+    "aws-sdk": "^2.384.0",
     "axios": "^0.18.0",
     "bignumber.js": "^8.0.1",
     "body-parser": "^1.18.3",
