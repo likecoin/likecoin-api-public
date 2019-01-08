@@ -14,8 +14,6 @@ import {
   admin,
 } from '../../util/firebase';
 import {
-  getIntercomUserHash,
-  getUserWithCivicLikerProperties,
   handleEmailBlackList,
   checkReferrerExists,
   checkUserInfoUniqueness,
@@ -31,7 +29,6 @@ import { tryToLinkSocialPlatform } from '../../util/api/social';
 import { ValidationError } from '../../util/ValidationError';
 import {
   checkUserNameValid,
-  filterUserData,
 } from '../../util/ValidationHelper';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../util/jwt';
@@ -727,27 +724,6 @@ router.delete('/login/:platform', jwtAuth('write'), async (req, res, next) => {
       platform,
     })) {
       res.sendStatus(200);
-    } else {
-      res.sendStatus(404);
-    }
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/self', jwtAuth('read'), async (req, res, next) => {
-  try {
-    const username = req.user.user;
-    const payload = await getUserWithCivicLikerProperties(username);
-    if (payload) {
-      payload.intercomToken = getIntercomUserHash(username);
-
-      res.json(filterUserData(payload));
-      await dbRef.doc(req.user.user).collection('session').doc(req.user.jti).update({
-        lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
-        lastAccessedIP: req.headers['x-real-ip'] || req.ip,
-        lastAccessedTs: Date.now(),
-      });
     } else {
       res.sendStatus(404);
     }

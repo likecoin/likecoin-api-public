@@ -71,5 +71,5 @@ export const CSRF_COOKIE_OPTION = {
 };
 
 // TODO: duplicate with ../../constant.js
-export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-export const W3C_EMAIL_REGEX = IS_TESTNET ? /.*/ : EMAIL_REGEX;
+export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+export const EMAIL_REGEX = IS_TESTNET ? /.*/ : W3C_EMAIL_REGEX;

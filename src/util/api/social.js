@@ -3,7 +3,7 @@ import { fetchFacebookUser } from '../oauth/facebook';
 import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../oauth/twitter';
 import { tryToLinkOAuthLogin } from './users';
 import { ValidationError } from '../ValidationError';
-import { IS_LOGIN_SOCIAL, EMAIL_REGEX } from '../../constant';
+import { IS_LOGIN_SOCIAL, W3C_EMAIL_REGEX } from '../../constant';
 import {
   userCollection as dbRef,
   FieldValue,
@@ -29,7 +29,7 @@ export const getUrlWithPrefix = link => (hasHttp(link) ? link : `https://${link}
 
 export const isValidSocialLink = (link) => {
   if (link.length >= 2048) return false;
-  let isValid = EMAIL_REGEX.test(link);
+  let isValid = W3C_EMAIL_REGEX.test(link);
   if (!isValid) {
     try {
       let url = getUrlWithPrefix(link);
