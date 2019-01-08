@@ -18,6 +18,18 @@ export const EXTRA_EMAIL_BLACLIST = [
   'tutye.com',
 ];
 
+export const LOGIN_CONNECTION_LIST = [
+  'google',
+  'facebook',
+  'twitter',
+];
+
+export const OTHER_CONNECTION_LIST = [
+  'medium',
+  'flickr',
+];
+
+export const IS_LOGIN_SOCIAL = new Set(LOGIN_CONNECTION_LIST);
 export const DISPLAY_SOCIAL_MEDIA_OPTIONS = [
   'all', // default
   'wp',
