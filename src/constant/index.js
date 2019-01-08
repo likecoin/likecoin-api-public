@@ -6,6 +6,9 @@ export const ETH_NETWORK_NAME = IS_TESTNET ? 'rinkeby' : 'mainnet';
 
 export const INFURA_HOST = IS_TESTNET ? 'https://rinkeby.infura.io/v3/9a6771595426445cb247e83d4ad85645' : 'https://mainnet.infura.io/v3/9a6771595426445cb247e83d4ad85645';
 
+/* TEMP: reformat medium referrer into medium post */
+export const MEDIUM_REGEX = /^(?:https?:\/\/)?[^/]*\/media\/[a-zA-Z0-9_]+(?:\?postId=([a-zA-Z0-9_]+))?/;
+
 export const PUBSUB_TOPIC_MISC = 'misc';
 
 export const LOGIN_MESSAGE = 'Login - Reinventing the Like';
@@ -13,6 +16,8 @@ export const LOGIN_MESSAGE = 'Login - Reinventing the Like';
 export const EXTERNAL_HOSTNAME = IS_TESTNET ? 'rinkeby.like.co' : 'like.co';
 
 export const GETTING_STARTED_TASKS = ['taskSocial', 'taskOnepager', 'taskVideo', 'taskPaymentPage'];
+
+export const TRANSACTION_QUERY_LIMIT = 10;
 
 export const EXTRA_EMAIL_BLACLIST = [
   'tutye.com',
