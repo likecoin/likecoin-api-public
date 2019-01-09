@@ -1,0 +1,17 @@
+{
+  "Email": {
+    "VerifiyEmail": {
+      "subject": "Verify your like.co email",
+      "body": "Hi {{name}}!<p>Welcome to like.co! To verify your email, click the following link:<br/><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}?ref={{ref}}</a></p>"
+    },
+    "VerifiyAndCouponEmail": {
+      "subject": "Verify your like.co email and claim your LikeCoin",
+      "body": "Hi {{name}}!<p>Welcome to like.co! To verify your email and receive red pocket, click the following link:<br/><a href=\"https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}</a></p><p>Your coupon code: {{coupon}}</p>"
+    },
+    "InvitationEmail": {
+      "subject": "Join like.co with {{referrer}}!",
+      "body": "Hello!<p>You have been invited by {{referrer}} to use like.co!</p><p>LikeCoin aims to reward contents by Proof of Creativity.</p><p>Begin by clicking the link below: (Desktop chrome is required)<br/><a href=\"https://like.co/register?from={{referrerId}}&email={{email}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/register?from={{referrerId}}&email={{email}}</a></p><p>Learn more about LikeCoin on our website</p>"
+    },
+    "signature": "<p>LikeCoin Foundation<br/><a href=\"https://like.co\" style=\"color: #28646E\">https://like.co</a></p>"
+  }
+}

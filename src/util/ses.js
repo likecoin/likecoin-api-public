@@ -65,3 +65,33 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
   };
   return ses.sendEmail(params).promise();
 }
+
+export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
+  const title = res.__('Email.InvitationEmail.subject', { referrer });
+  const params = {
+    Source: '"LikeCoin Foundation" <noreply@like.co>',
+    Destination: {
+      ToAddresses: [email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: EmailTemplate.Basic({
+            title,
+            body: res.__('Email.InvitationEmail.body', {
+              referrerId,
+              referrer,
+              email,
+            }) + res.__('Email.signature'),
+          }),
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}

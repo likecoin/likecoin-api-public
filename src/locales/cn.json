@@ -1,0 +1,17 @@
+{
+  "Email": {
+    "VerifiyEmail": {
+      "subject": "like.co 帐号验证",
+      "body": "您好 {{name}}!<p>欢迎来到 like.co ！请到下列网址验证您的电邮地址:<br/><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}?ref={{ref}}</a></p>"
+    },
+    "VerifiyAndCouponEmail": {
+      "subject": "like.co 帐号验证",
+      "body": "您好 {{name}}！<p>欢迎来到 like.co ！请到下列网址验证您的电邮地址，换领您的免费 LikeCoin：<br/><a href=\"https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}</a></p><p>您的换领券编号：{{coupon}}</p>"
+    },
+    "InvitationEmail": {
+      "subject": "注册 like.co 帐号，加入 {{referrer}} 的行列，化Like为Coin，回馈创作",
+      "body": "您好，<p>{{referrer}} 想邀请你使用 like.co 。</p><p>LikeCoin 致力改革内容创作生态，化Like为Coin，回馈创作。</p><p>请到以下网址注册 LikeCoin ID（需使用电脑版 Chrome 浏览器）<br/><a href=\"https://like.co/register?from={{referrerId}}&email={{email}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/register?from={{referrerId}}&email={{email}}</a></p><p>了解更多资讯请浏览我们的网站</p>"
+    },
+    "signature": "<p>LikeCoin Foundation<br/><a href=\"https://like.co\" style=\"color: #28646E\">https://like.co</a></p>"
+  }
+}

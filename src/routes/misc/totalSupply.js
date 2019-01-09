@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
-
 import { LikeCoin } from '../../util/web3';
 
 const router = Router();
