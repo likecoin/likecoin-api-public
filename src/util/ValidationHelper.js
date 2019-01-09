@@ -16,13 +16,19 @@ export function filterUserData(u) {
     user,
     bonusCooldown,
     displayName,
+    email,
     avatar,
     wallet,
     referrer,
     isEmailVerified,
     isEmailEnabled,
-    email,
+    intercomToken,
     read = {},
+    isPreRegCivicLiker,
+    preRegCivicLikerStatus,
+    isSubscribedCivicLiker,
+    civicLikerSince,
+    civicLikerStatus,
   } = u;
   return {
     user,
@@ -34,7 +40,13 @@ export function filterUserData(u) {
     referrer: !!referrer,
     isEmailVerified,
     isEmailEnabled,
+    intercomToken,
     read,
+    isPreRegCivicLiker,
+    preRegCivicLikerStatus,
+    isSubscribedCivicLiker,
+    civicLikerSince,
+    civicLikerStatus,
   };
 }
 
@@ -43,12 +55,20 @@ export function filterUserDataMin({
   displayName,
   avatar,
   wallet,
+  isPreRegCivicLiker,
+  preRegCivicLikerStatus,
+  isSubscribedCivicLiker,
+  civicLikerSince,
 }) {
   return {
     user,
     displayName,
     avatar,
     wallet,
+    isPreRegCivicLiker,
+    preRegCivicLikerStatus,
+    isSubscribedCivicLiker,
+    civicLikerSince,
   };
 }
 
