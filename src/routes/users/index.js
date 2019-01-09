@@ -5,7 +5,7 @@ const router = Router();
 
 fs.readdirSync(__dirname).forEach((file) => {
   const name = file.split('.')[0];
-  if (name === 'index') return;
+  if (!name || name === 'index') return;
   router.use(require(`./${name}`).default); // eslint-disable-line import/no-dynamic-require,global-require
 });
 

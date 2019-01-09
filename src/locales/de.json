@@ -1,0 +1,17 @@
+{
+  "Email": {
+    "InvitationEmail": {
+      "subject": "Schließen Sie sich {{referrer}} auf like.co an!",
+      "body": "Hallo!<p>Sie wurden von {{referrer}} eingeladen, like.co zu benutzen!</p><p>LikeCoin möchte Inhalte anhand eines Kreativitätsnachweises belohnen.</p><p>Klicken Sie zum Einstieg auf den Link unten: (Sie brauchen dafür Chrome auf einem Desktopsystem)<br/><a href=\"https://like.co/register?from={{referrerId}}&email={{email}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/register?from={{referrerId}}&email={{email}}</a></p><p>Mehr über LikeCoin auf unserer Website</p>"
+    },
+    "VerifiyEmail": {
+      "subject": "like.co E-Mail-Adresse überprüfen",
+      "body": "Hallo {{name}}!<p>Willkommen auf like.co! Zum Überprüfen Ihrer E-Mail-Adresse klicken Sie bitte folgenden Link:<br/><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}?ref={{ref}}</a></p>"
+    },
+    "VerifiyAndCouponEmail": {
+      "subject": "like.co E-Mail-Adresse überprüfen und Ihre LikeCoins kassieren",
+      "body": "Hallo {{name}}!<p>Willkommen auf like.co! Zum Überprüfen Ihrer E-Mail-Adresse klicken Sie bitte folgenden Link:<br/><a href=\"https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/verify/{{uuid}}/{{coupon}}?ref={{ref}}</a></p><p>Ihr Gutscheincode: {{coupon}}</p>"
+    },
+    "signature": "<p>LikeCoin-Stiftung<br/><a href=\"https://like.co\" style=\"color: #28646E\">https://like.co</a></p>"
+  }
+}
