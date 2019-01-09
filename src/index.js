@@ -2,9 +2,7 @@ import express from 'express';
 import cors from 'cors';
 
 import errorHandler from './middleware/errorHandler';
-
-import misc from './routes/misc';
-import oembed from './routes/oembed';
+import allRoutes from './routes/all';
 
 const app = express();
 
@@ -13,11 +11,7 @@ const port = process.env.PORT || 3000;
 app.set('port', port);
 
 app.use(cors({ origin: true, credentials: true }));
-
-
-app.use('/misc', misc);
-app.use('/oembed', oembed);
-
+app.use(allRoutes);
 
 app.get('/healthz', (req, res) => {
   res.sendStatus(200);
