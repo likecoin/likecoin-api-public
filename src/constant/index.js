@@ -73,3 +73,8 @@ export const CSRF_COOKIE_OPTION = {
 // TODO: duplicate with ../../constant.js
 export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 export const EMAIL_REGEX = IS_TESTNET ? /.*/ : W3C_EMAIL_REGEX;
+
+export const TWITTER_USER_ID_STR = '913375304357339136'; // likecoin_fdn
+export const TWITTER_STATUS_ID_STR = '1055679649156493312';
+
+export const OICE_API_HOST = IS_TESTNET ? 'https://oice.com/api' : 'https://oicetest.lakoo.com/api';
