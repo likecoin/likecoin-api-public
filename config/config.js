@@ -33,7 +33,7 @@ config.MEDIUM_APP_ID = '';
 config.MEDIUM_APP_SECRET = '';
 
 config.REGISTER_LIMIT_WINDOW = 3600000; // 1hour
-config.REGISTER_LIMIT_COUNT = 10;
+config.REGISTER_LIMIT_COUNT = 0; // 0 = disable
 config.NEW_USER_BONUS_COOLDOWN = 259200000; // 3 days
 
 config.GCLOUD_PUBSUB_MAX_MESSAGES = 10;
