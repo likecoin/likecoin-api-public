@@ -8,11 +8,12 @@ import {
 } from '../../util/firebase';
 import { jwtAuth } from '../../util/jwt';
 import { ValidationError } from '../../util/ValidationError';
-import { web3 } from '../../util/web3';
 import {
   filterTxData,
   checkAddressValid,
 } from '../../util/ValidationHelper';
+
+const web3Utils = require('web3-utils');
 
 const router = Router();
 
@@ -59,13 +60,13 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       count = TRANSACTION_QUERY_LIMIT;
     }
     const queryTo = txLogRef
-      .where('to', '==', web3.utils.toChecksumAddress(addr))
+      .where('to', '==', web3Utils.toChecksumAddress(addr))
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)
       .get();
     const queryFrom = txLogRef
-      .where('from', '==', web3.utils.toChecksumAddress(addr))
+      .where('from', '==', web3Utils.toChecksumAddress(addr))
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)

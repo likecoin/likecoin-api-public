@@ -12,14 +12,14 @@ import {
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
 import { getEmailBlacklist, getEmailNoDot } from '../../../poller';
-import { web3, personalEcRecover } from '../../web3';
 import { jwtSign } from '../../jwt';
-import { web3, personalEcRecover } from '../../web3';
+import { personalEcRecover } from '../../web3';
 import {
   INTERCOM_USER_HASH_SECRET,
 } from '../../../../config/config';
 
 const disposableDomains = require('disposable-email-domains');
+const web3Utils = require('web3-utils');
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -67,7 +67,7 @@ export function checkSignPayload(from, payload, sign) {
   }
 
   // trims away sign message header before JSON
-  const message = web3.utils.hexToUtf8(payload);
+  const message = web3Utils.hexToUtf8(payload);
   const actualPayload = JSON.parse(message.substr(message.indexOf('{')));
   const {
     wallet,

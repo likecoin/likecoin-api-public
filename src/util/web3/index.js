@@ -1,16 +1,16 @@
 import BigNumber from 'bignumber.js';
 import Web3 from 'web3';
-import { INFURA_HOST, PUBSUB_TOPIC_MISC } from '../constant';
-import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../constant/contract/likecoin';
-import publisher from './gcloudPub';
-import { getGasPrice } from '../poller';
+import { INFURA_HOST, PUBSUB_TOPIC_MISC } from '../../constant';
+import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../../constant/contract/likecoin';
+import publisher from '../gcloudPub';
+import { getGasPrice } from '../../poller';
 import {
   db,
   txCollection as txLogRef,
-} from './firebase';
+} from '../firebase';
 
 const sigUtil = require('eth-sig-util');
-const accounts = require('../../config/accounts.js');
+const accounts = require('../../../config/accounts.js');
 
 export const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
 export const LikeCoin = new web3.eth.Contract(LIKE_COIN_ABI, LIKE_COIN_ADDRESS);
