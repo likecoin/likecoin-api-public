@@ -11,7 +11,7 @@ module.exports = {
       '@': __dirname,
     };
     config.entry = entries;
-    config.output.filename = '[name].bundle.js';
+    config.output.filename = '[name].js';
     config.externals = [config.externals];
     config.externals.push((ctx, request, callback) => {
       if (/^(\.\.\/)+config/.test(request)) {

@@ -7,7 +7,7 @@
     "dev": "backpack dev",
     "build": "NODE_ENV=production backpack build",
     "lint": "eslint src test",
-    "start": "NODE_ENV=production node build/api.bundle.js",
+    "start": "NODE_ENV=production node build/api.js",
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner",
     "test:api": "IS_TESTNET=true ava -v test/api/*.test.js"
