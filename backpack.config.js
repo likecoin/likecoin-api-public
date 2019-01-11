@@ -1,12 +1,17 @@
 /* eslint-disable no-param-reassign */
+const entries = {
+  api: './src/api.js',
+  development: './src/index.js',
+};
 
 module.exports = {
   webpack: (config, options, webpack) => { // eslint-disable-line no-unused-vars
-    config.resolve.alias =  {
+    config.resolve.alias = {
       '~': __dirname,
       '@': __dirname,
     };
-    config.entry.main = './src/index.js';
+    config.entry = entries;
+    config.output.filename = '[name].bundle.js';
     config.externals = [config.externals];
     config.externals.push((ctx, request, callback) => {
       if (/^(\.\.\/)+config/.test(request)) {
@@ -15,12 +20,14 @@ module.exports = {
       }
       return callback();
     });
-    config.module.rules.push({
-      enforce: 'pre',
-      test: /\.(js|vue)$/,
-      loader: 'eslint-loader',
-      exclude: /(node_modules)/,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      config.module.rules.push({
+        enforce: 'pre',
+        test: /\.(js|vue)$/,
+        loader: 'eslint-loader',
+        exclude: /(node_modules)/,
+      });
+    }
     return config;
   },
 };

@@ -5,9 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "backpack dev",
-    "build": "backpack build",
+    "build": "NODE_ENV=production backpack build",
     "lint": "eslint src test",
-    "start": "NODE_ENV=production node build/main.js",
+    "start": "NODE_ENV=production node build/api.bundle.js",
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner",
     "test:api": "IS_TESTNET=true ava -v test/api/*.test.js"
@@ -51,6 +51,7 @@
     "multer": "^1.4.1",
     "oauth-1.0a": "^2.2.5",
     "sharp": "^0.21.1",
+    "source-map-support": "^0.5.9",
     "twit": "^2.2.11",
     "url-parse": "^1.4.4",
     "uuid": "^3.3.2",

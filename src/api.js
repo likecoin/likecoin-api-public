@@ -7,7 +7,10 @@ import i18n from 'i18n';
 import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
-import allRoutes from './routes/all';
+import getPublicInfo from './routes/getPublicInfo';
+import missions from './routes/mission/missions';
+import missionClaim from './routes/mission/claim';
+import storeInvite from './routes/misc/storeInvite';
 
 const path = require('path');
 
@@ -24,6 +27,7 @@ i18n.configure({
 });
 
 app.use(cors({ origin: true, credentials: true }));
+
 app.use(cookieParser());
 app.use(compression());
 app.use(bodyParser.json());
@@ -33,13 +37,24 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(allRoutes);
+app.use((req, res, next) => {
+  const { baseUrl, path: urlPath } = req;
+  const { host: reqHost, origin } = req.headers;
+  console.warn(`Deprecated /api calls: ${reqHost} ${origin} to ${baseUrl} ${urlPath}`);
+  next();
+});
+app.use('/api ', getPublicInfo);
+app.use(getPublicInfo);
+app.use(missions);
+app.use(missionClaim);
+app.use(storeInvite);
 
 app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 
 app.use(errorHandler);
+
 
 app.listen(port, host);
 
