@@ -37,17 +37,18 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
+app.use('/api', (req, res, next) => {
   const { baseUrl, path: urlPath } = req;
-  const { host: reqHost, origin } = req.headers;
-  console.warn(`Deprecated /api calls: ${reqHost} ${origin} to ${baseUrl} ${urlPath}`);
+  const { host: reqHost, origin, referer } = req.headers;
+  console.warn(`Deprecated /api calls: host:${reqHost} origin:${origin} referer:${referer} to ${baseUrl} ${urlPath}`);
   next();
 });
-app.use('/api ', getPublicInfo);
+app.use('/api', getPublicInfo);
 app.use(getPublicInfo);
-app.use(missions);
-app.use(missionClaim);
-app.use(storeInvite);
+
+app.use('/mission', missions);
+app.use('/mission', missionClaim);
+app.use('/misc', storeInvite);
 
 app.get('/healthz', (req, res) => {
   res.sendStatus(200);
