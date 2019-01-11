@@ -1,28 +1,13 @@
 import parse from 'url-parse';
-import { fetchFacebookUser } from '../oauth/facebook';
-import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../oauth/twitter';
-import { tryToLinkOAuthLogin } from './users';
-import { ValidationError } from '../ValidationError';
-import { IS_LOGIN_SOCIAL, W3C_EMAIL_REGEX } from '../../constant';
+import { fetchFacebookUser } from '../../oauth/facebook';
+import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../../oauth/twitter';
+import { tryToLinkOAuthLogin } from '../users';
+import { ValidationError } from '../../ValidationError';
+import { IS_LOGIN_SOCIAL, W3C_EMAIL_REGEX } from '../../../constant';
 import {
   userCollection as dbRef,
   FieldValue,
-} from '../firebase';
-
-export function getLinkOrderMap(socialCol) {
-  const linkOrderMap = {};
-  socialCol.docs.forEach((doc) => {
-    if (doc.id === 'meta') {
-      const { externalLinkOrder } = doc.data();
-      if (externalLinkOrder) {
-        externalLinkOrder.forEach((id, index) => {
-          linkOrderMap[id] = index;
-        });
-      }
-    }
-  });
-  return linkOrderMap;
-}
+} from '../../firebase';
 
 const hasHttp = link => /https?:\/\//.test(link);
 export const getUrlWithPrefix = link => (hasHttp(link) ? link : `https://${link}`);
@@ -180,3 +165,5 @@ export async function tryToLinkSocialPlatform(user, platform, { accessToken, sec
     return null;
   }
 }
+
+export * from './getPublicInfo';

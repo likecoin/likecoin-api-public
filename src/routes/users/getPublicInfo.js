@@ -12,7 +12,7 @@ import {
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
-} from '../../util/api/users';
+} from '../../util/api/users/getPublicInfo';
 
 const router = Router();
 

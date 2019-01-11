@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
-import { LikeCoin } from '../../util/web3';
+import Web3 from 'web3';
+import { INFURA_HOST } from '../../constant';
+import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../../constant/contract/likecoin';
 
 const router = Router();
+
+const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
+const LikeCoin = new web3.eth.Contract(LIKE_COIN_ABI, LIKE_COIN_ADDRESS);
 
 router.get('/totalsupply', async (req, res) => {
   const ONE_DAY_IN_S = 86400;
