@@ -38,12 +38,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api', (req, res, next) => {
-  const { baseUrl, path: urlPath } = req;
-  const { host: reqHost, origin, referer } = req.headers;
-  console.warn(`Deprecated /api calls: host:${reqHost} origin:${origin} referer:${referer} to ${baseUrl} ${urlPath}`);
-  next();
-});
+// app.use('/api', (req, res, next) => {
+//   const { baseUrl, path: urlPath } = req;
+//   const { host: reqHost, origin, referer } = req.headers;
+//   console.warn(`Deprecated /api calls: host:${reqHost} origin:${origin} referer:${referer} to ${baseUrl} ${urlPath}`);
+//   next();
+// });
 app.use('/api', getPublicInfo);
 app.use('/api/users', userChallenge);
 
