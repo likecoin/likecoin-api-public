@@ -25,12 +25,8 @@ function stubAndTest() {
     // catch SIGINT
     unsetStub();
   });
-
-  const testEnv = Object.create(process.env);
-  testEnv.CI = 'TRUE'; // unit test env
-  testEnv.IS_TESTNET = 'TRUE';
   try {
-    execSync('npm run test:api', { env: testEnv, stdio: 'inherit' });
+    execSync(`npm run ${process.argv.slice(2).join(' ')}`, { env: process.env, stdio: 'inherit' });
   } catch (e) {
     unsetStub();
     process.exit(1);
