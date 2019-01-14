@@ -11,8 +11,8 @@ import {
   checkAddressValid,
   filterUserDataMin,
 } from '../../util/ValidationHelper';
-import { web3 } from '../../util/web3';
 
+const web3Utils = require('web3-utils');
 const sigUtil = require('eth-sig-util');
 
 const router = Router();
@@ -28,7 +28,7 @@ router.get('/challenge', async (req, res, next) => {
       res.sendStatus(404);
     } else {
       const challenge = `${LOGIN_MESSAGE}\n${JSON.stringify({ wallet, ts: Date.now() }, null, 2)}`;
-      res.json({ wallet, challenge: web3.util.utf8ToHex(challenge) });
+      res.json({ wallet, challenge: web3Utils.utf8ToHex(challenge) });
     }
   } catch (err) {
     next(err);
@@ -48,10 +48,10 @@ router.post('/challenge', async (req, res, next) => {
     }
 
     if (!challenge
-      || !web3.util.isHex(challenge)
+      || !web3Utils.isHex(challenge)
       || !signature
       || signature.length !== 132
-      || !web3.util.isHex(signature)) {
+      || !web3Utils.isHex(signature)) {
       throw new ValidationError('invalid payload');
     }
     const recovered = sigUtil.recoverPersonalSignature({
@@ -61,7 +61,7 @@ router.post('/challenge', async (req, res, next) => {
     if (!recovered || recovered.toLowerCase() !== from.toLowerCase()) {
       throw new ValidationError('recovered address not match');
     }
-    const message = web3.util.hexToUtf8(challenge);
+    const message = web3Utils.hexToUtf8(challenge);
     const actualPayload = JSON.parse(message.substr(message.indexOf('{')));
     const {
       wallet,

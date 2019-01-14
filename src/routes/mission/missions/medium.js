@@ -3,12 +3,12 @@ import axios from 'axios';
 import {
   ETH_NETWORK_NAME,
   PUBSUB_TOPIC_MISC,
-} from '../../constant';
+} from '../../../constant';
 import {
   db,
   userCollection as dbRef,
-} from '../../util/firebase';
-import publisher from '../../util/gcloudPub';
+} from '../../../util/firebase';
+import publisher from '../../../util/gcloudPub';
 
 const router = Router();
 

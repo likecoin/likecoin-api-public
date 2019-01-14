@@ -4,18 +4,18 @@ import {
   PUBSUB_TOPIC_MISC,
   TWITTER_USER_ID_STR,
   TWITTER_STATUS_ID_STR,
-} from '../../constant';
+} from '../../../constant';
 import {
   db,
   userCollection as dbRef,
-} from '../../util/firebase';
-import publisher from '../../util/gcloudPub';
+} from '../../../util/firebase';
+import publisher from '../../../util/gcloudPub';
 import {
   TWITTER_CONSUMER_KEY,
   TWITTER_CONSUMER_SECRET,
   TWITTER_ACCESS_TOKEN,
   TWITTER_ACCESS_TOKEN_SECRET,
-} from '../../../config/config';
+} from '../../../../config/config';
 
 const Twit = require('twit');
 

@@ -1,27 +1,25 @@
 import crypto from 'crypto';
 import {
-  AVATAR_DEFAULT_PATH,
-  SUBSCRIPTION_GRACE_PERIOD,
   AUTH_COOKIE_OPTION,
   IS_TESTNET,
   W3C_EMAIL_REGEX,
-} from '../../constant';
+} from '../../../constant';
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
-  subscriptionUserCollection as subscriptionDbRef,
   FieldValue,
-} from '../firebase';
-import { checkAddressValid } from '../ValidationHelper';
-import { ValidationError } from '../ValidationError';
-import { getEmailBlacklist, getEmailNoDot } from '../../poller';
-import { web3, personalEcRecover } from '../web3';
-import { jwtSign } from '../jwt';
+} from '../../firebase';
+import { checkAddressValid } from '../../ValidationHelper';
+import { ValidationError } from '../../ValidationError';
+import { getEmailBlacklist, getEmailNoDot } from '../../../poller';
+import { jwtSign } from '../../jwt';
+import { personalEcRecover } from '../../web3';
 import {
   INTERCOM_USER_HASH_SECRET,
-} from '../../../config/config';
+} from '../../../../config/config';
 
 const disposableDomains = require('disposable-email-domains');
+const web3Utils = require('web3-utils');
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -30,36 +28,6 @@ export function getIntercomUserHash(user) {
   return crypto.createHmac('sha256', INTERCOM_USER_HASH_SECRET)
     .update(user)
     .digest('hex');
-}
-
-export async function getUserWithCivicLikerProperties(id) {
-  const [userDoc, subscriptionDoc] = await Promise.all([
-    dbRef.doc(id).get(),
-    subscriptionDbRef.doc(id).get(),
-  ]);
-  if (!userDoc.exists) return null;
-
-  const payload = userDoc.data();
-  payload.user = id;
-  if (!payload.avatar) {
-    payload.avatar = AVATAR_DEFAULT_PATH;
-  }
-
-  if (subscriptionDoc.exists) {
-    const {
-      currentPeriodStart,
-      currentPeriodEnd,
-      since,
-      currentType,
-    } = subscriptionDoc.data();
-    const now = Date.now();
-    if (currentType !== 'trial' && now >= currentPeriodStart && now <= currentPeriodEnd + SUBSCRIPTION_GRACE_PERIOD) {
-      payload.isSubscribedCivicLiker = true;
-      payload.civicLikerSince = since;
-    }
-  }
-
-  return payload;
 }
 
 export async function setAuthCookies(req, res, { user, wallet }) {
@@ -99,7 +67,7 @@ export function checkSignPayload(from, payload, sign) {
   }
 
   // trims away sign message header before JSON
-  const message = web3.utils.hexToUtf8(payload);
+  const message = web3Utils.hexToUtf8(payload);
   const actualPayload = JSON.parse(message.substr(message.indexOf('{')));
   const {
     wallet,
@@ -326,3 +294,5 @@ export async function tryToUnlinkOAuthLogin({
   }
   return true;
 }
+
+export * from './getPublicInfo';

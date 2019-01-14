@@ -6,7 +6,7 @@ import {
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
-import { getLinkOrderMap } from '../../util/api/social';
+import { getLinkOrderMap } from '../../util/api/social/getPublicInfo';
 import { filterSocialPlatformPublic } from '../../util/ValidationHelper';
 
 const router = Router();

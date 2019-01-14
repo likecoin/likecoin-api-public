@@ -10,7 +10,7 @@ const config = require('../../config/config.js');
 const audience = EXTERNAL_HOSTNAME;
 const issuer = EXTERNAL_HOSTNAME;
 
-let algorithm = 'HS256';
+let algorithm = 'RS256';
 let signSecret;
 let verifySecret;
 const publicCertPath = config.JWT_PUBLIC_CERT_PATH;
@@ -18,17 +18,27 @@ const secretCertPath = config.JWT_PRIVATE_KEY_PATH;
 if (publicCertPath) {
   try {
     verifySecret = fs.readFileSync(publicCertPath);
-    signSecret = fs.readFileSync(secretCertPath);
-    algorithm = 'RS256';
   } catch (err) {
     console.error(err);
-    console.log('RSA key not exist for jwt');
+    console.error('RSA key not exist for jwt');
   }
 }
+if (secretCertPath) {
+  try {
+    verifySecret = fs.readFileSync(publicCertPath);
+  } catch (err) {
+    console.error(err);
+    console.error('RSA key not exist for jwt');
+  }
+}
+
 if (!signSecret || !verifySecret) {
   const secret = TEST_MODE ? 'likecoin' : crypto.randomBytes(64).toString('hex').slice(0, 64);
-  signSecret = secret;
-  verifySecret = secret;
+  if (!signSecret) {
+    signSecret = secret;
+    algorithm = 'HS256';
+  }
+  verifySecret = verifySecret || secret;
 }
 
 export function getToken(req) {
