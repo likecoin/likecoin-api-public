@@ -8,6 +8,7 @@ import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
 import getPublicInfo from './routes/getPublicInfo';
+import userChallenge from './routes/users/challenge';
 import missions from './routes/mission/missions';
 import missionClaim from './routes/mission/claim';
 import storeInvite from './routes/misc/storeInvite';
@@ -44,8 +45,10 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.use('/api', getPublicInfo);
-app.use(getPublicInfo);
+app.use('/api/users', userChallenge);
 
+app.use(getPublicInfo);
+app.use('/users', userChallenge);
 app.use('/mission', missions);
 app.use('/mission', missionClaim);
 app.use('/misc', storeInvite);
