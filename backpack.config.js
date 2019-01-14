@@ -10,8 +10,17 @@ module.exports = {
       '~': __dirname,
       '@': __dirname,
     };
-    config.entry = entries;
-    config.output.filename = '[name].js';
+    if (process.env.NODE_ENV === 'production') {
+      config.entry = entries;
+      config.output.filename = '[name].js';
+    } else {
+      const buildTarget = process.env.BACKPACK_ENTRY || 'development';
+      delete config.entry.main;
+      config.entry[buildTarget] = [
+        entries[buildTarget],
+      ];
+      config.output.filename = `${buildTarget}.js`;
+    }
     config.externals = [config.externals];
     config.externals.push((ctx, request, callback) => {
       if (/^(\.\.\/)+config/.test(request)) {
