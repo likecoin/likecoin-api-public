@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 // app.use('/api', (req, res, next) => {
 //   const { baseUrl, path: urlPath } = req;
 //   const { host: reqHost, origin, referer } = req.headers;
+//   eslint-disable-next-line max-len
 //   console.warn(`Deprecated /api calls: host:${reqHost} origin:${origin} referer:${referer} to ${baseUrl} ${urlPath}`);
 //   next();
 // });
