@@ -3,11 +3,11 @@ const { execSync } = require('child_process');
 
 function setStub() {
   console.log('Setting Stub');
-  execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak');
-  execSync('cp ./src/util/ses.js ./src/util/ses.js.bak');
+  execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak || true');
+  execSync('cp ./src/util/ses.js ./src/util/ses.js.bak || true');
   execSync('cp ./test/stub/util/* ./src/util/');
-  execSync('cp ./config/accounts.js ./config/accounts.js.bak');
-  execSync('cp ./test/stub/config/accounts.js ./config/accounts.js');
+  execSync('cp ./config/accounts.js ./config/accounts.js.bak || true');
+  execSync('cp ./test/stub/config/accounts.js ./config/accounts.js || true');
   execSync('sed -i.bak "s/0xB97Df12b24C119A052EE0D4Ba97bAc59Da86AB4B/0x2fDF85d31b023c471a7F54cF2E67bA5767ADaECa/" ./src/constant/contract/likecoin.js');
 }
 

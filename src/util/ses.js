@@ -1,9 +1,10 @@
 /* eslint-disable no-underscore-dangle */
 import EmailTemplate from '@likecoin/likecoin-email-templates';
+import { TEST_MODE } from '../constant';
 
 const aws = require('aws-sdk');
 
-aws.config.loadFromPath('config/aws.json');
+if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 
 const ses = new aws.SES();
 
