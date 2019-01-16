@@ -37,4 +37,4 @@ export const configCollection = getCollectionIfDefined(FIRESTORE_CONFIG_ROOT);
 export const bucket = FIREBASE_STORAGE_BUCKET ? admin.storage().bucket() : null;
 
 export { admin };
-export const FieldValue = admin.firestore;
+export const { FieldValue } = admin.firestore;

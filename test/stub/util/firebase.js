@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 import { INFURA_HOST } from '../constant';
 
 export { admin };
-export const FieldValue = admin.firestore;
+export const { FieldValue } = admin.firestore;
 
 console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
 
