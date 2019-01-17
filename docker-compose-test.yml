@@ -8,6 +8,5 @@ services:
     command: npm run dev:stub
     environment:
      - PORT=3001
-     - IS_TESTNET=true
     ports:
      - "3001:3001"

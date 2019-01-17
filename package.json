@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "IS_TESTNET=true backpack dev",
-    "dev:stub": "node ./test/stub/runner dev",
+    "dev:stub": "IS_TESTNET=true node ./test/stub/runner dev",
     "dev:docker:api": "docker-compose -f docker-compose-dev.yml up -d",
     "dev:docker:build": "docker-compose build",
     "dev:docker:down": "docker-compose down",
