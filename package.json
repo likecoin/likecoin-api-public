@@ -15,6 +15,7 @@
     "build": "NODE_ENV=production backpack build",
     "lint": "eslint src test",
     "start": "NODE_ENV=production node build/api.js",
+    "start:web": "NODE_ENV=production node build/web.js",
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
     "test:api": "IS_TESTNET=true CI=true ava -v test/api/*.test.js"
