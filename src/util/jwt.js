@@ -20,15 +20,15 @@ if (publicCertPath) {
     verifySecret = fs.readFileSync(publicCertPath);
   } catch (err) {
     console.error(err);
-    console.error('RSA key not exist for jwt');
+    console.error('RSA cert not exist for jwt');
   }
 }
 if (secretCertPath) {
   try {
-    verifySecret = fs.readFileSync(publicCertPath);
+    signSecret = fs.readFileSync(secretCertPath);
   } catch (err) {
     console.error(err);
-    console.error('RSA key not exist for jwt');
+    console.error('RSA sign key not exist for jwt');
   }
 }
 
