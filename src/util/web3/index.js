@@ -125,7 +125,7 @@ async function sendWithLoop(
   };
 }
 
-export async function sendTransactionWithLoop(addr, txData) {
+export async function sendTransactionWithLoop(addr, txData, { gas } = {}) {
   const {
     address,
     privateKey,
@@ -135,7 +135,28 @@ export async function sendTransactionWithLoop(addr, txData) {
     addr,
     txData,
     {
-      gasLimit,
+      gasLimit: gas || gasLimit,
+      privateKey,
+      address,
+    },
+  );
+}
+
+export async function sendPriorityTransactionWithLoop(addr, txData, opt = {}) {
+  const { gas } = opt;
+  if (!accounts[1]) {
+    return sendTransactionWithLoop(addr, txData, opt);
+  }
+  const {
+    address,
+    privateKey,
+    gasLimit,
+  } = accounts[1];
+  return sendWithLoop(
+    addr,
+    txData,
+    {
+      gasLimit: gas || gasLimit,
       privateKey,
       address,
     },
