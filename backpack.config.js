@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 const entries = {
   api: './src/api.js',
+  web: './src/web.js',
   development: './src/index.js',
 };
 

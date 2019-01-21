@@ -1,0 +1,12 @@
+version: '3'
+services:
+  like-api:
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: npm run dev:stub
+    environment:
+     - PORT=3001
+    ports:
+     - "3001:3001"

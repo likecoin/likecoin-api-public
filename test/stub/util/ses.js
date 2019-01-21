@@ -9,3 +9,8 @@ export async function sendVerificationEmail() {
 export async function sendVerificationWithCouponEmail() {
   return Promise.resolve();
 }
+
+/* istanbul ignore next */
+export async function sendInvitationEmail() {
+  return Promise.resolve();
+}

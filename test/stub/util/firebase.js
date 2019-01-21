@@ -1,12 +1,15 @@
 /* eslint import/no-unresolved: "off" */
 /* eslint import/extensions: "off" */
+import * as admin from 'firebase-admin';
 import { INFURA_HOST } from '../constant';
+
+export { admin };
+export const { FieldValue } = admin.firestore;
 
 console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
 
-const { FieldValue } = require('firebase-admin').firestore;
 const Web3 = require('web3');
-const cloneDeep = require('lodash.clonedeep');
+const cloneDeep = require('lodash.clonedeep'); // eslint-disable-line import/no-extraneous-dependencies
 const accounts = require('../../config/accounts.js'); // eslint-disable-line import/no-extraneous-dependencies
 
 const userData = require('../../test/data/user.json').users;
@@ -164,14 +167,14 @@ function createCollection(data) {
   };
 }
 
-const userCollection = createCollection(userData);
-const userAuthCollection = createCollection([]);
-const subscriptionUserCollection = createCollection([]);
-const txCollection = createCollection(txData);
-const iapCollection = createCollection([]);
-const missionCollection = createCollection(missionData);
-const payoutCollection = createCollection(bonusData);
-const configCollection = createCollection(configData);
+export const userCollection = createCollection(userData);
+export const userAuthCollection = createCollection([]);
+export const subscriptionUserCollection = createCollection([]);
+export const txCollection = createCollection(txData);
+export const iapCollection = createCollection([]);
+export const missionCollection = createCollection(missionData);
+export const payoutCollection = createCollection(bonusData);
+export const configCollection = createCollection(configData);
 
 function runTransaction(updateFunc) {
   return updateFunc({
@@ -203,18 +206,5 @@ function createDb() {
 }
 
 initDb();
-const db = createDb();
-
-module.exports = {
-  db,
-  userCollection,
-  userAuthCollection,
-  subscriptionUserCollection,
-  txCollection,
-  iapCollection,
-  missionCollection,
-  payoutCollection,
-  configCollection,
-  bucket: {},
-  FieldValue,
-};
+export const db = createDb();
+export const bucket = {};

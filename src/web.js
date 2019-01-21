@@ -5,13 +5,11 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
 import { supportedLocales } from './locales';
+import { IS_TESTNET, TEST_MODE } from './constant';
 
 import errorHandler from './middleware/errorHandler';
-import getPublicInfo from './routes/getPublicInfo';
-import userChallenge from './routes/users/challenge';
-import missions from './routes/mission/missions';
-import missionClaim from './routes/mission/claim';
-import storeInvite from './routes/misc/storeInvite';
+import allRoutes from './routes/all';
+import { startPoller } from './poller';
 
 const path = require('path');
 
@@ -27,7 +25,10 @@ i18n.configure({
   objectNotation: true,
 });
 
-app.use(cors({ origin: true, credentials: true }));
+const corsWhiteList = [/\.like\.co$/];
+if (IS_TESTNET || TEST_MODE) corsWhiteList.push(/^http(s)?:\/\/localhost(:\d+)?$/);
+
+app.use(cors({ origin: corsWhiteList, credentials: true }));
 
 app.use(cookieParser());
 app.use(compression());
@@ -38,27 +39,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use('/api', (req, res, next) => {
-//   const { baseUrl, path: urlPath } = req;
-//   const { host: reqHost, origin, referer } = req.headers;
-//   eslint-disable-next-line max-len
-//   console.warn(`Deprecated /api calls: host:${reqHost} origin:${origin} referer:${referer} to ${baseUrl} ${urlPath}`);
-//   next();
-// });
-app.use('/api', getPublicInfo);
-app.use('/api/users', userChallenge);
-
-app.use(getPublicInfo);
-app.use('/users', userChallenge);
-app.use('/mission', missions);
-app.use('/mission', missionClaim);
-app.use('/misc', storeInvite);
+app.use(allRoutes);
 
 app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 
 app.use(errorHandler);
+
+if (!process.env.CI) startPoller();
 
 
 app.listen(port, host);
