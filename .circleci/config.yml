@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  test:
     working_directory: ~/likecoin-api-public
     docker:
       - image: node:10
@@ -36,3 +36,103 @@ jobs:
           key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
+  deploy_rinkeby_api:
+    working_directory: ~/like-api-public
+    docker:
+      - image: lakoo/node-gcloud-docker
+    environment:
+      - DEBIAN_FRONTEND: noninteractive
+      - TERM: dumb
+      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
+    steps:
+      - checkout
+      - run:
+          name: Setup gcloud
+          command: |
+            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /test-account-auth.json
+            gcloud auth activate-service-account --key-file /test-account-auth.json
+            gcloud config set project ${TEST_PROJECT_NAME}
+            gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
+            gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
+            gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
+      - setup_docker_engine
+      - run:
+          name: Build image
+          command: |
+            gcloud docker -- pull us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest || true
+            docker build . -t like-api-public --cache-from us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
+            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
+            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
+      - run:
+          name: Push images
+          command: |
+            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
+            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
+      - deploy:
+          name: Deploy
+          command: |
+            kubectl patch deployment like-api-public-rinkeby -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
+  deploy_mainnet_api:
+    working_directory: ~/like-api-public
+    docker:
+      - image: lakoo/node-gcloud-docker
+    environment:
+      - DEBIAN_FRONTEND: noninteractive
+      - TERM: dumb
+      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
+    steps:
+      - checkout
+      - run:
+          name: Setup gcloud
+          command: |
+            echo ${GCLOUD_SERVICE_KEY} | base64 -d > /account-auth.json
+            gcloud auth activate-service-account --key-file /account-auth.json
+            gcloud config set project ${PROJECT_NAME}
+            gcloud --quiet config set container/cluster ${PROD_CLUSTER_NAME}
+            gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
+            gcloud --quiet container clusters get-credentials ${PROD_CLUSTER_NAME}
+      - setup_docker_engine
+      - run:
+          name: Build image
+          command: |
+            gcloud docker -- pull us.gcr.io/${PROJECT_NAME}/like-api-public:latest || true
+            docker build . -t like-api-public --cache-from us.gcr.io/${PROJECT_NAME}/like-api-public:latest
+            docker tag like-api-public:latest us.gcr.io/${PROJECT_NAME}/like-api-public:latest
+            docker tag like-api-public:latest us.gcr.io/${PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
+      - run:
+          name: Push images
+          command: |
+            gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:latest
+            gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
+      - deploy:
+          name: Deploy
+          command: |
+            kubectl patch deployment like-api-public-main -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - test
+      - hold_deploy_rinkeby_api:
+          type: approval
+          filters:
+            branches:
+              only:
+                - master
+                - develop
+                - /feature.*/
+          requires:
+           - test
+      - hold_deploy_mainnet_api:
+          type: approval
+          filters:
+            branches:
+              only: master
+          requires:
+           - test
+      - deploy_rinkeby_api:
+          requires:
+            - hold_deploy_rinkeby_api
+      - deploy_mainnet_api:
+          requires:
+            - hold_deploy_mainnet_api
