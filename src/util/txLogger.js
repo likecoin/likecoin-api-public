@@ -27,3 +27,17 @@ export async function logETHTx(payload) {
     console.error(err);
   }
 }
+
+export async function logClaimCouponTx(payload) {
+  const { txHash } = payload;
+  try {
+    await dbRef.doc(txHash).create({
+      type: 'claimCoupon',
+      status: 'pending',
+      ts: Date.now(),
+      ...payload,
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
