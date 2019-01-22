@@ -5,6 +5,8 @@ import {
   testingDisplayName1,
   testingEmail1,
   testingWallet1,
+  testingCivicLikerSince1,
+  testingCivicLikerEnd1,
   testingUser2,
   testingEmail2,
   testingWallet2,
@@ -16,6 +18,9 @@ import {
   privateKey3,
 } from './data';
 import axiosist from './axiosist';
+import {
+  SUBSCRIPTION_GRACE_PERIOD,
+} from '../../src/constant';
 
 const sigUtil = require('eth-sig-util');
 const Web3 = require('web3');
@@ -383,6 +388,12 @@ test('USER: check user login status', async (t) => {
   }).catch(err => err.response);
 
   t.is(res.status, 200);
+  t.is(res.data.isCivicLikerTrial, true);
+  t.is(res.data.isSubscribedCivicLiker, undefined);
+  t.is(res.data.isHonorCivicLiker, true);
+  t.is(res.data.isCivicLikerRenewalPeriod, false);
+  t.is(res.data.civicLikerSince, testingCivicLikerSince1);
+  t.is(res.data.civicLikerRenewalPeriodLast, testingCivicLikerEnd1 + SUBSCRIPTION_GRACE_PERIOD);
 });
 
 test('USER: Get user referral status', async (t) => {

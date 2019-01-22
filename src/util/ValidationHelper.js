@@ -27,6 +27,10 @@ export function filterUserData(u) {
     isPreRegCivicLiker,
     preRegCivicLikerStatus,
     isSubscribedCivicLiker,
+    isCivicLikerTrial,
+    isCivicLikerRenewalPeriod,
+    civicLikerRenewalPeriodLast,
+    isHonorCivicLiker,
     civicLikerSince,
     civicLikerStatus,
   } = u;
@@ -45,6 +49,10 @@ export function filterUserData(u) {
     isPreRegCivicLiker,
     preRegCivicLikerStatus,
     isSubscribedCivicLiker,
+    isCivicLikerTrial,
+    isCivicLikerRenewalPeriod,
+    civicLikerRenewalPeriodLast,
+    isHonorCivicLiker,
     civicLikerSince,
     civicLikerStatus,
   };
@@ -58,6 +66,7 @@ export function filterUserDataMin({
   isPreRegCivicLiker,
   preRegCivicLikerStatus,
   isSubscribedCivicLiker,
+  isCivicLikerTrial,
   civicLikerSince,
 }) {
   return {
@@ -67,6 +76,7 @@ export function filterUserDataMin({
     wallet,
     isPreRegCivicLiker,
     preRegCivicLikerStatus,
+    isCivicLikerTrial,
     isSubscribedCivicLiker,
     civicLikerSince,
   };

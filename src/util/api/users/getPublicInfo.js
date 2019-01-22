@@ -1,5 +1,6 @@
 import {
   AVATAR_DEFAULT_PATH,
+  CIVIC_LIKER_START_DATE,
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../../constant';
 import {
@@ -22,15 +23,23 @@ export async function getUserWithCivicLikerProperties(id) {
 
   if (subscriptionDoc.exists) {
     const {
-      currentPeriodStart,
-      currentPeriodEnd,
+      currentPeriodStart: start,
+      currentPeriodEnd: end,
       since,
       currentType,
     } = subscriptionDoc.data();
     const now = Date.now();
-    if (currentType !== 'trial' && now >= currentPeriodStart && now <= currentPeriodEnd + SUBSCRIPTION_GRACE_PERIOD) {
-      payload.isSubscribedCivicLiker = true;
+    const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
+    if (start <= now && now <= renewalLast) {
+      payload.isCivicLikerRenewalPeriod = end <= now && now <= renewalLast;
       payload.civicLikerSince = since;
+      payload.civicLikerRenewalPeriodLast = renewalLast;
+      payload.isHonorCivicLiker = since === CIVIC_LIKER_START_DATE;
+      if (currentType === 'trial') {
+        payload.isCivicLikerTrial = true;
+      } else {
+        payload.isSubscribedCivicLiker = true;
+      }
     }
   }
 
