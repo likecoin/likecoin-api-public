@@ -4,8 +4,8 @@
             "id": "testing",
             "civicLikerStatus": "subscribed",
             "currentType": "trial",
-            "since": 1546300800000,
-            "currentPeriodStart": 1546300800000,
+            "since": 1546272000000,
+            "currentPeriodStart": 1546272000000,
             "currentPeriodEnd": 9000000000000
         }
     ]
