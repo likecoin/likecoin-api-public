@@ -8,6 +8,7 @@ import {
   FIRESTORE_IAP_ROOT,
   FIRESTORE_MISSION_ROOT,
   FIRESTORE_PAYOUT_ROOT,
+  FIRESTORE_COUPON_ROOT,
   FIRESTORE_CONFIG_ROOT,
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
@@ -33,6 +34,7 @@ export const txCollection = getCollectionIfDefined(FIRESTORE_TX_ROOT);
 export const iapCollection = getCollectionIfDefined(FIRESTORE_IAP_ROOT);
 export const missionCollection = getCollectionIfDefined(FIRESTORE_MISSION_ROOT);
 export const payoutCollection = getCollectionIfDefined(FIRESTORE_PAYOUT_ROOT);
+export const couponCollection = getCollectionIfDefined(FIRESTORE_COUPON_ROOT);
 export const configCollection = getCollectionIfDefined(FIRESTORE_CONFIG_ROOT);
 export const bucket = FIREBASE_STORAGE_BUCKET ? admin.storage().bucket() : null;
 
