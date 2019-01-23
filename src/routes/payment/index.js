@@ -164,7 +164,7 @@ router.post('/', jwtAuth('write'), apiLimiter, async (req, res, next) => {
     } = await sendTransactionWithLoop(
       LIKECOIN.LIKE_COIN_ADDRESS,
       txData,
-      { gas: Math.floor(gasEstimate * 1.1) },
+      { gas: Math.floor(gasEstimate * 1.5) },
     );
 
     const txRecord = {
