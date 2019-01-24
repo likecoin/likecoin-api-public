@@ -143,19 +143,23 @@ router.get('/trial/events/:id', async (req, res, next) => {
       .doc(id)
       .get();
 
-    if (doc.exists) {
-      const { start, end } = doc.data();
-      const now = Date.now();
-      if (now < start) {
-        res.sendStatus(404);
-      } else if (now > end) {
-        res.sendStatus(410);
-      } else {
-        res.sendStatus(200);
-      }
-    } else {
+    if (!doc.exists) {
       res.sendStatus(404);
+      return;
     }
+
+    const { start, end } = doc.data();
+    const now = Date.now();
+    if (now < start) {
+      res.sendStatus(404);
+      return;
+    }
+    if (now > end) {
+      res.sendStatus(410);
+      return;
+    }
+
+    res.sendStatus(200);
   } catch (err) {
     console.error(err);
     next(err);
