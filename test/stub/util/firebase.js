@@ -175,6 +175,7 @@ export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);
 export const payoutCollection = createCollection(bonusData);
+export const couponCollection = createCollection([]);
 export const configCollection = createCollection(configData);
 
 function runTransaction(updateFunc) {
