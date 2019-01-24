@@ -133,4 +133,32 @@ router.get('/csonline', async (req, res, next) => {
   }
 });
 
+router.get('/trial/events/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const doc = await configRef
+      .doc('civicLiker')
+      .collection('trialEvents')
+      .doc(id)
+      .get();
+
+    if (doc.exists) {
+      const { start, end } = doc.data();
+      const now = Date.now();
+      if (now < start) {
+        res.sendStatus(404);
+      } else if (now > end) {
+        res.sendStatus(410);
+      } else {
+        res.sendStatus(200);
+      }
+    } else {
+      res.sendStatus(404);
+    }
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
 export default router;

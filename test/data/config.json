@@ -1,9 +1,28 @@
 {
-  "config": [
-      {
-          "id": "civicLiker",
-          "preRegQuota": 999,
-          "preRegTotal": 0
-      }
-  ]
+    "config": [
+        {
+            "id": "civicLiker",
+            "preRegQuota": 999,
+            "preRegTotal": 0,
+            "collection": {
+                "trialEvents": [
+                    {
+                        "id": "past",
+                        "start": 0,
+                        "end": 1
+                    },
+                    {
+                        "id": "active",
+                        "start": 0,
+                        "end": 4102415999000
+                    },
+                    {
+                        "id": "future",
+                        "start": 4102415999000,
+                        "end": 4102416000000
+                    }
+                ]
+            }
+        }
+    ]
 }
