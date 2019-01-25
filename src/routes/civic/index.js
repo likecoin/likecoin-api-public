@@ -210,6 +210,7 @@ router.post('/trial/events/:eventId/join', jwtAuth('write'), async (req, res, ne
       const trialEnd = new Date(now);
       trialEnd.setMonth(trialEnd.getMonth() + 1);
       const createObj = {
+        eventId,
         since: now,
         currentType: 'trial',
         currentPeriodStart: now,
