@@ -8,6 +8,7 @@ import {
 } from '../../util/api/users';
 import publisher from '../../util/gcloudPub';
 import {
+  db,
   userCollection as dbRef,
   subscriptionUserCollection as subscriptionDbRef,
   configCollection as configRef,
@@ -148,13 +149,18 @@ router.get('/trial/events/:id', async (req, res, next) => {
       return;
     }
 
-    const { start, end } = doc.data();
+    const {
+      start,
+      end,
+      regCount,
+      regQuota,
+    } = doc.data();
     const now = Date.now();
     if (now < start) {
       res.sendStatus(404);
       return;
     }
-    if (now > end) {
+    if (now > end || regCount >= regQuota) {
       res.sendStatus(410);
       return;
     }
@@ -181,43 +187,42 @@ router.post('/trial/events/:eventId/join', jwtAuth('write'), async (req, res, ne
       return;
     }
 
-    const trialEventDoc = await configRef
-      .doc('civicLiker')
-      .collection('trialEvents')
-      .doc(eventId)
-      .get();
+    const subscription = await db.runTransaction(async (t) => {
+      const trialEventRef = configRef
+        .doc('civicLiker')
+        .collection('trialEvents')
+        .doc(eventId);
+      const trialEventDoc = await trialEventRef.get();
 
-    if (!trialEventDoc.exists) {
-      res.sendStatus(404);
-      return;
-    }
+      if (!trialEventDoc.exists) throw new Error('TRIAL_EVENT_NOT_FOUND');
 
-    const { start, end } = trialEventDoc.data();
-    const now = Date.now();
-    if (now < start) {
-      res.sendStatus(404);
-      return;
-    }
-    if (now > end) {
-      res.sendStatus(410);
-      return;
-    }
+      const {
+        start,
+        end,
+        regCount,
+        regQuota,
+      } = trialEventDoc.data();
+      const now = Date.now();
+      if (now < start) throw new Error('TRIAL_EVENT_NOT_STARTED');
+      if (now > end) throw new Error('TRIAL_EVENT_EXPIRED');
+      if (regCount >= regQuota) throw new Error('TRIAL_EVENT_FULL');
 
-    const trialEnd = new Date(now);
-    trialEnd.setMonth(trialEnd.getMonth() + 1);
-    const createObj = {
-      civicLikerStatus: 'subscribed',
-      price: 5,
-      since: now,
-      currentType: 'trial',
-      currentPeriodStart: now,
-      currentPeriodEnd: trialEnd.getTime(),
-    };
-    await subscriptionDbRef.doc(userId).create(createObj);
+      const trialEnd = new Date(now);
+      trialEnd.setMonth(trialEnd.getMonth() + 1);
+      const createObj = {
+        since: now,
+        currentType: 'trial',
+        currentPeriodStart: now,
+        currentPeriodEnd: trialEnd.getTime(),
+      };
+      await t.update(trialEventRef, { regCount: regCount + 1 });
+      await t.create(subscriptionDbRef.doc(userId), createObj);
+      return createObj;
+    });
 
     res.json({
-      start: createObj.currentPeriodStart,
-      end: createObj.currentPeriodEnd,
+      start: subscription.currentPeriodStart,
+      end: subscription.currentPeriodEnd,
     });
 
     const {
@@ -239,6 +244,21 @@ router.post('/trial/events/:eventId/join', jwtAuth('write'), async (req, res, ne
       registerTime,
     });
   } catch (err) {
+    if (err && err.message) {
+      switch (err.message) {
+        case 'TRIAL_EVENT_NOT_FOUND':
+        case 'TRIAL_EVENT_NOT_STARTED':
+          res.sendStatus(404);
+          return;
+
+        case 'TRIAL_EVENT_FULL':
+        case 'TRIAL_EVENT_EXPIRED':
+          res.sendStatus(410);
+          return;
+
+        default:
+      }
+    }
     next(err);
   }
 });

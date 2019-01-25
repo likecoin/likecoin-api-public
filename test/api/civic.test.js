@@ -55,6 +55,10 @@ const trialEventsForTest = [
     status: 410,
   },
   {
+    id: 'full',
+    status: 410,
+  },
+  {
     id: 'future',
     status: 404,
   },
