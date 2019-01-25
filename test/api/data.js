@@ -1,5 +1,6 @@
 const userData = require('../data/user.json');
 const txData = require('../data/tx.json');
+const subscriptionData = require('../data/subscription.json');
 
 //
 // test data
@@ -12,6 +13,10 @@ export const {
   wallet: testingWallet1,
   merchantId: testingMerchantId1,
 } = userData.users[0];
+export const {
+  since: testingCivicLikerSince1,
+  currentPeriodEnd: testingCivicLikerEnd1,
+} = subscriptionData.subscriptions[0];
 export const {
   id: testingUser2,
   email: testingEmail2,

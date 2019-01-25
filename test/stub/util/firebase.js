@@ -13,6 +13,7 @@ const cloneDeep = require('lodash.clonedeep'); // eslint-disable-line import/no-
 const accounts = require('../../config/accounts.js'); // eslint-disable-line import/no-extraneous-dependencies
 
 const userData = require('../../test/data/user.json').users;
+const subscriptionData = require('../../test/data/subscription.json').subscriptions;
 const txData = require('../../test/data/tx.json').tx;
 const missionData = require('../../test/data/mission.json').missions;
 const bonusData = require('../../test/data/bonus.json').bonus;
@@ -169,11 +170,12 @@ function createCollection(data) {
 
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
-export const subscriptionUserCollection = createCollection([]);
+export const subscriptionUserCollection = createCollection(subscriptionData);
 export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);
 export const payoutCollection = createCollection(bonusData);
+export const couponCollection = createCollection([]);
 export const configCollection = createCollection(configData);
 
 function runTransaction(updateFunc) {
