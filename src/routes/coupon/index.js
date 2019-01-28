@@ -177,7 +177,7 @@ const queryApiLimiter = new RateLimit({
   delayMs: 0, // disabled
 });
 
-router.get('/coupon/:coupon', jwtAuth('read'), queryApiLimiter, async (req, res) => {
+router.get('/coupon/:coupon', queryApiLimiter, async (req, res) => {
   try {
     const { coupon } = req.params;
     if (!coupon || coupon.length !== 8) throw new Error('Invalid coupon');
