@@ -33,8 +33,8 @@ const ONE_LIKE = new BigNumber(10).pow(18);
 const router = Router();
 
 const claimApiLimiter = new RateLimit({
-  windowMs: 10000, // 10s
-  max: 20,
+  windowMs: 5000, // 5s
+  max: 5,
   delayMs: 0, // disabled
 });
 
@@ -172,8 +172,8 @@ router.post('/claim', jwtAuth('write'), claimApiLimiter, async (req, res) => {
 });
 
 const queryApiLimiter = new RateLimit({
-  windowMs: 10000, // 10s
-  max: 100,
+  windowMs: 5000, // 5s
+  max: 5,
   delayMs: 0, // disabled
 });
 
