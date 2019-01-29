@@ -33,8 +33,8 @@ const ONE_LIKE = new BigNumber(10).pow(18);
 const router = Router();
 
 const claimApiLimiter = new RateLimit({
-  windowMs: 10000, // 10s
-  max: 20,
+  windowMs: 5000, // 5s
+  max: 5,
   delayMs: 0, // disabled
 });
 
@@ -172,12 +172,12 @@ router.post('/claim', jwtAuth('write'), claimApiLimiter, async (req, res) => {
 });
 
 const queryApiLimiter = new RateLimit({
-  windowMs: 10000, // 10s
-  max: 100,
+  windowMs: 5000, // 5s
+  max: 5,
   delayMs: 0, // disabled
 });
 
-router.get('/coupon/:coupon', jwtAuth('read'), queryApiLimiter, async (req, res) => {
+router.get('/coupon/:coupon', queryApiLimiter, async (req, res) => {
   try {
     const { coupon } = req.params;
     if (!coupon || coupon.length !== 8) throw new Error('Invalid coupon');

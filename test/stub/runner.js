@@ -3,11 +3,13 @@ const { execSync } = require('child_process');
 
 function setStub() {
   console.log('Setting Stub');
+  execSync('mkdir -p config');
   execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak || true');
   execSync('cp ./src/util/ses.js ./src/util/ses.js.bak || true');
   execSync('cp ./test/stub/util/* ./src/util/');
   execSync('cp ./config/accounts.js ./config/accounts.js.bak || true');
-  execSync('cp ./test/stub/config/accounts.js ./config/accounts.js || true');
+  execSync('cp ./config/config.js ./config/config.js.bak || true');
+  execSync('cp ./test/stub/config/* ./config/');
 }
 
 function unsetStub() {
