@@ -17,6 +17,7 @@ function unsetStub() {
   execSync('mv ./src/util/firebase.js.bak ./src/util/firebase.js');
   execSync('mv ./src/util/ses.js.bak ./src/util/ses.js');
   execSync('mv ./config/accounts.js.bak ./config/accounts.js');
+  execSync('mv ./config/config.js.bak ./config/config.js');
 }
 
 function stubAndTest() {
