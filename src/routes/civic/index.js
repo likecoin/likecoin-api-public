@@ -16,19 +16,33 @@ import {
 
 const router = Router();
 
-router.put('/queue/user/:id', jwtAuth('write'), async (req, res, next) => {
+router.get('/quota', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const configDoc = await configRef.doc('civicLiker').get();
+    if (configDoc.exists) {
+      const { regCount, regQuota } = configDoc.data();
+      if (regCount < regQuota) {
+        res.sendStatus(200);
+        return;
+      }
+    }
+
+    res.sendStatus(404);
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.put('/queue', jwtAuth('write'), async (req, res, next) => {
+  try {
+    const userId = req.user.user;
     const {
       from: civicReferrer,
       referrer: civicSourceURL,
     } = req.query;
-    if (req.user.user !== id) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
 
-    const payload = await getUserWithCivicLikerProperties(id);
+    const payload = await getUserWithCivicLikerProperties(userId);
     if (!payload) throw new Error('USER_NOT_EXIST');
 
     const {
@@ -47,14 +61,14 @@ router.put('/queue/user/:id', jwtAuth('write'), async (req, res, next) => {
       res.status(401).send('ALREADY_CIVIC_LIKER');
     }
 
-    await dbRef.doc(id).update({ civicLikerStatus: 'waiting' });
+    await dbRef.doc(userId).update({ civicLikerStatus: 'waiting' });
 
     res.sendStatus(200);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventCivicLikerQueue',
       type: 'queue',
-      user: id,
+      user: userId,
       email,
       displayName,
       wallet,
@@ -70,19 +84,15 @@ router.put('/queue/user/:id', jwtAuth('write'), async (req, res, next) => {
 });
 
 
-router.delete('/queue/user/:id', jwtAuth('write'), async (req, res, next) => {
+router.delete('/queue', jwtAuth('write'), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const userId = req.user.user;
     const {
       from: civicReferrer,
       referrer: civicSourceURL,
     } = req.query;
-    if (req.user.user !== id) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
 
-    const payload = await getUserWithCivicLikerProperties(id);
+    const payload = await getUserWithCivicLikerProperties(userId);
     if (!payload) throw new Error('USER_NOT_EXIST');
 
     const {
@@ -101,14 +111,14 @@ router.delete('/queue/user/:id', jwtAuth('write'), async (req, res, next) => {
       res.status(401).send('ALREADY_CIVIC_LIKER');
     }
 
-    await dbRef.doc(id).update({ civicLikerStatus: 'intercom' });
+    await dbRef.doc(userId).update({ civicLikerStatus: 'intercom' });
 
     res.sendStatus(200);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventCivicLikerQueue',
       type: 'intercom',
-      user: id,
+      user: userId,
       email,
       displayName,
       wallet,
