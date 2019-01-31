@@ -40,6 +40,8 @@ export async function getUserWithCivicLikerProperties(id) {
       } else {
         payload.isSubscribedCivicLiker = true;
       }
+    } else if (now > renewalLast) {
+      payload.isExpiredCivicLiker = true;
     }
   }
 
