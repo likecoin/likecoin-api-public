@@ -4,6 +4,8 @@
             "id": "civicLiker",
             "preRegQuota": 999,
             "preRegTotal": 0,
+            "regQuota": 999,
+            "regCount": 0,
             "collection": {
                 "trialEvents": [
                     {
