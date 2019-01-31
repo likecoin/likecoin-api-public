@@ -27,7 +27,7 @@ router.get('/quota', async (req, res, next) => {
       }
     }
 
-    res.sendStatus(404);
+    res.sendStatus(204);
   } catch (err) {
     console.error(err);
     next(err);
