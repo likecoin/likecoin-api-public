@@ -57,7 +57,7 @@ export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.
 
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
-export const SUBSCRIPTION_GRACE_PERIOD = 10 * ONE_DAY_IN_MS;
+export const SUBSCRIPTION_GRACE_PERIOD = 7 * ONE_DAY_IN_MS;
 
 export const AUTH_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
