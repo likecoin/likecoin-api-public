@@ -17,6 +17,8 @@ const host = process.env.HOST || '127.0.0.1';
 const port = process.env.PORT || 3000;
 app.set('port', port);
 
+if (process.env.NODE_ENV === 'production') app.disable('x-powered-by');
+
 i18n.configure({
   locales: supportedLocales,
   directory: path.resolve(__dirname, './locales'),
