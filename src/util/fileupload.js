@@ -38,7 +38,9 @@ export function uploadFileAndGetLink(file, newFilename) {
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
   const type = imageType(file.buffer);
-  if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) throw new ValidationError('unsupported file format!');
+  if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) {
+    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
+  }
 
   if (avatarSHA256) {
     const hash256 = sha256(file.buffer);
