@@ -41,10 +41,10 @@ export async function checkPlatformAlreadyLinked(user, platform) {
 export async function socialLinkFacebook(user, accessToken, tryToOAuth = true) {
   const {
     displayName,
-    link,
+    link = '', // TODO: handle url is empty in frontend
     userId,
     appId,
-    pages,
+    pages = [],
   } = await fetchFacebookUser(accessToken);
 
   if (tryToOAuth) {
