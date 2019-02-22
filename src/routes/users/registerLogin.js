@@ -203,6 +203,13 @@ router.post(
       if (referrer) {
         try {
           hasReferrer = await checkReferrerExists(referrer);
+          if (hasReferrer && isEmailVerified) {
+            await dbRef
+              .doc(referrer)
+              .collection('referrals')
+              .doc(user)
+              .update({ isEmailVerified: true });
+          }
         } catch (err) {
           if (err.message === 'REFERRER_LIMIT_EXCCEDDED') {
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
