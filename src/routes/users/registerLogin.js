@@ -203,13 +203,6 @@ router.post(
       if (referrer) {
         try {
           hasReferrer = await checkReferrerExists(referrer);
-          if (hasReferrer && isEmailVerified) {
-            await dbRef
-              .doc(referrer)
-              .collection('referrals')
-              .doc(user)
-              .update({ isEmailVerified: true });
-          }
         } catch (err) {
           if (err.message === 'REFERRER_LIMIT_EXCCEDDED') {
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -279,7 +272,10 @@ router.post(
 
       await dbRef.doc(user).create(createObj);
       if (hasReferrer) {
-        await dbRef.doc(referrer).collection('referrals').doc(user).create(timestampObj);
+        await dbRef.doc(referrer).collection('referrals').doc(user).create({
+          ...timestampObj,
+          isEmailVerified,
+        });
       }
 
       // platformUserId is only set when the platform is valid
