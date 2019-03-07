@@ -8,7 +8,7 @@ import {
 import { ValidationError } from './ValidationError';
 
 const sharp = require('sharp');
-const imageType = require('image-type');
+const fileType = require('file-type');
 const sha256 = require('js-sha256');
 
 export function uploadFileAndGetLink(file, newFilename) {
@@ -37,9 +37,10 @@ export function uploadFileAndGetLink(file, newFilename) {
 }
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
-  const type = imageType(file.buffer);
+  const type = fileType(file.buffer);
   if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) {
-    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
+    console.error(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
+    return undefined;
   }
 
   if (avatarSHA256) {
