@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   userCollection as dbRef,

@@ -10,7 +10,7 @@ import {
 } from '../../util/firebase';
 import { getLinkOrderMap } from '../../util/api/social';
 import { tryToUnlinkOAuthLogin } from '../../util/api/users';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterSocialPlatformPersonal,

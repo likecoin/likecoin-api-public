@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users';

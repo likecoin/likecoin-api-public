@@ -6,7 +6,7 @@ import {
   userCollection as dbRef,
   txCollection as txLogRef,
 } from '../../util/firebase';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,

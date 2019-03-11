@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import publisher from '../../util/gcloudPub';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { checkPlatformAlreadyLinked, socialLinkFacebook } from '../../util/api/social';
 import { ValidationError } from '../../util/ValidationError';
 import { userCollection as dbRef } from '../../util/firebase';

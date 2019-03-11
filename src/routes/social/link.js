@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import { LINK_ICON_TYPES } from '../../constant';
 import { isValidSocialLink } from '../../util/api/social';

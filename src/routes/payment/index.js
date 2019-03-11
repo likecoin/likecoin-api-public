@@ -12,7 +12,7 @@ import {
 } from '../../util/ValidationHelper';
 import { logTransferDelegatedTx, logETHTx } from '../../util/txLogger';
 import { web3, LikeCoin, sendTransactionWithLoop } from '../../util/web3';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   userCollection as dbRef,

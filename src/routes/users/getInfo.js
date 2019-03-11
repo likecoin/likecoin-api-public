@@ -3,7 +3,7 @@ import { Router } from 'express';
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import {
   filterUserData,
 } from '../../util/ValidationHelper';

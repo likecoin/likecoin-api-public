@@ -14,7 +14,7 @@ import {
   userCollection as userRef,
   db,
 } from '../../util/firebase';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { logClaimCouponTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
 

@@ -8,7 +8,7 @@ import {
   filterMissionData,
   filterPayoutData,
 } from '../../util/ValidationHelper';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 
 function getIfReferralMissionDone(m, { u }) {
   const { id } = m;

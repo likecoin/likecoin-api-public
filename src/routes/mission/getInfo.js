@@ -9,7 +9,7 @@ import {
 } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import {
   userCollection as dbRef,
   missionCollection as missionsRef,
