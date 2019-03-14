@@ -338,16 +338,15 @@ router.post(
   multer.single('avatarFile'),
   async (req, res, next) => {
     try {
+      const { user } = req.user;
       const {
-        user,
         displayName,
-        wallet,
         avatarSHA256,
         locale,
       } = req.body;
       let { email, isEmailEnabled } = req.body;
 
-      if (req.user.user !== user) {
+      if (!user) {
         res.status(401).send('LOGIN_NEEDED');
         return;
       }
@@ -357,12 +356,15 @@ router.post(
         isEmailEnabled = isEmailEnabled !== 'false';
       }
 
-      const oldUserObj = await checkIsOldUser({ user, wallet, email });
+      const oldUserObj = await checkIsOldUser({ user, email });
       if (!oldUserObj) throw new ValidationError('USER_NOT_FOUND');
 
-      if (oldUserObj.wallet && oldUserObj.wallet !== wallet) {
-        throw new ValidationError('USER_WALLET_NOT_MATCH');
-      }
+      const {
+        wallet,
+        referrer,
+        displayName: oldDisplayName,
+        locale: oldLocale,
+      } = oldUserObj;
 
       if (email) {
         try {
@@ -373,10 +375,10 @@ router.post(
               logType: 'eventBlockEmail',
               user,
               email,
-              displayName,
+              displayName: oldDisplayName,
               wallet,
-              referrer: oldUserObj.referrer || undefined,
-              locale,
+              referrer,
+              locale: oldLocale,
             });
           }
           throw err;
@@ -391,7 +393,6 @@ router.post(
       }
       const updateObj = {
         displayName,
-        wallet,
         isEmailEnabled,
         avatar: avatarUrl,
         locale,
@@ -420,11 +421,11 @@ router.post(
         logType: 'eventUserUpdate',
         user,
         email: email || oldEmail,
-        displayName,
+        displayName: displayName || oldDisplayName,
         wallet,
         avatar: avatarUrl || oldUserObj.avatar,
-        referrer: oldUserObj.referrer,
-        locale,
+        referrer,
+        locale: locale || oldLocale,
         registerTime: oldUserObj.timestamp,
       });
     } catch (err) {
