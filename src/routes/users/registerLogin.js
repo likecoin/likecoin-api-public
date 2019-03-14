@@ -31,7 +31,7 @@ import {
   checkUserNameValid,
 } from '../../util/ValidationHelper';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import publisher from '../../util/gcloudPub';
 import { getFirebaseUserProviderUserInfo } from '../../util/FirebaseApp';
 import {

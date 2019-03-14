@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import {
   ETH_NETWORK_NAME,
   PUBSUB_TOPIC_MISC,

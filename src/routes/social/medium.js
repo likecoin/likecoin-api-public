@@ -3,7 +3,7 @@ import { checkPlatformAlreadyLinked } from '../../util/api/social';
 import { fetchMediumOAuthInfo, fetchMediumUser } from '../../util/oauth/medium';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import publisher from '../../util/gcloudPub';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import {
   userCollection as dbRef,

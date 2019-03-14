@@ -84,6 +84,40 @@ export function filterUserDataMin({
   };
 }
 
+export function filterUserDataScoped(u, scope = []) {
+  const user = filterUserData(u);
+  let output = filterUserDataMin(u);
+  if (scope.includes('email')) output.email = user.email;
+  if (scope.includes('read:civic_liker')) {
+    const {
+      isPreRegCivicLiker,
+      preRegCivicLikerStatus,
+      isSubscribedCivicLiker,
+      isCivicLikerTrial,
+      isCivicLikerRenewalPeriod,
+      isExpiredCivicLiker,
+      civicLikerRenewalPeriodLast,
+      isHonorCivicLiker,
+      civicLikerSince,
+      civicLikerStatus,
+    } = user;
+    output = {
+      isPreRegCivicLiker,
+      preRegCivicLikerStatus,
+      isSubscribedCivicLiker,
+      isCivicLikerTrial,
+      isCivicLikerRenewalPeriod,
+      isExpiredCivicLiker,
+      civicLikerRenewalPeriodLast,
+      isHonorCivicLiker,
+      civicLikerSince,
+      civicLikerStatus,
+      ...output,
+    };
+  }
+  return output;
+}
+
 export function filterTxData({
   from,
   fromId,

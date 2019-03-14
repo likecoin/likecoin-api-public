@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
-import { jwtAuth } from '../../util/jwt';
+import { jwtAuth } from '../../middleware/jwt';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users';
@@ -34,7 +34,7 @@ router.get('/quota', async (req, res, next) => {
   }
 });
 
-router.put('/queue', jwtAuth('write'), async (req, res, next) => {
+router.put('/queue', jwtAuth('write:civic_liker'), async (req, res, next) => {
   try {
     const userId = req.user.user;
     const {
@@ -84,7 +84,7 @@ router.put('/queue', jwtAuth('write'), async (req, res, next) => {
 });
 
 
-router.delete('/queue', jwtAuth('write'), async (req, res, next) => {
+router.delete('/queue', jwtAuth('write:civic_liker'), async (req, res, next) => {
   try {
     const userId = req.user.user;
     const {
@@ -182,7 +182,7 @@ router.get('/trial/events/:id', async (req, res, next) => {
   }
 });
 
-router.post('/trial/events/:eventId/join', jwtAuth('write'), async (req, res, next) => {
+router.post('/trial/events/:eventId/join', jwtAuth('write:civic_liker'), async (req, res, next) => {
   try {
     const { eventId } = req.params;
     const userId = req.user.user;

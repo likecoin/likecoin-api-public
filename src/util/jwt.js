@@ -1,14 +1,16 @@
 import { TEST_MODE, EXTERNAL_HOSTNAME } from '../constant';
+import {
+  PROVIDER_JWT_COMMON_SECRET,
+} from '../../config/config';
 
 const crypto = require('crypto');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const expressjwt = require('express-jwt');
 const uuidv4 = require('uuid/v4');
-const config = require('../../config/config.js');
+const config = require('../../config/config');
 
-const audience = EXTERNAL_HOSTNAME;
-const issuer = EXTERNAL_HOSTNAME;
+export const defaultAudience = EXTERNAL_HOSTNAME;
+export const issuer = EXTERNAL_HOSTNAME;
 
 let algorithm = 'RS256';
 let signSecret;
@@ -41,6 +43,15 @@ if (!signSecret || !verifySecret) {
   verifySecret = verifySecret || secret;
 }
 
+export const publicKey = verifySecret;
+
+export function getProviderJWTSecret(clientSecret) {
+  const hash = crypto.createHmac('sha256', PROVIDER_JWT_COMMON_SECRET)
+    .update(clientSecret)
+    .digest('hex');
+  return hash;
+}
+
 export function getToken(req) {
   if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
     return req.headers.authorization.split(' ')[1];
@@ -48,73 +59,51 @@ export function getToken(req) {
   if (req.cookies && req.cookies.likecoin_auth) {
     return req.cookies.likecoin_auth;
   }
+  if (req.query && req.query.access_token) {
+    return req.query.access_token;
+  }
   return '';
-}
-
-function setNoCacheHeader(res) {
-  res.setHeader('Surrogate-Control', 'no-store');
-  res.setHeader(
-    'Cache-Control',
-    'no-store, no-cache, must-revalidate, proxy-revalidate',
-  );
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
 }
 
 export const jwtVerify = (
   token,
-  { ignoreExpiration } = {},
+  secret = verifySecret,
+  { ignoreExpiration, audience = defaultAudience } = {},
 ) => {
   const opt = { audience, issuer };
-  return jwt.verify(token, verifySecret, { ...opt, ignoreExpiration });
+  return jwt.verify(token, secret, { ...opt, ignoreExpiration });
 };
 
-export const jwtSign = (payload) => {
-  const opt = { audience, issuer, algorithm };
-  if (!payload.exp) opt.expiresIn = '30d';
+const internalSign = (
+  payload,
+  secret,
+  opt = {},
+) => {
+  const options = opt;
   const jwtid = uuidv4();
-  opt.jwtid = jwtid;
-  return { token: jwt.sign(payload, signSecret, opt), jwtid };
+  options.jwtid = jwtid;
+  options.issuer = issuer;
+  options.mutatePayload = true;
+  const result = { ...payload };
+  const token = jwt.sign(result, secret, options);
+  return {
+    token,
+    jwtid,
+    exp: result.exp,
+  };
 };
 
-export const jwtAuth = (permission = 'read') => (req, res, next) => {
-  setNoCacheHeader(res);
-  expressjwt({
-    secret: verifySecret,
-    getToken,
-    audience,
-    issuer,
-  })(req, res, (e) => {
-    if (e && e.name === 'UnauthorizedError') {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
-    if (!req.user
-      || !req.user.permissions
-      || (permission && !req.user.permissions.includes(permission))) {
-      res.status(401).send('MORE_AUTH_NEEDED');
-      return;
-    }
-    next(e);
-  });
-};
+export const jwtSign = (
+  payload,
+  { audience = defaultAudience, expiresIn = '30d' } = {},
+) => internalSign(payload, signSecret, { algorithm, audience, expiresIn });
 
-export const jwtOptionalAuth = (permission = 'read') => (req, res, next) => {
-  setNoCacheHeader(res);
-  expressjwt({
-    credentialsRequired: false,
-    secret: verifySecret,
-    getToken,
-    audience,
-    issuer,
-  })(req, res, (e) => {
-    if (req.user
-      && req.user.permissions
-      && (permission && !req.user.permissions.includes(permission))) {
-      req.user = undefined;
-    }
-    next(e);
-  });
+export const jwtSignForAZP = (
+  payload,
+  secret,
+  { audience = defaultAudience, expiresIn = '1h', azp } = {},
+) => {
+  const opt = { algorithm: 'HS256', audience };
+  if (expiresIn) opt.expiresIn = expiresIn;
+  return internalSign({ ...payload, azp }, secret, opt);
 };
-
-export default jwtAuth;
