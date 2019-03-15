@@ -54,7 +54,7 @@ export async function socialLinkFacebook(user, accessToken, tryToOAuth = true) {
       platformUserId: userId,
     });
 
-    if (!success) throw new ValidationError('USER_ALREADY_EXIST');
+    if (!success) throw new ValidationError('FACEBOOK_LINK_ERROR');
   }
 
   await dbRef.doc(user).collection('social').doc('facebook').set({
@@ -99,7 +99,7 @@ export async function socialLinkTwitter(
       platformUserId: userId,
     });
 
-    if (!success) throw new ValidationError('USER_ALREADY_EXIST');
+    if (!success) throw new ValidationError('TWITTER_LINK_ERROR');
   }
 
   const url = `https://twitter.com/intent/user?user_id=${userId}`;
