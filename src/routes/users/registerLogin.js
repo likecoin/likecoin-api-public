@@ -339,17 +339,17 @@ router.post(
   async (req, res, next) => {
     try {
       const { user } = req.user;
+      if (!user) {
+        res.status(401).send('LOGIN_NEEDED');
+        return;
+      }
+
       const {
         displayName,
         avatarSHA256,
         locale,
       } = req.body;
       let { email, isEmailEnabled } = req.body;
-
-      if (!user) {
-        res.status(401).send('LOGIN_NEEDED');
-        return;
-      }
 
       // handle isEmailEnable is string
       if (typeof isEmailEnabled === 'string') {
