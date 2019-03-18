@@ -177,6 +177,7 @@ export const missionCollection = createCollection(missionData);
 export const payoutCollection = createCollection(bonusData);
 export const couponCollection = createCollection([]);
 export const configCollection = createCollection(configData);
+export const oAuthClientCollection = createCollection([]);
 
 function runTransaction(updateFunc) {
   return updateFunc({
