@@ -34,6 +34,7 @@ export function filterUserData(u) {
     isHonorCivicLiker,
     civicLikerSince,
     civicLikerStatus,
+    locale,
   } = u;
   return {
     user,
@@ -57,6 +58,7 @@ export function filterUserData(u) {
     isHonorCivicLiker,
     civicLikerSince,
     civicLikerStatus,
+    locale,
   };
 }
 
