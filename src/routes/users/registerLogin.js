@@ -81,13 +81,19 @@ router.post(
   apiLimiter,
   multer.single('avatarFile'),
   async (req, res, next) => {
+    const {
+      platform,
+    } = req.body;
+    let {
+      user,
+      email,
+    } = req.body;
     try {
       let payload;
       let firebaseUserId;
       let platformUserId;
       let isEmailVerified = false;
 
-      const { platform } = req.body;
       switch (platform) {
         case 'wallet': {
           const {
@@ -98,6 +104,7 @@ router.post(
             sourceURL,
           } = req.body;
           payload = checkSignPayload(from, stringPayload, sign);
+          ({ user, email } = payload);
           payload.referrer = referrer;
           payload.sourceURL = sourceURL;
           break;
@@ -128,7 +135,7 @@ router.post(
         }
         case 'facebook': {
           const { accessToken } = req.body;
-          const { userId, email } = await fetchFacebookUser(accessToken);
+          const { userId, email: fbEmail } = await fetchFacebookUser(accessToken);
           payload = req.body;
           if (userId !== payload.platformUserId) {
             throw new ValidationError('USER_ID_NOT_MTACH');
@@ -136,7 +143,7 @@ router.post(
           platformUserId = userId;
 
           // Set verified to the email if it matches Facebook verified email
-          isEmailVerified = email === payload.email;
+          isEmailVerified = fbEmail === payload.email;
 
           // Verify Firebase user ID
           const { firebaseIdToken } = req.body;
@@ -148,7 +155,6 @@ router.post(
       }
 
       const {
-        user,
         displayName = user,
         wallet,
         avatarSHA256,
@@ -158,7 +164,7 @@ router.post(
         secret,
         sourceURL,
       } = payload;
-      let { email, isEmailEnabled = true } = payload;
+      let { isEmailEnabled = true } = payload;
 
       isEmailEnabled = getBool(isEmailEnabled);
 
@@ -323,6 +329,9 @@ router.post(
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventRegisterError',
+        platform,
+        user,
+        email,
         error: err.message || JSON.stringify(err),
       });
       next(err);
