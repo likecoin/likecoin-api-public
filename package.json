@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
+  "config" : {
+    "test_file_pattern": "test/api/{}.test.js"
+  },
   "scripts": {
     "dev": "IS_TESTNET=true backpack dev",
     "dev:stub": "IS_TESTNET=true node ./test/stub/runner dev",
@@ -18,7 +21,7 @@
     "start:web": "NODE_ENV=production node build/web.js",
     "test": "nyc npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
-    "test:api": "IS_TESTNET=true CI=true ava -v test/api/*.test.js",
+    "test:api": "IS_TESTNET=true CI=true ava -v",
     "report-coverage": "nyc report --reporter=text-lcov > coverage.lcov"
   },
   "repository": {

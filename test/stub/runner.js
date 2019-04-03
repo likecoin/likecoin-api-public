@@ -27,7 +27,10 @@ function stubAndTest() {
     unsetStub();
   });
   try {
-    execSync(`npm run ${process.argv.slice(2).join(' ')}`, { env: process.env, stdio: 'inherit' });
+    const [script] = process.argv.slice(2, 3);
+    const [testFile='*'] = process.argv.slice(3, 4);
+    const testTarget = process.env.npm_package_config_test_file_pattern.replace('{}', testFile);
+    execSync(`npm run ${script} ${testTarget}`, { env: process.env, stdio: 'inherit' });
   } catch (e) {
     unsetStub();
     process.exit(1);
