@@ -125,6 +125,7 @@ export function filterTxData({
   fromId,
   to,
   toId,
+  toIds,
   value,
   status,
   type,
@@ -132,13 +133,10 @@ export function filterTxData({
   httpReferrer,
   completeTs,
   ts,
-}) {
-  return {
+}, filterAddr) {
+  const data = {
     from,
     fromId,
-    to,
-    toId,
-    value,
     status,
     type,
     remarks,
@@ -146,6 +144,28 @@ export function filterTxData({
     completeTs,
     ts,
   };
+  if (filterAddr && from !== filterAddr && Array.isArray(to)) {
+    const tos = [];
+    const ids = [];
+    const values = [];
+    to.forEach((addr, index) => {
+      if (addr === filterAddr) {
+        tos.push(filterAddr);
+        ids.push(toIds[index]);
+        values.push(value[index]);
+      }
+    });
+    data.to = tos;
+    data.toIds = ids;
+    data.value = values;
+    if (ids.length === 1) [data.toId] = ids;
+  } else {
+    data.to = to;
+    data.value = value;
+    if (toId) data.toId = toId;
+    if (toIds) data.toIds = toIds;
+  }
+  return data;
 }
 
 export function filterMissionData(m) {

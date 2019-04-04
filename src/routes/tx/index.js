@@ -20,10 +20,11 @@ const router = Router();
 router.get('/id/:id', async (req, res, next) => {
   try {
     const txHash = req.params.id;
+    const filterAddress = req.query.address;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
       const payload = doc.data();
-      res.json(filterTxData(payload));
+      res.json(filterTxData(payload, filterAddress));
     } else {
       res.sendStatus(404);
     }
@@ -65,15 +66,21 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       .startAt(ts)
       .limit(count)
       .get();
+    const queryToArray = txLogRef
+      .where('to', 'array-contains', web3Utils.toChecksumAddress(addr))
+      .orderBy('ts', 'desc')
+      .startAt(ts)
+      .limit(count)
+      .get();
     const queryFrom = txLogRef
       .where('from', '==', web3Utils.toChecksumAddress(addr))
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)
       .get();
-    const [dataTo, dataFrom] = await Promise.all([queryTo, queryFrom]);
-    let results = dataTo.docs.concat(dataFrom.docs);
-    results = results.map(d => ({ id: d.id, ...filterTxData(d.data()) }));
+    const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
+    let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
+    results = results.map(d => ({ id: d.id, ...filterTxData(d.data(), addr) }));
     results.sort((a, b) => (b.ts - a.ts));
     results.splice(count);
     res.json(results);
