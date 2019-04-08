@@ -77,6 +77,8 @@ function collectionWhere(data, field, op, value) {
   let whereData = data;
   if (op === '==') {
     whereData = data.filter(d => d[field] === value);
+  } else if (op === 'array-contains') {
+    whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
   }
   const docs = querySnapshotDocs(whereData);
   const queryObj = {
