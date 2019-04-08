@@ -10,6 +10,7 @@ import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,
+  filterMultipleTxData,
   checkAddressValid,
 } from '../../util/ValidationHelper';
 
@@ -19,12 +20,16 @@ const router = Router();
 
 router.get('/id/:id', async (req, res, next) => {
   try {
-    const txHash = req.params.id;
-    const filterAddress = req.query.address;
+    const { id: txHash } = req.params;
+    const { address: filterAddress } = req.query;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
       const payload = doc.data();
-      res.json(filterTxData(payload, filterAddress));
+      if (Array.isArray(payload.to)) {
+        res.json(filterMultipleTxData(payload, filterAddress));
+      } else {
+        res.json(filterTxData(payload));
+      }
     } else {
       res.sendStatus(404);
     }
@@ -80,7 +85,13 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       .get();
     const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
     let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
-    results = results.map(d => ({ id: d.id, ...filterTxData(d.data(), addr) }));
+    results = results.map((d) => {
+      const data = d.data();
+      if (Array.isArray(data.to)) {
+        return { id: d.id, ...filterMultipleTxData(data, addr) };
+      }
+      return { id: d.id, ...filterTxData(data) };
+    });
     results.sort((a, b) => (b.ts - a.ts));
     results.splice(count);
     res.json(results);

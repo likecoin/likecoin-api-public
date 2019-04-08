@@ -125,6 +125,33 @@ export function filterTxData({
   fromId,
   to,
   toId,
+  value,
+  status,
+  type,
+  remarks,
+  httpReferrer,
+  completeTs,
+  ts,
+}) {
+  return {
+    from,
+    fromId,
+    to,
+    toId,
+    value,
+    status,
+    type,
+    remarks,
+    httpReferrer,
+    completeTs,
+    ts,
+  };
+}
+
+export function filterMultipleTxData({
+  from,
+  fromId,
+  to,
   toIds,
   value,
   status,
@@ -134,38 +161,50 @@ export function filterTxData({
   completeTs,
   ts,
 }, filterAddr) {
-  const data = {
+  if (filterAddr && from !== filterAddr) {
+    const tos = new Set();
+    const ids = new Set();
+    const values = [];
+    to.forEach((addr, index) => {
+      if (addr === filterAddr) {
+        tos.add(filterAddr);
+        ids.add(toIds[index]);
+        values.push(value[index]);
+      }
+    });
+    if (!((tos.size === 1 && ids.size === 1 && values.length >= 1)
+      || (tos.size === 0 && ids.size === 0 && values.length === 0))) {
+      throw new Error('Invalid multiple tx data');
+    }
+
+    return filterTxData({
+      from,
+      fromId,
+      to: Array.from(tos),
+      toId: Array.from(ids),
+      value: values,
+      status,
+      type,
+      remarks,
+      httpReferrer,
+      completeTs,
+      ts,
+    });
+  }
+
+  return filterTxData({
     from,
     fromId,
+    to,
+    toId: toIds,
+    value,
     status,
     type,
     remarks,
     httpReferrer,
     completeTs,
     ts,
-  };
-  if (filterAddr && from !== filterAddr && Array.isArray(to)) {
-    const tos = [];
-    const ids = [];
-    const values = [];
-    to.forEach((addr, index) => {
-      if (addr === filterAddr) {
-        tos.push(filterAddr);
-        ids.push(toIds[index]);
-        values.push(value[index]);
-      }
-    });
-    data.to = tos;
-    data.toIds = ids;
-    data.value = values;
-    if (ids.length === 1) [data.toId] = ids;
-  } else {
-    data.to = to;
-    data.value = value;
-    if (toId) data.toId = toId;
-    if (toIds) data.toIds = toIds;
-  }
-  return data;
+  });
 }
 
 export function filterMissionData(m) {

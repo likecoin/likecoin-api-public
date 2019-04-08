@@ -93,6 +93,18 @@
                 "referrals": [
                 ]
             }
+        },
+        {
+          "id": "testuser3",
+          "displayName": "testuser3",
+          "email": "testuser3@likecoin.store",
+          "wallet": "0x557BAc18781Fa0BEc09149980357ef70E69c64bc",
+          "verificationUUID": "00000000-0000-0000-0000-000000000000",
+          "referrer": "testing",
+          "collection": {
+            "referrals": [
+            ]
+          }
         }
     ]
 }
