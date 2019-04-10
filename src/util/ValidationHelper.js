@@ -148,65 +148,6 @@ export function filterTxData({
   };
 }
 
-export function filterMultipleTxData({
-  from,
-  fromId,
-  to,
-  toIds,
-  value,
-  status,
-  type,
-  remarks,
-  httpReferrer,
-  completeTs,
-  ts,
-}, filterAddr) {
-  if (filterAddr && from !== filterAddr) {
-    const tos = new Set();
-    const ids = new Set();
-    const values = [];
-    to.forEach((addr, index) => {
-      if (addr === filterAddr) {
-        tos.add(filterAddr);
-        ids.add(toIds[index]);
-        values.push(value[index]);
-      }
-    });
-    if (!((tos.size === 1 && ids.size === 1 && values.length >= 1)
-      || (tos.size === 0 && ids.size === 0 && values.length === 0))) {
-      throw new Error('Invalid multiple tx data');
-    }
-
-    return filterTxData({
-      from,
-      fromId,
-      to: Array.from(tos),
-      toId: Array.from(ids),
-      value: values,
-      status,
-      type,
-      remarks,
-      httpReferrer,
-      completeTs,
-      ts,
-    });
-  }
-
-  return filterTxData({
-    from,
-    fromId,
-    to,
-    toId: toIds,
-    value,
-    status,
-    type,
-    remarks,
-    httpReferrer,
-    completeTs,
-    ts,
-  });
-}
-
 export function filterMissionData(m) {
   const {
     id,

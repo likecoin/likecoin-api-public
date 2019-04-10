@@ -1,4 +1,5 @@
 import test from 'ava';
+import BigNumber from 'bignumber.js';
 import {
   testingUser2,
   testingWallet2,
@@ -118,7 +119,10 @@ test('PAYMENT: Get tx (transferMultiple) by id with filter address (multiple out
   t.is(res.status, 200);
   t.is(res.data.from, txFromMul2);
   t.deepEqual(res.data.to, [txToMul2[0]]);
-  t.deepEqual(res.data.value, [txValueMul2[0], txValueMul2[3]]);
+  t.deepEqual(
+    res.data.value,
+    [new BigNumber(txValueMul2[0]).plus(new BigNumber(txValueMul2[3])).toString()],
+  );
   t.deepEqual(res.data.toId, [txToIdsMul2[0]]);
 });
 
@@ -186,7 +190,10 @@ test('PAYMENT: Get tx history (transferMultiple) by addr (multiple output)', asy
       case txHashMul2:
         t.is(res.data[i].from, txFromMul2);
         t.deepEqual(res.data[i].to, [txToMul2[0]]);
-        t.deepEqual(res.data[i].value, [txValueMul2[0], txValueMul2[3]]);
+        t.deepEqual(
+          res.data[i].value,
+          [new BigNumber(txValueMul2[0]).plus(new BigNumber(txValueMul2[3])).toString()],
+        );
         t.deepEqual(res.data[i].toId, [txToIdsMul2[0]]);
         checker.txHashMul2 = true;
         break;
