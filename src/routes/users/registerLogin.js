@@ -6,7 +6,6 @@ import {
   PUBSUB_TOPIC_MISC,
   CSRF_COOKIE_OPTION,
 } from '../../constant';
-import { fetchFacebookUser } from '../../util/oauth/facebook';
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
@@ -111,7 +110,8 @@ router.post(
         }
         case 'email':
         case 'google':
-        case 'twitter': {
+        case 'twitter':
+        case 'facebook': {
           const { firebaseIdToken } = req.body;
           ({ uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken));
           payload = req.body;
@@ -122,7 +122,8 @@ router.post(
 
           switch (platform) {
             case 'google':
-            case 'twitter': {
+            case 'twitter':
+            case 'facebook': {
               const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
               if (userInfo) {
                 platformUserId = userInfo.uid;
@@ -131,23 +132,6 @@ router.post(
             }
             default:
           }
-          break;
-        }
-        case 'facebook': {
-          const { accessToken } = req.body;
-          const { userId, email: fbEmail } = await fetchFacebookUser(accessToken);
-          payload = req.body;
-          if (userId !== payload.platformUserId) {
-            throw new ValidationError('USER_ID_NOT_MTACH');
-          }
-          platformUserId = userId;
-
-          // Set verified to the email if it matches Facebook verified email
-          isEmailVerified = fbEmail === payload.email;
-
-          // Verify Firebase user ID
-          const { firebaseIdToken } = req.body;
-          ({ uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken));
           break;
         }
         default:
@@ -467,7 +451,8 @@ router.post('/login', async (req, res, next) => {
 
       case 'email':
       case 'google':
-      case 'twitter': {
+      case 'twitter':
+      case 'facebook': {
         const { firebaseIdToken } = req.body;
         const { uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken);
         const firebaseUser = await admin.auth().getUser(firebaseUserId);
@@ -499,7 +484,8 @@ router.post('/login', async (req, res, next) => {
           }
 
           case 'google':
-          case 'twitter': {
+          case 'twitter':
+          case 'facebook': {
             const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
             if (userInfo) {
               const userQuery = await (
@@ -516,29 +502,6 @@ router.post('/login', async (req, res, next) => {
           }
 
           default:
-        }
-        break;
-      }
-
-      case 'facebook': {
-        try {
-          const { accessToken, platformUserId } = req.body;
-          const { userId } = await fetchFacebookUser(accessToken);
-          if (userId !== platformUserId) {
-            throw new ValidationError('USER_ID_NOT_MTACH');
-          }
-          const query = (
-            await authDbRef
-              .where(`${platform}.userId`, '==', platformUserId)
-              .limit(1)
-              .get()
-          );
-          if (query.docs.length > 0) {
-            user = query.docs[0].id;
-          }
-        } catch (err) {
-          console.log(err);
-          // do nothing
         }
         break;
       }
@@ -664,7 +627,8 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
       }
 
       case 'google':
-      case 'twitter': {
+      case 'twitter':
+      case 'facebook': {
         const {
           firebaseIdToken,
           accessToken,
@@ -688,7 +652,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
         platformUserId = userInfo.uid;
         await tryToLinkOAuthLogin({ likeCoinId: user, platform, platformUserId });
 
-        if (platform === 'twitter') {
+        if (platform === 'twitter' || platform === 'facebook') {
           await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
         }
 
