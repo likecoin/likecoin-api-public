@@ -18,44 +18,38 @@ const web3Utils = require('web3-utils');
 
 const router = Router();
 
-function filterMultipleTxData({
-  from,
-  to,
-  toIds,
-  value,
-}, opt) {
-  if (!toIds) {
-    return {};
-  }
-  const { address } = opt;
-  if (!address || from === address) {
-    return {
-      toId: toIds,
-    };
-  }
-  const tos = [];
-  const ids = [];
-  const values = [];
+function filterMultipleTxData(data, filter = {}) {
+  const { to, toIds, value } = data;
+  const { to: { addresses = [] } = {} } = filter;
+  const result = {};
   to.forEach((addr, index) => {
-    if (addr === address) {
-      if (tos.length === 0) {
-        tos.push(addr);
-        ids.push(toIds[index]);
-        values.push(value[index]);
-      } else {
-        if (tos[0] !== addr) throw new Error('Filter address is not matched');
-        if (ids[0] !== toIds[index]) throw new Error('Filter ID is not matched');
-        values[0] = new BigNumber(values[0]).plus(new BigNumber(value[index])).toString();
+    if (!addresses || addresses.includes(addr)) {
+      result[addr] = result[addr]
+        || {
+          id: toIds[index],
+          value: new BigNumber(0),
+        };
+      if (result[addr].id !== toIds[index]) {
+        throw new Error(`Filter ID ${toIds[index]} found, expected: ${result[addr].id}`);
       }
+      result[addr].value = result[addr].value.plus(new BigNumber(value[index]));
     }
   });
+  // Flatten the result to arrays.
+  const tos = Object.keys(result);
+  const ids = [];
+  const values = [];
+  tos.forEach((addr) => {
+    ids.push(result[addr].id);
+    values.push(result[addr].value.toString());
+  });
   return {
+    ...data,
     to: tos,
     toId: ids,
     value: values,
   };
 }
-
 
 router.get('/id/:id', async (req, res, next) => {
   try {
@@ -63,8 +57,9 @@ router.get('/id/:id', async (req, res, next) => {
     const { address } = req.query;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
-      const payload = doc.data();
-      Object.assign(payload, filterMultipleTxData(payload, { address }));
+      const payload = doc.data().toIds
+        ? filterMultipleTxData(doc.data(), { to: { addresses: address ? [address] : null } })
+        : doc.data();
       res.json(filterTxData(payload));
       return;
     }
@@ -122,8 +117,13 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
     const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
     let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
     results = results.map((d) => {
-      const data = d.data();
-      Object.assign(data, filterMultipleTxData(data, { address: addr }));
+      const data = d.data().toIds
+        ? filterMultipleTxData(d.data(), {
+          to: {
+            addresses: d.data().from !== addr ? [addr] : null,
+          },
+        })
+        : d.data();
       return { id: d.id, ...filterTxData(data) };
     });
     results.sort((a, b) => (b.ts - a.ts));
