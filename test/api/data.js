@@ -24,6 +24,14 @@ export const {
 } = userData.users[1];
 export const invalidWallet = '4b25758E41f9240C8EB8831cEc7F1a02686387fa';
 export const testingWallet3 = '0x9113EC0624802E6BB2b13d7e123C91Aa5D130314'; // wallet that is not used
+export const {
+  id: testingUser4,
+  wallet: testingWallet4,
+} = userData.users[4];
+export const {
+  id: testingUser5,
+  wallet: testingWallet5,
+} = userData.users[5];
 
 export const {
   id: txHash,
@@ -31,6 +39,38 @@ export const {
   to: txTo,
   value: txValue,
 } = txData.tx[0];
+
+export const {
+  id: txHashMul,
+  from: txFromMul,
+  to: txToMul,
+  value: txValueMul,
+  toIds: txToIdsMul,
+} = txData.tx[1];
+
+export const {
+  id: txHashMul2,
+  from: txFromMul2,
+  to: txToMul2,
+  value: txValueMul2,
+  toIds: txToIdsMul2,
+} = txData.tx[2];
+
+export const {
+  id: txHashMul3,
+  from: txFromMul3,
+  to: txToMul3,
+  value: txValueMul3,
+  toId: txToIdMul3,
+} = txData.tx[3];
+
+export const {
+  id: txHashMul4,
+  from: txFromMul4,
+  to: txToMul4,
+  value: txValueMul4,
+  toId: txToIdMul4,
+} = txData.tx[4];
 
 // confidential
 export const privateKey0 = '0xbad2b5497cf7f9f3938990cb17e5b4f6f2073e435f43b5c17ed48a8e267ed56c';

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import BigNumber from 'bignumber.js';
 import {
   TRANSACTION_QUERY_LIMIT,
 } from '../../constant';
@@ -17,16 +18,52 @@ const web3Utils = require('web3-utils');
 
 const router = Router();
 
+function filterMultipleTxData(data, filter = {}) {
+  const { to, toIds, value } = data;
+  const { to: { addresses = [] } = {} } = filter;
+  const result = {};
+  to.forEach((addr, index) => {
+    if (!addresses || addresses.includes(addr)) {
+      result[addr] = result[addr]
+        || {
+          id: toIds[index],
+          value: new BigNumber(0),
+        };
+      if (result[addr].id !== toIds[index]) {
+        throw new Error(`Filter ID ${toIds[index]} found, expected: ${result[addr].id}`);
+      }
+      result[addr].value = result[addr].value.plus(new BigNumber(value[index]));
+    }
+  });
+  // Flatten the result to arrays.
+  const tos = Object.keys(result);
+  const ids = [];
+  const values = [];
+  tos.forEach((addr) => {
+    ids.push(result[addr].id);
+    values.push(result[addr].value.toString());
+  });
+  return {
+    ...data,
+    to: tos,
+    toId: ids,
+    value: values,
+  };
+}
+
 router.get('/id/:id', async (req, res, next) => {
   try {
-    const txHash = req.params.id;
+    const { id: txHash } = req.params;
+    const { address } = req.query;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
-      const payload = doc.data();
+      const payload = doc.data().toIds
+        ? filterMultipleTxData(doc.data(), { to: { addresses: address ? [address] : null } })
+        : doc.data();
       res.json(filterTxData(payload));
-    } else {
-      res.sendStatus(404);
+      return;
     }
+    res.sendStatus(404);
   } catch (err) {
     next(err);
   }
@@ -65,15 +102,30 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       .startAt(ts)
       .limit(count)
       .get();
+    const queryToArray = txLogRef
+      .where('to', 'array-contains', web3Utils.toChecksumAddress(addr))
+      .orderBy('ts', 'desc')
+      .startAt(ts)
+      .limit(count)
+      .get();
     const queryFrom = txLogRef
       .where('from', '==', web3Utils.toChecksumAddress(addr))
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)
       .get();
-    const [dataTo, dataFrom] = await Promise.all([queryTo, queryFrom]);
-    let results = dataTo.docs.concat(dataFrom.docs);
-    results = results.map(d => ({ id: d.id, ...filterTxData(d.data()) }));
+    const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
+    let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
+    results = results.map((d) => {
+      const data = d.data().toIds
+        ? filterMultipleTxData(d.data(), {
+          to: {
+            addresses: d.data().from !== addr ? [addr] : null,
+          },
+        })
+        : d.data();
+      return { id: d.id, ...filterTxData(data) };
+    });
     results.sort((a, b) => (b.ts - a.ts));
     results.splice(count);
     res.json(results);

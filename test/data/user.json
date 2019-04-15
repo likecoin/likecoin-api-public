@@ -81,6 +81,30 @@
             "wallet": "0x0FB3aE1eb4e2e9c3F0f241d5c73fB5D5069c21A5",
             "verificationUUID": "00000000-0000-0000-0000-000000000001",
             "referrer": "testacctreferrer"
+        },
+        {
+            "id": "testuser2",
+            "displayName": "testuser2",
+            "email": "testuser2@likecoin.store",
+            "wallet": "0x00C50C2F356130b1F65ac3E60AFE40A6C348f1c9",
+            "verificationUUID": "00000000-0000-0000-0000-000000000000",
+            "referrer": "testing",
+            "collection": {
+                "referrals": [
+                ]
+            }
+        },
+        {
+          "id": "testuser3",
+          "displayName": "testuser3",
+          "email": "testuser3@likecoin.store",
+          "wallet": "0x557BAc18781Fa0BEc09149980357ef70E69c64bc",
+          "verificationUUID": "00000000-0000-0000-0000-000000000000",
+          "referrer": "testing",
+          "collection": {
+            "referrals": [
+            ]
+          }
         }
     ]
 }
