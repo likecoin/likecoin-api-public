@@ -102,6 +102,7 @@ export function filterUserDataScoped(u, scope = []) {
       isHonorCivicLiker,
       civicLikerSince,
       civicLikerStatus,
+      locale,
     } = user;
     output = {
       isPreRegCivicLiker,
@@ -114,6 +115,7 @@ export function filterUserDataScoped(u, scope = []) {
       isHonorCivicLiker,
       civicLikerSince,
       civicLikerStatus,
+      locale,
       ...output,
     };
   }
