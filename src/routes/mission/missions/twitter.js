@@ -108,7 +108,7 @@ router.post('/twitter', async (req, res) => {
 });
 
 router.post('/twitterRetweet', async (req, res) => {
-  const TWEET_ID = '1010271556742807552';
+  const TWEET_ID = '1126073134958833664';
   const { inputTwitterId, user: userId, missionId } = req.body;
   try {
     if (!([
