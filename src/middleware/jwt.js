@@ -12,15 +12,23 @@ import {
 
 const expressjwt = require('express-jwt');
 const jwt = require('jsonwebtoken');
+const LRU = require('lru-cache');
+
+const providerClientSecretCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
 async function fetchProviderClientSecret(clientId) {
+  const cachedSecret = providerClientSecretCache.get(clientId);
+  if (cachedSecret) return cachedSecret;
+
   const spClient = await oAuthClientDbRef.doc(clientId).get();
   if (!spClient.exists) throw new Error('INVALID_AZP');
   const {
     secret,
   } = spClient.data();
+  providerClientSecretCache.set(clientId, secret);
   return secret;
 }
+
 
 function checkPermissions(inputScopes, target) {
   let scopes = inputScopes;
