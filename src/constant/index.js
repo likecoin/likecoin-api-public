@@ -63,6 +63,7 @@ export const AUTH_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
   domain: TEST_MODE ? undefined : '.like.co',
   secure: !TEST_MODE,
+  sameSite: 'none',
   httpOnly: true,
 };
 
