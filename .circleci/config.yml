@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+          key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
       - run:
           name: Dependencies
           command: npm install && npm install codecov -g
