@@ -61,7 +61,7 @@ export const SUBSCRIPTION_GRACE_PERIOD = 7 * ONE_DAY_IN_MS;
 
 export const AUTH_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
-  domain: TEST_MODE ? undefined : `${IS_TESTNET ? '.rinkeby' : ''}.like.co`,
+  domain: TEST_MODE ? undefined : '.like.co',
   secure: !TEST_MODE,
   // sameSite: 'none', // TODO: safari think 'none' is true-ful
   httpOnly: true,
