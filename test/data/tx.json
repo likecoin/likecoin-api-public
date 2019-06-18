@@ -4,7 +4,9 @@
             "id": "0x2d9549ba2d895141660d8fb92bc63ce7caf9eae104550d1ac77a6cd82daf0cad",
             "txHash": "0x2d9549ba2d895141660d8fb92bc63ce7caf9eae104550d1ac77a6cd82daf0cad",
             "from": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
+            "fromId": "testing",
             "to": "0x76ECdE1CC1D2D87D7f20c2C6EAe7529a7379920c",
+            "toId": "testuser",
             "value": "1000000000000000000",
             "ts": 1520330381224
         },
@@ -23,9 +25,9 @@
               "3000000000000000000"
             ],
             "toIds": [
-              "testUser2",
+              "testuser2",
               "testUserX",
-              "testUser3"
+              "testuser3"
             ],
             "ts": 1552450065991
         },
@@ -46,10 +48,10 @@
             "4000000000000000000"
           ],
           "toIds": [
-            "testUser2",
+            "testuser2",
             "testUserX",
             "testUserY",
-            "testUser2"
+            "testuser2"
           ],
           "ts": 1552450065992
         },
@@ -57,8 +59,9 @@
             "id": "0x4589265e09f9520626c9ede5da05b56ba357076422d2877a687ad1927170db36",
             "txHash": "0x4589265e09f9520626c9ede5da05b56ba357076422d2877a687ad1927170db36",
             "from": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
+            "fromId": "testing",
             "to": "0x00C50C2F356130b1F65ac3E60AFE40A6C348f1c9",
-            "toId": "testUser2",
+            "toId": "testuser2",
             "value": "1000000000000000000",
             "ts": 1520330381673
         },
@@ -66,6 +69,7 @@
             "id": "0x4589265e09f9520626c9ede5da05b56ba357076422d2877a687ad1927170db37",
             "txHash": "0x4589265e09f9520626c9ede5da05b56ba357076422d2877a687ad1927170db37",
             "from": "0x00C50C2F356130b1F65ac3E60AFE40A6C348f1c9",
+            "fromId": "testuser2",
             "to": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
             "toId": "testUserW",
             "value": "1000000000000000000",
