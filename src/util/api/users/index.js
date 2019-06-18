@@ -23,6 +23,15 @@ const web3Utils = require('web3-utils');
 
 export const FIVE_MIN_IN_MS = 300000;
 
+function isSafari(req) {
+  return /Version\/([0-9._]+).*Safari/.test(req.headers['user-agent']);
+}
+
+function getAuthCookieOptions(req) {
+  /* mitigate safari sameSite none becomes true bug */
+  return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
+}
+
 export function getIntercomUserHash(user) {
   if (!INTERCOM_USER_HASH_SECRET) return undefined;
   return crypto.createHmac('sha256', INTERCOM_USER_HASH_SECRET)
@@ -37,7 +46,7 @@ export async function setAuthCookies(req, res, { user, wallet }) {
     permissions: ['read', 'write', 'like'],
   };
   const { token, jwtid } = jwtSign(payload);
-  res.cookie('likecoin_auth', token, AUTH_COOKIE_OPTION);
+  res.cookie('likecoin_auth', token, getAuthCookieOptions(req));
   await dbRef.doc(user).collection('session').doc(jwtid).create({
     lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
     lastAccessedIP: req.headers['x-real-ip'] || req.ip,
@@ -47,7 +56,7 @@ export async function setAuthCookies(req, res, { user, wallet }) {
 }
 
 export async function clearAuthCookies(req, res) {
-  res.clearCookie('likecoin_auth', AUTH_COOKIE_OPTION);
+  res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
 }
 
 export function checkSignPayload(from, payload, sign) {

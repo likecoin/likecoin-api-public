@@ -63,7 +63,7 @@ export const AUTH_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
   domain: TEST_MODE ? undefined : '.like.co',
   secure: !TEST_MODE,
-  // sameSite: 'none', // TODO: safari think 'none' is true-ful
+  sameSite: 'none',
   httpOnly: true,
 };
 
