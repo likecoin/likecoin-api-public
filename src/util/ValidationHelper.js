@@ -19,6 +19,7 @@ export function filterUserData(u) {
     email,
     avatar,
     wallet,
+    currentWallet,
     referrer,
     isEmailVerified,
     isEmailEnabled,
@@ -43,6 +44,7 @@ export function filterUserData(u) {
     email,
     avatar,
     wallet,
+    currentWallet,
     referrer: !!referrer,
     isEmailVerified,
     isEmailEnabled,
@@ -67,6 +69,7 @@ export function filterUserDataMin({
   displayName,
   avatar,
   wallet,
+  currentWallet,
   isPreRegCivicLiker,
   preRegCivicLikerStatus,
   isSubscribedCivicLiker,
@@ -77,7 +80,7 @@ export function filterUserDataMin({
     user,
     displayName,
     avatar,
-    wallet,
+    wallet: currentWallet || wallet,
     isPreRegCivicLiker,
     preRegCivicLikerStatus,
     isCivicLikerTrial,
@@ -274,5 +277,17 @@ export function filterSocialLinksMeta({
 }) {
   return {
     displaySocialMediaOption,
+  };
+}
+
+export function filterWalletInfo({
+  address,
+  type,
+  isExchange,
+}) {
+  return {
+    wallet: address,
+    type,
+    isExchange,
   };
 }
