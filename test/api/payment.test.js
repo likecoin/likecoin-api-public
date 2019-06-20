@@ -143,6 +143,23 @@ test('PAYMENT: Get tx history by addr', async (t) => {
   t.is(res.data[0].value, txValue);
 });
 
+test('PAYMENT: Get tx history by user id', async (t) => {
+  const token = jwtSign({ user: testingUser2 });
+  const res = await axiosist.get(`/api/tx/history/user/${testingUser2}`, {
+    headers: {
+      Cookie: `likecoin_auth=${token}`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.length, 1);
+  // check test record exists
+  t.is(res.data[0].id, txHash);
+  t.is(res.data[0].from, txFrom);
+  t.is(res.data[0].to, txTo);
+  t.is(res.data[0].value, txValue);
+});
+
 test('PAYMENT: Get tx history (transferMultiple) by addr (single output)', async (t) => {
   const token = jwtSign({ user: testingUser5, wallet: txToMul[2] });
   const res = await axiosist.get(`/api/tx/history/addr/${txToMul[2]}`, {
@@ -161,9 +178,87 @@ test('PAYMENT: Get tx history (transferMultiple) by addr (single output)', async
   t.deepEqual(res.data[0].toId, [txToIdsMul[2]]);
 });
 
+test('PAYMENT: Get tx history (transferMultiple) by user id (single output)', async (t) => {
+  const token = jwtSign({ user: testingUser5 });
+  const res = await axiosist.get(`/api/tx/history/user/${testingUser5}`, {
+    headers: {
+      Cookie: `likecoin_auth=${token}`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.length, 1);
+  // check test record exists
+  t.is(res.data[0].id, txHashMul);
+  t.is(res.data[0].from, txFromMul);
+  t.deepEqual(res.data[0].to, [txToMul[2]]);
+  t.deepEqual(res.data[0].value, [txValueMul[2]]);
+  t.deepEqual(res.data[0].toId, [txToIdsMul[2]]);
+});
+
 test('PAYMENT: Get tx history (transferMultiple) by addr (multiple output)', async (t) => {
   const token = jwtSign({ user: testingUser4, wallet: txToMul[0] });
   const res = await axiosist.get(`/api/tx/history/addr/${txToMul[0]}`, {
+    headers: {
+      Cookie: `likecoin_auth=${token}`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.length, 4);
+  const checker = {
+    txHashMul: false,
+    txHashMul2: false,
+    txHashMul3: false,
+    txHashMul4: false,
+  };
+  // check test record exists
+  for (let i = 0; i < res.data.length; i += 1) {
+    switch (res.data[i].id) {
+      case txHashMul:
+        t.is(res.data[i].from, txFromMul);
+        t.deepEqual(res.data[i].to, [txToMul[0]]);
+        t.deepEqual(res.data[i].value, [txValueMul[0]]);
+        t.deepEqual(res.data[i].toId, [txToIdsMul[0]]);
+        checker.txHashMul = true;
+        break;
+      case txHashMul2:
+        t.is(res.data[i].from, txFromMul2);
+        t.deepEqual(res.data[i].to, [txToMul2[0]]);
+        t.deepEqual(
+          res.data[i].value,
+          [new BigNumber(txValueMul2[0]).plus(new BigNumber(txValueMul2[3])).toString()],
+        );
+        t.deepEqual(res.data[i].toId, [txToIdsMul2[0]]);
+        checker.txHashMul2 = true;
+        break;
+      case txHashMul3:
+        t.is(res.data[i].from, txFromMul3);
+        t.deepEqual(res.data[i].to, txToMul3);
+        t.deepEqual(res.data[i].value, txValueMul3);
+        t.deepEqual(res.data[i].toId, txToIdMul3);
+        checker.txHashMul3 = true;
+        break;
+      case txHashMul4:
+        t.is(res.data[i].from, txFromMul4);
+        t.deepEqual(res.data[i].to, txToMul4);
+        t.deepEqual(res.data[i].value, txValueMul4);
+        t.deepEqual(res.data[i].toId, txToIdMul4);
+        checker.txHashMul4 = true;
+        break;
+      default:
+        break;
+    }
+  }
+  t.true(checker.txHashMul);
+  t.true(checker.txHashMul2);
+  t.true(checker.txHashMul3);
+  t.true(checker.txHashMul4);
+});
+
+test('PAYMENT: Get tx history (transferMultiple) by user id (multiple output)', async (t) => {
+  const token = jwtSign({ user: testingUser4 });
+  const res = await axiosist.get(`/api/tx/history/user/${testingUser4}`, {
     headers: {
       Cookie: `likecoin_auth=${token}`,
     },
