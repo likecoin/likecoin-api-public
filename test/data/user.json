@@ -12,6 +12,13 @@
                         "id": "testuser"
                     }
                 ],
+                "wallets": [
+                    {
+                        "id": "wallet1",
+                        "address": "0x000000000000000000000000000000000000000",
+                        "type": "web3"
+                    }
+                ],
                 "mission": [
                     {
                         "id": "verifyEmail",
