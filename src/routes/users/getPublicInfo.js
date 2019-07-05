@@ -21,7 +21,7 @@ router.get('/id/:id/min', async (req, res, next) => {
     const username = req.params.id;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
-      res.set('Cache-Control', 'public, max-age=10');
+      res.set('Cache-Control', 'public, max-age=30');
       res.json(filterUserDataMin(payload));
     } else {
       res.sendStatus(404);
