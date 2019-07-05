@@ -40,7 +40,7 @@ router.get('/list/:id', async (req, res, next) => {
       || displaySocialMediaOption === type
     );
     if (shouldShowList) {
-      res.set('Cache-Control', 'public, max-age=10');
+      res.set('Cache-Control', 'public, max-age=60');
       res.json(replyObj);
     } else {
       res.json({});
