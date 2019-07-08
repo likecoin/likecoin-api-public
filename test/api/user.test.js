@@ -453,3 +453,52 @@ test('USER: Post user notitication option', async (t) => {
   t.is(res.status, 200);
   t.is(res.data.isEmailEnabled, true);
 });
+
+test('USER: Check New User Info: Available', async (t) => {
+  const user = `${testingUser2}-new`;
+  const email = 'newemail@email.com';
+  const res = await axiosist.post('/api/users/new/check', {
+    user,
+    email,
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+test('USER: Check New User Info: User already exist', async (t) => {
+  const user = testingUser2;
+  const email = testingEmail2;
+  const res = await axiosist.post('/api/users/new/check', {
+    user,
+    email,
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'USER_ALREADY_EXIST');
+});
+
+test('USER: Check New User Info: Email Already exist', async (t) => {
+  const user = `${testingUser2}-new`;
+  const email = testingEmail2;
+  const res = await axiosist.post('/api/users/new/check', {
+    user,
+    email,
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'EMAIL_ALREADY_USED');
+});
+
+test('USER: Check New User Info: Wallet already exist', async (t) => {
+  const user = `${testingUser2}-new`;
+  const email = 'newemail@email.com';
+  const wallet = testingWallet1;
+  const res = await axiosist.post('/api/users/new/check', {
+    user,
+    email,
+    wallet,
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'WALLET_ALREADY_EXIST');
+});

@@ -73,6 +73,27 @@ function getBool(value = false) {
   return value;
 }
 
+router.post('/new/check', async (req, res, next) => {
+  try {
+    const {
+      user,
+      wallet,
+    } = req.body;
+    let { email } = req.body;
+    email = handleEmailBlackList(email);
+    const isNew = await checkUserInfoUniqueness({
+      user,
+      wallet,
+      email,
+    });
+    if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
+
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post(
   '/new',
   csrf({ cookie: CSRF_COOKIE_OPTION }),
