@@ -13,13 +13,13 @@ import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
 import { getEmailBlacklist, getEmailNoDot } from '../../../poller';
 import { jwtSign } from '../../jwt';
-import { personalEcRecover } from '../../web3';
 import {
   INTERCOM_USER_HASH_SECRET,
 } from '../../../../config/config';
 
 const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
+const sigUtil = require('eth-sig-util');
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -60,7 +60,7 @@ export async function clearAuthCookies(req, res) {
 }
 
 export function checkSignPayload(from, payload, sign) {
-  const recovered = personalEcRecover(payload, sign);
+  const recovered = sigUtil.recoverPersonalSignature({ data: payload, sig: sign });
   if (recovered.toLowerCase() !== from.toLowerCase()) {
     throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
   }
