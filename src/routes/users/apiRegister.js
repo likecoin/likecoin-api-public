@@ -19,7 +19,7 @@ router.post('/new/check', async (req, res, next) => {
       wallet,
     } = req.body;
     let { email } = req.body;
-    email = handleEmailBlackList(email);
+    if (email) email = handleEmailBlackList(email);
     const isNew = await checkUserInfoUniqueness({
       user,
       wallet,
