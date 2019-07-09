@@ -10,7 +10,6 @@ import {
   handleEmailBlackList,
   checkReferrerExists,
   checkUserInfoUniqueness,
-  setAuthCookies,
 } from '.';
 import { tryToLinkSocialPlatform } from '../social';
 import { ValidationError } from '../../ValidationError';
@@ -182,7 +181,6 @@ export async function handleUserRegistration({
 
   const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
 
-  await setAuthCookies(req, res, { user, wallet });
   return {
     userPayload: {
       user,

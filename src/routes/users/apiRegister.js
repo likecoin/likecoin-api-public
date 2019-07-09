@@ -7,6 +7,7 @@ import {
   checkUserInfoUniqueness,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
+import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 
@@ -49,6 +50,7 @@ router.post('/new/:platform', async (req, res, next) => {
   try {
     let platformUserId;
     let isEmailVerified = false;
+    let autoLinkOAuth = false;
 
     switch (platform) {
       case 'matters': {
@@ -56,7 +58,12 @@ router.post('/new/:platform', async (req, res, next) => {
         // TODO: query matters to verify
         platformUserId = token;
         isEmailVerified = true;
-        res.sendStatus(501);
+        autoLinkOAuth = true;
+        res.json({
+          accessToken: 'to be implemented',
+          refreshToken: 'to be implemented',
+          scope: ['profile', 'email', 'like'],
+        });
         return;
         // break;
       }
@@ -82,7 +89,21 @@ router.post('/new/:platform', async (req, res, next) => {
       res,
       req,
     });
-    res.sendStatus(200);
+    let accessToken;
+    let refreshToken;
+    let scope;
+    if (autoLinkOAuth) {
+      ({
+        accessToken,
+        refreshToken,
+        scope,
+      } = await autoGenerateUserTokenForClient(req, platform, user));
+    }
+    res.json({
+      accessToken,
+      refreshToken,
+      scope,
+    });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       ...userPayload,

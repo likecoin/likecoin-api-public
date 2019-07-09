@@ -135,6 +135,8 @@ router.post(
         res,
         req,
       });
+      const { wallet } = userPayload;
+      await setAuthCookies(req, res, { user, wallet });
       res.sendStatus(200);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         ...userPayload,
