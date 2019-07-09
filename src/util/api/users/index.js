@@ -11,7 +11,7 @@ import {
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
-import { getEmailBlacklist, getEmailNoDot } from '../../../poller';
+import { getEmailBlacklist, getEmailNoDot } from '../../../poller/email';
 import { jwtSign } from '../../jwt';
 import {
   INTERCOM_USER_HASH_SECRET,

@@ -9,7 +9,8 @@ import { IS_TESTNET, TEST_MODE } from './constant';
 
 import errorHandler from './middleware/errorHandler';
 import allRoutes from './routes/all';
-import { startPoller } from './poller';
+import { startPoller as startGasPoller } from './poller/gas';
+import { startPoller as startEmailPoller } from './poller/email';
 
 const path = require('path');
 
@@ -49,8 +50,10 @@ app.get('/healthz', (req, res) => {
 
 app.use(errorHandler);
 
-if (!process.env.CI) startPoller();
-
+if (!process.env.CI) {
+  startGasPoller();
+  startEmailPoller();
+}
 
 app.listen(port, host);
 
