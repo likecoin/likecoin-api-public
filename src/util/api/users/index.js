@@ -105,6 +105,18 @@ export function handleEmailBlackList(emailInput) {
   return email;
 }
 
+export function userByEmailQuery(user, email) {
+  return dbRef.where('email', '==', email).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      if (user !== docUser) {
+        throw new ValidationError('EMAIL_ALREADY_USED');
+      }
+    });
+    return true;
+  });
+}
+
 async function userInfoQuery({
   user,
   wallet,
@@ -134,15 +146,7 @@ async function userInfoQuery({
     return true;
   }) : Promise.resolve();
 
-  const emailQuery = email ? dbRef.where('email', '==', email).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
-      const docUser = doc.id;
-      if (user !== docUser) {
-        throw new ValidationError('EMAIL_ALREADY_USED');
-      }
-    });
-    return true;
-  }) : Promise.resolve();
+  const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
   const firebaseQuery = firebaseUserId ? dbRef.where('firebaseUserId', '==', firebaseUserId).get().then((snapshot) => {
     snapshot.forEach((doc) => {

@@ -12,6 +12,7 @@ import {
   handleEmailBlackList,
   checkReferrerExists,
   checkUserInfoUniqueness,
+  userByEmailQuery,
 } from '.';
 import { tryToLinkSocialPlatform } from '../social';
 import { ValidationError } from '../../ValidationError';
@@ -228,4 +229,12 @@ export async function handleUserRegistration({
   };
 }
 
-export default handleUserRegistration;
+export async function checkUserEmailUsable(user, email) {
+  try {
+    const outputEmail = handleEmailBlackList(email);
+    await userByEmailQuery(user, outputEmail);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}

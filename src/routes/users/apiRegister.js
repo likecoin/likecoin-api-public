@@ -9,6 +9,7 @@ import {
 import {
   handleUserRegistration,
   suggestAvailableUserName,
+  checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import { ValidationError } from '../../util/ValidationError';
@@ -60,7 +61,7 @@ router.post('/new/:platform', async (req, res, next) => {
     locale = 'en',
     isEmailEnabled = true,
   } = req.body;
-  const {
+  let {
     email,
   } = req.body;
   try {
@@ -71,6 +72,11 @@ router.post('/new/:platform', async (req, res, next) => {
     switch (platform) {
       case 'matters': {
         const { token } = req.body;
+        if (email) {
+          if (!await checkUserEmailUsable(user, email)) {
+            email = '';
+          }
+        }
         // TODO: query matters to verify
         platformUserId = token;
         isEmailVerified = true;
