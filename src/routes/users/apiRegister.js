@@ -6,7 +6,10 @@ import {
   handleEmailBlackList,
   checkUserInfoUniqueness,
 } from '../../util/api/users';
-import { handleUserRegistration } from '../../util/api/users/register';
+import {
+  handleUserRegistration,
+  suggestAvailableUserName,
+} from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
@@ -20,13 +23,26 @@ router.post('/new/check', async (req, res, next) => {
       wallet,
     } = req.body;
     let { email } = req.body;
-    if (email) email = handleEmailBlackList(email);
-    const isNew = await checkUserInfoUniqueness({
-      user,
-      wallet,
-      email,
-    });
-    if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
+    try {
+      if (email) email = handleEmailBlackList(email);
+      const isNew = await checkUserInfoUniqueness({
+        user,
+        wallet,
+        email,
+      });
+      if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        const payload = { error: err.message };
+        if (err.message === 'USER_ALREADY_EXIST') {
+          const suggestName = await suggestAvailableUserName(user);
+          payload.alternative = suggestName;
+        }
+        res.status(400).json(payload);
+        return;
+      }
+      throw err;
+    }
 
     res.sendStatus(200);
   } catch (err) {

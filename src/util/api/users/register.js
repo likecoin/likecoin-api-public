@@ -1,6 +1,8 @@
 import { sendVerificationEmail } from '../../ses';
 import {
   PUBSUB_TOPIC_MISC,
+  MIN_USER_ID_LENGTH,
+  MAX_USER_ID_LENGTH,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -27,6 +29,34 @@ function getBool(value = false) {
     return value !== 'false';
   }
   return value;
+}
+
+function getRandomPaddedDigits(length) {
+  return String(Math.floor(Math.random() * (10 ** length))).padStart(length, '0');
+}
+
+export async function suggestAvailableUserName(username) {
+  const RANDOM_DIGIT_LENGTH = 5;
+  const MAX_SUGGEST_TRY = 5;
+  let isIDAvailable = false;
+  let tries = 0;
+  let tryName = username.substring(0, MAX_USER_ID_LENGTH - RANDOM_DIGIT_LENGTH);
+  if (tryName.length < MIN_USER_ID_LENGTH) {
+    tryName = `${username}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
+  }
+  while (!isIDAvailable && tries < MAX_SUGGEST_TRY) {
+    const userDoc = await dbRef.doc(tryName).get(); // eslint-disable-line no-await-in-loop
+    if (!userDoc.exists) {
+      isIDAvailable = true;
+      break;
+    }
+    tryName = `${username}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
+    tries += 1;
+  }
+  if (!isIDAvailable || !tryName || !checkUserNameValid(tryName)) {
+    tryName = '';
+  }
+  return tryName;
 }
 
 export async function handleUserRegistration({
