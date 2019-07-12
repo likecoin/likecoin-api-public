@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import csrf from 'csurf';
-import { sendVerificationEmail } from '../../util/ses';
 import {
   PUBSUB_TOPIC_MISC,
   CSRF_COOKIE_OPTION,
@@ -14,8 +13,6 @@ import {
 } from '../../util/firebase';
 import {
   handleEmailBlackList,
-  checkReferrerExists,
-  checkUserInfoUniqueness,
   checkIsOldUser,
   checkSignPayload,
   setAuthCookies,
@@ -24,11 +21,9 @@ import {
   tryToLinkOAuthLogin,
   tryToUnlinkOAuthLogin,
 } from '../../util/api/users';
+import { handleUserRegistration } from '../../util/api/users/register';
 import { tryToLinkSocialPlatform } from '../../util/api/social';
 import { ValidationError } from '../../util/ValidationError';
-import {
-  checkUserNameValid,
-} from '../../util/ValidationHelper';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
 import publisher from '../../util/gcloudPub';
@@ -36,11 +31,9 @@ import { getFirebaseUserProviderUserInfo } from '../../util/FirebaseApp';
 import {
   REGISTER_LIMIT_WINDOW,
   REGISTER_LIMIT_COUNT,
-  NEW_USER_BONUS_COOLDOWN,
 } from '../../../config/config';
 
 const Multer = require('multer');
-const uuidv4 = require('uuid/v4');
 const RateLimit = require('express-rate-limit');
 
 export const THIRTY_S_IN_MS = 30000;
@@ -64,34 +57,6 @@ const apiLimiter = new RateLimit({
       logType: 'eventAPILimitReached',
     });
   },
-});
-
-function getBool(value = false) {
-  if (typeof value === 'string') {
-    return value !== 'false';
-  }
-  return value;
-}
-
-router.post('/new/check', async (req, res, next) => {
-  try {
-    const {
-      user,
-      wallet,
-    } = req.body;
-    let { email } = req.body;
-    email = handleEmailBlackList(email);
-    const isNew = await checkUserInfoUniqueness({
-      user,
-      wallet,
-      email,
-    });
-    if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
-
-    res.sendStatus(200);
-  } catch (err) {
-    next(err);
-  }
 });
 
 router.post(
@@ -158,177 +123,30 @@ router.post(
         default:
           throw new ValidationError('INVALID_PLATFORM');
       }
-
       const {
-        displayName = user,
-        wallet,
-        avatarSHA256,
-        referrer,
-        locale = 'en',
-        accessToken,
-        secret,
-        sourceURL,
-      } = payload;
-      let { isEmailEnabled = true } = payload;
-
-      isEmailEnabled = getBool(isEmailEnabled);
-
-      if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
-
-      if (email) {
-        try {
-          email = handleEmailBlackList(email);
-        } catch (err) {
-          if (err.message === 'DOMAIN_NOT_ALLOWED' || err.message === 'DOMAIN_NEED_EXTRA_CHECK') {
-            publisher.publish(PUBSUB_TOPIC_MISC, req, {
-              logType: 'eventBlockEmail',
-              user,
-              email,
-              displayName,
-              wallet,
-              referrer: referrer || undefined,
-              locale,
-            });
-          }
-          throw err;
-        }
-      }
-
-      const isNew = await checkUserInfoUniqueness({
-        user,
-        wallet,
-        email,
-        firebaseUserId,
-        platform,
-        platformUserId,
-      });
-      if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
-
-      // upload avatar
-      const { file } = req;
-      let avatarUrl;
-      if (file) {
-        avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
-      }
-      let hasReferrer = false;
-      if (referrer) {
-        try {
-          hasReferrer = await checkReferrerExists(referrer);
-        } catch (err) {
-          if (err.message === 'REFERRER_LIMIT_EXCCEDDED') {
-            publisher.publish(PUBSUB_TOPIC_MISC, req, {
-              logType: 'eventBlockReferrer',
-              user,
-              email,
-              displayName,
-              wallet,
-              referrer,
-              locale,
-            });
-          }
-          throw err;
-        }
-      }
-      const createObj = {
-        displayName,
-        wallet,
-        isEmailEnabled,
-        firebaseUserId,
-        avatar: avatarUrl,
-        locale,
-      };
-
-      if (hasReferrer) createObj.referrer = referrer;
-
-      if (email) {
-        createObj.email = email;
-        createObj.isEmailVerified = isEmailVerified;
-
-        // Hack for setting done to verifyEmail mission
-        if (isEmailVerified) {
-          await dbRef
-            .doc(user)
-            .collection('mission')
-            .doc('verifyEmail')
-            .set({ done: true }, { merge: true });
-        } else {
-          // Send verify email
-          createObj.lastVerifyTs = Date.now();
-          createObj.verificationUUID = uuidv4();
-
-          try {
-            await sendVerificationEmail(res, {
-              email,
-              displayName,
-              verificationUUID: createObj.verificationUUID,
-            }, createObj.referrer);
-          } catch (err) {
-            console.error(err);
-            // Do nothing
-          }
-        }
-      }
-
-      const timestampObj = { timestamp: Date.now() };
-      if (NEW_USER_BONUS_COOLDOWN) {
-        timestampObj.bonusCooldown = Date.now() + NEW_USER_BONUS_COOLDOWN;
-      }
-      Object.assign(createObj, timestampObj);
-
-      Object.keys(createObj).forEach((key) => {
-        if (createObj[key] === undefined) {
-          delete createObj[key];
-        }
-      });
-
-      await dbRef.doc(user).create(createObj);
-      if (hasReferrer) {
-        await dbRef.doc(referrer).collection('referrals').doc(user).create({
-          ...timestampObj,
+        userPayload,
+        socialPayload,
+      } = await handleUserRegistration({
+        payload: {
+          platformUserId,
           isEmailVerified,
-        });
-      }
-
-      // platformUserId is only set when the platform is valid
-      if (platformUserId) {
-        const doc = {
-          [platform]: {
-            userId: platformUserId,
-          },
-        };
-        await authDbRef.doc(user).create(doc);
-      }
-
-      const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
-
+          ...payload,
+        },
+        res,
+        req,
+      });
+      const { wallet } = userPayload;
       await setAuthCookies(req, res, { user, wallet });
       res.sendStatus(200);
-
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        ...userPayload,
         logType: 'eventUserRegister',
-        user,
-        email: email || undefined,
-        displayName,
-        wallet,
-        avatar: avatarUrl,
-        referrer: referrer || undefined,
-        locale,
-        registerTime: createObj.timestamp,
-        registerMethod: platform,
-        sourceURL,
       });
       if (socialPayload) {
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'eventSocialLink',
-          platform,
-          user,
-          email: email || undefined,
-          displayName,
-          wallet,
-          referrer: referrer || undefined,
-          locale,
-          registerTime: createObj.timestamp,
+          ...userPayload,
           ...socialPayload,
+          logType: 'eventSocialLink',
         });
       }
     } catch (err) {

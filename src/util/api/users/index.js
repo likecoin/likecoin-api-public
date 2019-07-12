@@ -11,15 +11,15 @@ import {
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
-import { getEmailBlacklist, getEmailNoDot } from '../../../poller';
+import { getEmailBlacklist, getEmailNoDot } from '../../../poller/email';
 import { jwtSign } from '../../jwt';
-import { personalEcRecover } from '../../web3';
 import {
   INTERCOM_USER_HASH_SECRET,
 } from '../../../../config/config';
 
 const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
+const sigUtil = require('eth-sig-util');
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -60,7 +60,7 @@ export async function clearAuthCookies(req, res) {
 }
 
 export function checkSignPayload(from, payload, sign) {
-  const recovered = personalEcRecover(payload, sign);
+  const recovered = sigUtil.recoverPersonalSignature({ data: payload, sig: sign });
   if (recovered.toLowerCase() !== from.toLowerCase()) {
     throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
   }
@@ -105,6 +105,18 @@ export function handleEmailBlackList(emailInput) {
   return email;
 }
 
+export function userByEmailQuery(user, email) {
+  return dbRef.where('email', '==', email).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      if (user !== docUser) {
+        throw new ValidationError('EMAIL_ALREADY_USED');
+      }
+    });
+    return true;
+  });
+}
+
 async function userInfoQuery({
   user,
   wallet,
@@ -134,15 +146,7 @@ async function userInfoQuery({
     return true;
   }) : Promise.resolve();
 
-  const emailQuery = email ? dbRef.where('email', '==', email).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
-      const docUser = doc.id;
-      if (user !== docUser) {
-        throw new ValidationError('EMAIL_ALREADY_USED');
-      }
-    });
-    return true;
-  }) : Promise.resolve();
+  const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
   const firebaseQuery = firebaseUserId ? dbRef.where('firebaseUserId', '==', firebaseUserId).get().then((snapshot) => {
     snapshot.forEach((doc) => {

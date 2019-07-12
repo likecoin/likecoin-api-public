@@ -474,7 +474,8 @@ test('USER: Check New User Info: User already exist', async (t) => {
   }).catch(err => err.response);
 
   t.is(res.status, 400);
-  t.is(res.data, 'USER_ALREADY_EXIST');
+  t.is(res.data.error, 'USER_ALREADY_EXIST');
+  t.regex(res.data.alternative, new RegExp(`${testingUser2}.+`));
 });
 
 test('USER: Check New User Info: Email Already exist', async (t) => {
@@ -486,7 +487,7 @@ test('USER: Check New User Info: Email Already exist', async (t) => {
   }).catch(err => err.response);
 
   t.is(res.status, 400);
-  t.is(res.data, 'EMAIL_ALREADY_USED');
+  t.is(res.data.error, 'EMAIL_ALREADY_USED');
 });
 
 test('USER: Check New User Info: Wallet already exist', async (t) => {
@@ -500,5 +501,5 @@ test('USER: Check New User Info: Wallet already exist', async (t) => {
   }).catch(err => err.response);
 
   t.is(res.status, 400);
-  t.is(res.data, 'WALLET_ALREADY_EXIST');
+  t.is(res.data.error, 'WALLET_ALREADY_EXIST');
 });

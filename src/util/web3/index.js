@@ -3,7 +3,7 @@ import Web3 from 'web3';
 import { INFURA_HOST, PUBSUB_TOPIC_MISC } from '../../constant';
 import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../../constant/contract/likecoin';
 import publisher from '../gcloudPub';
-import { getGasPrice } from '../../poller';
+import { getGasPrice } from '../../poller/gas';
 import {
   db,
   txCollection as txLogRef,
