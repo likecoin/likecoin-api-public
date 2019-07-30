@@ -219,8 +219,7 @@ export async function checkIsOldUser({
 
 export async function checkReferrerExists(referrer) {
   const referrerRef = await dbRef.doc(referrer).get();
-  if (!referrerRef.exists) throw new ValidationError('REFERRER_NOT_EXIST');
-  if (!referrerRef.data().isEmailVerified) throw new ValidationError('REFERRER_EMAIL_UNVERIFIED');
+  if (!referrerRef.exists) return false;
   if (referrerRef.data().isBlackListed) {
     throw new ValidationError('REFERRER_LIMIT_EXCCEDDED');
   }
