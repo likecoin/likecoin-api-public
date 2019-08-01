@@ -41,3 +41,18 @@ export async function logClaimCouponTx(payload) {
     console.error(err);
   }
 }
+
+export async function logCosmosTx(payload) {
+  const { txHash } = payload;
+  try {
+    await dbRef.doc(txHash).create({
+      type: 'cosmosTransfer',
+      status: 'pending',
+      ts: Date.now(),
+      remarks: payload.memo,
+      ...payload,
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}

@@ -54,6 +54,7 @@
     "disposable-email-domains": "^1.0.42",
     "eth-sig-util": "^1.4.2",
     "express": "^4.17.0",
+    "express-http-proxy": "^1.5.1",
     "express-jwt": "^5.3.1",
     "express-rate-limit": "^3.3.2",
     "file-type": "^10.9.0",
