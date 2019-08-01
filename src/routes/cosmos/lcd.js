@@ -18,7 +18,7 @@ const router = Router();
 router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
   try {
     const {
-      amount,
+      amount: [amount],
       from_address: from,
       to_address: to,
       httpReferrer,
@@ -57,6 +57,7 @@ router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
       likeAmountUnitStr: amountToLIKE(amount).toString(),
       sourceURL: httpReferrer,
     });
+    next();
   } catch (err) {
     next(err);
   }
@@ -71,8 +72,10 @@ async function handlePostTxReq(reqData, resData, req) {
         gas,
       },
       memo,
-      account_number: accountNumber,
-      sequence,
+      signatures: [{
+        account_number: accountNumber,
+        sequence,
+      }],
     },
     mode,
     httpReferrer,
@@ -82,13 +85,11 @@ async function handlePostTxReq(reqData, resData, req) {
   const { type, value: payloadValue } = msg[0];
   if (type === 'cosmos-sdk/MsgSend') {
     const {
-      amount,
+      amount: [amount],
       from_address: from,
       to_address: to,
     } = payloadValue;
 
-    let remarks = memo;
-    let parsedHttpReferrer;
     const {
       fromId,
       fromDisplayName,
@@ -105,23 +106,7 @@ async function handlePostTxReq(reqData, resData, req) {
       toSubscriptionURL,
     } = await fetchPaymentUserInfo({ from, to, type: 'cosmos' });
 
-    /* temp hack to handle medium referrer */
-    if (httpReferrer) {
-      let targetURL = httpReferrer;
-      const match = (decodeURIComponent(targetURL) || '').match(MEDIUM_REGEX);
-      if (match && match[1]) {
-        targetURL = `https://medium.com/p/${match[1]}`;
-        remarks = memo || `@LikeCoin Widget: ${targetURL}`;
-      }
-      try {
-        new URL(targetURL); // eslint-disable-line
-        parsedHttpReferrer = targetURL;
-      } catch (err) {
-        // no op
-      }
-    }
-
-    await logCosmosTx({
+    const txRecord = {
       txHash,
       feeAmount,
       gas,
@@ -134,10 +119,28 @@ async function handlePostTxReq(reqData, resData, req) {
       fromId: fromId || null,
       toId: toId || null,
       amount,
-      remarks,
-      httpReferrer: parsedHttpReferrer,
       rawPayload: JSON.stringify(reqData),
-    });
+    };
+
+    /* temp hack to handle medium referrer */
+    if (httpReferrer) {
+      let targetURL = httpReferrer;
+      if (!memo) {
+        const match = (decodeURIComponent(targetURL) || '').match(MEDIUM_REGEX);
+        if (match && match[1]) {
+          targetURL = `https://medium.com/p/${match[1]}`;
+          txRecord.remarks = `@LikeCoin Widget: ${targetURL}`;
+        }
+      }
+      try {
+        new URL(targetURL); // eslint-disable-line
+        txRecord.httpReferrer = targetURL;
+      } catch (err) {
+        // no op
+      }
+    }
+
+    await logCosmosTx(txRecord);
     const status = 'pending';
     if (toSubscriptionURL) {
       try {
@@ -180,8 +183,8 @@ async function handlePostTxReq(reqData, resData, req) {
   }
 }
 
-router.use('.', proxy(COSMOS_LCD_ENDPOINT, {
-  userResDecoratorn: async (proxyRes, proxyResData, userReq) => {
+router.use(proxy(COSMOS_LCD_ENDPOINT, {
+  userResDecorator: async (proxyRes, proxyResData, userReq) => {
     if (userReq.method === 'POST') {
       if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
         switch (userReq.path) {
