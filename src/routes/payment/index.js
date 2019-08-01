@@ -11,6 +11,7 @@ import {
   checkAddressValid,
 } from '../../util/ValidationHelper';
 import { logTransferDelegatedTx, logETHTx } from '../../util/txLogger';
+import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { web3, LikeCoin, sendTransactionWithLoop } from '../../util/web3';
 import { jwtAuth } from '../../middleware/jwt';
 import publisher from '../../util/gcloudPub';
@@ -59,61 +60,6 @@ router.post('/', jwtAuth('write'), apiLimiter, async (req, res, next) => {
     if (new BigNumber(value).lte(0)) throw new ValidationError('INVALID_VALUE');
     const balance = await LikeCoin.methods.balanceOf(from).call();
     if ((new BigNumber(balance)).lt(new BigNumber(value))) throw new ValidationError('Not enough balance');
-    const fromQuery = dbRef.where('wallet', '==', from).get().then((snapshot) => {
-      if (snapshot.docs.length > 0) {
-        const fromUser = snapshot.docs[0].data();
-        if (fromUser.isBlackListed) {
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'eventBakError',
-            user: snapshot.docs[0].id,
-            wallet: fromUser.wallet,
-            displayName: fromUser.displayName,
-            email: fromUser.email,
-            referrer: fromUser.referrer,
-            locale: fromUser.locale,
-            registerTime: fromUser.timestamp,
-          });
-          throw new ValidationError('ERROR_FROM_BAK');
-        }
-        return {
-          fromId: snapshot.docs[0].id,
-          fromDisplayName: fromUser.displayName,
-          fromEmail: fromUser.email,
-          fromReferrer: fromUser.referrer,
-          fromLocale: fromUser.locale,
-          fromRegisterTime: fromUser.timestamp,
-        };
-      }
-      return {};
-    });
-    const toQuery = dbRef.where('wallet', '==', to).get().then((snapshot) => {
-      if (snapshot.docs.length > 0) {
-        const toUser = snapshot.docs[0].data();
-        if (toUser.isBlackListed) {
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'eventBakError',
-            user: snapshot.docs[0].id,
-            wallet: toUser.wallet,
-            displayName: toUser.displayName,
-            email: toUser.email,
-            referrer: toUser.referrer,
-            locale: toUser.locale,
-            registerTime: toUser.timestamp,
-          });
-          throw new ValidationError('ERROR_TO_BAK');
-        }
-        return {
-          toId: snapshot.docs[0].id,
-          toDisplayName: toUser.displayName,
-          toEmail: toUser.email,
-          toReferrer: toUser.referrer,
-          toLocale: toUser.locale,
-          toRegisterTime: toUser.timestamp,
-          toSubscriptionURL: toUser.subscriptionURL,
-        };
-      }
-      return {};
-    });
     const [{
       fromId,
       fromDisplayName,
@@ -121,7 +67,6 @@ router.post('/', jwtAuth('write'), apiLimiter, async (req, res, next) => {
       fromReferrer,
       fromLocale,
       fromRegisterTime,
-    }, {
       toId,
       toDisplayName,
       toEmail,
@@ -131,7 +76,7 @@ router.post('/', jwtAuth('write'), apiLimiter, async (req, res, next) => {
       toSubscriptionURL,
     },
     currentBlock,
-    ] = await Promise.all([fromQuery, toQuery, web3.eth.getBlockNumber()]);
+    ] = await Promise.all([fetchPaymentUserInfo({ from, to, type: 'eth' }), web3.eth.getBlockNumber()]);
     if (req.user.user !== fromId) {
       res.status(401).send('LOGIN_NEEDED');
       return;
