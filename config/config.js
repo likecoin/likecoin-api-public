@@ -12,7 +12,7 @@ config.FIRESTORE_COUPON_ROOT = process.env.FIRESTORE_COUPON_ROOT;
 config.FIRESTORE_OAUTH_CLIENT_ROOT = process.env.FIRESTORE_OAUTH_CLIENT_ROOT;
 config.FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
 
-config.COSMOS_LCD_ENDPOINT = '';
+config.COSMOS_LCD_ENDPOINT = 'localhost:1317';
 config.COSMOS_CHAIN_ID = 'likechain-cosmos-testnet-2';
 config.COSMOS_DENOM = 'nanolike';
 
