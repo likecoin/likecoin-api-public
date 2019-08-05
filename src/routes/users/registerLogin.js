@@ -124,7 +124,7 @@ router.post(
         }
         case 'matters': {
           const { accessToken } = req.body;
-          const { userId, email: mattersEmail } = await fetchMattersUser(accessToken);
+          const { userId, email: mattersEmail } = await fetchMattersUser({ accessToken });
           platformUserId = userId;
           payload = req.body;
 
@@ -358,7 +358,7 @@ router.post('/login', async (req, res, next) => {
       }
       case 'matters': {
         const { accessToken } = req.body;
-        const { userId } = await fetchMattersUser(accessToken);
+        const { userId } = await fetchMattersUser({ accessToken });
         const userQuery = await (
           authDbRef
             .where(`${platform}.userId`, '==', userId)

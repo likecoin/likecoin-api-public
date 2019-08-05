@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { PUBSUB_TOPIC_MISC, TEST_MODE } from '../../../constant';
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
@@ -11,6 +11,7 @@ import {
   tryToUnlinkOAuthLogin,
 } from '../../../util/api/users';
 import { tryToLinkSocialPlatform } from '../../../util/api/social';
+import { fetchMattersOAuthInfo, fetchMattersUser } from '../../../util/oauth/matters';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import { getFirebaseUserProviderUserInfo } from '../../../util/FirebaseApp';
@@ -31,6 +32,48 @@ router.get('/login/platforms', jwtAuth('read'), async (req, res, next) => {
         .forEach((pid) => { platforms[pid] = true; });
     }
     res.json(platforms);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/login/:platform', async (req, res, next) => {
+  try {
+    const { platform } = req.params;
+    let url;
+    let state;
+    switch (platform) {
+      case 'matters':
+        ({ url, state } = await fetchMattersOAuthInfo('login'));
+        break;
+      default:
+        throw new ValidationError('INVALID_PLATFORM');
+    }
+    res.cookie('likeco_matters', state, { httpOnly: true, secure: !TEST_MODE });
+    res.json({ url, state });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/login/:platform', async (req, res, next) => {
+  try {
+    const { platform } = req.params;
+    const { code, state } = req.body;
+    if (req.cookies.likeco_matters !== state) {
+      throw new ValidationError('INVALID_STATE');
+    }
+    let accessToken;
+    let email;
+    let displayName;
+    switch (platform) {
+      case 'matters':
+        ({ accessToken, email, displayName } = await fetchMattersUser({ code }));
+        break;
+      default:
+        throw new ValidationError('INVALID_PLATFORM');
+    }
+    res.json({ accessToken, email, displayName });
   } catch (err) {
     next(err);
   }
