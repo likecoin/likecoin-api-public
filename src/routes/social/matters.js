@@ -63,7 +63,7 @@ router.post('/link/matters', jwtAuth('write'), async (req, res, next) => {
       url,
       imageUrl,
       refreshToken,
-    } = await fetchMattersUser(code);
+    } = await fetchMattersUser({ code });
     await dbRef.doc(user).collection('social').doc('matters').set({
       accessToken: FieldValue.delete(),
       refreshToken,
