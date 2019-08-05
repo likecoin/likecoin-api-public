@@ -5,6 +5,7 @@ import {
   PUBSUB_TOPIC_MISC,
   CSRF_COOKIE_OPTION,
 } from '../../constant';
+import { fetchMattersUser } from '../../util/oauth/matters';
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
@@ -118,6 +119,16 @@ router.post(
             }
             default:
           }
+          break;
+        }
+        case 'matters': {
+          const { accessToken } = req.body;
+          const { userId, email: mattersEmail } = await fetchMattersUser(accessToken);
+          platformUserId = userId;
+          payload = req.body;
+
+          // Set verified to the email if it matches platform verified email
+          isEmailVerified = mattersEmail === payload.email;
           break;
         }
         default:
@@ -313,7 +324,20 @@ router.post('/login', async (req, res, next) => {
         }
         break;
       }
-
+      case 'matters': {
+        const { accessToken } = req.body;
+        const { userId } = await fetchMattersUser(accessToken);
+        const userQuery = await (
+          authDbRef
+            .where(`${platform}.userId`, '==', userId)
+            .get()
+        );
+        if (userQuery.docs.length > 0) {
+          const [userDoc] = userQuery.docs;
+          user = userDoc.id;
+        }
+        break;
+      }
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
