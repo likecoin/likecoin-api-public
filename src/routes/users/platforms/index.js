@@ -19,6 +19,12 @@ import publisher from '../../../util/gcloudPub';
 
 const router = Router();
 
+function checkStateCookie({ req, state, platform }) {
+  if (req.cookies[`likeco_login_${platform}`] !== state) {
+    throw new ValidationError('INVALID_STATE');
+  }
+}
+
 router.get('/login/platforms', jwtAuth('read'), async (req, res, next) => {
   try {
     if (!req.user.user) {
@@ -40,16 +46,19 @@ router.get('/login/platforms', jwtAuth('read'), async (req, res, next) => {
 router.get('/login/:platform', async (req, res, next) => {
   try {
     const { platform } = req.params;
+    const { type = 'login' } = req.query;
     let url;
     let state;
     switch (platform) {
-      case 'matters':
-        ({ url, state } = await fetchMattersOAuthInfo('login'));
+      case 'matters': {
+        const stateType = type === 'link' ? 'authlink' : 'login';
+        ({ url, state } = await fetchMattersOAuthInfo(stateType));
         break;
+      }
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
-    res.cookie('likeco_matters', state, { httpOnly: true, secure: !TEST_MODE });
+    res.cookie(`likeco_login_${platform}`, state, { httpOnly: true, secure: !TEST_MODE });
     res.json({ url, state });
   } catch (err) {
     next(err);
@@ -60,20 +69,23 @@ router.post('/login/:platform', async (req, res, next) => {
   try {
     const { platform } = req.params;
     const { code, state } = req.body;
-    if (req.cookies.likeco_matters !== state) {
-      throw new ValidationError('INVALID_STATE');
-    }
     let accessToken;
     let email;
     let displayName;
+    let avatar;
+    checkStateCookie({ req, state, platform });
     switch (platform) {
       case 'matters':
-        ({ accessToken, email, displayName } = await fetchMattersUser({ code }));
+        ({
+          accessToken, email, displayName, imageUrl: avatar,
+        } = await fetchMattersUser({ code }));
         break;
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
-    res.json({ accessToken, email, displayName });
+    res.json({
+      accessToken, email, displayName, avatar,
+    });
   } catch (err) {
     next(err);
   }
@@ -81,12 +93,8 @@ router.post('/login/:platform', async (req, res, next) => {
 
 router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => {
   try {
-    const { user } = req.body;
+    const { user } = req.user;
     const { platform } = req.params;
-    if (req.user.user !== user) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
 
     let platformUserId;
     switch (platform) {
@@ -136,7 +144,28 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
 
         break;
       }
-
+      case 'matters': {
+        const {
+          code,
+          state,
+        } = req.body;
+        checkStateCookie({ req, state, platform });
+        const {
+          accessToken, refreshToken, userId,
+        } = await fetchMattersUser({ code });
+        const query = await authDbRef.where(`${platform}.userId`, '==', userId).get();
+        if (query.docs.length > 0) {
+          query.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError(`${platform.toUpperCase()}_USER_ID_DUPLICATED`);
+            }
+          });
+        }
+        await tryToLinkOAuthLogin({ likeCoinId: user, platform, platformUserId: userId });
+        await tryToLinkSocialPlatform(user, platform, { accessToken, refreshToken });
+        break;
+      }
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }

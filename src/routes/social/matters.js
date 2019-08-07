@@ -1,14 +1,11 @@
 import { Router } from 'express';
-import { checkPlatformAlreadyLinked } from '../../util/api/social';
-import { fetchMattersOAuthInfo, fetchMattersUser } from '../../util/oauth/matters';
+import { checkPlatformAlreadyLinked, socialLinkMatters } from '../../util/api/social';
+import { fetchMattersOAuthInfo } from '../../util/oauth/matters';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import publisher from '../../util/gcloudPub';
 import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
-import {
-  userCollection as dbRef,
-  FieldValue,
-} from '../../util/firebase';
+import { userCollection as dbRef } from '../../util/firebase';
 
 const router = Router();
 
@@ -62,19 +59,7 @@ router.post('/link/matters', jwtAuth('write'), async (req, res, next) => {
       fullName,
       url,
       imageUrl,
-      refreshToken,
-    } = await fetchMattersUser({ code });
-    await dbRef.doc(user).collection('social').doc('matters').set({
-      accessToken: FieldValue.delete(),
-      refreshToken,
-      userId,
-      displayName,
-      fullName,
-      url,
-      imageUrl,
-      isLinked: true,
-      ts: Date.now(),
-    }, { merge: true });
+    } = await socialLinkMatters({ code });
     res.json({
       platform: 'matters',
       displayName,
@@ -101,6 +86,7 @@ router.post('/link/matters', jwtAuth('write'), async (req, res, next) => {
       mattersId: userId,
       mattersName: fullName,
       mattersUserName: displayName,
+      mattersImageUrl: imageUrl,
       registerTime: timestamp,
     });
   } catch (err) {

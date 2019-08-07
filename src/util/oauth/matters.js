@@ -69,7 +69,7 @@ export async function fetchMattersUser({ code, accessToken: inputToken }) {
     email,
     displayName,
     fullName,
-    avatar,
+    imageUrl: avatar,
     url: `https:/${MATTER_HOST}/@${displayName}/`,
   };
 }
