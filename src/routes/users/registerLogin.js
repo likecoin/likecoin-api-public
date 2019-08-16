@@ -24,6 +24,7 @@ import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
+import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import { getFirebaseUserProviderUserInfo } from '../../util/FirebaseApp';
 import {
@@ -94,6 +95,15 @@ router.post(
           ({ user, email } = payload);
           payload.referrer = referrer;
           payload.sourceURL = sourceURL;
+          break;
+        }
+        case 'authcore': {
+          const { idToken, ...authCorePayload } = req.body;
+          const authCoreUser = authCoreJwtVerify(idToken);
+          const { sub: authCoreId } = authCoreUser;
+          payload = authCorePayload;
+          isEmailVerified = authCoreUser.email === payload.email && authCoreUser.email_verified;
+          platformUserId = authCoreId;
           break;
         }
         case 'google':
@@ -298,6 +308,21 @@ router.post('/login', async (req, res, next) => {
         const query = await dbRef.where('wallet', '==', wallet).limit(1).get();
         if (query.docs.length > 0) {
           user = query.docs[0].id;
+        }
+        break;
+      }
+      case 'authcore': {
+        const { idToken } = req.body;
+        const authCoreUser = authCoreJwtVerify(idToken);
+        const { sub: authCoreId } = authCoreUser;
+        const userQuery = await (
+          authDbRef
+            .where(`${platform}.userId`, '==', authCoreId)
+            .get()
+        );
+        if (userQuery.docs.length > 0) {
+          const [userDoc] = userQuery.docs;
+          user = userDoc.id;
         }
         break;
       }

@@ -15,8 +15,14 @@ export const issuer = EXTERNAL_HOSTNAME;
 let algorithm = 'RS256';
 let signSecret;
 let verifySecret;
+let authCoreVerifySecret = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKY6MShC7UrSkekyczKKvZQXuxFKD
+Rd0DEgV6r9XeDAZoYPPTvgx3oNBTatFJjSOJ/qRrBbqvbZDiPOLpJ7vlaQ==
+-----END PUBLIC KEY-----`;
 const publicCertPath = config.JWT_PUBLIC_CERT_PATH;
 const secretCertPath = config.JWT_PRIVATE_KEY_PATH;
+const authCorePublicCertPath = config.AUTHCORE_PUBLIC_CERT_PATH;
 if (publicCertPath) {
   try {
     verifySecret = fs.readFileSync(publicCertPath);
@@ -31,6 +37,15 @@ if (secretCertPath) {
   } catch (err) {
     console.error(err);
     console.error('RSA sign key not exist for jwt');
+  }
+}
+
+if (authCorePublicCertPath) {
+  try {
+    authCoreVerifySecret = fs.readFileSync(authCorePublicCertPath);
+  } catch (err) {
+    console.error(err);
+    console.error('auth core cert not exist for jwt');
   }
 }
 
@@ -107,3 +122,9 @@ export const jwtSignForAZP = (
   if (expiresIn) opt.expiresIn = expiresIn;
   return internalSign({ ...payload, azp }, secret, opt);
 };
+
+export const authCoreJwtVerify = token => jwt.verify(
+  token,
+  authCoreVerifySecret,
+  { algorithm: 'ES256' },
+);
