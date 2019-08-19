@@ -1,4 +1,5 @@
 import axios from 'axios';
+import bodyParser from 'body-parser';
 import { Router } from 'express';
 
 import {
@@ -14,6 +15,8 @@ const proxy = require('express-http-proxy');
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();
+
+router.use(bodyParser.json({ type: 'text/plain' }));
 
 router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
   try {
