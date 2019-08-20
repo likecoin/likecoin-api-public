@@ -12,6 +12,7 @@ import {
   checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
+import { fetchMattersUser } from '../../util/oauth/matters';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 
@@ -77,15 +78,11 @@ router.post('/new/:platform', async (req, res, next) => {
             email = '';
           }
         }
+        const { userId } = await fetchMattersUser({ accessToken: token });
         // TODO: query matters to verify
-        platformUserId = token;
+        platformUserId = userId;
         isEmailVerified = true;
         autoLinkOAuth = true;
-        res.json({
-          accessToken: 'to be implemented',
-          refreshToken: 'to be implemented',
-          scope: ['profile', 'email', 'like'],
-        });
         return;
         // break;
       }
