@@ -12,6 +12,7 @@ import {
   checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
+import { handleClaimPlatformDelegatedUser } from '../../util/api/users/platforms';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
@@ -143,6 +144,51 @@ router.post('/new/:platform', async (req, res, next) => {
       email,
       error: err.message || JSON.stringify(err),
     });
+    next(err);
+  }
+});
+
+router.post('/edit/:platform', async (req, res, next) => {
+  const { platform } = req.params;
+  const { user } = req.body;
+  try {
+    switch (platform) {
+      case 'matters': {
+        const {
+          action,
+          token,
+        } = req.body;
+        switch (action) {
+          case 'claim': {
+            const {
+              userId,
+              email,
+              displayName,
+            } = await fetchMattersUser({ accessToken: token });
+            const isEmailVerified = true;
+            await handleClaimPlatformDelegatedUser(user, platform, {
+              email,
+              displayName,
+              isEmailVerified,
+            });
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'eventClaimMattersDelegatedUser',
+              matterUserId: userId,
+              user,
+              email,
+              displayName,
+            });
+            break;
+          }
+          default:
+            throw new ValidationError('UNKNOWN_ACTION');
+        }
+        break;
+      }
+      default:
+        throw new ValidationError('INVALID_PLATFORM');
+    }
+  } catch (err) {
     next(err);
   }
 });
