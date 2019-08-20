@@ -157,6 +157,7 @@ router.post('/edit/:platform', async (req, res, next) => {
         const {
           action,
           token,
+          payload,
         } = req.body;
         switch (action) {
           case 'claim': {
@@ -166,7 +167,7 @@ router.post('/edit/:platform', async (req, res, next) => {
               displayName,
             } = await fetchMattersUser({ accessToken: token });
             const isEmailVerified = true;
-            await handleClaimPlatformDelegatedUser(user, platform, {
+            await handleClaimPlatformDelegatedUser(platform, user, {
               email,
               displayName,
               isEmailVerified,
@@ -177,6 +178,25 @@ router.post('/edit/:platform', async (req, res, next) => {
               user,
               email,
               displayName,
+            });
+            res.sendStatus(200);
+            break;
+          }
+          case 'transfer': {
+            const {
+              toUserId,
+              fromUserId,
+            } = payload;
+            await handleClaimPlatformDelegatedUser(platform, fromUserId, toUserId);
+            const {
+              accessToken,
+              refreshToken,
+              scope,
+            } = await autoGenerateUserTokenForClient(req, platform, toUserId);
+            res.json({
+              accessToken,
+              refreshToken,
+              scope,
             });
             break;
           }
