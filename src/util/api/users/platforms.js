@@ -31,16 +31,19 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
 export async function handleTransferPlatformDelegatedUser(platform, user, target) {
   await db.runTransaction(async (t) => {
     const userRef = dbRef.doc(user);
+    const userSocialRef = userRef.collection('social').doc(platform);
     const targetRef = dbRef.doc(target);
     const userAuthRef = authDbRef.doc(user);
     const targetAuthRef = authDbRef.doc(target);
     const [
       userDoc,
+      userSocialDoc,
       targetDoc,
       userAuthDoc,
       targetAuthDoc,
     ] = await Promise.all([
       t.get(userRef),
+      t.get(userSocialRef),
       t.get(targetRef),
       t.get(userAuthRef),
       t.get(targetAuthRef),
@@ -85,6 +88,10 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
       t.update(userDoc, { pendingLIKE: FieldValue.delete() });
       // TODO: actually delete the id?
     }
-    // TODO: move social also
+    if (userSocialDoc.exists) {
+      t.set(targetRef.collection('social').doc(platform), userSocialDoc.data());
+      t.delete(userSocialRef);
+    }
+    // TODO: actually delete the id?
   });
 }
