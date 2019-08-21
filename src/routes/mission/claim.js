@@ -36,12 +36,14 @@ router.post('/referral/claim', jwtAuth('write'), async (req, res) => {
     const {
       displayName,
       email,
-      wallet,
+      wallet: ethWallet,
+      cosmosWallet,
       isBlackListed,
       referrer,
       timestamp: registerTime,
       bonusCooldown,
     } = userDoc.data();
+    const wallet = cosmosWallet || ethWallet;
     if (isBlackListed) {
       publisher.publish(PUBSUB_TOPIC_MISC, null, {
         logType: 'eventBakError',
@@ -126,11 +128,13 @@ router.post('/claim', jwtAuth('write'), async (req, res) => {
       const {
         displayName,
         email,
-        wallet,
+        wallet: ethWallet,
+        cosmosWallet,
         isBlackListed,
         referrer,
         timestamp: registerTime,
       } = userDoc.data();
+      const wallet = cosmosWallet || ethWallet;
       if (isBlackListed) {
         publisher.publish(PUBSUB_TOPIC_MISC, null, {
           logType: 'eventBakError',
