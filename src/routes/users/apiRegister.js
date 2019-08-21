@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
+import { getOAuthClientInfo } from '../../middleware/oauth';
 import {
   handleEmailBlackList,
   checkUserInfoUniqueness,
@@ -53,7 +54,7 @@ router.post('/new/check', async (req, res, next) => {
   }
 });
 
-router.post('/new/:platform', async (req, res, next) => {
+router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const {
     platform,
   } = req.params;
@@ -66,6 +67,9 @@ router.post('/new/:platform', async (req, res, next) => {
   let {
     email,
   } = req.body;
+  if (req.auth.platform !== platform) {
+    throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
+  }
   try {
     let platformUserId;
     let isEmailVerified = false;
@@ -80,18 +84,14 @@ router.post('/new/:platform', async (req, res, next) => {
           }
         }
         const { userId } = await fetchMattersUser({ accessToken: token });
-        // TODO: query matters to verify
         platformUserId = userId;
         isEmailVerified = true;
         autoLinkOAuth = true;
-        return;
-        // break;
+        break;
       }
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
-    // TODO: remove line below
-    /* eslint-disable no-unreachable */
     const {
       userPayload,
       socialPayload,
@@ -148,9 +148,12 @@ router.post('/new/:platform', async (req, res, next) => {
   }
 });
 
-router.post('/edit/:platform', async (req, res, next) => {
+router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const { platform } = req.params;
   const { user } = req.body;
+  if (req.auth.platform !== platform) {
+    throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
+  }
   try {
     switch (platform) {
       case 'matters': {
