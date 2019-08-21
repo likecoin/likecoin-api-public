@@ -11,12 +11,12 @@ const querystring = require('querystring');
 
 const MATTER_HOST = `${IS_TESTNET ? 'server-test.' : ''}matters.news`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
-const SCOPE = ''; // TODO: Add email
+const SCOPE = 'user:email:readonly​'; // TODO: Add email
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
   const state = `${user}-${crypto.randomBytes(20).toString('hex')}`;
-  const url = `https://${MATTER_HOST}/oauth/authorize?client_id=${MATTERS_APP_ID}&scope=${SCOPE}&state=${state}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URI)}`;
+  const url = `https://${MATTER_HOST}/oauth/authorize?client_id=${MATTERS_APP_ID}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URI)}`;
   return { url, state };
 }
 
