@@ -205,6 +205,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               getJwtInfo(toUserToken),
               getJwtInfo(fromUserToken),
             ]);
+            if (!toUserId || !fromUserId) throw new ValidationError('TOKEN_USER_NOT_FOUND');
             await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
             const {
               accessToken,
