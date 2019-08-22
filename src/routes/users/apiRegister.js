@@ -14,7 +14,10 @@ import {
   checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
-import { handleClaimPlatformDelegatedUser } from '../../util/api/users/platforms';
+import {
+  handleClaimPlatformDelegatedUser,
+  handleTransferPlatformDelegatedUser,
+} from '../../util/api/users/platforms';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
@@ -202,7 +205,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               getJwtInfo(toUserToken),
               getJwtInfo(fromUserToken),
             ]);
-            await handleClaimPlatformDelegatedUser(platform, fromUserId, toUserId);
+            await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
             const {
               accessToken,
               refreshToken,
