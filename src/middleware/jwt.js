@@ -5,6 +5,7 @@ import {
   defaultAudience,
   getToken,
   issuer,
+  jwtVerify,
 } from '../util/jwt';
 import {
   oAuthClientCollection as oAuthClientDbRef,
@@ -123,4 +124,18 @@ export const jwtOptionalAuth = (
     }
     next(e);
   });
+};
+
+export const getJwtInfo = async (token) => {
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded.azp) {
+      const clientSecret = await fetchProviderClientSecret(decoded.azp);
+      const secret = getProviderJWTSecret(clientSecret);
+      return jwtVerify(token, secret);
+    }
+  } catch (err) {
+    // no op
+  }
+  return {};
 };

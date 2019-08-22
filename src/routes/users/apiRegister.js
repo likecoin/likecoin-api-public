@@ -3,6 +3,7 @@ import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
 import { getOAuthClientInfo } from '../../middleware/oauth';
+import { getJwtInfo } from '../../middleware/jwt';
 import {
   handleEmailBlackList,
   checkUserInfoUniqueness,
@@ -159,11 +160,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
       case 'matters': {
         const {
           action,
-          token,
           payload,
         } = req.body;
         switch (action) {
           case 'claim': {
+            const {
+              token,
+            } = payload;
             const {
               userId,
               email,
@@ -187,9 +190,18 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
           }
           case 'transfer': {
             const {
-              toUserId,
-              fromUserId,
+              toUserToken,
+              fromUserToken,
             } = payload;
+            const [{
+              user: toUserId,
+            },
+            {
+              user: fromUserId,
+            }] = await Promise.all([
+              getJwtInfo(toUserToken),
+              getJwtInfo(fromUserToken),
+            ]);
             await handleClaimPlatformDelegatedUser(platform, fromUserId, toUserId);
             const {
               accessToken,
