@@ -11,7 +11,7 @@ const querystring = require('querystring');
 
 const MATTER_HOST = `${IS_TESTNET ? 'server-test.' : ''}matters.news`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
-const SCOPE = 'user:email:readonly​'; // TODO: Add email
+const SCOPE = 'user:email:readonly user:likerId'; // TODO: Add email
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
@@ -72,4 +72,18 @@ export async function fetchMattersUser({ code, accessToken: inputToken }) {
     imageUrl: avatar,
     url: `https:/${MATTER_HOST}/@${displayName}/`,
   };
+}
+
+export async function updateMattersUserInfo({
+  userId,
+  likerId,
+  accessToken,
+}) {
+  if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
+  if (!accessToken) throw new ValidationError('fail to get matters access token');
+  await axios.post(
+    `https://${MATTER_HOST}/graphql`,
+    { query: `mutation {\n  updateUserInfo(input: {id: ${userId}, likerId: ${likerId}}) {\n    id\n    likerId\n    userName\n  }\n}` },
+    { headers: { 'x-access-token': accessToken } },
+  );
 }

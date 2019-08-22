@@ -59,7 +59,7 @@ router.post('/link/matters', jwtAuth('write'), async (req, res, next) => {
       fullName,
       url,
       imageUrl,
-    } = await socialLinkMatters({ code });
+    } = await socialLinkMatters(user, { code });
     res.json({
       platform: 'matters',
       displayName,
