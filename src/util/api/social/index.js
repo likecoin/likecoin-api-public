@@ -1,6 +1,7 @@
 import parse from 'url-parse';
 import { fetchFacebookUser } from '../../oauth/facebook';
 import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../../oauth/twitter';
+import { fetchMattersUser, updateMattersUserInfo } from '../../oauth/matters';
 import { tryToLinkOAuthLogin } from '../users';
 import { ValidationError } from '../../ValidationError';
 import { IS_LOGIN_SOCIAL, W3C_EMAIL_REGEX } from '../../../constant';
@@ -122,7 +123,54 @@ export async function socialLinkTwitter(
   };
 }
 
-export async function tryToLinkSocialPlatform(user, platform, { accessToken, secret }) {
+export async function socialLinkMatters(
+  user,
+  {
+    accessToken: inputAccessToken,
+    code,
+    refreshToken: inputRefreshToken,
+  },
+) {
+  const {
+    userId,
+    displayName,
+    fullName,
+    url,
+    imageUrl,
+    refreshToken = inputRefreshToken,
+    accessToken = inputAccessToken,
+  } = await fetchMattersUser({ accessToken: inputAccessToken, code });
+  await dbRef.doc(user).collection('social').doc('matters').set({
+    accessToken: FieldValue.delete(),
+    refreshToken,
+    userId,
+    displayName,
+    fullName,
+    url,
+    imageUrl,
+    isLinked: true,
+    isLogin: true,
+    ts: Date.now(),
+  }, { merge: true });
+  await updateMattersUserInfo({
+    userId,
+    likerId: user,
+    accessToken,
+  });
+  return {
+    userId,
+    displayName,
+    fullName,
+    url,
+    imageUrl,
+  };
+}
+
+export async function tryToLinkSocialPlatform(
+  user,
+  platform,
+  { accessToken, secret, refreshToken },
+) {
   try {
     if (await checkPlatformAlreadyLinked(user, platform)) return null;
 
@@ -154,6 +202,19 @@ export async function tryToLinkSocialPlatform(user, platform, { accessToken, sec
           twiiterUserName,
           twitterID,
           twitterURL,
+        };
+        break;
+      }
+      case 'matters': {
+        const {
+          displayName: mattersUserName,
+          userId: mattersID,
+          url: mattersURL,
+        } = await socialLinkMatters(user, { accessToken, refreshToken });
+        platformPayload = {
+          mattersUserName,
+          mattersID,
+          mattersURL,
         };
         break;
       }

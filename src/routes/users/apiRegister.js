@@ -2,6 +2,8 @@ import { Router } from 'express';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
+import { getOAuthClientInfo } from '../../middleware/oauth';
+import { getJwtInfo } from '../../middleware/jwt';
 import {
   handleEmailBlackList,
   checkUserInfoUniqueness,
@@ -12,6 +14,11 @@ import {
   checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
+import {
+  handleClaimPlatformDelegatedUser,
+  handleTransferPlatformDelegatedUser,
+} from '../../util/api/users/platforms';
+import { fetchMattersUser } from '../../util/oauth/matters';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 
@@ -51,7 +58,7 @@ router.post('/new/check', async (req, res, next) => {
   }
 });
 
-router.post('/new/:platform', async (req, res, next) => {
+router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const {
     platform,
   } = req.params;
@@ -64,6 +71,9 @@ router.post('/new/:platform', async (req, res, next) => {
   let {
     email,
   } = req.body;
+  if (req.auth.platform !== platform) {
+    throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
+  }
   try {
     let platformUserId;
     let isEmailVerified = false;
@@ -77,23 +87,15 @@ router.post('/new/:platform', async (req, res, next) => {
             email = '';
           }
         }
-        // TODO: query matters to verify
-        platformUserId = token;
+        const { userId } = await fetchMattersUser({ accessToken: token });
+        platformUserId = userId;
         isEmailVerified = true;
         autoLinkOAuth = true;
-        res.json({
-          accessToken: 'to be implemented',
-          refreshToken: 'to be implemented',
-          scope: ['profile', 'email', 'like'],
-        });
-        return;
-        // break;
+        break;
       }
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
-    // TODO: remove line below
-    /* eslint-disable no-unreachable */
     const {
       userPayload,
       socialPayload,
@@ -146,6 +148,85 @@ router.post('/new/:platform', async (req, res, next) => {
       email,
       error: err.message || JSON.stringify(err),
     });
+    next(err);
+  }
+});
+
+router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
+  const { platform } = req.params;
+  const { user } = req.body;
+  if (req.auth.platform !== platform) {
+    throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
+  }
+  try {
+    switch (platform) {
+      case 'matters': {
+        const {
+          action,
+          payload,
+        } = req.body;
+        switch (action) {
+          case 'claim': {
+            const {
+              token,
+            } = payload;
+            const {
+              userId,
+              email,
+              displayName,
+            } = await fetchMattersUser({ accessToken: token });
+            const isEmailVerified = true;
+            await handleClaimPlatformDelegatedUser(platform, user, {
+              email,
+              displayName,
+              isEmailVerified,
+            });
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'eventClaimMattersDelegatedUser',
+              matterUserId: userId,
+              user,
+              email,
+              displayName,
+            });
+            res.sendStatus(200);
+            break;
+          }
+          case 'transfer': {
+            const {
+              toUserToken,
+              fromUserToken,
+            } = payload;
+            const [{
+              user: toUserId,
+            },
+            {
+              user: fromUserId,
+            }] = await Promise.all([
+              getJwtInfo(toUserToken),
+              getJwtInfo(fromUserToken),
+            ]);
+            await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
+            const {
+              accessToken,
+              refreshToken,
+              scope,
+            } = await autoGenerateUserTokenForClient(req, platform, toUserId);
+            res.json({
+              accessToken,
+              refreshToken,
+              scope,
+            });
+            break;
+          }
+          default:
+            throw new ValidationError('UNKNOWN_ACTION');
+        }
+        break;
+      }
+      default:
+        throw new ValidationError('INVALID_PLATFORM');
+    }
+  } catch (err) {
     next(err);
   }
 });

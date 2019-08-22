@@ -276,3 +276,29 @@ export function filterSocialLinksMeta({
     displaySocialMediaOption,
   };
 }
+
+export function filterOAuthClientInfo({
+  audience,
+  description,
+  shortName,
+  displayName,
+  secret,
+  redirectWhiteList,
+  scopeWhiteList,
+  domain,
+  platform,
+  isTrusted,
+}) {
+  return {
+    audience,
+    description,
+    shortName,
+    displayName,
+    secret,
+    redirectWhiteList,
+    scopeWhiteList,
+    domain,
+    platform,
+    isTrusted,
+  };
+}
