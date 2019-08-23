@@ -127,6 +127,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       accessToken,
       refreshToken,
       scope,
+      userId: platformUserId,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
