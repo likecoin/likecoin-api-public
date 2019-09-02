@@ -20,8 +20,8 @@ function signProviderSecret(clientId, secret, { user, scope }) {
 
 export async function autoGenerateUserTokenForClient(req, platform, user) {
   const spClientQuery = oAuthClientDbRef.where('platform', '==', platform).limit(1);
-  const spClientRef = await spClientQuery.get();
-  const targetClient = spClientRef.docs[0];
+  const spClientSnapshot = await spClientQuery.get();
+  const targetClient = spClientSnapshot.docs[0];
   if (!targetClient) return {};
   const { secret, scopeWhiteList: scope } = targetClient.data();
   const { token: accessToken, jwtid } = signProviderSecret(
@@ -31,7 +31,7 @@ export async function autoGenerateUserTokenForClient(req, platform, user) {
   );
 
   const refreshToken = base64url(crypto.randomBytes(32));
-  await spClientRef.collection('users').doc(user).create({
+  await targetClient.ref.collection('users').doc(user).create({
     scope,
     accessToken: jwtid,
     refreshToken,

@@ -24,7 +24,7 @@ const sigUtil = require('eth-sig-util');
 export const FIVE_MIN_IN_MS = 300000;
 
 function isSafari(req) {
-  return /Version\/([0-9._]+).*Safari/.test(req.headers['user-agent']);
+  return /(Version\/([0-9._]+).*Safari|\biOS\b)/.test(req.headers['user-agent']);
 }
 
 function getAuthCookieOptions(req) {
