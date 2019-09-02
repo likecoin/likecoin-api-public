@@ -11,7 +11,7 @@ const querystring = require('querystring');
 
 const MATTER_HOST = `${IS_TESTNET ? 'server-test.' : ''}matters.news`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
-const SCOPE = 'user:email:readonly user:likerId'; // TODO: Add email
+const SCOPE = 'user:email:readonly user:likerId';
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
