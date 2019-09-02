@@ -62,6 +62,7 @@ export async function fetchMattersUser({ code, accessToken: inputToken }) {
     avatar,
     info: { email },
   } = data.data.viewer;
+  if (!userId) throw new ValidationError('FAIL_TO_FETCH_USER_WITH_TOKEN');
   return {
     accessToken,
     refreshToken,
