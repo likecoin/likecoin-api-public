@@ -15,7 +15,7 @@ const SCOPE = 'user:email:readonly user:likerId';
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
-  const state = `${user}-${crypto.randomBytes(20).toString('hex')}`;
+  const state = `${user}:${crypto.randomBytes(20).toString('hex')}`;
   const url = `https://${MATTER_HOST}/oauth/authorize?client_id=${MATTERS_APP_ID}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URI)}`;
   return { url, state };
 }
