@@ -62,9 +62,9 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
       throw new ValidationError('USER_NOT_DELEGATED');
     }
     if (userAuthDoc.exists) {
-      const { platform: { userId: sourceUserId } } = userAuthDoc.data();
+      const { [platform]: { userId: sourceUserId } } = userAuthDoc.data();
       if (targetAuthDoc.exists) {
-        const { platform: { userId: targetUserId } } = targetAuthDoc.data();
+        const { [platform]: { userId: targetUserId } } = targetAuthDoc.data();
         if (targetUserId && targetUserId !== sourceUserId) {
           throw new ValidationError('TARGET_USER_ALREADY_BINDED');
         }

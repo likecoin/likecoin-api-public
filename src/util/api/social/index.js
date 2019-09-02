@@ -126,9 +126,9 @@ export async function socialLinkTwitter(
 export async function socialLinkMatters(
   user,
   {
-    accessToken: inputAccessToken,
+    accessToken: inputAccessToken = '',
     code,
-    refreshToken: inputRefreshToken,
+    refreshToken: inputRefreshToken = '',
   },
 ) {
   const {

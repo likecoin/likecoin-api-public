@@ -31,7 +31,7 @@ export async function autoGenerateUserTokenForClient(req, platform, user) {
   );
 
   const refreshToken = base64url(crypto.randomBytes(32));
-  await targetClient.ref.collection('users').doc(user).create({
+  await targetClient.ref.collection('users').doc(user).set({
     scope,
     accessToken: jwtid,
     refreshToken,
