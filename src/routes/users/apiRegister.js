@@ -76,6 +76,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   }
   try {
     let platformUserId;
+    let platformAccessToken;
     let isEmailVerified = false;
     let autoLinkOAuth = false;
 
@@ -91,6 +92,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         platformUserId = userId;
         isEmailVerified = true;
         autoLinkOAuth = true;
+        platformAccessToken = token;
         break;
       }
       default:
@@ -109,9 +111,11 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         email,
         platformUserId,
         isEmailVerified,
+        accessToken: platformAccessToken,
       },
       res,
       req,
+      isPlatformDelegated: autoLinkOAuth,
     });
     let accessToken;
     let refreshToken;
