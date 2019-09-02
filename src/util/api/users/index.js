@@ -160,7 +160,7 @@ async function userInfoQuery({
 
   const authQuery = platform && platformUserId ? (
     authDbRef
-      .where(`${platform}UserId`, '==', platformUserId)
+      .where(`${platform}.userId`, '==', platformUserId)
       .get()
       .then((snapshot) => {
         snapshot.forEach((doc) => {
