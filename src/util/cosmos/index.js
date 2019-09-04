@@ -1,4 +1,5 @@
 import axios from 'axios';
+import BigNumber from 'bignumber.js';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
   COSMOS_DENOM,
@@ -7,7 +8,7 @@ import {
 const api = axios.create({ baseURL: `http://${cosmosLCDEndpoint}` });
 
 function LIKEToNanolike(value) {
-  return `${Number.parseInt(value, 10).toString()}000000000`;
+  return (new BigNumber(value)).multipliedBy(1e9).toFixed();
 }
 
 export function LIKEToAmount(value) {
@@ -15,7 +16,7 @@ export function LIKEToAmount(value) {
 }
 export function amountToLIKE(likecoin) {
   if (likecoin.denom === 'nanolike') {
-    return (Number.parseFloat(likecoin.amount) / 1e9);
+    return (new BigNumber(likecoin.amount)).dividedBy(1e9).toFixed();
   }
   console.error(`${likecoin.denom} is not supported denom`);
   return -1;

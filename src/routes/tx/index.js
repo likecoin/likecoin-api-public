@@ -13,13 +13,19 @@ import {
   filterTxData,
   checkAddressValid,
 } from '../../util/ValidationHelper';
+import { LIKEToAmount, amountToLIKE } from '../../util/cosmos';
 
 const web3Utils = require('web3-utils');
 
 const router = Router();
 
 function filterMultipleTxData(data, filter = {}) {
-  const { to, toIds, value } = data;
+  const {
+    to,
+    toIds,
+    value,
+    amount,
+  } = data;
   const { to: { addresses, id } = {} } = filter;
   const result = {};
   to.forEach((addr, index) => {
@@ -28,27 +34,33 @@ function filterMultipleTxData(data, filter = {}) {
     result[addr] = result[addr]
       || {
         id: toIds[index],
-        value: new BigNumber(0),
+        value: value ? new BigNumber(0) : undefined,
+        amount: amount ? new BigNumber(0) : undefined,
       };
     if (result[addr].id !== toIds[index]) {
       throw new Error(`Filter ID ${toIds[index]} found, expected: ${result[addr].id}`);
     }
-    result[addr].value = result[addr].value.plus(new BigNumber(value[index]));
+    if (value) result[addr].value = result[addr].value.plus(new BigNumber(value[index]));
+    if (amount) result[addr].amount = result[addr].amount.plus(amountToLIKE(amount[index]));
   });
   // Flatten the result to arrays.
   const tos = Object.keys(result);
   const ids = [];
   const values = [];
+  const amounts = [];
   tos.forEach((addr) => {
     ids.push(result[addr].id);
-    values.push(result[addr].value.toString());
+    if (value) values.push(result[addr].value.toString());
+    if (amount) amounts.push(LIKEToAmount(result[addr].amount.toFixed()));
   });
-  return {
+  const output = {
     ...data,
     to: tos,
     toId: ids,
-    value: values,
+    value: value ? values : undefined,
+    amount: amount ? amounts : undefined,
   };
+  return output;
 }
 
 router.get('/id/:id', async (req, res, next) => {
