@@ -9,9 +9,10 @@ import {
 const crypto = require('crypto');
 const querystring = require('querystring');
 
-const MATTER_HOST = `${IS_TESTNET ? 'server-test.' : ''}matters.news`;
+const MATTER_HOST = `${IS_TESTNET ? 'web-likecoin.' : ''}matters.news`;
+const MATTER_API_HOST = `${IS_TESTNET ? 'server-stage.' : ''}matters.news`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
-const SCOPE = 'user:email:readonly user:likerId';
+const SCOPE = 'query:viewer:likerId query:viewer:info:email';
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
@@ -23,7 +24,7 @@ export function fetchMattersOAuthInfo(user) {
 export async function fetchMattersAccessToken(code) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
   const req = {
-    url: `https://${MATTER_HOST}/oauth/access_token`,
+    url: `https://${MATTER_API_HOST}/oauth/access_token`,
     method: 'POST',
     data: {
       code,
@@ -50,11 +51,13 @@ export async function fetchMattersUser({ code, accessToken: inputToken }) {
   if (!accessToken) ({ accessToken, refreshToken } = await fetchMattersAccessToken(code));
   if (!accessToken) throw new ValidationError('fail to get matters access token');
   const { data } = await axios.post(
-    `https://${MATTER_HOST}/graphql`,
-    { query: '{viewer {\nid\nuuid\nuserName\ndisplayName\navatar\ninfo{email}}}' },
+    `https://${MATTER_API_HOST}/graphql`,
+    { query: '{viewer {\nid\nuserName\ndisplayName\navatar\ninfo{email}}}' },
     { headers: { 'x-access-token': accessToken } },
   );
   if (!data || !data.data) throw new ValidationError('fail to get matters user data');
+  if (data.errors) throw new ValidationError(data.errors[0].message);
+  if (!data.data.viewer) throw new ValidationError('FAIL_TO_FETCH_USER_WITH_TOKEN');
   const {
     id: userId,
     userName: displayName,
@@ -83,7 +86,7 @@ export async function updateMattersUserInfo({
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
   if (!accessToken) throw new ValidationError('fail to get matters access token');
   await axios.post(
-    `https://${MATTER_HOST}/graphql`,
+    `https://${MATTER_API_HOST}/graphql`,
     { query: `mutation {\n  updateUserInfo(input: {id: ${userId}, likerId: ${likerId}}) {\n    id\n    likerId\n    userName\n  }\n}` },
     { headers: { 'x-access-token': accessToken } },
   );
