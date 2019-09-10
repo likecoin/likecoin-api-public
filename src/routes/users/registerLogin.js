@@ -102,6 +102,7 @@ router.post(
           const authCoreUser = authCoreJwtVerify(idToken);
           const { sub: authCoreId } = authCoreUser;
           payload = authCorePayload;
+          payload.authCoreUserId = authCoreId;
           isEmailVerified = authCoreUser.email === payload.email && authCoreUser.email_verified;
           platformUserId = authCoreId;
           break;
@@ -158,9 +159,8 @@ router.post(
         res,
         req,
       });
-      const { wallet } = userPayload;
 
-      await setAuthCookies(req, res, { user, wallet });
+      await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         ...userPayload,
@@ -408,7 +408,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     if (user) {
-      await setAuthCookies(req, res, { user, wallet });
+      await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
 
       const doc = await dbRef.doc(user).get();
