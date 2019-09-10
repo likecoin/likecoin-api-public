@@ -19,6 +19,7 @@ import {
   handleTransferPlatformDelegatedUser,
 } from '../../util/api/users/platforms';
 import { fetchMattersUser } from '../../util/oauth/matters';
+import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 
@@ -33,6 +34,9 @@ router.post('/new/check', async (req, res, next) => {
     let { email } = req.body;
     try {
       if (email) email = handleEmailBlackList(email);
+      if (!checkUserNameValid(user)) {
+        throw new ValidationError('INVALID_USER_NAME');
+      }
       const isNew = await checkUserInfoUniqueness({
         user,
         wallet,
@@ -42,7 +46,7 @@ router.post('/new/check', async (req, res, next) => {
     } catch (err) {
       if (err instanceof ValidationError) {
         const payload = { error: err.message };
-        if (err.message === 'USER_ALREADY_EXIST') {
+        if (err.message === 'USER_ALREADY_EXIST' || err.message === 'INVALID_USER_NAME') {
           const suggestName = await suggestAvailableUserName(user);
           payload.alternative = suggestName;
         }

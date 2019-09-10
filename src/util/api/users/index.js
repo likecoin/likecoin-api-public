@@ -166,7 +166,7 @@ async function userInfoQuery({
         snapshot.forEach((doc) => {
           const docUser = doc.id;
           if (user !== docUser) {
-            throw new ValidationError('FIREBASE_USER_DUPLICATED');
+            throw new ValidationError(`${platform.toUpperCase()}_USER_DUPLICATED`);
           }
         });
         return true;
