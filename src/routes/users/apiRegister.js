@@ -75,10 +75,10 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   let {
     email,
   } = req.body;
-  if (req.auth.platform !== platform) {
-    throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
-  }
   try {
+    if (req.auth.platform !== platform) {
+      throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
+    }
     let platformUserId;
     let platformAccessToken;
     let isEmailVerified = false;
@@ -191,7 +191,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
-              matterUserId: userId,
+              mattersUserId: userId,
               user,
               email,
               displayName,
