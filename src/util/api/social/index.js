@@ -1,7 +1,7 @@
 import parse from 'url-parse';
 import { fetchFacebookUser } from '../../oauth/facebook';
 import { fetchTwitterUser, fetchTwitterUserByAccessToken } from '../../oauth/twitter';
-import { fetchMattersUser, updateMattersUserInfo } from '../../oauth/matters';
+import { fetchMattersUser } from '../../oauth/matters';
 import { tryToLinkOAuthLogin } from '../users';
 import { ValidationError } from '../../ValidationError';
 import { IS_LOGIN_SOCIAL, W3C_EMAIL_REGEX } from '../../../constant';
@@ -138,7 +138,7 @@ export async function socialLinkMatters(
     url,
     imageUrl,
     refreshToken = inputRefreshToken,
-    accessToken = inputAccessToken,
+    // accessToken = inputAccessToken,
   } = await fetchMattersUser({ accessToken: inputAccessToken, code });
   await dbRef.doc(user).collection('social').doc('matters').set({
     accessToken: FieldValue.delete(),
@@ -152,11 +152,14 @@ export async function socialLinkMatters(
     isLogin: true,
     ts: Date.now(),
   }, { merge: true });
-  await updateMattersUserInfo({
-    userId,
-    likerId: user,
-    accessToken,
-  });
+
+  /* No need to update matter oauth for now ? */
+  // await updateMattersUserInfo({
+  //   userId,
+  //   likerId: user,
+  //   accessToken,
+  // });
+
   return {
     userId,
     displayName,
