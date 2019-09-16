@@ -129,7 +129,6 @@ router.post(
           payload.sourceURL = sourceURL;
           break;
         }
-        case 'email':
         case 'google':
         case 'twitter':
         case 'facebook': {
@@ -472,60 +471,28 @@ router.post('/login', async (req, res, next) => {
         }
         break;
       }
-
-      case 'email':
       case 'google':
       case 'twitter':
       case 'facebook': {
         const { firebaseIdToken } = req.body;
         const { uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken);
-        const firebaseUser = await admin.auth().getUser(firebaseUserId);
-        switch (platform) {
-          case 'email': {
-            // Enable user to sign in with Firebase Email Auth Provider
-            // if there exists a user with that email
-            try {
-              const { email } = req.body;
-              if (email === firebaseUser.email && firebaseUser.emailVerified) {
-                const userQuery = await dbRef.where('email', '==', email).get();
-                if (userQuery.docs.length > 0) {
-                  const [userDoc] = userQuery.docs;
-                  const { firebaseUserId: currentFirebaseUserId } = userDoc.data();
-                  if (currentFirebaseUserId && firebaseUserId !== currentFirebaseUserId) {
-                    throw new Error('USER_ID_ALREADY_LINKED');
-                  }
-                  await userDoc.ref.update({
-                    firebaseUserId,
-                    isEmailVerified: true,
-                  });
-                  user = userDoc.id;
-                }
-              }
-            } catch (err) {
-              // Do nothing
+        if (firebaseUserId) {
+          const userQuery = await (
+            authDbRef
+              .where('firebase.userId', '==', firebaseUserId)
+              .get()
+          );
+          if (userQuery.docs.length > 0) {
+            const [userDoc] = userQuery.docs;
+            user = userDoc.id;
+            if (!userDoc.data()[platform]) {
+              /* update the missing platform ID */
+              const firebaseUser = await admin.auth().getUser(firebaseUserId);
+              const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
+              if (!userInfo) throw new ValidationError('INVALID_PLATFORM');
+              await userDoc.ref.update({ [platform]: { userId: userInfo.uid } });
             }
-            break;
           }
-
-          case 'google':
-          case 'twitter':
-          case 'facebook': {
-            const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
-            if (userInfo) {
-              const userQuery = await (
-                authDbRef
-                  .where(`${platform}.userId`, '==', userInfo.uid)
-                  .get()
-              );
-              if (userQuery.docs.length > 0) {
-                const [userDoc] = userQuery.docs;
-                user = userDoc.id;
-              }
-            }
-            break;
-          }
-
-          default:
         }
         break;
       }
