@@ -296,6 +296,9 @@ router.post(
             userId: platformUserId,
           },
         };
+        if (firebaseUserId) {
+          doc.firebase = { userId: firebaseUserId };
+        }
         await authDbRef.doc(user).create(doc);
       }
 
