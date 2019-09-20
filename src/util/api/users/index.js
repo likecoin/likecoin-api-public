@@ -160,13 +160,13 @@ async function userInfoQuery({
 
   const authQuery = platform && platformUserId ? (
     authDbRef
-      .where(`${platform}UserId`, '==', platformUserId)
+      .where(`${platform}.userId`, '==', platformUserId)
       .get()
       .then((snapshot) => {
         snapshot.forEach((doc) => {
           const docUser = doc.id;
           if (user !== docUser) {
-            throw new ValidationError('FIREBASE_USER_DUPLICATED');
+            throw new ValidationError(`${platform.toUpperCase()}_USER_DUPLICATED`);
           }
         });
         return true;

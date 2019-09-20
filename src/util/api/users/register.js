@@ -64,6 +64,7 @@ export async function handleUserRegistration({
   payload,
   req,
   res,
+  isPlatformDelegated = false,
 }) {
   const {
     user,
@@ -180,6 +181,11 @@ export async function handleUserRegistration({
     }
   }
 
+  if (isPlatformDelegated) {
+    createObj.delegatedPlatform = platform;
+    createObj.isPlatformDelegated = true;
+  }
+
   const timestampObj = { timestamp: Date.now() };
   if (NEW_USER_BONUS_COOLDOWN) {
     timestampObj.bonusCooldown = Date.now() + NEW_USER_BONUS_COOLDOWN;
@@ -200,7 +206,6 @@ export async function handleUserRegistration({
     });
   }
 
-  // platformUserId is only set when the platform is valid
   if (platformUserId) {
     const doc = {
       [platform]: {
