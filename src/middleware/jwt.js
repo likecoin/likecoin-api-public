@@ -87,7 +87,11 @@ export const jwtAuth = (
     audience,
     issuer,
   })(req, res, (e) => {
-    if (e instanceof expressjwt.UnauthorizedError) {
+    if (e && e instanceof expressjwt.UnauthorizedError) {
+      if (e.inner && e.inner.name === 'TokenExpiredError') {
+        res.status(401).send('TOKEN_EXPIRED');
+        return;
+      }
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
