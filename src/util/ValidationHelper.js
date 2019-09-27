@@ -278,6 +278,7 @@ export function filterSocialLinksMeta({
 }
 
 export function filterOAuthClientInfo({
+  avatar,
   audience,
   description,
   shortName,
@@ -285,11 +286,12 @@ export function filterOAuthClientInfo({
   secret,
   redirectWhiteList,
   scopeWhiteList,
+  defaultScopes,
   domain,
-  platform,
   isTrusted,
 }) {
   return {
+    avatar,
     audience,
     description,
     shortName,
@@ -297,8 +299,8 @@ export function filterOAuthClientInfo({
     secret,
     redirectWhiteList,
     scopeWhiteList,
+    defaultScopes,
     domain,
-    platform,
     isTrusted,
   };
 }

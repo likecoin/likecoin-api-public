@@ -10,26 +10,34 @@ import {
 import {
   oAuthClientCollection as oAuthClientDbRef,
 } from '../util/firebase';
+import { filterOAuthClientInfo } from '../util/ValidationHelper';
 
 const expressjwt = require('express-jwt');
 const jwt = require('jsonwebtoken');
 const LRU = require('lru-cache');
 
-const providerClientSecretCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
+const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
-async function fetchProviderClientSecret(clientId) {
-  const cachedSecret = providerClientSecretCache.get(clientId);
-  if (cachedSecret) return cachedSecret;
+async function fetchProviderClientInfo(clientId, req) {
+  const cachedClientInfo = providerClientInfoCache.get(clientId);
+  if (cachedClientInfo) {
+    req.auth = JSON.parse(cachedClientInfo);
+    return cachedClientInfo.secret;
+  }
 
   const spClient = await oAuthClientDbRef.doc(clientId).get();
   if (!spClient.exists) throw new Error('INVALID_AZP');
-  const {
+  const clientInfo = spClient.data();
+  const { secret } = clientInfo;
+  const filteredClientInfo = {
+    ...filterOAuthClientInfo(clientInfo),
+    clientId,
     secret,
-  } = spClient.data();
-  providerClientSecretCache.set(clientId, secret);
+  };
+  req.auth = filteredClientInfo;
+  providerClientInfoCache.set(clientId, JSON.stringify(filteredClientInfo));
   return secret;
 }
-
 
 function checkPermissions(inputScopes, target) {
   let scopes = inputScopes;
@@ -62,7 +70,7 @@ export const jwtAuth = (
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientSecret(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
     }
   } catch (err) {
@@ -74,11 +82,7 @@ export const jwtAuth = (
     audience,
     issuer,
   })(req, res, (e) => {
-    if (e && e instanceof expressjwt.UnauthorizedError) {
-      if (e.inner && e.inner.name === 'TokenExpiredError') {
-        res.status(401).send('TOKEN_EXPIRED');
-        return;
-      }
+    if (e instanceof expressjwt.UnauthorizedError) {
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
@@ -103,7 +107,7 @@ export const jwtOptionalAuth = (
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientSecret(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
     }
   } catch (err) {
@@ -134,7 +138,7 @@ export const getJwtInfo = async (token) => {
   try {
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientSecret(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp);
       const secret = getProviderJWTSecret(clientSecret);
       return jwtVerify(token, secret);
     }
