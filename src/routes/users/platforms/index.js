@@ -131,7 +131,10 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
             }
           });
         } else {
-          await dbRef.doc(user).update({ firebaseUserId });
+          await Promise.all([
+            dbRef.doc(user).update({ firebaseUserId }),
+            authDbRef.doc(user).set({ firebase: { userId: firebaseUserId } }, { merge: true }),
+          ]);
         }
         const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
         if (!userInfo || !userInfo.uid) throw new ValidationError('CANNOT_FETCH_USER_INFO');
