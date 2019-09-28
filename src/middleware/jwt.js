@@ -21,8 +21,13 @@ const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); /
 async function fetchProviderClientInfo(clientId, req) {
   const cachedClientInfo = providerClientInfoCache.get(clientId);
   if (cachedClientInfo) {
-    req.auth = JSON.parse(cachedClientInfo);
-    return cachedClientInfo.secret;
+    try {
+      const info = JSON.parse(cachedClientInfo);
+      req.auth = info;
+      return info.secret;
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   const spClient = await oAuthClientDbRef.doc(clientId).get();
@@ -70,7 +75,7 @@ export const jwtAuth = (
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientInfo(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
     }
   } catch (err) {
@@ -107,7 +112,7 @@ export const jwtOptionalAuth = (
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientInfo(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
     }
   } catch (err) {
@@ -138,7 +143,7 @@ export const getJwtInfo = async (token) => {
   try {
     const decoded = jwt.decode(token);
     if (decoded.azp) {
-      const clientSecret = await fetchProviderClientInfo(decoded.azp);
+      const clientSecret = await fetchProviderClientInfo(decoded.azp, {});
       const secret = getProviderJWTSecret(clientSecret);
       return jwtVerify(token, secret);
     }
