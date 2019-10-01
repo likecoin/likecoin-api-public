@@ -288,6 +288,7 @@ export function filterOAuthClientInfo({
   scopeWhiteList,
   defaultScopes,
   domain,
+  platform,
   isTrusted,
 }) {
   return {
@@ -301,6 +302,7 @@ export function filterOAuthClientInfo({
     scopeWhiteList,
     defaultScopes,
     domain,
+    platform,
     isTrusted,
   };
 }
