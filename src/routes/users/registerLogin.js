@@ -139,8 +139,10 @@ router.post(
         socialPayload,
       } = await handleUserRegistration({
         payload: {
+          platform,
           platformUserId,
           isEmailVerified,
+          firebaseUserId,
           ...payload,
         },
         res,
