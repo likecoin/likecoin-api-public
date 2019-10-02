@@ -320,6 +320,26 @@ router.post('/login', async (req, res, next) => {
               if (!userInfo) throw new ValidationError('INVALID_PLATFORM');
               await userDoc.ref.update({ [platform]: { userId: userInfo.uid } });
             }
+          } else { // check if platform id exists
+            const firebaseUser = await admin.auth().getUser(firebaseUserId);
+            const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
+            if (userInfo) {
+              const platformUserQuery = await (
+                authDbRef
+                  .where(`${platform}.userId`, '==', userInfo.uid)
+                  .get()
+              );
+              if (platformUserQuery.docs.length > 0) {
+                const [userDoc] = platformUserQuery.docs;
+                user = userDoc.id;
+                publisher.publish(PUBSUB_TOPIC_MISC, req, {
+                  logType: 'eventFirebaseUserIdMissing',
+                  user,
+                  platform,
+                  platformUserId: userInfo.uid,
+                });
+              }
+            }
           }
         }
         break;
