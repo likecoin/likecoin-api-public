@@ -322,6 +322,13 @@ router.post('/login', async (req, res, next) => {
               if (!userInfo) throw new ValidationError('INVALID_PLATFORM');
               await userDoc.ref.update({ [platform]: { userId: userInfo.uid } });
             }
+            if (userQuery.docs.length > 1) {
+              publisher.publish(PUBSUB_TOPIC_MISC, req, {
+                logType: 'eventErrorFirebaseUserIdDuplicate',
+                firebaseUserId,
+                users: userQuery.docs.map(d => d.id),
+              });
+            }
           } else { // check if platform id exists
             const firebaseUser = await admin.auth().getUser(firebaseUserId);
             const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
@@ -334,12 +341,23 @@ router.post('/login', async (req, res, next) => {
               if (platformUserQuery.docs.length > 0) {
                 const [userDoc] = platformUserQuery.docs;
                 user = userDoc.id;
+                await Promise.all([
+                  userDoc.ref.update({ firebase: { userId: firebaseUserId } }),
+                  dbRef.doc(user).update({ firebaseUserId }),
+                ]);
                 publisher.publish(PUBSUB_TOPIC_MISC, req, {
                   logType: 'eventFirebaseUserIdMissing',
                   user,
                   platform,
                   platformUserId: userInfo.uid,
                 });
+                if (platformUserQuery.docs.length > 1) {
+                  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+                    logType: 'eventErrorFirebaseUserIdDuplicate',
+                    firebaseUserId,
+                    users: platformUserQuery.docs.map(d => d.id),
+                  });
+                }
               }
             }
           }
