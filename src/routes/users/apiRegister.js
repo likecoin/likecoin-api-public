@@ -191,6 +191,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
+              platform,
               mattersUserId: userId,
               user,
               email,
@@ -214,12 +215,21 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               getJwtInfo(fromUserToken),
             ]);
             if (!toUserId || !fromUserId) throw new ValidationError('TOKEN_USER_NOT_FOUND');
-            await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
+            const {
+              pendingLIKE,
+            } = await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
             const {
               accessToken,
               refreshToken,
               scope,
             } = await autoGenerateUserTokenForClient(req, platform, toUserId);
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'eventTransferMattersDelegatedUser',
+              platform,
+              toUserId,
+              fromUserId,
+              pendingLIKE,
+            });
             res.json({
               accessToken,
               refreshToken,
