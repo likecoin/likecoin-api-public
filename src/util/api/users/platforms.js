@@ -93,5 +93,6 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
       t.delete(userSocialRef);
     }
     // TODO: actually delete the id?
+    return { pendingLIKE };
   });
 }
