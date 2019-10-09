@@ -213,8 +213,20 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             {
               user: fromUserId,
             }] = await Promise.all([
-              getJwtInfo(toUserToken),
-              getJwtInfo(fromUserToken),
+              getJwtInfo(toUserToken)
+                .catch((err) => {
+                  if (err.name === 'TokenExpiredError') {
+                    throw new ValidationError('FROM_USER_TOKEN_EXPIRED');
+                  }
+                  throw err;
+                }),
+              getJwtInfo(fromUserToken)
+                .catch((err) => {
+                  if (err.name === 'TokenExpiredError') {
+                    throw new ValidationError('FROM_USER_TOKEN_EXPIRED');
+                  }
+                  throw err;
+                }),
             ]);
             if (!toUserId || !fromUserId) throw new ValidationError('TOKEN_USER_NOT_FOUND');
             const {
@@ -244,7 +256,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               platformToken,
               userToken,
             } = payload;
-            const user = await getJwtInfo(userToken);
+            const user = await getJwtInfo(userToken)
+              .catch((err) => {
+                if (err.name === 'TokenExpiredError') {
+                  throw new ValidationError('USER_TOKEN_EXPIRED');
+                }
+                throw err;
+              });
             if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
             const {
               userId,

@@ -152,6 +152,7 @@ export const getJwtInfo = async (token) => {
       return jwtVerify(token, secret);
     }
   } catch (err) {
+    if (err.name === 'TokenExpiredError') throw err;
     // no op
   }
   return {};
