@@ -183,7 +183,7 @@ export async function handleUserRegistration({
 
   if (isPlatformDelegated) {
     createObj.delegatedPlatform = platform;
-    createObj.isPlatformDelegated = true;
+    createObj.isPlatformDelegated = false;
   }
 
   const timestampObj = { timestamp: Date.now() };
