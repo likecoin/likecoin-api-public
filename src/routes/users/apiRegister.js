@@ -17,6 +17,7 @@ import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import {
   handleClaimPlatformDelegatedUser,
   handleTransferPlatformDelegatedUser,
+  handlePlatformOAuthBind,
 } from '../../util/api/users/platforms';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
@@ -162,7 +163,6 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
 
 router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const { platform } = req.params;
-  const { user } = req.body;
   if (req.auth.platform !== platform) {
     throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
   }
@@ -176,13 +176,15 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
         switch (action) {
           case 'claim': {
             const {
-              token,
+              platformToken,
+              token, // token is deprecated
             } = payload;
+            const user = req.body.payload.user || req.body.user; // body is deprecated
             const {
               userId,
               email,
               displayName,
-            } = await fetchMattersUser({ accessToken: token });
+            } = await fetchMattersUser({ accessToken: platformToken || token });
             const isEmailVerified = true;
             await handleClaimPlatformDelegatedUser(platform, user, {
               email,
@@ -235,6 +237,27 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               refreshToken,
               scope,
             });
+            break;
+          }
+          case 'bind': {
+            const {
+              platformToken,
+              userToken,
+            } = payload;
+            const user = await getJwtInfo(userToken);
+            if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
+            const {
+              userId,
+              displayName,
+            } = await handlePlatformOAuthBind(platform, user, platformToken);
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'eventMattersBindUser',
+              platform,
+              mattersUserId: userId,
+              mattersDisplayName: displayName,
+              user,
+            });
+            res.sendStatus(200);
             break;
           }
           default:

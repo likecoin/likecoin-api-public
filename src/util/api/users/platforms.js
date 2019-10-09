@@ -4,6 +4,7 @@ import {
   FieldValue,
   db,
 } from '../../firebase';
+import { socialLinkMatters } from '../social';
 import { ValidationError } from '../../ValidationError';
 
 export async function handleClaimPlatformDelegatedUser(platform, user, {
@@ -96,4 +97,19 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
     // TODO: actually delete the id?
     return { pendingLIKE };
   });
+}
+
+export async function handlePlatformOAuthBind(platform, user, platformToken) {
+  if (platform === 'matters') { // TODO: switch case
+    const {
+      userId,
+      displayName,
+    } = await socialLinkMatters(user, { accessToken: platformToken });
+    await authDbRef.doc(userId).set({ [platform]: { userId } }, { merge: true });
+    return {
+      userId,
+      displayName,
+    };
+  }
+  throw new ValidationError('UNKNOWN_ERROR');
 }
