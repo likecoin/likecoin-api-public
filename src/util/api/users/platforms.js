@@ -69,7 +69,7 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
           throw new ValidationError('TARGET_USER_ALREADY_BINDED');
         }
       } else {
-        t.set(targetAuthRef, { [`${platform}.userId`]: sourceUserId }, { merge: true });
+        t.set(targetAuthRef, { [platform]: { userId: sourceUserId } }, { merge: true });
         t.update(userAuthRef, { [platform]: FieldValue.delete() });
       }
     }
@@ -84,14 +84,15 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
       } else {
         pendingLIKE = sourcePendingLike;
       }
-      t.update(targetDoc, { pendingLIKE });
-      t.update(userDoc, { pendingLIKE: FieldValue.delete() });
+      t.update(targetRef, { pendingLIKE });
+      t.update(userRef, { pendingLIKE: FieldValue.delete() });
       // TODO: actually delete the id?
     }
     if (userSocialDoc.exists) {
       t.set(targetRef.collection('social').doc(platform), userSocialDoc.data());
       t.delete(userSocialRef);
     }
+    t.update(userRef, { isDeleted: true });
     // TODO: actually delete the id?
     return { pendingLIKE };
   });
