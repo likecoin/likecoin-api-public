@@ -29,8 +29,8 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   await userRef.update(payload);
 }
 
-export async function handleTransferPlatformDelegatedUser(platform, user, target) {
-  await db.runTransaction(async (t) => {
+export function handleTransferPlatformDelegatedUser(platform, user, target) {
+  return db.runTransaction(async (t) => {
     const userRef = dbRef.doc(user);
     const userSocialRef = userRef.collection('social').doc(platform);
     const targetRef = dbRef.doc(target);
@@ -65,14 +65,13 @@ export async function handleTransferPlatformDelegatedUser(platform, user, target
     if (userAuthDoc.exists) {
       const { [platform]: { userId: sourceUserId } } = userAuthDoc.data();
       if (targetAuthDoc.exists) {
-        const { [platform]: { userId: targetUserId } } = targetAuthDoc.data();
+        const { [platform]: { userId: targetUserId } = {} } = targetAuthDoc.data();
         if (targetUserId && targetUserId !== sourceUserId) {
           throw new ValidationError('TARGET_USER_ALREADY_BINDED');
         }
-      } else {
-        t.set(targetAuthRef, { [platform]: { userId: sourceUserId } }, { merge: true });
-        t.update(userAuthRef, { [platform]: FieldValue.delete() });
       }
+      t.set(targetAuthRef, { [platform]: { userId: sourceUserId } }, { merge: true });
+      t.update(userAuthRef, { [platform]: FieldValue.delete() });
     }
     let pendingLIKE;
     if (sourcePendingLike) {
