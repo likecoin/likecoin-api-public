@@ -9,7 +9,7 @@ import {
 const crypto = require('crypto');
 const querystring = require('querystring');
 
-const MATTER_HOST = `${IS_TESTNET ? 'web-likecoin.' : ''}matters.news`;
+const MATTER_HOST = `${IS_TESTNET ? 'web-develop.' : ''}matters.news`;
 const MATTER_API_HOST = `${IS_TESTNET ? 'server-stage.' : ''}matters.news`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
 const SCOPE = 'query:viewer:likerId query:viewer:info:email';
