@@ -54,11 +54,15 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     const {
       delegatedPlatform,
       isPlatformDelegated,
+      isDeleted,
       pendingLIKE: sourcePendingLike,
     } = userDoc.data();
     const {
       pendingLIKE: targetPendingLike,
     } = targetDoc.data();
+    if (isDeleted) {
+      throw new ValidationError('USER_IS_DELETED');
+    }
     if (!isPlatformDelegated || delegatedPlatform !== platform) {
       throw new ValidationError('USER_NOT_DELEGATED');
     }
@@ -84,8 +88,8 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
       } else {
         pendingLIKE = sourcePendingLike;
       }
-      t.update(targetRef, { pendingLIKE });
-      t.update(userRef, { pendingLIKE: FieldValue.delete() });
+      t.update(targetRef, { pendingLIKE, isPendingLIKE: true });
+      t.update(userRef, { pendingLIKE: FieldValue.delete(), isPendingLIKE: false });
       // TODO: actually delete the id?
     }
     if (userSocialDoc.exists) {
