@@ -108,7 +108,7 @@ export async function handlePlatformOAuthBind(platform, user, platformToken) {
       userId,
       displayName,
     } = await socialLinkMatters(user, { accessToken: platformToken });
-    await authDbRef.doc(userId).set({ [platform]: { userId } }, { merge: true });
+    await authDbRef.doc(user).set({ [platform]: { userId } }, { merge: true });
     return {
       userId,
       displayName,

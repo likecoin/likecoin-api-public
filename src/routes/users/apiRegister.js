@@ -256,7 +256,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               platformToken,
               userToken,
             } = payload;
-            const user = await getJwtInfo(userToken)
+            const { user } = await getJwtInfo(userToken)
               .catch((err) => {
                 if (err.name === 'TokenExpiredError') {
                   throw new ValidationError('USER_TOKEN_EXPIRED');
