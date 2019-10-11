@@ -24,7 +24,8 @@ export function amountToLIKE(likecoin) {
 
 export async function getCosmosAccountLIKE(address) {
   const { data } = await api.get(`/auth/accounts/${address}`);
-  const likecoin = data.coins.find(c => c.denom === COSMOS_DENOM);
+  if (!data.result.value || !data.result.value.coins || !data.result.value.coins.length) return 0;
+  const likecoin = data.result.value.coins.find(c => c.denom === COSMOS_DENOM);
   return likecoin ? amountToLIKE(likecoin) : 0;
 }
 
