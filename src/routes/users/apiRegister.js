@@ -166,20 +166,24 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
   if (req.auth.platform !== platform) {
     throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
   }
+  let user;
+  let action;
   try {
     switch (platform) {
       case 'matters': {
         const {
-          action,
           payload,
         } = req.body;
+        ({
+          action,
+        } = req.body);
         switch (action) {
           case 'claim': {
             const {
               platformToken,
               token, // token is deprecated
             } = payload;
-            const user = req.body.payload.user || req.body.user; // body is deprecated
+            user = req.body.payload.user || req.body.user; // body is deprecated
             const {
               userId,
               email,
@@ -257,13 +261,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               platformToken,
               userToken,
             } = payload;
-            const { user } = await getJwtInfo(userToken)
+            ({ user } = await getJwtInfo(userToken)
               .catch((err) => {
                 if (err.name === 'TokenExpiredError') {
                   throw new ValidationError('USER_TOKEN_EXPIRED');
                 }
                 throw err;
-              });
+              }));
             if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
             const {
               userId,
@@ -288,6 +292,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
         throw new ValidationError('INVALID_PLATFORM');
     }
   } catch (err) {
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventAPIUserRegisterPlatformEditError',
+      user,
+      platform,
+      action,
+      error: err.message || JSON.stringify(err),
+    });
     next(err);
   }
 });
