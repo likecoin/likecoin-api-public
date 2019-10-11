@@ -229,6 +229,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
                 }),
             ]);
             if (!toUserId || !fromUserId) throw new ValidationError('TOKEN_USER_NOT_FOUND');
+            if (toUserId === fromUserId) throw new ValidationError('FROM_TO_SAME_USER');
             const {
               pendingLIKE,
             } = await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
