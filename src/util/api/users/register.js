@@ -36,7 +36,7 @@ function getRandomPaddedDigits(length) {
   return String(Math.floor(Math.random() * (10 ** length))).padStart(length, '0');
 }
 
-export async function suggestAvailableUserName(username) {
+export async function suggestAvailableUserName(username = '') {
   const RANDOM_DIGIT_LENGTH = 5;
   const MAX_SUGGEST_TRY = 5;
   let isIDAvailable = false;
@@ -183,7 +183,7 @@ export async function handleUserRegistration({
 
   if (isPlatformDelegated) {
     createObj.delegatedPlatform = platform;
-    createObj.isPlatformDelegated = true;
+    createObj.isPlatformDelegated = false;
   }
 
   const timestampObj = { timestamp: Date.now() };

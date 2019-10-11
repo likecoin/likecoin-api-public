@@ -17,6 +17,7 @@ import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import {
   handleClaimPlatformDelegatedUser,
   handleTransferPlatformDelegatedUser,
+  handlePlatformOAuthBind,
 } from '../../util/api/users/platforms';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
@@ -162,27 +163,32 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
 
 router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const { platform } = req.params;
-  const { user } = req.body;
   if (req.auth.platform !== platform) {
     throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
   }
+  let user;
+  let action;
   try {
     switch (platform) {
       case 'matters': {
         const {
-          action,
           payload,
         } = req.body;
+        ({
+          action,
+        } = req.body);
         switch (action) {
           case 'claim': {
             const {
-              token,
+              platformToken,
+              token, // token is deprecated
             } = payload;
+            user = req.body.payload.user || req.body.user; // body is deprecated
             const {
               userId,
               email,
               displayName,
-            } = await fetchMattersUser({ accessToken: token });
+            } = await fetchMattersUser({ accessToken: platformToken || token });
             const isEmailVerified = true;
             await handleClaimPlatformDelegatedUser(platform, user, {
               email,
@@ -211,10 +217,23 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             {
               user: fromUserId,
             }] = await Promise.all([
-              getJwtInfo(toUserToken),
-              getJwtInfo(fromUserToken),
+              getJwtInfo(toUserToken)
+                .catch((err) => {
+                  if (err.name === 'TokenExpiredError') {
+                    throw new ValidationError('FROM_USER_TOKEN_EXPIRED');
+                  }
+                  throw err;
+                }),
+              getJwtInfo(fromUserToken)
+                .catch((err) => {
+                  if (err.name === 'TokenExpiredError') {
+                    throw new ValidationError('FROM_USER_TOKEN_EXPIRED');
+                  }
+                  throw err;
+                }),
             ]);
             if (!toUserId || !fromUserId) throw new ValidationError('TOKEN_USER_NOT_FOUND');
+            if (toUserId === fromUserId) throw new ValidationError('FROM_TO_SAME_USER');
             const {
               pendingLIKE,
             } = await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
@@ -237,6 +256,33 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             });
             break;
           }
+          case 'bind': {
+            const {
+              platformToken,
+              userToken,
+            } = payload;
+            ({ user } = await getJwtInfo(userToken)
+              .catch((err) => {
+                if (err.name === 'TokenExpiredError') {
+                  throw new ValidationError('USER_TOKEN_EXPIRED');
+                }
+                throw err;
+              }));
+            if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
+            const {
+              userId,
+              displayName,
+            } = await handlePlatformOAuthBind(platform, user, platformToken);
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'eventMattersBindUser',
+              platform,
+              mattersUserId: userId,
+              mattersDisplayName: displayName,
+              user,
+            });
+            res.sendStatus(200);
+            break;
+          }
           default:
             throw new ValidationError('UNKNOWN_ACTION');
         }
@@ -246,6 +292,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
         throw new ValidationError('INVALID_PLATFORM');
     }
   } catch (err) {
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventAPIUserRegisterPlatformEditError',
+      user,
+      platform,
+      action,
+      error: err.message || JSON.stringify(err),
+    });
     next(err);
   }
 });

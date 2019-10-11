@@ -1,14 +1,18 @@
 import { ValidationError } from '../util/ValidationError';
 
 export default function errorHandler(err, req, res, next) {
-  const msg = (err.response && err.response.data) || err.message || err;
-  console.error(msg);
+  const msg = (err.response && err.response.data) || err;
+  if (err instanceof ValidationError) {
+    console.error(err.message);
+  } else {
+    console.error(msg);
+  }
   if (res.headersSent) {
     return next(err);
   }
   if (err instanceof ValidationError) {
     res.set('Content-Type', 'text/plain');
-    return res.status(400).send(msg);
+    return res.status(400).send(err.message);
   }
   // Handle multer error
   if (err.code) {
