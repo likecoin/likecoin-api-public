@@ -10,18 +10,19 @@ export default function errorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
   }
+  res.set('Content-Type', 'text/plain');
   if (err instanceof ValidationError) {
-    res.set('Content-Type', 'text/plain');
     return res.status(400).send(err.message);
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).send('BODY_PARSE_FAILED');
   }
   // Handle multer error
   if (err.code) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      res.set('Content-Type', 'text/plain');
       return res.status(400).send('FILE_TOO_LARGE');
     }
     if (err.code === 'EBADCSRFTOKEN') {
-      res.set('Content-Type', 'text/plain');
       return res.status(400).send('BAD_CSRF_TOKEN');
     }
   }
