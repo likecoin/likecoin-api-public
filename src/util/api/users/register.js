@@ -41,9 +41,9 @@ export async function suggestAvailableUserName(username = '') {
   const MAX_SUGGEST_TRY = 5;
   let isIDAvailable = false;
   let tries = 0;
-  let tryName = username.substring(0, MAX_USER_ID_LENGTH - RANDOM_DIGIT_LENGTH);
+  let tryName = username.substring(0, MAX_USER_ID_LENGTH - RANDOM_DIGIT_LENGTH).toLowerCase();
   if (tryName.length < MIN_USER_ID_LENGTH) {
-    tryName = `${username}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
+    tryName = `${tryName}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
   }
   while (!isIDAvailable && tries < MAX_SUGGEST_TRY) {
     const userDoc = await dbRef.doc(tryName).get(); // eslint-disable-line no-await-in-loop
@@ -51,7 +51,10 @@ export async function suggestAvailableUserName(username = '') {
       isIDAvailable = true;
       break;
     }
-    tryName = `${username}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
+    if (tryName.length > MAX_USER_ID_LENGTH) {
+      tryName = tryName.substring(0, MAX_USER_ID_LENGTH - RANDOM_DIGIT_LENGTH);
+    }
+    tryName = `${tryName}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
     tries += 1;
   }
   if (!isIDAvailable || !tryName || !checkUserNameValid(tryName)) {
