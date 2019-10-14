@@ -174,6 +174,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
         const {
           payload,
         } = req.body;
+        if (!payload) throw new Error('PLATFORM_PAYLOAD_NOT_FOUND');
         ({
           action,
         } = req.body);
