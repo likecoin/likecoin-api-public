@@ -3,6 +3,7 @@ import base64url from 'base64url';
 
 import { getProviderJWTSecret, jwtSignForAZP } from '../../jwt';
 import {
+  db,
   oAuthClientCollection as oAuthClientDbRef,
 } from '../../firebase';
 
@@ -30,22 +31,31 @@ export async function autoGenerateUserTokenForClient(req, platform, user) {
     { user, scope },
   );
 
-  const refreshToken = base64url(crypto.randomBytes(32));
-  await targetClient.ref.collection('users').doc(user).set({
-    scope,
-    accessToken: jwtid,
-    refreshToken,
-    lastAccessedIP: req.headers['x-real-ip'] || req.ip,
-    lastAccessedTs: Date.now(),
-    lastRefreshedTs: Date.now(),
-    ts: Date.now(),
-  }, { merge: true });
+  const spUserRef = targetClient.ref.collection('users').doc(user);
+  const currentRefreshToken = await db.runTransaction(async (t) => {
+    const spUserDoc = await spUserRef.get();
+    const {
+      ts = Date.now(),
+      refreshToken = base64url(crypto.randomBytes(32)),
+    } = spUserDoc.data() || {};
+    await t.set(spUserRef, {
+      scope,
+      accessToken: jwtid,
+      refreshToken,
+      lastAccessedIP: req.headers['x-real-ip'] || req.ip,
+      lastAccessedTs: Date.now(),
+      lastRefreshedTs: Date.now(),
+      ts,
+    }, { merge: true });
+    return refreshToken;
+  });
 
   return {
     user,
     scope,
+    jwtid,
     accessToken,
-    refreshToken,
+    refreshToken: currentRefreshToken,
   };
 }
 
