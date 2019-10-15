@@ -125,8 +125,10 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     let accessToken;
     let refreshToken;
     let scope;
+    let jwtid;
     if (autoLinkOAuth) {
       ({
+        jwtid,
         accessToken,
         refreshToken,
         scope,
@@ -140,6 +142,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       ...userPayload,
+      accessToken: jwtid,
       logType: 'eventAPIUserRegister',
     });
     if (socialPayload) {
@@ -239,6 +242,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               pendingLIKE,
             } = await handleTransferPlatformDelegatedUser(platform, fromUserId, toUserId);
             const {
+              jwtid,
               accessToken,
               refreshToken,
               scope,
@@ -249,6 +253,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               toUserId,
               fromUserId,
               pendingLIKE,
+              jwtid,
             });
             res.json({
               accessToken,
