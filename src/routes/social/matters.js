@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { checkPlatformAlreadyLinked, socialLinkMatters } from '../../util/api/social';
-import { fetchMattersOAuthInfo } from '../../util/oauth/matters';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+// import { fetchMattersOAuthInfo } from '../../util/oauth/matters';
+import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import publisher from '../../util/gcloudPub';
 import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
@@ -19,10 +19,12 @@ router.get('/link/matters/:user', jwtAuth('read'), async (req, res, next) => {
     if (await checkPlatformAlreadyLinked(user, 'matters')) {
       throw new ValidationError('already linked');
     }
-    const { url, state } = await fetchMattersOAuthInfo(user);
-    await dbRef.doc(user).collection('social').doc('matters').set({
-      state,
-    }, { merge: true });
+    /* HACK: return matters setting url for now */
+    const url = `https://${IS_TESTNET ? 'web-develop.' : ''}matters.news/me/settings/account`;
+    // const { url, state } = await fetchMattersOAuthInfo(user);
+    // await dbRef.doc(user).collection('social').doc('matters').set({
+    //   state,
+    // }, { merge: true });
     res.json({ url });
   } catch (err) {
     next(err);
