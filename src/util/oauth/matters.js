@@ -16,6 +16,11 @@ const SCOPE = 'query:viewer:likerId query:viewer:info:email';
 
 export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
+  /* HACK: for social link, return matters setting url for now */
+  if (user !== 'login') {
+    const url = `https://${IS_TESTNET ? 'web-develop.' : ''}matters.news/me/settings/account`;
+    return { url, state: '' };
+  }
   const state = `${user}:${crypto.randomBytes(20).toString('hex')}`;
   const url = `https://${MATTER_HOST}/oauth/authorize?client_id=${MATTERS_APP_ID}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&redirect_uri=${encodeURIComponent(CALLBACK_URI)}`;
   return { url, state };
