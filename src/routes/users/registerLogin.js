@@ -336,7 +336,11 @@ router.post('/login', async (req, res, next) => {
         checkSignPayload(wallet, stringPayload, sign);
         const query = await dbRef.where('wallet', '==', wallet).limit(1).get();
         if (query.docs.length > 0) {
-          user = query.docs[0].id;
+          const [userDoc] = query.docs;
+          user = userDoc.id;
+          if (userDoc.data().authCoreUserId) {
+            throw new ValidationError('USE_AUTHCORE_LOGIN');
+          }
         }
         break;
       }
@@ -429,6 +433,9 @@ router.post('/login', async (req, res, next) => {
         if (userQuery.docs.length > 0) {
           const [userDoc] = userQuery.docs;
           user = userDoc.id;
+          if (userDoc.data().authCoreUserId) {
+            throw new ValidationError('USE_AUTHCORE_LOGIN');
+          }
         }
         break;
       }
