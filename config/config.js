@@ -16,6 +16,8 @@ config.COSMOS_LCD_ENDPOINT = 'localhost:1317';
 config.COSMOS_CHAIN_ID = 'likechain-cosmos-testnet-2';
 config.COSMOS_DENOM = 'nanolike';
 
+config.AUTHCORE_API_ENDPOINT = '';
+
 config.JWT_PUBLIC_CERT_PATH = '';
 config.JWT_PRIVATE_KEY_PATH = '';
 config.PROVIDER_JWT_COMMON_SECRET = '';

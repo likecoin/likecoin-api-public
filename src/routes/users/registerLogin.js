@@ -13,6 +13,9 @@ import {
   admin,
 } from '../../util/firebase';
 import {
+  getAuthCoreUser,
+} from '../../util/authcore';
+import {
   handleEmailBlackList,
   checkIsOldUser,
   checkSignPayload,
@@ -195,11 +198,6 @@ router.post(
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      if (!user) {
-        res.status(401).send('LOGIN_NEEDED');
-        return;
-      }
-
       const {
         displayName,
         avatarSHA256,
@@ -289,6 +287,37 @@ router.post(
     }
   },
 );
+
+router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
+  try {
+    const { user } = req.user;
+    const {
+      authCoreAccessToken,
+    } = req.body;
+    const {
+      email,
+      displayName,
+      isEmailVerified,
+    } = await getAuthCoreUser(authCoreAccessToken);
+
+    await dbRef.doc(user).update({
+      email,
+      displayName,
+      isEmailVerified,
+    });
+    res.sendStatus(200);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventUserSync',
+      type: 'authcore',
+      user,
+      email,
+      displayName,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/login', async (req, res, next) => {
   try {
