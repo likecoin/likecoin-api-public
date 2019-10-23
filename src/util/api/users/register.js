@@ -113,6 +113,7 @@ export async function handleUserRegistration({
   const isNew = await checkUserInfoUniqueness({
     user,
     wallet,
+    cosmosWallet,
     email,
     firebaseUserId,
     platform,

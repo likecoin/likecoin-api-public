@@ -120,6 +120,7 @@ export function userByEmailQuery(user, email) {
 async function userInfoQuery({
   user,
   wallet,
+  cosmosWallet,
   email,
   firebaseUserId,
   platform,
@@ -141,6 +142,16 @@ async function userInfoQuery({
       const docUser = doc.id;
       if (user !== docUser) {
         throw new ValidationError('WALLET_ALREADY_EXIST');
+      }
+    });
+    return true;
+  }) : Promise.resolve();
+
+  const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      if (user !== docUser) {
+        throw new ValidationError('COSMOS_WALLET_ALREADY_EXIST');
       }
     });
     return true;
@@ -179,6 +190,7 @@ async function userInfoQuery({
   }] = await Promise.all([
     userNameQuery,
     walletQuery,
+    cosmosWalletQuery,
     emailQuery,
     firebaseQuery,
     authQuery,
@@ -190,6 +202,7 @@ async function userInfoQuery({
 export async function checkUserInfoUniqueness({
   user,
   wallet,
+  cosmosWallet,
   email,
   firebaseUserId,
   platform,
@@ -198,6 +211,7 @@ export async function checkUserInfoUniqueness({
   const { isOldUser } = await userInfoQuery({
     user,
     wallet,
+    cosmosWallet,
     email,
     firebaseUserId,
     platform,
