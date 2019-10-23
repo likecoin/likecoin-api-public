@@ -113,7 +113,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
         break;
       }
       case 'authcore': {
-        const { idToken } = req.body;
+        const { idToken, cosmosWallet } = req.body;
         const authCoreUser = authCoreJwtVerify(idToken);
         const {
           sub: authCoreUserId,
@@ -121,9 +121,10 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           email_verified: isEmailVerified,
           name: displayName,
         } = authCoreUser;
-        const [userQuery, emailQuery] = await Promise.all([
+        const [userQuery, emailQuery, walletQuery] = await Promise.all([
           dbRef.where('authcoreUserId', '==', authCoreUserId).get(),
           dbRef.where('email', '==', email).get(),
+          dbRef.where('cosmosWallet', '==', cosmosWallet).get(),
         ]);
         if (userQuery.docs.length > 0) {
           userQuery.forEach((doc) => {
@@ -141,8 +142,17 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
             }
           });
         }
+        if (walletQuery.docs.length > 0) {
+          walletQuery.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError('AUTHCORUE_WALLET_DUPLICATED');
+            }
+          });
+        }
         await dbRef.doc(user).update({
           authCoreUserId,
+          cosmosWallet,
           email,
           isEmailVerified,
           displayName,
