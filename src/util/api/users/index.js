@@ -39,10 +39,10 @@ export function getIntercomUserHash(user) {
     .digest('hex');
 }
 
-export async function setAuthCookies(req, res, { user, wallet }) {
+export async function setAuthCookies(req, res, { user, platform }) {
   const payload = {
     user,
-    wallet,
+    platform,
     permissions: ['read', 'write', 'like'],
   };
   const { token, jwtid } = jwtSign(payload);
