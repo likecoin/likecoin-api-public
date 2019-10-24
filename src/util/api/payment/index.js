@@ -1,10 +1,7 @@
 import { userCollection as dbRef } from '../../firebase';
 
-export async function fetchPaymentUserInfo({ from, to, type = 'eth' }) {
-  let fieldName;
-  if (type === 'eth') fieldName = 'wallet';
-  else if (type === 'cosmos') fieldName = 'cosmosWallet';
-  const fromQuery = dbRef.where(fieldName, '==', from).get().then((snapshot) => {
+export async function fetchPaymentUserInfo({ from, to }) {
+  const fromQuery = dbRef.where('cosmosWallet', '==', from).get().then((snapshot) => {
     if (snapshot.docs.length > 0) {
       const fromUser = snapshot.docs[0].data();
       return {
@@ -18,7 +15,7 @@ export async function fetchPaymentUserInfo({ from, to, type = 'eth' }) {
     }
     return {};
   });
-  const toQuery = dbRef.where(fieldName, '==', to).get().then((snapshot) => {
+  const toQuery = dbRef.where('cosmosWallet', '==', to).get().then((snapshot) => {
     if (snapshot.docs.length > 0) {
       const toUser = snapshot.docs[0].data();
       return {
