@@ -30,7 +30,6 @@ router.post('/new/check', async (req, res, next) => {
   try {
     const {
       user,
-      wallet,
     } = req.body;
     let { email } = req.body;
     try {
@@ -38,12 +37,10 @@ router.post('/new/check', async (req, res, next) => {
       if (!checkUserNameValid(user)) {
         throw new ValidationError('INVALID_USER_NAME');
       }
-      const isNew = await checkUserInfoUniqueness({
+      await checkUserInfoUniqueness({
         user,
-        wallet,
         email,
       });
-      if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
     } catch (err) {
       if (err instanceof ValidationError) {
         const payload = { error: err.message };
