@@ -13,6 +13,9 @@ import {
   admin,
 } from '../../util/firebase';
 import {
+  getAuthCoreUser,
+} from '../../util/authcore';
+import {
   handleEmailBlackList,
   checkIsOldUser,
   checkSignPayload,
@@ -24,6 +27,7 @@ import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
+import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import { getFirebaseUserProviderUserInfo } from '../../util/FirebaseApp';
 import {
@@ -96,6 +100,16 @@ router.post(
           payload.sourceURL = sourceURL;
           break;
         }
+        case 'authcore': {
+          const { idToken, ...authCorePayload } = req.body;
+          const authCoreUser = authCoreJwtVerify(idToken);
+          const { sub: authCoreId } = authCoreUser;
+          payload = authCorePayload;
+          payload.authCoreUserId = authCoreId;
+          isEmailVerified = authCoreUser.email === payload.email && authCoreUser.email_verified;
+          platformUserId = authCoreId;
+          break;
+        }
         case 'google':
         case 'twitter':
         case 'facebook': {
@@ -148,9 +162,8 @@ router.post(
         res,
         req,
       });
-      const { wallet } = userPayload;
 
-      await setAuthCookies(req, res, { user, wallet });
+      await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         ...userPayload,
@@ -185,11 +198,6 @@ router.post(
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      if (!user) {
-        res.status(401).send('LOGIN_NEEDED');
-        return;
-      }
-
       const {
         displayName,
         avatarSHA256,
@@ -280,6 +288,37 @@ router.post(
   },
 );
 
+router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
+  try {
+    const { user } = req.user;
+    const {
+      authCoreAccessToken,
+    } = req.body;
+    const {
+      email,
+      displayName,
+      isEmailVerified,
+    } = await getAuthCoreUser(authCoreAccessToken);
+
+    await dbRef.doc(user).update({
+      email,
+      displayName,
+      isEmailVerified,
+    });
+    res.sendStatus(200);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventUserSync',
+      type: 'authcore',
+      user,
+      email,
+      displayName,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/login', async (req, res, next) => {
   try {
     let user;
@@ -297,7 +336,26 @@ router.post('/login', async (req, res, next) => {
         checkSignPayload(wallet, stringPayload, sign);
         const query = await dbRef.where('wallet', '==', wallet).limit(1).get();
         if (query.docs.length > 0) {
-          user = query.docs[0].id;
+          const [userDoc] = query.docs;
+          user = userDoc.id;
+          if (userDoc.data().authCoreUserId) {
+            throw new ValidationError('USE_AUTHCORE_LOGIN');
+          }
+        }
+        break;
+      }
+      case 'authcore': {
+        const { idToken } = req.body;
+        const authCoreUser = authCoreJwtVerify(idToken);
+        const { sub: authCoreId } = authCoreUser;
+        const userQuery = await (
+          authDbRef
+            .where(`${platform}.userId`, '==', authCoreId)
+            .get()
+        );
+        if (userQuery.docs.length > 0) {
+          const [userDoc] = userQuery.docs;
+          user = userDoc.id;
         }
         break;
       }
@@ -375,6 +433,9 @@ router.post('/login', async (req, res, next) => {
         if (userQuery.docs.length > 0) {
           const [userDoc] = userQuery.docs;
           user = userDoc.id;
+          if (userDoc.data().authCoreUserId) {
+            throw new ValidationError('USE_AUTHCORE_LOGIN');
+          }
         }
         break;
       }
@@ -383,7 +444,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     if (user) {
-      await setAuthCookies(req, res, { user, wallet });
+      await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
 
       const doc = await dbRef.doc(user).get();

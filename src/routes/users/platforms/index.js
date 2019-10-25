@@ -16,6 +16,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import { getFirebaseUserProviderUserInfo } from '../../../util/FirebaseApp';
 import publisher from '../../../util/gcloudPub';
+import { authCoreJwtVerify } from '../../../util/jwt';
 
 const router = Router();
 
@@ -109,6 +110,54 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
         const query = await dbRef.where('wallet', '==', wallet).get();
         if (query.docs.length > 0) throw new ValidationError('WALLET_ALREADY_USED');
         await dbRef.doc(user).update({ wallet });
+        break;
+      }
+      case 'authcore': {
+        const { idToken, cosmosWallet } = req.body;
+        const authCoreUser = authCoreJwtVerify(idToken);
+        const {
+          sub: authCoreUserId,
+          email,
+          email_verified: isEmailVerified,
+          name: displayName,
+        } = authCoreUser;
+        const [userQuery, emailQuery, walletQuery] = await Promise.all([
+          dbRef.where('authcoreUserId', '==', authCoreUserId).get(),
+          dbRef.where('email', '==', email).get(),
+          dbRef.where('cosmosWallet', '==', cosmosWallet).get(),
+        ]);
+        if (userQuery.docs.length > 0) {
+          userQuery.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError('AUTHCORE_USER_DUPLICATED');
+            }
+          });
+        }
+        if (emailQuery.docs.length > 0) {
+          emailQuery.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError('AUTHCORUE_EMAIL_DUPLICATED');
+            }
+          });
+        }
+        if (walletQuery.docs.length > 0) {
+          walletQuery.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError('AUTHCORUE_WALLET_DUPLICATED');
+            }
+          });
+        }
+        await dbRef.doc(user).update({
+          authCoreUserId,
+          cosmosWallet,
+          email,
+          isEmailVerified,
+          displayName,
+        });
+        await authDbRef.doc(user).set({ authcore: { userId: authCoreUserId } }, { merge: true });
         break;
       }
 

@@ -73,6 +73,7 @@ export async function handleUserRegistration({
     user,
     displayName = user,
     wallet,
+    cosmosWallet,
     avatarSHA256,
     referrer,
     platform,
@@ -112,6 +113,7 @@ export async function handleUserRegistration({
   const isNew = await checkUserInfoUniqueness({
     user,
     wallet,
+    cosmosWallet,
     email,
     firebaseUserId,
     platform,
@@ -147,6 +149,7 @@ export async function handleUserRegistration({
   const createObj = {
     displayName,
     wallet,
+    cosmosWallet,
     isEmailEnabled,
     firebaseUserId,
     avatar: avatarUrl,
@@ -229,6 +232,7 @@ export async function handleUserRegistration({
       email: email || undefined,
       displayName,
       wallet,
+      cosmosWallet,
       avatar: avatarUrl,
       referrer: referrer || undefined,
       locale,
