@@ -11,8 +11,6 @@ import getPublicInfo from './routes/getPublicInfo';
 import userChallenge from './routes/users/challenge';
 import userGetInfo from './routes/users/apiGetInfo';
 import userRegister from './routes/users/apiRegister';
-import missions from './routes/mission/missions';
-import missionClaim from './routes/mission/claim';
 import storeInvite from './routes/misc/storeInvite';
 
 import { startPoller as startEmailPoller } from './poller/email';
@@ -60,8 +58,6 @@ app.use(getPublicInfo);
 app.use('/users', userChallenge);
 app.use('/users', userGetInfo);
 app.use('/users', userRegister);
-app.use('/mission', missions);
-app.use('/mission', missionClaim);
 app.use('/misc', storeInvite);
 
 app.get('/healthz', (req, res) => {

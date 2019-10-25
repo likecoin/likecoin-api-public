@@ -10,17 +10,14 @@ import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
   FieldValue,
-  admin,
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
 } from '../../util/authcore';
 import {
   handleEmailBlackList,
-  checkIsOldUser,
   checkSignPayload,
   setAuthCookies,
-  checkEmailIsSoleLogin,
   clearAuthCookies,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
@@ -29,7 +26,6 @@ import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
 import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
-import { getFirebaseUserProviderUserInfo } from '../../util/FirebaseApp';
 import {
   REGISTER_LIMIT_WINDOW,
   REGISTER_LIMIT_COUNT,
@@ -74,75 +70,28 @@ router.post(
   async (req, res, next) => {
     const {
       platform,
-    } = req.body;
-    let {
       user,
-      email,
     } = req.body;
+    let email;
     try {
       let payload;
-      let firebaseUserId;
       let platformUserId;
       let isEmailVerified = false;
 
       switch (platform) {
-        case 'wallet': {
-          const {
-            from,
-            payload: stringPayload,
-            sign,
-            referrer,
-            sourceURL,
-          } = req.body;
-          payload = checkSignPayload(from, stringPayload, sign);
-          ({ user, email } = payload);
-          payload.referrer = referrer;
-          payload.sourceURL = sourceURL;
-          break;
-        }
         case 'authcore': {
           const { idToken, ...authCorePayload } = req.body;
           const authCoreUser = authCoreJwtVerify(idToken);
-          const { sub: authCoreId } = authCoreUser;
+          const {
+            sub: authCoreId,
+            email: authCoreEmail,
+            email_verified: isAuthCoreEmailVerified,
+          } = authCoreUser;
           payload = authCorePayload;
           payload.authCoreUserId = authCoreId;
-          isEmailVerified = authCoreUser.email === payload.email && authCoreUser.email_verified;
+          email = authCoreEmail;
+          isEmailVerified = isAuthCoreEmailVerified;
           platformUserId = authCoreId;
-          break;
-        }
-        case 'google':
-        case 'twitter':
-        case 'facebook': {
-          const { firebaseIdToken } = req.body;
-          ({ uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken));
-          payload = req.body;
-
-          // Set verified to the email if it matches Firebase verified email
-          const firebaseUser = await admin.auth().getUser(firebaseUserId);
-          isEmailVerified = firebaseUser.email === payload.email && firebaseUser.emailVerified;
-
-          switch (platform) {
-            case 'google':
-            case 'twitter':
-            case 'facebook': {
-              const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
-              if (userInfo) {
-                platformUserId = userInfo.uid;
-              }
-              break;
-            }
-            default:
-          }
-          break;
-        }
-        case 'matters': {
-          const { accessToken } = req.body;
-          const { userId, email: mattersEmail } = await fetchMattersUser({ accessToken });
-          platformUserId = userId;
-          payload = req.body;
-
-          // Set verified to the email if it matches platform verified email
-          isEmailVerified = mattersEmail === payload.email;
           break;
         }
         default:
@@ -156,7 +105,6 @@ router.post(
           platform,
           platformUserId,
           isEmailVerified,
-          firebaseUserId,
           ...payload,
         },
         res,
@@ -209,16 +157,13 @@ router.post(
       if (typeof isEmailEnabled === 'string') {
         isEmailEnabled = isEmailEnabled !== 'false';
       }
-
-      const oldUserObj = await checkIsOldUser({ user, email });
-      if (!oldUserObj) throw new ValidationError('USER_NOT_FOUND');
-
+      const oldUserObj = await dbRef.doc(user).get();
       const {
         wallet,
         referrer,
         displayName: oldDisplayName,
         locale: oldLocale,
-      } = oldUserObj;
+      } = oldUserObj.data();
 
       if (email) {
         try {
@@ -253,9 +198,6 @@ router.post(
       };
       const oldEmail = oldUserObj.email;
       if (email && email !== oldEmail) {
-        if (await checkEmailIsSoleLogin(user)) {
-          throw new ValidationError('USER_EMAIL_SOLE_LOGIN');
-        }
         updateObj.email = email;
         updateObj.verificationUUID = FieldValue.delete();
         updateObj.isEmailVerified = false;
@@ -327,6 +269,7 @@ router.post('/login', async (req, res, next) => {
 
     switch (platform) {
       case 'wallet': {
+        /* for migration only */
         const {
           from,
           payload: stringPayload,
@@ -359,70 +302,8 @@ router.post('/login', async (req, res, next) => {
         }
         break;
       }
-      case 'google':
-      case 'twitter':
-      case 'facebook': {
-        const { firebaseIdToken } = req.body;
-        const { uid: firebaseUserId } = await admin.auth().verifyIdToken(firebaseIdToken);
-        if (firebaseUserId) {
-          const userQuery = await (
-            authDbRef
-              .where('firebase.userId', '==', firebaseUserId)
-              .get()
-          );
-          if (userQuery.docs.length > 0) {
-            const [userDoc] = userQuery.docs;
-            user = userDoc.id;
-            if (!userDoc.data()[platform]) {
-              /* update the missing platform ID */
-              const firebaseUser = await admin.auth().getUser(firebaseUserId);
-              const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
-              if (!userInfo) throw new ValidationError('INVALID_PLATFORM');
-              await userDoc.ref.update({ [platform]: { userId: userInfo.uid } });
-            }
-            if (userQuery.docs.length > 1) {
-              publisher.publish(PUBSUB_TOPIC_MISC, req, {
-                logType: 'eventErrorFirebaseUserIdDuplicate',
-                firebaseUserId,
-                users: userQuery.docs.map(d => d.id),
-              });
-            }
-          } else { // check if platform id exists
-            const firebaseUser = await admin.auth().getUser(firebaseUserId);
-            const userInfo = getFirebaseUserProviderUserInfo(firebaseUser, platform);
-            if (userInfo) {
-              const platformUserQuery = await (
-                authDbRef
-                  .where(`${platform}.userId`, '==', userInfo.uid)
-                  .get()
-              );
-              if (platformUserQuery.docs.length > 0) {
-                const [userDoc] = platformUserQuery.docs;
-                user = userDoc.id;
-                await Promise.all([
-                  userDoc.ref.update({ firebase: { userId: firebaseUserId } }),
-                  dbRef.doc(user).update({ firebaseUserId }),
-                ]);
-                publisher.publish(PUBSUB_TOPIC_MISC, req, {
-                  logType: 'eventFirebaseUserIdMissing',
-                  user,
-                  platform,
-                  platformUserId: userInfo.uid,
-                });
-                if (platformUserQuery.docs.length > 1) {
-                  publisher.publish(PUBSUB_TOPIC_MISC, req, {
-                    logType: 'eventErrorFirebaseUserIdDuplicate',
-                    firebaseUserId,
-                    users: platformUserQuery.docs.map(d => d.id),
-                  });
-                }
-              }
-            }
-          }
-        }
-        break;
-      }
       case 'matters': {
+        /* TODO: remove after authcore support confirm */
         const { accessToken } = req.body;
         const { userId } = await fetchMattersUser({ accessToken });
         const userQuery = await (

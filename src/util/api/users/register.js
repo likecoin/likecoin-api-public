@@ -72,13 +72,11 @@ export async function handleUserRegistration({
   const {
     user,
     displayName = user,
-    wallet,
     cosmosWallet,
     avatarSHA256,
     referrer,
     platform,
     platformUserId,
-    firebaseUserId,
     isEmailVerified,
     locale = 'en',
     accessToken,
@@ -100,8 +98,8 @@ export async function handleUserRegistration({
           logType: 'eventBlockEmail',
           user,
           email,
+          cosmosWallet,
           displayName,
-          wallet,
           referrer: referrer || undefined,
           locale,
         });
@@ -110,16 +108,13 @@ export async function handleUserRegistration({
     }
   }
 
-  const isNew = await checkUserInfoUniqueness({
+  await checkUserInfoUniqueness({
     user,
-    wallet,
     cosmosWallet,
     email,
-    firebaseUserId,
     platform,
     platformUserId,
   });
-  if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
 
   // upload avatar
   const { file } = req;
@@ -137,8 +132,8 @@ export async function handleUserRegistration({
           logType: 'eventBlockReferrer',
           user,
           email,
+          cosmosWallet,
           displayName,
-          wallet,
           referrer,
           locale,
         });
@@ -148,10 +143,8 @@ export async function handleUserRegistration({
   }
   const createObj = {
     displayName,
-    wallet,
     cosmosWallet,
     isEmailEnabled,
-    firebaseUserId,
     avatar: avatarUrl,
     locale,
   };
@@ -218,12 +211,10 @@ export async function handleUserRegistration({
         userId: platformUserId,
       },
     };
-    if (firebaseUserId) {
-      doc.firebase = { userId: firebaseUserId };
-    }
     await authDbRef.doc(user).create(doc);
   }
 
+  // TODO: fetch social info in authcore after confirm
   const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
 
   return {
@@ -231,7 +222,6 @@ export async function handleUserRegistration({
       user,
       email: email || undefined,
       displayName,
-      wallet,
       cosmosWallet,
       avatar: avatarUrl,
       referrer: referrer || undefined,
