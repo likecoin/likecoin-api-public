@@ -39,8 +39,8 @@ router.get('/list/:id/details', jwtAuth('read'), async (req, res, next) => {
 
     const linkOrderMap = getLinkOrderMap(col);
     col.docs.forEach((d) => {
-      const { isLinked, isExternalLink } = d.data();
-      if (isLinked) {
+      const { userId, isLinked, isExternalLink } = d.data();
+      if (isLinked || userId) { // treat as linked if userId exists
         replyObj.platforms[d.id] = filterSocialPlatformPersonal({ ...d.data() });
       } else if (isExternalLink) {
         replyObj.links[d.id] = filterSocialLinksPersonal({ ...d.data() });
