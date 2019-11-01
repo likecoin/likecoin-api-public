@@ -12,15 +12,15 @@ const router = Router();
 const CACHE_IN_S = 30;
 
 router.get('/price', async (req, res) => {
-  const { convert = 'usd' } = req.query;
-  let price = convert === 'usd' ? LIKE_DEFAULT_PRICE : null;
+  const { currency = 'usd' } = req.query;
+  let price = currency === 'usd' ? LIKE_DEFAULT_PRICE : null;
   try {
     const prices = await Promise.all([
       axios.get(COINGECKO_PRICE_URL)
-        .then(r => r.data.market_data.current_price[convert])
+        .then(r => r.data.market_data.current_price[currency])
         .catch(() => 0),
-      axios.get(`${COINMARKETCAP_PRICE_URL}?convert=${convert}`)
-        .then(r => parseFloat(r.data[0][`price_${convert}`]))
+      axios.get(`${COINMARKETCAP_PRICE_URL}?convert=${currency}`)
+        .then(r => parseFloat(r.data[0][`price_${currency}`]))
         .catch(() => 0),
     ]);
     price = Math.max(...prices);
