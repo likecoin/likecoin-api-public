@@ -19,6 +19,7 @@ import {
   handleTransferPlatformDelegatedUser,
   handlePlatformOAuthBind,
 } from '../../util/api/users/platforms';
+import { createAuthCoreUserAndWallet } from '../../util/api/users/authcore';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
@@ -119,6 +120,15 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       req,
       isPlatformDelegated: autoLinkOAuth,
     });
+    await createAuthCoreUserAndWallet(
+      {
+        user,
+        email,
+        displayName,
+      },
+      [{ platform, platformUserId }],
+    );
+
     let accessToken;
     let refreshToken;
     let scope;

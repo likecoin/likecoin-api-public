@@ -8,10 +8,11 @@ import {
   tryToUnlinkOAuthLogin,
 } from '../../../util/api/users';
 import { fetchMattersOAuthInfo, fetchMattersUser } from '../../../util/oauth/matters';
+import { createAuthCoreCosmosWalletIfNotExist } from '../../../util/authcore';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import publisher from '../../../util/gcloudPub';
-import { authCoreJwtVerify } from '../../../util/jwt';
+import { authCoreJwtVerify, authCoreJwtSignToken } from '../../../util/jwt';
 
 const router = Router();
 
@@ -95,7 +96,8 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
     let platformUserId;
     switch (platform) {
       case 'authcore': {
-        const { idToken, cosmosWallet } = req.body;
+        const { idToken } = req.body;
+        let { cosmosWallet } = req.body;
         const authCoreUser = authCoreJwtVerify(idToken);
         const {
           sub: authCoreUserId,
@@ -103,6 +105,12 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           email_verified: isEmailVerified,
           name: displayName,
         } = authCoreUser;
+        if (!cosmosWallet) {
+          cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(
+            authCoreUserId,
+            authCoreJwtSignToken(),
+          );
+        }
         const [userQuery, emailQuery, walletQuery] = await Promise.all([
           dbRef.where('authcoreUserId', '==', authCoreUserId).get(),
           dbRef.where('email', '==', email).get(),

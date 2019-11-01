@@ -13,6 +13,7 @@ import {
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
+  createAuthCoreCosmosWalletIfNotExist,
 } from '../../util/authcore';
 import {
   handleEmailBlackList,
@@ -24,7 +25,7 @@ import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
-import { authCoreJwtVerify } from '../../util/jwt';
+import { authCoreJwtVerify, authCoreJwtSignToken } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   REGISTER_LIMIT_WINDOW,
@@ -83,15 +84,21 @@ router.post(
           const { idToken, ...authCorePayload } = req.body;
           const authCoreUser = authCoreJwtVerify(idToken);
           const {
-            sub: authCoreId,
+            sub: authCoreUserId,
             email: authCoreEmail,
             email_verified: isAuthCoreEmailVerified,
           } = authCoreUser;
           payload = authCorePayload;
-          payload.authCoreUserId = authCoreId;
+          payload.authCoreUserId = authCoreUserId;
+          if (!payload.cosmosWallet) {
+            payload.cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(
+              authCoreUserId,
+              authCoreJwtSignToken(),
+            );
+          }
           email = authCoreEmail;
           isEmailVerified = isAuthCoreEmailVerified;
-          platformUserId = authCoreId;
+          platformUserId = authCoreUserId;
           break;
         }
         default:
