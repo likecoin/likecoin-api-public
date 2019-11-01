@@ -6,10 +6,13 @@ import {
   COINMARKETCAP_PRICE_URL,
   LIKE_DEFAULT_PRICE,
 } from '../../constant';
+import {
+  CMC_PRO_API_KEY,
+} from '../../../config/config';
 
 const router = Router();
 
-const CACHE_IN_S = 30;
+const CACHE_IN_S = 60;
 
 router.get('/price', async (req, res) => {
   const { currency = 'usd' } = req.query;
@@ -19,8 +22,11 @@ router.get('/price', async (req, res) => {
       axios.get(COINGECKO_PRICE_URL)
         .then(r => r.data.market_data.current_price[currency])
         .catch(() => 0),
-      axios.get(`${COINMARKETCAP_PRICE_URL}?convert=${currency}`)
-        .then(r => parseFloat(r.data[0][`price_${currency}`]))
+      axios.get(`${COINMARKETCAP_PRICE_URL}?symbol=LIKE&convert=${currency.toUpperCase()}`, {
+        headers: {
+          'X-CMC_PRO_API_KEY': CMC_PRO_API_KEY,
+        },
+      }).then(r => parseFloat(r.data.LIKE.quote[currency].price))
         .catch(() => 0),
     ]);
     price = Math.max(...prices);

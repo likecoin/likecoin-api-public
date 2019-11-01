@@ -86,5 +86,5 @@ export const TWITTER_STATUS_ID_STR = '1126374337575972864';
 export const OICE_API_HOST = IS_TESTNET ? 'https://oice.com/api' : 'https://oicetest.lakoo.com/api';
 
 export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/coins/likecoin?localization=false';
-export const COINMARKETCAP_PRICE_URL = 'https://api.coinmarketcap.com/v1/ticker/likecoin/';
+export const COINMARKETCAP_PRICE_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 export const LIKE_DEFAULT_PRICE = 0.0082625;
