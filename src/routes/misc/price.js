@@ -16,22 +16,32 @@ const CACHE_IN_S = 60;
 
 router.get('/price', async (req, res) => {
   const { currency = 'usd' } = req.query;
-  let price = currency === 'usd' ? LIKE_DEFAULT_PRICE : null;
+  let price;
   try {
     const prices = await Promise.all([
       axios.get(COINGECKO_PRICE_URL)
         .then(r => r.data.market_data.current_price[currency])
-        .catch(() => 0),
+        .catch(() => undefined),
       axios.get(`${COINMARKETCAP_PRICE_URL}?symbol=LIKE&convert=${currency.toUpperCase()}`, {
         headers: {
           'X-CMC_PRO_API_KEY': CMC_PRO_API_KEY,
         },
       }).then(r => parseFloat(r.data.LIKE.quote[currency].price))
-        .catch(() => 0),
+        .catch(() => undefined),
     ]);
-    price = Math.max(...prices);
+    const validPrices = prices.filter(p => !isNaN(p)); // eslint-disable-line no-restricted-globals
+    if (!validPrices.length) {
+      if (currency !== 'usd') throw new Error('Failed to get price.');
+      price = LIKE_DEFAULT_PRICE;
+    } else {
+      price = Math.max(...validPrices);
+    }
   } catch (err) {
     console.error(err);
+  }
+  if (price === undefined) {
+    res.sendStatus(500);
+    return;
   }
   res.set('Cache-Control', `public, max-age=${CACHE_IN_S}, s-maxage=${CACHE_IN_S}, stale-if-error=${CACHE_IN_S}`);
   res.send({ price });
