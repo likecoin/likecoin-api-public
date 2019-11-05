@@ -82,6 +82,7 @@ router.post(
       switch (platform) {
         case 'authcore': {
           const { idToken, ...authCorePayload } = req.body;
+          if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
           const authCoreUser = authCoreJwtVerify(idToken);
           const {
             sub: authCoreUserId,
@@ -296,6 +297,7 @@ router.post('/login', async (req, res, next) => {
       }
       case 'authcore': {
         const { idToken } = req.body;
+        if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
         const authCoreUser = authCoreJwtVerify(idToken);
         const { sub: authCoreId } = authCoreUser;
         const userQuery = await (
