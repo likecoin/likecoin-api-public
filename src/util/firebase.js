@@ -22,7 +22,6 @@ if (!process.env.CI) {
   });
 
   database = admin.firestore();
-  database.settings({ timestampsInSnapshots: true });
 }
 export const db = database;
 
