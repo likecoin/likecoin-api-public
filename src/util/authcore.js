@@ -41,7 +41,8 @@ export async function registerAuthCoreUser(payload, accessToken) {
       },
     }));
   } catch (err) {
-    console.error(JSON.stringify(err.response.data));
+    if (err.response) ({ data } = err.response);
+    else console.error(err);
   }
   if (!data || !data.user) throw new Error(data);
   return { ...data.user };
