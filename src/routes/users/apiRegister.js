@@ -11,7 +11,6 @@ import {
 import {
   handleUserRegistration,
   suggestAvailableUserName,
-  checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import {
@@ -88,13 +87,12 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     switch (platform) {
       case 'matters': {
         const { token } = req.body;
-        if (email) {
-          if (!await checkUserEmailUsable(user, email)) {
-            email = '';
-          }
-        }
-        const { userId } = await fetchMattersUser({ accessToken: token });
+        const {
+          userId,
+          email: mattersEmail,
+        } = await fetchMattersUser({ accessToken: token });
         platformUserId = userId;
+        email = mattersEmail;
         isEmailVerified = true;
         autoLinkOAuth = true;
         platformAccessToken = token;
