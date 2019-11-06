@@ -53,4 +53,6 @@ config.GCLOUD_PUBSUB_MAX_WAIT = 1000;
 config.GCLOUD_PUBSUB_ENABLE = false;
 config.APP_SERVER = 'likecoin-api-pulic';
 
+config.CMC_PRO_API_KEY = '';
+
 module.exports = config;
