@@ -204,6 +204,14 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               displayName,
               isEmailVerified,
             });
+            await createAuthCoreUserAndWallet(
+              {
+                user,
+                email,
+                displayName,
+              },
+              [{ platform, platformUserId: userId }],
+            );
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
               platform,
