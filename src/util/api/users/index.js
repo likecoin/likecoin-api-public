@@ -123,6 +123,7 @@ async function userInfoQuery({
   email,
   platform,
   platformUserId,
+  authCoreUserId,
 }) {
   const userNameQuery = dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
@@ -144,7 +145,7 @@ async function userInfoQuery({
 
   const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
-  const authQuery = platform && platformUserId ? (
+  const authQuery = (platform && platformUserId) ? (
     authDbRef
       .where(`${platform}.userId`, '==', platformUserId)
       .get()
@@ -159,6 +160,21 @@ async function userInfoQuery({
       })
   ) : Promise.resolve();
 
+  const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
+    dbRef
+      .where('authCoreUserId', '==', authCoreUserId)
+      .get()
+      .then((snapshot) => {
+        snapshot.forEach((doc) => {
+          const docUser = doc.id;
+          if (user !== docUser) {
+            throw new ValidationError('AUTHCORE_USER_DUPLICATED');
+          }
+        });
+        return true;
+      })
+  ) : Promise.resolve();
+
   const [{
     isOldUser,
     oldUserObj,
@@ -167,6 +183,7 @@ async function userInfoQuery({
     cosmosWalletQuery,
     emailQuery,
     authQuery,
+    authCoreQuery,
   ]);
 
   return { isOldUser, oldUserObj };
@@ -178,6 +195,7 @@ export async function checkUserInfoUniqueness({
   email,
   platform,
   platformUserId,
+  authCoreUserId,
 }) {
   const userDoc = await dbRef.doc(user).get();
   if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
@@ -187,6 +205,7 @@ export async function checkUserInfoUniqueness({
     email,
     platform,
     platformUserId,
+    authCoreUserId,
   });
 }
 

@@ -11,6 +11,8 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   email,
   displayName,
   isEmailVerified,
+  authCoreUserId,
+  cosmosWallet,
 }) {
   const userRef = dbRef.doc(user);
   const userDoc = await userRef.get();
@@ -26,7 +28,16 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   if (email) payload.email = email;
   if (displayName) payload.displayName = displayName;
   if (isEmailVerified !== undefined) payload.isEmailVerified = isEmailVerified;
-  await userRef.update(payload);
+  if (authCoreUserId) payload.authCoreUserId = authCoreUserId;
+  if (cosmosWallet) payload.cosmosWallet = cosmosWallet;
+  const batch = db.batch();
+  batch.update(userRef, payload);
+  batch.set(
+    authDbRef.doc(user),
+    { authcore: { userId: authCoreUserId } },
+    { merge: true },
+  );
+  await batch.commit();
 }
 
 export function handleTransferPlatformDelegatedUser(platform, user, target) {

@@ -100,6 +100,17 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         throw new ValidationError('INVALID_PLATFORM');
     }
     const {
+      authCoreUserId,
+      cosmosWallet,
+    } = await createAuthCoreUserAndWallet(
+      {
+        user,
+        email,
+        displayName,
+      },
+      [{ platform, platformUserId }],
+    );
+    const {
       userPayload,
       socialPayload,
     } = await handleUserRegistration({
@@ -111,6 +122,8 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         isEmailEnabled,
         email,
         platformUserId,
+        authCoreUserId,
+        cosmosWallet,
         isEmailVerified,
         accessToken: platformAccessToken,
       },
@@ -118,14 +131,6 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       req,
       isPlatformDelegated: autoLinkOAuth,
     });
-    await createAuthCoreUserAndWallet(
-      {
-        user,
-        email,
-        displayName,
-      },
-      [{ platform, platformUserId }],
-    );
 
     let accessToken;
     let refreshToken;
@@ -199,12 +204,10 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               displayName,
             } = await fetchMattersUser({ accessToken: platformToken || token });
             const isEmailVerified = true;
-            await handleClaimPlatformDelegatedUser(platform, user, {
-              email,
-              displayName,
-              isEmailVerified,
-            });
-            await createAuthCoreUserAndWallet(
+            const {
+              authCoreUserId,
+              cosmosWallet,
+            } = await createAuthCoreUserAndWallet(
               {
                 user,
                 email,
@@ -212,6 +215,13 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               },
               [{ platform, platformUserId: userId }],
             );
+            await handleClaimPlatformDelegatedUser(platform, user, {
+              email,
+              displayName,
+              isEmailVerified,
+              authCoreUserId,
+              cosmosWallet,
+            });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
               platform,

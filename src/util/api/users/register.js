@@ -77,6 +77,7 @@ export async function handleUserRegistration({
     referrer,
     platform,
     platformUserId,
+    authCoreUserId,
     isEmailVerified,
     locale = 'en',
     accessToken,
@@ -114,6 +115,7 @@ export async function handleUserRegistration({
     email,
     platform,
     platformUserId,
+    authCoreUserId,
   });
 
   // upload avatar
@@ -144,6 +146,7 @@ export async function handleUserRegistration({
   const createObj = {
     displayName,
     cosmosWallet,
+    authCoreUserId,
     isEmailEnabled,
     avatar: avatarUrl,
     locale,
@@ -205,12 +208,16 @@ export async function handleUserRegistration({
     });
   }
 
-  if (platformUserId) {
-    const doc = {
-      [platform]: {
+  if (authCoreUserId || (platform && platformUserId)) {
+    const doc = {};
+    if (authCoreUserId) {
+      doc.authcore = { userId: authCoreUserId };
+    }
+    if (platform && platformUserId) {
+      doc[platform] = {
         userId: platformUserId,
-      },
-    };
+      };
+    }
     await authDbRef.doc(user).create(doc);
   }
 

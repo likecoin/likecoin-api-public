@@ -1,10 +1,5 @@
 import { authCoreJwtSignToken } from '../../jwt';
 import { registerAuthCoreUser, createAuthCoreCosmosWalletIfNotExist } from '../../authcore';
-import {
-  db,
-  userCollection as dbRef,
-  userAuthCollection as authDbRef,
-} from '../../firebase';
 
 export async function createAuthCoreUserAndWallet({
   user,
@@ -29,19 +24,6 @@ export async function createAuthCoreUserAndWallet({
     authCoreToken,
   );
   const cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(authCoreUserId, authCoreToken);
-  const batch = db.batch();
-  batch.update(
-    dbRef.doc(user), {
-      authCoreUserId,
-      cosmosWallet,
-    },
-  );
-  batch.set(
-    authDbRef.doc(user),
-    { authcore: { userId: authCoreUserId } },
-    { merge: true },
-  );
-  await batch.commit();
   return {
     authCoreUserId,
     cosmosWallet,
