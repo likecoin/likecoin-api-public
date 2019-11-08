@@ -159,14 +159,8 @@ export async function handleUserRegistration({
     createObj.email = email;
     createObj.isEmailVerified = isEmailVerified;
 
-    // Hack for setting done to verifyEmail mission
-    if (isEmailVerified) {
-      await dbRef
-        .doc(user)
-        .collection('mission')
-        .doc('verifyEmail')
-        .set({ done: true }, { merge: true });
-    } else {
+    // TODO: trigger verify email via authcore?
+    if (!isEmailVerified) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
       createObj.verificationUUID = uuidv4();
