@@ -7,6 +7,7 @@ import {
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
+  db,
 } from '../../firebase';
 import {
   handleEmailBlackList,
@@ -199,8 +200,8 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-
-  await dbRef.doc(user).create(createObj);
+  const batch = db.batch();
+  batch.create(dbRef.doc(user), createObj);
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,
@@ -218,8 +219,9 @@ export async function handleUserRegistration({
         userId: platformUserId,
       };
     }
-    await authDbRef.doc(user).create(doc);
+    batch.create(authDbRef.doc(user), doc);
   }
+  await batch.commit();
 
   // TODO: fetch social info in authcore after confirm
   const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
