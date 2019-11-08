@@ -99,17 +99,23 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       default:
         throw new ValidationError('INVALID_PLATFORM');
     }
-    const {
-      authCoreUserId,
-      cosmosWallet,
-    } = await createAuthCoreUserAndWallet(
-      {
-        user,
-        email,
-        displayName,
-      },
-      [{ platform, platformUserId }],
-    );
+    let authCoreUserId;
+    let cosmosWallet;
+    try {
+      ({
+        authCoreUserId,
+        cosmosWallet,
+      } = await createAuthCoreUserAndWallet(
+        {
+          user,
+          email,
+          displayName,
+        },
+        [{ platform, platformUserId }],
+      ));
+    } catch (err) {
+      throw new ValidationError(err);
+    }
     const {
       userPayload,
       socialPayload,
@@ -204,17 +210,23 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               displayName,
             } = await fetchMattersUser({ accessToken: platformToken || token });
             const isEmailVerified = true;
-            const {
-              authCoreUserId,
-              cosmosWallet,
-            } = await createAuthCoreUserAndWallet(
-              {
-                user,
-                email,
-                displayName,
-              },
-              [{ platform, platformUserId: userId }],
-            );
+            let authCoreUserId;
+            let cosmosWallet;
+            try {
+              ({
+                authCoreUserId,
+                cosmosWallet,
+              } = await createAuthCoreUserAndWallet(
+                {
+                  user,
+                  email,
+                  displayName,
+                },
+                [{ platform, platformUserId: userId }],
+              ));
+            } catch (err) {
+              throw new ValidationError(err);
+            }
             await handleClaimPlatformDelegatedUser(platform, user, {
               email,
               displayName,
