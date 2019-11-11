@@ -11,7 +11,6 @@ import {
 import {
   handleUserRegistration,
   suggestAvailableUserName,
-  checkUserEmailUsable,
 } from '../../util/api/users/register';
 import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import {
@@ -19,6 +18,7 @@ import {
   handleTransferPlatformDelegatedUser,
   handlePlatformOAuthBind,
 } from '../../util/api/users/platforms';
+import { createAuthCoreUserAndWallet } from '../../util/api/users/authcore';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
@@ -85,13 +85,12 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     switch (platform) {
       case 'matters': {
         const { token } = req.body;
-        if (email) {
-          if (!await checkUserEmailUsable(user, email)) {
-            email = '';
-          }
-        }
-        const { userId } = await fetchMattersUser({ accessToken: token });
+        const {
+          userId,
+          email: mattersEmail,
+        } = await fetchMattersUser({ accessToken: token });
         platformUserId = userId;
+        email = mattersEmail;
         isEmailVerified = true;
         autoLinkOAuth = true;
         platformAccessToken = token;
@@ -99,6 +98,23 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       }
       default:
         throw new ValidationError('INVALID_PLATFORM');
+    }
+    let authCoreUserId;
+    let cosmosWallet;
+    try {
+      ({
+        authCoreUserId,
+        cosmosWallet,
+      } = await createAuthCoreUserAndWallet(
+        {
+          user,
+          email,
+          displayName,
+        },
+        [{ platform, platformUserId }],
+      ));
+    } catch (err) {
+      throw new ValidationError(err);
     }
     const {
       userPayload,
@@ -112,6 +128,8 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         isEmailEnabled,
         email,
         platformUserId,
+        authCoreUserId,
+        cosmosWallet,
         isEmailVerified,
         accessToken: platformAccessToken,
       },
@@ -119,6 +137,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       req,
       isPlatformDelegated: autoLinkOAuth,
     });
+
     let accessToken;
     let refreshToken;
     let scope;
@@ -191,10 +210,29 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               displayName,
             } = await fetchMattersUser({ accessToken: platformToken || token });
             const isEmailVerified = true;
+            let authCoreUserId;
+            let cosmosWallet;
+            try {
+              ({
+                authCoreUserId,
+                cosmosWallet,
+              } = await createAuthCoreUserAndWallet(
+                {
+                  user,
+                  email,
+                  displayName,
+                },
+                [{ platform, platformUserId: userId }],
+              ));
+            } catch (err) {
+              throw new ValidationError(err);
+            }
             await handleClaimPlatformDelegatedUser(platform, user, {
               email,
               displayName,
               isEmailVerified,
+              authCoreUserId,
+              cosmosWallet,
             });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
