@@ -8,11 +8,12 @@ import {
 } from '../../constant';
 import {
   CMC_PRO_API_KEY,
+  CMC_API_CACHE_S,
 } from '../../../config/config';
 
 const router = Router();
 
-const CACHE_IN_S = 60;
+const CACHE_IN_S = CMC_API_CACHE_S || 300; // Rate limit: 333 per day ~ 1 per 259s
 
 router.get('/price', async (req, res) => {
   const { currency = 'usd' } = req.query;
