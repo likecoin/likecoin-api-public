@@ -17,6 +17,9 @@ config.COSMOS_CHAIN_ID = 'likechain-cosmos-testnet-2';
 config.COSMOS_DENOM = 'nanolike';
 
 config.AUTHCORE_API_ENDPOINT = '';
+config.AUTHCORE_PUBLIC_CERT_PATH = '';
+config.AUTHCORE_PRIVATE_KEY_PATH = '';
+config.AUTHCORE_SERVICE_ACCOUNT_ID = '';
 
 config.JWT_PUBLIC_CERT_PATH = '';
 config.JWT_PRIVATE_KEY_PATH = '';

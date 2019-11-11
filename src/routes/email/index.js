@@ -94,7 +94,6 @@ router.post('/verify/:uuid', async (req, res, next) => {
       } else {
         payload.bonusId = 'none';
       }
-      promises.push(dbRef.doc(user.id).collection('mission').doc('verifyEmail').set(payload, { merge: true }));
       await Promise.all(promises);
       res.json({ referrer: !!user.data().referrer, wallet: user.data().wallet });
       const userObj = user.data();

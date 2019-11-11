@@ -1,4 +1,3 @@
-import BigNumber from 'bignumber.js';
 import { Router } from 'express';
 import {
   userCollection as dbRef,
@@ -11,8 +10,6 @@ import {
   getIntercomUserHash,
   getUserWithCivicLikerProperties,
 } from '../../util/api/users';
-
-const ONE_LIKE = new BigNumber(10).pow(18);
 
 const router = Router();
 
@@ -37,26 +34,6 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
-router.get('/referral/:id', jwtAuth('read'), async (req, res, next) => {
-  try {
-    const username = req.params.id;
-    if (req.user.user !== username) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
-    const col = await dbRef.doc(username).collection('referrals').get();
-    if (col.docs) {
-      const pending = col.docs.filter(d => !d.data().isEmailVerified).length;
-      const verified = col.docs.filter(d => d.data().isEmailVerified).length;
-      res.json({ pending, verified });
-    } else {
-      res.json({ pending: 0, verified: 0 });
-    }
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.get('/id/:id', jwtAuth('read'), async (req, res, next) => {
   try {
     const username = req.params.id;
@@ -70,24 +47,6 @@ router.get('/id/:id', jwtAuth('read'), async (req, res, next) => {
     } else {
       res.sendStatus(404);
     }
-  } catch (err) {
-    next(err);
-  }
-});
-
-
-router.get('/bonus/:id', jwtAuth('read'), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    if (req.user.user !== id) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
-    const query = await dbRef.doc(id).collection('bonus').get();
-    const sum = query.docs
-      .filter(t => t.data().txHash && t.data().value)
-      .reduce((acc, t) => acc.plus(new BigNumber(t.data().value)), new BigNumber(0));
-    res.json({ bonus: sum.dividedBy(ONE_LIKE).toFixed(4) });
   } catch (err) {
     next(err);
   }

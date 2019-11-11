@@ -7,6 +7,7 @@ import {
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
+  db,
 } from '../../firebase';
 import {
   handleEmailBlackList,
@@ -72,13 +73,12 @@ export async function handleUserRegistration({
   const {
     user,
     displayName = user,
-    wallet,
     cosmosWallet,
     avatarSHA256,
     referrer,
     platform,
     platformUserId,
-    firebaseUserId,
+    authCoreUserId,
     isEmailVerified,
     locale = 'en',
     accessToken,
@@ -100,8 +100,8 @@ export async function handleUserRegistration({
           logType: 'eventBlockEmail',
           user,
           email,
+          cosmosWallet,
           displayName,
-          wallet,
           referrer: referrer || undefined,
           locale,
         });
@@ -110,16 +110,14 @@ export async function handleUserRegistration({
     }
   }
 
-  const isNew = await checkUserInfoUniqueness({
+  await checkUserInfoUniqueness({
     user,
-    wallet,
     cosmosWallet,
     email,
-    firebaseUserId,
     platform,
     platformUserId,
+    authCoreUserId,
   });
-  if (!isNew) throw new ValidationError('USER_ALREADY_EXIST');
 
   // upload avatar
   const { file } = req;
@@ -137,8 +135,8 @@ export async function handleUserRegistration({
           logType: 'eventBlockReferrer',
           user,
           email,
+          cosmosWallet,
           displayName,
-          wallet,
           referrer,
           locale,
         });
@@ -148,10 +146,9 @@ export async function handleUserRegistration({
   }
   const createObj = {
     displayName,
-    wallet,
     cosmosWallet,
+    authCoreUserId,
     isEmailEnabled,
-    firebaseUserId,
     avatar: avatarUrl,
     locale,
   };
@@ -162,14 +159,8 @@ export async function handleUserRegistration({
     createObj.email = email;
     createObj.isEmailVerified = isEmailVerified;
 
-    // Hack for setting done to verifyEmail mission
-    if (isEmailVerified) {
-      await dbRef
-        .doc(user)
-        .collection('mission')
-        .doc('verifyEmail')
-        .set({ done: true }, { merge: true });
-    } else {
+    // TODO: trigger verify email via authcore?
+    if (!isEmailVerified) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
       createObj.verificationUUID = uuidv4();
@@ -203,8 +194,8 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-
-  await dbRef.doc(user).create(createObj);
+  const batch = db.batch();
+  batch.create(dbRef.doc(user), createObj);
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,
@@ -212,18 +203,21 @@ export async function handleUserRegistration({
     });
   }
 
-  if (platformUserId) {
-    const doc = {
-      [platform]: {
-        userId: platformUserId,
-      },
-    };
-    if (firebaseUserId) {
-      doc.firebase = { userId: firebaseUserId };
+  if (authCoreUserId || (platform && platformUserId)) {
+    const doc = {};
+    if (authCoreUserId) {
+      doc.authcore = { userId: authCoreUserId };
     }
-    await authDbRef.doc(user).create(doc);
+    if (platform && platformUserId) {
+      doc[platform] = {
+        userId: platformUserId,
+      };
+    }
+    batch.create(authDbRef.doc(user), doc);
   }
+  await batch.commit();
 
+  // TODO: fetch social info in authcore after confirm
   const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
 
   return {
@@ -231,7 +225,6 @@ export async function handleUserRegistration({
       user,
       email: email || undefined,
       displayName,
-      wallet,
       cosmosWallet,
       avatar: avatarUrl,
       referrer: referrer || undefined,

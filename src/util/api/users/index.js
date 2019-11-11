@@ -119,34 +119,20 @@ export function userByEmailQuery(user, email) {
 
 async function userInfoQuery({
   user,
-  wallet,
   cosmosWallet,
   email,
-  firebaseUserId,
   platform,
   platformUserId,
+  authCoreUserId,
 }) {
   const userNameQuery = dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
     let oldUserObj;
     if (isOldUser) {
-      const { wallet: docWallet } = doc.data();
       oldUserObj = doc.data();
-      if (wallet && docWallet !== wallet) throw new ValidationError('USER_WALLET_INVALID');
     }
     return { isOldUser, oldUserObj };
   });
-
-  const walletQuery = wallet ? dbRef.where('wallet', '==', wallet).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
-      const docUser = doc.id;
-      if (user !== docUser) {
-        throw new ValidationError('WALLET_ALREADY_EXIST');
-      }
-    });
-    return true;
-  }) : Promise.resolve();
-
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
@@ -159,17 +145,7 @@ async function userInfoQuery({
 
   const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
-  const firebaseQuery = firebaseUserId ? dbRef.where('firebaseUserId', '==', firebaseUserId).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
-      const docUser = doc.id;
-      if (user !== docUser) {
-        throw new ValidationError('FIREBASE_USER_DUPLICATED');
-      }
-    });
-    return true;
-  }) : Promise.resolve();
-
-  const authQuery = platform && platformUserId ? (
+  const authQuery = (platform && platformUserId) ? (
     authDbRef
       .where(`${platform}.userId`, '==', platformUserId)
       .get()
@@ -184,16 +160,30 @@ async function userInfoQuery({
       })
   ) : Promise.resolve();
 
+  const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
+    dbRef
+      .where('authCoreUserId', '==', authCoreUserId)
+      .get()
+      .then((snapshot) => {
+        snapshot.forEach((doc) => {
+          const docUser = doc.id;
+          if (user !== docUser) {
+            throw new ValidationError('AUTHCORE_USER_DUPLICATED');
+          }
+        });
+        return true;
+      })
+  ) : Promise.resolve();
+
   const [{
     isOldUser,
     oldUserObj,
   }] = await Promise.all([
     userNameQuery,
-    walletQuery,
     cosmosWalletQuery,
     emailQuery,
-    firebaseQuery,
     authQuery,
+    authCoreQuery,
   ]);
 
   return { isOldUser, oldUserObj };
@@ -201,38 +191,22 @@ async function userInfoQuery({
 
 export async function checkUserInfoUniqueness({
   user,
-  wallet,
   cosmosWallet,
   email,
-  firebaseUserId,
   platform,
   platformUserId,
+  authCoreUserId,
 }) {
-  const { isOldUser } = await userInfoQuery({
+  const userDoc = await dbRef.doc(user).get();
+  if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
+  await userInfoQuery({
     user,
-    wallet,
     cosmosWallet,
     email,
-    firebaseUserId,
     platform,
     platformUserId,
+    authCoreUserId,
   });
-  return !isOldUser;
-}
-
-export async function checkIsOldUser({
-  user,
-  wallet,
-  email,
-  firebaseUserId,
-}) {
-  const { isOldUser, oldUserObj } = await userInfoQuery({
-    user,
-    wallet,
-    email,
-    firebaseUserId,
-  });
-  return isOldUser ? oldUserObj : null;
 }
 
 export async function checkReferrerExists(referrer) {
@@ -242,20 +216,6 @@ export async function checkReferrerExists(referrer) {
     throw new ValidationError('REFERRER_LIMIT_EXCCEDDED');
   }
   return referrerRef.exists;
-}
-
-export async function checkEmailIsSoleLogin(id) {
-  const [
-    userDoc,
-    authDoc,
-  ] = await Promise.all([
-    dbRef.doc(id).get(),
-    authDbRef.doc(id).get(),
-  ]);
-  const user = userDoc.data();
-  const userHasOauth = authDoc.exists && Object.keys(authDoc.data()).length;
-  const { wallet } = user;
-  return (!wallet && !userHasOauth);
 }
 
 export async function tryToLinkOAuthLogin({

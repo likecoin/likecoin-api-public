@@ -1,6 +1,5 @@
 import test from 'ava';
 import {
-  testingWallet0,
   testingUser1,
   testingDisplayName1,
   testingEmail1,
@@ -13,7 +12,6 @@ import {
   testingMerchantId1,
   invalidWallet,
   testingWallet3,
-  privateKey0,
   privateKey1,
   privateKey3,
 } from './data';
@@ -37,29 +35,6 @@ function signProfile(signData, privateKey) {
 //
 // serial will run first
 //
-test.serial('USER: Register user. Case: success', async (t) => {
-  const payload = Web3.utils.utf8ToHex(JSON.stringify({
-    user: 'testing-user-0',
-    displayName: 'testingNewUser0',
-    ts: Date.now(),
-    wallet: testingWallet0,
-  }));
-  const sign = signProfile(payload, privateKey0);
-  const res = await axiosist.post('/api/users/new', {
-    from: testingWallet0,
-    platform: 'wallet',
-    payload,
-    sign,
-  }, {
-    headers: {
-      Cookie: '_csrf=unit_test',
-      'x-csrf-token': '73fb9061-W0SmQvlNKd0uKS4d2nKoZd0u7SA',
-    },
-  });
-
-  t.is(res.status, 200);
-});
-
 test.serial('USER: Login user. Case: success', async (t) => {
   const payload = Web3.utils.utf8ToHex(JSON.stringify({
     ts: Date.now(),
@@ -396,43 +371,6 @@ test('USER: check user login status', async (t) => {
   t.is(res.data.civicLikerRenewalPeriodLast, testingCivicLikerEnd1 + SUBSCRIPTION_GRACE_PERIOD);
 });
 
-test('USER: Get user referral status', async (t) => {
-  const user = testingUser1;
-  const token = jwtSign({ user });
-  let res = await axiosist.get(`/api/users/referral/${user}`)
-    .catch(err => err.response);
-
-  t.is(res.status, 401);
-
-  res = await axiosist.get(`/api/users/referral/${user}`, {
-    headers: {
-      Cookie: `likecoin_auth=${token}`,
-    },
-  }).catch(err => err.response);
-
-  t.is(res.status, 200);
-  t.is(res.data.pending, 0);
-  t.is(res.data.verified, 1);
-});
-
-test('USER: Get user bonus status', async (t) => {
-  const user = testingUser1;
-  const token = jwtSign({ user });
-  let res = await axiosist.get(`/api/users/bonus/${user}`)
-    .catch(err => err.response);
-
-  t.is(res.status, 401);
-
-  res = await axiosist.get(`/api/users/bonus/${user}`, {
-    headers: {
-      Cookie: `likecoin_auth=${token}`,
-    },
-  }).catch(err => err.response);
-
-  t.is(res.status, 200);
-  t.is(res.data.bonus, '3.0000');
-});
-
 test('USER: Post user notitication option', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
@@ -488,18 +426,4 @@ test('USER: Check New User Info: Email Already exist', async (t) => {
 
   t.is(res.status, 400);
   t.is(res.data.error, 'EMAIL_ALREADY_USED');
-});
-
-test('USER: Check New User Info: Wallet already exist', async (t) => {
-  const user = `${testingUser2}-new`;
-  const email = 'newemail@email.com';
-  const wallet = testingWallet1;
-  const res = await axiosist.post('/api/users/new/check', {
-    user,
-    email,
-    wallet,
-  }).catch(err => err.response);
-
-  t.is(res.status, 400);
-  t.is(res.data.error, 'WALLET_ALREADY_EXIST');
 });
