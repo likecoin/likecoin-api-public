@@ -114,6 +114,11 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         [{ platform, platformUserId }],
       ));
     } catch (err) {
+      if (typeof err === 'object') {
+        console.error(err);
+        res.status(400).json(err);
+        return;
+      }
       throw new ValidationError(err);
     }
     const {
@@ -225,6 +230,11 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
                 [{ platform, platformUserId: userId }],
               ));
             } catch (err) {
+              if (typeof err === 'object') {
+                console.error(err);
+                res.status(400).json(err);
+                return;
+              }
               throw new ValidationError(err);
             }
             await handleClaimPlatformDelegatedUser(platform, user, {

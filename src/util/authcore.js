@@ -42,29 +42,37 @@ export async function registerAuthCoreUser(payload, accessToken) {
     }));
   } catch (err) {
     if (err.response) ({ data } = err.response);
-    else console.error(err);
   }
-  if (!data || !data.user) throw new Error(data);
+  if (!data) throw new Error('no response from authcore');
+  if (!data.user) throw data;
   return { ...data.user };
 }
 
 export async function getAuthCoreCosmosWallet(userId, accessToken) {
-  const client = new AuthcoreVaultClient({
-    apiBaseURL: AUTHCORE_API_ENDPOINT,
-    accessToken,
-    staticKey: AUTHCORE_SECRETD_STATIC_KEY,
-  });
-  const uid = await client.authcoreLookupOrCreateUser(userId);
-  const cosmosProvider = new AuthcoreCosmosProvider({
-    client,
-    oid: `user/${uid}/hdwallet_default`,
-  });
-  const addresses = await cosmosProvider.getAddresses();
-  if (!addresses || addresses.length < 1) {
-    return '';
+  try {
+    const client = new AuthcoreVaultClient({
+      apiBaseURL: AUTHCORE_API_ENDPOINT,
+      accessToken,
+      staticKey: AUTHCORE_SECRETD_STATIC_KEY,
+    });
+    const uid = await client.authcoreLookupOrCreateUser(userId);
+    const cosmosProvider = new AuthcoreCosmosProvider({
+      client,
+      oid: `user/${uid}/hdwallet_default`,
+    });
+    const addresses = await cosmosProvider.getAddresses();
+    if (!addresses || addresses.length < 1) {
+      return '';
+    }
+    const [address] = addresses;
+    return address;
+  } catch (err) {
+    if (err.response) {
+      const { data } = err.response;
+      if (data) throw data;
+    }
+    throw err;
   }
-  const [address] = addresses;
-  return address;
 }
 
 export async function createAuthCoreCosmosWallet(userId, accessToken) {
