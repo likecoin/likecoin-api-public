@@ -3,6 +3,7 @@ import {
   AUTHCORE_API_ENDPOINT,
   AUTHCORE_SECRETD_STATIC_KEY,
 } from '../../config/config';
+import { ValidationError } from './ValidationError';
 
 const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('secretd-js');
 
@@ -44,7 +45,15 @@ export async function registerAuthCoreUser(payload, accessToken) {
     if (err.response) ({ data } = err.response);
   }
   if (!data) throw new Error('no response from authcore');
-  if (!data.user) throw data;
+  if (!data.user) {
+    if (data.code === 6) { // ALREADY_EXISTS
+      if (data.details && data.details[0] && data.details[0].field_violations) {
+        throw new ValidationError('EMAIL_ALREADY_USED');
+      }
+      throw new ValidationError('OAUTH_USER_ID_ALREADY_USED');
+    }
+    throw data;
+  }
   return { ...data.user };
 }
 
