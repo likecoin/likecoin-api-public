@@ -6,6 +6,7 @@ import social from './social/getPublicInfo';
 import tx from './tx';
 import users from './users/getPublicInfo';
 import oembed from './oembed';
+import cosmos from './cosmos';
 
 
 const router = Router();
@@ -16,5 +17,6 @@ router.use('/social', social);
 router.use('/tx', tx);
 router.use('/users', users);
 router.use('/oembed', oembed);
+router.use('/cosmos', cosmos);
 
 export default router;
