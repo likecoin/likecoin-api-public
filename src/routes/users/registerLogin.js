@@ -13,7 +13,7 @@ import {
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
-  createAuthCoreCosmosWalletIfNotExist,
+  createAuthCoreCosmosWalletViaUserToken,
 } from '../../util/authcore';
 import {
   handleEmailBlackList,
@@ -25,7 +25,7 @@ import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
-import { authCoreJwtVerify, authCoreJwtSignToken } from '../../util/jwt';
+import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   REGISTER_LIMIT_WINDOW,
@@ -81,8 +81,13 @@ router.post(
 
       switch (platform) {
         case 'authcore': {
-          const { idToken, ...authCorePayload } = req.body;
+          const {
+            idToken,
+            accessToken,
+            ...authCorePayload
+          } = req.body;
           if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
+          if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
           const authCoreUser = authCoreJwtVerify(idToken);
           const {
             sub: authCoreUserId,
@@ -92,10 +97,7 @@ router.post(
           payload = authCorePayload;
           payload.authCoreUserId = authCoreUserId;
           if (!payload.cosmosWallet) {
-            payload.cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(
-              authCoreUserId,
-              authCoreJwtSignToken(),
-            );
+            payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
           }
           email = authCoreEmail;
           isEmailVerified = isAuthCoreEmailVerified;

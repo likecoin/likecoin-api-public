@@ -57,18 +57,17 @@ export async function registerAuthCoreUser(payload, accessToken) {
   return { ...data.user };
 }
 
-export async function getAuthCoreCosmosWallet(userId, accessToken) {
+export async function getAuthCoreCosmosWallet(accessToken, userId) {
   try {
-    const client = new AuthcoreVaultClient({
-      apiBaseURL: AUTHCORE_API_ENDPOINT,
-      accessToken,
-      staticKey: AUTHCORE_SECRETD_STATIC_KEY,
-    });
-    const uid = await client.authcoreLookupOrCreateUser(userId);
-    const cosmosProvider = new AuthcoreCosmosProvider({
-      client,
-      oid: `user/${uid}/hdwallet_default`,
-    });
+    const vaultOpt = { apiBaseURL: AUTHCORE_API_ENDPOINT, accessToken };
+    if (userId) vaultOpt.staticKey = AUTHCORE_SECRETD_STATIC_KEY;
+    const client = new AuthcoreVaultClient(vaultOpt);
+    const cosmosProviderOpt = { client };
+    if (userId) {
+      const uid = await client.authcoreLookupOrCreateUser(userId);
+      cosmosProviderOpt.oid = `user/${uid}/hdwallet_default`;
+    }
+    const cosmosProvider = new AuthcoreCosmosProvider(cosmosProviderOpt);
     const addresses = await cosmosProvider.getAddresses();
     if (!addresses || addresses.length < 1) {
       return '';
@@ -84,10 +83,10 @@ export async function getAuthCoreCosmosWallet(userId, accessToken) {
   }
 }
 
-export async function createAuthCoreCosmosWallet(userId, accessToken) {
-  return getAuthCoreCosmosWallet(userId, accessToken);
+export async function createAuthCoreCosmosWalletViaUserToken(accessToken) {
+  return getAuthCoreCosmosWallet(accessToken);
 }
 
-export async function createAuthCoreCosmosWalletIfNotExist(userId, accessToken) {
-  return getAuthCoreCosmosWallet(userId, accessToken);
+export async function createAuthCoreCosmosWalletViaServiceAccount(userId, accessToken) {
+  return getAuthCoreCosmosWallet(accessToken, userId);
 }
