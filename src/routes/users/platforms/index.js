@@ -8,11 +8,11 @@ import {
   tryToUnlinkOAuthLogin,
 } from '../../../util/api/users';
 import { fetchMattersOAuthInfo, fetchMattersUser } from '../../../util/oauth/matters';
-import { createAuthCoreCosmosWalletIfNotExist } from '../../../util/authcore';
+import { createAuthCoreCosmosWalletViaUserToken } from '../../../util/authcore';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import publisher from '../../../util/gcloudPub';
-import { authCoreJwtVerify, authCoreJwtSignToken } from '../../../util/jwt';
+import { authCoreJwtVerify } from '../../../util/jwt';
 
 const router = Router();
 
@@ -96,8 +96,10 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
     let platformUserId;
     switch (platform) {
       case 'authcore': {
-        const { idToken } = req.body;
+        const { idToken, accessToken } = req.body;
         let { cosmosWallet } = req.body;
+        if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
+        if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
         const authCoreUser = authCoreJwtVerify(idToken);
         const {
           sub: authCoreUserId,
@@ -106,10 +108,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           name: displayName,
         } = authCoreUser;
         if (!cosmosWallet) {
-          cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(
-            authCoreUserId,
-            authCoreJwtSignToken(),
-          );
+          cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
         }
         const [userQuery, emailQuery, walletQuery] = await Promise.all([
           dbRef.where('authcoreUserId', '==', authCoreUserId).get(),

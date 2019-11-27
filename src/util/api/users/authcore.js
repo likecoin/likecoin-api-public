@@ -1,5 +1,5 @@
 import { authCoreJwtSignToken } from '../../jwt';
-import { registerAuthCoreUser, createAuthCoreCosmosWalletIfNotExist } from '../../authcore';
+import { registerAuthCoreUser, createAuthCoreCosmosWalletViaServiceAccount } from '../../authcore';
 
 export async function createAuthCoreUserAndWallet({
   user,
@@ -23,7 +23,10 @@ export async function createAuthCoreUserAndWallet({
     registerPayload,
     authCoreToken,
   );
-  const cosmosWallet = await createAuthCoreCosmosWalletIfNotExist(authCoreUserId, authCoreToken);
+  const cosmosWallet = await createAuthCoreCosmosWalletViaServiceAccount(
+    authCoreUserId,
+    authCoreToken,
+  );
   return {
     authCoreUserId,
     cosmosWallet,
