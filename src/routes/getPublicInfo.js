@@ -5,6 +5,7 @@ import miscPrice from './misc/price';
 import social from './social/getPublicInfo';
 import tx from './tx';
 import users from './users/getPublicInfo';
+import usersHook from './users/hook';
 import oembed from './oembed';
 import cosmos from './cosmos';
 
@@ -16,6 +17,7 @@ router.use('/misc', miscPrice);
 router.use('/social', social);
 router.use('/tx', tx);
 router.use('/users', users);
+router.use('/users/hook', usersHook);
 router.use('/oembed', oembed);
 router.use('/cosmos', cosmos);
 
