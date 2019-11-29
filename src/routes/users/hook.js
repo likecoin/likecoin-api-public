@@ -23,18 +23,22 @@ router.post('/authcore', async (req, res, next) => {
       res.status(401).send('INVALID_AUTHCORE_TOKEN');
       return;
     }
-    console.log(authCoreEvent);
-    console.log(authCoreToken);
-    console.log(req.body);
     const { data } = req.body;
-    if (data && data.user) {
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventUserWebhook',
+      platform: 'authcore',
+      type: authCoreEvent,
+      data,
+    });
+    if (authCoreEvent === 'UpdateUser' && data && data.user) {
       const {
         public_id: authcoreUserId,
         display_name: displayName,
         primary_email: email,
         primary_email_verified: isEmailVerified = false,
       } = data.user;
-      const [user] = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get;
+      const query = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get();
+      const [user] = query.docs;
       if (user) {
         await user.ref.update({
           email,
@@ -42,7 +46,6 @@ router.post('/authcore', async (req, res, next) => {
           isEmailVerified,
         });
       } else {
-        console.error();
         res.status(404).send('USER_NOT_FOUND');
         return;
       }
