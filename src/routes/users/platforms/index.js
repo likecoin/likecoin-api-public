@@ -132,7 +132,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           });
         } else {
           await Promise.all([
-            dbRef.doc(user).update({ firebaseUserId }),
+            dbRef.doc(user).update({ firebaseUserId, isPreAuthCore: true }),
             authDbRef.doc(user).set({ firebase: { userId: firebaseUserId } }, { merge: true }),
           ]);
         }
