@@ -30,34 +30,41 @@ router.post('/authcore', async (req, res, next) => {
       type: authCoreEvent,
       data,
     });
-    if (authCoreEvent === 'UpdateUser' && data && data.user) {
-      const {
-        public_id: authcoreUserId,
-        display_name: displayName,
-        primary_email: email,
-        primary_email_verified: isEmailVerified = false,
-      } = data.user;
-      const query = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get();
-      const [user] = query.docs;
-      if (user) {
-        await user.ref.update({
+    if (authCoreEvent === 'UpdateUser') {
+      if (data && data.user) {
+        const {
+          public_id: authcoreUserId,
+          display_name: displayName,
+          primary_email: email,
+          primary_email_verified: isEmailVerified = false,
+        } = data.user;
+        const query = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get();
+        const [user] = query.docs;
+        if (user) {
+          await user.ref.update({
+            email,
+            displayName,
+            isEmailVerified,
+          });
+        } else {
+          res.status(404).send('USER_NOT_FOUND');
+          return;
+        }
+        res.sendStatus(200);
+
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'eventUserSyncWebHook',
+          type: 'authcore',
+          user,
           email,
           displayName,
-          isEmailVerified,
         });
       } else {
-        res.status(404).send('USER_NOT_FOUND');
+        res.status(400).send('UNKNOWN_PAYLOAD');
         return;
       }
-      res.sendStatus(200);
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'eventUserSyncWebHook',
-        type: 'authcore',
-        user,
-        email,
-        displayName,
-      });
+    } else {
+      res.status(404).send('UNKNOWN_EVENT');
     }
   } catch (err) {
     next(err);
