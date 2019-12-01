@@ -145,7 +145,6 @@ export async function handleUserRegistration({
     }
   }
   const createObj = {
-    isPreAuthCore: true,
     displayName,
     cosmosWallet,
     authCoreUserId,
