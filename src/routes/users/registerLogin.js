@@ -62,9 +62,18 @@ const apiLimiter = new RateLimit({
 
 router.use(loginPlatforms);
 
+function csrfCheck(req, res, next) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  if (userAgent.includes('LikeCoinApp')) {
+    next();
+  } else {
+    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, next);
+  }
+}
+
 router.post(
   '/new',
-  csrf({ cookie: CSRF_COOKIE_OPTION }),
+  csrfCheck,
   bodyParser.urlencoded({ extended: false }),
   apiLimiter,
   multer.single('avatarFile'),
