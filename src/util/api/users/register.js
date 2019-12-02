@@ -91,7 +91,7 @@ export async function handleUserRegistration({
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
 
-  if (email) {
+  if (email && platform !== 'authcore') { // TODO: temp trust authcore source
     try {
       email = handleEmailBlackList(email);
     } catch (err) {
