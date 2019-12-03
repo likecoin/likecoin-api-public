@@ -164,6 +164,8 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       ...userPayload,
+      authCoreUserId,
+      cosmosWallet,
       accessToken: jwtid,
       logType: 'eventAPIUserRegister',
     });
@@ -215,6 +217,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               email,
               displayName,
             } = await fetchMattersUser({ accessToken: platformToken || token });
+            if (!email) throw new ValidationError('MISSING_EMAIL');
             const isEmailVerified = true;
             let authCoreUserId;
             let cosmosWallet;

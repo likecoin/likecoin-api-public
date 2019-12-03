@@ -336,8 +336,13 @@ router.post('/login', async (req, res, next) => {
           displayName,
           referrer,
           locale,
+          cosmosWallet,
           timestamp: registerTime,
         } = doc.data();
+        if (platform === 'authcore' && !cosmosWallet && req.body.accessToken) {
+          const newWallet = await createAuthCoreCosmosWalletViaUserToken(req.body.accessToken);
+          await dbRef.doc(user).update({ cosmosWallet: newWallet });
+        }
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'eventUserLogin',
           user,
