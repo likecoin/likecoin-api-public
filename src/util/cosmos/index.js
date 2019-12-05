@@ -5,7 +5,7 @@ import {
   COSMOS_DENOM,
 } from '../../../config/config';
 
-const api = axios.create({ baseURL: `http://${cosmosLCDEndpoint}` });
+const api = axios.create({ baseURL: cosmosLCDEndpoint });
 
 function LIKEToNanolike(value) {
   return (new BigNumber(value)).multipliedBy(1e9).toFixed();
