@@ -49,7 +49,7 @@ export function getIntercomUserHash(user, { type = 'web' } = {}) {
     default: break;
   }
   if (!secret) return undefined;
-  return crypto.createHmac('sha256', INTERCOM_USER_HASH_SECRET)
+  return crypto.createHmac('sha256', secret)
     .update(user)
     .digest('hex');
 }
