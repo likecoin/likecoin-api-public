@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Router } from 'express';
 import https from 'https';
+import fs from 'fs';
 
 import {
   COINGECKO_PRICE_URL,
@@ -18,10 +19,11 @@ const USDTWD = 30.51;
 const LOW_THRESHOLD_PRICE_TWD = 0.03;
 const LOW_THRESHOLD_PRICE_USD = LOW_THRESHOLD_PRICE_TWD / USDTWD;
 
+const bitassetAgent = new https.Agent({ ca: fs.readFileSync('./ssl/bitasset.pem') });
 const bitassetAxios = axios.create({
   baseURL: BITASSET_API_BASE_URL || 'https://api.bitasset.com',
   timeout: 20000,
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+  httpsAgent: bitassetAgent,
 });
 
 router.get('/price', async (req, res) => {
