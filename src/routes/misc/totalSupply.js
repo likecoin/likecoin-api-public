@@ -27,10 +27,13 @@ const reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1sltfqp94nmmzkgvwrfqwl5f34u0rfdxq2e5a6c', // team pool
 ];
 
-router.get(['/totalsupply', '/totalsupply/erc20'], async (req, res) => {
+router.get('/totalsupply/erc20', async (req, res) => {
   const ONE_DAY_IN_S = 86400;
-  const rawSupply = await LikeCoin.methods.totalSupply().call();
-  const apiValue = new BigNumber(rawSupply).div(new BigNumber(10).pow(18)).toFixed();
+  let rawSupply = new BigNumber(await LikeCoin.methods.totalSupply().call());
+  if (req.query.raw !== '1') {
+    rawSupply = rawSupply.div(new BigNumber(10).pow(18));
+  }
+  const apiValue = rawSupply.toFixed();
   res.set('Content-Type', 'text/plain');
   res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue);
@@ -44,19 +47,25 @@ router.get('/circulating/erc20', async (req, res) => {
       console.error(err);
       return 0;
     })));
-  const actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
-  const apiValue = new BigNumber(actualValue).div(new BigNumber(10).pow(18)).toFixed();
+  let actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+  if (req.query.raw !== '1') {
+    actualValue = actualValue.div(new BigNumber(10).pow(18));
+  }
+  const apiValue = actualValue.toFixed();
   res.set('Content-Type', 'text/plain');
   res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue);
 });
 
-router.get('/totalsupply/likecoinchain', async (req, res) => {
+router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
   const ONE_DAY_IN_S = 3600;
-  const rawSupply = await getCosmosTotalSupply();
+  let rawSupply = new BigNumber(await getCosmosTotalSupply());
+  if (req.query.raw === '1') {
+    rawSupply = rawSupply.times(new BigNumber(10).pow(9));
+  }
   res.set('Content-Type', 'text/plain');
   res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(new BigNumber(rawSupply).toFixed());
+  res.send(rawSupply.toFixed());
 });
 
 router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
@@ -67,7 +76,10 @@ router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
       console.error(err);
       return 0;
     })));
-  const apiValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+  let apiValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+  if (req.query.raw === '1') {
+    apiValue = apiValue.times(new BigNumber(10).pow(9));
+  }
   res.set('Content-Type', 'text/plain');
   res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue.toFixed());
