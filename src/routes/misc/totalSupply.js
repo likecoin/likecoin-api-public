@@ -27,7 +27,7 @@ const reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1sltfqp94nmmzkgvwrfqwl5f34u0rfdxq2e5a6c', // team pool
 ];
 
-router.get(['/totalsupply', '/totalsupply/erc20'], async (req, res) => {
+router.get('/totalsupply/erc20', async (req, res) => {
   const ONE_DAY_IN_S = 86400;
   const rawSupply = await LikeCoin.methods.totalSupply().call();
   const apiValue = new BigNumber(rawSupply).div(new BigNumber(10).pow(18)).toFixed();
@@ -51,7 +51,7 @@ router.get('/circulating/erc20', async (req, res) => {
   res.send(apiValue);
 });
 
-router.get('/totalsupply/likecoinchain', async (req, res) => {
+router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
   const ONE_DAY_IN_S = 3600;
   const rawSupply = await getCosmosTotalSupply();
   res.set('Content-Type', 'text/plain');
