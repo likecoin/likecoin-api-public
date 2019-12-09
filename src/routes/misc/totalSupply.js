@@ -27,50 +27,48 @@ const reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1sltfqp94nmmzkgvwrfqwl5f34u0rfdxq2e5a6c', // team pool
 ];
 
-router.get('/totalsupply/erc20', async (req, res) => {
-  const ONE_DAY_IN_S = 86400;
-  const rawSupply = await LikeCoin.methods.totalSupply().call();
-  const apiValue = new BigNumber(rawSupply).div(new BigNumber(10).pow(18)).toFixed();
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue);
-});
-
-router.get('/circulating/erc20', async (req, res) => {
-  const ONE_DAY_IN_S = 86400;
-  const rawSupply = await LikeCoin.methods.totalSupply().call();
-  const amounts = await Promise.all(reservedEthWallets
-    .map(w => LikeCoin.methods.balanceOf(w).call().catch((err) => {
+const deductReserved = (getBalance, reservedAddresses) => async (rawSupply) => {
+  const amounts = await Promise.all(reservedAddresses
+    .map(w => getBalance(w).catch((err) => {
       console.error(err);
       return 0;
     })));
-  const actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
-  const apiValue = new BigNumber(actualValue).div(new BigNumber(10).pow(18)).toFixed();
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue);
-});
+  return amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+};
 
-router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
-  const ONE_DAY_IN_S = 3600;
-  const rawSupply = await getCosmosTotalSupply();
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(new BigNumber(rawSupply).toFixed());
-});
+const getErc20Balance = address => LikeCoin.methods.balanceOf(address).call();
+const deductReservedErc20 = deductReserved(getErc20Balance, reservedEthWallets);
+const deductReservedCosmos = deductReserved(getCosmosAccountLIKE, reservedCosmosWallets);
 
-router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
-  const ONE_DAY_IN_S = 3600;
-  const rawSupply = await getCosmosTotalSupply();
-  const amounts = await Promise.all(reservedCosmosWallets
-    .map(w => getCosmosAccountLIKE(w).catch((err) => {
-      console.error(err);
-      return 0;
-    })));
-  const apiValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue.toFixed());
-});
+const erc20RawSupplyByReq = async (value, req) => {
+  const apiValue = req.query.raw !== undefined ? value : value.div(new BigNumber(10).pow(18));
+  return apiValue.toFixed();
+};
+
+const cosmosRawSupplyByReq = async (value, req) => {
+  const apiValue = req.query.raw !== undefined ? value.times(new BigNumber(10).pow(9)) : value;
+  return apiValue.toFixed();
+};
+
+function supplyApi(rawSupplyFunc, ...processFunc) {
+  return async (req, res) => {
+    const ONE_HOUR_IN_S = 3600;
+    const rawSupply = await rawSupplyFunc();
+    const apiValue = await processFunc.reduce(
+      (promise, f) => promise.then(value => f(value, req)),
+      Promise.resolve(new BigNumber(rawSupply)),
+    );
+    res.set('Content-Type', 'text/plain');
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-if-error=${ONE_HOUR_IN_S}`);
+    res.send(apiValue);
+  };
+}
+
+const getErc20RawSupply = () => LikeCoin.methods.totalSupply().call();
+
+router.get('/totalsupply/erc20', supplyApi(getErc20RawSupply, erc20RawSupplyByReq));
+router.get('/circulating/erc20', supplyApi(getErc20RawSupply, deductReservedErc20, erc20RawSupplyByReq));
+router.get(['/totalsupply', '/totalsupply/likecoinchain'], supplyApi(getCosmosTotalSupply, cosmosRawSupplyByReq));
+router.get(['/circulating', '/circulating/likecoinchain'], supplyApi(getCosmosTotalSupply, deductReservedCosmos, cosmosRawSupplyByReq));
 
 export default router;
