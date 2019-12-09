@@ -15,6 +15,8 @@ import { getEmailBlacklist, getEmailNoDot } from '../../../poller/email';
 import { jwtSign } from '../../jwt';
 import {
   INTERCOM_USER_HASH_SECRET,
+  INTERCOM_USER_ANDROID_HASH_SECRET,
+  INTERCOM_USER_IOS_HASH_SECRET,
 } from '../../../../config/config';
 
 const disposableDomains = require('disposable-email-domains');
@@ -32,8 +34,21 @@ function getAuthCookieOptions(req) {
   return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
 }
 
-export function getIntercomUserHash(user) {
-  if (!INTERCOM_USER_HASH_SECRET) return undefined;
+export function getIntercomUserHash(user, { type = 'web' } = {}) {
+  let secret = INTERCOM_USER_HASH_SECRET;
+  switch (type) {
+    case 'web':
+      if (INTERCOM_USER_HASH_SECRET) secret = INTERCOM_USER_HASH_SECRET;
+      break;
+    case 'android':
+      if (INTERCOM_USER_ANDROID_HASH_SECRET) secret = INTERCOM_USER_ANDROID_HASH_SECRET;
+      break;
+    case 'ios':
+      if (INTERCOM_USER_IOS_HASH_SECRET) secret = INTERCOM_USER_IOS_HASH_SECRET;
+      break;
+    default: break;
+  }
+  if (!secret) return undefined;
   return crypto.createHmac('sha256', INTERCOM_USER_HASH_SECRET)
     .update(user)
     .digest('hex');

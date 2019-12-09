@@ -13,12 +13,21 @@ import {
 
 const router = Router();
 
+function fetchUserAgentPlatform(req) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  if (userAgent.includes('LikeCoinApp')) {
+    if (userAgent.includes('Android')) return 'android';
+    if (userAgent.includes('iOS')) return 'ios';
+  }
+  return 'web';
+}
+
 router.get('/self', jwtAuth('read'), async (req, res, next) => {
   try {
     const username = req.user.user;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
-      payload.intercomToken = getIntercomUserHash(username);
+      payload.intercomToken = getIntercomUserHash(username, { type: fetchUserAgentPlatform(req) });
 
       res.json(filterUserData(payload));
       await dbRef.doc(req.user.user).collection('session').doc(req.user.jti).update({
