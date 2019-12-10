@@ -55,7 +55,7 @@ router.post('/authcore', async (req, res, next) => {
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'eventUserSyncWebHook',
           type: 'authcore',
-          user,
+          user: user.id,
           email,
           displayName,
         });
