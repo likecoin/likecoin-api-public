@@ -33,6 +33,21 @@ export async function getAuthCoreUser(accessToken) {
   };
 }
 
+export async function getAuthCoreUserOAuthFactors(accessToken) {
+  const { data } = await api.get('/auth/oauth_factors', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_OAUTH_ERROR');
+  if (!data.oauth_factors) return [];
+  const oAuthFactors = data.oauth_factors;
+  return oAuthFactors.map(f => ({
+    service: (f.service || 'FACEBOOK').toLowerCase(),
+    userId: f.oauth_user_id,
+  }));
+}
+
 export async function registerAuthCoreUser(payload, accessToken) {
   let data;
   try {

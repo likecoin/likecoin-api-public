@@ -10,6 +10,9 @@ import {
   db,
 } from '../../firebase';
 import {
+  getAuthCoreUserOAuthFactors,
+} from '../../authcore';
+import {
   handleEmailBlackList,
   checkReferrerExists,
   checkUserInfoUniqueness,
@@ -207,6 +210,16 @@ export async function handleUserRegistration({
     const doc = {};
     if (authCoreUserId) {
       doc.authcore = { userId: authCoreUserId };
+      try {
+        const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
+        if (oAuthFactors && oAuthFactors.length) {
+          oAuthFactors.forEach((f) => {
+            doc[f.service] = { userId: f.userId };
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
     if (platform && platformUserId) {
       doc[platform] = {

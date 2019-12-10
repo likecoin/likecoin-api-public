@@ -13,6 +13,7 @@ import {
 import {
   getAuthCoreUser,
   createAuthCoreCosmosWalletViaUserToken,
+  getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
 import {
   handleEmailBlackList,
@@ -339,9 +340,20 @@ router.post('/login', async (req, res, next) => {
           cosmosWallet,
           timestamp: registerTime,
         } = doc.data();
-        if (platform === 'authcore' && !cosmosWallet && req.body.accessToken) {
-          const newWallet = await createAuthCoreCosmosWalletViaUserToken(req.body.accessToken);
-          await dbRef.doc(user).update({ cosmosWallet: newWallet });
+        if (platform === 'authcore' && req.body.accessToken) {
+          const { accessToken } = req.body;
+          if (!cosmosWallet) {
+            const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+            await dbRef.doc(user).update({ cosmosWallet: newWallet });
+          }
+          const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
+          if (oAuthFactors && oAuthFactors.length) {
+            const payload = oAuthFactors.reduce((acc, f) => {
+              acc[f.service] = { userId: f.userId };
+              return acc;
+            }, {});
+            await authDbRef.doc(user).update(payload);
+          }
         }
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'eventUserLogin',
