@@ -69,6 +69,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     displayName = user,
     locale = 'en',
     isEmailEnabled = true,
+    sourceURL,
   } = req.body;
   let {
     email,
@@ -138,6 +139,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         cosmosWallet,
         isEmailVerified,
         accessToken: platformAccessToken,
+        sourceURL: sourceURL || (req.auth.domain ? `https://${req.auth.domain}/` : undefined),
       },
       res,
       req,
