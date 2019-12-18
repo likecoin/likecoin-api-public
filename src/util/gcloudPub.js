@@ -17,13 +17,12 @@ const publisherWrapper = {};
 const ethNetwork = ETH_NETWORK_NAME;
 
 topics.forEach((topic) => {
-  publisherWrapper[topic] = pubsub.topic(topic)
-    .publisher({
-      batching: {
-        maxMessages: config.GCLOUD_PUBSUB_MAX_MESSAGES || 10,
-        maxMilliseconds: config.GCLOUD_PUBSUB_MAX_WAIT || 1000,
-      },
-    });
+  publisherWrapper[topic] = pubsub.topic(topic, {
+    batching: {
+      maxMessages: config.GCLOUD_PUBSUB_MAX_MESSAGES || 10,
+      maxMilliseconds: config.GCLOUD_PUBSUB_MAX_WAIT || 1000,
+    },
+  });
 });
 
 /* istanbul ignore next */
