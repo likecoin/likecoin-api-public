@@ -108,6 +108,8 @@ router.post(
             payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
           }
           email = authCoreEmail;
+          // TODO: remove this displayname hack after authcore fix default name privacy issue
+          payload.displayName = user;
           payload.email = email;
           payload.isEmailVerified = isAuthCoreEmailVerified;
           platformUserId = authCoreUserId;
