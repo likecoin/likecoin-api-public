@@ -87,14 +87,12 @@ router.post(
     try {
       let payload;
       let platformUserId;
-      let isEmailVerified = false;
 
       switch (platform) {
         case 'authcore': {
           const {
             idToken,
             accessToken,
-            ...authCorePayload
           } = req.body;
           if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
           if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
@@ -104,13 +102,14 @@ router.post(
             email: authCoreEmail,
             email_verified: isAuthCoreEmailVerified,
           } = authCoreUser;
-          payload = authCorePayload;
+          payload = req.body;
           payload.authCoreUserId = authCoreUserId;
           if (!payload.cosmosWallet) {
             payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
           }
           email = authCoreEmail;
-          isEmailVerified = isAuthCoreEmailVerified;
+          payload.email = email;
+          payload.isEmailVerified = isAuthCoreEmailVerified;
           platformUserId = authCoreUserId;
           break;
         }
@@ -125,8 +124,6 @@ router.post(
           ...payload,
           platform,
           platformUserId,
-          isEmailVerified,
-          email,
         },
         res,
         req,
