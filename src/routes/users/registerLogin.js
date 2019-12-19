@@ -130,15 +130,20 @@ router.post(
       });
 
       if (platform === 'authcore') {
-        const authCoreToken = await authCoreJwtSignToken();
-        await updateAuthCoreUserById(
-          payload.authCoreUserId,
-          {
-            user,
-            displayName: payload.displayName || user,
-          },
-          authCoreToken,
-        );
+        try {
+          const authCoreToken = await authCoreJwtSignToken();
+          await updateAuthCoreUserById(
+            payload.authCoreUserId,
+            {
+              user,
+              displayName: payload.displayName || user,
+            },
+            authCoreToken,
+          );
+        } catch (err) {
+          /* no update will return 400 error */
+          if (!err.response || err.response.status !== 400) console.error(err);
+        }
       }
 
       await setAuthCookies(req, res, { user, platform });
@@ -383,7 +388,8 @@ router.post('/login', async (req, res, next) => {
                 authCoreToken,
               );
             } catch (err) {
-              if (err.status !== 400) console.error(err);
+              /* no update will return 400 error */
+              if (!err.response || err.response.status !== 400) console.error(err);
             }
           }
         }
