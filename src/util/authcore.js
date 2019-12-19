@@ -33,6 +33,38 @@ export async function getAuthCoreUser(accessToken) {
   };
 }
 
+export async function updateAuthCoreUser(payload, accessToken) {
+  const {
+    user: userName,
+    displayName,
+  } = payload;
+  const user = {
+    username: userName,
+    display_name: displayName,
+  };
+  await api.put('/auth/users/current', { user }, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function updateAuthCoreUserById(authCoreUserId, payload, accessToken) {
+  const {
+    user: userName,
+    displayName,
+  } = payload;
+  const user = {
+    username: userName,
+    display_name: displayName,
+  };
+  await api.put(`/management/users/${authCoreUserId}`, { user }, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export async function getAuthCoreUserOAuthFactors(accessToken) {
   const { data } = await api.get('/auth/oauth_factors', {
     headers: {

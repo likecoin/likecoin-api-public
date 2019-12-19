@@ -12,6 +12,7 @@ import {
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
+  updateAuthCoreUserById,
   createAuthCoreCosmosWalletViaUserToken,
   getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
@@ -25,7 +26,7 @@ import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
-import { authCoreJwtVerify } from '../../util/jwt';
+import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   REGISTER_LIMIT_WINDOW,
@@ -86,14 +87,12 @@ router.post(
     try {
       let payload;
       let platformUserId;
-      let isEmailVerified = false;
 
       switch (platform) {
         case 'authcore': {
           const {
             idToken,
             accessToken,
-            ...authCorePayload
           } = req.body;
           if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
           if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
@@ -103,13 +102,14 @@ router.post(
             email: authCoreEmail,
             email_verified: isAuthCoreEmailVerified,
           } = authCoreUser;
-          payload = authCorePayload;
+          payload = req.body;
           payload.authCoreUserId = authCoreUserId;
           if (!payload.cosmosWallet) {
             payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
           }
           email = authCoreEmail;
-          isEmailVerified = isAuthCoreEmailVerified;
+          payload.email = email;
+          payload.isEmailVerified = isAuthCoreEmailVerified;
           platformUserId = authCoreUserId;
           break;
         }
@@ -121,14 +121,25 @@ router.post(
         socialPayload,
       } = await handleUserRegistration({
         payload: {
+          ...payload,
           platform,
           platformUserId,
-          isEmailVerified,
-          ...payload,
         },
         res,
         req,
       });
+
+      if (platform === 'authcore') {
+        const authCoreToken = await authCoreJwtSignToken();
+        await updateAuthCoreUserById(
+          payload.authCoreUserId,
+          {
+            user,
+            displayName: payload.displayName || user,
+          },
+          authCoreToken,
+        );
+      }
 
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
@@ -284,6 +295,8 @@ router.post('/login', async (req, res, next) => {
   try {
     let user;
     let wallet;
+    let authCoreUserName;
+    let authCoreUserId;
     const { platform } = req.body;
 
     switch (platform) {
@@ -310,10 +323,14 @@ router.post('/login', async (req, res, next) => {
         const { idToken } = req.body;
         if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
         const authCoreUser = authCoreJwtVerify(idToken);
-        const { sub: authCoreId } = authCoreUser;
+        ({
+          sub: authCoreUserId,
+          /* TODO: remove after most lazy update of user id is done */
+          preferred_username: authCoreUserName,
+        } = authCoreUser);
         const userQuery = await (
           authDbRef
-            .where(`${platform}.userId`, '==', authCoreId)
+            .where(`${platform}.userId`, '==', authCoreUserId)
             .get()
         );
         if (userQuery.docs.length > 0) {
@@ -353,6 +370,21 @@ router.post('/login', async (req, res, next) => {
               return acc;
             }, {});
             await authDbRef.doc(user).update(payload);
+          }
+          if (!authCoreUserName) {
+            try {
+              const authCoreToken = await authCoreJwtSignToken();
+              await updateAuthCoreUserById(
+                authCoreUserId,
+                {
+                  user,
+                  displayName,
+                },
+                authCoreToken,
+              );
+            } catch (err) {
+              if (err.status !== 400) console.error(err);
+            }
           }
         }
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
