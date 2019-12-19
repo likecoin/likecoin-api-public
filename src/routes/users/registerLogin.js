@@ -121,10 +121,11 @@ router.post(
         socialPayload,
       } = await handleUserRegistration({
         payload: {
+          ...payload,
           platform,
           platformUserId,
           isEmailVerified,
-          ...payload,
+          email,
         },
         res,
         req,
