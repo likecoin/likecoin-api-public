@@ -33,7 +33,7 @@ export async function getAuthCoreUser(accessToken) {
   };
 }
 
-export async function updateAuthCoreUser(accessToken, payload) {
+export async function updateAuthCoreUser(payload, accessToken) {
   const {
     user: userName,
     displayName,
@@ -43,6 +43,22 @@ export async function updateAuthCoreUser(accessToken, payload) {
     display_name: displayName,
   };
   await api.put('/auth/users/current', { user }, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function updateAuthCoreUserById(authCoreUserId, payload, accessToken) {
+  const {
+    user: userName,
+    displayName,
+  } = payload;
+  const user = {
+    username: userName,
+    display_name: displayName,
+  };
+  await api.put(`/management/users/${authCoreUserId}`, { user }, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
