@@ -12,6 +12,7 @@ import {
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
+  updateAuthCoreUser,
   createAuthCoreCosmosWalletViaUserToken,
   getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
@@ -130,6 +131,13 @@ router.post(
         res,
         req,
       });
+
+      if (platform === 'authcore') {
+        await updateAuthCoreUser(req.body.accessToken, {
+          user,
+          displayName: payload.displayName || user,
+        });
+      }
 
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
@@ -285,6 +293,7 @@ router.post('/login', async (req, res, next) => {
   try {
     let user;
     let wallet;
+    let authCoreUserName;
     const { platform } = req.body;
 
     switch (platform) {
@@ -312,6 +321,8 @@ router.post('/login', async (req, res, next) => {
         if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
         const authCoreUser = authCoreJwtVerify(idToken);
         const { sub: authCoreId } = authCoreUser;
+        /* TODO: remove after most lazy update of user id is done */
+        authCoreUserName = authCoreUser.preferred_username;
         const userQuery = await (
           authDbRef
             .where(`${platform}.userId`, '==', authCoreId)
@@ -354,6 +365,12 @@ router.post('/login', async (req, res, next) => {
               return acc;
             }, {});
             await authDbRef.doc(user).update(payload);
+          }
+          if (!authCoreUserName) {
+            await updateAuthCoreUser(accessToken, {
+              user,
+              displayName,
+            });
           }
         }
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
