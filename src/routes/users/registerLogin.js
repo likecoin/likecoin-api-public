@@ -8,7 +8,6 @@ import {
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
-  FieldValue,
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
@@ -17,7 +16,6 @@ import {
   getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
 import {
-  handleEmailBlackList,
   checkSignPayload,
   setAuthCookies,
   clearAuthCookies,
@@ -188,7 +186,7 @@ router.post(
         avatarSHA256,
         locale,
       } = req.body;
-      let { email, isEmailEnabled } = req.body;
+      let { isEmailEnabled } = req.body;
 
       // handle isEmailEnable is string
       if (typeof isEmailEnabled === 'string') {
@@ -199,27 +197,9 @@ router.post(
         wallet,
         referrer,
         displayName: oldDisplayName,
+        email: oldEmail,
         locale: oldLocale,
       } = oldUserObj.data();
-
-      if (email) {
-        try {
-          email = handleEmailBlackList(email);
-        } catch (err) {
-          if (err.message === 'DOMAIN_NOT_ALLOWED' || err.message === 'DOMAIN_NEED_EXTRA_CHECK') {
-            publisher.publish(PUBSUB_TOPIC_MISC, req, {
-              logType: 'eventBlockEmail',
-              user,
-              email,
-              displayName: oldDisplayName,
-              wallet,
-              referrer,
-              locale: oldLocale,
-            });
-          }
-          throw err;
-        }
-      }
 
       // update avatar
       const { file } = req;
@@ -233,13 +213,6 @@ router.post(
         avatar: avatarUrl,
         locale,
       };
-      const oldEmail = oldUserObj.email;
-      if (email && email !== oldEmail) {
-        updateObj.email = email;
-        updateObj.verificationUUID = FieldValue.delete();
-        updateObj.isEmailVerified = false;
-        updateObj.lastVerifyTs = FieldValue.delete();
-      }
 
       Object.keys(updateObj).forEach((key) => {
         if (updateObj[key] === undefined) {
@@ -253,7 +226,7 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventUserUpdate',
         user,
-        email: email || oldEmail,
+        email: oldEmail,
         displayName: displayName || oldDisplayName,
         wallet,
         avatar: avatarUrl || oldUserObj.avatar,

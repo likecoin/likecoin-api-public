@@ -87,31 +87,32 @@ export async function handleUserRegistration({
     accessToken,
     secret,
     sourceURL,
+    email,
   } = payload;
-  let { email, isEmailEnabled = true } = payload;
+  let { isEmailEnabled = true } = payload;
 
   isEmailEnabled = getBool(isEmailEnabled);
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
 
-  if (email && platform !== 'authcore') { // TODO: temp trust authcore source
-    try {
-      email = handleEmailBlackList(email);
-    } catch (err) {
-      if (err.message === 'DOMAIN_NOT_ALLOWED' || err.message === 'DOMAIN_NEED_EXTRA_CHECK') {
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'eventBlockEmail',
-          user,
-          email,
-          cosmosWallet,
-          displayName,
-          referrer: referrer || undefined,
-          locale,
-        });
-      }
-      throw err;
-    }
-  }
+  // if (email && platform !== 'authcore') { // TODO: temp trust authcore source
+  //   try {
+  //     email = handleEmailBlackList(email);
+  //   } catch (err) {
+  //     if (err.message === 'DOMAIN_NOT_ALLOWED' || err.message === 'DOMAIN_NEED_EXTRA_CHECK') {
+  //       publisher.publish(PUBSUB_TOPIC_MISC, req, {
+  //         logType: 'eventBlockEmail',
+  //         user,
+  //         email,
+  //         cosmosWallet,
+  //         displayName,
+  //         referrer: referrer || undefined,
+  //         locale,
+  //       });
+  //     }
+  //     throw err;
+  //   }
+  // }
 
   await checkUserInfoUniqueness({
     user,
