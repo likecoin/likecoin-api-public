@@ -5,7 +5,7 @@ import {
 import { getOAuthClientInfo } from '../../middleware/oauth';
 import { getJwtInfo } from '../../middleware/jwt';
 import {
-  handleEmailBlackList,
+  // handleEmailBlackList,
   checkUserInfoUniqueness,
 } from '../../util/api/users';
 import {
@@ -30,10 +30,11 @@ router.post('/new/check', async (req, res, next) => {
   try {
     const {
       user,
+      email,
     } = req.body;
-    let { email } = req.body;
+    // let { email } = req.body;
     try {
-      if (email) email = handleEmailBlackList(email);
+      // if (email) email = handleEmailBlackList(email);
       if (!checkUserNameValid(user)) {
         throw new ValidationError('INVALID_USER_NAME');
       }

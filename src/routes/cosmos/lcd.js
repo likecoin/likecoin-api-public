@@ -90,6 +90,8 @@ async function handlePostTxReq(reqData, resData, req) {
     userPayload,
   } = reqData;
   const { txhash: txHash } = resData;
+  /* TODO: find out cause of empty msg */
+  if (!msg || !msg.length || !msg[0]) return;
   const { type, value: payloadValue } = msg[0];
   if (type === 'cosmos-sdk/MsgSend') {
     const {
