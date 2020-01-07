@@ -13,10 +13,8 @@ import {
   getAuthCoreUserOAuthFactors,
 } from '../../authcore';
 import {
-  handleEmailBlackList,
   checkReferrerExists,
   checkUserInfoUniqueness,
-  userByEmailQuery,
 } from '.';
 import { tryToLinkSocialPlatform } from '../social';
 import { ValidationError } from '../../ValidationError';
@@ -94,25 +92,6 @@ export async function handleUserRegistration({
   isEmailEnabled = getBool(isEmailEnabled);
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
-
-  // if (email && platform !== 'authcore') { // TODO: temp trust authcore source
-  //   try {
-  //     email = handleEmailBlackList(email);
-  //   } catch (err) {
-  //     if (err.message === 'DOMAIN_NOT_ALLOWED' || err.message === 'DOMAIN_NEED_EXTRA_CHECK') {
-  //       publisher.publish(PUBSUB_TOPIC_MISC, req, {
-  //         logType: 'eventBlockEmail',
-  //         user,
-  //         email,
-  //         cosmosWallet,
-  //         displayName,
-  //         referrer: referrer || undefined,
-  //         locale,
-  //       });
-  //     }
-  //     throw err;
-  //   }
-  // }
 
   await checkUserInfoUniqueness({
     user,
@@ -251,14 +230,4 @@ export async function handleUserRegistration({
     },
     socialPayload,
   };
-}
-
-export async function checkUserEmailUsable(user, email) {
-  try {
-    const outputEmail = handleEmailBlackList(email);
-    await userByEmailQuery(user, outputEmail);
-    return true;
-  } catch (err) {
-    return false;
-  }
 }

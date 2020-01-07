@@ -1,8 +1,6 @@
 import crypto from 'crypto';
 import {
   AUTH_COOKIE_OPTION,
-  IS_TESTNET,
-  W3C_EMAIL_REGEX,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -11,7 +9,6 @@ import {
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
-import { getEmailBlacklist, getEmailNoDot } from '../../../poller/email';
 import { jwtSign } from '../../jwt';
 import {
   INTERCOM_USER_HASH_SECRET,
@@ -19,7 +16,6 @@ import {
   INTERCOM_USER_IOS_HASH_SECRET,
 } from '../../../../config/config';
 
-const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
 const sigUtil = require('eth-sig-util');
 
@@ -98,26 +94,6 @@ export function checkSignPayload(from, payload, sign) {
     throw new ValidationError('PAYLOAD_EXPIRED');
   }
   return actualPayload;
-}
-
-export function handleEmailBlackList(emailInput) {
-  if ((process.env.CI || !IS_TESTNET) && !(W3C_EMAIL_REGEX.test(emailInput))) throw new ValidationError('invalid email');
-  let email = emailInput.toLowerCase();
-  const customBlackList = getEmailBlacklist();
-  const BLACK_LIST_DOMAIN = disposableDomains.concat(customBlackList);
-  const parts = email.split('@');
-  if (BLACK_LIST_DOMAIN.includes(parts[1])) {
-    throw new ValidationError('DOMAIN_NOT_ALLOWED');
-  }
-  customBlackList.forEach((keyword) => {
-    if (parts[1].includes(keyword)) {
-      throw new ValidationError('DOMAIN_NEED_EXTRA_CHECK');
-    }
-  });
-  if (getEmailNoDot().includes(parts[1])) {
-    email = `${parts[0].split('.').join('')}@${parts[1]}`;
-  }
-  return email;
 }
 
 export function userByEmailQuery(user, email) {

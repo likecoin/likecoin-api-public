@@ -13,8 +13,6 @@ import userGetInfo from './routes/users/apiGetInfo';
 import userRegister from './routes/users/apiRegister';
 import storeInvite from './routes/misc/storeInvite';
 
-import { startPoller as startEmailPoller } from './poller/email';
-
 const path = require('path');
 
 const app = express();
@@ -65,10 +63,6 @@ app.get('/healthz', (req, res) => {
 });
 
 app.use(errorHandler);
-
-if (!process.env.CI) {
-  startEmailPoller();
-}
 
 app.listen(port, host);
 
