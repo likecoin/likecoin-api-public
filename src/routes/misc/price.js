@@ -44,7 +44,11 @@ router.get('/price', async (req, res) => {
           }
           throw new Error('Undefined BitAsset currency');
         })
-        .catch((err) => { console.error(err); return undefined; }),
+        .catch((err) => {
+          const msg = (err.response && err.response.data) || err;
+          console.error(msg);
+          return undefined;
+        }),
     ]);
     const validPrices = prices.filter(p => !isNaN(p)); // eslint-disable-line no-restricted-globals
     if (!validPrices.length) {
