@@ -8,11 +8,11 @@ import {
   tryToUnlinkOAuthLogin,
 } from '../../../util/api/users';
 import { fetchMattersOAuthInfo, fetchMattersUser } from '../../../util/oauth/matters';
-import { createAuthCoreCosmosWalletViaUserToken } from '../../../util/authcore';
+import { createAuthCoreCosmosWalletViaUserToken, updateAuthCoreUserById } from '../../../util/authcore';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import publisher from '../../../util/gcloudPub';
-import { authCoreJwtVerify } from '../../../util/jwt';
+import { authCoreJwtSignToken, authCoreJwtVerify } from '../../../util/jwt';
 
 const router = Router();
 
@@ -105,7 +105,8 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           sub: authCoreUserId,
           email,
           email_verified: isEmailVerified,
-          name: displayName,
+          // TODO: update displayname after authcore fix default name privacy issue
+          // name: displayName,
         } = authCoreUser;
         if (!cosmosWallet) {
           cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
@@ -144,9 +145,24 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           cosmosWallet,
           email,
           isEmailVerified,
-          displayName,
+          // TODO: update displayname after authcore fix default name privacy issue
+          // displayName,
         });
         await authDbRef.doc(user).set({ authcore: { userId: authCoreUserId } }, { merge: true });
+        try {
+          const authCoreToken = await authCoreJwtSignToken();
+          await updateAuthCoreUserById(
+            authCoreUserId,
+            {
+              user,
+              displayName: user,
+            },
+            authCoreToken,
+          );
+        } catch (err) {
+          /* no update will return 400 error */
+          if (!err.response || err.response.status !== 400) console.error(err);
+        }
         break;
       }
       default:
