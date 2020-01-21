@@ -23,6 +23,7 @@ const reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1ca0zlqxjqv5gek5qxm602umtkmu88564hpyws4',
 ] : [
   'cosmos1sltfqp94nmmzkgvwrfqwl5f34u0rfdxq2e5a6c', // team pool
+  'cosmos1rr8km790vqdgl6h97hz7ghlatad87jnyrh2qka', // ecosystem development pool 2
 ];
 
 router.get('/totalsupply/erc20', async (req, res) => {
