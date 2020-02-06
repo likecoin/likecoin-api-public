@@ -174,9 +174,11 @@ export async function handleUserRegistration({
 
   switch (platform) {
     case 'matters': {
-      createObj.mediaChannel = [platform];
+      createObj.mediaChannels = [platform];
       break;
     }
+    default:
+      break;
   }
 
   Object.keys(createObj).forEach((key) => {
@@ -234,7 +236,7 @@ export async function handleUserRegistration({
       registerTime: createObj.timestamp,
       registerMethod: platform,
       sourceURL,
-      mediaChannel: createObj.mediaChannel,
+      mediaChannels: createObj.mediaChannels,
     },
     socialPayload,
   };

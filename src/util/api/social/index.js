@@ -154,7 +154,7 @@ export async function socialLinkMatters(
       ts: Date.now(),
     }, { merge: true }),
     dbRef.doc(user).update({
-      mediaChannel: FieldValue.arrayUnion('matters'),
+      mediaChannels: FieldValue.arrayUnion('matters'),
     }),
   ]);
 
