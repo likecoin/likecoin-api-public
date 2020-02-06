@@ -172,6 +172,13 @@ export async function handleUserRegistration({
   }
   Object.assign(createObj, timestampObj);
 
+  switch (platform) {
+    case 'matters': {
+      createObj.mediaChannel = [platform];
+      break;
+    }
+  }
+
   Object.keys(createObj).forEach((key) => {
     if (createObj[key] === undefined) {
       delete createObj[key];
@@ -227,6 +234,7 @@ export async function handleUserRegistration({
       registerTime: createObj.timestamp,
       registerMethod: platform,
       sourceURL,
+      mediaChannel: createObj.mediaChannel,
     },
     socialPayload,
   };
