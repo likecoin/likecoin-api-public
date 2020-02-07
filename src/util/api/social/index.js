@@ -140,18 +140,23 @@ export async function socialLinkMatters(
     refreshToken = inputRefreshToken,
     // accessToken = inputAccessToken,
   } = await fetchMattersUser({ accessToken: inputAccessToken, code });
-  await dbRef.doc(user).collection('social').doc('matters').set({
-    accessToken: FieldValue.delete(),
-    refreshToken,
-    userId,
-    displayName,
-    fullName,
-    url,
-    imageUrl,
-    isLinked: true,
-    isLogin: true,
-    ts: Date.now(),
-  }, { merge: true });
+  await Promise.all([
+    dbRef.doc(user).collection('social').doc('matters').set({
+      accessToken: FieldValue.delete(),
+      refreshToken,
+      userId,
+      displayName,
+      fullName,
+      url,
+      imageUrl,
+      isLinked: true,
+      isLogin: true,
+      ts: Date.now(),
+    }, { merge: true }),
+    dbRef.doc(user).update({
+      mediaChannels: FieldValue.arrayUnion('matters'),
+    }),
+  ]);
 
   /* No need to update matter oauth for now ? */
   // await updateMattersUserInfo({

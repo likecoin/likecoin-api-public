@@ -111,6 +111,7 @@ router.post('/trial/events/:eventId/join', jwtAuth('write:civic_liker'), async (
       referrer,
       locale,
       timestamp: registerTime,
+      mediaChannels,
     } = userDoc.data();
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventCivicLikerTrial',
@@ -121,6 +122,7 @@ router.post('/trial/events/:eventId/join', jwtAuth('write:civic_liker'), async (
       referrer,
       locale,
       registerTime,
+      mediaChannels,
     });
   } catch (err) {
     if (err && err.message) {
