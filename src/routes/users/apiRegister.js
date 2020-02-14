@@ -82,6 +82,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     let platformUserId;
     let platformAccessToken;
     let isEmailVerified = false;
+    let avatarURL;
     let autoLinkOAuth = false;
 
     switch (platform) {
@@ -90,10 +91,12 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         const {
           userId,
           email: mattersEmail,
+          imageUrl,
         } = await fetchMattersUser({ accessToken: token });
         platformUserId = userId;
         email = mattersEmail;
         isEmailVerified = true;
+        avatarURL = imageUrl;
         autoLinkOAuth = true;
         platformAccessToken = token;
         break;
@@ -129,6 +132,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       socialPayload,
     } = await handleUserRegistration({
       payload: {
+        avatarURL,
         platform,
         user,
         displayName,

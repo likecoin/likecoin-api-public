@@ -19,7 +19,10 @@ import {
 import { tryToLinkSocialPlatform } from '../social';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid } from '../../ValidationHelper';
-import { handleAvatarUploadAndGetURL } from '../../fileupload';
+import {
+  handleAvatarUploadAndGetURL,
+  handleAvatarLinkAndGetURL,
+} from '../../fileupload';
 import publisher from '../../gcloudPub';
 import {
   NEW_USER_BONUS_COOLDOWN,
@@ -76,6 +79,7 @@ export async function handleUserRegistration({
     displayName = user,
     cosmosWallet,
     avatarSHA256,
+    avatarURL: avatarURLInput,
     referrer,
     platform,
     platformUserId,
@@ -104,9 +108,16 @@ export async function handleUserRegistration({
 
   // upload avatar
   const { file } = req;
-  let avatarUrl;
-  if (file) {
-    avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+  let avatarURL;
+  try {
+    if (file) {
+      avatarURL = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+    } else if (avatarURLInput) {
+      avatarURL = await handleAvatarLinkAndGetURL(user, avatarURLInput);
+    }
+  } catch (err) {
+    console.error('Avatar file handling error:');
+    console.error(err);
   }
   let hasReferrer = false;
   if (referrer) {
@@ -132,7 +143,7 @@ export async function handleUserRegistration({
     cosmosWallet,
     authCoreUserId,
     isEmailEnabled,
-    avatar: avatarUrl,
+    avatar: avatarURL,
     locale,
   };
 
@@ -230,7 +241,7 @@ export async function handleUserRegistration({
       email: email || undefined,
       displayName,
       cosmosWallet,
-      avatar: avatarUrl,
+      avatar: avatarURL,
       referrer: referrer || undefined,
       locale,
       registerTime: createObj.timestamp,
