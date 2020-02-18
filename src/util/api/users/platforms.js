@@ -6,6 +6,7 @@ import {
 } from '../../firebase';
 import { socialLinkMatters } from '../social';
 import { ValidationError } from '../../ValidationError';
+import { handleAvatarLinkAndGetURL } from '../../fileupload';
 
 export async function handleClaimPlatformDelegatedUser(platform, user, {
   email,
@@ -13,6 +14,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   isEmailVerified,
   authCoreUserId,
   cosmosWallet,
+  avatarURL,
 }) {
   const userRef = dbRef.doc(user);
   const userDoc = await userRef.get();
@@ -30,6 +32,13 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   if (isEmailVerified !== undefined) payload.isEmailVerified = isEmailVerified;
   if (authCoreUserId) payload.authCoreUserId = authCoreUserId;
   if (cosmosWallet) payload.cosmosWallet = cosmosWallet;
+  if (avatarURL) {
+    try {
+      payload.avatar = await handleAvatarLinkAndGetURL(user, avatarURL);
+    } catch (err) {
+      console.error(err);
+    }
+  }
   const batch = db.batch();
   batch.update(userRef, payload);
   batch.set(

@@ -223,6 +223,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               userId,
               email,
               displayName,
+              imageUrl,
             } = await fetchMattersUser({ accessToken: platformToken || token });
             if (!email) throw new ValidationError('MISSING_EMAIL');
             const isEmailVerified = true;
@@ -254,6 +255,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               isEmailVerified,
               authCoreUserId,
               cosmosWallet,
+              avatarURL: imageUrl,
             });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {
               logType: 'eventClaimMattersDelegatedUser',
