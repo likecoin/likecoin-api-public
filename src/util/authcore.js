@@ -7,7 +7,10 @@ import { ValidationError } from './ValidationError';
 
 const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('secretd-js');
 
-const api = axios.create({ baseURL: `${AUTHCORE_API_ENDPOINT}/api` });
+const api = axios.create({
+  baseURL: `${AUTHCORE_API_ENDPOINT}/api`,
+  timeout: 10000,
+});
 
 export async function getAuthCoreUser(accessToken) {
   const { data } = await api.get('/auth/users/current', {
