@@ -1,9 +1,10 @@
+import axios from 'axios';
 import {
   bucket as fbBucket,
 } from './firebase';
 import {
   IS_TESTNET,
-  SUPPORTED_AVATER_TYPE,
+  SUPPORTED_AVATAR_TYPE,
 } from '../constant';
 import { ValidationError } from './ValidationError';
 
@@ -11,16 +12,16 @@ const sharp = require('sharp');
 const fileType = require('file-type');
 const sha256 = require('js-sha256');
 
-export function uploadFileAndGetLink(file, newFilename) {
+export function uploadFileAndGetLink(file, { filename, mimetype }) {
+  const isStream = file && typeof file.pipe === 'function';
   return new Promise((resolve, reject) => {
     if (!file) {
       reject(new Error('No file'));
     }
-    const filename = newFilename || file.originalname;
     const blob = fbBucket.file(filename);
     const blobStream = blob.createWriteStream({
       metadata: {
-        contentType: file.mimetype,
+        contentType: mimetype,
       },
     });
     blobStream.on('error', (err) => {
@@ -32,15 +33,18 @@ export function uploadFileAndGetLink(file, newFilename) {
         expires: '01-07-2047',
       }));
     });
-    blobStream.end(file.buffer);
+    if (isStream) {
+      file.pipe(blobStream);
+    } else {
+      blobStream.end(file.buffer);
+    }
   });
 }
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
   const type = fileType(file.buffer);
-  if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) {
-    console.error(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
-    return undefined;
+  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 
   if (avatarSHA256) {
@@ -50,7 +54,30 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
 
   const resizedBuffer = await sharp(file.buffer).resize(400, 400).toBuffer();
   file.buffer = resizedBuffer; // eslint-disable-line no-param-reassign
-  const [avatarUrl] = await uploadFileAndGetLink(file, `likecoin_store_user_${user}_${IS_TESTNET ? 'test' : 'main'}`);
+  const [avatarUrl] = await uploadFileAndGetLink(file, {
+    filename: `likecoin_store_user_${user}_${IS_TESTNET ? 'test' : 'main'}`,
+    mimetype: file.mimetype,
+  });
+  return avatarUrl;
+}
+
+export async function handleAvatarLinkAndGetURL(user, url) {
+  let { data } = await axios.get(url, {
+    responseType: 'stream',
+    timeout: 5000,
+  });
+  data = await fileType.stream(data);
+  const type = data.fileType;
+  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
+  }
+  let transformer = sharp();
+  transformer = transformer.resize(400, 400);
+  data.pipe(transformer);
+  const [avatarUrl] = await uploadFileAndGetLink(transformer, {
+    filename: `likecoin_store_user_${user}_${IS_TESTNET ? 'test' : 'main'}`,
+    mimetype: type.mime,
+  });
   return avatarUrl;
 }
 
