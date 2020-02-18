@@ -4,7 +4,7 @@ import {
 } from './firebase';
 import {
   IS_TESTNET,
-  SUPPORTED_AVATER_TYPE,
+  SUPPORTED_AVATAR_TYPE,
 } from '../constant';
 import { ValidationError } from './ValidationError';
 
@@ -43,9 +43,8 @@ export function uploadFileAndGetLink(file, { filename, mimetype }) {
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
   const type = fileType(file.buffer);
-  if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) {
-    console.error(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
-    return undefined;
+  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 
   if (avatarSHA256) {
@@ -69,9 +68,8 @@ export async function handleAvatarLinkAndGetURL(user, url) {
   });
   data = await fileType.stream(data);
   const type = data.fileType;
-  if (!SUPPORTED_AVATER_TYPE.has(type && type.ext)) {
-    console.error(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
-    return undefined;
+  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+    throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
   let transformer = sharp();
   transformer = transformer.resize(400, 400);

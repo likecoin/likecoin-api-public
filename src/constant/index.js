@@ -48,7 +48,7 @@ export const DISPLAY_SOCIAL_MEDIA_OPTIONS = [
   'medium',
 ];
 
-export const SUPPORTED_AVATER_TYPE = new Set([
+export const SUPPORTED_AVATAR_TYPE = new Set([
   'jpg',
   'png',
   'gif',
