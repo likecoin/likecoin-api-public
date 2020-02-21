@@ -197,4 +197,25 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
+router.get('/likepay/:txId', async (req, res, next) => {
+  try {
+    const { txId } = req.params;
+    const {
+      wallet,
+      amount,
+      memo,
+    } = txId; // TODO: decode txId
+    const dataTo = await txLogRef
+      .where('to', '==', wallet)
+      .where('amount.amount', '==', amount)
+      .where('remarks', '==', memo)
+      .orderBy('ts', 'desc')
+      .get();
+    const results = dataTo.docs.map(d => ({ id: d.id, ...filterTxData(d.data()) }));
+    res.json(results);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
