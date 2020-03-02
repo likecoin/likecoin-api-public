@@ -155,11 +155,22 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
 router.get('/likepay/:txId', async (req, res, next) => {
   try {
     const { txId } = req.params;
-    const {
-      address,
-      bigAmount: amount,
-      uuid,
-    } = decodeLikePayId(txId);
+    let address;
+    let amount;
+    let uuid;
+    try {
+      ({
+        address,
+        bigAmount: amount,
+        uuid,
+      } = decodeLikePayId(txId));
+    } catch (err) {
+      console.error(err);
+      throw new ValidationError('PAYLOAD_PARSE_FAILED');
+    }
+    if (!address || !amount || !uuid) {
+      throw new ValidationError('INVALID_PAYLOAD');
+    }
     const dataTo = await txLogRef
       .where('to', '==', address)
       .where('amount.amount', '==', amount)
