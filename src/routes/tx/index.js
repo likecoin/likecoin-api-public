@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import BigNumber from 'bignumber.js';
 import {
   TRANSACTION_QUERY_LIMIT,
 } from '../../constant';
@@ -7,61 +6,17 @@ import {
   userCollection as dbRef,
   txCollection as txLogRef,
 } from '../../util/firebase';
+import { filterMultipleTxData, decodeLikePayId } from '../../util/api/tx';
 import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,
   checkAddressValid,
 } from '../../util/ValidationHelper';
-import { LIKEToAmount, amountToLIKE } from '../../util/cosmos';
 
 const web3Utils = require('web3-utils');
 
 const router = Router();
-
-function filterMultipleTxData(data, filter = {}) {
-  const {
-    to,
-    toIds,
-    value,
-    amount,
-  } = data;
-  const { to: { addresses, id } = {} } = filter;
-  const result = {};
-  to.forEach((addr, index) => {
-    if (addresses && !addresses.includes(addr)) return;
-    if (id && toIds[index] !== id) return;
-    result[addr] = result[addr]
-      || {
-        id: toIds[index],
-        value: value ? new BigNumber(0) : undefined,
-        amount: amount ? new BigNumber(0) : undefined,
-      };
-    if (result[addr].id !== toIds[index]) {
-      throw new Error(`Filter ID ${toIds[index]} found, expected: ${result[addr].id}`);
-    }
-    if (value) result[addr].value = result[addr].value.plus(new BigNumber(value[index]));
-    if (amount) result[addr].amount = result[addr].amount.plus(amountToLIKE(amount[index]));
-  });
-  // Flatten the result to arrays.
-  const tos = Object.keys(result);
-  const ids = [];
-  const values = [];
-  const amounts = [];
-  tos.forEach((addr) => {
-    ids.push(result[addr].id);
-    if (value) values.push(result[addr].value.toString());
-    if (amount) amounts.push(LIKEToAmount(result[addr].amount.toFixed()));
-  });
-  const output = {
-    ...data,
-    to: tos,
-    toId: ids,
-    value: value ? values : undefined,
-    amount: amount ? amounts : undefined,
-  };
-  return output;
-}
 
 router.get('/id/:id', async (req, res, next) => {
   try {
@@ -201,14 +156,14 @@ router.get('/likepay/:txId', async (req, res, next) => {
   try {
     const { txId } = req.params;
     const {
-      wallet,
-      amount,
-      memo,
-    } = txId; // TODO: decode txId
+      address,
+      bigAmount: amount,
+      uuid,
+    } = decodeLikePayId(txId);
     const dataTo = await txLogRef
-      .where('to', '==', wallet)
+      .where('to', '==', address)
       .where('amount.amount', '==', amount)
-      .where('remarks', '==', memo)
+      .where('remarks', '==', uuid)
       .orderBy('ts', 'desc')
       .get();
     const results = dataTo.docs.map(d => ({ id: d.id, ...filterTxData(d.data()) }));
