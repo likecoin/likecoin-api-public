@@ -7,6 +7,10 @@ export function checkAddressValid(addr) {
   return addr.length === 42 && addr.substr(0, 2) === '0x';
 }
 
+export function checkCosmosAddressValid(addr) {
+  return !!addr.match(/^cosmos1[ac-hj-np-z02-9]{38}$/);
+}
+
 export function checkUserNameValid(user) {
   return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= 7 && user.length <= 20);
 }
