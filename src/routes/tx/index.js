@@ -12,7 +12,6 @@ import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,
   checkAddressValid,
-  checkCosmosAddressValid,
 } from '../../util/ValidationHelper';
 
 const web3Utils = require('web3-utils');
@@ -92,16 +91,11 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
   try {
     const { addr } = req.params;
 
-    const isCosmos = checkCosmosAddressValid(addr);
-    if (!isCosmos && !checkAddressValid(addr)) {
+    if (!checkAddressValid(addr)) {
       throw new ValidationError('Invalid address');
     }
 
-    const query = await dbRef.where(
-      isCosmos ? 'cosmosWallet' : 'wallet',
-      '==',
-      addr,
-    ).get();
+    const query = await dbRef.where('wallet', '==', addr).get();
     if (query.docs.length > 0) {
       const [user] = query.docs;
       if (req.user.user !== user.id) {
