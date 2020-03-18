@@ -182,6 +182,7 @@ router.post(
     try {
       const { user } = req.user;
       const {
+        email,
         displayName,
         avatarSHA256,
         locale,
@@ -213,6 +214,9 @@ router.post(
         avatar: avatarUrl,
         locale,
       };
+      if (!oldEmail && email) {
+        updateObj.email = email;
+      }
 
       Object.keys(updateObj).forEach((key) => {
         if (updateObj[key] === undefined) {
