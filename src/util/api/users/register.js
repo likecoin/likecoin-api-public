@@ -1,4 +1,4 @@
-import { sendVerificationEmail } from '../../ses';
+import { sendVerificationEmail } from '../../sendgrid';
 import {
   PUBSUB_TOPIC_MISC,
   MIN_USER_ID_LENGTH,
