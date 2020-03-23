@@ -7,7 +7,7 @@ import {
   FieldValue,
 } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
-import { sendVerificationEmail, sendVerificationWithCouponEmail } from '../../util/ses';
+import { sendVerificationEmail, sendVerificationWithCouponEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
 
 const uuidv4 = require('uuid/v4');

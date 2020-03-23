@@ -4,7 +4,7 @@ import publisher from '../../util/gcloudPub';
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
-import { sendInvitationEmail } from '../../util/ses';
+import { sendInvitationEmail } from '../../util/sendgrid';
 import {
   ETH_NETWORK_NAME,
   PUBSUB_TOPIC_MISC,
