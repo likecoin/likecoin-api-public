@@ -67,7 +67,7 @@
     "multer": "^1.4.1",
     "oauth-1.0a": "^2.2.5",
     "protobufjs": "^6.8.8",
-    "secretd-js": "git+https://gitlab.com/blocksq/secretd-js.git",
+    "secretd-js": "https://gitlab.com/blocksq/secretd-js.git#9be179569baef983d5e7967d57d3159dc5f4a131",
     "sharp": "^0.22.0",
     "source-map-support": "^0.5.9",
     "twit": "^2.2.11",
