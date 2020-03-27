@@ -8,6 +8,7 @@ import {
 } from '../../util/ValidationHelper';
 import {
   getIntercomUserHash,
+  getCrispUserHash,
   getUserWithCivicLikerProperties,
 } from '../../util/api/users';
 
@@ -28,7 +29,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
       payload.intercomToken = getIntercomUserHash(username, { type: fetchUserAgentPlatform(req) });
-
+      if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
       await dbRef.doc(req.user.user).collection('session').doc(req.user.jti).update({
         lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',

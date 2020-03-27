@@ -14,6 +14,7 @@ import {
   INTERCOM_USER_HASH_SECRET,
   INTERCOM_USER_ANDROID_HASH_SECRET,
   INTERCOM_USER_IOS_HASH_SECRET,
+  CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
 
 const web3Utils = require('web3-utils');
@@ -28,6 +29,13 @@ function isSafari(req) {
 function getAuthCookieOptions(req) {
   /* mitigate safari sameSite none becomes true bug */
   return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
+}
+
+export function getCrispUserHash(email) {
+  if (!CRISP_USER_HASH_SECRET) return undefined;
+  return crypto.createHmac('sha256', CRISP_USER_HASH_SECRET)
+    .update(email)
+    .digest('hex');
 }
 
 export function getIntercomUserHash(user, { type = 'web' } = {}) {
