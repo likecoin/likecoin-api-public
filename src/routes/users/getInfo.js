@@ -31,11 +31,27 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
       payload.intercomToken = getIntercomUserHash(username, { type: fetchUserAgentPlatform(req) });
       if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
-      await dbRef.doc(req.user.user).collection('session').doc(req.user.jti).update({
+      await dbRef.doc(username).collection('session').doc(req.user.jti).set({
         lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
         lastAccessedTs: Date.now(),
-      });
+      }, { merge: true });
+      const agentType = fetchUserAgentPlatform(req);
+      if (agentType !== 'web') {
+        const appMetaDocRef = dbRef.doc(username).collection('app').doc('!meta');
+        try {
+          await appMetaDocRef.update({
+            [agentType]: true,
+            lastAccessedTs: Date.now(),
+          });
+        } catch (err) {
+          await appMetaDocRef.create({
+            [agentType]: true,
+            lastAccessedTs: Date.now(),
+            ts: Date.now(),
+          });
+        }
+      }
     } else {
       res.sendStatus(404);
     }
