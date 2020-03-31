@@ -11,6 +11,10 @@ import {
   getCrispUserHash,
   getUserWithCivicLikerProperties,
 } from '../../util/api/users';
+import {
+  PUBSUB_TOPIC_MISC,
+} from '../../constant';
+import publisher from '../../util/gcloudPub';
 
 const router = Router();
 
@@ -49,6 +53,25 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
             [agentType]: true,
             lastAccessedTs: Date.now(),
             ts: Date.now(),
+          });
+          const {
+            avatar,
+            referrer,
+            displayName,
+            email,
+            locale,
+            timestamp,
+          } = payload;
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'eventUserFirstOpenApp',
+            type: 'legacy',
+            user: username,
+            email,
+            displayName,
+            avatar,
+            referrer,
+            locale,
+            registerTime: timestamp,
           });
         }
       }
