@@ -38,6 +38,15 @@ function getAuthCookieOptions(req) {
   return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
 }
 
+export function getUserAgentPlatform(req) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  if (userAgent.includes('LikeCoinApp')) {
+    if (userAgent.includes('Android')) return 'android';
+    if (userAgent.includes('iOS')) return 'ios';
+  }
+  return 'web';
+}
+
 export function getCrispUserHash(email) {
   if (!CRISP_USER_HASH_SECRET) return undefined;
   return crypto.createHmac('sha256', CRISP_USER_HASH_SECRET)

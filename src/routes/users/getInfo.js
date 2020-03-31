@@ -10,29 +10,18 @@ import {
   getIntercomUserHash,
   getCrispUserHash,
   getUserWithCivicLikerProperties,
+  getUserAgentPlatform,
 } from '../../util/api/users';
-import {
-  PUBSUB_TOPIC_MISC,
-} from '../../constant';
-import publisher from '../../util/gcloudPub';
+import { lazyUpdateAppMetaData } from '../../util/api/users/app';
 
 const router = Router();
-
-function fetchUserAgentPlatform(req) {
-  const { 'user-agent': userAgent = '' } = req.headers;
-  if (userAgent.includes('LikeCoinApp')) {
-    if (userAgent.includes('Android')) return 'android';
-    if (userAgent.includes('iOS')) return 'ios';
-  }
-  return 'web';
-}
 
 router.get('/self', jwtAuth('read'), async (req, res, next) => {
   try {
     const username = req.user.user;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
-      payload.intercomToken = getIntercomUserHash(username, { type: fetchUserAgentPlatform(req) });
+      payload.intercomToken = getIntercomUserHash(username, { type: getUserAgentPlatform(req) });
       if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
       await dbRef.doc(username).collection('session').doc(req.user.jti).set({
@@ -40,40 +29,13 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
         lastAccessedTs: Date.now(),
       }, { merge: true });
-      const agentType = fetchUserAgentPlatform(req);
+      const agentType = getUserAgentPlatform(req);
       if (agentType !== 'web') {
-        const appMetaDocRef = dbRef.doc(username).collection('app').doc('!meta');
-        try {
-          await appMetaDocRef.update({
-            [agentType]: true,
-            lastAccessedTs: Date.now(),
-          });
-        } catch (err) {
-          await appMetaDocRef.create({
-            [agentType]: true,
-            lastAccessedTs: Date.now(),
-            ts: Date.now(),
-          });
-          const {
-            avatar,
-            referrer,
-            displayName,
-            email,
-            locale,
-            timestamp,
-          } = payload;
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'eventUserFirstOpenApp',
-            type: 'legacy',
-            user: username,
-            email,
-            displayName,
-            avatar,
-            referrer,
-            locale,
-            registerTime: timestamp,
-          });
-        }
+        const user = {
+          user: username,
+          ...payload,
+        };
+        lazyUpdateAppMetaData(req, user, agentType);
       }
     } else {
       res.sendStatus(404);

@@ -23,6 +23,7 @@ import {
   normalizeUserEmail,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
+import { handleAppReferrer } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
@@ -81,6 +82,7 @@ router.post(
   async (req, res, next) => {
     const {
       platform,
+      appReferrer,
       user,
     } = req.body;
     let email;
@@ -160,6 +162,9 @@ router.post(
           ...socialPayload,
           logType: 'eventSocialLink',
         });
+      }
+      if (appReferrer) {
+        await handleAppReferrer(req, user, appReferrer);
       }
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -302,7 +307,10 @@ router.post('/login', async (req, res, next) => {
     let wallet;
     let authCoreUserName;
     let authCoreUserId;
-    const { platform } = req.body;
+    const {
+      platform,
+      appReferrer,
+    } = req.body;
 
     switch (platform) {
       case 'wallet': {
@@ -404,6 +412,9 @@ router.post('/login', async (req, res, next) => {
           registerTime,
           platform,
         });
+      }
+      if (appReferrer) {
+        await handleAppReferrer(req, user, appReferrer);
       }
     } else {
       res.sendStatus(404);
