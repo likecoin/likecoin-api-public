@@ -38,6 +38,11 @@ function getAuthCookieOptions(req) {
   return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
 }
 
+export function getUserAgentIsApp(req) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  return (userAgent.includes('LikeCoinApp'));
+}
+
 export function getUserAgentPlatform(req) {
   const { 'user-agent': userAgent = '' } = req.headers;
   if (userAgent.includes('LikeCoinApp')) {

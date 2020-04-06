@@ -11,6 +11,7 @@ import {
   getCrispUserHash,
   getUserWithCivicLikerProperties,
   getUserAgentPlatform,
+  getUserAgentIsApp,
 } from '../../util/api/users';
 import { lazyUpdateAppMetaData } from '../../util/api/users/app';
 
@@ -29,13 +30,12 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
         lastAccessedTs: Date.now(),
       }, { merge: true });
-      const agentType = getUserAgentPlatform(req);
-      if (agentType !== 'web') {
+      if (getUserAgentIsApp(req)) {
         const user = {
           user: username,
           ...payload,
         };
-        lazyUpdateAppMetaData(req, user, agentType);
+        lazyUpdateAppMetaData(req, user);
       }
     } else {
       res.sendStatus(404);

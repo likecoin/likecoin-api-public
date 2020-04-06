@@ -21,9 +21,10 @@ import {
   clearAuthCookies,
   userByEmailQuery,
   normalizeUserEmail,
+  getUserAgentIsApp,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
-import { handleAppReferrer } from '../../util/api/users/app';
+import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
@@ -163,8 +164,12 @@ router.post(
           logType: 'eventSocialLink',
         });
       }
-      if (appReferrer) {
-        await handleAppReferrer(req, user, appReferrer);
+      if (getUserAgentIsApp(req)) {
+        if (appReferrer) {
+          await handleAppReferrer(req, userPayload, appReferrer);
+        } else {
+          await handleUpdateAppMetaData(req, userPayload);
+        }
       }
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -413,8 +418,13 @@ router.post('/login', async (req, res, next) => {
           platform,
         });
       }
-      if (appReferrer) {
-        await handleAppReferrer(req, user, appReferrer);
+      if (getUserAgentIsApp(req)) {
+        const userObject = { user, ...doc.data() };
+        if (appReferrer) {
+          await handleAppReferrer(req, userObject, appReferrer);
+        } else {
+          await handleUpdateAppMetaData(req, userObject);
+        }
       }
     } else {
       res.sendStatus(404);
