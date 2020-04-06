@@ -15,6 +15,7 @@ export async function handleAppReferrer(req, user, appReferrer) {
     referrer,
     displayName,
     email,
+    isEmailVerified = false,
     locale,
     timestamp,
   } = user;
@@ -41,14 +42,19 @@ export async function handleAppReferrer(req, user, appReferrer) {
     [agentType]: true,
     lastAccessedTs: Date.now(),
     referrer: appReferrer,
+    isEmailVerified,
   }, { merge: true });
-  batch.create(referrerAppRefCol.doc(username), { ts: Date.now() });
+  batch.create(referrerAppRefCol.doc(username), {
+    isEmailVerified,
+    ts: Date.now(),
+  });
   await batch.commit();
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'eventUserFirstOpenApp',
     type: 'referral',
     user: username,
     email,
+    isEmailVerified,
     displayName,
     avatar,
     appReferrer,
@@ -65,6 +71,7 @@ export async function handleUpdateAppMetaData(req, user) {
     referrer,
     displayName,
     email,
+    isEmailVerified = false,
     locale,
     timestamp,
   } = user;
@@ -77,6 +84,7 @@ export async function handleUpdateAppMetaData(req, user) {
   }
   await appMetaDocRef.create({
     [agentType]: true,
+    isEmailVerified,
     lastAccessedTs: Date.now(),
     ts: Date.now(),
   });
@@ -85,6 +93,7 @@ export async function handleUpdateAppMetaData(req, user) {
     type: 'direct',
     user: username,
     email,
+    isEmailVerified,
     displayName,
     avatar,
     referrer,
