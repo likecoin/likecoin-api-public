@@ -13,6 +13,7 @@ import {
   getAuthCoreUserOAuthFactors,
 } from '../../authcore';
 import {
+  normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
 } from '.';
@@ -152,9 +153,17 @@ export async function handleUserRegistration({
   if (email) {
     createObj.email = email;
     createObj.isEmailVerified = isEmailVerified;
+    const {
+      normalizedEmail,
+      isEmailBlacklisted,
+      isEmailDuplicated,
+    } = normalizeUserEmail(email);
+    if (normalizedEmail) createObj.normalizedEmail = normalizedEmail;
+    if (isEmailBlacklisted !== undefined) createObj.isEmailBlacklisted = isEmailBlacklisted;
+    if (isEmailDuplicated !== undefined) createObj.isEmailDuplicated = isEmailDuplicated;
 
     // TODO: trigger verify email via authcore?
-    if (!isEmailVerified) {
+    if (!isEmailVerified && !isEmailBlacklisted) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
       createObj.verificationUUID = uuidv4();
