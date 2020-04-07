@@ -19,8 +19,8 @@ export async function handleAppReferrer(req, user, appReferrer) {
     locale,
     timestamp,
   } = user;
-  const userAppMetaRef = dbRef.doc(username).collection('app').doc('!meta');
-  const referrerAppRefCol = dbRef.doc(appReferrer).collection('app');
+  const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');
+  const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const [
     userAppMetaDoc,
     appReferrerDoc,
@@ -76,7 +76,7 @@ export async function handleUpdateAppMetaData(req, user) {
     timestamp,
   } = user;
   const agentType = getUserAgentPlatform(req);
-  const appMetaDocRef = dbRef.doc(username).collection('app').doc('!meta');
+  const appMetaDocRef = dbRef.doc(username).collection('app').doc('meta');
   const appMetaDoc = await appMetaDocRef.get();
   if (appMetaDoc.exists && appMetaDoc.data().ts) {
     // user already have app first open log return;
@@ -113,7 +113,7 @@ export async function lazyUpdateAppMetaData(req, user) {
     timestamp,
   } = user;
   const agentType = getUserAgentPlatform(req);
-  const appMetaDocRef = dbRef.doc(username).collection('app').doc('!meta');
+  const appMetaDocRef = dbRef.doc(username).collection('app').doc('meta');
   try {
     await appMetaDocRef.update({
       [agentType]: true,
