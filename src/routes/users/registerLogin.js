@@ -241,7 +241,8 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventUserUpdate',
         user,
-        email: oldEmail,
+        ...updateObj,
+        email: email || oldEmail,
         displayName: displayName || oldDisplayName,
         wallet,
         avatar: avatarUrl || oldUserObj.avatar,
@@ -288,8 +289,7 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       logType: 'eventUserSync',
       type: 'authcore',
       user,
-      email,
-      displayName,
+      ...updateObj,
     });
   } catch (err) {
     next(err);
