@@ -23,6 +23,23 @@ export const GETTING_STARTED_TASKS = ['taskSocial', 'taskOnepager', 'taskVideo',
 
 export const TRANSACTION_QUERY_LIMIT = 10;
 
+export const KNOWN_EMAIL_HOSTS = [
+  'gmail.com',
+  'googlemail.com',
+  'hotmail.com',
+  'outlook.com',
+  'yahoo.com',
+  'yahoo.com.tw',
+  'yahoo.com.hk',
+  'protonmail.com',
+  'qq.com',
+  'vip.qq.com',
+  'sina.com',
+  '163.com',
+  'privaterelay.appleid.com',
+  'icloud.com',
+];
+
 export const EXTRA_EMAIL_BLACLIST = [
   'tutye.com',
 ];
@@ -88,3 +105,5 @@ export const OICE_API_HOST = IS_TESTNET ? 'https://oice.com/api' : 'https://oice
 export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/coins/likecoin?localization=false';
 export const COINMARKETCAP_PRICE_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 export const LIKE_DEFAULT_PRICE = 0.0082625;
+
+export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';

@@ -1,6 +1,9 @@
+import axios from 'axios';
 import crypto from 'crypto';
 import {
   AUTH_COOKIE_OPTION,
+  KNOWN_EMAIL_HOSTS,
+  KICKBOX_DISPOSIBLE_API,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -20,6 +23,9 @@ import {
 const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
 const sigUtil = require('eth-sig-util');
+const LRU = require('lru-cache');
+
+const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -137,6 +143,24 @@ export async function normalizeUserEmail(user, email) {
   const domain = parts[1];
   if (BLACK_LIST_DOMAIN.includes(domain)) {
     isEmailBlacklisted = true;
+  }
+  if (!KNOWN_EMAIL_HOSTS.includes(domain)) {
+    try {
+      const domainCache = emailDomainCache.get(domain);
+      if (domainCache !== undefined) {
+        if (domainCache) isEmailBlacklisted = true;
+      } else {
+        const { data } = await axios.get(`${KICKBOX_DISPOSIBLE_API}/${domain}`);
+        if (data) {
+          if (data.disposable !== undefined) {
+            if (data.disposable) isEmailBlacklisted = true;
+            emailDomainCache.set(domain, data.disposable);
+          }
+        }
+      }
+    } catch (err) {
+      console.err(err);
+    }
   }
   /* we handle special char for all domain
     the processed string is only stored as normalizedEmail
