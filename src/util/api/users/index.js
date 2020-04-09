@@ -1,6 +1,9 @@
+import axios from 'axios';
 import crypto from 'crypto';
 import {
   AUTH_COOKIE_OPTION,
+  KNOWN_EMAIL_HOSTS,
+  KICKBOX_DISPOSIBLE_API,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -17,8 +20,12 @@ import {
   CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
 
+const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
 const sigUtil = require('eth-sig-util');
+const LRU = require('lru-cache');
+
+const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 
 export const FIVE_MIN_IN_MS = 300000;
 
@@ -114,6 +121,64 @@ export function userByEmailQuery(user, email) {
     });
     return true;
   });
+}
+
+export function queryNormalizedEmailExists(user, email) {
+  return dbRef.where('normalizedEmail', '==', email).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      return (user !== docUser);
+    });
+    return false;
+  });
+}
+
+export async function normalizeUserEmail(user, email) {
+  if (!email) return {};
+  let normalizedEmail = email.toLowerCase();
+  let isEmailBlacklisted;
+  const BLACK_LIST_DOMAIN = disposableDomains;
+  const parts = email.split('@');
+  let emailUser = parts[0];
+  const domain = parts[1];
+  if (BLACK_LIST_DOMAIN.includes(domain)) {
+    isEmailBlacklisted = true;
+  }
+  if (!KNOWN_EMAIL_HOSTS.includes(domain)) {
+    try {
+      const domainCache = emailDomainCache.get(domain);
+      if (domainCache !== undefined) {
+        if (domainCache) isEmailBlacklisted = true;
+      } else {
+        const { data } = await axios.get(`${KICKBOX_DISPOSIBLE_API}/${domain}`);
+        if (data) {
+          if (data.disposable !== undefined) {
+            if (data.disposable) isEmailBlacklisted = true;
+            emailDomainCache.set(domain, data.disposable);
+          }
+        }
+      }
+    } catch (err) {
+      console.err(err);
+    }
+  }
+  /* we handle special char for all domain
+    the processed string is only stored as normalizedEmail
+    for anti spam/analysis purpose, not for actual sending */
+  // handlt dot for all domain
+  emailUser = emailUser.split('.').join('');
+  // handlt plus for all domain
+  [emailUser] = emailUser.split('+');
+  normalizedEmail = `${emailUser}@${domain}`;
+  let isEmailDuplicated;
+  if (user) {
+    isEmailDuplicated = await queryNormalizedEmailExists(user, normalizedEmail);
+  }
+  return {
+    isEmailBlacklisted,
+    isEmailDuplicated,
+    normalizedEmail,
+  };
 }
 
 async function userInfoQuery({

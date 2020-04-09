@@ -13,6 +13,7 @@ import {
   getAuthCoreUserOAuthFactors,
 } from '../../authcore';
 import {
+  normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
 } from '.';
@@ -152,9 +153,17 @@ export async function handleUserRegistration({
   if (email) {
     createObj.email = email;
     createObj.isEmailVerified = isEmailVerified;
+    const {
+      normalizedEmail,
+      isEmailBlacklisted,
+      isEmailDuplicated,
+    } = await normalizeUserEmail(user, email);
+    if (normalizedEmail) createObj.normalizedEmail = normalizedEmail;
+    if (isEmailBlacklisted !== undefined) createObj.isEmailBlacklisted = isEmailBlacklisted;
+    if (isEmailDuplicated !== undefined) createObj.isEmailDuplicated = isEmailDuplicated;
 
     // TODO: trigger verify email via authcore?
-    if (!isEmailVerified) {
+    if (!isEmailVerified && !isEmailBlacklisted) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
       createObj.verificationUUID = uuidv4();
@@ -239,11 +248,15 @@ export async function handleUserRegistration({
     userPayload: {
       user,
       email: email || undefined,
+      normalizedEmail: createObj.normalizedEmail || undefined,
       displayName,
       cosmosWallet,
       avatar: avatarURL,
       referrer: referrer || undefined,
       locale,
+      isEmailVerified: createObj.isEmailVerified || false,
+      isEmailBlacklisted: createObj.isEmailBlacklisted || undefined,
+      isEmailDuplicated: createObj.isEmailDuplicated || undefined,
       registerTime: createObj.timestamp,
       registerMethod: platform,
       sourceURL,

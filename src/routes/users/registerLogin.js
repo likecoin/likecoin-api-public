@@ -19,6 +19,8 @@ import {
   checkSignPayload,
   setAuthCookies,
   clearAuthCookies,
+  userByEmailQuery,
+  normalizeUserEmail,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { ValidationError } from '../../util/ValidationError';
@@ -215,7 +217,16 @@ router.post(
         locale,
       };
       if (!oldEmail && email) {
+        await userByEmailQuery(user, email);
         updateObj.email = email;
+        const {
+          normalizedEmail,
+          isEmailBlacklisted,
+          isEmailDuplicated,
+        } = await normalizeUserEmail(user, email);
+        if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
+        if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
+        if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
       }
 
       Object.keys(updateObj).forEach((key) => {
@@ -230,7 +241,8 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventUserUpdate',
         user,
-        email: oldEmail,
+        ...updateObj,
+        email: email || oldEmail,
         displayName: displayName || oldDisplayName,
         wallet,
         avatar: avatarUrl || oldUserObj.avatar,
@@ -255,20 +267,29 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       displayName,
       isEmailVerified,
     } = await getAuthCoreUser(authCoreAccessToken);
-
-    await dbRef.doc(user).update({
+    const updateObj = {
       email,
       displayName,
       isEmailVerified,
-    });
+    };
+    if (email) {
+      const {
+        normalizedEmail,
+        isEmailBlacklisted,
+        isEmailDuplicated,
+      } = await normalizeUserEmail(user, email);
+      if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
+      if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
+      if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
+    }
+    await dbRef.doc(user).update(updateObj);
     res.sendStatus(200);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventUserSync',
       type: 'authcore',
       user,
-      email,
-      displayName,
+      ...updateObj,
     });
   } catch (err) {
     next(err);
