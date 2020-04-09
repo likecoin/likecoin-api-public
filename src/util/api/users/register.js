@@ -157,7 +157,7 @@ export async function handleUserRegistration({
       normalizedEmail,
       isEmailBlacklisted,
       isEmailDuplicated,
-    } = normalizeUserEmail(email);
+    } = await normalizeUserEmail(user, email);
     if (normalizedEmail) createObj.normalizedEmail = normalizedEmail;
     if (isEmailBlacklisted !== undefined) createObj.isEmailBlacklisted = isEmailBlacklisted;
     if (isEmailDuplicated !== undefined) createObj.isEmailDuplicated = isEmailDuplicated;

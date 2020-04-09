@@ -223,7 +223,7 @@ router.post(
           normalizedEmail,
           isEmailBlacklisted,
           isEmailDuplicated,
-        } = normalizeUserEmail(user, email);
+        } = await normalizeUserEmail(user, email);
         if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
         if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
         if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
@@ -277,7 +277,7 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
         normalizedEmail,
         isEmailBlacklisted,
         isEmailDuplicated,
-      } = normalizeUserEmail(user, email);
+      } = await normalizeUserEmail(user, email);
       if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
       if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
       if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
