@@ -21,8 +21,10 @@ import {
   clearAuthCookies,
   userByEmailQuery,
   normalizeUserEmail,
+  getUserAgentIsApp,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
+import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
@@ -81,6 +83,7 @@ router.post(
   async (req, res, next) => {
     const {
       platform,
+      appReferrer,
       user,
     } = req.body;
     let email;
@@ -160,6 +163,13 @@ router.post(
           ...socialPayload,
           logType: 'eventSocialLink',
         });
+      }
+      if (getUserAgentIsApp(req)) {
+        if (appReferrer) {
+          await handleAppReferrer(req, userPayload, appReferrer);
+        } else {
+          await handleUpdateAppMetaData(req, userPayload);
+        }
       }
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -302,7 +312,10 @@ router.post('/login', async (req, res, next) => {
     let wallet;
     let authCoreUserName;
     let authCoreUserId;
-    const { platform } = req.body;
+    const {
+      platform,
+      appReferrer,
+    } = req.body;
 
     switch (platform) {
       case 'wallet': {
@@ -404,6 +417,14 @@ router.post('/login', async (req, res, next) => {
           registerTime,
           platform,
         });
+      }
+      if (getUserAgentIsApp(req)) {
+        const userObject = { user, ...doc.data() };
+        if (appReferrer) {
+          await handleAppReferrer(req, userObject, appReferrer);
+        } else {
+          await handleUpdateAppMetaData(req, userObject);
+        }
       }
     } else {
       res.sendStatus(404);
