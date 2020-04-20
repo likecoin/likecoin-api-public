@@ -64,17 +64,18 @@ export function filterUserData(u) {
   };
 }
 
-export function filterUserDataMin({
-  user,
-  displayName,
-  avatar,
-  wallet,
-  cosmosWallet,
-  isSubscribedCivicLiker,
-  isCivicLikerTrial,
-  civicLikerSince,
-}) {
-  return {
+export function filterUserDataMin(userObject, types = []) {
+  const {
+    user,
+    displayName,
+    avatar,
+    wallet,
+    cosmosWallet,
+    isSubscribedCivicLiker,
+    isCivicLikerTrial,
+    civicLikerSince,
+  } = userObject;
+  const output = {
     user,
     displayName,
     avatar,
@@ -84,6 +85,10 @@ export function filterUserDataMin({
     isSubscribedCivicLiker,
     civicLikerSince,
   };
+  if (types.includes('payment')) {
+    output.paymentRedirectWhiteList = userObject.paymentRedirectWhiteList;
+  }
+  return output;
 }
 
 export function filterUserDataScoped(u, scope = []) {

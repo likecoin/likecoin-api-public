@@ -19,10 +19,15 @@ const router = Router();
 router.get('/id/:id/min', async (req, res, next) => {
   try {
     const username = req.params.id;
+    const { type } = req.query;
+    let types = [];
+    if (type) {
+      types = type.split(',');
+    }
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
       res.set('Cache-Control', 'public, max-age=30');
-      res.json(filterUserDataMin(payload));
+      res.json(filterUserDataMin(payload, types));
     } else {
       res.sendStatus(404);
     }
