@@ -1,6 +1,7 @@
 import axios from 'axios';
 import bodyParser from 'body-parser';
 import { Router } from 'express';
+import BigNumber from 'bignumber.js';
 
 import {
   MEDIUM_REGEX,
@@ -71,10 +72,6 @@ router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
   }
 });
 
-function flattenValue(value) {
-  return Array.isArray(value) ? value.join(',') : value;
-}
-
 async function handlePostTxReq(reqData, resData, req) {
   const {
     tx: {
@@ -99,6 +96,7 @@ async function handlePostTxReq(reqData, resData, req) {
   if (!msg || !msg.length || !msg[0]) return;
   const { type, value: payloadValue } = msg[0];
   if (type === 'cosmos-sdk/MsgSend' || type === 'cosmos-sdk/MsgMultiSend') {
+    let amounts;
     let amount;
     let from;
     let to;
@@ -108,6 +106,7 @@ async function handlePostTxReq(reqData, resData, req) {
         from_address: from,
         to_address: to,
       } = payloadValue);
+      amounts = [amount];
     } else if (type === 'cosmos-sdk/MsgMultiSend') {
       const {
         inputs,
@@ -115,7 +114,8 @@ async function handlePostTxReq(reqData, resData, req) {
       } = payloadValue;
       from = inputs.length > 1 ? inputs.map(i => i.address) : inputs[0].address;
       to = outputs.length > 1 ? outputs.map(o => o.address) : outputs[0].address;
-      amount = outputs.length > 1 ? outputs.map(o => o.coins[0]) : outputs[0].coins[0];
+      amounts = outputs.length > 1 ? outputs.map(o => o.coins[0]) : [outputs[0].coins[0]];
+      amount = amounts.reduce((acc, a) => acc.plus(a.amount), new BigNumber(0)).toFixed();
     }
 
     const {
@@ -170,9 +170,8 @@ async function handlePostTxReq(reqData, resData, req) {
 
     await logCosmosTx(txRecord);
     const status = 'pending';
-    const likeAmount = Array.isArray(amount)
-      ? amount.map(a => amountToLIKE(a))
-      : amountToLIKE(amount);
+    const likeAmount = amountToLIKE(amount);
+    const likeAmountSplit = amounts.map(a => amountToLIKE(a));
     if (toSubscriptionURL) {
       try {
         await axios.post(toSubscriptionURL, {
@@ -181,7 +180,7 @@ async function handlePostTxReq(reqData, resData, req) {
           to,
           txHash,
           value: likeAmount,
-          amount,
+          amount: amounts.length > 1 ? amounts : amounts[0],
           userPayload,
         });
       } catch (err) {
@@ -191,23 +190,23 @@ async function handlePostTxReq(reqData, resData, req) {
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventPayCosmos',
-      fromUser: flattenValue(fromId),
-      fromWallet: flattenValue(from),
+      fromUser: fromId,
+      fromWallet: from,
       fromDisplayName,
       fromEmail,
       fromReferrer,
       fromLocale,
       fromRegisterTime,
-      toUser: flattenValue(toId),
-      toWallet: flattenValue(to),
+      toUser: toId,
+      toWallet: to,
       toDisplayName,
       toEmail,
       toReferrer,
       toLocale,
       toRegisterTime,
-      likeAmount: flattenValue(likeAmount),
-      likeAmountUnitStr: Array.isArray(likeAmount)
-        ? likeAmount.map(a => a.toString()) : likeAmount.toString(),
+      likeAmount: new BigNumber(likeAmount).toNumber(),
+      likeAmountUnitStr: likeAmount,
+      likeAmountSplit,
       txHash,
       txStatus: status,
       sourceURL: httpReferrer,
