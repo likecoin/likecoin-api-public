@@ -7,6 +7,12 @@
             "wallet": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
             "merchantId": "testmerchantid",
             "collection": {
+                "app": [
+                    {
+                        "id": "meta",
+                        "ts": 1487467660239
+                    }
+                ],
                 "referrals": [
                     {
                         "id": "testuser"
