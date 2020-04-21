@@ -1,6 +1,7 @@
 import {
   GETTING_STARTED_TASKS,
   DISPLAY_SOCIAL_MEDIA_OPTIONS,
+  ONE_DAY_IN_MS,
 } from '../constant';
 
 export function checkAddressValid(addr) {
@@ -307,5 +308,19 @@ export function filterOAuthClientInfo({
     domain,
     platform,
     isTrusted,
+  };
+}
+
+export function filterAppMeta({
+  ts,
+  android,
+  ios,
+}) {
+  const isNew = !ts || (Date.now() - ts < ONE_DAY_IN_MS);
+  return {
+    isNew,
+    ts,
+    android,
+    ios,
   };
 }
