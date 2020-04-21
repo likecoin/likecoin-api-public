@@ -109,6 +109,7 @@ export async function lazyUpdateAppMetaData(req, user) {
     referrer,
     displayName,
     email,
+    isEmailVerified,
     locale,
     timestamp,
   } = user;
@@ -117,11 +118,13 @@ export async function lazyUpdateAppMetaData(req, user) {
   try {
     await appMetaDocRef.update({
       [agentType]: true,
+      isEmailVerified,
       lastAccessedTs: Date.now(),
     });
   } catch (err) {
     await appMetaDocRef.create({
       [agentType]: true,
+      isEmailVerified,
       lastAccessedTs: Date.now(),
       ts: Date.now(),
     });
