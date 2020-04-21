@@ -1,50 +1,68 @@
 import { userCollection as dbRef } from '../../firebase';
 
+async function fetchUserInfoByCosmosWallet(wallet) {
+  const query = dbRef.where('cosmosWallet', '==', wallet).get().then((snapshot) => {
+    if (snapshot.docs.length > 0) {
+      const userData = snapshot.docs[0].data();
+      const {
+        displayName,
+        email,
+        referrer,
+        locale,
+        timestamp: registerTime,
+        subscriptionURL,
+      } = userData;
+      return {
+        id: snapshot.docs[0].id,
+        displayName,
+        email,
+        referrer,
+        locale,
+        registerTime,
+        subscriptionURL,
+      };
+    }
+    return {};
+  });
+  return query;
+}
+
+async function fetchUserIdsByCosmosWallet(wallet) {
+  const wallets = Array.isArray(wallet) ? wallet : [wallet];
+  const walletQuerys = wallets.map(w => dbRef.where('cosmosWallet', '==', w).get().then((snapshot) => {
+    if (snapshot.docs.length > 0) {
+      return {
+        id: snapshot.docs[0].id,
+      };
+    }
+    return {};
+  }));
+  const result = await Promise.all(walletQuerys);
+  return { id: result.map(r => r.id || '') };
+}
+
 export async function fetchPaymentUserInfo({ from, to }) {
-  const fromQuery = dbRef.where('cosmosWallet', '==', from).get().then((snapshot) => {
-    if (snapshot.docs.length > 0) {
-      const fromUser = snapshot.docs[0].data();
-      return {
-        fromId: snapshot.docs[0].id,
-        fromDisplayName: fromUser.displayName,
-        fromEmail: fromUser.email,
-        fromReferrer: fromUser.referrer,
-        fromLocale: fromUser.locale,
-        fromRegisterTime: fromUser.timestamp,
-      };
-    }
-    return {};
-  });
-  const toQuery = dbRef.where('cosmosWallet', '==', to).get().then((snapshot) => {
-    if (snapshot.docs.length > 0) {
-      const toUser = snapshot.docs[0].data();
-      return {
-        toId: snapshot.docs[0].id,
-        toDisplayName: toUser.displayName,
-        toEmail: toUser.email,
-        toReferrer: toUser.referrer,
-        toLocale: toUser.locale,
-        toRegisterTime: toUser.timestamp,
-        toSubscriptionURL: toUser.subscriptionURL,
-      };
-    }
-    return {};
-  });
+  const fromQuery = Array.isArray(from)
+    ? fetchUserIdsByCosmosWallet(from)
+    : fetchUserInfoByCosmosWallet(from);
+  const toQuery = Array.isArray(to)
+    ? fetchUserIdsByCosmosWallet(to)
+    : fetchUserInfoByCosmosWallet(to);
   const [{
-    fromId,
-    fromDisplayName,
-    fromEmail,
-    fromReferrer,
-    fromLocale,
-    fromRegisterTime,
+    id: fromId,
+    displayName: fromDisplayName,
+    email: fromEmail,
+    referrer: fromReferrer,
+    locale: fromLocale,
+    registerTime: fromRegisterTime,
   }, {
-    toId,
-    toDisplayName,
-    toEmail,
-    toReferrer,
-    toLocale,
-    toRegisterTime,
-    toSubscriptionURL,
+    id: toId,
+    displayName: toDisplayName,
+    email: toEmail,
+    referrer: toReferrer,
+    locale: toLocale,
+    registerTime: toRegisterTime,
+    subscriptionURL: toSubscriptionURL,
   }] = await Promise.all([fromQuery, toQuery]);
   return {
     fromId,

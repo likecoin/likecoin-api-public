@@ -1,6 +1,7 @@
 import axios from 'axios';
 import bodyParser from 'body-parser';
 import { Router } from 'express';
+import BigNumber from 'bignumber.js';
 
 import {
   MEDIUM_REGEX,
@@ -91,14 +92,31 @@ async function handlePostTxReq(reqData, resData, req) {
   } = reqData;
   const { txhash: txHash } = resData;
   /* TODO: find out cause of empty msg */
+  /* TODO: handle multiple MsgSend msg */
   if (!msg || !msg.length || !msg[0]) return;
   const { type, value: payloadValue } = msg[0];
-  if (type === 'cosmos-sdk/MsgSend') {
-    const {
-      amount: [amount],
-      from_address: from,
-      to_address: to,
-    } = payloadValue;
+  if (type === 'cosmos-sdk/MsgSend' || type === 'cosmos-sdk/MsgMultiSend') {
+    let amounts;
+    let amount;
+    let from;
+    let to;
+    if (type === 'cosmos-sdk/MsgSend') {
+      ({
+        amount: [amount],
+        from_address: from,
+        to_address: to,
+      } = payloadValue);
+      amounts = [amount];
+    } else if (type === 'cosmos-sdk/MsgMultiSend') {
+      const {
+        inputs,
+        outputs,
+      } = payloadValue;
+      from = inputs.length > 1 ? inputs.map(i => i.address) : inputs[0].address;
+      to = outputs.length > 1 ? outputs.map(o => o.address) : outputs[0].address;
+      amounts = outputs.length > 1 ? outputs.map(o => o.coins[0]) : [outputs[0].coins[0]];
+      amount = amounts.reduce((acc, a) => acc.plus(a.amount), new BigNumber(0)).toFixed();
+    }
 
     const {
       fromId,
@@ -114,7 +132,7 @@ async function handlePostTxReq(reqData, resData, req) {
       toLocale,
       toRegisterTime,
       toSubscriptionURL,
-    } = await fetchPaymentUserInfo({ from, to, type: 'cosmos' });
+    } = await fetchPaymentUserInfo({ from, to });
 
     const txRecord = {
       txHash,
@@ -152,6 +170,8 @@ async function handlePostTxReq(reqData, resData, req) {
 
     await logCosmosTx(txRecord);
     const status = 'pending';
+    const likeAmount = amountToLIKE(amount);
+    const likeAmountSplit = amounts.map(a => amountToLIKE(a));
     if (toSubscriptionURL) {
       try {
         await axios.post(toSubscriptionURL, {
@@ -159,8 +179,8 @@ async function handlePostTxReq(reqData, resData, req) {
           status,
           to,
           txHash,
-          value: amountToLIKE(amount),
-          amount,
+          value: likeAmount,
+          amount: amounts.length > 1 ? amounts : amounts[0],
           userPayload,
         });
       } catch (err) {
@@ -184,8 +204,9 @@ async function handlePostTxReq(reqData, resData, req) {
       toReferrer,
       toLocale,
       toRegisterTime,
-      likeAmount: amountToLIKE(amount),
-      likeAmountUnitStr: amountToLIKE(amount).toString(),
+      likeAmount: new BigNumber(likeAmount).toNumber(),
+      likeAmountUnitStr: likeAmount,
+      likeAmountSplit,
       txHash,
       txStatus: status,
       sourceURL: httpReferrer,
