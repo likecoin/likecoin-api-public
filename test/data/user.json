@@ -10,6 +10,7 @@
                 "app": [
                     {
                         "id": "meta",
+                        "isEmailVerified": true,
                         "ts": 1487467660239
                     }
                 ],

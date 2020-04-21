@@ -312,6 +312,7 @@ export function filterOAuthClientInfo({
 }
 
 export function filterAppMeta({
+  isEmailVerified,
   ts,
   android,
   ios,
@@ -319,6 +320,7 @@ export function filterAppMeta({
   const isNew = !ts || (Date.now() - ts < ONE_DAY_IN_MS);
   return {
     isNew,
+    isEmailVerified,
     ts,
     android,
     ios,

@@ -27,6 +27,7 @@ test('app: get meta for old user', async (t) => {
 
   t.is(res.status, 200);
   t.is(res.data.isNew, false);
+  t.is(res.data.isEmailVerified, true);
   t.is(res.data.ts, 1487467660239);
 });
 
