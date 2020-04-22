@@ -115,7 +115,12 @@ async function handlePostTxReq(reqData, resData, req) {
       from = inputs.length > 1 ? inputs.map(i => i.address) : inputs[0].address;
       to = outputs.length > 1 ? outputs.map(o => o.address) : outputs[0].address;
       amounts = outputs.length > 1 ? outputs.map(o => o.coins[0]) : [outputs[0].coins[0]];
-      amount = amounts.reduce((acc, a) => acc.plus(a.amount), new BigNumber(0)).toFixed();
+      // TODO: filter denom?
+      if (!amounts.every(a => a.denom === amounts[0].denom)) return;
+      amount = {
+        denom: amounts[0].denom,
+        amount: amounts.reduce((acc, a) => acc.plus(a.amount), new BigNumber(0)).toFixed(),
+      };
     }
 
     const {
