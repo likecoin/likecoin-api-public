@@ -313,11 +313,12 @@ export function filterOAuthClientInfo({
 
 export function filterAppMeta({
   isEmailVerified,
+  referrer,
   ts,
   android,
   ios,
 }) {
-  const isNew = !ts || (Date.now() - ts < ONE_DAY_IN_MS);
+  const isNew = (!ts || (Date.now() - ts < ONE_DAY_IN_MS)) && !referrer;
   return {
     isNew,
     isEmailVerified,
