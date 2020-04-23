@@ -31,7 +31,7 @@ test('app: get meta for old user', async (t) => {
   t.is(res.data.ts, 1487467660239);
 });
 
-test('app: get meta for new user', async (t) => {
+test.serial('app: get meta for new user', async (t) => {
   const user = testingUser2;
   const token = jwtSign({ user });
   const res = await axiosist.get('/api/app/meta',
@@ -43,4 +43,47 @@ test('app: get meta for new user', async (t) => {
 
   t.is(res.status, 200);
   t.is(res.data.isNew, true);
+});
+
+test.serial('app: post referral for new user', async (t) => {
+  const user = testingUser2;
+  const token = jwtSign({ user });
+  const res = await axiosist.post('/api/app/meta/referral',
+    { referrer: testingUser1 },
+    {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+
+test.serial('app: get meta for updated new user', async (t) => {
+  const user = testingUser2;
+  const token = jwtSign({ user });
+  const res = await axiosist.get('/api/app/meta',
+    {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.isNew, false);
+});
+
+test.serial('app: post referral fail for old user', async (t) => {
+  const user = testingUser2;
+  const token = jwtSign({ user });
+  const res = await axiosist.post('/api/app/meta/referral',
+    { referrer: testingUser1 },
+    {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch(err => err.response);
+
+  t.is(res.status, 400);
 });
