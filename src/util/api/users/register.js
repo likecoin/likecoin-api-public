@@ -155,15 +155,17 @@ export async function handleUserRegistration({
     createObj.isEmailVerified = isEmailVerified;
     const {
       normalizedEmail,
+      isEmailInvalid,
       isEmailBlacklisted,
       isEmailDuplicated,
     } = await normalizeUserEmail(user, email);
     if (normalizedEmail) createObj.normalizedEmail = normalizedEmail;
+    if (isEmailInvalid) createObj.isEmailInvalid = isEmailInvalid;
     if (isEmailBlacklisted !== undefined) createObj.isEmailBlacklisted = isEmailBlacklisted;
     if (isEmailDuplicated !== undefined) createObj.isEmailDuplicated = isEmailDuplicated;
 
     // TODO: trigger verify email via authcore?
-    if (!isEmailVerified && !isEmailBlacklisted) {
+    if (!(isEmailVerified || isEmailBlacklisted || isEmailInvalid)) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
       createObj.verificationUUID = uuidv4();
