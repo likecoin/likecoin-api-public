@@ -4,6 +4,7 @@ import {
   AUTH_COOKIE_OPTION,
   KNOWN_EMAIL_HOSTS,
   KICKBOX_DISPOSIBLE_API,
+  W3C_EMAIL_REGEX,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -176,6 +177,7 @@ export async function normalizeUserEmail(user, email) {
       console.err(err);
     }
   }
+  const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
   /* we handle special char for all domain
     the processed string is only stored as normalizedEmail
     for anti spam/analysis purpose, not for actual sending */
@@ -189,6 +191,7 @@ export async function normalizeUserEmail(user, email) {
     isEmailDuplicated = await queryNormalizedEmailExists(user, normalizedEmail);
   }
   return {
+    isEmailInvalid,
     isEmailBlacklisted,
     isEmailDuplicated,
     normalizedEmail,
