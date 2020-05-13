@@ -138,6 +138,18 @@ export async function lazyUpdateAppMetaData(req, user) {
       referrer,
       locale,
       registerTime: timestamp,
+      agentType,
     });
   }
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'eventUserOpenApp',
+    user: username,
+    agentType,
+    email,
+    displayName,
+    avatar,
+    referrer,
+    locale,
+    registerTime: timestamp,
+  });
 }
