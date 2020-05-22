@@ -42,12 +42,18 @@ async function fetchUserIdsByCosmosWallet(wallet) {
 }
 
 export async function fetchPaymentUserInfo({ from, to }) {
-  const fromQuery = Array.isArray(from)
-    ? fetchUserIdsByCosmosWallet(from)
-    : fetchUserInfoByCosmosWallet(from);
-  const toQuery = Array.isArray(to)
-    ? fetchUserIdsByCosmosWallet(to)
-    : fetchUserInfoByCosmosWallet(to);
+  let fromQuery = Promise.resolve({});
+  if (from) {
+    fromQuery = Array.isArray(from)
+      ? fetchUserIdsByCosmosWallet(from)
+      : fetchUserInfoByCosmosWallet(from);
+  }
+  let toQuery = Promise.resolve({});
+  if (to) {
+    toQuery = Array.isArray(to)
+      ? fetchUserIdsByCosmosWallet(to)
+      : fetchUserInfoByCosmosWallet(to);
+  }
   const [{
     id: fromId,
     displayName: fromDisplayName,
