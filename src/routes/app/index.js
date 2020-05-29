@@ -8,9 +8,11 @@ import { jwtAuth } from '../../middleware/jwt';
 import {
   handleAddAppReferrer,
 } from '../../util/api/app';
-
+import notifications from './notifications';
 
 const router = Router();
+
+router.use('/notifications', notifications);
 
 router.get('/meta', jwtAuth('read'), async (req, res, next) => {
   try {
