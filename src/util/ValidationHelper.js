@@ -328,7 +328,7 @@ export function filterAppMeta({
   };
 }
 
-export function filterAppNotification({
+export function filterNotification({
   id,
   LIKE,
   from,
