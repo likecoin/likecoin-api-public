@@ -27,8 +27,8 @@ router.get('/list/:id', async (req, res, next) => {
         if (option) displaySocialMediaOption = option;
       }
 
-      const { isLinked, isPublic, isExternalLink } = d.data();
-      if ((isLinked || isExternalLink) && isPublic !== false) {
+      const { isPublic, isExternalLink } = d.data();
+      if (isPublic !== false) {
         replyObj[d.id] = filterSocialPlatformPublic({ ...d.data() });
         if (isExternalLink) replyObj[d.id].order = linkOrderMap[d.id];
       }
