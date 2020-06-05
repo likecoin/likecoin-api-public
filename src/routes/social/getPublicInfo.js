@@ -29,7 +29,9 @@ router.get('/list/:id', async (req, res, next) => {
 
       const { isPublic, isExternalLink } = d.data();
       if (isPublic !== false && d.id !== 'meta') {
-        const platformObj = filterSocialPlatformPublic({ ...d.data() });
+        const platformObj = JSON.parse(JSON.stringify(
+          filterSocialPlatformPublic({ ...d.data() }),
+        ));
         if (Object.keys(platformObj).length > 0) {
           replyObj[d.id] = platformObj;
           if (isExternalLink) replyObj[d.id].order = linkOrderMap[d.id];

@@ -51,6 +51,14 @@
                         "externalLinkOrder": [
                           "link0"
                         ]
+                    },
+                    {
+                        "id": "matters",
+                        "url": "https://matters.news"
+                    },
+                    {
+                        "id": "medium",
+                        "state": "0000"
                     }
                 ]
             }
