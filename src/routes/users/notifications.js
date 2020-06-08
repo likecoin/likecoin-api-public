@@ -5,7 +5,7 @@ import { jwtAuth } from '../../middleware/jwt';
 
 const router = Router();
 
-router.get('/', jwtAuth('read'), async (req, res, next) => {
+router.get('/notifications', jwtAuth('read'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { limit = 64 } = req.query;
@@ -16,7 +16,7 @@ router.get('/', jwtAuth('read'), async (req, res, next) => {
       .limit(limit)
       .get();
     const list = [];
-    query.docs().forEach((d) => {
+    query.docs.forEach((d) => {
       list.push(filterNotification({ id: d.id, ...d.data() }));
     });
     res.json({ list });
@@ -25,7 +25,7 @@ router.get('/', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
-router.post('/:id/read', jwtAuth('write'), async (req, res, next) => {
+router.post('/notifications/:id/read', jwtAuth('write'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { id } = req.params;
@@ -40,7 +40,7 @@ router.post('/:id/read', jwtAuth('write'), async (req, res, next) => {
   }
 });
 
-router.delete('/:id', jwtAuth('write'), async (req, res, next) => {
+router.delete('/notifications/:id', jwtAuth('write'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { id } = req.params;
