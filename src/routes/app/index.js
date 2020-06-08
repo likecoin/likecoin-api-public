@@ -9,7 +9,6 @@ import {
   handleAddAppReferrer,
 } from '../../util/api/app';
 
-
 const router = Router();
 
 router.get('/meta', jwtAuth('read'), async (req, res, next) => {

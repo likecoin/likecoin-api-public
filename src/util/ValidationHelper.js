@@ -327,3 +327,27 @@ export function filterAppMeta({
     ios,
   };
 }
+
+export function filterNotification({
+  id,
+  LIKE,
+  from,
+  isRead,
+  sourceURL,
+  to,
+  ts,
+  txHash,
+  type,
+}) {
+  return {
+    id,
+    LIKE,
+    from,
+    isRead,
+    sourceURL,
+    to,
+    ts,
+    txHash,
+    type,
+  };
+}
