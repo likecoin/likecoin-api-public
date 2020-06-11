@@ -351,3 +351,15 @@ export function filterNotification({
     type,
   };
 }
+
+export function filterBookmarks({
+  id,
+  url,
+  ts,
+}) {
+  return {
+    id,
+    url,
+    ts,
+  };
+}
