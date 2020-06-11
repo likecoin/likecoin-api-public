@@ -5,7 +5,7 @@ import { jwtAuth } from '../../middleware/jwt';
 
 const router = Router();
 
-router.get('/notifications', jwtAuth('read'), async (req, res, next) => {
+router.get('/notifications', jwtAuth('read:notifications'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { limit = 64 } = req.query;
@@ -25,7 +25,7 @@ router.get('/notifications', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
-router.post('/notifications/:id/read', jwtAuth('write'), async (req, res, next) => {
+router.post('/notifications/:id/read', jwtAuth('write:notifications'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { id } = req.params;
@@ -40,7 +40,7 @@ router.post('/notifications/:id/read', jwtAuth('write'), async (req, res, next) 
   }
 });
 
-router.delete('/notifications/:id', jwtAuth('write'), async (req, res, next) => {
+router.delete('/notifications/:id', jwtAuth('write:notifications'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { id } = req.params;
