@@ -363,3 +363,13 @@ export function filterBookmarks({
     ts,
   };
 }
+
+export function filterFollow({
+  id,
+  ts,
+}) {
+  return {
+    id,
+    ts,
+  };
+}
