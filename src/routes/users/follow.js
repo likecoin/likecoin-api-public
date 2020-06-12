@@ -8,10 +8,19 @@ const router = Router();
 router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const { limit = 64 } = req.query;
-    const query = await dbRef
+    const {
+      limit = 64,
+      filter,
+    } = req.query;
+    let queryRef = dbRef
       .doc(user)
-      .collection('follow')
+      .collection('follow');
+    if (filter === 'followed') {
+      queryRef = queryRef.where('isFollowed', '==', true);
+    } else if (filter === 'unfollowed') {
+      queryRef = queryRef.where('isFollowed', '==', false);
+    }
+    const query = await queryRef
       .orderBy('ts', 'desc')
       .limit(limit)
       .get();
@@ -37,9 +46,10 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
       .doc(user)
       .collection('follow')
       .doc(id)
-      .create({
+      .set({
+        isFollowed: true,
         ts: Date.now(),
-      });
+      }, { merge: true });
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -54,7 +64,10 @@ router.delete('/follow/users/:id', jwtAuth('write:follow'), async (req, res, nex
       .doc(user)
       .collection('follow')
       .doc(id)
-      .delete();
+      .set({
+        isFollowed: false,
+        ts: Date.now(),
+      }, { merge: true });
     res.sendStatus(200);
   } catch (err) {
     next(err);

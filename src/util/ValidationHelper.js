@@ -366,10 +366,12 @@ export function filterBookmarks({
 
 export function filterFollow({
   id,
+  isFollowed,
   ts,
 }) {
   return {
     id,
+    isFollowed,
     ts,
   };
 }
