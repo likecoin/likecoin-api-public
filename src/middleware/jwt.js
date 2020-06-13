@@ -44,24 +44,41 @@ async function fetchProviderClientInfo(clientId, req) {
   return secret;
 }
 
-function checkPermissions(inputScopes, target) {
-  let scopes = inputScopes;
-  if (!scopes) return false;
-  if (!Array.isArray(scopes)) scopes = scopes.split(' ');
-  let targets = target.split(':');
-  if (targets.length > 1) {
-    const permission = targets[0];
-    const subScopes = targets[1].split('.');
-    let lastScope = `${permission}:${subScopes[0]}`;
-    const list = [permission, lastScope];
-    for (let i = 1; i < subScopes.length; i += 1) {
-      const currentScope = `${lastScope}.${subScopes[i]}`;
-      list.push(currentScope);
-      lastScope = currentScope;
-    }
-    targets = list;
+function expandScope(scope) {
+  const parsed = scope.split(':');
+  if (parsed.length <= 1) return [scope];
+  const [permission, scopesString] = parsed;
+  const scopes = scopesString.split('.');
+  // spread scope into list of scopes from root to leave
+  // e.g. read:like.info => read:like, read:like.info
+  const mainScope = scopes[0];
+  let lastScope = `${permission}:${mainScope}`;
+  const list = [permission, lastScope];
+  for (let i = 1; i < scopes.length; i += 1) {
+    const currentScope = `${lastScope}.${scopes[i]}`;
+    list.push(currentScope);
+    lastScope = currentScope;
   }
-  if (scopes.find(scope => targets.includes(scope))) return true;
+  return list;
+}
+
+function checkPermissions(inputScopes, targetScope) {
+  let currentScopes = inputScopes;
+  if (!currentScopes) return false;
+  if (!Array.isArray(currentScopes)) currentScopes = currentScopes.split(' ');
+  const expandedTargetScope = expandScope(targetScope);
+  const expandedCurrentScopes = [];
+  currentScopes.forEach((s) => {
+    if (!s.includes(':') && !['read', 'write', 'profile', 'email'].includes(s)) {
+      expandedCurrentScopes.push(`read:${s}`);
+      expandedCurrentScopes.push(`write:${s}`);
+    } else {
+      expandedCurrentScopes.push(s);
+    }
+  });
+  if (expandedCurrentScopes.find(scope => expandedTargetScope.includes(scope))) {
+    return true;
+  }
   return false;
 }
 
