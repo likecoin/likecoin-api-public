@@ -19,6 +19,7 @@ export async function handleAppReferrer(req, user, appReferrer) {
     locale,
     timestamp,
   } = user;
+  if (username === appReferrer) return;
   const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');
   const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const [

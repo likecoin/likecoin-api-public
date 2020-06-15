@@ -27,6 +27,7 @@ router.post('/meta/referral', jwtAuth('write'), async (req, res, next) => {
     const { referrer } = req.body;
 
     const userAppMetaRef = dbRef.doc(user).collection('app').doc('meta');
+    if (user === referrer) throw new ValidationError('REFERRER_SAME_AS_USER');
     const [doc, referrerDoc] = await Promise.all([
       userAppMetaRef.get(),
       dbRef.doc(referrer).get(),
