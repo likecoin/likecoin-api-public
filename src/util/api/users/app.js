@@ -44,6 +44,7 @@ export async function handleAppReferrer(req, user, appReferrer) {
     lastAccessedTs: Date.now(),
     referrer: appReferrer,
     isEmailVerified,
+    ts: Date.now(),
   }, { merge: true });
   batch.create(referrerAppRefCol.doc(username), {
     isEmailVerified,
