@@ -27,7 +27,7 @@ export async function handleAppReferrer(req, user, appReferrer) {
     appReferrerDoc,
   ] = await Promise.all([
     userAppMetaRef.get(),
-    dbRef.doc(appReferrer).get(),
+    referrerAppRefCol.doc(appReferrer).get(),
   ]);
   if (!appReferrerDoc.exists) return;
   if (userAppMetaDoc.exists && userAppMetaDoc.data().ts) {
