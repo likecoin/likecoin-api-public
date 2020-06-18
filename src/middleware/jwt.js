@@ -116,7 +116,7 @@ export const jwtAuth = (
       || (permission && !req.user.permissions && !req.user.scope)
       || ((permission && !checkPermissions(req.user.permissions, permission))
         && (permission && !checkPermissions(req.user.scope, permission)))) {
-      res.status(401).send('INVALID_GRANT');
+      res.status(403).send('INSUFFICIENT_PERMISSION');
       return;
     }
     next(e);
@@ -154,6 +154,10 @@ export const jwtOptionalAuth = (
       || (permission && !req.user.permissions && !req.user.scope)
       || ((permission && !checkPermissions(req.user.permissions, permission))
         && (permission && !checkPermissions(req.user.scope, permission)))) {
+      if (req.auth) {
+        res.status(403).send('INSUFFICIENT_PERMISSION');
+        return;
+      }
       req.user = undefined;
     }
     next(e);
