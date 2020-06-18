@@ -2,6 +2,7 @@ import { setNoCacheHeader } from './noCache';
 import {
   getProviderJWTSecret,
   publicKey as verifySecret,
+  verifyAlgorithm,
   defaultAudience,
   getToken,
   issuer,
@@ -44,7 +45,7 @@ async function fetchProviderClientInfo(clientId, req) {
   return secret;
 }
 
-function expandScope(scope) {
+export function expandScope(scope) {
   const parsed = scope.split(':');
   if (parsed.length <= 1) return [scope];
   const [permission, scopesString] = parsed;
@@ -84,22 +85,29 @@ function checkPermissions(inputScopes, targetScope) {
 
 export const jwtAuth = (
   permission = 'read',
-  secret = verifySecret,
-  { audience = defaultAudience } = {},
+  inputSecret = verifySecret,
+  {
+    audience = defaultAudience,
+    algorithm: inputAlgorithm = verifyAlgorithm,
+  } = {},
 ) => async (req, res, next) => {
   setNoCacheHeader(res);
+  let secret = inputSecret;
+  let algorithm = inputAlgorithm;
   try {
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
       const clientSecret = await fetchProviderClientInfo(decoded.azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
+      algorithm = 'HS256';
     }
   } catch (err) {
     // no op
   }
   expressjwt({
     secret,
+    algorithm,
     getToken,
     audience,
     issuer,
@@ -109,6 +117,7 @@ export const jwtAuth = (
         res.status(401).send('TOKEN_EXPIRED');
         return;
       }
+      console.error(e);
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
@@ -125,16 +134,22 @@ export const jwtAuth = (
 
 export const jwtOptionalAuth = (
   permission = 'read',
-  secret = verifySecret,
-  { audience = defaultAudience } = {},
+  inputSecret = verifySecret,
+  {
+    audience = defaultAudience,
+    algorithm: inputAlgorithm = verifyAlgorithm,
+  } = {},
 ) => async (req, res, next) => {
   setNoCacheHeader(res);
+  let secret = inputSecret;
+  let algorithm = inputAlgorithm;
   try {
     const token = getToken(req);
     const decoded = jwt.decode(token);
     if (decoded.azp) {
       const clientSecret = await fetchProviderClientInfo(decoded.azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
+      algorithm = 'HS256';
     }
   } catch (err) {
     // no op
@@ -142,11 +157,22 @@ export const jwtOptionalAuth = (
   expressjwt({
     credentialsRequired: false,
     secret,
+    algorithm,
     getToken,
     audience,
     issuer,
   })(req, res, (e) => {
     if (e instanceof expressjwt.UnauthorizedError) {
+      if (req.auth) {
+        // throw error if token is azp token
+        if (e.inner && e.inner.name === 'TokenExpiredError') {
+          res.status(401).send('TOKEN_EXPIRED');
+          return;
+        }
+        console.error(e);
+        res.status(401).send('LOGIN_NEEDED');
+        return;
+      }
       next();
       return;
     }

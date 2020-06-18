@@ -12,7 +12,8 @@ const config = require('../../config/config');
 export const defaultAudience = EXTERNAL_HOSTNAME;
 export const issuer = EXTERNAL_HOSTNAME;
 
-let algorithm = 'RS256';
+let signAlgo = 'RS256';
+let verifyAlgo = 'RS256';
 let signSecret;
 let verifySecret;
 let authCoreSignSecret;
@@ -62,12 +63,17 @@ if (!signSecret || !verifySecret) {
   const secret = TEST_MODE ? 'likecoin' : crypto.randomBytes(64).toString('hex').slice(0, 64);
   if (!signSecret) {
     signSecret = secret;
-    algorithm = 'HS256';
+    signAlgo = 'HS256';
   }
-  verifySecret = verifySecret || secret;
+  if (!verifySecret) {
+    verifySecret = secret;
+    verifyAlgo = 'HS256';
+  }
 }
 
 export const publicKey = verifySecret;
+export const signAlgorithm = signAlgo;
+export const verifyAlgorithm = verifyAlgo;
 
 export function getProviderJWTSecret(clientSecret) {
   const hash = crypto.createHmac('sha256', PROVIDER_JWT_COMMON_SECRET)
@@ -120,7 +126,7 @@ const internalSign = (
 export const jwtSign = (
   payload,
   { audience = defaultAudience, expiresIn = '30d' } = {},
-) => internalSign(payload, signSecret, { algorithm, audience, expiresIn });
+) => internalSign(payload, signSecret, { algorithm: signAlgorithm, audience, expiresIn });
 
 export const jwtSignForAZP = (
   payload,
