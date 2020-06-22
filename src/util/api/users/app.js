@@ -6,7 +6,7 @@ import {
   PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import publisher from '../../gcloudPub';
-import { getUserAgentPlatform } from './index';
+import { getUserAgentPlatform, checkReferrerExists } from './index';
 
 export async function handleAppReferrer(req, user, appReferrer) {
   const {
@@ -24,12 +24,12 @@ export async function handleAppReferrer(req, user, appReferrer) {
   const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const [
     userAppMetaDoc,
-    appReferrerDoc,
+    appReferrerExists,
   ] = await Promise.all([
     userAppMetaRef.get(),
-    dbRef.doc(appReferrer).get(),
+    checkReferrerExists(appReferrer).catch(() => false),
   ]);
-  if (!appReferrerDoc.exists) return;
+  if (!appReferrerExists) return;
   if (userAppMetaDoc.exists && userAppMetaDoc.data().ts) {
     // user already have app first open log return;
     return;
