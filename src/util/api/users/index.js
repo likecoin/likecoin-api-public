@@ -140,11 +140,11 @@ export function userByEmailQuery(user, email) {
 
 export function queryNormalizedEmailExists(user, email) {
   return dbRef.where('normalizedEmail', '==', email).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
+    const isExists = snapshot.some((doc) => {
       const docUser = doc.id;
       return (user !== docUser);
     });
-    return false;
+    return isExists;
   });
 }
 
