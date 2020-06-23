@@ -9,6 +9,7 @@ import {
 import {
   userCollection as dbRef,
   userAuthCollection as authDbRef,
+  configCollection,
   FieldValue,
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
@@ -175,6 +176,16 @@ export async function normalizeUserEmail(user, email) {
       }
     } catch (err) {
       console.err(err);
+    }
+    const blacklistDoc = await configCollection.doc('emailBlacklist').get();
+    const { list: customBlackList } = blacklistDoc.data() || {};
+    if (customBlackList) {
+      customBlackList.forEach((keyword) => {
+        if (domain.includes(keyword)) {
+          isEmailBlacklisted = true;
+          emailDomainCache.set(domain, true);
+        }
+      });
     }
   }
   const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
