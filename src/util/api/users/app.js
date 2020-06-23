@@ -15,7 +15,10 @@ export async function handleAppReferrer(req, user, appReferrer) {
     referrer,
     displayName,
     email,
+    isBlackListed = false,
     isEmailVerified = false,
+    isEmailBlackListed = false,
+    isEmailDuplicated = false,
     locale,
     timestamp,
   } = user;
@@ -43,11 +46,17 @@ export async function handleAppReferrer(req, user, appReferrer) {
     [agentType]: true,
     lastAccessedTs: Date.now(),
     referrer: appReferrer,
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     ts: Date.now(),
   }, { merge: true });
   batch.create(referrerAppRefCol.doc(username), {
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     ts: Date.now(),
   });
   await batch.commit();
@@ -56,7 +65,10 @@ export async function handleAppReferrer(req, user, appReferrer) {
     type: 'referral',
     user: username,
     email,
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     displayName,
     avatar,
     appReferrer,
@@ -73,7 +85,10 @@ export async function handleUpdateAppMetaData(req, user) {
     referrer,
     displayName,
     email,
+    isBlackListed = false,
     isEmailVerified = false,
+    isEmailBlackListed = false,
+    isEmailDuplicated = false,
     locale,
     timestamp,
   } = user;
@@ -86,7 +101,10 @@ export async function handleUpdateAppMetaData(req, user) {
   }
   await appMetaDocRef.create({
     [agentType]: true,
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     lastAccessedTs: Date.now(),
     ts: Date.now(),
   });
@@ -95,7 +113,10 @@ export async function handleUpdateAppMetaData(req, user) {
     type: 'direct',
     user: username,
     email,
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     displayName,
     avatar,
     referrer,
@@ -111,7 +132,10 @@ export async function lazyUpdateAppMetaData(req, user) {
     referrer,
     displayName,
     email,
-    isEmailVerified,
+    isBlackListed = false,
+    isEmailVerified = false,
+    isEmailBlackListed = false,
+    isEmailDuplicated = false,
     locale,
     timestamp,
   } = user;
@@ -120,13 +144,19 @@ export async function lazyUpdateAppMetaData(req, user) {
   try {
     await appMetaDocRef.update({
       [agentType]: true,
+      isBlackListed,
       isEmailVerified,
+      isEmailBlackListed,
+      isEmailDuplicated,
       lastAccessedTs: Date.now(),
     });
   } catch (err) {
     await appMetaDocRef.create({
       [agentType]: true,
+      isBlackListed,
       isEmailVerified,
+      isEmailBlackListed,
+      isEmailDuplicated,
       lastAccessedTs: Date.now(),
       ts: Date.now(),
     });

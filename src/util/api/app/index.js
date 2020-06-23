@@ -16,16 +16,26 @@ export async function handleAddAppReferrer(req, username, appReferrer) {
     referrer,
     displayName,
     email,
+    isBlackListed = false,
     isEmailVerified = false,
+    isEmailBlackListed = false,
+    isEmailDuplicated = false,
     locale,
     timestamp,
   } = userDoc.data();
   const batch = db.batch();
   batch.set(userAppMetaRef, {
     referrer: appReferrer,
+    isBlackListed,
+    isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
   }, { merge: true });
   batch.create(referrerAppRefCol.doc(username), {
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     ts: Date.now(),
   });
   await batch.commit();
@@ -33,7 +43,10 @@ export async function handleAddAppReferrer(req, username, appReferrer) {
     logType: 'eventAddAppReferrer',
     user: username,
     email,
+    isBlackListed,
     isEmailVerified,
+    isEmailBlackListed,
+    isEmailDuplicated,
     displayName,
     avatar,
     appReferrer,
