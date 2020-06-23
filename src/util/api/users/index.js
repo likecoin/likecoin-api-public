@@ -185,7 +185,7 @@ export async function normalizeUserEmail(user, email) {
   emailUser = emailUser.split('.').join('');
   // handlt plus for all domain
   [emailUser] = emailUser.split('+');
-  normalizedEmail = `${emailUser}@${domain}`;
+  normalizedEmail = `${emailUser.toLowerCase()}@${domain.toLowerCase()}`;
   let isEmailDuplicated;
   if (user) {
     isEmailDuplicated = await queryNormalizedEmailExists(user, normalizedEmail);
