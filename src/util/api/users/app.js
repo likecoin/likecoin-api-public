@@ -53,13 +53,19 @@ export async function handleAppReferrer(req, user, appReferrer) {
   // TODO: set email verification payload
 
   const batch = db.batch();
-  batch.set(userAppMetaRef, {
+  const metaPayload = {
     [agentType]: true,
     lastAccessedTs: Date.now(),
     referrer: appReferrer,
     ...expandEmailFlags(user),
     ts: Date.now(),
-  }, { merge: true });
+  };
+  const deviceId = req.headers['x-device-id'];
+  if (deviceId) {
+    metaPayload[`${agentType}DeviceId`] = deviceId;
+    metaPayload.deviceId = deviceId;
+  }
+  batch.set(userAppMetaRef, metaPayload, { merge: true });
   batch.create(referrerAppRefCol.doc(username), {
     ...expandEmailFlags(user),
     ts: Date.now(),
@@ -97,12 +103,18 @@ export async function handleUpdateAppMetaData(req, user) {
     // user already have app first open log return;
     return;
   }
-  await appMetaDocRef.create({
+  const payload = {
     [agentType]: true,
     ...expandEmailFlags(user),
     lastAccessedTs: Date.now(),
     ts: Date.now(),
-  });
+  };
+  const deviceId = req.headers['x-device-id'];
+  if (deviceId) {
+    payload[`${agentType}DeviceId`] = deviceId;
+    payload.deviceId = deviceId;
+  }
+  await appMetaDocRef.create();
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'eventUserFirstOpenApp',
     type: 'direct',
@@ -128,20 +140,22 @@ export async function lazyUpdateAppMetaData(req, user) {
     timestamp,
   } = user;
   const agentType = getUserAgentPlatform(req);
+  const updatePayload = {
+    [agentType]: true,
+    ...expandEmailFlags(user),
+    lastAccessedTs: Date.now(),
+  };
+  const deviceId = req.headers['x-device-id'];
+  if (deviceId) {
+    updatePayload[`${agentType}DeviceId`] = deviceId;
+    updatePayload.deviceId = deviceId;
+  }
   const appMetaDocRef = dbRef.doc(username).collection('app').doc('meta');
   try {
-    await appMetaDocRef.update({
-      [agentType]: true,
-      ...expandEmailFlags(user),
-      lastAccessedTs: Date.now(),
-    });
+    await appMetaDocRef.update(updatePayload);
   } catch (err) {
-    await appMetaDocRef.create({
-      [agentType]: true,
-      ...expandEmailFlags(user),
-      lastAccessedTs: Date.now(),
-      ts: Date.now(),
-    });
+    updatePayload.ts = Date.now();
+    await appMetaDocRef.create(updatePayload);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventUserFirstOpenApp',
       type: 'legacy',
