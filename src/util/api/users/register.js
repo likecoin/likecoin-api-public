@@ -19,6 +19,7 @@ import {
   checkUserInfoUniqueness,
 } from '.';
 import { tryToLinkSocialPlatform } from '../social';
+import { addDefaultFollowers } from './follow';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid } from '../../ValidationHelper';
 import {
@@ -256,6 +257,8 @@ export async function handleUserRegistration({
 
   // TODO: fetch social info in authcore after confirm
   const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
+
+  addDefaultFollowers(user);
 
   return {
     userPayload: {

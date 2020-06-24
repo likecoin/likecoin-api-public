@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { userCollection as dbRef } from '../../util/firebase';
 import { filterFollow } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
+import { addFollowUser } from '../../util/api/users/follow';
 
 const router = Router();
 
@@ -42,14 +43,7 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
     if (!targetUserDoc.exists) {
       res.status(404).send('USER_NOT_FOUND');
     }
-    await dbRef
-      .doc(user)
-      .collection('follow')
-      .doc(id)
-      .set({
-        isFollowed: true,
-        ts: Date.now(),
-      }, { merge: true });
+    await addFollowUser(user, id);
     res.sendStatus(200);
   } catch (err) {
     next(err);
