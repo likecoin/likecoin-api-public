@@ -5,37 +5,31 @@ import {
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../../constant';
+import {
+  expandEmailFlags,
+} from '../users/app';
 import publisher from '../../gcloudPub';
 
 export async function handleAddAppReferrer(req, username, appReferrer) {
   const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');
   const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const userDoc = await dbRef.doc(username).get();
+  const user = userDoc.data();
   const {
     avatar,
     referrer,
     displayName,
     email,
-    isBlackListed = false,
-    isEmailVerified = false,
-    isEmailBlackListed = false,
-    isEmailDuplicated = false,
     locale,
     timestamp,
-  } = userDoc.data();
+  } = user;
   const batch = db.batch();
   batch.set(userAppMetaRef, {
     referrer: appReferrer,
-    isBlackListed,
-    isEmailVerified,
-    isEmailBlackListed,
-    isEmailDuplicated,
+    ...expandEmailFlags(user),
   }, { merge: true });
   batch.create(referrerAppRefCol.doc(username), {
-    isBlackListed,
-    isEmailVerified,
-    isEmailBlackListed,
-    isEmailDuplicated,
+    ...expandEmailFlags(user),
     ts: Date.now(),
   });
   await batch.commit();
@@ -43,10 +37,7 @@ export async function handleAddAppReferrer(req, username, appReferrer) {
     logType: 'eventAddAppReferrer',
     user: username,
     email,
-    isBlackListed,
-    isEmailVerified,
-    isEmailBlackListed,
-    isEmailDuplicated,
+    ...expandEmailFlags(user),
     displayName,
     avatar,
     appReferrer,
