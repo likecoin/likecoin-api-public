@@ -362,10 +362,16 @@ router.post('/login', async (req, res, next) => {
     }
 
     if (user) {
+      const doc = await dbRef.doc(user).get();
+      if (doc.exists) {
+        const {
+          isBlackListed,
+        } = doc.data();
+        if (isBlackListed) throw new ValidationError('INVALID_USER');
+      }
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
 
-      const doc = await dbRef.doc(user).get();
       if (doc.exists) {
         const {
           email,
