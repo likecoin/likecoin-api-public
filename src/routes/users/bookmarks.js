@@ -5,7 +5,7 @@ import { jwtAuth } from '../../middleware/jwt';
 import { addUrlToMetadataCrawler } from '../../util/api/users/bookmarks';
 
 const uuidv4 = require('uuid/v4');
-const parse = require('url-parse');
+const urlParse = require('url-parse');
 
 const router = Router();
 
@@ -36,7 +36,7 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
       return;
     }
     try {
-      parse(url);
+      urlParse(url);
     } catch (err) {
       res.status(400).send('INVALID_URL');
       return;
@@ -48,7 +48,7 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
       .limit(1)
       .get();
     if (query.docs.length) {
-      res.status(400).send('INVALID_URL');
+      res.status(409).send('BOOKMARK_ALREADY_EXISTS');
       return;
     }
     const bookmarkID = uuidv4();
@@ -80,7 +80,7 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
     }
     if (url) {
       try {
-        parse(url);
+        urlParse(url);
       } catch (err) {
         res.status(400).send('INVALID_URL');
         return;
@@ -95,7 +95,7 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
         .limit(1)
         .get();
       if (!query.docs || !query.docs.length) {
-        res.status(404).send('URL_NOT_FOUND');
+        res.status(404).send('BOOKMARK_NOT_FOUND');
         return;
       }
       targetRef = query.docs[0].ref;
@@ -106,7 +106,7 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
         .doc(bookmarkID);
       const bookmarkDoc = await bookmarkRef.get();
       if (!bookmarkDoc.exists) {
-        res.status(404).send('URL_NOT_FOUND');
+        res.status(404).send('BOOKMARK_NOT_FOUND');
         return;
       }
       targetRef = bookmarkRef;
