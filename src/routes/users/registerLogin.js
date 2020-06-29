@@ -104,6 +104,8 @@ router.post(
             sub: authCoreUserId,
             email: authCoreEmail,
             email_verified: isAuthCoreEmailVerified,
+            phone_number: authCorePhone,
+            phone_number_verified: isAuthCorePhoneVerified,
           } = authCoreUser;
           payload = req.body;
           payload.authCoreUserId = authCoreUserId;
@@ -115,6 +117,10 @@ router.post(
           payload.displayName = user;
           payload.email = email;
           payload.isEmailVerified = isAuthCoreEmailVerified;
+          if (authCorePhone) {
+            payload.phone = authCorePhone;
+            payload.isPhoneVerified = isAuthCorePhoneVerified;
+          }
           platformUserId = authCoreUserId;
           break;
         }
@@ -276,11 +282,15 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       email,
       displayName,
       isEmailVerified,
+      phone,
+      isPhoneVerified,
     } = await getAuthCoreUser(authCoreAccessToken);
     const updateObj = {
       email,
       displayName,
       isEmailVerified,
+      phone,
+      isPhoneVerified,
     };
     if (email) {
       const {

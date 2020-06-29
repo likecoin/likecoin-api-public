@@ -37,6 +37,8 @@ router.post('/authcore', async (req, res, next) => {
           display_name: displayName,
           primary_email: email,
           primary_email_verified: isEmailVerified = false,
+          primary_phone: phone,
+          primary_phone_verified: isPhoneVerified = false,
         } = data.user;
         const query = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get();
         const [user] = query.docs;
@@ -45,6 +47,8 @@ router.post('/authcore', async (req, res, next) => {
             email,
             displayName,
             isEmailVerified,
+            phone,
+            isPhoneVerified,
           });
         } else {
           res.status(404).send('USER_NOT_FOUND');
@@ -57,6 +61,7 @@ router.post('/authcore', async (req, res, next) => {
           type: 'authcore',
           user: user.id,
           email,
+          phone,
           displayName,
         });
       } else {

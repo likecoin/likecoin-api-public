@@ -25,6 +25,8 @@ export async function getAuthCoreUser(accessToken) {
     display_name: displayName,
     primary_email: email,
     primary_email_verified: emailVerifiedTs,
+    primary_phone: phone,
+    primary_phone_verified: phoneVerifiedTs,
   } = data;
   let isEmailVerified = false;
   if (typeof emailVerifiedTs === 'string') {
@@ -39,6 +41,9 @@ export async function getAuthCoreUser(accessToken) {
     email,
     emailVerifiedTs,
     isEmailVerified,
+    phone,
+    phoneVerifiedTs,
+    isPhoneVerified: !!phoneVerifiedTs,
   };
 }
 

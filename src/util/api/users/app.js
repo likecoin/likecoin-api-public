@@ -15,12 +15,14 @@ export function expandEmailFlags(user) {
     isEmailVerified = false,
     isEmailBlackListed = false,
     isEmailDuplicated = false,
+    isPhoneVerified = false,
   } = user;
   return {
     isBlackListed,
     isEmailVerified,
     isEmailBlackListed,
     isEmailDuplicated,
+    isPhoneVerified,
   };
 }
 
