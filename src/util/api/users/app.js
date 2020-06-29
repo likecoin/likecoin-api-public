@@ -8,6 +8,8 @@ import {
 import publisher from '../../gcloudPub';
 import { getUserAgentPlatform } from './index';
 import { addFollowUser } from './follow';
+import { getAuthCoreUserById } from '../../authcore';
+import { authCoreJwtSignToken } from '../../jwt';
 
 export function expandEmailFlags(user) {
   const {
@@ -187,4 +189,22 @@ export async function lazyUpdateAppMetaData(req, user) {
     locale,
     registerTime: timestamp,
   });
+}
+
+export async function checkPhoneVerification(username) {
+  const userDoc = await dbRef.doc(username).get();
+  const { authCoreUserId } = userDoc.data();
+  if (!authCoreUserId) return;
+  const authCoreToken = await authCoreJwtSignToken();
+  const user = await getAuthCoreUserById(authCoreUserId, authCoreToken);
+  const {
+    isPhoneVerified,
+    phone,
+  } = user;
+  if (isPhoneVerified) {
+    await dbRef.doc(username).update({
+      phone,
+      isPhoneVerified,
+    });
+  }
 }

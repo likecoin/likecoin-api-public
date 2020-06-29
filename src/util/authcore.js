@@ -12,13 +12,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-export async function getAuthCoreUser(accessToken) {
-  const { data } = await api.get('/auth/users/current', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+function parseAuthCoreUser(user) {
   const {
     id: authcoreUserId,
     username: suggestedUserId,
@@ -27,7 +21,7 @@ export async function getAuthCoreUser(accessToken) {
     primary_email_verified: emailVerifiedTs,
     primary_phone: phone,
     primary_phone_verified: phoneVerifiedTs,
-  } = data;
+  } = user;
   let isEmailVerified = false;
   if (typeof emailVerifiedTs === 'string') {
     isEmailVerified = emailVerifiedTs && (new Date(emailVerifiedTs)).getTime() > 0;
@@ -47,6 +41,16 @@ export async function getAuthCoreUser(accessToken) {
   };
 }
 
+export async function getAuthCoreUser(accessToken) {
+  const { data } = await api.get('/auth/users/current', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+  return parseAuthCoreUser(data);
+}
+
 export async function updateAuthCoreUser(payload, accessToken) {
   const {
     user: userName,
@@ -61,6 +65,16 @@ export async function updateAuthCoreUser(payload, accessToken) {
       Authorization: `Bearer ${accessToken}`,
     },
   });
+}
+
+export async function getAuthCoreUserById(authCoreUserId, accessToken) {
+  const data = await api.get(`/management/users/${authCoreUserId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+  return parseAuthCoreUser(data);
 }
 
 export async function updateAuthCoreUserById(authCoreUserId, payload, accessToken) {
