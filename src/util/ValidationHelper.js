@@ -351,3 +351,27 @@ export function filterNotification({
     type,
   };
 }
+
+export function filterBookmarks({
+  id,
+  url,
+  ts,
+}) {
+  return {
+    id,
+    url,
+    ts,
+  };
+}
+
+export function filterFollow({
+  id,
+  isFollowed,
+  ts,
+}) {
+  return {
+    id,
+    isFollowed,
+    ts,
+  };
+}

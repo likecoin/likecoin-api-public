@@ -7,6 +7,7 @@ import {
 } from '../../../constant';
 import publisher from '../../gcloudPub';
 import { getUserAgentPlatform } from './index';
+import { addFollowUser } from './follow';
 
 export function expandEmailFlags(user) {
   const {
@@ -70,7 +71,10 @@ export async function handleAppReferrer(req, user, appReferrer) {
     ...expandEmailFlags(user),
     ts: Date.now(),
   });
-  await batch.commit();
+  await Promise.all([
+    batch.commit(),
+    addFollowUser(username, appReferrer),
+  ]);
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'eventUserFirstOpenApp',
     type: 'referral',

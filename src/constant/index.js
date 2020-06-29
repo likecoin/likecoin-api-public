@@ -76,6 +76,13 @@ export const SUPPORTED_AVATAR_TYPE = new Set([
 
 export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.jpg';
 
+export const DEFAULT_FOLLOW_IDS = [
+  'foundation',
+  'hkcitizennews',
+  'inmediahknet',
+  'standnews',
+];
+
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 7 * ONE_DAY_IN_MS;

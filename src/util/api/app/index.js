@@ -8,6 +8,7 @@ import {
 import {
   expandEmailFlags,
 } from '../users/app';
+import { addFollowUser } from '../users/follow';
 import publisher from '../../gcloudPub';
 
 export async function handleAddAppReferrer(req, username, appReferrer) {
@@ -32,7 +33,10 @@ export async function handleAddAppReferrer(req, username, appReferrer) {
     ...expandEmailFlags(user),
     ts: Date.now(),
   });
-  await batch.commit();
+  await Promise.all([
+    batch.commit(),
+    addFollowUser(username, appReferrer),
+  ]);
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'eventAddAppReferrer',
     user: username,
