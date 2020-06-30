@@ -67,10 +67,11 @@ export async function handleAppReferrer(req, user, appReferrer) {
     metaPayload.deviceId = deviceId;
   }
   batch.set(userAppMetaRef, metaPayload, { merge: true });
-  batch.create(referrerAppRefCol.doc(username), {
+  const referralAppRefData = {
     ...expandEmailFlags(user),
     ts: Date.now(),
-  });
+  };
+  batch.create(referrerAppRefCol.doc(username), referralAppRefData);
   await Promise.all([
     batch.commit(),
     addFollowUser(username, appReferrer),
