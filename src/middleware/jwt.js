@@ -117,7 +117,6 @@ export const jwtAuth = (
         res.status(401).send('TOKEN_EXPIRED');
         return;
       }
-      console.error(e);
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
