@@ -119,7 +119,7 @@ export async function handleUpdateAppMetaData(req, user) {
     payload[`${agentType}DeviceId`] = deviceId;
     payload.deviceId = deviceId;
   }
-  await appMetaDocRef.create();
+  await appMetaDocRef.create(payload);
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'eventUserFirstOpenApp',
     type: 'direct',
