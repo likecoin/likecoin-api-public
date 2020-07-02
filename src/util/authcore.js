@@ -28,6 +28,12 @@ function parseAuthCoreUser(user) {
   } else if (typeof emailVerifiedTs === 'boolean') {
     isEmailVerified = emailVerifiedTs;
   }
+  let isPhoneVerified = false;
+  if (typeof phoneVerifiedTs === 'string') {
+    isPhoneVerified = phoneVerifiedTs && (new Date(phoneVerifiedTs)).getTime() > 0;
+  } else if (typeof phoneVerifiedTs === 'boolean') {
+    isPhoneVerified = phoneVerifiedTs;
+  }
   return {
     authcoreUserId,
     suggestedUserId,
@@ -37,7 +43,7 @@ function parseAuthCoreUser(user) {
     isEmailVerified,
     phone,
     phoneVerifiedTs,
-    isPhoneVerified: !!phoneVerifiedTs,
+    isPhoneVerified,
   };
 }
 
