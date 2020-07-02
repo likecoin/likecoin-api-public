@@ -52,43 +52,51 @@ export async function handleAppReferrer(req, user, appReferrer) {
   const agentType = getUserAgentPlatform(req);
 
   // TODO: set email verification payload
-
-  const batch = db.batch();
-  const metaPayload = {
-    [agentType]: true,
-    lastAccessedTs: Date.now(),
-    referrer: appReferrer,
-    ...expandEmailFlags(user),
-    ts: Date.now(),
-  };
-  const deviceId = req.headers['x-device-id'];
-  if (deviceId) {
-    metaPayload[`${agentType}DeviceId`] = deviceId;
-    metaPayload.deviceId = deviceId;
+  let metaPayload;
+  let referralAppRefData;
+  try {
+    const batch = db.batch();
+    metaPayload = {
+      [agentType]: true,
+      lastAccessedTs: Date.now(),
+      referrer: appReferrer,
+      ...expandEmailFlags(user),
+      ts: Date.now(),
+    };
+    const deviceId = req.headers['x-device-id'];
+    if (deviceId) {
+      const deviceIdString = deviceId.toString();
+      metaPayload[`${agentType}DeviceId`] = deviceIdString;
+      metaPayload.deviceId = deviceIdString;
+    }
+    batch.set(userAppMetaRef, metaPayload, { merge: true });
+    referralAppRefData = {
+      ...expandEmailFlags(user),
+      ts: Date.now(),
+    };
+    batch.create(referrerAppRefCol.doc(username), referralAppRefData);
+    await Promise.all([
+      batch.commit(),
+      addFollowUser(username, appReferrer),
+    ]);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventUserFirstOpenApp',
+      type: 'referral',
+      user: username,
+      email,
+      ...expandEmailFlags(user),
+      displayName,
+      avatar,
+      appReferrer,
+      referrer,
+      locale,
+      registerTime: timestamp,
+    });
+  } catch (err) {
+    console.error(err);
+    console.log(metaPayload);
+    console.log(referralAppRefData);
   }
-  batch.set(userAppMetaRef, metaPayload, { merge: true });
-  const referralAppRefData = {
-    ...expandEmailFlags(user),
-    ts: Date.now(),
-  };
-  batch.create(referrerAppRefCol.doc(username), referralAppRefData);
-  await Promise.all([
-    batch.commit(),
-    addFollowUser(username, appReferrer),
-  ]);
-  publisher.publish(PUBSUB_TOPIC_MISC, req, {
-    logType: 'eventUserFirstOpenApp',
-    type: 'referral',
-    user: username,
-    email,
-    ...expandEmailFlags(user),
-    displayName,
-    avatar,
-    appReferrer,
-    referrer,
-    locale,
-    registerTime: timestamp,
-  });
 }
 
 export async function handleUpdateAppMetaData(req, user) {
