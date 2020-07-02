@@ -11,6 +11,8 @@ import { addFollowUser } from './follow';
 import { getAuthCoreUserById } from '../../authcore';
 import { authCoreJwtSignToken } from '../../jwt';
 
+const THREE_DAYS_IN_MS = 259200000;
+
 export function expandEmailFlags(user) {
   const {
     isBlackListed = false,
@@ -138,6 +140,24 @@ export async function handleUpdateAppMetaData(req, user) {
   });
 }
 
+export async function checkPhoneVerification(username) {
+  const userDoc = await dbRef.doc(username).get();
+  const { authCoreUserId } = userDoc.data();
+  if (!authCoreUserId) return;
+  const authCoreToken = await authCoreJwtSignToken();
+  const user = await getAuthCoreUserById(authCoreUserId, authCoreToken);
+  const {
+    isPhoneVerified,
+    phone,
+  } = user;
+  if (isPhoneVerified) {
+    await dbRef.doc(username).update({
+      phone,
+      isPhoneVerified,
+    });
+  }
+}
+
 export async function lazyUpdateAppMetaData(req, user) {
   const {
     user: username,
@@ -160,11 +180,29 @@ export async function lazyUpdateAppMetaData(req, user) {
     updatePayload.deviceId = deviceId;
   }
   const appMetaDocRef = dbRef.doc(username).collection('app').doc('meta');
-  try {
+  const appMetaDoc = await appMetaDocRef.get();
+  const appMetaData = appMetaDoc.data();
+  if (appMetaData) {
     await appMetaDocRef.update(updatePayload);
-  } catch (err) {
+    const {
+      ts,
+      isPhoneVerified,
+    } = appMetaData;
+    if (!isPhoneVerified && Date.now() - ts < THREE_DAYS_IN_MS) {
+      try {
+        await checkPhoneVerification(username);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  } else {
     updatePayload.ts = Date.now();
     await appMetaDocRef.create(updatePayload);
+    try {
+      await checkPhoneVerification(username);
+    } catch (err) {
+      console.error(err);
+    }
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventUserFirstOpenApp',
       type: 'legacy',
@@ -189,22 +227,4 @@ export async function lazyUpdateAppMetaData(req, user) {
     locale,
     registerTime: timestamp,
   });
-}
-
-export async function checkPhoneVerification(username) {
-  const userDoc = await dbRef.doc(username).get();
-  const { authCoreUserId } = userDoc.data();
-  if (!authCoreUserId) return;
-  const authCoreToken = await authCoreJwtSignToken();
-  const user = await getAuthCoreUserById(authCoreUserId, authCoreToken);
-  const {
-    isPhoneVerified,
-    phone,
-  } = user;
-  if (isPhoneVerified) {
-    await dbRef.doc(username).update({
-      phone,
-      isPhoneVerified,
-    });
-  }
 }

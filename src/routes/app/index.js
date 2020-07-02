@@ -8,9 +8,6 @@ import { jwtAuth } from '../../middleware/jwt';
 import {
   handleAddAppReferrer,
 } from '../../util/api/app';
-import { checkPhoneVerification } from '../../util/api/users/app';
-
-const THREE_DAYS_IN_MS = 259200000;
 
 const router = Router();
 
@@ -20,18 +17,6 @@ router.get('/meta', jwtAuth('read'), async (req, res, next) => {
     const doc = await dbRef.doc(user).collection('app').doc('meta').get();
     const appMetaData = doc.data() || {};
     res.json(filterAppMeta(appMetaData));
-    // HACK: refresh verification status in threee days time
-    const {
-      ts,
-      isPhoneVerified,
-    } = appMetaData;
-    if (!isPhoneVerified && Date.now() - ts < THREE_DAYS_IN_MS) {
-      try {
-        await checkPhoneVerification(user);
-      } catch (err) {
-        console.error(err);
-      }
-    }
   } catch (err) {
     next(err);
   }
