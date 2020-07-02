@@ -26,13 +26,19 @@ export async function getAuthCoreUser(accessToken) {
     primary_email: email,
     primary_email_verified: emailVerifiedTs,
   } = data;
+  let isEmailVerified = false;
+  if (typeof emailVerifiedTs === 'string') {
+    isEmailVerified = emailVerifiedTs && (new Date(emailVerifiedTs)).getTime() > 0;
+  } else if (typeof emailVerifiedTs === 'boolean') {
+    isEmailVerified = emailVerifiedTs;
+  }
   return {
     authcoreUserId,
     suggestedUserId,
     displayName,
     email,
     emailVerifiedTs,
-    isEmailVerified: !!emailVerifiedTs,
+    isEmailVerified,
   };
 }
 
