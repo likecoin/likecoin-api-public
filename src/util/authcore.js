@@ -74,7 +74,7 @@ export async function updateAuthCoreUser(payload, accessToken) {
 }
 
 export async function getAuthCoreUserById(authCoreUserId, accessToken) {
-  const data = await api.get(`/management/users/${authCoreUserId}`, {
+  const { data } = await api.get(`/management/users/${authCoreUserId}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
