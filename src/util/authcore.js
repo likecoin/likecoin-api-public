@@ -12,25 +12,27 @@ const api = axios.create({
   timeout: 10000,
 });
 
-export async function getAuthCoreUser(accessToken) {
-  const { data } = await api.get('/auth/users/current', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+function parseAuthCoreUser(user) {
   const {
     id: authcoreUserId,
     username: suggestedUserId,
     display_name: displayName,
     primary_email: email,
     primary_email_verified: emailVerifiedTs,
-  } = data;
+    primary_phone: phone,
+    primary_phone_verified: phoneVerifiedTs,
+  } = user;
   let isEmailVerified = false;
   if (typeof emailVerifiedTs === 'string') {
     isEmailVerified = emailVerifiedTs && (new Date(emailVerifiedTs)).getTime() > 0;
   } else if (typeof emailVerifiedTs === 'boolean') {
     isEmailVerified = emailVerifiedTs;
+  }
+  let isPhoneVerified = false;
+  if (typeof phoneVerifiedTs === 'string') {
+    isPhoneVerified = phoneVerifiedTs && (new Date(phoneVerifiedTs)).getTime() > 0;
+  } else if (typeof phoneVerifiedTs === 'boolean') {
+    isPhoneVerified = phoneVerifiedTs;
   }
   return {
     authcoreUserId,
@@ -39,7 +41,20 @@ export async function getAuthCoreUser(accessToken) {
     email,
     emailVerifiedTs,
     isEmailVerified,
+    phone,
+    phoneVerifiedTs,
+    isPhoneVerified,
   };
+}
+
+export async function getAuthCoreUser(accessToken) {
+  const { data } = await api.get('/auth/users/current', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+  return parseAuthCoreUser(data);
 }
 
 export async function updateAuthCoreUser(payload, accessToken) {
@@ -56,6 +71,16 @@ export async function updateAuthCoreUser(payload, accessToken) {
       Authorization: `Bearer ${accessToken}`,
     },
   });
+}
+
+export async function getAuthCoreUserById(authCoreUserId, accessToken) {
+  const { data } = await api.get(`/management/users/${authCoreUserId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_USER_NOT_FOUND');
+  return parseAuthCoreUser(data);
 }
 
 export async function updateAuthCoreUserById(authCoreUserId, payload, accessToken) {

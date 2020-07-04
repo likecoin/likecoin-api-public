@@ -15,7 +15,8 @@ router.get('/meta', jwtAuth('read'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const doc = await dbRef.doc(user).collection('app').doc('meta').get();
-    res.json(filterAppMeta(doc.data() || {}));
+    const appMetaData = doc.data() || {};
+    res.json(filterAppMeta(appMetaData));
   } catch (err) {
     next(err);
   }

@@ -88,11 +88,13 @@ export async function handleUserRegistration({
     platformUserId,
     authCoreUserId,
     isEmailVerified,
+    isPhoneVerified,
     locale = 'en',
     accessToken,
     secret,
     sourceURL,
     email,
+    phone,
   } = payload;
   let { isEmailEnabled = true } = payload;
 
@@ -132,6 +134,7 @@ export async function handleUserRegistration({
           logType: 'eventBlockReferrer',
           user,
           email,
+          phone,
           cosmosWallet,
           displayName,
           referrer,
@@ -193,6 +196,11 @@ export async function handleUserRegistration({
         // Do nothing
       }
     }
+  }
+
+  if (phone) {
+    createObj.phone = phone;
+    createObj.isPhoneVerified = isPhoneVerified;
   }
 
   if (isPlatformDelegated) {
@@ -265,6 +273,8 @@ export async function handleUserRegistration({
       user,
       email: email || undefined,
       normalizedEmail: createObj.normalizedEmail || undefined,
+      phone: phone || undefined,
+      isPhoneVerified: createObj.isEmailVerified || false,
       displayName,
       cosmosWallet,
       avatar: avatarURL,
