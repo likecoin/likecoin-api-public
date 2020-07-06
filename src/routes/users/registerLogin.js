@@ -375,9 +375,9 @@ router.post('/login', async (req, res, next) => {
       const doc = await dbRef.doc(user).get();
       if (doc.exists) {
         const {
-          isBlackListed,
+          isLocked,
         } = doc.data();
-        if (isBlackListed) throw new ValidationError('INVALID_USER');
+        if (isLocked) throw new ValidationError('USER_LOCKED');
       }
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
