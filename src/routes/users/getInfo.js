@@ -22,7 +22,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
     const username = req.user.user;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
-      if (payload.isBlackListed) throw new Error('INVALID_USER');
+      if (payload.isLocked) throw new Error('USER_LOCKED');
       payload.intercomToken = getIntercomUserHash(username, { type: getUserAgentPlatform(req) });
       if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
