@@ -9,7 +9,51 @@ const urlParse = require('url-parse');
 
 const router = Router();
 
-router.get('/bookmarks', jwtAuth('read:bookmarks'), async (req, res, next) => {
+router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'), async (req, res, next) => {
+  try {
+    const bookmarkID = req.params.id;
+    const url = req.body.url || req.query.url;
+    if (!url && !bookmarkID) {
+      next();
+      return;
+    }
+
+    const { user } = req.user;
+    let doc;
+    if (url) {
+      try {
+        urlParse(url);
+      } catch (err) {
+        res.status(400).send('INVALID_URL');
+        return;
+      }
+      const qs = await dbRef
+        .doc(user)
+        .collection('bookmarks')
+        .where('url', '==', url)
+        .limit(1)
+        .get();
+      [doc] = qs.docs;
+    } else {
+      doc = await dbRef
+        .doc(user)
+        .collection('bookmarks')
+        .doc(bookmarkID)
+        .get();
+    }
+    if (!doc || !doc.exists) {
+      res.status(404).send('BOOKMARK_NOT_FOUND');
+      return;
+    }
+
+    res.json(filterBookmarks({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (err) {
+    next(err);
+  }
+}, async (req, res, next) => {
   try {
     const { user } = req.user;
     const query = await dbRef
