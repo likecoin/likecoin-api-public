@@ -224,7 +224,13 @@ router.post(
       const { file } = req;
       let avatarUrl;
       if (file) {
-        avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+        try {
+          avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+        } catch (err) {
+          console.error('Avatar file handling error:');
+          console.error(err);
+          throw new ValidationError('INVALID_AVATAR');
+        }
       }
       const updateObj = {
         displayName,
