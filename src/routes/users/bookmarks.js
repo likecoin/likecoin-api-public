@@ -14,70 +14,70 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
    * Handle `/bookmarks/:id` or `/bookmarks?url=`
    */
   async (req, res, next) => {
-  try {
-    const bookmarkID = req.params.id;
-    const url = req.body.url || req.query.url;
-    if (!url && !bookmarkID) {
-      next();
-      return;
-    }
-
-    const { user } = req.user;
-    let doc;
-    if (url) {
-      try {
-        urlParse(url);
-      } catch (err) {
-        res.status(400).send('INVALID_URL');
+    try {
+      const bookmarkID = req.params.id;
+      const url = req.body.url || req.query.url;
+      if (!url && !bookmarkID) {
+        next();
         return;
       }
-      const qs = await dbRef
-        .doc(user)
-        .collection('bookmarks')
-        .where('url', '==', url)
-        .limit(1)
-        .get();
-      [doc] = qs.docs;
-    } else {
-      doc = await dbRef
-        .doc(user)
-        .collection('bookmarks')
-        .doc(bookmarkID)
-        .get();
-    }
-    if (!doc || !doc.exists) {
-      res.status(404).send('BOOKMARK_NOT_FOUND');
-      return;
-    }
 
-    res.json(filterBookmarks({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  } catch (err) {
-    next(err);
-  }
+      const { user } = req.user;
+      let doc;
+      if (url) {
+        try {
+          urlParse(url);
+        } catch (err) {
+          res.status(400).send('INVALID_URL');
+          return;
+        }
+        const qs = await dbRef
+          .doc(user)
+          .collection('bookmarks')
+          .where('url', '==', url)
+          .limit(1)
+          .get();
+        [doc] = qs.docs;
+      } else {
+        doc = await dbRef
+          .doc(user)
+          .collection('bookmarks')
+          .doc(bookmarkID)
+          .get();
+      }
+      if (!doc || !doc.exists) {
+        res.status(404).send('BOOKMARK_NOT_FOUND');
+        return;
+      }
+
+      res.json(filterBookmarks({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (err) {
+      next(err);
+    }
   },
   /**
    * Handle `/bookmarks`
    */
   async (req, res, next) => {
-  try {
-    const { user } = req.user;
-    const query = await dbRef
-      .doc(user)
-      .collection('bookmarks')
-      .orderBy('ts', 'desc')
-      .get();
-    const list = [];
-    query.docs.forEach((d) => {
-      list.push(filterBookmarks({ id: d.id, ...d.data() }));
-    });
-    res.json({ list });
-  } catch (err) {
-    next(err);
-  }
-});
+    try {
+      const { user } = req.user;
+      const query = await dbRef
+        .doc(user)
+        .collection('bookmarks')
+        .orderBy('ts', 'desc')
+        .get();
+      const list = [];
+      query.docs.forEach((d) => {
+        list.push(filterBookmarks({ id: d.id, ...d.data() }));
+      });
+      res.json({ list });
+    } catch (err) {
+      next(err);
+    }
+  });
 
 router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => {
   try {
@@ -130,6 +130,8 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
       res.status(400).send('MISSING_BOOKMARK');
       return;
     }
+
+    let targetRef;
     if (url) {
       try {
         urlParse(url);
@@ -137,9 +139,6 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
         res.status(400).send('INVALID_URL');
         return;
       }
-    }
-    let targetRef;
-    if (!bookmarkID) {
       const query = await dbRef
         .doc(user)
         .collection('bookmarks')
