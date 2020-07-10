@@ -42,6 +42,7 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
     const targetUserDoc = await dbRef.doc(user).get();
     if (!targetUserDoc.exists) {
       res.status(404).send('USER_NOT_FOUND');
+      return;
     }
     await addFollowUser(user, id);
     res.sendStatus(200);
