@@ -17,6 +17,10 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
     try {
       const bookmarkID = req.params.id;
       const url = req.body.url || req.query.url;
+      if (url && bookmarkID) {
+        res.status(400).send('URL_AND_ID_COEXIST');
+        return;
+      }
       if (!url && !bookmarkID) {
         next();
         return;
@@ -128,6 +132,10 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
     const url = req.body.url || req.query.url;
     if (!url && !bookmarkID) {
       res.status(400).send('MISSING_BOOKMARK');
+      return;
+    }
+    if (url && bookmarkID) {
+      res.status(400).send('URL_AND_ID_COEXIST');
       return;
     }
 
