@@ -9,7 +9,11 @@ const urlParse = require('url-parse');
 
 const router = Router();
 
-router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'), async (req, res, next) => {
+router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
+  /**
+   * Handle `/bookmarks/:id` or `/bookmarks?url=`
+   */
+  async (req, res, next) => {
   try {
     const bookmarkID = req.params.id;
     const url = req.body.url || req.query.url;
@@ -53,7 +57,11 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'), async (req, res, next) 
   } catch (err) {
     next(err);
   }
-}, async (req, res, next) => {
+  },
+  /**
+   * Handle `/bookmarks`
+   */
+  async (req, res, next) => {
   try {
     const { user } = req.user;
     const query = await dbRef
