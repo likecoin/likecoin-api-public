@@ -35,6 +35,28 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
   }
 });
 
+router.get('/follow/users/:id', jwtAuth('read:follow'), async (req, res, next) => {
+  try {
+    const { user } = req.user;
+    const { id } = req.params;
+    const doc = await dbRef
+      .doc(user)
+      .collection('follow')
+      .doc(id)
+      .get();
+    if (!doc.exists) {
+      res.status(404).send('NO_FOLLOW_RECORD');
+      return;
+    }
+    res.json(filterFollow({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next) => {
   try {
     const { user } = req.user;
@@ -42,6 +64,7 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
     const targetUserDoc = await dbRef.doc(user).get();
     if (!targetUserDoc.exists) {
       res.status(404).send('USER_NOT_FOUND');
+      return;
     }
     await addFollowUser(user, id);
     res.sendStatus(200);
