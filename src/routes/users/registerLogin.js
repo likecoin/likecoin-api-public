@@ -383,7 +383,10 @@ router.post('/login', async (req, res, next) => {
         const {
           isLocked,
         } = doc.data();
-        if (isLocked) throw new ValidationError('USER_LOCKED');
+        if (isLocked) {
+          console.log(`Locked user: ${user}`);
+          throw new ValidationError('USER_LOCKED');
+        }
       }
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
