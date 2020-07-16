@@ -305,6 +305,7 @@ export async function checkReferrerExists(referrer) {
   const referrerRef = await dbRef.doc(referrer).get();
   if (!referrerRef.exists) return false;
   if (referrerRef.data().isBlackListed) {
+    console.log(`User referrer limit: ${referrer}`);
     throw new ValidationError('REFERRER_LIMIT_EXCCEDDED');
   }
   return referrerRef.exists;
