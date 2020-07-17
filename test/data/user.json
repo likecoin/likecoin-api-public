@@ -6,6 +6,13 @@
             "email": "testing@likecoin.store",
             "wallet": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
             "merchantId": "testmerchantid",
+            "civicLiker": {
+                "civicLikerStatus": "subscribed",
+                "currentType": "trial",
+                "since": 1546272000000,
+                "currentPeriodStart": 1546272000000,
+                "currentPeriodEnd": 9000000000000
+            },
             "collection": {
                 "app": [
                     {
