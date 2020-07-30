@@ -110,7 +110,13 @@ router.post(
           payload = req.body;
           payload.authCoreUserId = authCoreUserId;
           if (!payload.cosmosWallet) {
-            payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+            try {
+              payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+            } catch (err) {
+              console.error('Cannot create cosmos wallet');
+              console.error(err);
+              throw new ValidationError('COSMOS_WALLET_PENDING');
+            }
           }
           email = authCoreEmail;
           // TODO: remove this displayname hack after authcore fix default name privacy issue
