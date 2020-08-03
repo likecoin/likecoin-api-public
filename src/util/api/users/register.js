@@ -274,7 +274,7 @@ export async function handleUserRegistration({
       email: email || undefined,
       normalizedEmail: createObj.normalizedEmail || undefined,
       phone: phone || undefined,
-      isPhoneVerified: createObj.isEmailVerified || false,
+      isPhoneVerified: createObj.isPhoneVerified || false,
       displayName,
       cosmosWallet,
       avatar: avatarURL,
