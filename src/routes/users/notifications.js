@@ -71,11 +71,17 @@ router.post('/notifications/read', jwtAuth('write:notifications'), async (req, r
       .startAfter(before)
       .get();
     if (query.docs.length) {
-      const batch = db.batch();
-      query.docs.forEach((d) => {
-        batch.update(d.ref, { isRead: true });
-      });
-      await batch.commit();
+      const batchCommits = [];
+      const maxOpsPerBatch = 500;
+      for (let i = 0; i < query.docs.length; i += maxOpsPerBatch) {
+        const batch = db.batch();
+        const docs = query.docs.slice(i, i + maxOpsPerBatch);
+        docs.forEach((doc) => {
+          batch.update(doc.ref, { isRead: true });
+        });
+        batchCommits.push(batch.commit());
+      }
+      await Promise.all(batchCommits);
     }
     res.sendStatus(200);
   } catch (err) {
