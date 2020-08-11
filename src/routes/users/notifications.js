@@ -59,7 +59,7 @@ router.post('/notifications/read', jwtAuth('write:notifications'), async (req, r
       try {
         before = Number(before);
       } catch (err) {
-        res.status(400).send('MISSING_BEFORE');
+        res.status(400).send('INVALID_BEFORE');
         return;
       }
     }
