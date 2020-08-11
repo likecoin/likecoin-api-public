@@ -13,7 +13,7 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
       .collection('notifications')
       .orderBy('ts', 'desc');
 
-    let { after, before, limit } = req.query;
+    let { after, before } = req.query;
     if (after) {
       try {
         after = Number(after);
@@ -30,9 +30,11 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
         // no-op
       }
     }
-    if (limit) {
+    let limit;
+    const { limit: limitInput } = req.query;
+    if (limitInput) {
       try {
-        limit = Number(limit);
+        limit = Number(limitInput);
       } catch (err) {
         // no-op
       }
