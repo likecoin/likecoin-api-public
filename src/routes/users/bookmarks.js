@@ -116,10 +116,10 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
         ts: Date.now(),
         url,
       });
-    await addUrlToMetadataCrawler(url);
     res.json({
       id: bookmarkID,
     });
+    await addUrlToMetadataCrawler(url);
   } catch (err) {
     next(err);
   }
