@@ -1,11 +1,16 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
+import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
   COSMOS_DENOM,
 } from '../../../config/config';
 
-const api = axios.create({ baseURL: cosmosLCDEndpoint });
+const api = axios.create({
+  baseURL: cosmosLCDEndpoint,
+  httpAgent: new HttpAgent(),
+  httpsAgent: new HttpsAgent(),
+});
 
 function LIKEToNanolike(value) {
   return (new BigNumber(value)).multipliedBy(1e9).toFixed();
