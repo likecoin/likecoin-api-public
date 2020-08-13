@@ -3,6 +3,8 @@ import { userCollection as dbRef } from '../../util/firebase';
 import { filterFollow } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { addFollowUser } from '../../util/api/users/follow';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
+import publisher from '../../util/gcloudPub';
 
 const router = Router();
 
@@ -68,6 +70,11 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
     }
     await addFollowUser(user, id);
     res.sendStatus(200);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventFollowUser',
+      user,
+      follow: id,
+    });
   } catch (err) {
     next(err);
   }
@@ -86,6 +93,11 @@ router.delete('/follow/users/:id', jwtAuth('write:follow'), async (req, res, nex
         ts: Date.now(),
       }, { merge: true });
     res.sendStatus(200);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventUnfollowUser',
+      user,
+      follow: id,
+    });
   } catch (err) {
     next(err);
   }
