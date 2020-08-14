@@ -3,6 +3,8 @@ import { userCollection as dbRef } from '../../util/firebase';
 import { filterBookmarks } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { addUrlToMetadataCrawler } from '../../util/api/users/bookmarks';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
+import publisher from '../../util/gcloudPub';
 
 const uuidv4 = require('uuid/v4');
 const urlParse = require('url-parse');
@@ -116,6 +118,12 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
         ts: Date.now(),
         url,
       });
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'userBookmarkAdd',
+      user,
+      url,
+    });
     res.json({
       id: bookmarkID,
     });
@@ -171,6 +179,11 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
       targetRef = bookmarkRef;
     }
     await targetRef.delete();
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'userBookmarkRemove',
+      user,
+      url,
+    });
     res.sendStatus(200);
   } catch (err) {
     next(err);
