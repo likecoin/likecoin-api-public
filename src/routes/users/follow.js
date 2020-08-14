@@ -71,7 +71,7 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
     await addFollowUser(user, id);
     res.sendStatus(200);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventFollowUser',
+      logType: 'userFollowAdd',
       user,
       follow: id,
     });
@@ -94,7 +94,7 @@ router.delete('/follow/users/:id', jwtAuth('write:follow'), async (req, res, nex
       }, { merge: true });
     res.sendStatus(200);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventUnfollowUser',
+      logType: 'userFollowRemove',
       user,
       follow: id,
     });

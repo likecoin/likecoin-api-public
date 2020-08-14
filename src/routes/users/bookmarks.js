@@ -120,7 +120,7 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
       });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventBookmarkAdd',
+      logType: 'userBookmarkAdd',
       user,
       url,
     });
@@ -180,7 +180,7 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
     }
     await targetRef.delete();
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventBookmarkRemove',
+      logType: 'userBookmarkRemove',
       user,
       url,
     });
