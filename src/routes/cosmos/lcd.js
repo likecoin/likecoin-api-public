@@ -2,6 +2,7 @@ import axios from 'axios';
 import bodyParser from 'body-parser';
 import { Router } from 'express';
 import BigNumber from 'bignumber.js';
+import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
 import {
   MEDIUM_REGEX,
@@ -13,11 +14,9 @@ import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
 
 const proxy = require('express-http-proxy');
-const http = require('http');
-const https = require('https');
 
-const httpAgent = new http.Agent({ keepAlive: true });
-const httpsAgent = new https.Agent({ keepAlive: true });
+const httpAgent = new HttpAgent();
+const httpsAgent = new HttpsAgent();
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 import {
   AUTHCORE_API_ENDPOINT,
   AUTHCORE_SECRETD_STATIC_KEY,
@@ -9,6 +10,8 @@ const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('secretd-js');
 
 const api = axios.create({
   baseURL: `${AUTHCORE_API_ENDPOINT}/api`,
+  httpAgent: new HttpAgent(),
+  httpsAgent: new HttpsAgent(),
   timeout: 10000,
 });
 
