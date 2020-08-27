@@ -362,11 +362,13 @@ export function filterBookmarks({
   id,
   url,
   ts,
+  isArchived,
 }) {
   return {
     id,
     url,
     ts,
+    isArchived,
   };
 }
 

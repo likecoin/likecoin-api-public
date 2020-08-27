@@ -9,6 +9,26 @@ import publisher from '../../util/gcloudPub';
 const uuidv4 = require('uuid/v4');
 const urlParse = require('url-parse');
 
+async function queryBookmark(user, { bookmarkID, url }) {
+  let doc;
+  if (url) {
+    const qs = await dbRef
+      .doc(user)
+      .collection('bookmarks')
+      .where('url', '==', url)
+      .limit(1)
+      .get();
+    [doc] = qs.docs;
+  } else if (bookmarkID) {
+    doc = await dbRef
+      .doc(user)
+      .collection('bookmarks')
+      .doc(bookmarkID)
+      .get();
+  }
+  return doc;
+}
+
 const router = Router();
 
 router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
@@ -27,30 +47,14 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
         next();
         return;
       }
-
-      const { user } = req.user;
-      let doc;
-      if (url) {
-        try {
-          urlParse(url);
-        } catch (err) {
-          res.status(400).send('INVALID_URL');
-          return;
-        }
-        const qs = await dbRef
-          .doc(user)
-          .collection('bookmarks')
-          .where('url', '==', url)
-          .limit(1)
-          .get();
-        [doc] = qs.docs;
-      } else {
-        doc = await dbRef
-          .doc(user)
-          .collection('bookmarks')
-          .doc(bookmarkID)
-          .get();
+      try {
+        urlParse(url);
+      } catch (err) {
+        res.status(400).send('INVALID_URL');
+        return;
       }
+      const { user } = req.user;
+      const doc = await queryBookmark(user, { bookmarkID, url });
       if (!doc || !doc.exists) {
         res.status(404).send('BOOKMARK_NOT_FOUND');
         return;
@@ -70,11 +74,16 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      const query = await dbRef
+      const { archived = '0' } = req.query;
+      let query = dbRef
         .doc(user)
-        .collection('bookmarks')
-        .orderBy('ts', 'desc')
-        .get();
+        .collection('bookmarks');
+      if (archived === '0') {
+        query = query.where('isArchived', '==', false);
+      } else if (archived === '1') {
+        query = query.where('isArchived', '==', true);
+      }
+      query = await query.orderBy('ts', 'desc').get();
       const list = [];
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));
@@ -115,6 +124,7 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
       .collection('bookmarks')
       .doc(bookmarkID)
       .create({
+        isArchived: false,
         ts: Date.now(),
         url,
       });
@@ -133,6 +143,21 @@ router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => 
   }
 });
 
+router.post('/bookmarks/:id/archive', jwtAuth('write:bookmarks'), async (req, res, next) => {
+  try {
+    const { user } = req.user;
+    const { id } = req.params;
+    await dbRef
+      .doc(user)
+      .collection('bookmarks')
+      .doc(id)
+      .update({ isArchived: true });
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, next) => {
   try {
     const { user } = req.user;
@@ -146,8 +171,6 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
       res.status(400).send('URL_AND_ID_COEXIST');
       return;
     }
-
-    let targetRef;
     if (url) {
       try {
         urlParse(url);
@@ -155,29 +178,13 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
         res.status(400).send('INVALID_URL');
         return;
       }
-      const query = await dbRef
-        .doc(user)
-        .collection('bookmarks')
-        .where('url', '==', url)
-        .limit(1)
-        .get();
-      if (!query.docs || !query.docs.length) {
-        res.status(404).send('BOOKMARK_NOT_FOUND');
-        return;
-      }
-      targetRef = query.docs[0].ref;
-    } else {
-      const bookmarkRef = dbRef
-        .doc(user)
-        .collection('bookmarks')
-        .doc(bookmarkID);
-      const bookmarkDoc = await bookmarkRef.get();
-      if (!bookmarkDoc.exists) {
-        res.status(404).send('BOOKMARK_NOT_FOUND');
-        return;
-      }
-      targetRef = bookmarkRef;
     }
+    const targetDoc = queryBookmark(user, { bookmarkID, url });
+    if (!targetDoc || !targetDoc.exists) {
+      res.status(404).send('BOOKMARK_NOT_FOUND');
+      return;
+    }
+    const targetRef = targetDoc.ref;
     await targetRef.delete();
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'userBookmarkRemove',
