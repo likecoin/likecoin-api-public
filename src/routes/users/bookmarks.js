@@ -79,15 +79,19 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
         .doc(user)
         .collection('bookmarks');
       if (archived === '0') {
-        query = query.where('isArchived', '==', false);
+        // TODO: old bookmark does not include this field,
+        // making them not included in this query result
+        // Should use isArchived query after data is clean
+        // query = query.where('isArchived', '==', false);
       } else if (archived === '1') {
         query = query.where('isArchived', '==', true);
       }
       query = await query.orderBy('ts', 'desc').get();
-      const list = [];
+      let list = [];
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));
       });
+      if (archived === '0') list = list.filter(b => !b.isArchived);
       res.json({ list });
     } catch (err) {
       next(err);
