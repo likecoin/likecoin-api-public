@@ -3,7 +3,7 @@ import { userCollection as dbRef } from '../../util/firebase';
 import { filterFollow } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { addFollowUser } from '../../util/api/users/follow';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, DEFAULT_FOLLOW_IDS } from '../../constant';
 import publisher from '../../util/gcloudPub';
 
 const router = Router();
@@ -31,7 +31,24 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     query.docs.forEach((d) => {
       list.push(filterFollow({ id: d.id, ...d.data() }));
     });
+
+    const defaultPushList = [];
+    if (!filter) { // check for default follow if no filter is applied
+      const defaultPayload = {
+        ts: Date.now(),
+        isFollow: true,
+      };
+      DEFAULT_FOLLOW_IDS.forEach((id) => {
+        if (!list.find((l => l.id === id))) {
+          list.push({ id, ...defaultPayload });
+          defaultPushList.push(id);
+        }
+      });
+    }
     res.json({ list });
+    if (defaultPushList && defaultPushList.length) {
+      await Promise.all(defaultPushList.map(id => addFollowUser(user, id)));
+    }
   } catch (err) {
     next(err);
   }
