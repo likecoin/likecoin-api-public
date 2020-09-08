@@ -3,7 +3,7 @@ import { userCollection as dbRef } from '../../util/firebase';
 import { filterBookmarks } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { addUrlToMetadataCrawler } from '../../util/api/users/bookmarks';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, API_DEFAULT_SIZE_LIMIT } from '../../constant';
 import publisher from '../../util/gcloudPub';
 
 const uuidv4 = require('uuid/v4');
@@ -83,7 +83,8 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
     try {
       const { user } = req.user;
       const { archived = '0' } = req.query;
-      let query = dbRef
+      let { before, after, limit } = req.query;
+      let queryRef = dbRef
         .doc(user)
         .collection('bookmarks');
       if (archived === '0') {
@@ -92,9 +93,27 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
         // Should use isArchived query after data is clean
         // query = query.where('isArchived', '==', false);
       } else if (archived === '1') {
-        query = query.where('isArchived', '==', true);
+        queryRef = queryRef.where('isArchived', '==', true);
       }
-      query = await query.orderBy('ts', 'desc').get();
+      queryRef = queryRef.orderBy('ts', 'desc');
+      if (after) {
+        try {
+          after = Number(after);
+          queryRef = queryRef.endBefore(after);
+        } catch (err) {
+          // no-op
+        }
+      }
+      if (before) {
+        try {
+          before = Number(before);
+          queryRef = queryRef.startAfter(before);
+        } catch (err) {
+          // no-op
+        }
+      }
+      if (!limit) limit = API_DEFAULT_SIZE_LIMIT;
+      const query = await queryRef.limit(limit).get();
       let list = [];
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));

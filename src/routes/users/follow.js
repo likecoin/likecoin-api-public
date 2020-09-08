@@ -3,7 +3,7 @@ import { userCollection as dbRef } from '../../util/firebase';
 import { filterFollow } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { addFollowUser } from '../../util/api/users/follow';
-import { PUBSUB_TOPIC_MISC, DEFAULT_FOLLOW_IDS } from '../../constant';
+import { PUBSUB_TOPIC_MISC, DEFAULT_FOLLOW_IDS, API_DEFAULT_SIZE_LIMIT } from '../../constant';
 import publisher from '../../util/gcloudPub';
 
 const router = Router();
@@ -11,10 +11,8 @@ const router = Router();
 router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const {
-      limit = 4096,
-      filter,
-    } = req.query;
+    const { filter } = req.query;
+    let { before, after, limit } = req.query;
     let queryRef = dbRef
       .doc(user)
       .collection('follow');
@@ -23,17 +21,32 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     } else if (filter === 'unfollowed') {
       queryRef = queryRef.where('isFollowed', '==', false);
     }
-    const query = await queryRef
-      .orderBy('ts', 'desc')
-      .limit(limit)
-      .get();
+    queryRef = queryRef.orderBy('ts', 'desc');
+    if (after) {
+      try {
+        after = Number(after);
+        queryRef = queryRef.endBefore(after);
+      } catch (err) {
+        // no-op
+      }
+    }
+    if (before) {
+      try {
+        before = Number(before);
+        queryRef = queryRef.startAfter(before);
+      } catch (err) {
+        // no-op
+      }
+    }
+    if (!limit) limit = API_DEFAULT_SIZE_LIMIT;
+    const query = await queryRef.limit(limit).get();
     const list = [];
     query.docs.forEach((d) => {
       list.push(filterFollow({ id: d.id, ...d.data() }));
     });
 
     const defaultPushList = [];
-    if (!filter) { // check for default follow if no filter is applied
+    if (!filter && !after && !before) { // check for default follow if no filter is applied
       const defaultPayload = {
         ts: Date.now(),
         isFollow: true,

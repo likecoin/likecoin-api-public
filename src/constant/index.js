@@ -105,6 +105,8 @@ export const CSRF_COOKIE_OPTION = {
 export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 export const EMAIL_REGEX = IS_TESTNET ? /.*/ : W3C_EMAIL_REGEX;
 
+export const API_DEFAULT_SIZE_LIMIT = 4096;
+
 export const TWITTER_USER_ID_STR = '913375304357339136'; // likecoin_fdn
 export const TWITTER_STATUS_ID_STR = '1126374337575972864';
 
