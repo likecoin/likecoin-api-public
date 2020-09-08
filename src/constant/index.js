@@ -81,6 +81,7 @@ export const DEFAULT_FOLLOW_IDS = [
   'hkcitizennews',
   'inmediahknet',
   'standnews',
+  'hi176-matters',
 ];
 
 export const ONE_DAY_IN_MS = 86400000;
