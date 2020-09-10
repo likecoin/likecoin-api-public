@@ -183,7 +183,7 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
         return;
       }
     }
-    const targetDoc = queryBookmark(user, { bookmarkID, url });
+    const targetDoc = await queryBookmark(user, { bookmarkID, url });
     if (!targetDoc || !targetDoc.exists) {
       res.status(404).send('BOOKMARK_NOT_FOUND');
       return;
