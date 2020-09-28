@@ -80,7 +80,7 @@ router.post('/follow/users/:id', jwtAuth('write:follow'), async (req, res, next)
   try {
     const { user } = req.user;
     const { id } = req.params;
-    const targetUserDoc = await dbRef.doc(user).get();
+    const targetUserDoc = await dbRef.doc(id).get();
     if (!targetUserDoc.exists) {
       res.status(404).send('USER_NOT_FOUND');
       return;
