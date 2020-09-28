@@ -26,6 +26,16 @@
                         "id": "testuser"
                     }
                 ],
+                "follow": [
+                    {
+                        "id": "testuser",
+                        "isFollowed": true
+                    },
+                    {
+                        "id": "testuser2",
+                        "isFollowed": true
+                    }
+                ],
                 "mission": [
                     {
                         "id": "verifyEmail",
