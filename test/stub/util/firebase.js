@@ -28,11 +28,14 @@ function docData(obj) {
   return res;
 }
 
-function docUpdate(obj, updateData) {
+function docUpdate(data, id, obj, updateData) {
   if (Object.values(updateData).some(v => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
-  Object.assign(obj, updateData);
+  const index = data.findIndex(d => d.id === id);
+  if (index === -1) throw new Error('not found');
+  // eslint-disable-next-line no-param-reassign
+  data[id] = Object.assign(obj, updateData);
   return global.Promise.resolve();
 }
 
@@ -47,7 +50,7 @@ function docSet(data, id, setData, config) {
   }
   const obj = data.find(d => d.id === id);
   if (obj && config && config.merge) {
-    return docUpdate(obj, setData);
+    return docUpdate(data, id, obj, setData);
   }
   const pushData = {
     ...setData,
@@ -57,16 +60,19 @@ function docSet(data, id, setData, config) {
   return global.Promise.resolve();
 }
 
-function querySnapshotDocs(data) {
+function querySnapshotDocs(data, originalData) {
+  const database = originalData || data;
   return data.map((d) => {
     const docObj = {
       id: d.id,
       ref: {
-        set: (setData, config) => docSet(data, d.id, setData, config),
-        create: (setData, config) => docSet(data, d.id, setData, config),
-        update: updateData => docUpdate(d, updateData),
+        set: (setData, config) => docSet(database, d.id, setData, config),
+        create: (setData, config) => docSet(database, d.id, setData, config),
+        update: updateData => docUpdate(database, d.id, d, updateData),
+        delete: () => docDelete(database, { id: d.id }),
       },
       data: () => docData(d),
+      exists: true,
     };
     return docObj;
   });
@@ -79,7 +85,7 @@ function collectionWhere(data, field, op, value) {
   } else if (op === 'array-contains') {
     whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
   }
-  const docs = querySnapshotDocs(whereData);
+  const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField, sOp, sValue) => collectionWhere(whereData, sField, sOp, sValue),
     orderBy: (sField, order = 'asc') => {
@@ -134,7 +140,7 @@ function collectionDoc(data, id) {
     create: (setData, config) => docSet(data, id, setData, config),
     update: (updateData) => {
       if (obj) {
-        return docUpdate(obj, updateData);
+        return docUpdate(data, id, obj, updateData);
       }
       return global.Promise.resolve();
     },

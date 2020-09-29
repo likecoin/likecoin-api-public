@@ -21,9 +21,31 @@
                         "ts": 1487467660239
                     }
                 ],
+                "bookmarks": [
+                    {
+                        "id": "785f4088-4505-4dc0-8985-f33e7ccbaa74",
+                        "isArchived": false,
+                        "url": "https://google.com/"
+                    },
+                    {
+                        "id": "19ef46ed-bdbd-4391-a1ce-b7fc33fb402b",
+                        "isFollowed": true,
+                        "url": "https://thestandnews.com/"
+                    }
+                ],
                 "referrals": [
                     {
                         "id": "testuser"
+                    }
+                ],
+                "follow": [
+                    {
+                        "id": "testuser",
+                        "isFollowed": true
+                    },
+                    {
+                        "id": "testuser2",
+                        "isFollowed": true
                     }
                 ],
                 "mission": [
