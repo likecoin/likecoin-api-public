@@ -29,6 +29,14 @@ async function queryBookmark(user, { bookmarkID, url }) {
   return doc;
 }
 
+async function updateArchiveState(user, bookmarkID, value) {
+  return dbRef
+    .doc(user)
+    .collection('bookmarks')
+    .doc(bookmarkID)
+    .update({ isArchived: value });
+}
+
 const router = Router();
 
 router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
@@ -151,11 +159,18 @@ router.post('/bookmarks/:id/archive', jwtAuth('write:bookmarks'), async (req, re
   try {
     const { user } = req.user;
     const { id } = req.params;
-    await dbRef
-      .doc(user)
-      .collection('bookmarks')
-      .doc(id)
-      .update({ isArchived: true });
+    await updateArchiveState(user, id, true);
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/bookmarks/:id/archive', jwtAuth('write:bookmarks'), async (req, res, next) => {
+  try {
+    const { user } = req.user;
+    const { id } = req.params;
+    await updateArchiveState(user, id, false);
     res.sendStatus(200);
   } catch (err) {
     next(err);
