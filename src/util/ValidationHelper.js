@@ -37,7 +37,6 @@ export function filterUserData(u) {
     civicLikerRenewalPeriodLast,
     isHonorCivicLiker,
     civicLikerSince,
-    civicLikerStatus,
     locale,
   } = u;
   return {
@@ -64,7 +63,6 @@ export function filterUserData(u) {
     civicLikerRenewalPeriodLast,
     isHonorCivicLiker,
     civicLikerSince,
-    civicLikerStatus,
     locale,
   };
 }
@@ -109,7 +107,6 @@ export function filterUserDataScoped(u, scope = []) {
       civicLikerRenewalPeriodLast,
       isHonorCivicLiker,
       civicLikerSince,
-      civicLikerStatus,
       locale,
     } = user;
     output = {
@@ -120,7 +117,6 @@ export function filterUserDataScoped(u, scope = []) {
       civicLikerRenewalPeriodLast,
       isHonorCivicLiker,
       civicLikerSince,
-      civicLikerStatus,
       locale,
       ...output,
     };
