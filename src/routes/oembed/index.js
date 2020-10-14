@@ -10,7 +10,8 @@ import {
 } from '../../util/firebase';
 
 const subdomain = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
-const queryUrlRegexp = new RegExp('^(?:https?:\\/\\/)?([a-z0-9.]+)?like\\.co\\/([-_a-z0-9]+)(?:/([0-9]+)?)?');
+// matches like.co/(id), button.like.co/(id) and button.like.co/in/like/(id)
+const queryUrlRegexp = new RegExp('^(?:https?:\\/\\/)?([a-z0-9.]+)?like\\.co(?:\\/in\\/like)?\\/([-_a-z0-9]+)');
 
 const router = Router();
 
@@ -28,16 +29,14 @@ router.get('/', async (req, res, next) => {
       throw new ValidationError(`Invalid subdomain (${url}) in oEmbed request`);
     }
     const hostname = (match[1] && match[1].includes('rinkeby')) ? 'rinkeby.like.co' : 'like.co';
-    const isButton = match[1] && match[1].includes('button');
     const username = match[2];
     const format = req.query.format || 'json';
     if (!['json', 'xml'].includes(format)) {
       throw new ValidationError(`Invalid format ${format} in oEmbed request`);
     }
-    const amount = match[3] || '';
 
     const maxWidth = Number.parseInt(req.query.maxwidth || 485, 10);
-    const maxHeight = Number.parseInt(req.query.maxheight || (isButton ? 212 : 200), 10);
+    const maxHeight = Number.parseInt(req.query.maxheight || 212, 10);
     const thumbnailLength = Math.min(100, maxWidth, maxHeight);
 
     const doc = await dbRef.doc(username).get();
@@ -49,12 +48,8 @@ router.get('/', async (req, res, next) => {
     if (!payload.avatar) payload.avatar = AVATAR_DEFAULT_PATH;
 
     const urlHostname = `${match[1] || ''}like.co`;
-    let replyUrl = `https://${urlHostname}/${username}`;
-    if (amount) replyUrl += `/${amount}`;
-
-    const src = isButton
-      ? `https://${urlHostname}/in/embed/${username}/button/${amount}`
-      : `https://${hostname}/in/embed/${username}/${amount}`;
+    const replyUrl = `https://${urlHostname}/${username}`;
+    const src = `https://${urlHostname}/in/embed/${username}/button`;
 
     const oEmbedResponse = {
       type: 'rich',

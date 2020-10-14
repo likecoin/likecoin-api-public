@@ -59,6 +59,16 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
+  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/in/like/${testingUser1}`)
+    .catch(err => err.response);
+  t.is(res.status, 200);
+  t.is(res.data.type, 'rich');
+  t.is(res.data.title, `${testingUser1} (${testingUser1})`);
+  t.is(res.data.version, '1.0');
+  t.is(res.data.url, `https://button.rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.thumbnail_width, 100);
+  t.is(res.data.thumbnail_height, 100);
+
   /* xml format test */
   res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)
     .catch(err => err.response);
