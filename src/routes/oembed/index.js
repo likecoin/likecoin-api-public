@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 import { Router } from 'express';
 import xml from 'xml';
 
@@ -51,10 +52,11 @@ router.get('/', async (req, res, next) => {
     const replyUrl = `https://${urlHostname}/${username}`;
     const src = `https://${urlHostname}/in/embed/${username}/button`;
 
+    const displayName = payload.displayName || username;
     const oEmbedResponse = {
       type: 'rich',
       version: '1.0',
-      title: `${payload.displayName} (${username})`,
+      title: res.__('LikeButton.head.title', { name: displayName }),
       url: replyUrl,
       thumbnail_url: payload.avatar,
       thumbnail_width: thumbnailLength,

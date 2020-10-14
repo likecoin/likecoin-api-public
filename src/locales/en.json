@@ -1,4 +1,10 @@
 {
+  "LikeButton": {
+    "head": {
+      "title": "Like {{name}}'s work",
+      "description": "Reward Creativity, powered by LikeCoin"
+    }
+  },
   "Email": {
     "VerifiyEmail": {
       "subject": "Verify your like.co email",
