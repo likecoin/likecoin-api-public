@@ -1,4 +1,10 @@
 {
+  "LikeButton": {
+    "head": {
+      "title": "讚好 {{name}} 的作品",
+      "description": "Reward Creativity, powered by LikeCoin"
+    }
+  },
   "Email": {
     "VerifiyEmail": {
       "subject": "like.co 帳號驗證",
