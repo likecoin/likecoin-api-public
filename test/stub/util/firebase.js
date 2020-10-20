@@ -16,7 +16,6 @@ const userData = require('../../test/data/user.json').users;
 const subscriptionData = require('../../test/data/subscription.json').subscriptions;
 const txData = require('../../test/data/tx.json').tx;
 const missionData = require('../../test/data/mission.json').missions;
-const configData = require('../../test/data/config.json').config;
 
 const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
 
@@ -182,7 +181,7 @@ export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);
 export const couponCollection = createCollection([]);
-export const configCollection = createCollection(configData);
+export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
 
 function runTransaction(updateFunc) {
