@@ -26,6 +26,7 @@ export async function getUserWithCivicLikerProperties(id) {
       currentPeriodEnd: end,
       since,
       currentType,
+      civicLikerVersion,
     } = civicLiker;
     const now = Date.now();
     const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
@@ -34,6 +35,7 @@ export async function getUserWithCivicLikerProperties(id) {
       payload.civicLikerSince = since;
       payload.civicLikerRenewalPeriodLast = renewalLast;
       payload.isHonorCivicLiker = since === CIVIC_LIKER_START_DATE;
+      payload.civicLikerVersion = civicLikerVersion;
       if (currentType === 'trial') {
         payload.isCivicLikerTrial = true;
       } else {
