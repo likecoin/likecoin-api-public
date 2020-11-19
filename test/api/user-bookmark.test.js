@@ -88,6 +88,34 @@ test('USER: Add bookmark. Case: Already exists', async (t) => {
   t.is(res.status, 409);
 });
 
+test('USER: Add bookmark. Case: Filter query string', async (t) => {
+  const user = testingUser1;
+  const urlWithQs = 'https://quertstring.com/?gclid=qs';
+  const urlWithoutQs = 'https://quertstring.com/';
+  const token = jwtSign({ user });
+  let res = await axiosist.post(`/api/users/bookmarks?url=${encodeURIComponent(urlWithQs)}`, {}, {
+    headers: {
+      Accept: 'application/json',
+      Cookie: `likecoin_auth=${token}`,
+    },
+  });
+  res = await axiosist.get(`/api/users/bookmarks?url=${encodeURIComponent(urlWithQs)}`, {
+    headers: {
+      Accept: 'application/json',
+      Cookie: `likecoin_auth=${token}`,
+    },
+  });
+  t.is(res.status, 200);
+  t.is(res.data.url, urlWithoutQs);
+  res = await axiosist.get(`/api/users/bookmarks?url=${encodeURIComponent(urlWithoutQs)}`, {
+    headers: {
+      Accept: 'application/json',
+      Cookie: `likecoin_auth=${token}`,
+    },
+  });
+  t.is(res.status, 200);
+  t.is(res.data.url, urlWithoutQs);
+});
 
 test.serial('USER: Add bookmark. Case: success', async (t) => {
   const user = testingUser4;
