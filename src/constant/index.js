@@ -84,6 +84,19 @@ export const DEFAULT_FOLLOW_IDS = [
   'hi176-matters',
 ];
 
+export const QUERY_STRING_TO_REMOVE = [
+  'fbclid',
+  'gclid',
+  'gi',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  '__cf_chl_captcha_tk__',
+  '__cf_chl_jschl_tk__',
+];
+
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 7 * ONE_DAY_IN_MS;
