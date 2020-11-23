@@ -4,6 +4,7 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
   IS_TESTNET,
+  EXTERNAL_HOSTNAME,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -17,6 +18,7 @@ import {
   normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
+  getUserAgentIsApp,
 } from '.';
 import { tryToLinkSocialPlatform } from '../social';
 import { addDefaultFollowers } from './follow';
@@ -92,13 +94,15 @@ export async function handleUserRegistration({
     locale = 'en',
     accessToken,
     secret,
-    sourceURL,
     email,
     phone,
   } = payload;
-  let { isEmailEnabled = true } = payload;
+  let { sourceURL, isEmailEnabled = true } = payload;
 
   isEmailEnabled = getBool(isEmailEnabled);
+  if (getUserAgentIsApp(req) && !sourceURL) {
+    sourceURL = `https://${EXTERNAL_HOSTNAME}/in/getapp`;
+  }
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
 
