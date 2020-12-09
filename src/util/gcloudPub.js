@@ -30,14 +30,25 @@ publisher.publish = async (publishTopic, req, obj) => {
   if (!config.GCLOUD_PUBSUB_ENABLE) return;
   Object.assign(obj, {
     '@timestamp': new Date().toISOString(),
-    appServer: config.APP_SERVER || 'test-store',
+    appServer: config.APP_SERVER || 'api-public',
     ethNetwork,
     uuidv4: uuidv4(),
-    requestIP: req ? (req.headers['x-real-ip'] || req.ip) : undefined,
-    agent: req ? (req.headers['x-likecoin-user-agent'] || req.headers['x-ucbrowser-ua'] || req.headers['user-agent']) : undefined,
-    deviceId: req ? (req.headers['x-device-id']) : undefined,
-    requestUrl: req ? req.originalUrl : undefined,
   });
+  if (req) {
+    const {
+      'x-likecoin-real-ip': likecoinRealIP,
+    } = req.headers;
+    let originalIP;
+    if (likecoinRealIP) { // no req.auth exists if not user
+      if (!req.auth) originalIP = req.headers['x-real-ip'];
+    }
+    Object.assign(obj, {
+      requestIP: likecoinRealIP || req.headers['x-real-ip'] || req.ip,
+      originalIP: originalIP || req.headers['x-original-ip'],
+      agent: req.headers['x-likecoin-user-agent'] || req.headers['x-ucbrowser-ua'] || req.headers['user-agent'],
+      requestUrl: req.originalUrl,
+    });
+  }
 
   const data = JSON.stringify(obj);
   const dataBuffer = Buffer.from(data);
