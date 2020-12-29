@@ -3,6 +3,7 @@ import BigNumber from 'bignumber.js';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
+  ISCN_DEV_LCD_ENDPOINT as iscnDevLCDEndpoint,
   COSMOS_DENOM,
 } from '../../../config/config';
 
@@ -40,3 +41,5 @@ export async function getCosmosAccountLIKE(address) {
 }
 
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;
+
+export const ISCN_LCD_ENDPOINT = iscnDevLCDEndpoint;
