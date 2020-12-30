@@ -91,6 +91,11 @@ router.use(proxy(ISCN_LCD_ENDPOINT, {
     return proxyReqOpts;
     /* eslint-enable no-param-reassign */
   },
+  proxyReqBodyDecorator: (bodyContent, srcReq) => {
+    // google does not like GET having body
+    if (srcReq.method === 'GET') return '';
+    return bodyContent;
+  },
 }));
 
 export default router;
