@@ -37,7 +37,10 @@ function isSafari(req) {
 
 function getAuthCookieOptions(req) {
   /* mitigate safari sameSite none becomes true bug */
-  return { ...AUTH_COOKIE_OPTION, sameSite: isSafari(req) ? false : 'none' };
+  return {
+    ...AUTH_COOKIE_OPTION,
+    sameSite: isSafari(req) ? false : AUTH_COOKIE_OPTION.sameSite,
+  };
 }
 
 export function getUserAgentIsApp(req) {
