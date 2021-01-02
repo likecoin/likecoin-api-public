@@ -23,7 +23,7 @@ async function handlePostTxReq(reqData, resData) {
       fee: {
         amount: feeAmount,
         gas,
-      },
+      } = {},
       memo,
       signatures: [{
         account_number: accountNumber,
