@@ -43,6 +43,8 @@ async function handlePostTxReq(reqData, resData) {
     fromId,
   } = await fetchPaymentUserInfo({ from });
 
+  // TODO: parse ISCN info and store in db
+
   const txRecord = {
     txHash,
     feeAmount,
