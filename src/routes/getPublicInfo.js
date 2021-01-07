@@ -9,6 +9,7 @@ import userBookmarks from './users/bookmarks';
 import userFollow from './users/follow';
 import usersHook from './users/hook';
 import userNotifications from './users/notifications';
+import userPreferences from './users/preferences';
 import oembed from './oembed';
 import cosmos from './cosmos';
 
@@ -22,6 +23,7 @@ router.use('/users', users);
 router.use('/users', userBookmarks);
 router.use('/users', userFollow);
 router.use('/users', userNotifications);
+router.use('/users', userPreferences);
 router.use('/users/hook', usersHook);
 router.use('/oembed', oembed);
 router.use('/cosmos', cosmos);
