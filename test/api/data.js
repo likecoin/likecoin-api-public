@@ -12,6 +12,7 @@ export const {
   email: testingEmail1,
   wallet: testingWallet1,
   merchantId: testingMerchantId1,
+  locale: testingUser1Locale,
 } = userData.users[0];
 export const {
   since: testingCivicLikerSince1,
