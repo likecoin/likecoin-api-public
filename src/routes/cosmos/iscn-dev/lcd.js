@@ -2,9 +2,12 @@ import bodyParser from 'body-parser';
 import { Router } from 'express';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import { ISCN_LCD_ENDPOINT } from '../../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../../util/api/payment';
 import { logISCNTx } from '../../../util/txLogger';
+import { removeUndefinedObjectKey } from '../../../util/misc';
+import publisher from '../../../util/gcloudPub';
 
 const proxy = require('express-http-proxy');
 
@@ -16,7 +19,7 @@ const router = Router();
 router.use(bodyParser.json({ type: 'text/plain' }));
 
 
-async function handlePostTxReq(reqData, resData) {
+async function handlePostTxReq(reqData, resData, req) {
   const {
     tx: {
       msg,
@@ -35,15 +38,40 @@ async function handlePostTxReq(reqData, resData) {
   const { txhash: txHash } = resData;
   if (!msg || !msg.length || !msg[0]) return;
   const { type, value: payloadValue } = msg[0];
-  if (type !== 'likechain/MsgCreateISCN') return;
+  if (type !== 'likechain/MsgCreateISCN' || !payloadValue) return;
   const {
     from_address: from,
+    iscnKernel: {
+      stakeholders = [],
+      rights = [],
+      content = {},
+      timestamp: contentTimestamp,
+    } = {},
   } = payloadValue;
+  const { fingerprint } = content;
+  const rightHoldersIds = rights.map(r => r.holder && r.holder.id);
+  const rightTermHashes = rights.map(r => r.terms && r.terms.hash);
+  const stakeholdersIds = stakeholders.map(r => r.stakeholder && r.stakeholder.id);
+
+  const { id: creatorWallet } = stakeholders.find(s => s.type === 'Creator') || {};
+  // HACK: use to param to query creator id
   const {
     fromId,
-  } = await fetchPaymentUserInfo({ from });
-
-  // TODO: parse ISCN info and store in db
+    fromDisplayName,
+    fromEmail,
+    fromReferrer,
+    fromLocale,
+    fromRegisterTime,
+    toId: creatorId,
+    toDisplayName: creatorDisplayName,
+    toEmail: creatorEmail,
+    toReferrer: creatorReferrer,
+    toLocale: creatorLocale,
+    toRegisterTime: creatorRegisterTime,
+  } = await fetchPaymentUserInfo({
+    from,
+    to: creatorWallet,
+  });
 
   const txRecord = {
     txHash,
@@ -54,10 +82,42 @@ async function handlePostTxReq(reqData, resData) {
     sequence,
     mode,
     from,
-    fromId: fromId || null,
+    fromId,
+    stakeholders,
+    rights,
+    content,
+    contentTimestamp,
+    creatorId,
+    rightHoldersIds,
+    rightTermHashes,
+    stakeholdersIds,
     rawPayload: JSON.stringify(reqData),
   };
-  await logISCNTx(txRecord);
+  await logISCNTx(removeUndefinedObjectKey(txRecord));
+  const status = 'pending';
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'eventCreateISCN',
+    iscnNetwork: 'iscn-dev',
+    fromUser: fromId,
+    fromWallet: from,
+    fromDisplayName,
+    fromEmail,
+    fromReferrer,
+    fromLocale,
+    fromRegisterTime,
+    creatorUser: creatorId,
+    creatorWallet,
+    creatorDisplayName,
+    creatorEmail,
+    creatorReferrer,
+    creatorLocale,
+    creatorRegisterTime,
+    txHash,
+    txStatus: status,
+    fingerprint,
+    contentTimestamp,
+  });
 }
 
 router.use(proxy(ISCN_LCD_ENDPOINT, {
