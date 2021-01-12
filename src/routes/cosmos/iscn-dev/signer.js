@@ -14,9 +14,10 @@ router.post('/sign', jwtAuth('write'), async (req, res) => {
     if (type !== 'likechain/MsgCreateISCN') throw new ValidationError('INVALID_MESSAGE_TYPE');
     const {
       content,
-      rights,
-      stakeholders,
+      rights: { rights },
+      stakeholders: { stakeholders },
       version,
+      parent = null,
     } = iscnKernel;
     if (version !== 1) throw new ValidationError('INVALID_ISCN_VERSION');
     if (!content || !rights || !stakeholders) {
@@ -42,8 +43,9 @@ router.post('/sign', jwtAuth('write'), async (req, res) => {
         from: getCosmosDelegatorAddress(),
         iscnKernel: {
           content,
-          rights,
-          stakeholders,
+          rights: { rights },
+          stakeholders: { stakeholders },
+          parent,
           timestamp: new Date(Date.now()).toISOString(),
           version: 1,
         },

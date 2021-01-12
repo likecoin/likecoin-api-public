@@ -42,8 +42,8 @@ async function handlePostTxReq(reqData, resData, req) {
   const {
     from_address: from,
     iscnKernel: {
-      stakeholders = [],
-      rights = [],
+      stakeholders: { stakeholders = [] } = {},
+      rights: { rights = [] } = {},
       content = {},
       timestamp: contentTimestamp,
     } = {},
