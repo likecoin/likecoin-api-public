@@ -46,7 +46,7 @@ router.post('/sign', jwtAuth('write'), async (req, res) => {
           rights: { rights },
           stakeholders: { stakeholders },
           parent,
-          timestamp: new Date(Date.now()).toISOString(),
+          timestamp: `${new Date().toISOString().substring(0, 19)}Z`,
           version: 1,
         },
       },
