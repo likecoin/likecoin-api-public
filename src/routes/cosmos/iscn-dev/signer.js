@@ -18,6 +18,7 @@ router.post('/sign', jwtAuth('write'), async (req, res) => {
       stakeholders: { stakeholders },
       version,
       parent = null,
+      timestamp,
     } = iscnKernel;
     if (version !== 1) throw new ValidationError('INVALID_ISCN_VERSION');
     if (!content || !rights || !stakeholders) {
@@ -46,7 +47,7 @@ router.post('/sign', jwtAuth('write'), async (req, res) => {
           rights: { rights },
           stakeholders: { stakeholders },
           parent,
-          timestamp: `${new Date().toISOString().substring(0, 19)}Z`,
+          timestamp: process.env.CI ? timestamp : `${new Date().toISOString().substring(0, 19)}Z`,
           version: 1,
         },
       },

@@ -11,6 +11,7 @@ export const {
   displayName: testingDisplayName1,
   email: testingEmail1,
   wallet: testingWallet1,
+  cosmosWallet: testingCosmosWallet1,
   merchantId: testingMerchantId1,
   locale: testingUser1Locale,
 } = userData.users[0];
