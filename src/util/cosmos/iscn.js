@@ -1,4 +1,3 @@
-import axios from 'axios';
 import jsonStringify from 'fast-json-stable-stringify';
 import createHash from 'create-hash';
 import secp256k1 from 'secp256k1';
@@ -10,10 +9,9 @@ import {
   ISCN_DEV_LCD_ENDPOINT as iscnDevLCDEndpoint,
   COSMOS_DENOM,
 } from '../../../config/config';
+import { createAPIEndpoint } from './api';
 
-const api = axios.create({
-  baseURL: iscnDevLCDEndpoint,
-});
+const api = createAPIEndpoint(iscnDevLCDEndpoint);
 
 export async function getAccountInfo(address) {
   const res = await api.get(`/auth/accounts/${address}`);
