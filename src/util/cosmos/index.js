@@ -1,16 +1,13 @@
-import axios from 'axios';
+
 import BigNumber from 'bignumber.js';
-import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
+  ISCN_DEV_LCD_ENDPOINT as iscnDevLCDEndpoint,
   COSMOS_DENOM,
 } from '../../../config/config';
+import { createAPIEndpoint } from './api';
 
-const api = axios.create({
-  baseURL: cosmosLCDEndpoint,
-  httpAgent: new HttpAgent(),
-  httpsAgent: new HttpsAgent(),
-});
+const api = createAPIEndpoint(cosmosLCDEndpoint);
 
 function LIKEToNanolike(value) {
   return (new BigNumber(value)).multipliedBy(1e9).toFixed();
@@ -40,3 +37,5 @@ export async function getCosmosAccountLIKE(address) {
 }
 
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;
+
+export const ISCN_LCD_ENDPOINT = iscnDevLCDEndpoint;

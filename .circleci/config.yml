@@ -12,6 +12,11 @@ jobs:
           name: Dependencies
           command: npm install && npm install codecov -g
       - run:
+          name: Apt Dependencies
+          command: |
+            apt update
+            apt -y install rsync
+      - run:
           name: Lint Test
           command: npm run lint
       - run:

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import lcd from './lcd';
-import iscnDev from './iscn-dev';
+import signer from './signer';
 
 const router = Router();
 router.use('/lcd', lcd);
-router.use('/iscn-dev', iscnDev);
+router.use('/signer', signer);
 
 export default router;

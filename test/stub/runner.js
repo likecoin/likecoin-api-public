@@ -7,9 +7,11 @@ function setStub() {
   execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak || true');
   execSync('cp ./src/util/ses.js ./src/util/ses.js.bak || true');
   execSync('cp ./src/util/sendgrid.js ./src/util/sendgrid.js.bak || true');
-  execSync('cp ./test/stub/util/* ./src/util/');
+  execSync('cp ./src/util/cosmos/api.js ./src/util/cosmos/api.js.bak || true');
+  execSync('rsync -a ./test/stub/util/ ./src/util/');
   execSync('cp ./config/accounts.js ./config/accounts.js.bak || true');
   execSync('cp ./config/config.js ./config/config.js.bak || true');
+  execSync('cp ./config/secret.js ./config/secret.js.bak || true');
   execSync('cp ./test/stub/config/* ./config/');
 }
 
@@ -18,8 +20,10 @@ function unsetStub() {
   execSync('mv ./src/util/firebase.js.bak ./src/util/firebase.js');
   execSync('mv ./src/util/ses.js.bak ./src/util/ses.js');
   execSync('mv ./src/util/sendgrid.js.bak ./src/util/sendgrid.js');
+  execSync('mv ./src/util/cosmos/api.js.bak ./src/util/cosmos/api.js');
   execSync('mv ./config/accounts.js.bak ./config/accounts.js');
   execSync('mv ./config/config.js.bak ./config/config.js');
+  execSync('mv ./config/secret.js.bak ./config/secret.js');
 }
 
 function stubAndTest() {
