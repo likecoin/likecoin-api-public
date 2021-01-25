@@ -1,8 +1,5 @@
 import { Router } from 'express';
 import {
-  AVATAR_DEFAULT_PATH,
-} from '../../constant';
-import {
   userCollection as dbRef,
 } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
@@ -28,25 +25,6 @@ router.get('/id/:id/min', async (req, res, next) => {
     if (payload) {
       res.set('Cache-Control', 'public, max-age=30');
       res.json(filterUserDataMin(payload, types));
-    } else {
-      res.sendStatus(404);
-    }
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/merchant/:id/min', async (req, res, next) => {
-  try {
-    const merchantId = req.params.id;
-    const query = await dbRef.where('merchantId', '==', merchantId).get();
-    if (query.docs.length > 0) {
-      const payload = query.docs[0].data();
-      if (!payload.avatar) {
-        payload.avatar = AVATAR_DEFAULT_PATH;
-      }
-      payload.user = query.docs[0].id;
-      res.json(filterUserDataMin(payload));
     } else {
       res.sendStatus(404);
     }

@@ -6,7 +6,6 @@
             "email": "testing@likecoin.store",
             "wallet": "0x4b25758E41f9240C8EB8831cEc7F1a02686387fa",
             "cosmosWallet": "cosmos1w508d6qejxtdg4y5r3zarvary0c5xw7k6ah60c",
-            "merchantId": "testmerchantid",
             "civicLiker": {
                 "civicLikerStatus": "subscribed",
                 "currentType": "trial",
