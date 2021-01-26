@@ -6,7 +6,8 @@ import { jwtAuth } from '../../middleware/jwt';
 import {
   TX_METADATA_TYPES,
   TX_METADATA_TIME,
-} from '../../constant';
+  TX_METADATA_FIELDS,
+} from '../../constant/tx';
 
 const router = Router();
 
@@ -64,11 +65,23 @@ router.post('/id/:id/metadata', jwtAuth('write'), async (req, res, next) => {
       res.status(400).send('EXPIRED');
       return;
     }
-    if (Object.keys(metadata).some(m => !TX_METADATA_TYPES.includes(m))) {
+    if (!metadata || Object.keys(metadata).some(m => !TX_METADATA_TYPES.includes(m))) {
       res.status(400).send('INVALID_METADATA');
       return;
     }
-    await txLogRef.doc(txHash).update({ metadata });
+    const filteredMetadata = {};
+    Object.keys(metadata).forEach((m) => {
+      if (TX_METADATA_FIELDS[m]) {
+        filteredMetadata[m] = {};
+        TX_METADATA_FIELDS[m].forEach((k) => {
+          const value = metadata[m][k];
+          if (value && (Array.isArray(value) || typeof value !== 'object')) {
+            filteredMetadata[m][k] = metadata[m][k];
+          }
+        });
+      }
+    });
+    await txLogRef.doc(txHash).update({ metadata: filteredMetadata });
     res.sendStatus(200);
     return;
   } catch (err) {

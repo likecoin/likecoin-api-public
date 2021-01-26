@@ -130,6 +130,3 @@ export const COINMARKETCAP_PRICE_URL = 'https://pro-api.coinmarketcap.com/v1/cry
 export const LIKE_DEFAULT_PRICE = 0.0082625;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
-
-export const TX_METADATA_TIME = 300000;
-export const TX_METADATA_TYPES = ['likePay'];
