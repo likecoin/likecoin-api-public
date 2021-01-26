@@ -141,6 +141,7 @@ export function filterTxData({
   httpReferrer,
   completeTs,
   ts,
+  txHash,
 }) {
   return {
     from,
@@ -155,6 +156,7 @@ export function filterTxData({
     httpReferrer,
     completeTs,
     ts,
+    txHash,
   };
 }
 
