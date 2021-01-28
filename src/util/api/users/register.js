@@ -23,7 +23,7 @@ import {
 import { tryToLinkSocialPlatform } from '../social';
 import { addDefaultFollowers } from './follow';
 import { ValidationError } from '../../ValidationError';
-import { checkUserNameValid } from '../../ValidationHelper';
+import { checkUserNameValid, checkCosmosAddressValid } from '../../ValidationHelper';
 import {
   handleAvatarUploadAndGetURL,
   handleAvatarLinkAndGetURL,
@@ -105,6 +105,9 @@ export async function handleUserRegistration({
   }
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
+  if (!checkCosmosAddressValid(cosmosWallet)) {
+    throw new ValidationError('invalid cosmos wallet');
+  }
 
   await checkUserInfoUniqueness({
     user,
