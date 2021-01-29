@@ -17,7 +17,7 @@ const api = axios.create({
 
 function parseAuthCoreUser(user) {
   const {
-    id: authcoreUserId,
+    id: authCoreUserId,
     username: suggestedUserId,
     display_name: displayName,
     primary_email: email,
@@ -38,7 +38,7 @@ function parseAuthCoreUser(user) {
     isPhoneVerified = phoneVerifiedTs;
   }
   return {
-    authcoreUserId,
+    authCoreUserId,
     suggestedUserId,
     displayName,
     email,
