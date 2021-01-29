@@ -1,3 +1,4 @@
+import bech32 from 'bech32';
 import {
   GETTING_STARTED_TASKS,
   DISPLAY_SOCIAL_MEDIA_OPTIONS,
@@ -10,6 +11,18 @@ export function checkAddressValid(addr) {
 
 export function checkUserNameValid(user) {
   return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= 7 && user.length <= 20);
+}
+
+export function checkCosmosAddressValid(addr) {
+  if (!addr.startsWith('cosmos1') && addr.length === 45) {
+    return false;
+  }
+  try {
+    bech32.decode(addr);
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 export function filterUserData(u) {
