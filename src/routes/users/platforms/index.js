@@ -112,7 +112,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
         }
         const [userQuery, emailQuery, walletQuery] = await Promise.all([
-          dbRef.where('authcoreUserId', '==', authCoreUserId).get(),
+          dbRef.where('authCoreUserId', '==', authCoreUserId).get(),
           dbRef.where('email', '==', email).get(),
           dbRef.where('cosmosWallet', '==', cosmosWallet).get(),
         ]);

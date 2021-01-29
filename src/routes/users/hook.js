@@ -33,14 +33,14 @@ router.post('/authcore', async (req, res, next) => {
     if (authCoreEvent === 'UpdateUser') {
       if (data && data.user) {
         const {
-          public_id: authcoreUserId,
+          public_id: authCoreUserId,
           display_name: displayName,
           primary_email: email,
           primary_email_verified: isEmailVerified = false,
           primary_phone: phone,
           primary_phone_verified: isPhoneVerified = false,
         } = data.user;
-        const query = await dbRef.where('authCoreUserId', '==', authcoreUserId).limit(1).get();
+        const query = await dbRef.where('authCoreUserId', '==', authCoreUserId).limit(1).get();
         const [user] = query.docs;
         if (user) {
           await user.ref.update({
