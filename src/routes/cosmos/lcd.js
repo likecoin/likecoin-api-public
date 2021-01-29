@@ -223,7 +223,7 @@ async function handlePostTxReq(reqData, resData, req) {
     switch (type) {
       case 'cosmos-sdk/MsgDelegate': {
         ({
-          amount: [amount],
+          amount,
           delegator_address: from,
           validator_address: to,
         } = payloadValue);
@@ -232,7 +232,7 @@ async function handlePostTxReq(reqData, resData, req) {
       }
       case 'cosmos-sdk/MsgUndelegate': {
         ({
-          amount: [amount],
+          amount,
           delegator_address: from,
           validator_address: to,
         } = payloadValue);
@@ -241,7 +241,7 @@ async function handlePostTxReq(reqData, resData, req) {
       }
       case 'cosmos-sdk/MsgBeginRedelegate': {
         ({
-          amount: [amount],
+          amount,
           delegator_address: from,
           validator_dst_address: to,
         } = payloadValue);
@@ -250,7 +250,7 @@ async function handlePostTxReq(reqData, resData, req) {
       }
       case 'cosmos-sdk/MsgWithdrawDelegationReward': {
         ({
-          amount: [amount],
+          amount,
           delegator_address: from,
           validator_address: to,
         } = payloadValue);
