@@ -215,6 +215,78 @@ async function handlePostTxReq(reqData, resData, req) {
       txStatus: status,
       sourceURL: httpReferrer,
     });
+  } else {
+    let amount;
+    let from;
+    let to;
+    let logType;
+    switch (type) {
+      case 'cosmos-sdk/MsgDelegate': {
+        ({
+          amount: [amount],
+          delegator_address: from,
+          validator_address: to,
+        } = payloadValue);
+        logType = 'cosmosDelegate';
+        break;
+      }
+      case 'cosmos-sdk/MsgUndelegate': {
+        ({
+          amount: [amount],
+          delegator_address: from,
+          validator_address: to,
+        } = payloadValue);
+        logType = 'cosmosUndelegate';
+        break;
+      }
+      case 'cosmos-sdk/MsgBeginRedelegate': {
+        ({
+          amount: [amount],
+          delegator_address: from,
+          validator_dst_address: to,
+        } = payloadValue);
+        logType = 'cosmosRelegate';
+        break;
+      }
+      case 'cosmos-sdk/MsgWithdrawDelegationReward': {
+        ({
+          amount: [amount],
+          delegator_address: from,
+          validator_address: to,
+        } = payloadValue);
+        logType = 'cosmosWithdrawReward';
+        break;
+      }
+      default:
+        return;
+    }
+    if (!logType) return;
+    const likeAmount = amountToLIKE(amount);
+    const status = 'pending';
+    const {
+      fromId,
+      fromDisplayName,
+      fromEmail,
+      fromReferrer,
+      fromLocale,
+      fromRegisterTime,
+    } = await fetchPaymentUserInfo({ from });
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType,
+      fromUser: fromId,
+      fromWallet: from,
+      fromDisplayName,
+      fromEmail,
+      fromReferrer,
+      fromLocale,
+      fromRegisterTime,
+      toWallet: to,
+      likeAmount: new BigNumber(likeAmount).toNumber(),
+      likeAmountUnitStr: likeAmount,
+      txHash,
+      txStatus: status,
+      sourceURL: httpReferrer,
+    });
   }
 }
 
