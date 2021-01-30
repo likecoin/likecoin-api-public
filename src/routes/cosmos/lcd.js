@@ -250,7 +250,6 @@ async function handlePostTxReq(reqData, resData, req) {
       }
       case 'cosmos-sdk/MsgWithdrawDelegationReward': {
         ({
-          amount,
           delegator_address: from,
           validator_address: to,
         } = payloadValue);
@@ -261,7 +260,7 @@ async function handlePostTxReq(reqData, resData, req) {
         return;
     }
     if (!logType) return;
-    const likeAmount = amountToLIKE(amount);
+    const likeAmount = amount ? amountToLIKE(amount) : undefined;
     const status = 'pending';
     const {
       fromId,
@@ -281,7 +280,7 @@ async function handlePostTxReq(reqData, resData, req) {
       fromLocale,
       fromRegisterTime,
       toWallet: to,
-      likeAmount: new BigNumber(likeAmount).toNumber(),
+      likeAmount: likeAmount ? new BigNumber(likeAmount).toNumber() : undefined,
       likeAmountUnitStr: likeAmount,
       txHash,
       txStatus: status,
