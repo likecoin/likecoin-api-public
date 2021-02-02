@@ -96,6 +96,7 @@ export async function handleUserRegistration({
     secret,
     email,
     phone,
+    utmSource,
   } = payload;
   let { sourceURL, isEmailEnabled = true } = payload;
 
@@ -293,6 +294,7 @@ export async function handleUserRegistration({
       registerTime: createObj.timestamp,
       registerMethod: platform,
       sourceURL,
+      utmSource,
       mediaChannels: createObj.mediaChannels,
     },
     socialPayload,
