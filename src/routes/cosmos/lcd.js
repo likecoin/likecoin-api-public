@@ -245,7 +245,7 @@ async function handlePostTxReq(reqData, resData, req) {
           delegator_address: from,
           validator_dst_address: to,
         } = payloadValue);
-        logType = 'cosmosRelegate';
+        logType = 'cosmosRedelegate';
         break;
       }
       case 'cosmos-sdk/MsgWithdrawDelegationReward': {
