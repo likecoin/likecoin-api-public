@@ -12,6 +12,7 @@ import {
   oAuthClientCollection as oAuthClientDbRef,
 } from '../util/firebase';
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
+import { PERMISSION_GROUPS } from '../constant/jwt';
 
 const expressjwt = require('express-jwt');
 const jwt = require('jsonwebtoken');
@@ -45,6 +46,13 @@ async function fetchProviderClientInfo(clientId, req) {
   return secret;
 }
 
+export function expandScopeGroup(scope) {
+  if (PERMISSION_GROUPS[scope]) {
+    return PERMISSION_GROUPS[scope];
+  }
+  return [scope];
+}
+
 export function expandScope(scope) {
   const parsed = scope.split(':');
   if (parsed.length <= 1) return [scope];
@@ -69,6 +77,7 @@ function checkPermissions(inputScopes, targetScope) {
   if (!Array.isArray(currentScopes)) currentScopes = currentScopes.split(' ');
   const expandedTargetScope = expandScope(targetScope);
   const expandedCurrentScopes = [];
+  currentScopes = currentScopes.reduce((acc, s) => acc.concat(...expandScopeGroup(s)), []);
   currentScopes.forEach((s) => {
     if (!s.includes(':') && !['read', 'write', 'profile', 'email'].includes(s)) {
       expandedCurrentScopes.push(`read:${s}`);
