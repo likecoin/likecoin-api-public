@@ -12,21 +12,57 @@ const config = require('../../config/config');
 export const defaultAudience = EXTERNAL_HOSTNAME;
 export const issuer = EXTERNAL_HOSTNAME;
 
-let signAlgo = 'RS256';
-let verifyAlgo = 'RS256';
-let signSecret;
-let verifySecret;
+const signAlgorithms = [];
+const signSecrets = {};
+const internalVerifyAlgorithms = [];
+const internalVerifySecrets = {};
+let internalDefaultSignAlgorithm;
+let internalDefaultVerifyAlgorithm;
 let authCoreSignSecret;
 let authCoreVerifySecret;
 
 const publicCertPath = config.JWT_PUBLIC_CERT_PATH;
 const secretCertPath = config.JWT_PRIVATE_KEY_PATH;
+const publicECDSACertPath = config.ECDSA_JWT_PUBLIC_CERT_PATH;
+const secretECDSACertPath = config.ECDSA_JWT_PRIVATE_KEY_PATH;
 const authCorePublicCertPath = config.AUTHCORE_PUBLIC_CERT_PATH;
 const authCoreSecretCertPath = config.AUTHCORE_PRIVATE_KEY_PATH;
 const authCoreServiceAccountIss = `serviceaccount:${config.AUTHCORE_SERVICE_ACCOUNT_ID}`;
+
+if (publicECDSACertPath) {
+  try {
+    const es256verify = fs.readFileSync(publicECDSACertPath);
+    if (es256verify) {
+      internalVerifyAlgorithms.push('ES256');
+      internalVerifySecrets.ES256 = es256verify;
+      if (!internalDefaultVerifyAlgorithm) internalDefaultVerifyAlgorithm = 'ES256';
+    }
+  } catch (err) {
+    console.error(err);
+    console.error('RSA cert not exist for jwt');
+  }
+}
+if (secretECDSACertPath) {
+  try {
+    const es256secret = fs.readFileSync(secretECDSACertPath);
+    if (es256secret) {
+      signAlgorithms.push('ES256');
+      signSecrets.ES256 = es256secret;
+      if (!internalDefaultSignAlgorithm) internalDefaultSignAlgorithm = 'ES256';
+    }
+  } catch (err) {
+    console.error(err);
+    console.error('RSA sign key not exist for jwt');
+  }
+}
 if (publicCertPath) {
   try {
-    verifySecret = fs.readFileSync(publicCertPath);
+    const rs256verify = fs.readFileSync(publicCertPath);
+    if (rs256verify) {
+      internalVerifyAlgorithms.push('RS256');
+      internalVerifySecrets.RS256 = rs256verify;
+      if (!internalDefaultVerifyAlgorithm) internalDefaultVerifyAlgorithm = 'RS256';
+    }
   } catch (err) {
     console.error(err);
     console.error('RSA cert not exist for jwt');
@@ -34,13 +70,17 @@ if (publicCertPath) {
 }
 if (secretCertPath) {
   try {
-    signSecret = fs.readFileSync(secretCertPath);
+    const rs256Secret = fs.readFileSync(secretCertPath);
+    if (rs256Secret) {
+      signAlgorithms.push('RS256');
+      signSecrets.RS256 = rs256Secret;
+      if (!internalDefaultSignAlgorithm) internalDefaultSignAlgorithm = 'RS256';
+    }
   } catch (err) {
     console.error(err);
     console.error('RSA sign key not exist for jwt');
   }
 }
-
 if (authCorePublicCertPath) {
   try {
     authCoreVerifySecret = fs.readFileSync(authCorePublicCertPath);
@@ -59,21 +99,26 @@ if (authCoreSecretCertPath) {
   }
 }
 
-if (!signSecret || !verifySecret) {
-  const secret = TEST_MODE ? 'likecoin' : crypto.randomBytes(64).toString('hex').slice(0, 64);
-  if (!signSecret) {
-    signSecret = secret;
-    signAlgo = 'HS256';
+if (!signAlgorithms.length || !internalVerifyAlgorithms.length) {
+  const hs256Secret = TEST_MODE ? 'likecoin' : crypto.randomBytes(64).toString('hex').slice(0, 64);
+  if (!signAlgorithms.length) {
+    signAlgorithms.push('HS256');
+    signSecrets.HS256 = hs256Secret;
+    if (!internalDefaultSignAlgorithm) internalDefaultSignAlgorithm = 'HS256';
   }
-  if (!verifySecret) {
-    verifySecret = secret;
-    verifyAlgo = 'HS256';
+  if (!internalVerifyAlgorithms.length) {
+    internalVerifyAlgorithms.push('HS256');
+    internalVerifySecrets.HS256 = hs256Secret;
+    if (!internalDefaultVerifyAlgorithm) internalDefaultVerifyAlgorithm = 'HS256';
   }
 }
 
-export const publicKey = verifySecret;
-export const signAlgorithm = signAlgo;
-export const verifyAlgorithm = verifyAlgo;
+export const verifySecrets = internalVerifySecrets;
+export const verifyAlgorithms = internalVerifyAlgorithms;
+export const defaultSignAlgorithm = internalDefaultSignAlgorithm;
+export const defaultSignSecret = signSecrets[internalDefaultSignAlgorithm];
+export const defaultVerifyAlgorithm = internalDefaultVerifyAlgorithm;
+export const defaultVerifySecret = internalVerifySecrets[internalDefaultVerifyAlgorithm];
 
 export function getProviderJWTSecret(clientSecret) {
   const hash = crypto.createHmac('sha256', PROVIDER_JWT_COMMON_SECRET)
@@ -102,7 +147,7 @@ export function getToken(req) {
 
 export const jwtVerify = (
   token,
-  secret = verifySecret,
+  secret = defaultVerifySecret,
   { ignoreExpiration, audience = defaultAudience } = {},
 ) => {
   const opt = { audience, issuer };
@@ -131,7 +176,11 @@ const internalSign = (
 export const jwtSign = (
   payload,
   { audience = defaultAudience, expiresIn = '30d' } = {},
-) => internalSign(payload, signSecret, { algorithm: signAlgorithm, audience, expiresIn });
+) => internalSign(
+  payload,
+  defaultSignSecret,
+  { algorithm: defaultSignAlgorithm, audience, expiresIn },
+);
 
 export const jwtSignForAZP = (
   payload,
