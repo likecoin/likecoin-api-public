@@ -241,7 +241,6 @@ async function handlePostTxReq(reqData, resData, req) {
       likeAmountUnitStr: likeAmount,
       txHash,
       txStatus: status,
-      sourceURL: httpReferrer,
     });
   }
 }
