@@ -1,13 +1,9 @@
-import axios from 'axios';
 import bodyParser from 'body-parser';
 import { Router } from 'express';
 import BigNumber from 'bignumber.js';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
-import {
-  MEDIUM_REGEX,
-  PUBSUB_TOPIC_MISC,
-} from '../../constant';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { COSMOS_LCD_ENDPOINT, amountToLIKE } from '../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { logCosmosTx } from '../../util/txLogger';
@@ -29,7 +25,6 @@ router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
       amount: [amount],
       from_address: from,
       to_address: to,
-      httpReferrer,
     } = req.body;
     const {
       fromId,
@@ -63,7 +58,6 @@ router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
       toRegisterTime,
       likeAmount: amountToLIKE(amount),
       likeAmountUnitStr: amountToLIKE(amount).toString(),
-      sourceURL: httpReferrer,
     });
     next();
   } catch (err) {
@@ -86,8 +80,6 @@ async function handlePostTxReq(reqData, resData, req) {
       }],
     },
     mode,
-    httpReferrer,
-    userPayload,
   } = reqData;
   const { txhash: txHash } = resData;
   /* TODO: find out cause of empty msg */
@@ -135,7 +127,6 @@ async function handlePostTxReq(reqData, resData, req) {
       toReferrer,
       toLocale,
       toRegisterTime,
-      toSubscriptionURL,
     } = await fetchPaymentUserInfo({ from, to });
 
     const txRecord = {
@@ -154,43 +145,10 @@ async function handlePostTxReq(reqData, resData, req) {
       rawPayload: JSON.stringify(reqData),
     };
 
-    /* temp hack to handle medium referrer */
-    if (httpReferrer) {
-      let targetURL = httpReferrer;
-      if (!memo) {
-        const match = (decodeURIComponent(targetURL) || '').match(MEDIUM_REGEX);
-        if (match && match[1]) {
-          targetURL = `https://medium.com/p/${match[1]}`;
-          txRecord.remarks = `@LikeCoin Widget: ${targetURL}`;
-        }
-      }
-      try {
-        new URL(targetURL); // eslint-disable-line
-        txRecord.httpReferrer = targetURL;
-      } catch (err) {
-        // no op
-      }
-    }
-
     await logCosmosTx(txRecord);
     const status = 'pending';
     const likeAmount = amountToLIKE(amount);
     const likeAmountSplit = amounts.map(a => amountToLIKE(a));
-    if (toSubscriptionURL) {
-      try {
-        await axios.post(toSubscriptionURL, {
-          from,
-          status,
-          to,
-          txHash,
-          value: likeAmount,
-          amount: amounts.length > 1 ? amounts : amounts[0],
-          userPayload,
-        });
-      } catch (err) {
-        console.error(err); // eslint-disable-line no-console
-      }
-    }
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventPayCosmos',
@@ -213,7 +171,6 @@ async function handlePostTxReq(reqData, resData, req) {
       likeAmountSplit,
       txHash,
       txStatus: status,
-      sourceURL: httpReferrer,
     });
   } else {
     let amount;
