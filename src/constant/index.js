@@ -109,13 +109,13 @@ export const COMMON_COOKIE_OPTION = {
 
 export const AUTH_COOKIE_OPTION = {
   ...COMMON_COOKIE_OPTION,
-  domain: TEST_MODE ? undefined : '.like.co',
+  domain: TEST_MODE ? undefined : `.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
   sameSite: TEST_MODE ? false : 'lax',
 };
 
 export const BUTTON_COOKIE_OPTION = {
   ...COMMON_COOKIE_OPTION,
-  domain: TEST_MODE ? undefined : `button.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
+  domain: TEST_MODE ? undefined : `.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
   sameSite: TEST_MODE ? false : 'none',
 };
 
