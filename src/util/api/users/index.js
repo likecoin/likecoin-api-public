@@ -101,7 +101,14 @@ export function getIntercomUserHash(user, { type = 'web' } = {}) {
     .digest('hex');
 }
 
+export function clearAuthCookies(req, res) {
+  res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
+  res.clearCookie('likecoin_auth', getOldAuthCookieOptions(req));
+  res.clearCookie('likecoin_button_auth', getButtonCookieOptions(req));
+}
+
 export async function setAuthCookies(req, res, { user, platform }) {
+  clearAuthCookies(req, res);
   const { token, jwtid } = jwtSign({
     user,
     platform,
@@ -122,12 +129,6 @@ export async function setAuthCookies(req, res, { user, platform }) {
     buttonJwtId,
     ts: Date.now(),
   });
-}
-
-export async function clearAuthCookies(req, res) {
-  res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
-  res.clearCookie('likecoin_auth', getOldAuthCookieOptions(req));
-  res.clearCookie('likecoin_button_auth', getButtonCookieOptions(req));
 }
 
 export function checkSignPayload(from, payload, sign) {
