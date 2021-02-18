@@ -52,6 +52,7 @@ export function filterUserData(u) {
     civicLikerSince,
     civicLikerVersion,
     locale,
+    creatorPitch,
   } = u;
   return {
     user,
@@ -79,6 +80,7 @@ export function filterUserData(u) {
     civicLikerSince,
     civicLikerVersion,
     locale,
+    creatorPitch,
   };
 }
 
@@ -105,6 +107,9 @@ export function filterUserDataMin(userObject, types = []) {
   };
   if (types.includes('payment')) {
     output.paymentRedirectWhiteList = userObject.paymentRedirectWhiteList;
+  }
+  if (types.includes('creator')) {
+    output.creatorPitch = userObject.creatorPitch;
   }
   return output;
 }
@@ -137,6 +142,9 @@ export function filterUserDataScoped(u, scope = []) {
       locale,
       ...output,
     };
+  }
+  if (scope.includes('read:preferences')) {
+    output.creatorPitch = user.creatorPitch;
   }
   return output;
 }
