@@ -10,8 +10,8 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
     const { user } = req.user;
     const doc = await dbRef.doc(user).get();
     if (doc.exists) {
-      const { locale } = doc.data();
-      res.json({ locale });
+      const { locale, creatorPitch = '' } = doc.data();
+      res.json({ locale, creatorPitch });
       return;
     }
     res.sendStatus(404);
@@ -23,12 +23,38 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
 router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const { locale } = req.body;
-    if (!supportedLocales.includes(locale)) {
-      res.status(400).send('INVALID_LOCALE');
-      return;
+    const { locale, creatorPitch } = req.body;
+    const payload = {};
+
+    if (locale) {
+      if (!supportedLocales.includes(locale)) {
+        res.status(400).send('INVALID_LOCALE');
+        return;
+      }
+      payload.locale = locale;
     }
-    await dbRef.doc(user).update({ locale });
+
+    if (creatorPitch !== undefined) {
+      if (typeof creatorPitch !== 'string') {
+        res.status(400).send('INVALID_CREATOR_PITCH');
+        return;
+      }
+      let charSizeCount = 0;
+      let i = 0;
+      for (; i < creatorPitch.length; i += 1) {
+        const charSize = creatorPitch.charCodeAt(i) < 127 ? 1 : 2;
+        if (charSizeCount + charSize <= 150) {
+          charSizeCount += charSize;
+        } else {
+          break;
+        }
+      }
+      payload.creatorPitch = creatorPitch.slice(0, i);
+    }
+
+    if (Object.keys(payload)) {
+      await dbRef.doc(user).update(payload);
+    }
     res.sendStatus(200);
   } catch (err) {
     next(err);

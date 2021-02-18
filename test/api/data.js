@@ -13,6 +13,7 @@ export const {
   wallet: testingWallet1,
   cosmosWallet: testingCosmosWallet1,
   locale: testingUser1Locale,
+  creatorPitch: testingUser1CreatorPitch,
 } = userData.users[0];
 export const {
   since: testingCivicLikerSince1,
