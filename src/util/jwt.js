@@ -39,7 +39,7 @@ if (publicECDSACertPath) {
     }
   } catch (err) {
     console.error(err);
-    console.error('RSA cert not exist for jwt');
+    console.error('ECDSA cert not exist for jwt');
   }
 }
 if (secretECDSACertPath) {
@@ -52,7 +52,7 @@ if (secretECDSACertPath) {
     }
   } catch (err) {
     console.error(err);
-    console.error('RSA sign key not exist for jwt');
+    console.error('ECDSA sign key not exist for jwt');
   }
 }
 if (publicCertPath) {
