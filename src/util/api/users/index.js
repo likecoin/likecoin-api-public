@@ -2,6 +2,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import {
   AUTH_COOKIE_OPTION,
+  BUTTON_COOKIE_OPTION,
   KNOWN_EMAIL_HOSTS,
   KICKBOX_DISPOSIBLE_API,
   W3C_EMAIL_REGEX,
@@ -33,6 +34,22 @@ export const FIVE_MIN_IN_MS = 300000;
 
 function isSafari(req) {
   return /(Version\/([0-9._]+).*Safari|\biOS\b)/.test(req.headers['user-agent']);
+}
+
+function getButtonCookieOptions(req) {
+  /* mitigate safari sameSite none becomes true bug */
+  return {
+    ...BUTTON_COOKIE_OPTION,
+    sameSite: isSafari(req) ? false : BUTTON_COOKIE_OPTION.sameSite,
+  };
+}
+
+function getOldAuthCookieOptions(req) {
+  /* mitigate safari sameSite none becomes true bug */
+  return {
+    ...AUTH_COOKIE_OPTION,
+    sameSite: isSafari(req) ? false : BUTTON_COOKIE_OPTION.sameSite,
+  };
 }
 
 function getAuthCookieOptions(req) {
@@ -84,24 +101,34 @@ export function getIntercomUserHash(user, { type = 'web' } = {}) {
     .digest('hex');
 }
 
+export function clearAuthCookies(req, res) {
+  res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
+  res.clearCookie('likecoin_auth', getOldAuthCookieOptions(req));
+  res.clearCookie('likecoin_button_auth', getButtonCookieOptions(req));
+}
+
 export async function setAuthCookies(req, res, { user, platform }) {
-  const payload = {
+  clearAuthCookies(req, res);
+  const { token, jwtid } = jwtSign({
     user,
     platform,
     permissions: ['read', 'write', 'like'],
-  };
-  const { token, jwtid } = jwtSign(payload);
+  });
+  const { token: buttonToken, jwtid: buttonJwtId } = jwtSign({
+    user,
+    platform,
+    permissions: ['likebutton'],
+  });
   res.cookie('likecoin_auth', token, getAuthCookieOptions(req));
+  res.cookie('likecoin_button_auth', buttonToken, getButtonCookieOptions(req));
   await dbRef.doc(user).collection('session').doc(jwtid).create({
     lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
     lastAccessedIP: req.headers['x-real-ip'] || req.ip,
     lastAccessedTs: Date.now(),
+    jwtid,
+    buttonJwtId,
     ts: Date.now(),
   });
-}
-
-export async function clearAuthCookies(req, res) {
-  res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
 }
 
 export function checkSignPayload(from, payload, sign) {

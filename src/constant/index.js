@@ -101,12 +101,22 @@ export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 7 * ONE_DAY_IN_MS;
 
-export const AUTH_COOKIE_OPTION = {
+export const COMMON_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
-  domain: TEST_MODE ? undefined : '.like.co',
   secure: !TEST_MODE,
-  sameSite: TEST_MODE ? false : 'none',
   httpOnly: true,
+};
+
+export const AUTH_COOKIE_OPTION = {
+  ...COMMON_COOKIE_OPTION,
+  domain: TEST_MODE ? undefined : `.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
+  sameSite: TEST_MODE ? false : 'lax',
+};
+
+export const BUTTON_COOKIE_OPTION = {
+  ...COMMON_COOKIE_OPTION,
+  domain: TEST_MODE ? undefined : `.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
+  sameSite: TEST_MODE ? false : 'none',
 };
 
 export const CSRF_COOKIE_OPTION = {
