@@ -262,8 +262,14 @@ router.use(proxy(COSMOS_LCD_ENDPOINT, {
   },
   userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
     /* eslint-disable no-param-reassign */
-    if (userReq.method === 'GET' && proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-      headers['cache-control'] = 'public, max-age=1';
+    if (userReq.method === 'GET') {
+      if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
+        headers['cache-control'] = 'public, max-age=1';
+      } else {
+        headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+        headers.pragma = 'no-cache';
+        headers.expires = '0';
+      }
     }
     return headers;
     /* eslint-enable no-param-reassign */
