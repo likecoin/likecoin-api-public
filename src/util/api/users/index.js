@@ -112,7 +112,7 @@ export async function setAuthCookies(req, res, { user, platform }) {
   const { token, jwtid } = jwtSign({
     user,
     platform,
-    permissions: ['read', 'write', 'like'],
+    permissions: ['read', 'write'],
   });
   const { token: buttonToken, jwtid: buttonJwtId } = jwtSign({
     user,
