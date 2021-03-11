@@ -212,10 +212,6 @@ router.post(
         locale,
       } = req.body;
       let { isEmailEnabled } = req.body;
-      if (!displayName && !locale) {
-        res.sendStatus(400);
-        return;
-      }
 
       // handle isEmailEnable is string
       if (typeof isEmailEnabled === 'string') {
@@ -267,6 +263,10 @@ router.post(
         }
       });
 
+      if (!updateObj.displayName && !updateObj.locale) {
+        res.sendStatus(400);
+        return;
+      }
       await dbRef.doc(user).update(updateObj);
       res.sendStatus(200);
 
