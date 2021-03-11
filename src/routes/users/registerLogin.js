@@ -263,7 +263,7 @@ router.post(
         }
       });
 
-      if (!updateObj.displayName && !updateObj.locale) {
+      if (Object.keys(updateObj).length === 0) {
         res.sendStatus(400);
         return;
       }
