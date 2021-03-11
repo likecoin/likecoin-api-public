@@ -263,7 +263,8 @@ router.post(
         }
       });
 
-      if (Object.keys(updateObj).length === 0) {
+      if (!Object.keys(updateObj).length) {
+        res.statusMessage = 'INVALID_PAYLOAD';
         res.sendStatus(400);
         return;
       }
