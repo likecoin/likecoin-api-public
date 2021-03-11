@@ -212,6 +212,10 @@ router.post(
         locale,
       } = req.body;
       let { isEmailEnabled } = req.body;
+      if (!displayName && !locale) {
+        res.sendStatus(400);
+        return;
+      }
 
       // handle isEmailEnable is string
       if (typeof isEmailEnabled === 'string') {
