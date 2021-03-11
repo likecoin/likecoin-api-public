@@ -212,10 +212,6 @@ router.post(
         locale,
       } = req.body;
       let { isEmailEnabled } = req.body;
-      if (!displayName && !locale) {
-        res.sendStatus(400);
-        return;
-      }
 
       // handle isEmailEnable is string
       if (typeof isEmailEnabled === 'string') {
@@ -267,8 +263,9 @@ router.post(
         }
       });
 
-      if (!Object.keys(updateObj).length) {
-        throw new ValidationError('INVALID_PAYLOAD');
+      if (!updateObj.displayName && !updateObj.locale) {
+        res.sendStatus(400);
+        return;
       }
       await dbRef.doc(user).update(updateObj);
       res.sendStatus(200);
