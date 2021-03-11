@@ -264,8 +264,7 @@ router.post(
       });
 
       if (!Object.keys(updateObj).length) {
-        res.statusMessage = 'INVALID_PAYLOAD';
-        res.sendStatus(400);
+        res.status(400).send('INVALID_PAYLOAD');
         return;
       }
       await dbRef.doc(user).update(updateObj);
