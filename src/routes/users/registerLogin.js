@@ -99,7 +99,14 @@ router.post(
           } = req.body;
           if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
           if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
-          const authCoreUser = authCoreJwtVerify(idToken);
+          let authCoreUser;
+          try {
+            authCoreUser = authCoreJwtVerify(idToken);
+          } catch (err) {
+            console.error(err);
+            throw new ValidationError('ID_TOKEN_INVALID');
+          }
+
           const {
             sub: authCoreUserId,
             email: authCoreEmail,
