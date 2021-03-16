@@ -74,12 +74,26 @@ function csrfCheck(req, res, next) {
   }
 }
 
+// deprecated
+function isJson(req) {
+  return req.is('application/json') === 'application/json';
+}
+
+// deprecated
+function loadRegisterMiddlewareByContentType(req, res, next) {
+  if (!isJson(req)) {
+    csrfCheck(req, res, () => {
+      bodyParser.urlencoded({ extended: false })(req, res, () => {
+        multer.single('avatarFile')(req, res, next);
+      });
+    });
+  } else next();
+}
+
 router.post(
   '/new',
-  csrfCheck,
-  bodyParser.urlencoded({ extended: false }),
+  loadRegisterMiddlewareByContentType, // deprecated
   apiLimiter,
-  multer.single('avatarFile'),
   async (req, res, next) => {
     const {
       platform,
@@ -203,19 +217,44 @@ router.post(
   },
 );
 
+// deprecated
+function loadUpdateMiddlewareByContentType(req, res, next) {
+  if (!isJson(req)) {
+    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, () => {
+      bodyParser.urlencoded({ extended: false })(req, res, () => {
+        multer.single('avatarFile')(req, res, next);
+      });
+    });
+  } else next();
+}
+
+// deprecated
+async function getAvatarUrl(req, user) {
+  const { file } = req;
+  const { avatarSHA256 } = req.body;
+  let avatarUrl;
+  if (file) {
+    try {
+      avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+    } catch (err) {
+      console.error('Avatar file handling error:');
+      console.error(err);
+      throw new ValidationError('INVALID_AVATAR');
+    }
+  }
+  return avatarUrl;
+}
+
 router.post(
   '/update',
-  csrf({ cookie: CSRF_COOKIE_OPTION }),
-  bodyParser.urlencoded({ extended: false }),
   jwtAuth('write'),
-  multer.single('avatarFile'),
+  loadUpdateMiddlewareByContentType, // deprecated
   async (req, res, next) => {
     try {
       const { user } = req.user;
       const {
         email,
         displayName,
-        avatarSHA256,
         locale,
       } = req.body;
       let { isEmailEnabled } = req.body;
@@ -228,29 +267,27 @@ router.post(
       const {
         wallet,
         referrer,
+        avatar,
+        timestamp,
         displayName: oldDisplayName,
         email: oldEmail,
         locale: oldLocale,
       } = oldUserObj.data();
 
       // update avatar
-      const { file } = req;
-      let avatarUrl;
-      if (file) {
-        try {
-          avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
-        } catch (err) {
-          console.error('Avatar file handling error:');
-          console.error(err);
-          throw new ValidationError('INVALID_AVATAR');
-        }
-      }
       const updateObj = {
         displayName,
         isEmailEnabled,
-        avatar: avatarUrl,
         locale,
       };
+
+      // deprecated
+      let avatarUrl;
+      if (!isJson(req)) {
+        avatarUrl = await getAvatarUrl(req, user);
+        updateObj.avatar = avatarUrl;
+      }
+
       if (!oldEmail && email) {
         await userByEmailQuery(user, email);
         updateObj.email = email;
@@ -283,10 +320,59 @@ router.post(
         email: email || oldEmail,
         displayName: displayName || oldDisplayName,
         wallet,
-        avatar: avatarUrl || oldUserObj.avatar,
+        avatar: avatarUrl || avatar,
         referrer,
         locale: locale || oldLocale,
-        registerTime: oldUserObj.timestamp,
+        registerTime: timestamp,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/update/avatar',
+  jwtAuth('write'),
+  multer.single('avatarFile'),
+  async (req, res, next) => {
+    try {
+      const { user } = req.user;
+      const { avatarSHA256 } = req.body;
+      const { file } = req;
+      let avatarUrl;
+      if (file) {
+        try {
+          avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+        } catch (err) {
+          console.error('Avatar file handling error:');
+          console.error(err);
+          throw new ValidationError('INVALID_AVATAR');
+        }
+      }
+
+      await dbRef.doc(user).update({ avatar: avatarUrl });
+      res.sendStatus(200);
+
+      const oldUserObj = await dbRef.doc(user).get();
+      const {
+        wallet,
+        referrer,
+        timestamp,
+        displayName,
+        email,
+        locale,
+      } = oldUserObj.data();
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'eventUserAvatarUpdate',
+        user,
+        wallet,
+        referrer,
+        displayName,
+        email,
+        locale,
+        avatar: avatarUrl,
+        registerTime: timestamp,
       });
     } catch (err) {
       next(err);
