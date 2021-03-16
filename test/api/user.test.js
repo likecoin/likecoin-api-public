@@ -1,4 +1,5 @@
 import test from 'ava';
+import FormData from 'form-data';
 import {
   testingUser1,
   testingDisplayName1,
@@ -49,27 +50,7 @@ test.serial('USER: Login user. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Edit user. Case: success', async (t) => {
-  const user = testingUser1;
-  const token = jwtSign({ user });
-  const payload = {
-    user,
-    displayName: testingDisplayName1,
-    ts: Date.now(),
-    wallet: testingWallet1,
-    email: 'noreply@likecoin.store',
-  };
-  const res = await axiosist.post('/api/users/update', payload, {
-    headers: {
-      Cookie: `likecoin_auth=${token}; _csrf=unit_test`,
-      'x-csrf-token': '73fb9061-W0SmQvlNKd0uKS4d2nKoZd0u7SA',
-    },
-  });
-
-  t.is(res.status, 200);
-});
-
-test.serial('USER: Edit user. Case: invalid csrf token', async (t) => {
+test.serial('USER: Edit user by Json. Case: success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
@@ -82,6 +63,45 @@ test.serial('USER: Edit user. Case: invalid csrf token', async (t) => {
   const res = await axiosist.post('/api/users/update', payload, {
     headers: {
       Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+test.serial('USER: Edit user by form-data. Case: success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = new FormData();
+  payload.append('user', user);
+  payload.append('displayName', testingDisplayName1);
+  payload.append('ts', Date.now());
+  payload.append('wallet', testingWallet1);
+  payload.append('email', 'noreply@likecoin.store');
+  const res = await axiosist.post('/api/users/update', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token}; _csrf=unit_test`,
+      'x-csrf-token': '73fb9061-W0SmQvlNKd0uKS4d2nKoZd0u7SA',
+      ...payload.getHeaders(),
+    },
+  });
+
+  t.is(res.status, 200);
+});
+
+test.serial('USER: Edit user by form-data. Case: invalid csrf token', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = new FormData();
+  payload.append('user', user);
+  payload.append('displayName', testingDisplayName1);
+  payload.append('ts', Date.now());
+  payload.append('wallet', testingWallet1);
+  payload.append('email', 'noreply@likecoin.store');
+  const res = await axiosist.post('/api/users/update', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+      ...payload.getHeaders(),
     },
   }).catch(err => err.response);
 
