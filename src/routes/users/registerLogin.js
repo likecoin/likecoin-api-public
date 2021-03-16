@@ -23,7 +23,10 @@ import {
   normalizeUserEmail,
   getUserAgentIsApp,
 } from '../../util/api/users';
-import { handleUserRegistration } from '../../util/api/users/register';
+import {
+  handleUserRegistration,
+  getAvatarUrl,
+} from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
@@ -220,29 +223,14 @@ router.post(
 // deprecated
 function loadUpdateMiddlewareByContentType(req, res, next) {
   if (!isJson(req)) {
-    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, () => {
-      bodyParser.urlencoded({ extended: false })(req, res, () => {
+    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, (csrfErr) => {
+      if (csrfErr) next(csrfErr);
+      bodyParser.urlencoded({ extended: false })(req, res, (bpErr) => {
+        if (bpErr) next(bpErr);
         multer.single('avatarFile')(req, res, next);
       });
     });
   } else next();
-}
-
-// deprecated
-async function getAvatarUrl(req, user) {
-  const { file } = req;
-  const { avatarSHA256 } = req.body;
-  let avatarUrl;
-  if (file) {
-    try {
-      avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
-    } catch (err) {
-      console.error('Avatar file handling error:');
-      console.error(err);
-      throw new ValidationError('INVALID_AVATAR');
-    }
-  }
-  return avatarUrl;
 }
 
 router.post(

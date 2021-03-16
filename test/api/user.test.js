@@ -100,7 +100,8 @@ test.serial('USER: Edit user by form-data. Case: invalid csrf token', async (t) 
   payload.append('email', 'noreply@likecoin.store');
   const res = await axiosist.post('/api/users/update', payload, {
     headers: {
-      Cookie: `likecoin_auth=${token};`,
+      Cookie: `likecoin_auth=${token}; _csrf=unit_test`,
+      'x-csrf-token': 'invalid-token',
       ...payload.getHeaders(),
     },
   }).catch(err => err.response);
