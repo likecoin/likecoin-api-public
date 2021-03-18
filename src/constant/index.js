@@ -109,7 +109,7 @@ export const COMMON_COOKIE_OPTION = {
 
 export const AUTH_COOKIE_OPTION = {
   ...COMMON_COOKIE_OPTION,
-  domain: TEST_MODE ? undefined : `.${IS_TESTNET ? 'rinkeby.' : ''}like.co`,
+  domain: TEST_MODE ? undefined : '.like.co',
   sameSite: TEST_MODE ? false : 'lax',
 };
 
