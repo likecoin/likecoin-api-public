@@ -102,6 +102,7 @@ router.post(
           let authCoreUser;
           try {
             authCoreUser = authCoreJwtVerify(idToken);
+            if (!authCoreUser) throw new ValidationError('AUTHCORE_USER_NOT_EXIST');
           } catch (err) {
             throw new ValidationError('ID_TOKEN_INVALID');
           }
