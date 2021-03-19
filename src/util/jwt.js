@@ -201,8 +201,16 @@ export const authCoreJwtSignToken = () => {
   return token;
 };
 
-export const authCoreJwtVerify = token => jwt.verify(
-  token,
-  authCoreVerifySecret,
-  { algorithm: 'ES256' },
-);
+export const authCoreJwtVerify = (token) => {
+  if (TEST_MODE && !authCorePublicCertPath && !authCoreVerifySecret) {
+    return jwt.decode(
+      token,
+      { algorithm: 'ES256' },
+    );
+  }
+  return jwt.verify(
+    token,
+    authCoreVerifySecret,
+    { algorithm: 'ES256' },
+  );
+};
