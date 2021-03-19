@@ -103,7 +103,6 @@ router.post(
           try {
             authCoreUser = authCoreJwtVerify(idToken);
           } catch (err) {
-            console.error(err);
             throw new ValidationError('ID_TOKEN_INVALID');
           }
 
