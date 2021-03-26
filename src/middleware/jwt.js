@@ -121,7 +121,7 @@ export const jwtAuth = (
   }
   expressjwt({
     secret,
-    algorithm,
+    algorithms: [algorithm],
     getToken,
     audience,
     issuer,
@@ -173,7 +173,7 @@ export const jwtOptionalAuth = (
   expressjwt({
     credentialsRequired: false,
     secret,
-    algorithm,
+    algorithms: [algorithm],
     getToken,
     audience,
     issuer,
