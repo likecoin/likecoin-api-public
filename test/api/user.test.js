@@ -1,5 +1,7 @@
 import test from 'ava';
 import FormData from 'form-data';
+import fs from 'fs';
+import { createHash } from 'crypto';
 import {
   testingUser1,
   testingDisplayName1,
@@ -20,6 +22,7 @@ import {
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../src/constant';
 
+const path = require('path');
 const sigUtil = require('eth-sig-util');
 const Web3 = require('web3');
 const { jwtSign } = require('./jwt');
@@ -50,7 +53,7 @@ test.serial('USER: Login user. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Edit user by Json. Case: success', async (t) => {
+test.serial('USER: Edit user by JSON. Case: success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
@@ -108,6 +111,28 @@ test.serial('USER: Edit user by form-data. Case: invalid csrf token', async (t) 
 
   t.is(res.status, 400);
   t.is(res.data, 'BAD_CSRF_TOKEN');
+});
+
+test.serial('USER: Update avatar. Case: success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const avatarPath = path.join(__dirname, '../data/avatar.jpg');
+  const avatar = fs.readFileSync(avatarPath);
+  const hash = createHash('sha256');
+  hash.update(avatar);
+  const avatarSHA256 = hash.digest('hex');
+  const payload = new FormData();
+  payload.append('user', user);
+  payload.append('avatarFile', fs.createReadStream(avatarPath));
+  payload.append('avatarSHA256', avatarSHA256);
+  const res = await axiosist.post('/api/users/update/avatar', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+      ...payload.getHeaders(),
+    },
+  });
+
+  t.is(res.status, 200);
 });
 
 test.serial('USER: Email verification (Need restart server for clean memory data)', async (t) => {

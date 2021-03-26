@@ -79,14 +79,16 @@ function csrfCheck(req, res, next) {
 
 // deprecated
 function isJson(req) {
-  return req.is('application/json') === 'application/json';
+  return !!req.is('application/json');
 }
 
 // deprecated
-function loadRegisterMiddlewareByContentType(req, res, next) {
+function loadMiddlewareByContentType(req, res, next) {
   if (!isJson(req)) {
-    csrfCheck(req, res, () => {
-      bodyParser.urlencoded({ extended: false })(req, res, () => {
+    csrfCheck(req, res, (csrfErr) => {
+      if (csrfErr) next(csrfErr);
+      bodyParser.urlencoded({ extended: false })(req, res, (bpErr) => {
+        if (bpErr) next(bpErr);
         multer.single('avatarFile')(req, res, next);
       });
     });
@@ -95,7 +97,7 @@ function loadRegisterMiddlewareByContentType(req, res, next) {
 
 router.post(
   '/new',
-  loadRegisterMiddlewareByContentType, // deprecated
+  loadMiddlewareByContentType, // deprecated
   apiLimiter,
   async (req, res, next) => {
     const {
@@ -220,23 +222,10 @@ router.post(
   },
 );
 
-// deprecated
-function loadUpdateMiddlewareByContentType(req, res, next) {
-  if (!isJson(req)) {
-    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, (csrfErr) => {
-      if (csrfErr) next(csrfErr);
-      bodyParser.urlencoded({ extended: false })(req, res, (bpErr) => {
-        if (bpErr) next(bpErr);
-        multer.single('avatarFile')(req, res, next);
-      });
-    });
-  } else next();
-}
-
 router.post(
   '/update',
   jwtAuth('write'),
-  loadUpdateMiddlewareByContentType, // deprecated
+  loadMiddlewareByContentType, // deprecated
   async (req, res, next) => {
     try {
       const { user } = req.user;
@@ -271,7 +260,8 @@ router.post(
 
       // deprecated
       let avatarUrl;
-      if (!isJson(req)) {
+      const isLegacyReq = !isJson(req);
+      if (isLegacyReq) {
         avatarUrl = await getAvatarUrl(req, user);
         updateObj.avatar = avatarUrl;
       }
