@@ -300,3 +300,20 @@ export async function handleUserRegistration({
     socialPayload,
   };
 }
+
+// deprecated
+export async function getAvatarUrl(req, user) {
+  const { file } = req;
+  const { avatarSHA256 } = req.body;
+  let avatarUrl;
+  if (file) {
+    try {
+      avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+    } catch (err) {
+      console.error('Avatar file handling error:');
+      console.error(err);
+      throw new ValidationError('INVALID_AVATAR');
+    }
+  }
+  return avatarUrl;
+}

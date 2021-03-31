@@ -4,6 +4,7 @@ const { execSync } = require('child_process');
 function setStub() {
   console.log('Setting Stub');
   execSync('mkdir -p config');
+  execSync('cp ./src/util/fileupload.js ./src/util/fileupload.js.bak || true');
   execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak || true');
   execSync('cp ./src/util/ses.js ./src/util/ses.js.bak || true');
   execSync('cp ./src/util/sendgrid.js ./src/util/sendgrid.js.bak || true');
@@ -17,6 +18,7 @@ function setStub() {
 
 function unsetStub() {
   console.log('Unsetting Stub');
+  execSync('mv ./src/util/fileupload.js.bak ./src/util/fileupload.js');
   execSync('mv ./src/util/firebase.js.bak ./src/util/firebase.js');
   execSync('mv ./src/util/ses.js.bak ./src/util/ses.js');
   execSync('mv ./src/util/sendgrid.js.bak ./src/util/sendgrid.js');
