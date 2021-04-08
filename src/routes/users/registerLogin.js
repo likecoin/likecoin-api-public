@@ -411,6 +411,8 @@ router.post('/login', async (req, res, next) => {
     const {
       platform,
       appReferrer,
+      sourceURL,
+      utmSource,
     } = req.body;
 
     switch (platform) {
@@ -521,6 +523,8 @@ router.post('/login', async (req, res, next) => {
           locale,
           registerTime,
           platform,
+          sourceURL,
+          utmSource,
         });
       }
       if (getUserAgentIsApp(req)) {
