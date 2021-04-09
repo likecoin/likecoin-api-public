@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
   PUBSUB_TOPIC_MISC,
-  TEST_MODE,
 } from '../../constant';
 import {
   userCollection as dbRef,
@@ -139,7 +138,7 @@ router.post(
         req,
       });
 
-      if (platform === 'authcore' && !TEST_MODE) {
+      if (platform === 'authcore') {
         try {
           const authCoreToken = await authCoreJwtSignToken();
           await updateAuthCoreUserById(
@@ -439,7 +438,7 @@ router.post('/login', async (req, res, next) => {
           cosmosWallet,
           timestamp: registerTime,
         } = doc.data();
-        if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
+        if (platform === 'authcore' && req.body.accessToken) {
           const { accessToken } = req.body;
           if (!cosmosWallet) {
             const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);

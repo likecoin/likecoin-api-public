@@ -5,7 +5,6 @@ import {
   MAX_USER_ID_LENGTH,
   IS_TESTNET,
   EXTERNAL_HOSTNAME,
-  TEST_MODE,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -250,7 +249,7 @@ export async function handleUserRegistration({
     const doc = {};
     if (authCoreUserId) {
       doc.authcore = { userId: authCoreUserId };
-      if (platform === 'authcore' && accessToken && !TEST_MODE) {
+      if (platform === 'authcore' && accessToken) {
         try {
           const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
           if (oAuthFactors && oAuthFactors.length) {
