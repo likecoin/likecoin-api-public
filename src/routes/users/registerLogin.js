@@ -21,10 +21,7 @@ import {
   normalizeUserEmail,
   getUserAgentIsApp,
 } from '../../util/api/users';
-import {
-  handleUserRegistration,
-  getAvatarUrl,
-} from '../../util/api/users/register';
+import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
