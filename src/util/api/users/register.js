@@ -5,6 +5,7 @@ import {
   MAX_USER_ID_LENGTH,
   IS_TESTNET,
   EXTERNAL_HOSTNAME,
+  TEST_MODE,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -249,7 +250,7 @@ export async function handleUserRegistration({
     const doc = {};
     if (authCoreUserId) {
       doc.authcore = { userId: authCoreUserId };
-      if (platform === 'authcore' && accessToken) {
+      if (platform === 'authcore' && accessToken && !TEST_MODE) {
         try {
           const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
           if (oAuthFactors && oAuthFactors.length) {
@@ -299,21 +300,4 @@ export async function handleUserRegistration({
     },
     socialPayload,
   };
-}
-
-// deprecated
-export async function getAvatarUrl(req, user) {
-  const { file } = req;
-  const { avatarSHA256 } = req.body;
-  let avatarUrl;
-  if (file) {
-    try {
-      avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
-    } catch (err) {
-      console.error('Avatar file handling error:');
-      console.error(err);
-      throw new ValidationError('INVALID_AVATAR');
-    }
-  }
-  return avatarUrl;
 }
