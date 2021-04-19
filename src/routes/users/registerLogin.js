@@ -1,5 +1,8 @@
 import { Router } from 'express';
+import bodyParser from 'body-parser';
+import csrf from 'csurf';
 import {
+  CSRF_COOKIE_OPTION,
   PUBSUB_TOPIC_MISC,
   TEST_MODE,
 } from '../../constant';
@@ -21,7 +24,10 @@ import {
   normalizeUserEmail,
   getUserAgentIsApp,
 } from '../../util/api/users';
-import { handleUserRegistration } from '../../util/api/users/register';
+import {
+  handleUserRegistration,
+  getAvatarUrl,
+} from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
@@ -63,8 +69,36 @@ const apiLimiter = new RateLimit({
 
 router.use(loginPlatforms);
 
+function csrfCheck(req, res, next) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  if (userAgent.includes('LikeCoinApp')) {
+    next();
+  } else {
+    csrf({ cookie: CSRF_COOKIE_OPTION })(req, res, next);
+  }
+}
+
+// deprecated
+function isJson(req) {
+  return !!req.is('application/json');
+}
+
+// deprecated
+function loadMiddlewareByContentType(req, res, next) {
+  if (!isJson(req)) {
+    csrfCheck(req, res, (csrfErr) => {
+      if (csrfErr) next(csrfErr);
+      bodyParser.urlencoded({ extended: false })(req, res, (bpErr) => {
+        if (bpErr) next(bpErr);
+        multer.single('avatarFile')(req, res, next);
+      });
+    });
+  } else next();
+}
+
 router.post(
   '/new',
+  loadMiddlewareByContentType, // deprecated
   apiLimiter,
   async (req, res, next) => {
     const {
@@ -192,6 +226,7 @@ router.post(
 router.post(
   '/update',
   jwtAuth('write'),
+  loadMiddlewareByContentType, // deprecated
   async (req, res, next) => {
     try {
       const { user } = req.user;
@@ -217,11 +252,20 @@ router.post(
         locale: oldLocale,
       } = oldUserObj.data();
 
+      // update avatar
       const updateObj = {
         displayName,
         isEmailEnabled,
         locale,
       };
+
+      // deprecated
+      let avatarUrl;
+      const isLegacyReq = !isJson(req);
+      if (isLegacyReq) {
+        avatarUrl = await getAvatarUrl(req, user);
+        updateObj.avatar = avatarUrl;
+      }
 
       if (!oldEmail && email) {
         await userByEmailQuery(user, email);
@@ -255,7 +299,7 @@ router.post(
         email: email || oldEmail,
         displayName: displayName || oldDisplayName,
         wallet,
-        avatar,
+        avatar: avatarUrl || avatar,
         referrer,
         locale: locale || oldLocale,
         registerTime: timestamp,

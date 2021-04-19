@@ -54,6 +54,7 @@
     "cookie-parser": "^1.4.3",
     "cors": "^2.8.5",
     "create-hash": "^1.2.0",
+    "csurf": "^1.9.0",
     "disposable-email-domains": "^1.0.56",
     "eth-sig-util": "^1.4.2",
     "express": "^4.17.0",
