@@ -72,26 +72,6 @@ test.serial('USER: Edit user by JSON from Web. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Edit user by form-data from App. Case: success', async (t) => {
-  const user = testingUser1;
-  const token = jwtSign({ user });
-  const payload = new FormData();
-  payload.append('user', user);
-  payload.append('displayName', testingDisplayName1);
-  payload.append('ts', Date.now());
-  payload.append('wallet', testingWallet1);
-  payload.append('email', 'noreply@likecoin.store');
-  const res = await axiosist.post('/api/users/update', payload, {
-    headers: {
-      Cookie: `likecoin_auth=${token};`,
-      'User-Agent': 'LikeCoinApp',
-      ...payload.getHeaders(),
-    },
-  }).catch(err => err.response);
-
-  t.is(res.status, 200);
-});
-
 test.serial('USER: Edit user by form-data from Web. Case: invalid payload format', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });

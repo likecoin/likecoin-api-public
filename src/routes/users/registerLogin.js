@@ -207,7 +207,6 @@ router.post(
 router.post(
   '/update',
   jwtAuth('write'),
-  formdataParserForApp,
   async (req, res, next) => {
     try {
       const { user } = req.user;
