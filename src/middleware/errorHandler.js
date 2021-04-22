@@ -22,9 +22,6 @@ export default function errorHandler(err, req, res, next) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).send('FILE_TOO_LARGE');
     }
-    if (err.code === 'EBADCSRFTOKEN') {
-      return res.status(400).send('BAD_CSRF_TOKEN');
-    }
   }
   return res.sendStatus(500);
 }
