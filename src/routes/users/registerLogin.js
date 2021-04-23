@@ -74,9 +74,14 @@ function isApp(req) {
 
 function formdataParserForApp(req, res, next) {
   if (!isJson(req)) {
-    if (isApp(req)) multer.none()(req, res, next);
-    else next(new ValidationError('INVALID_CONTENT_TYPE'));
-  } else next();
+    if (isApp(req)) {
+      multer.none()(req, res, next);
+    } else {
+      next(new ValidationError('INVALID_CONTENT_TYPE'));
+    }
+  } else {
+    next();
+  }
 }
 
 router.post(
