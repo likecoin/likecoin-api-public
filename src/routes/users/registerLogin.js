@@ -63,8 +63,30 @@ const apiLimiter = new RateLimit({
 
 router.use(loginPlatforms);
 
+function isJson(req) {
+  return !!req.is('application/json');
+}
+
+function isApp(req) {
+  const { 'user-agent': userAgent = '' } = req.headers;
+  return userAgent.includes('LikeCoinApp');
+}
+
+function formdataParserForApp(req, res, next) {
+  if (!isJson(req)) {
+    if (isApp(req)) {
+      multer.none()(req, res, next);
+    } else {
+      next(new ValidationError('INVALID_CONTENT_TYPE'));
+    }
+  } else {
+    next();
+  }
+}
+
 router.post(
   '/new',
+  formdataParserForApp,
   apiLimiter,
   async (req, res, next) => {
     const {

@@ -53,7 +53,7 @@ test.serial('USER: Login user. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Edit user. Case: success', async (t) => {
+test.serial('USER: Edit user by JSON from Web. Case: success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
@@ -61,7 +61,7 @@ test.serial('USER: Edit user. Case: success', async (t) => {
     displayName: testingDisplayName1,
     ts: Date.now(),
     wallet: testingWallet1,
-    email: 'noreply@likecoin.store',
+    email: testingEmail1,
   };
   const res = await axiosist.post('/api/users/update', payload, {
     headers: {
@@ -72,7 +72,7 @@ test.serial('USER: Edit user. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Edit user by form-data. Case: invalid content type', async (t) => {
+test.serial('USER: Edit user by form-data from Web. Case: invalid content-type', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = new FormData();
@@ -80,7 +80,7 @@ test.serial('USER: Edit user by form-data. Case: invalid content type', async (t
   payload.append('displayName', testingDisplayName1);
   payload.append('ts', Date.now());
   payload.append('wallet', testingWallet1);
-  payload.append('email', 'noreply@likecoin.store');
+  payload.append('email', testingEmail1);
   const res = await axiosist.post('/api/users/update', payload, {
     headers: {
       Cookie: `likecoin_auth=${token};`,
@@ -149,6 +149,49 @@ test.serial('USER: Verify uuid. Case: success (Need restart server for clean mem
   }).catch(err => err.response);
   t.is(res.status, 200);
   t.is(res.data.wallet, testingWallet2);
+});
+
+test.serial('USER: Register user by form-data from Web. Case: invalid content-type', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = new FormData();
+  payload.append('user', user);
+  payload.append('displayName', testingDisplayName1);
+  payload.append('ts', Date.now());
+  payload.append('wallet', testingWallet1);
+  payload.append('email', testingEmail1);
+  payload.append('platform', 'wallet');
+  const res = await axiosist.post('/api/users/new', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+      ...payload.getHeaders(),
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'INVALID_CONTENT_TYPE');
+});
+
+test.serial('USER: Register user by form-data from App. Case: invalid platform', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = new FormData();
+  payload.append('user', user);
+  payload.append('displayName', testingDisplayName1);
+  payload.append('ts', Date.now());
+  payload.append('wallet', testingWallet1);
+  payload.append('email', testingEmail1);
+  payload.append('platform', 'wallet');
+  const res = await axiosist.post('/api/users/new', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+      'User-Agent': 'LikeCoinApp',
+      ...payload.getHeaders(),
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'INVALID_PLATFORM');
 });
 
 //
