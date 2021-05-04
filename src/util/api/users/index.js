@@ -167,8 +167,13 @@ export function checkCosmosSignPayload({
   if (!verified) {
     throw new ValidationError('INVALID_SIGNATURE');
   }
-  const { memo } = JSON.parse(message);
-  const actualPayload = JSON.parse(memo.substr(memo.indexOf('{')));
+  let actualPayload = {};
+  try {
+    const { memo } = JSON.parse(message);
+    actualPayload = JSON.parse(memo.substr(memo.indexOf('{')));
+  } catch (err) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
   const { ts, cosmosWallet: payloadWallet } = actualPayload;
   if (payloadWallet !== cosmosWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
