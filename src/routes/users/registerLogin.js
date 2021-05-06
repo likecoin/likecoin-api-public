@@ -152,6 +152,7 @@ router.post(
           } = req.body;
           ({ email } = req.body);
           if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          if (!email) throw new ValidationError('INVALID_EMAIL');
           if (!checkCosmosSignPayload({
             signature, publicKey, message, cosmosWallet,
           })) {
