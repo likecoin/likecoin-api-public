@@ -66,17 +66,21 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
     }
 
     if (paymentRedirectWhiteList !== undefined) {
-      if (!Array.isArray(paymentRedirectWhiteList)) {
-        res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
-        return;
-      }
-      for (let i = 0; i < paymentRedirectWhiteList.length; i += 1) {
-        if (!isValidHttpUrl(paymentRedirectWhiteList[i])) {
-          res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
+      if (paymentRedirectWhiteList === null) {
+        payload.paymentRedirectWhiteList = [];
+      } else {
+        if (!Array.isArray(paymentRedirectWhiteList)) {
+          res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
           return;
         }
+        for (let i = 0; i < paymentRedirectWhiteList.length; i += 1) {
+          if (!isValidHttpUrl(paymentRedirectWhiteList[i])) {
+            res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
+            return;
+          }
+        }
+        payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
       }
-      payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
     }
 
     if (Object.keys(payload)) {
