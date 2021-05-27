@@ -10,8 +10,8 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
     const { user } = req.user;
     const doc = await dbRef.doc(user).get();
     if (doc.exists) {
-      const { locale, creatorPitch = '' } = doc.data();
-      res.json({ locale, creatorPitch });
+      const { locale, creatorPitch = '', paymentRedirectWhiteList = [] } = doc.data();
+      res.json({ locale, creatorPitch, paymentRedirectWhiteList });
       return;
     }
     res.sendStatus(404);
@@ -20,10 +20,23 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
   }
 });
 
+// https://stackoverflow.com/a/43467144/7978205
+function isValidHttpUrl(string) {
+  let url;
+
+  try {
+    url = new URL(string);
+  } catch (_) {
+    return false;
+  }
+
+  return url.protocol === 'http:' || url.protocol === 'https:';
+}
+
 router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const { locale, creatorPitch } = req.body;
+    const { locale, creatorPitch, paymentRedirectWhiteList } = req.body;
     const payload = {};
 
     if (locale) {
@@ -50,6 +63,20 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
         }
       }
       payload.creatorPitch = creatorPitch.slice(0, i);
+    }
+
+    if (paymentRedirectWhiteList !== undefined) {
+      if (!Array.isArray(paymentRedirectWhiteList)) {
+        res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
+        return;
+      }
+      for (let i = 0; i < paymentRedirectWhiteList.length; i += 1) {
+        if (!isValidHttpUrl(paymentRedirectWhiteList[i])) {
+          res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
+          return;
+        }
+      }
+      payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
     }
 
     if (Object.keys(payload)) {
