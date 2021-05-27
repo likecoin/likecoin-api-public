@@ -2,6 +2,7 @@ import test from 'ava';
 import FormData from 'form-data';
 import fs from 'fs';
 import { createHash } from 'crypto';
+import jsonStringify from 'fast-json-stable-stringify';
 import {
   testingUser1,
   testingDisplayName1,
@@ -21,29 +22,115 @@ import axiosist from './axiosist';
 import {
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../src/constant';
+import {
+  TEST_COSMOS_ADDRESS,
+  TEST_COSMOS_PRIVATE_KEY,
+  signWithPrivateKey as signWithCosmos,
+} from './cosmos';
 
 const path = require('path');
 const sigUtil = require('eth-sig-util');
 const Web3 = require('web3');
 const { jwtSign } = require('./jwt');
 
-//
-// functions
-//
-function signProfile(signData, privateKey) {
+function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
   return sigUtil.personalSign(privKey, { data: signData });
 }
 
+test.serial('USER: Register cosmos user. Case: fail', async (t) => {
+  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    cosmosWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
+  const res = await axiosist.post('/api/users/new', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_COSMOS_ADDRESS,
+    platform: 'cosmosWallet',
+    user: 'testing-new-fail',
+    email: 'test@cosmos.user',
+  });
+  t.is(res.status, 400);
+});
+
+test.serial('USER: Register cosmos user. Case: success', async (t) => {
+  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    cosmosWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  const res = await axiosist.post('/api/users/new', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_COSMOS_ADDRESS,
+    platform: 'cosmosWallet',
+    user: 'testing-new-user',
+    email: 'test@cosmos.user',
+  });
+  t.is(res.status, 200);
+});
+
+test.serial('USER: Login cosmos user. Case: sucess', async (t) => {
+  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    cosmosWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  const res = await axiosist.post('/api/users/login', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_COSMOS_ADDRESS,
+    platform: 'cosmosWallet',
+  });
+  t.is(res.status, 200);
+});
+
+test.serial('USER: Login cosmos user. Case: fail', async (t) => {
+  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    cosmosWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
+  const res = await axiosist.post('/api/users/login', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_COSMOS_ADDRESS,
+    platform: 'cosmosWallet',
+  });
+  t.is(res.status, 400);
+});
+
 //
 // serial will run first
 //
-test.serial('USER: Login user. Case: success', async (t) => {
+test.serial('USER: Login Metamask user. Case: success', async (t) => {
   const payload = Web3.utils.utf8ToHex(JSON.stringify({
     ts: Date.now(),
     wallet: testingWallet1,
   }));
-  const sign = signProfile(payload, privateKey1);
+  const sign = signERCProfile(payload, privateKey1);
   const res = await axiosist.post('/api/users/login', {
     from: testingWallet1,
     platform: 'wallet',
@@ -340,7 +427,7 @@ for (let i = 0; i < userCases.length; i += 1) {
   } = userCases[i];
   test(name, async (t) => {
     const formatedPayload = Web3.utils.utf8ToHex(JSON.stringify(payload));
-    const sign = signProfile(formatedPayload, privateKey);
+    const sign = signERCProfile(formatedPayload, privateKey);
     const res = await axiosist.post('/api/users/new', {
       from,
       payload: formatedPayload,
