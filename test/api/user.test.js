@@ -566,3 +566,101 @@ test('USER: Check New User Info: Email Already exist', async (t) => {
   t.is(res.status, 400);
   t.is(res.data.error, 'EMAIL_ALREADY_USED');
 });
+
+test('USER: Get user preferences. Case: Success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const res = await axiosist.get('/api/users/preferences', {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  console.log(res);
+  t.is(res.status, 200);
+});
+
+test('USER: Post payment redirect whitelist. Case: Success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: [
+      'http://example1.com/',
+      'http://example2.com/',
+      'http://example3.com/',
+    ],
+  };
+  const res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+test('USER: Empty payment redirect whitelist with empty array. Case: Success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: [],
+  };
+  const res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+test('USER: Empty payment redirect whitelist with null. Case: Success', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: null,
+  };
+  const res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+});
+
+test('USER: Post payment redirect whitelist. Case: Invalid payload format', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: true,
+  };
+  const res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'INVALID_PAYMENT_REDIRECT_WHITELIST');
+});
+
+test('USER: Post payment redirect whitelist. Case: Invalid url format', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: [
+      'http://example1.com/',
+      'http://example2.com/',
+      'invalid string',
+    ],
+  };
+  const res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'INVALID_PAYMENT_REDIRECT_URL');
+});
