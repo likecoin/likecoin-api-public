@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { constants } from 'agentkeepalive';
 import { jwtAuth } from '../../middleware/jwt';
 import { userCollection as dbRef } from '../../util/firebase';
 import { supportedLocales } from '../../locales';
@@ -36,7 +37,7 @@ function isValidHttpUrl(string) {
 router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const { locale, creatorPitch, paymentRedirectWhiteList } = req.body;
+    const { locale, creatorPitch, paymentRedirectWhiteList: inputPaymentRedirectWhiteList } = req.body;
     const payload = {};
 
     if (locale) {
@@ -65,22 +66,18 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
       payload.creatorPitch = creatorPitch.slice(0, i);
     }
 
-    if (paymentRedirectWhiteList !== undefined) {
-      if (paymentRedirectWhiteList === null) {
-        payload.paymentRedirectWhiteList = [];
-      } else {
-        if (!Array.isArray(paymentRedirectWhiteList)) {
-          res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
-          return;
-        }
-        for (let i = 0; i < paymentRedirectWhiteList.length; i += 1) {
-          if (!isValidHttpUrl(paymentRedirectWhiteList[i])) {
-            res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
-            return;
-          }
-        }
-        payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
+    if (inputPaymentRedirectWhiteList !== undefined) {
+      const paymentRedirectWhiteList = inputPaymentRedirectWhiteList === null
+        ? [] : inputPaymentRedirectWhiteList;
+      if (!Array.isArray(paymentRedirectWhiteList)) {
+        res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
+        return;
       }
+      if (paymentRedirectWhiteList.some(x => !isValidHttpUrl(x))) {
+        res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
+        return;
+      }
+      payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
     }
 
     if (Object.keys(payload)) {
