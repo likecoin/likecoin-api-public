@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { constants } from 'agentkeepalive';
 import { jwtAuth } from '../../middleware/jwt';
 import { userCollection as dbRef } from '../../util/firebase';
 import { supportedLocales } from '../../locales';
@@ -37,7 +36,11 @@ function isValidHttpUrl(string) {
 router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    const { locale, creatorPitch, paymentRedirectWhiteList: inputPaymentRedirectWhiteList } = req.body;
+    const {
+      locale,
+      creatorPitch,
+      paymentRedirectWhiteList: inputPaymentRedirectWhiteList,
+    } = req.body;
     const payload = {};
 
     if (locale) {
