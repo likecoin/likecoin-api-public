@@ -80,7 +80,7 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
         res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
         return;
       }
-      payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
+      payload.paymentRedirectWhiteList = [...new Set(paymentRedirectWhiteList)];
     }
 
     if (Object.keys(payload)) {
