@@ -70,17 +70,19 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
     }
 
     if (inputPaymentRedirectWhiteList !== undefined) {
-      const paymentRedirectWhiteList = inputPaymentRedirectWhiteList === null
+      let paymentRedirectWhiteList = inputPaymentRedirectWhiteList === null
         ? [] : inputPaymentRedirectWhiteList;
       if (!Array.isArray(paymentRedirectWhiteList)) {
         res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
         return;
       }
+      paymentRedirectWhiteList = [...new Set(paymentRedirectWhiteList)];
+      paymentRedirectWhiteList = paymentRedirectWhiteList.filter(x => x !== '');
       if (paymentRedirectWhiteList.some(x => !isValidHttpUrl(x))) {
         res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
         return;
       }
-      payload.paymentRedirectWhiteList = [...new Set(paymentRedirectWhiteList)];
+      payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
     }
 
     if (Object.keys(payload)) {
