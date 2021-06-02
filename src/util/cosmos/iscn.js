@@ -1,7 +1,6 @@
 import jsonStringify from 'fast-json-stable-stringify';
 import createHash from 'create-hash';
 import secp256k1 from 'secp256k1';
-import bech32 from 'bech32';
 
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import {
@@ -10,6 +9,7 @@ import {
   COSMOS_DENOM,
 } from '../../../config/config';
 import { createAPIEndpoint } from './api';
+import { publicKeyBinaryToCosmosAddress } from '.';
 
 const api = createAPIEndpoint(iscnDevLCDEndpoint);
 
@@ -23,12 +23,7 @@ export async function getAccountInfo(address) {
 
 function createSigner(privateKey) {
   const publicKey = secp256k1.publicKeyCreate(privateKey, true);
-  const sha256 = createHash('sha256');
-  const ripemd = createHash('ripemd160');
-  sha256.update(publicKey);
-  ripemd.update(sha256.digest());
-  const rawAddr = ripemd.digest();
-  const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
+  const cosmosAddress = publicKeyBinaryToCosmosAddress(publicKey);
   const sign = (msg) => {
     const msgSha256 = createHash('sha256');
     msgSha256.update(msg);

@@ -6,7 +6,7 @@ import {
   testingCosmosWallet1,
   testingUser2,
 } from './data';
-import { SECRET_ADDRESS } from './cosmos';
+import { ISCN_SECRET_ADDRESS } from './cosmos';
 
 const { jwtSign } = require('./jwt');
 
@@ -14,7 +14,7 @@ function getMessage(id, displayName, cosmosWallet) {
   return {
     type: 'likechain/MsgCreateISCN',
     value: {
-      from: SECRET_ADDRESS,
+      from: ISCN_SECRET_ADDRESS,
       iscnKernel: {
         content: {
           fingerprint: 'ipfs://QmcTD5FbyBimKbd3EZ8PtR19PyeMnouZ7hZ178z75hZGrs',

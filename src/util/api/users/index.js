@@ -22,6 +22,7 @@ import {
   INTERCOM_USER_IOS_HASH_SECRET,
   CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
+import { verifyCosmosSignInPayload } from '../../cosmos';
 
 const disposableDomains = require('disposable-email-domains');
 const web3Utils = require('web3-utils');
@@ -151,6 +152,32 @@ export function checkSignPayload(from, payload, sign) {
   }
 
   // Check ts expire
+  if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
+    throw new ValidationError('PAYLOAD_EXPIRED');
+  }
+  return actualPayload;
+}
+
+export function checkCosmosSignPayload({
+  signature, publicKey, message, cosmosWallet,
+}) {
+  const verified = verifyCosmosSignInPayload({
+    signature, publicKey, message, cosmosWallet,
+  });
+  if (!verified) {
+    throw new ValidationError('INVALID_SIGNATURE');
+  }
+  let actualPayload = {};
+  try {
+    const { memo } = JSON.parse(message);
+    actualPayload = JSON.parse(memo.substr(memo.indexOf('{')));
+  } catch (err) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+  const { ts, cosmosWallet: payloadWallet } = actualPayload;
+  if (payloadWallet !== cosmosWallet) {
+    throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
+  }
   if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
     throw new ValidationError('PAYLOAD_EXPIRED');
   }

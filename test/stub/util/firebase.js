@@ -80,7 +80,15 @@ function querySnapshotDocs(data, originalData) {
 function collectionWhere(data, field, op, value) {
   let whereData = data;
   if (op === '==') {
-    whereData = data.filter(d => d[field] === value);
+    if (field.includes('.')) {
+      const fields = field.split('.');
+      whereData = data.filter(d => fields.reduce((acc, f) => {
+        if (!acc) return acc;
+        return acc[f];
+      }, d));
+    } else {
+      whereData = data.filter(d => d[field] === value);
+    }
   } else if (op === 'array-contains') {
     whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
   }

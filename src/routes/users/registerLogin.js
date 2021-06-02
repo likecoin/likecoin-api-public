@@ -15,6 +15,7 @@ import {
 } from '../../util/authcore';
 import {
   checkSignPayload,
+  checkCosmosSignPayload,
   setAuthCookies,
   clearAuthCookies,
   userByEmailQuery,
@@ -143,6 +144,25 @@ router.post(
             payload.isPhoneVerified = isAuthCorePhoneVerified;
           }
           platformUserId = authCoreUserId;
+          break;
+        }
+        case 'cosmosWallet': {
+          const {
+            from: cosmosWallet, signature, publicKey, message,
+          } = req.body;
+          ({ email } = req.body);
+          if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          if (!email) throw new ValidationError('INVALID_EMAIL');
+          if (!checkCosmosSignPayload({
+            signature, publicKey, message, cosmosWallet,
+          })) {
+            throw new ValidationError('INVALID_SIGN');
+          }
+          payload = req.body;
+          payload.cosmosWallet = cosmosWallet;
+          payload.displayName = user;
+          payload.email = email;
+          platformUserId = cosmosWallet;
           break;
         }
         default:
@@ -411,6 +431,27 @@ router.post('/login', async (req, res, next) => {
           if (userDoc.data().authCoreUserId) {
             throw new ValidationError('USE_AUTHCORE_LOGIN');
           }
+        }
+        break;
+      }
+      case 'cosmosWallet': {
+        const {
+          from: cosmosWallet, signature, publicKey, message,
+        } = req.body;
+        if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+        if (!checkCosmosSignPayload({
+          signature, publicKey, message, cosmosWallet,
+        })) {
+          throw new ValidationError('INVALID_SIGN');
+        }
+        const userQuery = await (
+          authDbRef
+            .where(`${platform}.userId`, '==', cosmosWallet)
+            .get()
+        );
+        if (userQuery.docs.length > 0) {
+          const [userDoc] = userQuery.docs;
+          user = userDoc.id;
         }
         break;
       }
