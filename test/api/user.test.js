@@ -13,7 +13,6 @@ import {
   testingUser2,
   testingEmail2,
   testingWallet2,
-  testingUser4,
   invalidWallet,
   testingWallet3,
   privateKey1,
@@ -580,8 +579,8 @@ test('USER: Get user preferences. Case: Success', async (t) => {
   t.is(res.status, 200);
 });
 
-test('USER: Post payment redirect whitelist. Case: Success', async (t) => {
-  const user = testingUser2;
+test.serial('USER: Post payment redirect whitelist. Case: Success', async (t) => {
+  const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
     paymentRedirectWhiteList: [
@@ -612,8 +611,8 @@ test('USER: Post payment redirect whitelist. Case: Success', async (t) => {
   t.true(whitelist.includes('http://example3.com/'));
 });
 
-test('USER: Post payment redirect whitelist with duplicated URLs. Case: Success', async (t) => {
-  const user = testingUser4;
+test.serial('USER: Post payment redirect whitelist with duplicated URLs. Case: Success', async (t) => {
+  const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
     paymentRedirectWhiteList: [
@@ -646,7 +645,7 @@ test('USER: Post payment redirect whitelist with duplicated URLs. Case: Success'
   t.true(whitelist.includes('http://example3.com/'));
 });
 
-test('USER: Empty payment redirect whitelist with empty array. Case: Success', async (t) => {
+test.serial('USER: Empty payment redirect whitelist with empty array. Case: Success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
@@ -670,7 +669,7 @@ test('USER: Empty payment redirect whitelist with empty array. Case: Success', a
   t.is(res.data.paymentRedirectWhiteList.length, 0);
 });
 
-test('USER: Empty payment redirect whitelist with null. Case: Success', async (t) => {
+test.serial('USER: Empty payment redirect whitelist with null. Case: Success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   const payload = {
