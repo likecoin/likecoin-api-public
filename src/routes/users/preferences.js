@@ -77,8 +77,8 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
         return;
       }
       paymentRedirectWhiteList = [...new Set(paymentRedirectWhiteList)];
-      paymentRedirectWhiteList = paymentRedirectWhiteList.filter(x => x !== '');
-      if (paymentRedirectWhiteList.some(x => !isValidHttpUrl(x))) {
+      paymentRedirectWhiteList = paymentRedirectWhiteList.filter(url => !!url);
+      if (paymentRedirectWhiteList.some(url => !isValidHttpUrl(url))) {
         res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');
         return;
       }
