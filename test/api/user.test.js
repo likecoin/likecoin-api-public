@@ -13,6 +13,7 @@ import {
   testingUser2,
   testingEmail2,
   testingWallet2,
+  testingUser4,
   invalidWallet,
   testingWallet3,
   privateKey1,
@@ -576,12 +577,11 @@ test('USER: Get user preferences. Case: Success', async (t) => {
     },
   }).catch(err => err.response);
 
-  console.log(res);
   t.is(res.status, 200);
 });
 
 test('USER: Post payment redirect whitelist. Case: Success', async (t) => {
-  const user = testingUser1;
+  const user = testingUser2;
   const token = jwtSign({ user });
   const payload = {
     paymentRedirectWhiteList: [
@@ -590,13 +590,60 @@ test('USER: Post payment redirect whitelist. Case: Success', async (t) => {
       'http://example3.com/',
     ],
   };
-  const res = await axiosist.post('/api/users/preferences', payload, {
+  let res = await axiosist.post('/api/users/preferences', payload, {
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
   }).catch(err => err.response);
 
   t.is(res.status, 200);
+
+  res = await axiosist.get('/api/users/preferences', {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  const { paymentRedirectWhiteList: whitelist } = res.data;
+  t.is(res.status, 200);
+  t.is(whitelist.length, 3);
+  t.true(whitelist.includes('http://example1.com/'));
+  t.true(whitelist.includes('http://example2.com/'));
+  t.true(whitelist.includes('http://example3.com/'));
+});
+
+test('USER: Post payment redirect whitelist with duplicated URLs. Case: Success', async (t) => {
+  const user = testingUser4;
+  const token = jwtSign({ user });
+  const payload = {
+    paymentRedirectWhiteList: [
+      'http://example1.com/',
+      'http://example2.com/',
+      'http://example2.com/',
+      'http://example3.com/',
+      'http://example3.com/',
+    ],
+  };
+  let res = await axiosist.post('/api/users/preferences', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+
+  res = await axiosist.get('/api/users/preferences', {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  const { paymentRedirectWhiteList: whitelist } = res.data;
+  t.is(res.status, 200);
+  t.is(whitelist.length, 3);
+  t.true(whitelist.includes('http://example1.com/'));
+  t.true(whitelist.includes('http://example2.com/'));
+  t.true(whitelist.includes('http://example3.com/'));
 });
 
 test('USER: Empty payment redirect whitelist with empty array. Case: Success', async (t) => {
@@ -605,13 +652,22 @@ test('USER: Empty payment redirect whitelist with empty array. Case: Success', a
   const payload = {
     paymentRedirectWhiteList: [],
   };
-  const res = await axiosist.post('/api/users/preferences', payload, {
+  let res = await axiosist.post('/api/users/preferences', payload, {
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
   }).catch(err => err.response);
 
   t.is(res.status, 200);
+
+  res = await axiosist.get('/api/users/preferences', {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.paymentRedirectWhiteList.length, 0);
 });
 
 test('USER: Empty payment redirect whitelist with null. Case: Success', async (t) => {
@@ -620,13 +676,22 @@ test('USER: Empty payment redirect whitelist with null. Case: Success', async (t
   const payload = {
     paymentRedirectWhiteList: null,
   };
-  const res = await axiosist.post('/api/users/preferences', payload, {
+  let res = await axiosist.post('/api/users/preferences', payload, {
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
   }).catch(err => err.response);
 
   t.is(res.status, 200);
+
+  res = await axiosist.get('/api/users/preferences', {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.paymentRedirectWhiteList.length, 0);
 });
 
 test('USER: Post payment redirect whitelist. Case: Invalid payload format', async (t) => {
