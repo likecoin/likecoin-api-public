@@ -84,7 +84,7 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
       payload.paymentRedirectWhiteList = paymentRedirectWhiteList;
     }
 
-    if (Object.keys(payload)) {
+    if (Object.keys(payload).length) {
       await dbRef.doc(user).update(payload);
     }
     res.sendStatus(200);
