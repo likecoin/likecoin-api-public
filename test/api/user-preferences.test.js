@@ -110,18 +110,6 @@ test('USER: Set user preferences (Creator pitch). Case: failed', async (t) => {
   t.is(res.status, 400);
 });
 
-test('USER: Get user preferences. Case: Success', async (t) => {
-  const user = testingUser1;
-  const token = jwtSign({ user });
-  const res = await axiosist.get('/api/users/preferences', {
-    headers: {
-      Cookie: `likecoin_auth=${token};`,
-    },
-  }).catch(err => err.response);
-
-  t.is(res.status, 200);
-});
-
 test.serial('USER: Post payment redirect whitelist. Case: Success', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
