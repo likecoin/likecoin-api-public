@@ -13,6 +13,7 @@ config.FIRESTORE_OAUTH_CLIENT_ROOT = process.env.FIRESTORE_OAUTH_CLIENT_ROOT;
 config.FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
 
 config.COSMOS_LCD_ENDPOINT = 'localhost:1317';
+config.COSMOS_RPC_ENDPOINT = 'localhost:26657';
 config.COSMOS_CHAIN_ID = 'likechain-cosmos-testnet-2';
 config.ISCN_DEV_LCD_ENDPOINT = 'localhost:1317';
 config.ISCN_DEV_CHAIN_ID = 'iscn-dev-chain';
