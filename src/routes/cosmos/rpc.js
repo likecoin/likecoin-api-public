@@ -23,6 +23,15 @@ const router = Router();
 
 router.use(bodyParser.json({ type: 'text/plain' }));
 
+let proxyPath = '';
+try {
+  const urlObj = new URL(COSMOS_RPC_ENDPOINT);
+  proxyPath = urlObj.pathname;
+  proxyPath.slice(0, proxyPath.length - 1);
+} catch (err) {
+  console.error(err);
+}
+
 async function handlePostTxReq(reqData, resData, req) {
   const {
     params: { tx },
@@ -208,6 +217,7 @@ async function handlePostTxReq(reqData, resData, req) {
 }
 
 router.use(proxy(COSMOS_RPC_ENDPOINT, {
+  proxyReqPathResolver: req => `${proxyPath}${req.path}`,
   userResDecorator: async (proxyRes, proxyResData, userReq) => {
     if (userReq.method === 'POST') {
       if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
