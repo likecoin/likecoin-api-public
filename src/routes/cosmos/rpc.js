@@ -36,7 +36,7 @@ async function handlePostTxReq(reqData, resData, req) {
   const {
     params: { tx },
   } = reqData;
-  const { txhash: txHash } = resData;
+  const { result: { hash: txHash } } = resData;
   const txRaw = TxRaw.decode(Buffer.from(tx, 'base64'));
   const txBody = TxBody.decode(txRaw.bodyBytes);
   const authInfo = AuthInfo.decode(txRaw.authInfoBytes);
@@ -48,7 +48,7 @@ async function handlePostTxReq(reqData, resData, req) {
   } = authInfo;
   const { sequence: longSequence } = signerInfo;
   const sequence = longSequence.toString();
-  const gas = longGasLimit.toLong();
+  const gas = longGasLimit.toString();
   const { messages, memo } = txBody;
   /* TODO: handle multiple MsgSend msg */
   if (!messages || !messages.length || !messages[0]) return;
@@ -62,8 +62,8 @@ async function handlePostTxReq(reqData, resData, req) {
       const payloadValue = MsgSend.decode(value);
       ({
         amount: [amount],
-        from_address: from,
-        to_address: to,
+        fromAddress: from,
+        toAddress: to,
       } = payloadValue);
       amounts = [amount];
     } else if (typeUrl === '/cosmos.bank.v1beta1.MsgMultiSend') {
@@ -149,8 +149,8 @@ async function handlePostTxReq(reqData, resData, req) {
         const payloadValue = MsgDelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosDelegate';
         break;
@@ -159,8 +159,8 @@ async function handlePostTxReq(reqData, resData, req) {
         const payloadValue = MsgUndelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosUndelegate';
         break;
@@ -169,8 +169,8 @@ async function handlePostTxReq(reqData, resData, req) {
         const payloadValue = MsgBeginRedelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_dst_address: to,
+          delegatorAddress: from,
+          validatorDstAddress: to,
         } = payloadValue);
         logType = 'cosmosRedelegate';
         break;
@@ -178,8 +178,8 @@ async function handlePostTxReq(reqData, resData, req) {
       case '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward': {
         const payloadValue = MsgWithdrawDelegatorReward.decode(value);
         ({
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosWithdrawReward';
         break;
@@ -222,10 +222,10 @@ router.use(proxy(COSMOS_RPC_ENDPOINT, {
     if (userReq.method === 'POST') {
       if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
         const {
-          jsonprc,
+          jsonrpc,
           method,
         } = userReq.body;
-        if (jsonprc !== '2.0') return proxyResData;
+        if (jsonrpc !== '2.0') return proxyResData;
         switch (method) {
           case 'broadcast_tx_sync': {
             await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
