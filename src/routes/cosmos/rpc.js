@@ -216,45 +216,47 @@ async function handlePostTxReq(reqData, resData, req) {
   }
 }
 
-router.use(proxy(COSMOS_RPC_ENDPOINT, {
-  proxyReqPathResolver: req => `${proxyPath}${req.path}`,
-  userResDecorator: async (proxyRes, proxyResData, userReq) => {
-    if (userReq.method === 'POST') {
-      if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-        const {
-          jsonrpc,
-          method,
-        } = userReq.body;
-        if (jsonrpc !== '2.0') return proxyResData;
-        switch (method) {
-          case 'broadcast_tx_sync': {
-            await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
-            break;
+if (COSMOS_RPC_ENDPOINT) {
+  router.use(proxy(COSMOS_RPC_ENDPOINT, {
+    proxyReqPathResolver: req => `${proxyPath}${req.path}`,
+    userResDecorator: async (proxyRes, proxyResData, userReq) => {
+      if (userReq.method === 'POST') {
+        if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
+          const {
+            jsonrpc,
+            method,
+          } = userReq.body;
+          if (jsonrpc !== '2.0') return proxyResData;
+          switch (method) {
+            case 'broadcast_tx_sync': {
+              await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
+              break;
+            }
+            default: break;
           }
-          default: break;
         }
       }
-    }
-    return proxyResData;
-  },
-  // userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
-  // TODO: handle cache for tx_search by hash
-  // },
-  proxyReqOptDecorator: (proxyReqOpts) => {
-    /* eslint-disable no-param-reassign */
-    if (COSMOS_RPC_ENDPOINT.includes('https://')) {
-      proxyReqOpts.agent = httpsAgent;
-    } else if (COSMOS_RPC_ENDPOINT.includes('http://')) {
-      proxyReqOpts.agent = httpAgent;
-    }
-    return proxyReqOpts;
-    /* eslint-enable no-param-reassign */
-  },
-  proxyReqBodyDecorator: (bodyContent, srcReq) => {
-    // google does not like GET having body
-    if (srcReq.method === 'GET') return '';
-    return bodyContent;
-  },
-}));
+      return proxyResData;
+    },
+    // userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
+    // TODO: handle cache for tx_search by hash
+    // },
+    proxyReqOptDecorator: (proxyReqOpts) => {
+      /* eslint-disable no-param-reassign */
+      if (COSMOS_RPC_ENDPOINT.includes('https://')) {
+        proxyReqOpts.agent = httpsAgent;
+      } else if (COSMOS_RPC_ENDPOINT.includes('http://')) {
+        proxyReqOpts.agent = httpAgent;
+      }
+      return proxyReqOpts;
+      /* eslint-enable no-param-reassign */
+    },
+    proxyReqBodyDecorator: (bodyContent, srcReq) => {
+      // google does not like GET having body
+      if (srcReq.method === 'GET') return '';
+      return bodyContent;
+    },
+  }));
+}
 
 export default router;

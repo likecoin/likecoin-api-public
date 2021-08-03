@@ -245,50 +245,52 @@ async function handlePostTxReq(reqData, resData, req) {
   }
 }
 
-router.use(proxy(COSMOS_LCD_ENDPOINT, {
-  userResDecorator: async (proxyRes, proxyResData, userReq) => {
-    if (userReq.method === 'POST') {
-      if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-        switch (userReq.path) {
-          case '/txs': {
-            await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
-            break;
+if (COSMOS_LCD_ENDPOINT) {
+  router.use(proxy(COSMOS_LCD_ENDPOINT, {
+    userResDecorator: async (proxyRes, proxyResData, userReq) => {
+      if (userReq.method === 'POST') {
+        if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
+          switch (userReq.path) {
+            case '/txs': {
+              await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
+              break;
+            }
+            default: break;
           }
-          default: break;
         }
       }
-    }
-    return proxyResData;
-  },
-  userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
-    /* eslint-disable no-param-reassign */
-    if (userReq.method === 'GET') {
-      if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-        headers['cache-control'] = 'public, max-age=1';
-      } else {
-        headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
-        headers.pragma = 'no-cache';
-        headers.expires = '0';
+      return proxyResData;
+    },
+    userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
+      /* eslint-disable no-param-reassign */
+      if (userReq.method === 'GET') {
+        if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
+          headers['cache-control'] = 'public, max-age=1';
+        } else {
+          headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+          headers.pragma = 'no-cache';
+          headers.expires = '0';
+        }
       }
-    }
-    return headers;
-    /* eslint-enable no-param-reassign */
-  },
-  proxyReqOptDecorator: (proxyReqOpts) => {
-    /* eslint-disable no-param-reassign */
-    if (COSMOS_LCD_ENDPOINT.includes('https://')) {
-      proxyReqOpts.agent = httpsAgent;
-    } else if (COSMOS_LCD_ENDPOINT.includes('http://')) {
-      proxyReqOpts.agent = httpAgent;
-    }
-    return proxyReqOpts;
-    /* eslint-enable no-param-reassign */
-  },
-  proxyReqBodyDecorator: (bodyContent, srcReq) => {
-    // google does not like GET having body
-    if (srcReq.method === 'GET') return '';
-    return bodyContent;
-  },
-}));
+      return headers;
+      /* eslint-enable no-param-reassign */
+    },
+    proxyReqOptDecorator: (proxyReqOpts) => {
+      /* eslint-disable no-param-reassign */
+      if (COSMOS_LCD_ENDPOINT.includes('https://')) {
+        proxyReqOpts.agent = httpsAgent;
+      } else if (COSMOS_LCD_ENDPOINT.includes('http://')) {
+        proxyReqOpts.agent = httpAgent;
+      }
+      return proxyReqOpts;
+      /* eslint-enable no-param-reassign */
+    },
+    proxyReqBodyDecorator: (bodyContent, srcReq) => {
+      // google does not like GET having body
+      if (srcReq.method === 'GET') return '';
+      return bodyContent;
+    },
+  }));
+}
 
 export default router;
