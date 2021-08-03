@@ -6,6 +6,7 @@ import createHash from 'create-hash';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
   ISCN_DEV_LCD_ENDPOINT as iscnDevLCDEndpoint,
+  COSMOS_RPC_ENDPOINT as cosmosRpcEndpoint,
   COSMOS_DENOM,
 } from '../../../config/config';
 import { createAPIEndpoint } from './api';
@@ -65,3 +66,5 @@ export function verifyCosmosSignInPayload({
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;
 
 export const ISCN_LCD_ENDPOINT = iscnDevLCDEndpoint;
+
+export const COSMOS_RPC_ENDPOINT = cosmosRpcEndpoint;

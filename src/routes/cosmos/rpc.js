@@ -2,9 +2,13 @@ import bodyParser from 'body-parser';
 import { Router } from 'express';
 import BigNumber from 'bignumber.js';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
+import { TxRaw, TxBody, AuthInfo } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { MsgSend, MsgMultiSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
+import { MsgDelegate, MsgBeginRedelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
+import { MsgWithdrawDelegatorReward } from 'cosmjs-types/cosmos/distribution/v1beta1/tx';
 
 import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { COSMOS_LCD_ENDPOINT, amountToLIKE } from '../../util/cosmos';
+import { COSMOS_RPC_ENDPOINT, amountToLIKE } from '../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
@@ -19,86 +23,51 @@ const router = Router();
 
 router.use(bodyParser.json({ type: 'text/plain' }));
 
-router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
-  try {
-    const {
-      amount: [amount],
-      from_address: from,
-      to_address: to,
-    } = req.body;
-    const {
-      fromId,
-      fromDisplayName,
-      fromEmail,
-      fromReferrer,
-      fromLocale,
-      fromRegisterTime,
-      toId,
-      toDisplayName,
-      toEmail,
-      toReferrer,
-      toLocale,
-      toRegisterTime,
-    } = await fetchPaymentUserInfo({ from, to, type: 'cosmos' });
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventSimulatePayCosmos',
-      fromUser: fromId,
-      fromWallet: from,
-      fromDisplayName,
-      fromEmail,
-      fromReferrer,
-      fromLocale,
-      fromRegisterTime,
-      toUser: toId,
-      toWallet: to,
-      toDisplayName,
-      toEmail,
-      toReferrer,
-      toLocale,
-      toRegisterTime,
-      likeAmount: amountToLIKE(amount),
-      likeAmountUnitStr: amountToLIKE(amount).toString(),
-    });
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+let proxyPath = '';
+try {
+  const urlObj = new URL(COSMOS_RPC_ENDPOINT);
+  proxyPath = urlObj.pathname;
+  proxyPath.slice(0, proxyPath.length - 1);
+} catch (err) {
+  console.error(err);
+}
 
 async function handlePostTxReq(reqData, resData, req) {
   const {
-    tx: {
-      msg,
-      fee: {
-        amount: feeAmount,
-        gas,
-      },
-      memo,
-      signatures: [{
-        account_number: accountNumber,
-        sequence,
-      }],
-    },
-    mode,
+    params: { tx },
   } = reqData;
-  const { txhash: txHash } = resData;
-  /* TODO: find out cause of empty msg */
+  const { result: { hash: txHash } } = resData;
+  const txRaw = TxRaw.decode(Buffer.from(tx, 'base64'));
+  const txBody = TxBody.decode(txRaw.bodyBytes);
+  const authInfo = AuthInfo.decode(txRaw.authInfoBytes);
+  const {
+    signerInfos: [signerInfo], fee: {
+      gasLimit: longGasLimit,
+      amount: feeAmount,
+    },
+  } = authInfo;
+  const { sequence: longSequence } = signerInfo;
+  const sequence = longSequence.toString();
+  const gas = longGasLimit.toString();
+  const { messages, memo } = txBody;
   /* TODO: handle multiple MsgSend msg */
-  if (!msg || !msg.length || !msg[0]) return;
-  const { type, value: payloadValue } = msg[0];
-  if (type === 'cosmos-sdk/MsgSend' || type === 'cosmos-sdk/MsgMultiSend') {
+  if (!messages || !messages.length || !messages[0]) return;
+  const { typeUrl, value } = messages[0];
+  if (typeUrl === '/cosmos.bank.v1beta1.MsgSend' || typeUrl === '/cosmos.bank.v1beta1.MsgMultiSend') {
     let amounts;
     let amount;
     let from;
     let to;
-    if (type === 'cosmos-sdk/MsgSend') {
+    if (typeUrl === '/cosmos.bank.v1beta1.MsgSend') {
+      const payloadValue = MsgSend.decode(value);
       ({
         amount: [amount],
-        from_address: from,
-        to_address: to,
+        fromAddress: from,
+        toAddress: to,
       } = payloadValue);
       amounts = [amount];
-    } else if (type === 'cosmos-sdk/MsgMultiSend') {
+    } else if (typeUrl === '/cosmos.bank.v1beta1.MsgMultiSend') {
+      const payloadValue = MsgMultiSend.decode(value);
       const {
         inputs,
         outputs,
@@ -134,9 +103,7 @@ async function handlePostTxReq(reqData, resData, req) {
       feeAmount,
       gas,
       memo,
-      accountNumber,
       sequence,
-      mode,
       from,
       to,
       fromId: fromId || null,
@@ -177,38 +144,42 @@ async function handlePostTxReq(reqData, resData, req) {
     let from;
     let to;
     let logType;
-    switch (type) {
-      case 'cosmos-sdk/MsgDelegate': {
+    switch (typeUrl) {
+      case '/cosmos.staking.v1beta1.MsgDelegate': {
+        const payloadValue = MsgDelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosDelegate';
         break;
       }
-      case 'cosmos-sdk/MsgUndelegate': {
+      case '/cosmos.staking.v1beta1.MsgUndelegate': {
+        const payloadValue = MsgUndelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosUndelegate';
         break;
       }
-      case 'cosmos-sdk/MsgBeginRedelegate': {
+      case '/cosmos.staking.v1beta1.MsgBeginRedelegate': {
+        const payloadValue = MsgBeginRedelegate.decode(value);
         ({
           amount,
-          delegator_address: from,
-          validator_dst_address: to,
+          delegatorAddress: from,
+          validatorDstAddress: to,
         } = payloadValue);
         logType = 'cosmosRedelegate';
         break;
       }
-      case 'cosmos-sdk/MsgWithdrawDelegationReward': {
+      case '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward': {
+        const payloadValue = MsgWithdrawDelegatorReward.decode(value);
         ({
-          delegator_address: from,
-          validator_address: to,
+          delegatorAddress: from,
+          validatorAddress: to,
         } = payloadValue);
         logType = 'cosmosWithdrawReward';
         break;
@@ -245,13 +216,19 @@ async function handlePostTxReq(reqData, resData, req) {
   }
 }
 
-if (COSMOS_LCD_ENDPOINT) {
-  router.use(proxy(COSMOS_LCD_ENDPOINT, {
+if (COSMOS_RPC_ENDPOINT) {
+  router.use(proxy(COSMOS_RPC_ENDPOINT, {
+    proxyReqPathResolver: req => `${proxyPath}${req.path}`,
     userResDecorator: async (proxyRes, proxyResData, userReq) => {
       if (userReq.method === 'POST') {
         if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-          switch (userReq.path) {
-            case '/txs': {
+          const {
+            jsonrpc,
+            method,
+          } = userReq.body;
+          if (jsonrpc !== '2.0') return proxyResData;
+          switch (method) {
+            case 'broadcast_tx_sync': {
               await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
               break;
             }
@@ -261,25 +238,14 @@ if (COSMOS_LCD_ENDPOINT) {
       }
       return proxyResData;
     },
-    userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
-      /* eslint-disable no-param-reassign */
-      if (userReq.method === 'GET') {
-        if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-          headers['cache-control'] = 'public, max-age=1';
-        } else {
-          headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
-          headers.pragma = 'no-cache';
-          headers.expires = '0';
-        }
-      }
-      return headers;
-      /* eslint-enable no-param-reassign */
-    },
+    // userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
+    // TODO: handle cache for tx_search by hash
+    // },
     proxyReqOptDecorator: (proxyReqOpts) => {
       /* eslint-disable no-param-reassign */
-      if (COSMOS_LCD_ENDPOINT.includes('https://')) {
+      if (COSMOS_RPC_ENDPOINT.includes('https://')) {
         proxyReqOpts.agent = httpsAgent;
-      } else if (COSMOS_LCD_ENDPOINT.includes('http://')) {
+      } else if (COSMOS_RPC_ENDPOINT.includes('http://')) {
         proxyReqOpts.agent = httpAgent;
       }
       return proxyReqOpts;
