@@ -27,7 +27,7 @@ let proxyPath = '';
 try {
   const urlObj = new URL(COSMOS_RPC_ENDPOINT);
   proxyPath = urlObj.pathname;
-  proxyPath.slice(0, proxyPath.length - 1);
+  proxyPath = proxyPath.slice(0, proxyPath.length - 1);
 } catch (err) {
   console.error(err);
 }
