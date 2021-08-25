@@ -29,14 +29,14 @@ export function amountToLIKE(likecoin) {
 }
 
 export async function getCosmosTotalSupply() {
-  const { data } = await api.get(`/supply/total/${COSMOS_DENOM}`);
-  return (new BigNumber(data.result)).dividedBy(1e9).toFixed();
+  const { data } = await api.get(`/cosmos/bank/v1beta1/supply/${COSMOS_DENOM}`);
+  return amountToLIKE(data.amount);
 }
 
 export async function getCosmosAccountLIKE(address) {
-  const { data } = await api.get(`/auth/accounts/${address}`);
-  if (!data.result.value || !data.result.value.coins || !data.result.value.coins.length) return 0;
-  const likecoin = data.result.value.coins.find(c => c.denom === COSMOS_DENOM);
+  const { data } = await api.get(`/bank/balances/${address}`);
+  if (!data.result || !data.result.length) return 0;
+  const likecoin = data.result.find(c => c.denom === COSMOS_DENOM);
   return likecoin ? amountToLIKE(likecoin) : 0;
 }
 
