@@ -21,7 +21,7 @@ const LOW_THRESHOLD_PRICE_USD = LOW_THRESHOLD_PRICE_TWD / USDTWD;
 
 const bitassetAgent = new https.Agent({ ca: fs.readFileSync('./ssl/bitasset.pem') });
 const bitassetAxios = axios.create({
-  baseURL: BITASSET_API_BASE_URL || 'https://api.bitasset.com',
+  baseURL: BITASSET_API_BASE_URL || 'https://api.bitasset.pro',
   timeout: 20000,
   httpsAgent: bitassetAgent,
 });
