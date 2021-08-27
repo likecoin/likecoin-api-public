@@ -97,6 +97,8 @@ export const QUERY_STRING_TO_REMOVE = [
   '__cf_chl_jschl_tk__',
 ];
 
+export const ONE_HOUR_IN_S = 3600;
+export const ONE_DAY_IN_S = 86400;
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 0 * ONE_DAY_IN_MS;
