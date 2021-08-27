@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
 import Web3 from 'web3';
-import { INFURA_HOST, IS_TESTNET } from '../../constant';
+import {
+  INFURA_HOST, IS_TESTNET, ONE_DAY_IN_S, ONE_HOUR_IN_S,
+} from '../../constant';
 import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../../constant/contract/likecoin';
 import { getCosmosTotalSupply, getCosmosAccountLIKE } from '../../util/cosmos';
 
@@ -27,7 +29,6 @@ const reservedCosmosWallets = IS_TESTNET ? [
 ];
 
 router.get('/totalsupply/erc20', async (req, res) => {
-  const ONE_DAY_IN_S = 86400;
   let rawSupply = new BigNumber(await LikeCoin.methods.totalSupply().call());
   if (req.query.raw !== '1') {
     rawSupply = rawSupply.div(new BigNumber(10).pow(18));
@@ -39,7 +40,6 @@ router.get('/totalsupply/erc20', async (req, res) => {
 });
 
 router.get('/circulating/erc20', async (req, res) => {
-  const ONE_DAY_IN_S = 86400;
   const rawSupply = await LikeCoin.methods.totalSupply().call();
   const amounts = await Promise.all(reservedEthWallets
     .map(w => LikeCoin.methods.balanceOf(w).call().catch((err) => {
@@ -57,18 +57,16 @@ router.get('/circulating/erc20', async (req, res) => {
 });
 
 router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
-  const ONE_DAY_IN_S = 3600;
   let rawSupply = new BigNumber(await getCosmosTotalSupply());
   if (req.query.raw === '1') {
     rawSupply = rawSupply.times(new BigNumber(10).pow(9));
   }
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(rawSupply.toFixed());
 });
 
 router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
-  const ONE_DAY_IN_S = 3600;
   const rawSupply = await getCosmosTotalSupply();
   const amounts = await Promise.all(reservedCosmosWallets
     .map(w => getCosmosAccountLIKE(w).catch((err) => {
@@ -80,7 +78,7 @@ router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
     apiValue = apiValue.times(new BigNumber(10).pow(9));
   }
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue.toFixed());
 });
 
