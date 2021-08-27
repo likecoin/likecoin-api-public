@@ -11,8 +11,13 @@ import publisher from '../../util/gcloudPub';
 
 const proxy = require('express-http-proxy');
 
-const httpAgent = new HttpAgent();
-const httpsAgent = new HttpsAgent();
+const keepAliveOptions = {
+  timeout: 60000, // active socket keepalive for 60 seconds
+  freeSocketTimeout: 30000, // free socket keepalive for 30 seconds
+};
+
+const httpAgent = new HttpAgent(keepAliveOptions);
+const httpsAgent = new HttpsAgent(keepAliveOptions);
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();
