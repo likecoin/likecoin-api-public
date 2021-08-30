@@ -236,7 +236,11 @@ if (COSMOS_RPC_ENDPOINT) {
           console.log(`cosmos rpc: ${method} ${JSON.stringify(params)}`);
           switch (method) {
             case 'broadcast_tx_sync': {
-              await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
+              try {
+                await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
+              } catch (err) {
+                console.err(err);
+              }
               break;
             }
             default: break;
