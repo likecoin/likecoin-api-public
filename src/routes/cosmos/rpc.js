@@ -214,6 +214,7 @@ async function handlePostTxReq(reqData, resData, req) {
 
 if (COSMOS_RPC_ENDPOINT) {
   router.use(proxy(COSMOS_RPC_ENDPOINT, {
+    memoizeHost: false,
     proxyReqPathResolver: req => `${proxyPath}${req.path}`,
     userResDecorator: async (proxyRes, proxyResData, userReq) => {
       if (userReq.method === 'POST') {
