@@ -1,7 +1,6 @@
 import bodyParser from 'body-parser';
 import { Router } from 'express';
 import BigNumber from 'bignumber.js';
-import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 import { TxRaw, TxBody, AuthInfo } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgSend, MsgMultiSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { MsgDelegate, MsgBeginRedelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
@@ -14,14 +13,6 @@ import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
 
 const proxy = require('express-http-proxy');
-
-const keepAliveOptions = {
-  timeout: 60000, // active socket keepalive for 60 seconds
-  freeSocketTimeout: 30000, // free socket keepalive for 30 seconds
-};
-
-const httpAgent = new HttpAgent(keepAliveOptions);
-const httpsAgent = new HttpsAgent(keepAliveOptions);
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();
@@ -248,16 +239,6 @@ if (COSMOS_RPC_ENDPOINT) {
     // userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
     // TODO: handle cache for tx_search by hash
     // },
-    proxyReqOptDecorator: (proxyReqOpts) => {
-      /* eslint-disable no-param-reassign */
-      if (COSMOS_RPC_ENDPOINT.includes('https://')) {
-        proxyReqOpts.agent = httpsAgent;
-      } else if (COSMOS_RPC_ENDPOINT.includes('http://')) {
-        proxyReqOpts.agent = httpAgent;
-      }
-      return proxyReqOpts;
-      /* eslint-enable no-param-reassign */
-    },
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
       // google does not like GET having body
       if (srcReq.method === 'GET') return '';
