@@ -5,6 +5,7 @@ import {
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
+import { getUserEmailUpdatePayload } from '../../util/api/users';
 import publisher from '../../util/gcloudPub';
 
 import {
@@ -43,13 +44,18 @@ router.post('/authcore', async (req, res, next) => {
         const query = await dbRef.where('authCoreUserId', '==', authCoreUserId).limit(1).get();
         const [user] = query.docs;
         if (user) {
-          await user.ref.update({
+          let updateObj = {
             email,
             displayName,
             isEmailVerified,
             phone,
             isPhoneVerified,
-          });
+          };
+          if (email) {
+            const emailPayload = await getUserEmailUpdatePayload(user, email);
+            updateObj = { ...updateObj, ...emailPayload };
+          }
+          await user.ref.update(updateObj);
         } else {
           res.status(404).send('USER_NOT_FOUND');
           return;

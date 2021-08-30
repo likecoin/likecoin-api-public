@@ -266,6 +266,19 @@ export async function normalizeUserEmail(user, email) {
   };
 }
 
+export async function getUserEmailUpdatePayload(user, email) {
+  const updateObj = { email };
+  const {
+    normalizedEmail,
+    isEmailBlacklisted,
+    isEmailDuplicated,
+  } = await normalizeUserEmail(user, email);
+  if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
+  if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
+  if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
+  return updateObj;
+}
+
 async function userInfoQuery({
   user,
   cosmosWallet,

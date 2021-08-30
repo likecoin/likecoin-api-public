@@ -19,8 +19,8 @@ import {
   setAuthCookies,
   clearAuthCookies,
   userByEmailQuery,
-  normalizeUserEmail,
   getUserAgentIsApp,
+  getUserEmailUpdatePayload,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
@@ -258,7 +258,7 @@ router.post(
         locale: oldLocale,
       } = oldUserObj.data();
 
-      const updateObj = {
+      let updateObj = {
         displayName,
         isEmailEnabled,
         locale,
@@ -266,15 +266,8 @@ router.post(
 
       if (!oldEmail && email) {
         await userByEmailQuery(user, email);
-        updateObj.email = email;
-        const {
-          normalizedEmail,
-          isEmailBlacklisted,
-          isEmailDuplicated,
-        } = await normalizeUserEmail(user, email);
-        if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
-        if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
-        if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
+        const emailPayload = await getUserEmailUpdatePayload(user, email);
+        updateObj = { ...updateObj, ...emailPayload };
       }
 
       Object.keys(updateObj).forEach((key) => {
@@ -369,7 +362,7 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       phone,
       isPhoneVerified,
     } = await getAuthCoreUser(authCoreAccessToken);
-    const updateObj = {
+    let updateObj = {
       email,
       displayName,
       isEmailVerified,
@@ -377,14 +370,8 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       isPhoneVerified,
     };
     if (email) {
-      const {
-        normalizedEmail,
-        isEmailBlacklisted,
-        isEmailDuplicated,
-      } = await normalizeUserEmail(user, email);
-      if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
-      if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
-      if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
+      const emailPayload = await getUserEmailUpdatePayload(user, email);
+      updateObj = { ...updateObj, ...emailPayload };
     }
     await dbRef.doc(user).update(updateObj);
     res.sendStatus(200);
