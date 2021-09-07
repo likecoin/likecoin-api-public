@@ -222,10 +222,8 @@ if (COSMOS_RPC_ENDPOINT) {
           const {
             jsonrpc,
             method,
-            params,
           } = userReq.body;
           if (jsonrpc !== '2.0') return proxyResData;
-          console.log(`cosmos rpc: ${method} ${JSON.stringify(params)}`);
           switch (method) {
             case 'broadcast_tx_sync': {
               try {
