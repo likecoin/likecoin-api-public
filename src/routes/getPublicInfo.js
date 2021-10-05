@@ -12,6 +12,7 @@ import userNotifications from './users/notifications';
 import userPreferences from './users/preferences';
 import oembed from './oembed';
 import cosmos from './cosmos';
+import arweave from './arweave';
 
 const router = Router();
 
@@ -27,5 +28,6 @@ router.use('/users', userPreferences);
 router.use('/users/hook', usersHook);
 router.use('/oembed', oembed);
 router.use('/cosmos', cosmos);
+router.use('/arweave', arweave);
 
 export default router;
