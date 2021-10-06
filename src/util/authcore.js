@@ -6,7 +6,7 @@ import {
 } from '../../config/config';
 import { ValidationError } from './ValidationError';
 
-const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('secretd-js');
+const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('@likecoin/secretd-js');
 
 const api = axios.create({
   baseURL: `${AUTHCORE_API_ENDPOINT}/api`,
