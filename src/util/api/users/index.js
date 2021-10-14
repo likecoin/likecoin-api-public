@@ -232,7 +232,7 @@ export async function normalizeUserEmail(user, email) {
         }
       }
     } catch (err) {
-      console.err(err);
+      console.error(err);
     }
     const blacklistDoc = await configCollection.doc('emailBlacklist').get();
     const { list: customBlackList } = blacklistDoc.data() || {};

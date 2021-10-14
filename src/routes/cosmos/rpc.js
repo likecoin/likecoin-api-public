@@ -229,7 +229,7 @@ if (COSMOS_RPC_ENDPOINT) {
               try {
                 await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
               } catch (err) {
-                console.err(err);
+                console.error(err);
               }
               break;
             }
