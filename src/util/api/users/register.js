@@ -90,7 +90,7 @@ export async function handleUserRegistration({
     platform,
     platformUserId,
     authCoreUserId,
-    isEmailVerified,
+    isEmailVerified = false,
     isPhoneVerified,
     locale = 'en',
     accessToken,
