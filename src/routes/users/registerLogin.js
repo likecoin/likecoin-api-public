@@ -161,6 +161,7 @@ router.post(
           payload.cosmosWallet = cosmosWallet;
           payload.displayName = user;
           payload.email = email;
+          payload.isEmailVerified = false;
           platformUserId = cosmosWallet;
           break;
         }
