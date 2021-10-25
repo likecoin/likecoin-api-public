@@ -265,7 +265,8 @@ router.post(
         locale,
       };
 
-      if (!oldEmail && email) {
+      if (email) {
+        if (oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
         await userByEmailQuery(user, email);
         updateObj.email = email;
         const {
