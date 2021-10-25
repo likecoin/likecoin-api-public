@@ -148,7 +148,6 @@ test.serial('USER: Edit user by JSON from Web. Case: success', async (t) => {
     displayName: testingDisplayName1,
     ts: Date.now(),
     wallet: testingWallet1,
-    email: testingEmail1,
   };
   const res = await axiosist.post('/api/users/update', payload, {
     headers: {
@@ -157,6 +156,26 @@ test.serial('USER: Edit user by JSON from Web. Case: success', async (t) => {
   }).catch(err => err.response);
 
   t.is(res.status, 200);
+});
+
+test.serial('USER: Edit user by JSON from Web. Case: editing existing email', async (t) => {
+  const user = testingUser1;
+  const token = jwtSign({ user });
+  const payload = {
+    user,
+    displayName: testingDisplayName1,
+    ts: Date.now(),
+    wallet: testingWallet1,
+    email: testingEmail1,
+  };
+  const res = await axiosist.post('/api/users/update', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'EMAIL_CANNOT_BE_CHANGED');
 });
 
 test.serial('USER: Edit user by form-data from Web. Case: invalid content-type', async (t) => {
