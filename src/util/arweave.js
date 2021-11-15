@@ -105,6 +105,7 @@ export async function estimateARPrices(files) {
   prices.unshift(manifestPrice);
   const totalAR = prices.reduce((acc, cur) => acc.plus(cur.AR), new BigNumber(0));
   return {
+    arweaveId: manifestPrice.arweaveId,
     AR: totalAR.toFixed(),
     list: prices,
   };
