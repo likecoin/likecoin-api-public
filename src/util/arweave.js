@@ -7,7 +7,7 @@ import {
   getFolderIPFSHash,
   uploadFileToIPFS,
 } from './ipfs';
-import { COINGECKO_AR_LIKE_PRICE_API } from '../constant';
+import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../constant';
 
 const IPFS_KEY = 'IPFS-Add';
 
@@ -170,8 +170,10 @@ export async function submitToArweave(data, ipfsHash) {
   transaction.addTag('Content-Type', mimetype);
   const { reward } = transaction;
 
-  const balance = await arweave.wallets.getBalance(await arweave.wallets.jwkToAddress(jwk));
-  if (arweave.ar.isLessThan(balance, reward)) return '';
+  if (!IS_TESTNET) {
+    const balance = await arweave.wallets.getBalance(await arweave.wallets.jwkToAddress(jwk));
+    if (arweave.ar.isLessThan(balance, reward)) throw new Error('INSUFFICIENT_AR_IN_PROXY');
+  }
 
   await arweave.transactions.sign(transaction, jwk);
   await arweave.transactions.post(transaction);
