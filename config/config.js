@@ -21,6 +21,7 @@ config.COSMOS_DENOM = 'nanolike';
 
 config.ARWEAVE_LIKE_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
+config.REPLICA_IPFS_ENDPOINTS = [];
 
 config.AUTHCORE_API_ENDPOINT = '';
 config.AUTHCORE_PUBLIC_CERT_PATH = '';

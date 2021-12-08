@@ -4,25 +4,35 @@ const hash = require('ipfs-only-hash');
 
 const config = require('../../config/config');
 
+const {
+  IPFS_ENDPOINT,
+  REPLICA_IPFS_ENDPOINTS = [],
+} = config;
+
+const IPFS_TIMEOUT = 60000;
+
 const getInstance = (() => {
-  let instance = null;
+  let instances = null;
   return () => {
-    if (!instance) {
-      instance = create({ url: config.IPFS_ENDPOINT });
+    if (!instances) {
+      instances = {
+        primary: create({ url: IPFS_ENDPOINT, timeout: IPFS_TIMEOUT }),
+        replicas: REPLICA_IPFS_ENDPOINTS.map(url => create({ url, timeout: IPFS_TIMEOUT })),
+      };
     }
-    return instance;
+    return instances;
   };
 })();
 
-export async function uploadFileToIPFS(fileBlob) {
+export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
   const client = getInstance();
-  const res = await client.add(fileBlob);
-  return res;
+  const fileBlob = file.buffer;
+  if (!onlyHash) client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
+  const res = await client.primary.add(fileBlob, { onlyHash });
+  return res.cid.toString();
 }
 
-export async function uploadFilesToIPFS(files, { onlyHash = false } = {}) {
-  const client = getInstance();
-  const directoryName = 'tmp';
+async function internalUploadAll(client, files, { directoryName = 'tmp', onlyHash = false } = {}) {
   const promises = client.addAll(
     files.map(f => ({
       content: f.buffer,
@@ -34,6 +44,19 @@ export async function uploadFilesToIPFS(files, { onlyHash = false } = {}) {
   for await (const result of promises) {
     results.push(result);
   }
+  return results;
+}
+
+export async function uploadFilesToIPFS(files, { onlyHash = false } = {}) {
+  if (files.length === 1) return uploadFileToIPFS(files[0]);
+  const client = getInstance();
+  const directoryName = 'tmp';
+  if (!onlyHash) {
+    client.replicas.map(
+      c => internalUploadAll(c, files, { directoryName, onlyHash }).catch(e => console.error(e)),
+    );
+  }
+  const results = await internalUploadAll(client.primary, files, { directoryName, onlyHash });
   let entry = results.find(r => r.path === directoryName);
   if (!entry) {
     entry = results.find((r => r.path.endsWith('index.html')));
@@ -57,5 +80,3 @@ export function getIPFSHash(files) {
   if (files.length === 1) return getFileIPFSHash(files[0]);
   return getFolderIPFSHash(files);
 }
-
-export const IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
