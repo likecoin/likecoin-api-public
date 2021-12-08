@@ -192,7 +192,7 @@ export async function uploadFileToArweave(data) {
   }
   const [res] = await Promise.all([
     submitToArweave(data, ipfsHash),
-    uploadFileToIPFS(data.buffer),
+    uploadFileToIPFS(data),
   ]);
   return {
     arweaveId: res,
@@ -208,7 +208,7 @@ async function uploadManifestFile(filesWithId) {
   if (!arweaveId) {
     [arweaveId] = await Promise.all([
       submitToArweave(manifest, manifestIPFSHash),
-      uploadFileToIPFS(manifest.buffer),
+      uploadFileToIPFS(manifest),
     ]);
   }
   manifest.arweaveId = arweaveId;
@@ -253,11 +253,10 @@ export async function uploadFilesToArweave(files) {
   for (let i = 0; i < files.length; i += 1) {
     /* eslint-disable no-await-in-loop */
     const f = files[i];
-    const { buffer } = f;
     const ipfsHash = await getFileIPFSHash(f);
     const [arweaveId] = await Promise.all([
       submitToArweave(f, ipfsHash),
-      uploadFileToIPFS(buffer),
+      uploadFileToIPFS(f),
     ]);
     list.push({
       key: f.key,

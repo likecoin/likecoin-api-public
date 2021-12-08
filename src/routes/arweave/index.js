@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { Router } from 'express';
 import multer from 'multer';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
-import { getIPFSHash } from '../../util/ipfs';
+import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 import { queryLIKETransactionInfo } from '../../util/cosmos/tx';
 
 const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
@@ -115,7 +115,10 @@ router.post('/upload',
         res.status(400).send('TX_AMOUNT_NOT_ENOUGH');
         return;
       }
-      const { arweaveId, list } = await uploadFilesToArweave(arFiles);
+      const [{ arweaveId, list }] = await Promise.all([
+        uploadFilesToArweave(arFiles),
+        uploadFilesToIPFS(arFiles),
+      ]);
       res.json({ arweaveId, ipfsHash, list });
     } catch (error) {
       next(error);
