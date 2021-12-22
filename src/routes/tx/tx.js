@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { txCollection as txLogRef, userCollection } from '../../util/firebase';
 import { filterMultipleTxData } from '../../util/api/tx';
 import { filterTxData } from '../../util/ValidationHelper';
-import { jwtAuth } from '../../middleware/jwt';
+import { jwtOptionalAuth } from '../../middleware/jwt';
 import {
   TX_METADATA_TYPES,
   TX_METADATA_TIME,
   TX_METADATA_FIELDS,
 } from '../../constant/tx';
+import { RPC_TX_UPDATE_COOKIE_KEY } from '../../constant';
 
 const router = Router();
 
@@ -29,33 +30,50 @@ router.get('/id/:id', async (req, res, next) => {
   }
 });
 
-router.post('/id/:id/metadata', jwtAuth('write'), async (req, res, next) => {
+router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next) => {
   try {
     const { id: txHash } = req.params;
-    const { user } = req.user;
+    const { user } = (req.user || {});
     const { metadata } = req.body;
+    const updateToken = req.cookies[RPC_TX_UPDATE_COOKIE_KEY];
+    if (!user && !updateToken) {
+      res.status(401).send('MISSING_TOKEN');
+      return;
+    }
 
-    const [txDoc, userDoc] = await Promise.all([
-      txLogRef.doc(txHash).get(),
-      userCollection.doc(user).get(),
-    ]);
+    const promises = [txLogRef.doc(txHash).get()];
+    if (user) promises.push(userCollection.doc(user).get());
+    const [txDoc, userDoc] = await Promise.all(promises);
 
     if (!txDoc.exists) {
       res.sendStatus(404);
       return;
     }
-    const userData = userDoc.data();
-    const { cosmosWallet } = userData;
     const txData = txDoc.data();
     const {
       fromId,
       from,
       ts,
       metadata: docMetadata,
+      updateToken: docUpdateToken,
     } = txData;
-    if (user !== fromId && from !== cosmosWallet) {
-      res.sendStatus(403);
-      return;
+
+    if (updateToken) {
+      if (updateToken !== docUpdateToken) {
+        res.sendStatus(403);
+        return;
+      }
+    } else if (user) {
+      if (!userDoc || !userDoc.exists) {
+        res.sendStatus(403);
+        return;
+      }
+      const userData = userDoc.data();
+      const { cosmosWallet } = userData;
+      if (user !== fromId && from !== cosmosWallet) {
+        res.sendStatus(403);
+        return;
+      }
     }
     if (docMetadata) {
       res.status(419).send('CONFLICT');
