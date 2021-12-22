@@ -6,13 +6,14 @@ import { MsgSend, MsgMultiSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { MsgDelegate, MsgBeginRedelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { MsgWithdrawDelegatorReward } from 'cosmjs-types/cosmos/distribution/v1beta1/tx';
 
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, RPC_TX_UPDATE_COOKIE_KEY } from '../../constant';
 import { COSMOS_RPC_ENDPOINT, amountToLIKE } from '../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
 
 const proxy = require('express-http-proxy');
+const uuidv4 = require('uuid/v4');
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();
@@ -28,7 +29,7 @@ try {
   console.error(err);
 }
 
-async function handlePostTxReq(reqData, resData, req) {
+async function handlePostTxReq(reqData, resData, req, res) {
   const {
     params: { tx },
   } = reqData;
@@ -50,6 +51,15 @@ async function handlePostTxReq(reqData, resData, req) {
   if (!messages || !messages.length || !messages[0]) return;
   const { typeUrl, value } = messages[0];
   if (typeUrl === '/cosmos.bank.v1beta1.MsgSend' || typeUrl === '/cosmos.bank.v1beta1.MsgMultiSend') {
+    let updateToken = uuidv4();
+    // eslint-disable-next-line no-underscore-dangle
+    const headers = res.getHeaders ? res.getHeaders() : res._headers;
+    if (headers['set-cookie']) {
+      const cookie = headers['set-cookie'];
+      const entry = cookie.split(';')[0];
+      const [k, v] = entry.split('=');
+      if (k === RPC_TX_UPDATE_COOKIE_KEY) updateToken = v;
+    }
     let amounts;
     let amount;
     let from;
@@ -105,6 +115,7 @@ async function handlePostTxReq(reqData, resData, req) {
       fromId: fromId || null,
       toId: toId || null,
       amount,
+      updateToken,
       rawPayload: JSON.stringify(reqData),
     };
 
@@ -216,7 +227,28 @@ if (COSMOS_RPC_ENDPOINT) {
   router.use(proxy(COSMOS_RPC_ENDPOINT, {
     memoizeHost: false,
     proxyReqPathResolver: req => `${proxyPath}${req.path}`,
-    userResDecorator: async (proxyRes, proxyResData, userReq) => {
+    userResHeaderDecorator(headers, userReq, userRes, proxyReq, proxyRes) {
+      if (userReq.method === 'POST') {
+        if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
+          const {
+            jsonrpc,
+            method,
+          } = userReq.body;
+          if (jsonrpc !== '2.0') return headers;
+          switch (method) {
+            case 'broadcast_tx_sync': {
+              const updateToken = uuidv4();
+              /* eslint-disable-next-line no-param-reassign */
+              headers['set-cookie'] = `${RPC_TX_UPDATE_COOKIE_KEY}=${updateToken}; Path=/; Secure; HttpOnly;`;
+              break;
+            }
+            default: break;
+          }
+        }
+      }
+      return headers;
+    },
+    userResDecorator: async (proxyRes, proxyResData, userReq, userRes) => {
       if (userReq.method === 'POST') {
         if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
           const {
@@ -227,7 +259,7 @@ if (COSMOS_RPC_ENDPOINT) {
           switch (method) {
             case 'broadcast_tx_sync': {
               try {
-                await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq);
+                await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq, userRes);
               } catch (err) {
                 console.error(err);
               }
