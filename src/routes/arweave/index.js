@@ -4,6 +4,8 @@ import multer from 'multer';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 import { queryLIKETransactionInfo } from '../../util/cosmos/tx';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
 
@@ -51,6 +53,22 @@ router.post(
         estimateARPrices(arFiles),
       ]);
       const pricesWithLIKE = await convertARPricesToLIKE(prices);
+      const {
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        list,
+      } = pricesWithLIKE;
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveEstimate',
+        ipfsHash,
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        prices: list,
+      });
       res.json({
         ...pricesWithLIKE,
         ipfsHash,
@@ -77,10 +95,19 @@ router.post('/upload',
         getIPFSHash(arFiles),
         estimateARPrices(arFiles),
       ]);
-      const { arweaveId: existingArweaveId } = prices;
+      const {
+        key,
+        arweaveId: existingArweaveId,
+        AR,
+      } = prices;
 
       // shortcut for existing file without checking tx
       if (existingArweaveId) {
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'arweaveAlreadyExists',
+          arweaveId: existingArweaveId,
+          ipfsHash,
+        });
         res.json({
           arweaveId: existingArweaveId,
           ipfsHash,
@@ -119,6 +146,16 @@ router.post('/upload',
         uploadFilesToArweave(arFiles),
         uploadFilesToIPFS(arFiles),
       ]);
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveUpload',
+        ipfsHash,
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        files: list,
+        txHash,
+      });
       res.json({ arweaveId, ipfsHash, list });
     } catch (error) {
       next(error);
