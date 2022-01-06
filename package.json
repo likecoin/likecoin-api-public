@@ -45,6 +45,7 @@
   "dependencies": {
     "@cosmjs/stargate": "^0.26.1",
     "@google-cloud/pubsub": "^1.2.0",
+    "@likecoin/iscn-js": "0.0.7",
     "@likecoin/likecoin-email-templates": "^1.2.2",
     "@likecoin/secretd-js": "^0.2.0",
     "@sendgrid/mail": "^6.5.5",

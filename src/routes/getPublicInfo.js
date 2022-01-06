@@ -13,6 +13,7 @@ import userPreferences from './users/preferences';
 import oembed from './oembed';
 import cosmos from './cosmos';
 import arweave from './arweave';
+import iscn from './iscn';
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use('/users/hook', usersHook);
 router.use('/oembed', oembed);
 router.use('/cosmos', cosmos);
 router.use('/arweave', arweave);
+router.use('/iscn', iscn);
 
 export default router;
