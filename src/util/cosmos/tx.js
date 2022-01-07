@@ -6,7 +6,10 @@ import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 const {
   COSMOS_DENOM,
   COSMOS_RPC_ENDPOINT,
+  COSMOS_GAS_PRICE,
 } = require('../../../config/config');
+
+export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 1000;
 
 let stargateClient = null;
 
