@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import BigNumber from 'bignumber.js';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
@@ -8,6 +9,7 @@ import {
   getISCNQueryClient,
   getISCNSigningAddress,
 } from '../../util/cosmos/iscn';
+import { DEFAULT_GAS_PRICE } from '../../util/cosmos/tx';
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -65,17 +67,35 @@ router.post(
         getISCNQueryClient(),
       ]);
       const address = await getISCNSigningAddress();
-      const iscnRes = await signingClient.createISCNRecord(address, ISCNPayload);
-      const txHash = iscnRes.transactionHash;
+      const [iscnFee, iscnRes] = await Promise.all([
+        signingClient.estimateISCNTxFee(address, ISCNPayload),
+        signingClient.createISCNRecord(address, ISCNPayload),
+      ]);
+      const iscnLike = new BigNumber(iscnFee).shiftedBy(-9);
+      const {
+        transactionHash: txHash,
+        gasUsed,
+      } = iscnRes;
+      const gasLIKE = new BigNumber(gasUsed).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
+      const totalLIKE = gasLIKE.plus(iscnLike);
       const iscnID = await queryClient.queryISCNIdsByTx(txHash);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'ISCNFreeRegister',
         txHash,
         iscnID,
+        iscnLIKEString: iscnLike.toFixed(),
+        iscnLIKENumber: iscnLike.toNumber(),
+        gasLIKEString: gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE.toNumber(),
+        gasUsed,
+        fromProvider: (req.user || {}).azp || undefined,
       });
       res.json({
         txHash,
         iscnID,
+        totalLIKEString: totalLIKE.toFixed(),
       });
     } catch (error) {
       next(error);
