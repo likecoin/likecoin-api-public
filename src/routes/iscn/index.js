@@ -9,7 +9,8 @@ import {
   getISCNQueryClient,
   getISCNSigningAddress,
 } from '../../util/cosmos/iscn';
-import { DEFAULT_GAS_PRICE } from '../../util/cosmos/tx';
+import { DEFAULT_GAS_PRICE, sendTransactionWithSequence } from '../../util/cosmos/tx';
+import { COSMOS_CHAIN_ID, getAccountInfo } from '../../util/cosmos';
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -67,9 +68,19 @@ router.post(
         getISCNQueryClient(),
       ]);
       const address = await getISCNSigningAddress();
+      const { accountNumber } = await getAccountInfo(address);
+      const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
+        address,
+        ISCNPayload, {
+          accountNumber,
+          sequence,
+          chainId: COSMOS_CHAIN_ID,
+          broadcast: false,
+        },
+      );
       const [iscnFee, iscnRes] = await Promise.all([
         signingClient.estimateISCNTxFee(address, ISCNPayload),
-        signingClient.createISCNRecord(address, ISCNPayload),
+        sendTransactionWithSequence(address, createIscnSigningFunction),
       ]);
       const iscnLike = new BigNumber(iscnFee).shiftedBy(-9);
       const {
