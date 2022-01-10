@@ -57,6 +57,9 @@ router.post(
         descrption,
         usageInfo,
         keywords,
+        recordNotes,
+        datePublished,
+        url,
       } = req.body;
       const ISCNPayload = {
         contentFingerprints,
@@ -66,6 +69,9 @@ router.post(
         descrption,
         usageInfo,
         keywords,
+        recordNotes,
+        datePublished,
+        url,
       };
       const [signingClient, queryClient, userInfo] = await Promise.all([
         getISCNSigningClient(),
