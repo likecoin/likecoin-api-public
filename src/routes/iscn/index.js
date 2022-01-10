@@ -47,7 +47,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      const { claim } = req.query;
+      const { claim = 1 } = req.query;
       const isClaim = claim && claim !== '0';
       const {
         contentFingerprints,
@@ -97,15 +97,16 @@ router.post(
         signingClient.estimateISCNTxFee(address, ISCNPayload),
         sendTransactionWithSequence(address, createIscnSigningFunction),
       ]);
-      const iscnLike = new BigNumber(iscnFee).shiftedBy(-9);
+      const iscnLike = new BigNumber(iscnFee.amount).shiftedBy(-9);
       const {
         transactionHash: iscnTxHash,
-        gasUsed,
+        gasWanted = 0,
+        gasUsed = 0,
       } = iscnRes;
       const txHashes = [iscnTxHash];
-      const gasLIKE = new BigNumber(gasUsed).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
+      const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
       let totalLIKE = gasLIKE.plus(iscnLike);
-      const iscnId = await queryClient.queryISCNIdsByTx(iscnTxHash);
+      const [iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'ISCNFreeRegister',
         txHash: iscnTxHash,
@@ -117,6 +118,7 @@ router.post(
         totalLIKEString: totalLIKE.toFixed(),
         totalLIKENumber: totalLIKE.toNumber(),
         gasUsed,
+        gasWanted,
         fromProvider: (req.user || {}).azp || undefined,
       });
       if (isClaim) {
@@ -161,7 +163,7 @@ router.post(
       res.json({
         txHashes,
         iscnId,
-        totalLIKEString: totalLIKE.toFixed(),
+        totalLIKE: totalLIKE.toFixed(),
       });
     } catch (error) {
       next(error);
