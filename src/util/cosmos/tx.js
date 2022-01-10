@@ -99,7 +99,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
   let pendingCount = await db.runTransaction(async (t) => {
     const d = await t.get(counterRef);
     if (!d.data()) {
-      const count = seq1;
+      const count = seq1.toNumber();
       await t.create(counterRef, { value: count + 1 });
       return count;
     }
@@ -118,7 +118,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
       // eslint-disable-next-line no-console
       console.log(`Nonce ${pendingCount} failed, trying refetch sequence`);
       const { sequence: seq2 } = await getAccountInfo(senderAddress);
-      pendingCount = seq2;
+      pendingCount = seq2.toNumber();
       signedTx = await signingFunction({ sequence: pendingCount });
     } else {
       await sleep(2000);
@@ -141,7 +141,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
       logType: 'eventCosmosError',
       fromWallet: senderAddress,
-      txHash: res.transactionHash,
+      txHash: (res || {}).transactionHash,
       txSequence: pendingCount,
       error: err.toString(),
     });
@@ -154,7 +154,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
     tx: signedTx,
     transactionHash: res.transactionHash,
     senderAddress,
-    pendingCount,
+    sequence: pendingCount,
   };
 }
 
