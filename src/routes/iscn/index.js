@@ -116,7 +116,6 @@ router.post(
         gasWanted = 0,
         gasUsed = 0,
       } = iscnRes;
-      const txHashes = [iscnTxHash];
       const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
       let totalLIKE = gasLIKE.plus(iscnLike);
       const [iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash);
@@ -134,6 +133,13 @@ router.post(
         gasWanted,
         fromProvider: (req.user || {}).azp || undefined,
       });
+
+      // return early
+      res.json({
+        txHash: iscnTxHash,
+        iscnId,
+      });
+
       if (isClaim && cosmosWallet) {
         const transferIscnSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
           address,
@@ -154,7 +160,6 @@ router.post(
           transactionHash: iscnTransferTxHash,
           gasUsed: transferGasUsed,
         } = iscnTransferRes;
-        txHashes.push(iscnTransferTxHash);
         const transferGasLIKE = new BigNumber(transferGasUsed)
           .multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
         totalLIKE = totalLIKE.plus(transferGasLIKE);
@@ -170,11 +175,6 @@ router.post(
           fromProvider: (req.user || {}).azp || undefined,
         });
       }
-      res.json({
-        txHashes,
-        iscnId,
-        totalLIKE: totalLIKE.toFixed(),
-      });
     } catch (error) {
       next(error);
     }
