@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bodyParser from 'body-parser';
 import multer from 'multer';
 import BigNumber from 'bignumber.js';
 import publisher from '../../util/gcloudPub';
@@ -9,12 +10,14 @@ import {
   getISCNQueryClient,
   getISCNSigningAddress,
 } from '../../util/cosmos/iscn';
-import { DEFAULT_GAS_PRICE, sendTransactionWithSequence } from '../../util/cosmos/tx';
+import { DEFAULT_GAS_PRICE, sendTransactionWithSequence, generateSendTxData } from '../../util/cosmos/tx';
 import { COSMOS_CHAIN_ID, getAccountInfo } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
+
+const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -83,15 +86,15 @@ async function handleRegisterISCN(req, res, next) {
       datePublished,
       url,
     };
-    if (!req.local.signingInfo) {
+    if (!res.locals.signingInfo) {
       const address = await getISCNSigningAddress();
       const { accountNumber } = await getAccountInfo(address);
-      req.local.signingInfo = { address, accountNumber };
+      res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
     }
     const {
       address,
       accountNumber,
-    } = req.local.signingInfo;
+    } = res.locals.signingInfo;
     const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
       address,
       ISCNPayload, {
@@ -182,24 +185,95 @@ router.post(
 );
 
 router.post('/upload',
+  jwtAuth('write:iscn'),
+  bodyParser.urlencoded({ extended: false }),
   multer({ limits: { fileSize: maxSize } }).any(),
   checkFileValid,
   async (req, res, next) => {
     try {
-      // publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      //   logType: 'ISCNFreeUpload',
-      //   ipfsHash,
-      //   key,
-      //   arweaveId,
-      //   AR,
-      //   LIKE,
-      //   files: list,
-      //   txHash,
-      // });
-      // res.json({ arweaveId, ipfsHash, list });
+      const { files } = req;
+      const arFiles = convertMulterFiles(files);
+      const [
+        ipfsHash,
+        prices,
+      ] = await Promise.all([
+        getIPFSHash(arFiles),
+        estimateARPrices(arFiles),
+      ]);
+      const {
+        key,
+        arweaveId: existingArweaveId,
+        AR,
+      } = prices;
+
+      if (existingArweaveId) {
+        res.locals.arweaveId = existingArweaveId;
+        res.locals.ipfsHash = ipfsHash;
+        next();
+        return;
+      }
+      const { LIKE } = await convertARPricesToLIKE(prices, { margin: 0.05 });
+      if (!LIKE) {
+        res.status(500).send('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE');
+        return;
+      }
+      const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
+      const signingClient = await getISCNSigningClient();
+      if (!res.locals.signingInfo) {
+        const address = await getISCNSigningAddress();
+        const { accountNumber } = await getAccountInfo(address);
+        res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
+      }
+      const {
+        address,
+        accountNumber,
+      } = res.locals.signingInfo;
+      const { messages, fee } = generateSendTxData(address, ARWEAVE_LIKE_TARGET_ADDRESS, amount);
+      const memo = JSON.stringify({ ipfs: ipfsHash });
+      const client = signingClient.getSigningStargateClient();
+      const transferTxSigningFunction = ({ sequence }) => client.sign(
+        address,
+        messages,
+        fee,
+        memo,
+        {
+          accountNumber,
+          sequence,
+          chainId: COSMOS_CHAIN_ID,
+        },
+      );
+      const [txRes, { arweaveId, list }] = await Promise.all([
+        sendTransactionWithSequence(
+          address,
+          transferTxSigningFunction,
+        ),
+        uploadFilesToArweave(arFiles),
+        uploadFilesToIPFS(arFiles),
+      ]);
+      const { transactionHash, gasUsed, gasWanted } = txRes;
+      const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
+      const totalLIKE = gasLIKE.plus(LIKE);
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveFreeUpload',
+        ipfsHash,
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        files: list,
+        gasLIKEString: gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
+        txHash: transactionHash,
+      });
+      next();
     } catch (error) {
       next(error);
     }
-  });
+  },
+  handleRegisterISCN);
 
 export default router;

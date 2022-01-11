@@ -17,6 +17,7 @@ const {
 } = require('../../../config/config');
 
 export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 1000;
+export const DEFAULT_TRANSFER_GAS = 80000;
 
 let stargateClient = null;
 
@@ -155,6 +156,27 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
     transactionHash: res.transactionHash,
     senderAddress,
     sequence: pendingCount,
+  };
+}
+
+export function generateSendTxData(senderAddress, toAddress, amount) {
+  const gas = DEFAULT_TRANSFER_GAS;
+  const feeAmount = (gas * DEFAULT_GAS_PRICE).toFixed(0);
+  const fee = {
+    amount: [{ denom: COSMOS_DENOM, amount: feeAmount }],
+    gas: gas.toString(),
+  };
+  const messages = [{
+    typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+    value: {
+      fromAddress: senderAddress,
+      toAddress,
+      amount: [{ denom: COSMOS_DENOM, amount }],
+    },
+  }];
+  return {
+    messages,
+    fee,
   };
 }
 
