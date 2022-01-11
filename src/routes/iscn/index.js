@@ -50,17 +50,39 @@ router.post(
       const { claim = 1 } = req.query;
       const isClaim = claim && claim !== '0';
       const {
-        contentFingerprints,
-        stakeholders,
+        contentFingerprints = [],
+        stakeholders = [],
         type,
         name,
         descrption,
         usageInfo,
-        keywords,
-        recordNotes,
+        keywords = [],
         datePublished,
         url,
       } = req.body;
+      if (!Array.isArray(contentFingerprints)) {
+        res.status(400).send('FINGERPRINTS_SHOULD_BE_ARRAY');
+        return;
+      }
+      if (!Array.isArray(stakeholders)) {
+        res.status(400).send('STAKEHOLDERS_SHOULD_BE_ARRAY');
+        return;
+      }
+      if (!Array.isArray(keywords)) {
+        res.status(400).send('KEYWORDS_SHOULD_BE_ARRAY');
+        return;
+      }
+      const [signingClient, queryClient, userInfo] = await Promise.all([
+        getISCNSigningClient(),
+        getISCNQueryClient(),
+        getUserWithCivicLikerProperties(user),
+      ]);
+      if (!userInfo) {
+        res.status(400).send('USER_NOT_FOUND');
+        return;
+      }
+      const { cosmosWallet } = userInfo;
+      const recordNotes = cosmosWallet || user;
       const ISCNPayload = {
         contentFingerprints,
         stakeholders,
@@ -73,15 +95,6 @@ router.post(
         datePublished,
         url,
       };
-      const [signingClient, queryClient, userInfo] = await Promise.all([
-        getISCNSigningClient(),
-        getISCNQueryClient(),
-        getUserWithCivicLikerProperties(user),
-      ]);
-      if (!userInfo) {
-        res.status(400).send('USER_NOT_FOUND');
-        return;
-      }
       const address = await getISCNSigningAddress();
       const { accountNumber } = await getAccountInfo(address);
       const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
@@ -121,44 +134,41 @@ router.post(
         gasWanted,
         fromProvider: (req.user || {}).azp || undefined,
       });
-      if (isClaim) {
-        const { cosmosWallet } = userInfo;
-        if (cosmosWallet) {
-          const transferIscnSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
-            address,
-            cosmosWallet,
-            iscnId,
-            {
-              accountNumber,
-              sequence,
-              chainId: COSMOS_CHAIN_ID,
-              broadcast: false,
-            },
-          );
-          const iscnTransferRes = await sendTransactionWithSequence(
-            address,
-            transferIscnSigningFunction,
-          );
-          const {
-            transactionHash: iscnTransferTxHash,
-            gasUsed: transferGasUsed,
-          } = iscnTransferRes;
-          txHashes.push(iscnTransferTxHash);
-          const transferGasLIKE = new BigNumber(transferGasUsed)
-            .multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
-          totalLIKE = totalLIKE.plus(transferGasLIKE);
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'ISCNFreeRegisterTransfer',
-            txHash: iscnTransferTxHash,
-            iscnId,
-            totalLIKEString: totalLIKE.toFixed(),
-            totalLIKENumber: totalLIKE.toNumber(),
-            gasLIKEString: transferGasLIKE.toFixed(),
-            gasLIKENumber: transferGasLIKE.toNumber(),
-            gasUsed: transferGasUsed,
-            fromProvider: (req.user || {}).azp || undefined,
-          });
-        }
+      if (isClaim && cosmosWallet) {
+        const transferIscnSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
+          address,
+          cosmosWallet,
+          iscnId,
+          {
+            accountNumber,
+            sequence,
+            chainId: COSMOS_CHAIN_ID,
+            broadcast: false,
+          },
+        );
+        const iscnTransferRes = await sendTransactionWithSequence(
+          address,
+          transferIscnSigningFunction,
+        );
+        const {
+          transactionHash: iscnTransferTxHash,
+          gasUsed: transferGasUsed,
+        } = iscnTransferRes;
+        txHashes.push(iscnTransferTxHash);
+        const transferGasLIKE = new BigNumber(transferGasUsed)
+          .multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
+        totalLIKE = totalLIKE.plus(transferGasLIKE);
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'ISCNFreeRegisterTransfer',
+          txHash: iscnTransferTxHash,
+          iscnId,
+          totalLIKEString: totalLIKE.toFixed(),
+          totalLIKENumber: totalLIKE.toNumber(),
+          gasLIKEString: transferGasLIKE.toFixed(),
+          gasLIKENumber: transferGasLIKE.toNumber(),
+          gasUsed: transferGasUsed,
+          fromProvider: (req.user || {}).azp || undefined,
+        });
       }
       res.json({
         txHashes,
