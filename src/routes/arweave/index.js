@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
+import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { queryLIKETransactionInfo } from '../../util/cosmos/tx';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
@@ -12,30 +13,6 @@ const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
 const router = Router();
-
-function checkFileValid(req, res, next) {
-  if (!(req.files && req.files.length)) {
-    res.status(400).send('MISSING_FILE');
-    return;
-  }
-  const { files } = req;
-  if (files.length > 1 && !files.find(f => f.fieldname === 'index.html')) {
-    res.status(400).send('MISSING_INDEX_FILE');
-    return;
-  }
-  next();
-}
-
-function convertMulterFiles(files) {
-  return files.map((f) => {
-    const { mimetype, buffer } = f;
-    return {
-      key: f.fieldname,
-      mimetype,
-      buffer,
-    };
-  });
-}
 
 router.post(
   '/estimate',
