@@ -78,9 +78,6 @@ export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.
 
 export const DEFAULT_FOLLOW_IDS = [
   'foundation',
-  'hkcitizennews',
-  'inmediahknet',
-  'standnews',
   'hi176-matters',
 ];
 
