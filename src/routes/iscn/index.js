@@ -140,6 +140,8 @@ async function handleRegisterISCN(req, res, next) {
     res.json({
       txHash: iscnTxHash,
       iscnId,
+      arweaveId: res.locals.arweaveId,
+      ipfsHash: res.locals.ipfsHash,
     });
 
     if (isClaim && cosmosWallet) {
