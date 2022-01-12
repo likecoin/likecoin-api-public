@@ -74,6 +74,10 @@ async function handleRegisterISCN(req, res, next) {
     }
     const { cosmosWallet } = userInfo;
     const recordNotes = cosmosWallet || user;
+
+    if (res.locals.arweaveId) contentFingerprints.push(`ar://${res.locals.arweaveId}`);
+    if (res.locals.ipfsHash) contentFingerprints.push(`ipfs://${res.locals.ipfsHash}`);
+
     const ISCNPayload = {
       contentFingerprints,
       stakeholders,
