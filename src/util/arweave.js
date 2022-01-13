@@ -24,22 +24,31 @@ const arweave = Arweave.init({
 });
 
 export async function getArweaveIdFromHashes(ipfsHash) {
-  const res = await arweave.arql(
+  try {
+    const res = await arweave.api.post('/graphql', {
+      query: `
     {
-      op: 'and',
-      expr1: {
-        op: 'equals',
-        expr1: IPFS_KEY,
-        expr2: ipfsHash,
-      },
-      expr2: {
-        op: 'equals',
-        expr1: IPFS_CONSTRAINT_KEY,
-        expr2: IPFS_CONSTRAINT,
-      },
-    },
-  );
-  return res[0] || undefined;
+      transactions(
+        tags: [
+          { name: "${IPFS_KEY}", values: ["${ipfsHash}"] },
+          { name: "${IPFS_CONSTRAINT_KEY}", values: ["${IPFS_CONSTRAINT}"] }
+        ]
+      ) {
+        edges {
+          node {
+            id
+          }
+        }
+      }
+    }`,
+    });
+    const ids = res.data.data.transactions.edges;
+    if (ids[0]) return ids[0].node.id;
+    return undefined;
+  } catch (err) {
+    console.error(err);
+    return undefined;
+  }
 }
 
 async function generateManifest(files, { stub = false } = {}) {
