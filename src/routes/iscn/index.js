@@ -8,10 +8,10 @@ import { jwtAuth } from '../../middleware/jwt';
 import {
   getISCNSigningClient,
   getISCNQueryClient,
-  getISCNSigningAddress,
+  getISCNSigningAddressInfo,
 } from '../../util/cosmos/iscn';
 import { DEFAULT_GAS_PRICE, sendTransactionWithSequence, generateSendTxData } from '../../util/cosmos/tx';
-import { COSMOS_CHAIN_ID, getAccountInfo } from '../../util/cosmos';
+import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
@@ -91,8 +91,7 @@ async function handleRegisterISCN(req, res, next) {
       url,
     };
     if (!res.locals.signingInfo) {
-      const address = await getISCNSigningAddress();
-      const { accountNumber } = await getAccountInfo(address);
+      const { address, accountNumber } = await getISCNSigningAddressInfo();
       res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
     }
     const {
@@ -226,8 +225,7 @@ router.post('/upload',
       const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
       const signingClient = await getISCNSigningClient();
       if (!res.locals.signingInfo) {
-        const address = await getISCNSigningAddress();
-        const { accountNumber } = await getAccountInfo(address);
+        const { address, accountNumber } = await getISCNSigningAddressInfo();
         res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
       }
       const {
