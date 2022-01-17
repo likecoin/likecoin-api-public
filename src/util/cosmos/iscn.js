@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
-
+import { getAccountInfo } from '.';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import {
   COSMOS_RPC_ENDPOINT,
@@ -10,6 +10,7 @@ import {
 let queryClient = null;
 let signingClient = null;
 let signingWallet = null;
+let signingAccountNumber = null;
 
 export async function getISCNQueryClient() {
   if (!queryClient) {
@@ -33,7 +34,14 @@ export async function getISCNSigningClient() {
   return signingClient;
 }
 
-export async function getISCNSigningAddress() {
-  if (!signingWallet) return '';
-  return signingWallet.address;
+export async function getISCNSigningAddressInfo() {
+  if (!signingWallet) await getISCNSigningClient();
+  if (!signingAccountNumber) {
+    const { accountNumber } = await getAccountInfo(signingWallet.address);
+    signingAccountNumber = accountNumber;
+  }
+  return {
+    address: signingWallet.address,
+    accountNumber: signingAccountNumber,
+  };
 }
