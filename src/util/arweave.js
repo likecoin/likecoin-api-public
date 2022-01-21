@@ -229,7 +229,7 @@ async function uploadManifestFile(filesWithId) {
   return { manifest, ipfsHash: manifestIPFSHash, arweaveId };
 }
 
-export async function uploadFilesToArweave(files) {
+export async function uploadFilesToArweave(files, arweaveIdList) {
   if (files.length === 1) {
     return uploadFileToArweave(files[0]);
   }
@@ -241,7 +241,10 @@ export async function uploadFilesToArweave(files) {
     getFolderIPFSHash(files),
     Promise.all(files.map(f => getFileIPFSHash(f))),
   ]);
-  const arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
+  let arweaveIds = arweaveIdList;
+  if (!arweaveIds) {
+    arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
+  }
   if (!arweaveIds.some(id => !id)) {
     const filesWithId = files.map((f, i) => ({ ...f, arweaveId: arweaveIds[i] }));
     const { manifest, ipfsHash: manifestIPFSHash } = await uploadManifestFile(filesWithId);
