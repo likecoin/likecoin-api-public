@@ -209,6 +209,7 @@ router.post('/upload',
         key,
         arweaveId: existingArweaveId,
         AR,
+        list: existingPriceList,
       } = prices;
 
       if (existingArweaveId) {
@@ -246,12 +247,13 @@ router.post('/upload',
           chainId: COSMOS_CHAIN_ID,
         },
       );
+      const arweaveIdList = existingPriceList ? existingPriceList.map(l => l.arweaveId) : undefined;
       const [txRes, { arweaveId, list }] = await Promise.all([
         sendTransactionWithSequence(
           address,
           transferTxSigningFunction,
         ),
-        uploadFilesToArweave(arFiles),
+        uploadFilesToArweave(arFiles, arweaveIdList),
         uploadFilesToIPFS(arFiles),
       ]);
       const { transactionHash, gasUsed, gasWanted } = txRes;
