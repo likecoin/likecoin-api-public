@@ -7,6 +7,7 @@ export const PERMISSION_GROUPS = {
     'read:follow',
     'write:follow',
     'read:civic_liker',
+    'write:iscn',
   ],
 };
 

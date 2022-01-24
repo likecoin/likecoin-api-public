@@ -26,6 +26,10 @@ const router = Router();
 async function handleRegisterISCN(req, res, next) {
   try {
     const { user } = req.user;
+    if (!user || !user.azp) {
+      // TODO: remove oauth check when open to personal call
+      res.status(403).send('OAUTH_NEEDED');
+    }
     const { claim = 1 } = req.query;
     const isClaim = claim && claim !== '0';
     let {
@@ -196,6 +200,11 @@ router.post('/upload',
   checkFileValid,
   async (req, res, next) => {
     try {
+      const { user } = req.user;
+      if (!user || !user.azp) {
+        // TODO: remove oauth check when open to personal call
+        res.status(403).send('OAUTH_NEEDED');
+      }
       const { files } = req;
       const arFiles = convertMulterFiles(files);
       const [
@@ -274,6 +283,7 @@ router.post('/upload',
         gasUsed,
         gasWanted,
         txHash: transactionHash,
+        fromProvider: (req.user || {}).azp || undefined,
       });
       next();
     } catch (error) {
