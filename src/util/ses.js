@@ -10,7 +10,7 @@ const ses = new aws.SES();
 
 export async function sendVerificationEmail(res, user, ref) {
   const params = {
-    Source: '"LikeCoin Foundation" <noreply@like.co>',
+    Source: '"Liker Land" <noreply@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -46,7 +46,7 @@ export async function sendVerificationEmail(res, user, ref) {
 
 export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
   const params = {
-    Source: '"LikeCoin Foundation" <noreply@like.co>',
+    Source: '"Liker Land" <noreply@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -84,7 +84,7 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
 export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
   const title = res.__('Email.InvitationEmail.subject', { referrer });
   const params = {
-    Source: '"LikeCoin Foundation" <noreply@like.co>',
+    Source: '"Liker Land" <noreply@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
