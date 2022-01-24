@@ -10,7 +10,7 @@ sgMail.setApiKey(SENDGRID_API_KEY);
 
 export async function sendVerificationEmail(res, user, ref) {
   const msg = {
-    from: 'LikeCoin Foundation <noreply@like.co>',
+    from: 'Liker Land <noreply@liker.land>',
     to: user.email,
     subject: res.__('Email.VerifiyEmail.subject'),
     html: EmailTemplate.Basic({
@@ -27,7 +27,7 @@ export async function sendVerificationEmail(res, user, ref) {
 
 export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
   const msg = {
-    from: 'LikeCoin Foundation <noreply@like.co>',
+    from: 'Liker Land <noreply@liker.land>',
     to: user.email,
     subject: res.__('Email.VerifiyAndCouponEmail.subject'),
     html: EmailTemplate.Basic({
@@ -46,7 +46,7 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
 export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
   const title = res.__('Email.InvitationEmail.subject', { referrer });
   const msg = {
-    Source: 'LikeCoin Foundation <noreply@like.co>',
+    Source: 'Liker Land <noreply@liker.land>',
     to: email,
     subject: title,
     html: EmailTemplate.Basic({
