@@ -181,7 +181,7 @@ export async function submitToArweave(data, ipfsHash) {
   const anchorId = (await arweave.api.get('/tx_anchor')).data;
   const { mimetype, buffer } = data;
   const transaction = await arweave.createTransaction({ data: buffer, last_tx: anchorId }, jwk);
-  transaction.addTag('User-Agent', 'app.like.co');
+  transaction.addTag('User-Agent', 'api.like.co');
   transaction.addTag(IPFS_KEY, ipfsHash);
   transaction.addTag(IPFS_CONSTRAINT_KEY, IPFS_CONSTRAINT);
   transaction.addTag('Content-Type', mimetype);
