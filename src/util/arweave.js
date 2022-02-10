@@ -2,12 +2,16 @@ import Arweave from 'arweave/node';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import stringify from 'fast-json-stable-stringify';
+import LRU from 'lru-cache';
 import {
   getFileIPFSHash,
   getFolderIPFSHash,
   uploadFileToIPFS,
 } from './ipfs';
 import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../constant';
+
+
+const arweaveIdCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
 const IPFS_KEY = 'IPFS-Add';
 
@@ -24,6 +28,8 @@ const arweave = Arweave.init({
 });
 
 export async function getArweaveIdFromHashes(ipfsHash) {
+  const cachedInfo = arweaveIdCache.get(ipfsHash);
+  if (cachedInfo) return cachedInfo;
   try {
     const res = await arweave.api.post('/graphql', {
       query: `
@@ -43,7 +49,11 @@ export async function getArweaveIdFromHashes(ipfsHash) {
     }`,
     });
     const ids = res.data.data.transactions.edges;
-    if (ids[0]) return ids[0].node.id;
+    if (ids[0]) {
+      const { id } = ids[0].node;
+      arweaveIdCache.set(ipfsHash, id);
+      return id;
+    }
     return undefined;
   } catch (err) {
     console.error(err);
@@ -194,6 +204,7 @@ export async function submitToArweave(data, ipfsHash) {
 
   await arweave.transactions.sign(transaction, jwk);
   await arweave.transactions.post(transaction);
+  arweaveIdCache.set(ipfsHash, transaction.id);
   return transaction.id;
 }
 
