@@ -126,8 +126,9 @@ export async function estimateARPrices(files, checkDuplicate = true) {
   }
   const prices = await Promise.all(files.map(f => estimateARPrice(f, checkDuplicate)));
   const filesWithPrice = files.map((f, i) => ({ ...f, arweaveId: prices[i].arweaveId }));
+  const checkManifestDuplicate = checkDuplicate && !filesWithPrice.find(p => !p.arweaveId);
   const manifest = await generateManifestFile(filesWithPrice, { stub: true });
-  const manifestPrice = await estimateARPrice(manifest, checkDuplicate);
+  const manifestPrice = await estimateARPrice(manifest, checkManifestDuplicate);
 
   prices.unshift(manifestPrice);
   const totalAR = prices.reduce((acc, cur) => acc.plus(cur.AR), new BigNumber(0));
@@ -300,7 +301,8 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     filesWithId.push({ ...f, arweaveId });
     /* eslint-enable no-await-in-loop */
   }
-  const { manifest, ipfsHash } = await uploadManifestFile(filesWithId, checkDuplicate);
+  /* HACK: do not check manifest duplicate, assume new since we uploaded new file to arweave */
+  const { manifest, ipfsHash } = await uploadManifestFile(filesWithId, false);
   list.unshift({
     key: manifest.key,
     arweaveId: manifest.arweaveId,
