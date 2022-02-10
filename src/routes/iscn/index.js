@@ -206,13 +206,15 @@ router.post('/upload',
         res.status(403).send('OAUTH_NEEDED');
       }
       const { files } = req;
+      const { deduplicate = '1' } = req.query;
+      const checkDuplicate = deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,
         prices,
       ] = await Promise.all([
         getIPFSHash(arFiles),
-        estimateARPrices(arFiles),
+        estimateARPrices(arFiles, checkDuplicate),
       ]);
       const {
         key,
@@ -262,7 +264,7 @@ router.post('/upload',
           address,
           transferTxSigningFunction,
         ),
-        uploadFilesToArweave(arFiles, arweaveIdList),
+        uploadFilesToArweave(arFiles, arweaveIdList, checkDuplicate),
         uploadFilesToIPFS(arFiles),
       ]);
       const { transactionHash, gasUsed, gasWanted } = txRes;
