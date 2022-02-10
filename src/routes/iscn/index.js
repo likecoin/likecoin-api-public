@@ -3,7 +3,7 @@ import bodyParser from 'body-parser';
 import multer from 'multer';
 import BigNumber from 'bignumber.js';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
 import {
   getISCNSigningClient,
@@ -26,7 +26,7 @@ const router = Router();
 async function handleRegisterISCN(req, res, next) {
   try {
     const { user } = req.user;
-    if (!user || !user.azp) {
+    if (!user || (!IS_TESTNET && !user.azp)) {
       // TODO: remove oauth check when open to personal call
       res.status(403).send('OAUTH_NEEDED');
     }
@@ -201,7 +201,7 @@ router.post('/upload',
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      if (!user || !user.azp) {
+      if (!user || (!IS_TESTNET && !user.azp)) {
         // TODO: remove oauth check when open to personal call
         res.status(403).send('OAUTH_NEEDED');
       }
