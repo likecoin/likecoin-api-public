@@ -21,13 +21,15 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
+      const { deduplicate = '1' } = req.query;
+      const checkDuplicate = deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,
         prices,
       ] = await Promise.all([
         getIPFSHash(arFiles),
-        estimateARPrices(arFiles),
+        estimateARPrices(arFiles, checkDuplicate),
       ]);
       const pricesWithLIKE = await convertARPricesToLIKE(prices);
       const {
@@ -64,13 +66,15 @@ router.post('/upload',
   async (req, res, next) => {
     try {
       const { files } = req;
+      const { deduplicate = '1' } = req.query;
+      const checkDuplicate = deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,
         prices,
       ] = await Promise.all([
         getIPFSHash(arFiles),
-        estimateARPrices(arFiles),
+        estimateARPrices(arFiles, checkDuplicate),
       ]);
       const {
         key,
@@ -122,7 +126,7 @@ router.post('/upload',
       }
       const arweaveIdList = existingPriceList ? existingPriceList.map(l => l.arweaveId) : undefined;
       const [{ arweaveId, list }] = await Promise.all([
-        uploadFilesToArweave(arFiles, arweaveIdList),
+        uploadFilesToArweave(arFiles, arweaveIdList, checkDuplicate),
         uploadFilesToIPFS(arFiles),
       ]);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
