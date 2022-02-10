@@ -247,8 +247,12 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     Promise.all(files.map(f => getFileIPFSHash(f))),
   ]);
   let arweaveIds = arweaveIdList;
-  if (!arweaveIds && checkDuplicate) {
-    arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
+  if (!arweaveIds) {
+    if (checkDuplicate) {
+      arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
+    } else {
+      arweaveIds = [];
+    }
   }
   if (!arweaveIds.some(id => !id)) {
     const filesWithId = files.map((f, i) => ({ ...f, arweaveId: arweaveIds[i] }));
@@ -277,11 +281,17 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
   for (let i = 0; i < files.length; i += 1) {
     /* eslint-disable no-await-in-loop */
     const f = files[i];
-    const ipfsHash = await getFileIPFSHash(f);
-    const [arweaveId] = await Promise.all([
-      submitToArweave(f, ipfsHash, checkDuplicate),
-      uploadFileToIPFS(f),
-    ]);
+    let arweaveId = arweaveIds[i];
+    let ipfsHash = ipfsHashes[i];
+    if (!ipfsHash) {
+      ipfsHash = await getFileIPFSHash(f);
+    }
+    if (!arweaveId) {
+      [arweaveId] = await Promise.all([
+        submitToArweave(f, ipfsHash, checkDuplicate),
+        uploadFileToIPFS(f),
+      ]);
+    }
     list.push({
       key: f.key,
       arweaveId,
