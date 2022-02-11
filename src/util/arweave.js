@@ -11,7 +11,7 @@ import {
 import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../constant';
 
 
-const arweaveIdCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
+const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
 const IPFS_KEY = 'IPFS-Add';
 
