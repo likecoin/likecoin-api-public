@@ -310,7 +310,6 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     if (!arweaveId) {
       [arweaveId] = await Promise.all([
         submitToArweave(f, ipfsHash, {
-          checkDuplicate,
           anchorId,
         }),
         uploadFileToIPFS(f),
