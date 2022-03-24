@@ -30,7 +30,7 @@ export function LIKEToAmount(value) {
   return { denom: COSMOS_DENOM, amount: LIKEToNanolike(value) };
 }
 export function amountToLIKE(likecoin) {
-  if (likecoin.denom === 'nanolike') {
+  if (likecoin.denom === COSMOS_DENOM) {
     return (new BigNumber(likecoin.amount)).dividedBy(1e9).toFixed();
   }
   console.error(`${likecoin.denom} is not supported denom`);
