@@ -24,13 +24,13 @@ const arweaveGraphQL = Arweave.init({
   host: 'arweave.net',
   port: 443,
   protocol: 'https',
-  timeout: 60000,
+  timeout: 10000,
 });
 
 const arweave = Arweave.init({
-  host: 'gateway.arweave.network',
-  port: 80, // http to avoid strange tls error
-  protocol: 'http',
+  host: 'arweave.net',
+  port: 443,
+  protocol: 'https',
   timeout: 60000,
 });
 
