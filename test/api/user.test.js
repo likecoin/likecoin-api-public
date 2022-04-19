@@ -74,7 +74,6 @@ test.serial('USER: Register cosmos user. Case: success', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
     platform: 'cosmosWallet',
     user: 'testing-new-user',
     email: 'test@cosmos.user',
@@ -96,7 +95,6 @@ test.serial('USER: Login cosmos user. Case: sucess', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 200);
@@ -116,7 +114,6 @@ test.serial('USER: Login cosmos user. Case: fail', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 400);
