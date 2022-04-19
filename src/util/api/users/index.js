@@ -162,7 +162,7 @@ export function checkCosmosSignPayload({
   signature, publicKey, message, cosmosWallet,
 }) {
   const verified = verifyCosmosSignInPayload({
-    signature, publicKey, message, cosmosWallet,
+    signature, publicKey, message,
   });
   if (!verified) {
     throw new ValidationError('INVALID_SIGNATURE');

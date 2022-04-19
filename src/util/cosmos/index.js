@@ -1,6 +1,5 @@
 
 import BigNumber from 'bignumber.js';
-import bech32 from 'bech32';
 import secp256k1 from 'secp256k1';
 import createHash from 'create-hash';
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -70,26 +69,15 @@ export async function getAccountInfo(address) {
   return accountInfo;
 }
 
-export function publicKeyBinaryToCosmosAddress(publicKey) {
-  const sha256 = createHash('sha256');
-  const ripemd = createHash('ripemd160');
-  sha256.update(publicKey);
-  ripemd.update(sha256.digest());
-  const rawAddr = ripemd.digest();
-  const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
-  return cosmosAddress;
-}
-
 export function verifyCosmosSignInPayload({
-  signature, publicKey, message, cosmosWallet,
+  signature, publicKey, message,
 }) {
   const signatureBinary = Buffer.from(signature, 'base64');
   const publicKeyBinary = Buffer.from(publicKey, 'base64');
   const msgSha256 = createHash('sha256');
   msgSha256.update(message);
   const msgHash = msgSha256.digest();
-  const valid = secp256k1.verify(msgHash, signatureBinary, publicKeyBinary)
-    && publicKeyBinaryToCosmosAddress(publicKeyBinary) === cosmosWallet;
+  const valid = secp256k1.verify(msgHash, signatureBinary, publicKeyBinary);
   return valid;
 }
 
