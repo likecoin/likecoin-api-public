@@ -24,6 +24,7 @@ import {
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
+import { publicKeyBinaryToCosmosAddress } from '../../util/cosmos/index';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
@@ -148,10 +149,11 @@ router.post(
         }
         case 'cosmosWallet': {
           const {
-            from: cosmosWallet, signature, publicKey, message,
+            signature, publicKey, message,
           } = req.body;
           ({ email } = req.body);
-          if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          const cosmosWallet = publicKeyBinaryToCosmosAddress(publicKey);
           if (!checkCosmosSignPayload({
             signature, publicKey, message, cosmosWallet,
           })) {

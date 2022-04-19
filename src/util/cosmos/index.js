@@ -1,5 +1,6 @@
 
 import BigNumber from 'bignumber.js';
+import bech32 from 'bech32';
 import secp256k1 from 'secp256k1';
 import createHash from 'create-hash';
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -67,6 +68,16 @@ export async function getAccountInfo(address) {
   const { value } = await queryClient.auth.account(address);
   const accountInfo = BaseAccount.decode(value);
   return accountInfo;
+}
+
+export function publicKeyBinaryToCosmosAddress(publicKey) {
+  const sha256 = createHash('sha256');
+  const ripemd = createHash('ripemd160');
+  sha256.update(publicKey);
+  ripemd.update(sha256.digest());
+  const rawAddr = ripemd.digest();
+  const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
+  return cosmosAddress;
 }
 
 export function verifyCosmosSignInPayload({
