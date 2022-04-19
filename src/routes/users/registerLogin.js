@@ -24,7 +24,7 @@ import {
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
-import { publicKeyBinaryToCosmosAddress } from '../../util/cosmos/index';
+import { publicKeyBinaryToAddress } from '../../util/cosmos/index';
 import { ValidationError } from '../../util/ValidationError';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
@@ -153,7 +153,14 @@ router.post(
           } = req.body;
           ({ email } = req.body);
           if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-          const cosmosWallet = publicKeyBinaryToCosmosAddress(publicKey);
+          let cosmosWallet;
+          let likeWallet;
+          try {
+            cosmosWallet = publicKeyBinaryToAddress(publicKey, 'cosmos');
+            likeWallet = publicKeyBinaryToAddress(publicKey, 'like');
+          } catch (err) {
+            throw new ValidationError('INVALID_PUBKEY');
+          }
           if (!checkCosmosSignPayload({
             signature, publicKey, message, cosmosWallet,
           })) {
@@ -161,6 +168,7 @@ router.post(
           }
           payload = req.body;
           payload.cosmosWallet = cosmosWallet;
+          payload.likeWallect = likeWallet;
           payload.displayName = user;
           payload.email = email;
           payload.isEmailVerified = false;
@@ -439,9 +447,15 @@ router.post('/login', async (req, res, next) => {
       }
       case 'cosmosWallet': {
         const {
-          from: cosmosWallet, signature, publicKey, message,
+          signature, publicKey, message,
         } = req.body;
-        if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+        if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+        let cosmosWallet;
+        try {
+          cosmosWallet = publicKeyBinaryToAddress(publicKey, 'cosmos');
+        } catch (err) {
+          throw new ValidationError('INVALID_PUBKEY');
+        }
         if (!checkCosmosSignPayload({
           signature, publicKey, message, cosmosWallet,
         })) {

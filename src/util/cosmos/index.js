@@ -70,14 +70,14 @@ export async function getAccountInfo(address) {
   return accountInfo;
 }
 
-export function publicKeyBinaryToCosmosAddress(publicKey) {
+export function publicKeyBinaryToAddress(publicKey, prefix) {
   const sha256 = createHash('sha256');
   const ripemd = createHash('ripemd160');
   sha256.update(publicKey);
   ripemd.update(sha256.digest());
   const rawAddr = ripemd.digest();
-  const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
-  return cosmosAddress;
+  const address = bech32.encode(prefix, bech32.toWords(rawAddr));
+  return address;
 }
 
 export function verifyCosmosSignInPayload({
