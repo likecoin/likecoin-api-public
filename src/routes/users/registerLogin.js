@@ -162,7 +162,7 @@ router.post(
           payload.displayName = user;
           payload.email = email;
           payload.isEmailVerified = false;
-          platformUserId = cosmosWallet;
+          platformUserId = publicKey;
           break;
         }
         default:
@@ -447,7 +447,7 @@ router.post('/login', async (req, res, next) => {
         }
         const userQuery = await (
           authDbRef
-            .where(`${platform}.userId`, '==', cosmosWallet)
+            .where(`${platform}.userId`, '==', publicKey)
             .get()
         );
         if (userQuery.docs.length > 0) {
