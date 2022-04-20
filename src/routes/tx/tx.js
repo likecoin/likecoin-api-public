@@ -69,8 +69,8 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
         return;
       }
       const userData = userDoc.data();
-      const { cosmosWallet } = userData;
-      if (user !== fromId && from !== cosmosWallet) {
+      const { cosmosWallet, likeWallet } = userData;
+      if (user !== fromId && from !== cosmosWallet && from !== likeWallet) {
         res.sendStatus(403);
         return;
       }

@@ -106,10 +106,12 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     }
     let authCoreUserId;
     let cosmosWallet;
+    let likeWallet;
     try {
       ({
         authCoreUserId,
         cosmosWallet,
+        likeWallet,
       } = await createAuthCoreUserAndWallet(
         {
           user,
@@ -142,6 +144,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         platformUserId,
         authCoreUserId,
         cosmosWallet,
+        likeWallet,
         isEmailVerified,
         accessToken: platformAccessToken,
         sourceURL: sourceURL || (req.auth.domain ? `https://${req.auth.domain}/` : undefined),
@@ -173,6 +176,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       ...userPayload,
       authCoreUserId,
       cosmosWallet,
+      likeWallet,
       accessToken: jwtid,
       logType: 'eventAPIUserRegister',
     });
@@ -229,10 +233,12 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             const isEmailVerified = true;
             let authCoreUserId;
             let cosmosWallet;
+            let likeWallet;
             try {
               ({
                 authCoreUserId,
                 cosmosWallet,
+                likeWallet,
               } = await createAuthCoreUserAndWallet(
                 {
                   user,
@@ -255,6 +261,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
               isEmailVerified,
               authCoreUserId,
               cosmosWallet,
+              likeWallet,
               avatarURL: imageUrl,
             });
             publisher.publish(PUBSUB_TOPIC_MISC, req, {

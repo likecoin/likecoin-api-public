@@ -13,8 +13,8 @@ export function checkUserNameValid(user) {
   return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= 7 && user.length <= 20);
 }
 
-export function checkCosmosAddressValid(addr) {
-  if (!addr.startsWith('cosmos1') && addr.length === 45) {
+export function checkCosmosAddressValid(addr, prefix = 'cosmos') {
+  if (!addr.startsWith(prefix) && addr.length === 45) {
     return false;
   }
   try {
@@ -35,6 +35,7 @@ export function filterUserData(u) {
     avatar,
     wallet,
     cosmosWallet,
+    likeWallet,
     referrer,
     isEmailVerified,
     isPhoneVerified,
@@ -63,6 +64,7 @@ export function filterUserData(u) {
     avatar,
     wallet,
     cosmosWallet,
+    likeWallet,
     referrer: !!referrer,
     isEmailVerified,
     isPhoneVerified,
@@ -91,6 +93,7 @@ export function filterUserDataMin(userObject, types = []) {
     avatar,
     wallet,
     cosmosWallet,
+    likeWallet,
     isSubscribedCivicLiker,
     isCivicLikerTrial,
     civicLikerSince,
@@ -101,6 +104,7 @@ export function filterUserDataMin(userObject, types = []) {
     avatar,
     wallet,
     cosmosWallet,
+    likeWallet,
     isCivicLikerTrial,
     isSubscribedCivicLiker,
     civicLikerSince,

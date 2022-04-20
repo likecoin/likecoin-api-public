@@ -84,6 +84,7 @@ export async function handleUserRegistration({
     user,
     displayName = user,
     cosmosWallet,
+    likeWallet,
     avatarSHA256,
     avatarURL: avatarURLInput,
     referrer,
@@ -107,13 +108,17 @@ export async function handleUserRegistration({
   }
 
   if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
-  if (!checkCosmosAddressValid(cosmosWallet)) {
+  if (!checkCosmosAddressValid(cosmosWallet, 'cosmos')) {
+    throw new ValidationError('invalid cosmos wallet');
+  }
+  if (!checkCosmosAddressValid(likeWallet, 'like')) {
     throw new ValidationError('invalid cosmos wallet');
   }
 
   await checkUserInfoUniqueness({
     user,
     cosmosWallet,
+    likeWallet,
     email,
     platform,
     platformUserId,
@@ -145,6 +150,7 @@ export async function handleUserRegistration({
           email,
           phone,
           cosmosWallet,
+          likeWallet,
           displayName,
           referrer,
           locale,
@@ -162,6 +168,7 @@ export async function handleUserRegistration({
     locale,
   };
 
+  if (likeWallet) createObj.likeWallet = likeWallet;
   if (hasReferrer) createObj.referrer = referrer;
 
   if (email) {
@@ -286,6 +293,7 @@ export async function handleUserRegistration({
       isPhoneVerified: createObj.isPhoneVerified || false,
       displayName,
       cosmosWallet,
+      likeWallet,
       avatar: avatarURL,
       referrer: referrer || undefined,
       locale,

@@ -70,27 +70,34 @@ export async function getAccountInfo(address) {
   return accountInfo;
 }
 
-export function publicKeyBinaryToCosmosAddress(publicKey) {
+export function publicKeyBinaryToAddresses(publicKey) {
   const sha256 = createHash('sha256');
   const ripemd = createHash('ripemd160');
   sha256.update(publicKey);
   ripemd.update(sha256.digest());
   const rawAddr = ripemd.digest();
   const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
-  return cosmosAddress;
+  const likeAddress = bech32.encode('like', bech32.toWords(rawAddr));
+  return { cosmosAddress, likeAddress };
 }
 
 export function verifyCosmosSignInPayload({
-  signature, publicKey, message, cosmosWallet,
+  signature, publicKey, message, inputWallet,
 }) {
   const signatureBinary = Buffer.from(signature, 'base64');
   const publicKeyBinary = Buffer.from(publicKey, 'base64');
   const msgSha256 = createHash('sha256');
   msgSha256.update(message);
   const msgHash = msgSha256.digest();
+  const { cosmosAddress, likeAddress } = publicKeyBinaryToAddresses(publicKeyBinary);
   const valid = secp256k1.verify(msgHash, signatureBinary, publicKeyBinary)
-    && publicKeyBinaryToCosmosAddress(publicKeyBinary) === cosmosWallet;
+    && (cosmosAddress === inputWallet || likeAddress === inputWallet);
   return valid;
+}
+
+export function convertAddressPrefix(address, prefix = 'like') {
+  const { words } = bech32.decode(address);
+  return bech32.encode(prefix, words);
 }
 
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;

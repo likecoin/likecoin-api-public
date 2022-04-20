@@ -1,5 +1,6 @@
 import { authCoreJwtSignToken } from '../../jwt';
 import { registerAuthCoreUser, createAuthCoreCosmosWalletViaServiceAccount } from '../../authcore';
+import { convertAddressPrefix } from '../../cosmos';
 
 export async function createAuthCoreUserAndWallet({
   user,
@@ -27,9 +28,11 @@ export async function createAuthCoreUserAndWallet({
     authCoreUserId,
     authCoreToken,
   );
+  const likeWallet = convertAddressPrefix(cosmosWallet, 'like');
   return {
     authCoreUserId,
     cosmosWallet,
+    likeWallet,
   };
 }
 
