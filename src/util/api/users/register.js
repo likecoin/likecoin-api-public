@@ -275,6 +275,16 @@ export async function handleUserRegistration({
         userId: platformUserId,
       };
     }
+    if (cosmosWallet) {
+      doc.cosmosWallet = {
+        userId: cosmosWallet,
+      };
+    }
+    if (likeWallet) {
+      doc.likeWallet = {
+        userId: likeWallet,
+      };
+    }
     batch.create(authDbRef.doc(user), doc);
   }
   await batch.commit();
