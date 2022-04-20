@@ -14,6 +14,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   isEmailVerified,
   authCoreUserId,
   cosmosWallet,
+  likeWallet,
   avatarURL,
 }) {
   const userRef = dbRef.doc(user);
@@ -32,6 +33,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   if (isEmailVerified !== undefined) payload.isEmailVerified = isEmailVerified;
   if (authCoreUserId) payload.authCoreUserId = authCoreUserId;
   if (cosmosWallet) payload.cosmosWallet = cosmosWallet;
+  if (likeWallet) payload.likeWallet = likeWallet;
   if (avatarURL) {
     try {
       payload.avatar = await handleAvatarLinkAndGetURL(user, avatarURL);

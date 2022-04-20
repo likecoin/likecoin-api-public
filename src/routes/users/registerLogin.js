@@ -35,6 +35,7 @@ import {
 } from '../../../config/config';
 
 import loginPlatforms from './platforms';
+import { convertAddressPrefix } from '../../util/cosmos';
 
 const Multer = require('multer');
 const RateLimit = require('express-rate-limit');
@@ -128,7 +129,18 @@ router.post(
           payload.authCoreUserId = authCoreUserId;
           if (!payload.cosmosWallet) {
             try {
-              payload.cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+              const cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+              payload.cosmosWallet = cosmosWallet;
+            } catch (err) {
+              console.error('Cannot create cosmos wallet');
+              console.error(err);
+              throw new ValidationError('COSMOS_WALLET_PENDING');
+            }
+          }
+          if (!payload.likeWallet && payload.cosmosWallet) {
+            try {
+              const likeWallet = await convertAddressPrefix(payload.cosmosWallet, 'like');
+              payload.likeWallet = likeWallet;
             } catch (err) {
               console.error('Cannot create cosmos wallet');
               console.error(err);
@@ -147,23 +159,27 @@ router.post(
           platformUserId = authCoreUserId;
           break;
         }
+        case 'likeWallet':
         case 'cosmosWallet': {
           const {
-            from: cosmosWallet, signature, publicKey, message,
+            from: inputWallet, signature, publicKey, message,
           } = req.body;
           ({ email } = req.body);
-          if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+          if (platform === 'likeWallet' && !inputWallet.startsWith('like')) throw new ValidationError('INVALID_LIKE_PRFIX');
+          if (platform === 'cosmosWallet' && !inputWallet.startsWith('cosmos')) throw new ValidationError('INVALID_COSMOS_PRFIX');
           if (!checkCosmosSignPayload({
-            signature, publicKey, message, cosmosWallet,
+            signature, publicKey, message, inputWallet,
           })) {
             throw new ValidationError('INVALID_SIGN');
           }
           payload = req.body;
-          payload.cosmosWallet = cosmosWallet;
+          payload.cosmosWallet = convertAddressPrefix(inputWallet, 'cosmos');
+          payload.likeWallet = convertAddressPrefix(inputWallet, 'like');
           payload.displayName = displayName || user;
           payload.email = email;
           payload.isEmailVerified = false;
-          platformUserId = cosmosWallet;
+          platformUserId = inputWallet;
           break;
         }
         default:
@@ -436,19 +452,22 @@ router.post('/login', async (req, res, next) => {
         }
         break;
       }
+      case 'likeWallet':
       case 'cosmosWallet': {
         const {
-          from: cosmosWallet, signature, publicKey, message,
+          from: inputWallet, signature, publicKey, message,
         } = req.body;
-        if (!cosmosWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+        if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+        if (platform === 'likeWallet' && !inputWallet.startsWith('like')) throw new ValidationError('INVALID_LIKE_PRFIX');
+        if (platform === 'cosmosWallet' && !inputWallet.startsWith('cosmos')) throw new ValidationError('INVALID_COSMOS_PRFIX');
         if (!checkCosmosSignPayload({
-          signature, publicKey, message, cosmosWallet,
+          signature, publicKey, message, inputWallet,
         })) {
           throw new ValidationError('INVALID_SIGN');
         }
         const userQuery = await (
           authDbRef
-            .where(`${platform}.userId`, '==', cosmosWallet)
+            .where(`${platform}.userId`, '==', inputWallet)
             .get()
         );
         if (userQuery.docs.length > 0) {
@@ -502,13 +521,19 @@ router.post('/login', async (req, res, next) => {
           referrer,
           locale,
           cosmosWallet,
+          likeWallet,
           timestamp: registerTime,
         } = doc.data();
         if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
           const { accessToken } = req.body;
           if (!cosmosWallet) {
             const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-            await dbRef.doc(user).update({ cosmosWallet: newWallet });
+            const newLikeWallet = convertAddressPrefix(newWallet, 'like');
+            await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
+          }
+          if (!likeWallet && cosmosWallet) {
+            const newLikeWallet = convertAddressPrefix(cosmosWallet, 'like');
+            await dbRef.doc(user).update({ likeWallet: newLikeWallet });
           }
           const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
           if (oAuthFactors && oAuthFactors.length) {

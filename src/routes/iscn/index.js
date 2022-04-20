@@ -76,8 +76,8 @@ async function handleRegisterISCN(req, res, next) {
       res.status(400).send('USER_NOT_FOUND');
       return;
     }
-    const { cosmosWallet } = userInfo;
-    const recordNotes = cosmosWallet || user;
+    const { likeWallet, cosmosWallet } = userInfo;
+    const recordNotes = likeWallet || cosmosWallet || user;
 
     if (res.locals.arweaveId) contentFingerprints.push(`ar://${res.locals.arweaveId}`);
     if (res.locals.ipfsHash) contentFingerprints.push(`ipfs://${res.locals.ipfsHash}`);
@@ -147,10 +147,11 @@ async function handleRegisterISCN(req, res, next) {
       ipfsHash: res.locals.ipfsHash,
     });
 
-    if (isClaim && cosmosWallet) {
+    const wallet = likeWallet || cosmosWallet;
+    if (isClaim && wallet) {
       const transferSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
         address,
-        cosmosWallet,
+        wallet,
         iscnId,
         {
           accountNumber,

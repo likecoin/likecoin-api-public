@@ -159,10 +159,10 @@ export function checkSignPayload(from, payload, sign) {
 }
 
 export function checkCosmosSignPayload({
-  signature, publicKey, message, cosmosWallet,
+  signature, publicKey, message, inputWallet,
 }) {
   const verified = verifyCosmosSignInPayload({
-    signature, publicKey, message, cosmosWallet,
+    signature, publicKey, message, inputWallet,
   });
   if (!verified) {
     throw new ValidationError('INVALID_SIGNATURE');
@@ -174,8 +174,12 @@ export function checkCosmosSignPayload({
   } catch (err) {
     throw new ValidationError('INVALID_PAYLOAD');
   }
-  const { ts, cosmosWallet: payloadWallet } = actualPayload;
-  if (payloadWallet !== cosmosWallet) {
+  const {
+    ts,
+    cosmosWallet: payloadCosmosWallet,
+    likeWallet: payloadLikeWallet,
+  } = actualPayload;
+  if (payloadLikeWallet !== inputWallet && payloadCosmosWallet !== inputWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
   }
   if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
@@ -269,6 +273,7 @@ export async function normalizeUserEmail(user, email) {
 async function userInfoQuery({
   user,
   cosmosWallet,
+  likeWallet,
   email,
   platform,
   platformUserId,
@@ -287,6 +292,15 @@ async function userInfoQuery({
       const docUser = doc.id;
       if (user !== docUser) {
         throw new ValidationError('COSMOS_WALLET_ALREADY_EXIST');
+      }
+    });
+    return true;
+  }) : Promise.resolve();
+  const likeWalletQuery = likeWallet ? dbRef.where('likeWallet', '==', likeWallet).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      if (user !== docUser) {
+        throw new ValidationError('LIKE_WALLET_ALREADY_EXIST');
       }
     });
     return true;
@@ -330,6 +344,7 @@ async function userInfoQuery({
   }] = await Promise.all([
     userNameQuery,
     cosmosWalletQuery,
+    likeWalletQuery,
     emailQuery,
     authQuery,
     authCoreQuery,
@@ -341,6 +356,7 @@ async function userInfoQuery({
 export async function checkUserInfoUniqueness({
   user,
   cosmosWallet,
+  likeWallet,
   email,
   platform,
   platformUserId,
@@ -351,6 +367,7 @@ export async function checkUserInfoUniqueness({
   await userInfoQuery({
     user,
     cosmosWallet,
+    likeWallet,
     email,
     platform,
     platformUserId,

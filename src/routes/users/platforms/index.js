@@ -13,6 +13,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import publisher from '../../../util/gcloudPub';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../../util/jwt';
+import { convertAddressPrefix } from '../../../util/cosmos';
 
 const router = Router();
 
@@ -97,7 +98,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
     switch (platform) {
       case 'authcore': {
         const { idToken, accessToken } = req.body;
-        let { cosmosWallet } = req.body;
+        let { cosmosWallet, likeWallet } = req.body;
         if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
         if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
         const authCoreUser = authCoreJwtVerify(idToken);
@@ -111,10 +112,14 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
         if (!cosmosWallet) {
           cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
         }
-        const [userQuery, emailQuery, walletQuery] = await Promise.all([
+        if (!likeWallet && cosmosWallet) {
+          likeWallet = convertAddressPrefix(cosmosWallet, 'like');
+        }
+        const [userQuery, emailQuery, walletQuery, likeWalletQuery] = await Promise.all([
           dbRef.where('authCoreUserId', '==', authCoreUserId).get(),
           dbRef.where('email', '==', email).get(),
           dbRef.where('cosmosWallet', '==', cosmosWallet).get(),
+          dbRef.where('likeWallet', '==', likeWallet).get(),
         ]);
         if (userQuery.docs.length > 0) {
           userQuery.forEach((doc) => {
@@ -140,9 +145,18 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
             }
           });
         }
+        if (likeWalletQuery.docs.length > 0) {
+          likeWalletQuery.forEach((doc) => {
+            const docUser = doc.id;
+            if (user !== docUser) {
+              throw new ValidationError('AUTHCORUE_WALLET_DUPLICATED');
+            }
+          });
+        }
         await dbRef.doc(user).update({
           authCoreUserId,
           cosmosWallet,
+          likeWallet,
           email,
           isEmailVerified,
           // TODO: update displayname after authcore fix default name privacy issue
