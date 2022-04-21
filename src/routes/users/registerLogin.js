@@ -94,6 +94,7 @@ router.post(
       platform,
       appReferrer,
       user,
+      displayName,
     } = req.body;
     let email;
     try {
@@ -159,7 +160,7 @@ router.post(
           }
           payload = req.body;
           payload.cosmosWallet = cosmosWallet;
-          payload.displayName = user;
+          payload.displayName = displayName || user;
           payload.email = email;
           payload.isEmailVerified = false;
           platformUserId = cosmosWallet;
