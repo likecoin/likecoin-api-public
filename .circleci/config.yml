@@ -77,7 +77,7 @@ jobs:
           name: Deploy
           command: |
             kubectl patch deployment like-api-public-rinkeby -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
-  deploy_taipei_api:
+  deploy_testnet_api:
     working_directory: ~/like-api-public
     docker:
       - image: lakoo/node-gcloud-docker
@@ -112,43 +112,7 @@ jobs:
       - deploy:
           name: Deploy
           command: |
-            kubectl patch deployment like-api-public-taipei -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
-  deploy_staging_api:
-    working_directory: ~/like-api-public
-    docker:
-      - image: lakoo/node-gcloud-docker
-    environment:
-      - DEBIAN_FRONTEND: noninteractive
-      - TERM: dumb
-      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
-    steps:
-      - checkout
-      - run:
-          name: Setup gcloud
-          command: |
-            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /test-account-auth.json
-            gcloud auth activate-service-account --key-file /test-account-auth.json
-            gcloud config set project ${TEST_PROJECT_NAME}
-            gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
-            gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
-            gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
-      - setup_docker_engine
-      - run:
-          name: Build image
-          command: |
-            gcloud docker -- pull us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest || true
-            docker build . -t like-api-public --cache-from us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Push images
-          command: |
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - deploy:
-          name: Deploy
-          command: |
-            kubectl patch deployment like-api-public-staging -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
+            kubectl patch deployment like-api-public-testnet -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
   deploy_mainnet_api:
     working_directory: ~/like-api-public
     docker:
@@ -197,26 +161,17 @@ workflows:
               only:
                 - master
                 - develop
-                - /feature.*/
+                - /deployment.*/
           requires:
            - test
-      - hold_deploy_taipei_api:
-          type: approval
-          filters:
-            branches:
-              only:
-                - /feature.*cosmos.*/
-                - /feature.*authcore.*/
-          requires:
-           - test
-      - hold_deploy_staging_api:
+      - hold_deploy_testnet_api:
           type: approval
           filters:
             branches:
               only:
                 - master
                 - develop
-                - /feature.*/
+                - /deployment.*/
           requires:
            - test
       - hold_deploy_mainnet_api:
@@ -229,12 +184,9 @@ workflows:
       - deploy_rinkeby_api:
           requires:
             - hold_deploy_rinkeby_api
-      - deploy_taipei_api:
+      - deploy_testnet_api:
           requires:
-            - hold_deploy_taipei_api
-      - deploy_staging_api:
-          requires:
-            - hold_deploy_staging_api
+            - hold_deploy_testnet_api
       - deploy_mainnet_api:
           requires:
             - hold_deploy_mainnet_api
