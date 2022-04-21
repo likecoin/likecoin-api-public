@@ -24,6 +24,7 @@ import {
 } from '../../src/constant';
 import {
   TEST_COSMOS_ADDRESS,
+  TEST_LIKE_ADDRESS,
   TEST_COSMOS_PRIVATE_KEY,
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
@@ -117,6 +118,67 @@ test.serial('USER: Login cosmos user. Case: fail', async (t) => {
     publicKey: publicKey.value,
     message: jsonStringify(message),
     from: TEST_COSMOS_ADDRESS,
+    platform: 'cosmosWallet',
+  });
+  t.is(res.status, 400);
+});
+
+test.serial('USER: Login like user. Case: sucess', async (t) => {
+  const likeWallet = TEST_LIKE_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    likeWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  const res = await axiosist.post('/api/users/login', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_LIKE_ADDRESS,
+    platform: 'likeWallet',
+  });
+  t.is(res.status, 200);
+});
+
+test.serial('USER: Login like user. Case: fail, wrong signature', async (t) => {
+  const likeWallet = TEST_LIKE_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    likeWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
+  const res = await axiosist.post('/api/users/login', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_LIKE_ADDRESS,
+    platform: 'likeWallet',
+  });
+  t.is(res.status, 400);
+});
+
+
+test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
+  const likeWallet = TEST_LIKE_ADDRESS;
+  const payload = {
+    ts: Date.now(),
+    likeWallet,
+  };
+  const {
+    signed: message,
+    signature: { signature, pub_key: publicKey },
+  } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
+  const res = await axiosist.post('/api/users/login', {
+    signature,
+    publicKey: publicKey.value,
+    message: jsonStringify(message),
+    from: TEST_LIKE_ADDRESS,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 400);
