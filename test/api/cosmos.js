@@ -6,6 +6,7 @@ const jsonStringify = require('fast-json-stable-stringify');
 export const ISCN_SECRET_ADDRESS = 'cosmos1l3e9pgs3mmwuwrh95fecme0s0qtn2880f2jmfe';
 
 export const TEST_COSMOS_ADDRESS = 'cosmos187290tx4vj6npyl7fdfgdvxr2n9d5qyell50d4';
+export const TEST_LIKE_ADDRESS = 'like187290tx4vj6npyl7fdfgdvxr2n9d5qyevrgdww';
 export const TEST_COSMOS_PRIVATE_KEY = '6a47b2c6557573c1e4dd82563c64a6db3abefad4ea722093b4eeec204ebd9a3a';
 
 function signFormatter(signPayload) {
