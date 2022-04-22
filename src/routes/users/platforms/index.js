@@ -141,7 +141,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           walletQuery.forEach((doc) => {
             const docUser = doc.id;
             if (user !== docUser) {
-              throw new ValidationError('AUTHCORUE_WALLET_DUPLICATED');
+              throw new ValidationError('AUTHCORE_WALLET_DUPLICATED');
             }
           });
         }
@@ -149,7 +149,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           likeWalletQuery.forEach((doc) => {
             const docUser = doc.id;
             if (user !== docUser) {
-              throw new ValidationError('AUTHCORUE_WALLET_DUPLICATED');
+              throw new ValidationError('AUTHCORE_WALLET_DUPLICATED');
             }
           });
         }
