@@ -107,12 +107,12 @@ export async function handleUserRegistration({
     sourceURL = `https://${EXTERNAL_HOSTNAME}/in/getapp`;
   }
 
-  if (!checkUserNameValid(user)) throw new ValidationError('Invalid user name');
+  if (!checkUserNameValid(user)) throw new ValidationError('INVALID_USER_ID');
   if (!checkCosmosAddressValid(cosmosWallet, 'cosmos')) {
-    throw new ValidationError('invalid cosmos wallet');
+    throw new ValidationError('INVALID_COSMOS_WALLET');
   }
   if (!checkCosmosAddressValid(likeWallet, 'like')) {
-    throw new ValidationError('invalid cosmos wallet');
+    throw new ValidationError('INVALID_LIKE_WALLET');
   }
 
   await checkUserInfoUniqueness({
