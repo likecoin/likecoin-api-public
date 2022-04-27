@@ -47,8 +47,8 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 
+  const hash256 = sha256(file.buffer);
   if (avatarSHA256) {
-    const hash256 = sha256(file.buffer);
     if (hash256 !== avatarSHA256) throw new ValidationError('avatar sha not match');
   }
 
@@ -58,7 +58,7 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
     filename: `likecoin_store_user_${user}_${IS_TESTNET ? 'test' : 'main'}`,
     mimetype: file.mimetype,
   });
-  return avatarUrl;
+  return `${avatarUrl}&${hash256.substring(0, 7)}`;
 }
 
 export async function handleAvatarLinkAndGetURL(user, url) {
