@@ -78,6 +78,7 @@
     "jsonwebtoken": "^8.4.0",
     "long": "^4.0.0",
     "lru-cache": "^5.1.1",
+    "md5-hex": "^2.0.0",
     "multer": "^1.4.1",
     "oauth-1.0a": "^2.2.5",
     "protobufjs": "^6.8.8",
