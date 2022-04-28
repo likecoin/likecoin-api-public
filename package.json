@@ -47,7 +47,7 @@
     "@google-cloud/pubsub": "^1.2.0",
     "@likecoin/iscn-js": "0.0.7",
     "@likecoin/likecoin-email-templates": "^1.2.2",
-    "@likecoin/secretd-js": "^0.2.0",
+    "@likecoin/secretd-js": "^0.4.3",
     "@sendgrid/mail": "^6.5.5",
     "agentkeepalive": "^4.1.3",
     "arweave": "^1.10.17",
