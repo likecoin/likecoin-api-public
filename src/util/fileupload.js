@@ -11,6 +11,8 @@ import { ValidationError } from './ValidationError';
 const sharp = require('sharp');
 const fileType = require('file-type');
 const sha256 = require('js-sha256');
+// eslint-disable-next-line import/no-extraneous-dependencies
+const md5 = require('md5-hex');
 
 export function uploadFileAndGetLink(file, { filename, mimetype }) {
   const isStream = file && typeof file.pipe === 'function';
@@ -58,7 +60,8 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
     filename: `likecoin_store_user_${user}_${IS_TESTNET ? 'test' : 'main'}`,
     mimetype: file.mimetype,
   });
-  return avatarUrl;
+  const versionHash = md5(file.buffer).substring(0, 7);
+  return `${avatarUrl}&${versionHash}`;
 }
 
 export async function handleAvatarLinkAndGetURL(user, url) {

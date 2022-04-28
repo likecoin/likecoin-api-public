@@ -347,7 +347,7 @@ router.post(
       }
 
       await dbRef.doc(user).update({ avatar: avatarUrl });
-      res.sendStatus(200);
+      res.json({ avatar: avatarUrl });
 
       const oldUserObj = await dbRef.doc(user).get();
       const {
