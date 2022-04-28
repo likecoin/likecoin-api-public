@@ -336,14 +336,13 @@ router.post(
       const { avatarSHA256 } = req.body;
       const { file } = req;
       let avatarUrl;
-      if (file) {
-        try {
-          avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
-        } catch (err) {
-          console.error('Avatar file handling error:');
-          console.error(err);
-          throw new ValidationError('INVALID_AVATAR');
-        }
+      if (!file) throw new ValidationError('MISSING_AVATAR_FILE');
+      try {
+        avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+      } catch (err) {
+        console.error('Avatar file handling error:');
+        console.error(err);
+        throw new ValidationError('INVALID_AVATAR');
       }
 
       await dbRef.doc(user).update({ avatar: avatarUrl });

@@ -164,10 +164,10 @@ export async function handleUserRegistration({
     cosmosWallet,
     authCoreUserId,
     isEmailEnabled,
-    avatar: avatarURL,
     locale,
   };
 
+  if (avatarURL) createObj.avatar = avatarURL;
   if (likeWallet) createObj.likeWallet = likeWallet;
   if (hasReferrer) createObj.referrer = referrer;
 
