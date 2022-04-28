@@ -11,7 +11,6 @@ import { ValidationError } from './ValidationError';
 const sharp = require('sharp');
 const fileType = require('file-type');
 const sha256 = require('js-sha256');
-// eslint-disable-next-line import/no-extraneous-dependencies
 const md5 = require('md5-hex');
 
 export function uploadFileAndGetLink(file, { filename, mimetype }) {
