@@ -35,7 +35,11 @@ import {
 } from '../../../config/config';
 
 import loginPlatforms from './platforms';
-import { convertAddressPrefix } from '../../util/cosmos';
+import {
+  isValidCosmosAddress,
+  isValidLikeAddress,
+  convertAddressPrefix,
+} from '../../util/cosmos';
 
 const Multer = require('multer');
 const RateLimit = require('express-rate-limit');
@@ -166,8 +170,8 @@ router.post(
           } = req.body;
           ({ email } = req.body);
           if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-          if (platform === 'likeWallet' && !inputWallet.startsWith('like')) throw new ValidationError('INVALID_LIKE_PREFIX');
-          if (platform === 'cosmosWallet' && !inputWallet.startsWith('cosmos')) throw new ValidationError('INVALID_COSMOS_PREFIX');
+          if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
+          if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
           if (!checkCosmosSignPayload({
             signature, publicKey, message, inputWallet,
           })) {
@@ -457,8 +461,8 @@ router.post('/login', async (req, res, next) => {
           from: inputWallet, signature, publicKey, message,
         } = req.body;
         if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-        if (platform === 'likeWallet' && !inputWallet.startsWith('like')) throw new ValidationError('INVALID_LIKE_PREFIX');
-        if (platform === 'cosmosWallet' && !inputWallet.startsWith('cosmos')) throw new ValidationError('INVALID_COSMOS_PREFIX');
+        if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
+        if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
         if (!checkCosmosSignPayload({
           signature, publicKey, message, inputWallet,
         })) {
