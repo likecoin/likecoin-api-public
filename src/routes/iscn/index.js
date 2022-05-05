@@ -190,12 +190,12 @@ async function handleRegisterISCN(req, res, next) {
 
 router.post(
   '/new',
-  jwtAuth('write:iscn'),
+  jwtAuth('write:like'),
   handleRegisterISCN,
 );
 
 router.post('/upload',
-  jwtAuth('write:iscn'),
+  jwtAuth('write:like'),
   bodyParser.urlencoded({ extended: false }),
   multer({ limits: { fileSize: maxSize } }).any(),
   checkFileValid,
