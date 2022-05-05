@@ -26,15 +26,13 @@ const router = Router();
 async function handleRegisterISCN(req, res, next) {
   try {
     const { user } = req.user;
-    if (!user || (!IS_TESTNET && !user.azp)) {
+    if (!user || (!IS_TESTNET && !req.user.azp)) {
       // TODO: remove oauth check when open to personal call
       res.status(403).send('OAUTH_NEEDED');
     }
     const { claim = 1 } = req.query;
     const isClaim = claim && claim !== '0';
-    let {
-      metadata = {},
-    } = req.body;
+    let metadata = req.body.metadata || req.body || {};
     if (typeof metadata === 'string') {
       try {
         metadata = JSON.parse(metadata);
@@ -202,7 +200,7 @@ router.post('/upload',
   async (req, res, next) => {
     try {
       const { user } = req.user;
-      if (!user || (!IS_TESTNET && !user.azp)) {
+      if (!user || (!IS_TESTNET && !req.user.azp)) {
         // TODO: remove oauth check when open to personal call
         res.status(403).send('OAUTH_NEEDED');
       }
