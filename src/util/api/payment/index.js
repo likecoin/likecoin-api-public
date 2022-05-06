@@ -1,7 +1,8 @@
 import { userCollection as dbRef } from '../../firebase';
 
-async function fetchUserInfoByCosmosWallet(wallet) {
-  const query = dbRef.where('cosmosWallet', '==', wallet).get().then((snapshot) => {
+async function fetchUserInfoByCosmosLikeWallet(wallet) {
+  const queryKey = wallet.startsWith('like') ? 'likeWallet' : 'cosmosWallet';
+  const query = dbRef.where(queryKey, '==', wallet).get().then((snapshot) => {
     if (snapshot.docs.length > 0) {
       const userData = snapshot.docs[0].data();
       const {
@@ -27,16 +28,20 @@ async function fetchUserInfoByCosmosWallet(wallet) {
   return query;
 }
 
-async function fetchUserIdsByCosmosWallet(wallet) {
+async function fetchUserIdsByCosmosLikeWallet(wallet) {
   const wallets = Array.isArray(wallet) ? wallet : [wallet];
-  const walletQuerys = wallets.map(w => dbRef.where('cosmosWallet', '==', w).get().then((snapshot) => {
-    if (snapshot.docs.length > 0) {
-      return {
-        id: snapshot.docs[0].id,
-      };
-    }
-    return {};
-  }));
+  const walletQuerys = wallets.map((w) => {
+    const queryKey = w.startsWith('like') ? 'likeWallet' : 'cosmosWallet';
+    return dbRef.where(queryKey, '==', w).get()
+      .then((snapshot) => {
+        if (snapshot.docs.length > 0) {
+          return {
+            id: snapshot.docs[0].id,
+          };
+        }
+        return {};
+      });
+  });
   const result = await Promise.all(walletQuerys);
   return { id: result.map(r => r.id || '') };
 }
@@ -45,14 +50,14 @@ export async function fetchPaymentUserInfo({ from, to }) {
   let fromQuery = Promise.resolve({});
   if (from) {
     fromQuery = Array.isArray(from)
-      ? fetchUserIdsByCosmosWallet(from)
-      : fetchUserInfoByCosmosWallet(from);
+      ? fetchUserIdsByCosmosLikeWallet(from)
+      : fetchUserInfoByCosmosLikeWallet(from);
   }
   let toQuery = Promise.resolve({});
   if (to) {
     toQuery = Array.isArray(to)
-      ? fetchUserIdsByCosmosWallet(to)
-      : fetchUserInfoByCosmosWallet(to);
+      ? fetchUserIdsByCosmosLikeWallet(to)
+      : fetchUserInfoByCosmosLikeWallet(to);
   }
   const [{
     id: fromId,
