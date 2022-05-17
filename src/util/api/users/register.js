@@ -83,6 +83,7 @@ export async function handleUserRegistration({
   const {
     user,
     displayName = user,
+    description,
     cosmosWallet,
     likeWallet,
     avatarSHA256,
@@ -170,6 +171,7 @@ export async function handleUserRegistration({
   if (avatarURL) createObj.avatar = avatarURL;
   if (likeWallet) createObj.likeWallet = likeWallet;
   if (hasReferrer) createObj.referrer = referrer;
+  if (description) createObj.description = description;
 
   if (email) {
     createObj.email = email;
@@ -302,6 +304,7 @@ export async function handleUserRegistration({
       phone: phone || undefined,
       isPhoneVerified: createObj.isPhoneVerified || false,
       displayName,
+      description,
       cosmosWallet,
       likeWallet,
       avatar: avatarURL,

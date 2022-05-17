@@ -100,6 +100,7 @@ router.post(
       appReferrer,
       user,
       displayName,
+      description,
     } = req.body;
     let email;
     try {
@@ -195,6 +196,7 @@ router.post(
       } = await handleUserRegistration({
         payload: {
           ...payload,
+          description,
           platform,
           platformUserId,
         },
@@ -261,6 +263,7 @@ router.post(
       const {
         email,
         displayName,
+        description,
         locale,
       } = req.body;
       let { isEmailEnabled } = req.body;
@@ -282,6 +285,7 @@ router.post(
 
       const updateObj = {
         displayName,
+        description,
         isEmailEnabled,
         locale,
       };
