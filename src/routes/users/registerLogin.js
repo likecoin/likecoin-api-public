@@ -281,6 +281,7 @@ router.post(
         displayName: oldDisplayName,
         email: oldEmail,
         locale: oldLocale,
+        authCoreUserId,
       } = oldUserObj.data();
 
       const updateObj = {
@@ -291,9 +292,10 @@ router.post(
       };
 
       if (email) {
-        if (oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
+        if (authCoreUserId && oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
         await userByEmailQuery(user, email);
         updateObj.email = email;
+        updateObj.isEmailVerified = false;
         const {
           normalizedEmail,
           isEmailBlacklisted,
