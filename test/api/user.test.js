@@ -16,6 +16,7 @@ import {
   invalidWallet,
   testingWallet3,
   privateKey1,
+  privateKey2,
   privateKey3,
 } from './data';
 import axiosist from './axiosist';
@@ -190,11 +191,11 @@ test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
 test.serial('USER: Login Metamask user. Case: success', async (t) => {
   const payload = Web3.utils.utf8ToHex(JSON.stringify({
     ts: Date.now(),
-    wallet: testingWallet1,
+    wallet: testingWallet2,
   }));
-  const sign = signERCProfile(payload, privateKey1);
+  const sign = signERCProfile(payload, privateKey2);
   const res = await axiosist.post('/api/users/login', {
-    from: testingWallet1,
+    from: testingWallet2,
     platform: 'wallet',
     payload,
     sign,
