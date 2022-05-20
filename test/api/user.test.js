@@ -241,6 +241,23 @@ test.serial('USER: Edit user by JSON from Web. Case: editing existing email', as
   t.is(res.data, 'EMAIL_CANNOT_BE_CHANGED');
 });
 
+test.serial('USER: Edit user by JSON from Web. Case: Incorrect email format', async (t) => {
+  const user = testingUser2;
+  const token = jwtSign({ user });
+  const payload = {
+    user,
+    email: 'email',
+  };
+  const res = await axiosist.post('/api/users/update', payload, {
+    headers: {
+      Cookie: `likecoin_auth=${token};`,
+    },
+  }).catch(err => err.response);
+
+  t.is(res.status, 400);
+  t.is(res.data, 'EMAIL_FORMAT_INCORRECT');
+});
+
 test.serial('USER: Edit user by form-data from Web. Case: invalid content-type', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });

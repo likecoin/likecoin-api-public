@@ -294,14 +294,18 @@ router.post(
       if (email) {
         if (authCoreUserId && oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
         await userByEmailQuery(user, email);
-        updateObj.email = email;
-        updateObj.isEmailVerified = false;
         const {
           normalizedEmail,
           isEmailBlacklisted,
           isEmailDuplicated,
         } = await normalizeUserEmail(user, email);
-        if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
+        if (normalizedEmail) {
+          updateObj.email = email;
+          updateObj.normalizedEmail = normalizedEmail;
+          updateObj.isEmailVerified = false;
+        } else {
+          throw new ValidationError('EMAIL_FORMAT_INCORRECT');
+        }
         if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
         if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
       }

@@ -218,6 +218,7 @@ export async function normalizeUserEmail(user, email) {
   const parts = email.split('@');
   let emailUser = parts[0];
   const domain = parts[1];
+  if (!domain) return {};
   if (BLACK_LIST_DOMAIN.includes(domain)) {
     isEmailBlacklisted = true;
   }
