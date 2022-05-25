@@ -92,6 +92,7 @@ export const QUERY_STRING_TO_REMOVE = [
   'utm_content',
   '__cf_chl_captcha_tk__',
   '__cf_chl_jschl_tk__',
+  'ldtag_cl',
 ];
 
 export const ONE_HOUR_IN_S = 3600;
