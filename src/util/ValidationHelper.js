@@ -314,6 +314,24 @@ export function filterSocialLinksMeta({
   };
 }
 
+export function filterLikeNFTISCNData({
+  classId,
+  totalCount,
+  currentPrice,
+  basePrice,
+  soldCount,
+  uri,
+}) {
+  return {
+    classId,
+    totalCount,
+    currentPrice,
+    basePrice,
+    soldCount,
+    uri,
+  };
+}
+
 export function filterOAuthClientInfo({
   avatar,
   audience,

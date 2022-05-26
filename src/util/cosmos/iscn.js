@@ -7,6 +7,8 @@ import {
   COSMOS_RPC_ENDPOINT,
 } from '../../../config/config';
 
+export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
+
 let queryClient = null;
 let signingClient = null;
 let signingWallet = null;
@@ -44,4 +46,11 @@ export async function getISCNSigningAddressInfo() {
     address: signingWallet.address,
     accountNumber: signingAccountNumber,
   };
+}
+
+export function getISCNPrefix(input) {
+  const res = /^(iscn:\/\/likecoin-chain\/[A-Za-z0-9-]+)\/[0-9]+$/.exec(input);
+  if (!res) return input;
+  const [, prefix] = res;
+  return prefix;
 }
