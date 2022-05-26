@@ -43,7 +43,7 @@
     ]
   },
   "dependencies": {
-    "@cosmjs/stargate": "^0.26.1",
+    "@cosmjs/stargate": "^0.28.4",
     "@google-cloud/pubsub": "^1.2.0",
     "@likecoin/iscn-js": "0.0.7",
     "@likecoin/likecoin-email-templates": "^1.2.2",
@@ -60,7 +60,7 @@
     "compression": "^1.7.3",
     "cookie-parser": "^1.4.3",
     "cors": "^2.8.5",
-    "cosmjs-types": "^0.2.0",
+    "cosmjs-types": "^0.5.0",
     "create-hash": "^1.2.0",
     "disposable-email-domains": "^1.0.56",
     "eth-sig-util": "^2.5.4",
