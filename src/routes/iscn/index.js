@@ -17,7 +17,7 @@ import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 
-const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
+const { ARWEAVE_LIKE_TARGET_ADDRESS, CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS, TX_SIGN_ESTIMATION_GAS } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -115,9 +115,8 @@ async function handleRegisterISCN(req, res, next) {
       const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
       const gas = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).shiftedBy(-9).toNumber();
       const fee = new BigNumber(iscnGasAndFee.iscnFee.amount).shiftedBy(-9).toNumber();
-      const changeISCNOwnershipGas = 59714;
       // eslint-disable-next-line max-len
-      const changeISCNOwnershipNeed = new BigNumber(changeISCNOwnershipGas).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+      const changeISCNOwnershipNeed = new BigNumber(CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
       const totalNeed = gas + fee + changeISCNOwnershipNeed + uploadPrice;
       res.json({ totalNeed });
       return;
@@ -248,9 +247,8 @@ router.post('/upload',
         return;
       }
       if (req.query.estimation) {
-        const txSignGas = 80000;
         // eslint-disable-next-line max-len
-        const txSignNeed = new BigNumber(txSignGas).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+        const txSignNeed = new BigNumber(TX_SIGN_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
         req.uploadPrice = Number(LIKE) + txSignNeed;
         next();
         return;
