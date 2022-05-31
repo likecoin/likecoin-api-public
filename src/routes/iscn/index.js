@@ -115,7 +115,9 @@ async function handleRegisterISCN(req, res, next) {
       const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
       const gas = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).shiftedBy(-9).toNumber();
       const fee = new BigNumber(iscnGasAndFee.iscnFee.amount).shiftedBy(-9).toNumber();
-      const changeISCNOwnershipNeed = 0.059714;
+      const changeISCNOwnershipGas = 59714;
+      // eslint-disable-next-line max-len
+      const changeISCNOwnershipNeed = new BigNumber(changeISCNOwnershipGas).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
       const totalNeed = gas + fee + changeISCNOwnershipNeed + uploadPrice;
       res.json({ totalNeed });
       return;
@@ -246,8 +248,10 @@ router.post('/upload',
         return;
       }
       if (req.query.estimation) {
-        const transferTxSigningFunction = 0.08;
-        req.uploadPrice = Number(LIKE) + transferTxSigningFunction;
+        const txSignGas = 80000;
+        // eslint-disable-next-line max-len
+        const txSignNeed = new BigNumber(txSignGas).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+        req.uploadPrice = Number(LIKE) + txSignNeed;
         next();
         return;
       }
