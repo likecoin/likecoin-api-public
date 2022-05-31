@@ -62,8 +62,9 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
       likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId),
       {
         uri: nftUri,
-        price: null,
+        price: 0,
         sold: false,
+        classId,
       },
     );
     if (i % 500 === 0) {
