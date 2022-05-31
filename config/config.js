@@ -76,7 +76,5 @@ config.APP_SERVER = 'likecoin-api-pulic';
 
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
-config.CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS = 59714;
-config.TX_SIGN_ESTIMATION_GAS = 80000;
 
 module.exports = config;

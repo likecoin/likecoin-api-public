@@ -10,14 +10,17 @@ import {
   getISCNQueryClient,
   getISCNSigningAddressInfo,
 } from '../../util/cosmos/iscn';
-import { DEFAULT_GAS_PRICE, sendTransactionWithSequence, generateSendTxData } from '../../util/cosmos/tx';
+import {
+  // eslint-disable-next-line max-len
+  DEFAULT_GAS_PRICE, DEFAULT_TRANSFER_GAS, CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS, sendTransactionWithSequence, generateSendTxData,
+} from '../../util/cosmos/tx';
 import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 
-const { ARWEAVE_LIKE_TARGET_ADDRESS, CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS, TX_SIGN_ESTIMATION_GAS } = require('../../../config/config');
+const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -249,7 +252,7 @@ router.post('/upload',
       }
       if (req.query.estimate) {
         // eslint-disable-next-line max-len
-        const txSignNeed = new BigNumber(TX_SIGN_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+        const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
         req.uploadPrice = Number(LIKE) + txSignNeed;
         next();
         return;
