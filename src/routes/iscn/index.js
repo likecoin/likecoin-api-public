@@ -109,6 +109,18 @@ async function handleRegisterISCN(req, res, next) {
         broadcast: false,
       },
     );
+
+    if (req.query.estimation) {
+      const uploadPrice = req.uploadPrice || 0;
+      const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
+      const gas = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).shiftedBy(-9).toNumber();
+      const fee = new BigNumber(iscnGasAndFee.iscnFee.amount).shiftedBy(-9).toNumber();
+      const changeISCNOwnershipNeed = 0.059714;
+      const totalNeed = gas + fee + changeISCNOwnershipNeed + uploadPrice;
+      res.json({ totalNeed });
+      return;
+    }
+
     const [iscnFee, iscnRes] = await Promise.all([
       signingClient.estimateISCNTxFee(address, ISCNPayload),
       sendTransactionWithSequence(address, createIscnSigningFunction),
@@ -231,6 +243,12 @@ router.post('/upload',
       const { LIKE } = await convertARPricesToLIKE(prices, { margin: 0.05 });
       if (!LIKE) {
         res.status(500).send('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE');
+        return;
+      }
+      if (req.query.estimation) {
+        const transferTxSigningFunction = 0.08;
+        req.uploadPrice = Number(LIKE) + transferTxSigningFunction;
+        next();
         return;
       }
       const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
