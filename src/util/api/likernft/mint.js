@@ -1,8 +1,9 @@
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
 import { db, likeNFTCollection } from '../../firebase';
-import { getISCNQueryClient } from '../../cosmos/iscn';
+import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
+import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 
-export async function getNFTsByClassId(classId, address) {
+export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getISCNQueryClient();
   let nfts = [];
   let pagination;
@@ -16,7 +17,7 @@ export async function getNFTsByClassId(classId, address) {
   return { total: pagination.total, nftIds, nfts };
 }
 
-export async function parseNFTInformationFromTxHash(txHash, target) {
+export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getISCNQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
@@ -33,23 +34,22 @@ export async function parseNFTInformationFromTxHash(txHash, target) {
 }
 
 export async function writeMintedFTInfo(iscnId, classData, nfts) {
+  const iscnPrefix = getISCNPrefix(iscnId);
   const {
     classId,
     totalCount,
-    currentPrice,
-    basePrice,
-    soldCount,
     uri,
   } = classData;
-  likeNFTCollection.doc(iscnId).create({
+  likeNFTCollection.doc(iscnPrefix).create({
     classId,
     totalCount,
-    currentPrice,
-    basePrice,
-    soldCount,
+    currentPrice: LIKER_NFT_STARTING_PRICE,
+    basePrice: LIKER_NFT_STARTING_PRICE,
+    soldCount: 0,
     uri,
+    isProcessing: false,
   });
-  likeNFTCollection.doc(iscnId).collection('class').doc(classId).create({
+  likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
     uri,
   });
   let batch = db.batch();
@@ -59,7 +59,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
       uri: nftUri,
     } = nfts[i];
     batch.create(
-      likeNFTCollection.doc(iscnId).collection('nft').doc(nftId),
+      likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId),
       {
         uri: nftUri,
         price: null,

@@ -4,7 +4,6 @@ import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { parseNFTInformationFromTxHash, getNFTsByClassId, writeMintedFTInfo } from '../../util/api/likernft/mint';
-import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_STARTING_PRICE } from '../../../config/config';
 
 const router = Router();
 
@@ -48,7 +47,7 @@ router.post(
       if (txHash) {
         const {
           classId: resClassId,
-        } = await parseNFTInformationFromTxHash(txHash, LIKER_NFT_TARGET_ADDRESS);
+        } = await parseNFTInformationFromTxHash(txHash);
         if (classId && classId !== resClassId) throw ValidationError('CLASS_ID_NOT_MATCH_TX');
         classId = resClassId;
       }
@@ -61,9 +60,6 @@ router.post(
       await writeMintedFTInfo({
         classId,
         totalCount: total,
-        currentPrice: LIKER_NFT_STARTING_PRICE,
-        basePrice: LIKER_NFT_STARTING_PRICE,
-        soldCount: 0,
         uri: nfts[0].uri,
       }, nfts);
 
