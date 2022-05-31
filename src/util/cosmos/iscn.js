@@ -23,13 +23,18 @@ export async function getISCNQueryClient() {
   return queryClient;
 }
 
+export async function createISCNSigningClient(privateKey) {
+  const privateKeyBytes = Buffer.from(privateKey, 'hex');
+  const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes);
+  const [wallet] = await signer.getAccounts();
+  const client = new ISCNSigningClient();
+  await client.connectWithSigner(COSMOS_RPC_ENDPOINT, signer);
+  return { client, wallet };
+}
+
 export async function getISCNSigningClient() {
   if (!signingClient) {
-    const privateKeyBytes = Buffer.from(COSMOS_PRIVATE_KEY, 'hex');
-    const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes);
-    const [wallet] = await signer.getAccounts();
-    const client = new ISCNSigningClient();
-    await client.connectWithSigner(COSMOS_RPC_ENDPOINT, signer);
+    const { client, wallet } = createISCNSigningClient(COSMOS_PRIVATE_KEY);
     signingWallet = wallet;
     signingClient = client;
   }

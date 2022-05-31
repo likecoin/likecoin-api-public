@@ -1,4 +1,10 @@
-import { getISCNQueryClient } from './iscn';
+import { getISCNQueryClient, createISCNSigningClient } from './iscn';
+import { getAccountInfo } from '.';
+import { LIKER_NFT_PRIVATE_KEY } from '../../../config/secret';
+
+let signingClient = null;
+let signingWallet = null;
+let signingAccountNumber = null;
 
 export async function getISCNFromNFTClassId(classId) {
   const client = await getISCNQueryClient();
@@ -11,4 +17,23 @@ export async function getISCNFromNFTClassId(classId) {
   };
 }
 
-export default getISCNFromNFTClassId;
+export async function getLikerNFTSigningClient() {
+  if (!signingClient) {
+    const { client, wallet } = createISCNSigningClient(LIKER_NFT_PRIVATE_KEY);
+    signingWallet = wallet;
+    signingClient = client;
+  }
+  return signingClient;
+}
+
+export async function getLikerNFTSigningAddressInfo() {
+  if (!signingWallet) await getLikerNFTSigningClient();
+  if (!signingAccountNumber) {
+    const { accountNumber } = await getAccountInfo(signingWallet.address);
+    signingAccountNumber = accountNumber;
+  }
+  return {
+    address: signingWallet.address,
+    accountNumber: signingAccountNumber,
+  };
+}
