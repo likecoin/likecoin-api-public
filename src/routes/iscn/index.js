@@ -110,14 +110,15 @@ async function handleRegisterISCN(req, res, next) {
       },
     );
 
-    if (req.query.estimation) {
+    if (req.query.estimate) {
       const uploadPrice = req.uploadPrice || 0;
       const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
-      const gas = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).shiftedBy(-9).toNumber();
-      const fee = new BigNumber(iscnGasAndFee.iscnFee.amount).shiftedBy(-9).toNumber();
       // eslint-disable-next-line max-len
-      const changeISCNOwnershipNeed = new BigNumber(CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
-      const totalNeed = gas + fee + changeISCNOwnershipNeed + uploadPrice;
+      const changeISCNOwnershipNeed = new BigNumber(CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE);
+      // eslint-disable-next-line max-len
+      const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).plus(iscnGasAndFee.iscnFee.amount).plus(changeISCNOwnershipNeed).shiftedBy(-9)
+        .toNumber();
+      const totalNeed = newISCNPrice + uploadPrice;
       res.json({ totalNeed });
       return;
     }
@@ -246,7 +247,7 @@ router.post('/upload',
         res.status(500).send('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE');
         return;
       }
-      if (req.query.estimation) {
+      if (req.query.estimate) {
         // eslint-disable-next-line max-len
         const txSignNeed = new BigNumber(TX_SIGN_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
         req.uploadPrice = Number(LIKE) + txSignNeed;
