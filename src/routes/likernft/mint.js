@@ -9,13 +9,14 @@ const router = Router();
 
 router.get(
   '/mint',
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const { iscn_id: iscnId } = req.query;
+      if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const likeNFTDoc = likeNFTCollection.doc(iscnPrefix).get();
       const data = likeNFTDoc.data();
-      if (data) {
+      if (!data) {
         res.sendStatus(404);
         return;
       }
@@ -35,7 +36,7 @@ router.post(
         tx_hash: txHash,
         class_id: inputClassId,
       } = req.query;
-      if (!iscnId && !inputClassId) throw ValidationError('MISSING_CLASS_OR_ISCN_ID');
+      if (!iscnId && !inputClassId) throw new ValidationError('MISSING_CLASS_OR_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const likeNFTDoc = likeNFTCollection.doc(iscnPrefix).get();
       if (likeNFTDoc) {
@@ -48,22 +49,26 @@ router.post(
         const {
           classId: resClassId,
         } = await parseNFTInformationFromTxHash(txHash);
-        if (classId && classId !== resClassId) throw ValidationError('CLASS_ID_NOT_MATCH_TX');
+        if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
         classId = resClassId;
       }
       const {
         total,
         nfts,
       } = await getNFTsByClassId(classId);
-      if (!total || !nfts[0]) throw ValidationError('NFT_NOT_RECEIVED');
+      if (!total || !nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
-      await writeMintedFTInfo({
+      await writeMintedFTInfo(iscnId, {
         classId,
         totalCount: total,
         uri: nfts[0].uri,
       }, nfts);
 
-      res.json();
+      res.json({
+        classId,
+        iscnId,
+        nftCount: nfts.length,
+      });
     } catch (err) {
       next(err);
     }

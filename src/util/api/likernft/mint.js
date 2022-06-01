@@ -4,7 +4,8 @@ import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 
 export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
-  const client = await getISCNQueryClient();
+  const c = await getISCNQueryClient();
+  const client = await c.getQueryClient();
   let nfts = [];
   let pagination;
   do {
@@ -12,9 +13,9 @@ export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRE
     const res = await client.nft.NFTs(classId, address);
     ({ pagination } = res);
     nfts = nfts.concat(res.nfts);
-  } while (pagination);
+  } while (pagination.nextKey && pagination.nextKey.length);
   const nftIds = nfts.map(n => n.id);
-  return { total: pagination.total, nftIds, nfts };
+  return { total: Number(pagination.total), nftIds, nfts };
 }
 
 export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
@@ -66,7 +67,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
         id: nftId,
         uri: nftUri,
         price: 0,
-        sold: false,
+        isSold: false,
         classId,
       },
     );

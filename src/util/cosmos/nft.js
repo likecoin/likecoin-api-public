@@ -7,7 +7,8 @@ let signingWallet = null;
 let signingAccountNumber = null;
 
 export async function getISCNFromNFTClassId(classId) {
-  const client = await getISCNQueryClient();
+  const c = await getISCNQueryClient();
+  const client = await c.getQueryClient();
   const res = await client.likenft.ISCNByClass(classId);
   if (!res) return null;
   const { iscnIdPrefix, owner } = res;
