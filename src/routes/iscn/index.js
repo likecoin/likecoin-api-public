@@ -11,8 +11,11 @@ import {
   getISCNSigningAddressInfo,
 } from '../../util/cosmos/iscn';
 import {
-  // eslint-disable-next-line max-len
-  DEFAULT_GAS_PRICE, DEFAULT_TRANSFER_GAS, CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS, sendTransactionWithSequence, generateSendTxData,
+  DEFAULT_GAS_PRICE,
+  DEFAULT_TRANSFER_GAS,
+  DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS,
+  sendTransactionWithSequence,
+  generateSendTxData,
 } from '../../util/cosmos/tx';
 import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
@@ -116,13 +119,14 @@ async function handleRegisterISCN(req, res, next) {
     if (req.query.estimate) {
       const uploadPrice = req.uploadPrice || 0;
       const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
-      // eslint-disable-next-line max-len
-      const changeISCNOwnershipNeed = new BigNumber(CHANGE_ISCN_OWNERSHIP_ESTIMATION_GAS).multipliedBy(DEFAULT_GAS_PRICE);
-      // eslint-disable-next-line max-len
-      const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount).plus(iscnGasAndFee.iscnFee.amount).plus(changeISCNOwnershipNeed).shiftedBy(-9)
+      const changeISCNOwnershipFee = new BigNumber(DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS)
+        .multipliedBy(DEFAULT_GAS_PRICE);
+      const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount)
+        .plus(iscnGasAndFee.iscnFee.amount)
+        .plus(changeISCNOwnershipFee).shiftedBy(-9)
         .toNumber();
-      const totalNeed = newISCNPrice + uploadPrice;
-      res.json({ totalNeed });
+      const LIKE = newISCNPrice + uploadPrice;
+      res.json({ LIKE });
       return;
     }
 
