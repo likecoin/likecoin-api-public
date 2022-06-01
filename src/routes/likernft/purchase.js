@@ -20,6 +20,7 @@ router.get(
         res.json({
           price,
           gasFee,
+          total: price + gasFee,
         });
       } catch (err) {
         next(err);
