@@ -10,7 +10,13 @@ import {
   getISCNQueryClient,
   getISCNSigningAddressInfo,
 } from '../../util/cosmos/iscn';
-import { DEFAULT_GAS_PRICE, sendTransactionWithSequence, generateSendTxData } from '../../util/cosmos/tx';
+import {
+  DEFAULT_GAS_PRICE,
+  DEFAULT_TRANSFER_GAS,
+  DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS,
+  sendTransactionWithSequence,
+  generateSendTxData,
+} from '../../util/cosmos/tx';
 import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
@@ -109,6 +115,21 @@ async function handleRegisterISCN(req, res, next) {
         broadcast: false,
       },
     );
+
+    if (req.query.estimate) {
+      const uploadPrice = req.uploadPrice || 0;
+      const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
+      const changeISCNOwnershipFee = new BigNumber(DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS)
+        .multipliedBy(DEFAULT_GAS_PRICE);
+      const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount)
+        .plus(iscnGasAndFee.iscnFee.amount)
+        .plus(changeISCNOwnershipFee).shiftedBy(-9)
+        .toNumber();
+      const LIKE = newISCNPrice + uploadPrice;
+      res.json({ LIKE });
+      return;
+    }
+
     const [iscnFee, iscnRes] = await Promise.all([
       signingClient.estimateISCNTxFee(address, ISCNPayload),
       sendTransactionWithSequence(address, createIscnSigningFunction),
@@ -231,6 +252,13 @@ router.post('/upload',
       const { LIKE } = await convertARPricesToLIKE(prices, { margin: 0.05 });
       if (!LIKE) {
         res.status(500).send('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE');
+        return;
+      }
+      if (req.query.estimate) {
+        // eslint-disable-next-line max-len
+        const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+        req.uploadPrice = Number(LIKE) + txSignNeed;
+        next();
         return;
       }
       const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
