@@ -1,4 +1,4 @@
-import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
+import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 import { db, likeNFTCollection } from '../../firebase';
 import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';

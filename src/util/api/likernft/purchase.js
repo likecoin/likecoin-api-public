@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
-import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
+import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { formatSendAuthorizationMsgExec } from '@likecoin/iscn-js/dist/messages/authz';
+import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import { getISCNQueryClient } from '../../cosmos/iscn';
 import { getLikerNFTSigningClient } from '../../cosmos/nft';
@@ -113,18 +115,40 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     const gasFee = getGasPrice();
     const nftPrice = nftItemPrice || currentPrice;
     const totalPrice = nftPrice + gasFee;
+    const nftAmount = new BigNumber(nftPrice).shiftedBy(9).toFixed(0);
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
     const signingClient = await getLikerNFTSigningClient();
-    // TODO: merge execute grant and send NFT into one transaction
-    let res;
-    try {
-      res = await signingClient.executeSendGrant(
+
+    const txMessages = [
+      formatSendAuthorizationMsgExec(
         LIKER_NFT_TARGET_ADDRESS,
         likeWallet,
         LIKER_NFT_TARGET_ADDRESS,
         [{ denom: COSMOS_DENOM, amount: totalAmount }],
+      ),
+      formatMsgSend(
+        LIKER_NFT_TARGET_ADDRESS,
+        likeWallet,
+        classId,
+        nftId,
+      ), {
+        // TODO: use stakeholder and multisend
+        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+        value: {
+          fromAddress: LIKER_NFT_TARGET_ADDRESS,
+          toAddress: sellerWallet,
+          amount: [{ denom: COSMOS_DENOM, amount: nftAmount }],
+        },
+      },
+    ];
+    let res;
+    try {
+      res = await signingClient.sendMessages(
+        LIKER_NFT_TARGET_ADDRESS,
+        txMessages,
       );
     } catch (err) {
+      console.error(err);
       throw new ValidationError(err);
     }
     const { transactionHash } = res;

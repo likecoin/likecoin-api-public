@@ -7,7 +7,7 @@ import {
   COSMOS_RPC_ENDPOINT,
 } from '../../../config/config';
 
-export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
+export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 
 let queryClient = null;
 let signingClient = null;
