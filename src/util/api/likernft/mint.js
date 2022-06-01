@@ -42,13 +42,14 @@ export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_T
     .filter(m => m.value.receiver === target);
   const nftIds = messages.map(m => m.value.id);
   return {
+    fromWallet: messages[0].value.sender,
     total: messages.length,
     classId: messages[0].value.classId,
     nftIds,
   };
 }
 
-export async function writeMintedFTInfo(iscnId, classData, nfts) {
+export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const {
     classId,
@@ -57,7 +58,6 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
   } = classData;
   likeNFTCollection.doc(iscnPrefix).create({
     classId,
-    classIds: [classId],
     totalCount,
     currentPrice: LIKER_NFT_STARTING_PRICE,
     basePrice: LIKER_NFT_STARTING_PRICE,
@@ -83,6 +83,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
         price: 0,
         isSold: false,
         classId,
+        sellerWallet,
       },
     );
     if (i % 500 === 0) {

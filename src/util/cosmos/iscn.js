@@ -53,6 +53,18 @@ export async function getISCNSigningAddressInfo() {
   };
 }
 
+export async function getISCNOwner(iscnId) {
+  const client = await getISCNQueryClient();
+  const res = await client.queryRecordsById(iscnId);
+  return res && res.owner;
+}
+
+export async function getISCNStakeholders(iscnId) {
+  const client = await getISCNQueryClient();
+  const res = await client.queryRecordsById(iscnId);
+  return res && res.records[0];
+}
+
 export function getISCNPrefix(input) {
   const res = /^(iscn:\/\/likecoin-chain\/[A-Za-z0-9-]+)\/[0-9]+$/.exec(input);
   if (!res) return input;

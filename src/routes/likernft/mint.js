@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
+import { getISCNOwner } from '../../util/cosmos/iscn';
 import {
   getISCNPrefixDocName,
   parseNFTInformationFromTxHash,
@@ -41,7 +42,7 @@ router.post(
         tx_hash: txHash,
         class_id: inputClassId,
       } = req.query;
-      if (!iscnId && !inputClassId) throw new ValidationError('MISSING_CLASS_OR_ISCN_ID');
+      if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefixDocName(iscnId);
       const likeNFTDoc = await likeNFTCollection.doc(iscnPrefix).get();
       const likeNFTdata = likeNFTDoc.data();
@@ -51,24 +52,30 @@ router.post(
       }
 
       let classId = inputClassId;
+      let sellerWallet;
       if (txHash) {
         const {
           classId: resClassId,
+          fromWallet,
         } = await parseNFTInformationFromTxHash(txHash);
         if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
         classId = resClassId;
+        sellerWallet = fromWallet;
       }
-      if (!classId && iscnId) {
+      if (!classId) {
         classId = await getNFTClassIdByISCNId(iscnId);
       }
       if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
+      if (!sellerWallet) {
+        sellerWallet = await getISCNOwner(iscnId);
+      }
       const {
         total,
         nfts,
       } = await getNFTsByClassId(classId);
       if (!total || !nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
-      await writeMintedFTInfo(iscnId, {
+      await writeMintedFTInfo(iscnId, sellerWallet, {
         classId,
         totalCount: total,
         uri: nfts[0].uri,
@@ -78,6 +85,7 @@ router.post(
         classId,
         iscnId,
         nftCount: nfts.length,
+        sellerWallet,
       });
     } catch (err) {
       next(err);

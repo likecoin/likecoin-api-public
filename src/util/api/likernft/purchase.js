@@ -108,6 +108,7 @@ export async function processNFTPurchase(likeWallet, iscnId) {
       id: nftId,
       price: nftItemPrice,
       classId,
+      sellerWallet,
     } = nftData;
     const gasFee = getGasPrice();
     const nftPrice = nftItemPrice || currentPrice;
