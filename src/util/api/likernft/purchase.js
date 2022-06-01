@@ -64,8 +64,15 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const { authorization, expiration } = grant;
   if (Date.now() > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
   const qs = await client.getQueryClient();
-  const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
-  if (!c) throw new ValidationError('GRANT_NOT_FOUND');
+  try {
+    const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
+    if (!c) throw new ValidationError('GRANT_NOT_FOUND');
+  } catch (err) {
+    if (err.message.includes('no authorization found')) {
+      throw new ValidationError('GRANT_NOT_FOUND');
+    }
+    throw err;
+  }
   // TODO: parse limit from query instead of tx
   const { spendLimit } = authorization.value;
   const limit = spendLimit.find(s => s.denom === COSMOS_DENOM);
@@ -99,44 +106,49 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     const nftData = await getLowerestUnsoldNFT(iscnId);
     const {
       id: nftId,
-      price: nftPrice,
+      price: nftItemPrice,
       classId,
     } = nftData;
     const gasFee = getGasPrice();
-    const actualPrice = nftPrice || currentPrice;
-    const totalPrice = actualPrice + gasFee;
+    const nftPrice = nftItemPrice || currentPrice;
+    const totalPrice = nftPrice + gasFee;
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
     const signingClient = await getLikerNFTSigningClient();
     // TODO: merge execute grant and send NFT into one transaction
-    const res = await signingClient.executeSendGrant(
-      LIKER_NFT_TARGET_ADDRESS,
-      likeWallet,
-      LIKER_NFT_TARGET_ADDRESS,
-      [{ denom: COSMOS_DENOM, amount: totalAmount }],
-    );
+    let res;
+    try {
+      res = await signingClient.executeSendGrant(
+        LIKER_NFT_TARGET_ADDRESS,
+        likeWallet,
+        LIKER_NFT_TARGET_ADDRESS,
+        [{ denom: COSMOS_DENOM, amount: totalAmount }],
+      );
+    } catch (err) {
+      throw new ValidationError(err);
+    }
     const { transactionHash } = res;
     const timestamp = Date.now();
     // update price and unlock
     await db.runTransaction(async (t) => {
       const doc = await t.get(likeNFTCollection.doc(iscnPrefix));
       const docData = doc.data();
-      const { isProcessing } = docData;
+      const { isProcessing, currentPrice: dbCurrentPrice } = docData;
       if (isProcessing) {
         const fromWallet = LIKER_NFT_TARGET_ADDRESS;
         const toWallet = likeWallet;
         t.update(likeNFTCollection.doc(iscnPrefix), {
-          currentPrice: nftPrice * LIKER_NFT_PRICE_MULTIPLY,
+          currentPrice: nftItemPrice ? dbCurrentPrice : dbCurrentPrice * LIKER_NFT_PRICE_MULTIPLY,
           isProcessing: false,
-          soldCount: FieldValue.increment(),
+          soldCount: FieldValue.increment(1),
         });
         t.update(likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId), {
-          price: actualPrice,
+          price: nftPrice,
           isSold: true,
         });
-        t.create(likeNFTCollection.doc(iscnPrefix).collection('transactions')
+        t.create(likeNFTCollection.doc(iscnPrefix).collection('transaction')
           .doc(transactionHash), {
           txHash: transactionHash,
-          price: actualPrice,
+          price: nftPrice,
           classId,
           nftId,
           timestamp,
