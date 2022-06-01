@@ -25,7 +25,7 @@ export async function getISCNQueryClient() {
 
 export async function createISCNSigningClient(privateKey) {
   const privateKeyBytes = Buffer.from(privateKey, 'hex');
-  const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes);
+  const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes, 'like');
   const [wallet] = await signer.getAccounts();
   const client = new ISCNSigningClient();
   await client.connectWithSigner(COSMOS_RPC_ENDPOINT, signer);
@@ -34,7 +34,7 @@ export async function createISCNSigningClient(privateKey) {
 
 export async function getISCNSigningClient() {
   if (!signingClient) {
-    const { client, wallet } = createISCNSigningClient(COSMOS_PRIVATE_KEY);
+    const { client, wallet } = await createISCNSigningClient(COSMOS_PRIVATE_KEY);
     signingWallet = wallet;
     signingClient = client;
   }

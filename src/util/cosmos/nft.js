@@ -20,7 +20,7 @@ export async function getISCNFromNFTClassId(classId) {
 
 export async function getLikerNFTSigningClient() {
   if (!signingClient) {
-    const { client, wallet } = createISCNSigningClient(LIKER_NFT_PRIVATE_KEY);
+    const { client, wallet } = await createISCNSigningClient(LIKER_NFT_PRIVATE_KEY);
     signingWallet = wallet;
     signingClient = client;
   }

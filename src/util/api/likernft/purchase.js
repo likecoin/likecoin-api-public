@@ -54,17 +54,14 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const tx = await q.getTx(txHash);
   const parsed = parseTxInfoFromIndexedTx(tx);
   let messages = parsed.tx.body.messages
-    .filter(m => m.typeUrl === 'cosmos.authz.v1beta1.MsgGrant');
+    .filter(m => m.typeUrl === '/cosmos.authz.v1beta1.MsgGrant');
   if (!messages.length) throw new ValidationError('GRANT_MSG_NOT_FOUND');
   messages = messages.filter(m => m.value.grantee === target);
   if (!messages.length) throw new ValidationError('INCORRECT_GRANT_TARGET');
   const message = messages.find(m => m.value.grant.authorization.typeUrl === '/cosmos.bank.v1beta1.SendAuthorization');
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
-  const {
-    granter,
-    authorization,
-    expiration,
-  } = message.value;
+  const { granter, grant } = message.value;
+  const { authorization, expiration } = grant;
   if (Date.now() > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
   const qs = await client.getQueryClient();
   const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
