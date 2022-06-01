@@ -13,7 +13,7 @@ router.get(
       if (!nftId && !classId && !iscnId) {
         throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
       }
-      let list;
+      let list = [];
       if (nftId) {
         const query = await likeNFTCollection.collectionGroup('transaction')
           .where('nftId', '==', nftId).orderBy('timestamp', 'desc').get();

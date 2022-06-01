@@ -15,6 +15,7 @@ router.get(
     try {
       try {
         const { iscn_id: iscnId } = req.query;
+        if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
         const price = await getLatestNFTPrice(iscnId);
         const gasFee = getGasPrice();
         res.json({
@@ -36,6 +37,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { tx_hash: txHash, iscn_id: iscnId } = req.query;
+      if (!txHash || !iscnId) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
       const nftPrice = await getLatestNFTPrice(iscnId);
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
