@@ -58,6 +58,10 @@ router.post(
         if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
         classId = resClassId;
       }
+      if (!classId && iscnId) {
+        classId = await getNFTClassIdByISCNId(iscnId);
+      }
+      if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
       const {
         total,
         nfts,

@@ -23,6 +23,15 @@ export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRE
   return { total: Number(pagination.total), nftIds, nfts };
 }
 
+export async function getNFTClassIdByISCNId(iscnId) {
+  const iscnPrefix = getISCNPrefix(iscnId);
+  const c = await getISCNQueryClient();
+  const client = await c.getQueryClient();
+  const res = await client.likenft.classesByISCN(iscnPrefix);
+  if (!res || !res.classes || !res.classes[0]) return '';
+  return res.classes[0].id;
+}
+
 export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getISCNQueryClient();
   const q = await client.getStargateClient();
