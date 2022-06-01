@@ -54,13 +54,16 @@ router.post(
       let classId = inputClassId;
       let sellerWallet;
       if (txHash) {
-        const {
-          classId: resClassId,
-          fromWallet,
-        } = await parseNFTInformationFromTxHash(txHash);
-        if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
-        classId = resClassId;
-        sellerWallet = fromWallet;
+        const info = await parseNFTInformationFromTxHash(txHash);
+        if (info) {
+          const {
+            classId: resClassId,
+            fromWallet,
+          } = info;
+          if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
+          classId = resClassId;
+          sellerWallet = fromWallet;
+        }
       }
       if (!classId) {
         classId = await getNFTClassIdByISCNId(iscnId);

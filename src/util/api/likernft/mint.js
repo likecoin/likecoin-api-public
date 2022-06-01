@@ -40,6 +40,7 @@ export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_T
   const messages = parsed.tx.body.messages
     .filter(m => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
     .filter(m => m.value.receiver === target);
+  if (!messages.length) return null;
   const nftIds = messages.map(m => m.value.id);
   return {
     fromWallet: messages[0].value.sender,
