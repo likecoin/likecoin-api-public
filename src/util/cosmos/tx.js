@@ -16,7 +16,7 @@ const {
   COSMOS_GAS_PRICE,
 } = require('../../../config/config');
 
-export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 1000;
+export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10;
 export const DEFAULT_TRANSFER_GAS = 80000;
 
 let stargateClient = null;
