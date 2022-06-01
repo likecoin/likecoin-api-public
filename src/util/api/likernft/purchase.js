@@ -124,6 +124,8 @@ export async function processNFTPurchase(likeWallet, iscnId) {
       const docData = doc.data();
       const { isProcessing } = docData;
       if (isProcessing) {
+        const fromWallet = LIKER_NFT_TARGET_ADDRESS;
+        const toWallet = likeWallet;
         t.update(likeNFTCollection.doc(iscnPrefix), {
           currentPrice: nftPrice * LIKER_NFT_PRICE_MULTIPLY,
           isProcessing: false,
@@ -133,20 +135,15 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           price: actualPrice,
           isSold: true,
         });
-        t.create(likeNFTCollection.doc(iscnPrefix).collection('class')
-          .doc(classId).collection('transactions')
+        t.create(likeNFTCollection.doc(iscnPrefix).collection('transactions')
           .doc(transactionHash), {
           txHash: transactionHash,
           price: actualPrice,
+          classId,
           nftId,
           timestamp,
-        });
-        t.create(likeNFTCollection.doc(iscnPrefix).collection('nft')
-          .doc(nftId).collection('transactions')
-          .doc(transactionHash), {
-          txHash: transactionHash,
-          price: actualPrice,
-          timestamp,
+          fromWallet,
+          toWallet,
         });
       }
     });

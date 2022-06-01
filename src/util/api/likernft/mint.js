@@ -42,6 +42,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
   } = classData;
   likeNFTCollection.doc(iscnPrefix).create({
     classId,
+    classIds: [classId],
     totalCount,
     currentPrice: LIKER_NFT_STARTING_PRICE,
     basePrice: LIKER_NFT_STARTING_PRICE,
@@ -50,6 +51,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
     isProcessing: false,
   });
   likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
+    id: classId,
     uri,
   });
   let batch = db.batch();
@@ -61,6 +63,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
     batch.create(
       likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId),
       {
+        id: nftId,
         uri: nftUri,
         price: 0,
         sold: false,
