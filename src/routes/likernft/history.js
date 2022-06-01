@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
+import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
 
 const router = Router();
 
@@ -22,7 +23,8 @@ router.get(
           .where('classId', '==', classId).orderBy('timestamp', 'desc').get();
         list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
       } else if (iscnId) {
-        const query = await likeNFTCollection.doc(iscnId)
+        const iscnPrefix = getISCNPrefixDocName(iscnId);
+        const query = await likeNFTCollection.doc(iscnPrefix)
           .collection('transaction').orderBy('timestamp', 'desc').get();
         list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
       }

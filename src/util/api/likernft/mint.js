@@ -3,6 +3,11 @@ import { db, likeNFTCollection } from '../../firebase';
 import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 
+export function getISCNPrefixDocName(iscnId) {
+  const prefix = getISCNPrefix(iscnId);
+  return encodeURIComponent(prefix);
+}
+
 export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
   const c = await getISCNQueryClient();
   const client = await c.getQueryClient();
@@ -35,7 +40,7 @@ export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_T
 }
 
 export async function writeMintedFTInfo(iscnId, classData, nfts) {
-  const iscnPrefix = getISCNPrefix(iscnId);
+  const iscnPrefix = getISCNPrefixDocName(iscnId);
   const {
     classId,
     totalCount,

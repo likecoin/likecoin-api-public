@@ -2,8 +2,13 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
-import { getISCNPrefix } from '../../util/cosmos/iscn';
-import { parseNFTInformationFromTxHash, getNFTsByClassId, writeMintedFTInfo } from '../../util/api/likernft/mint';
+import {
+  getISCNPrefixDocName,
+  parseNFTInformationFromTxHash,
+  getNFTsByClassId,
+  getNFTClassIdByISCNId,
+  writeMintedFTInfo,
+} from '../../util/api/likernft/mint';
 
 const router = Router();
 
@@ -13,8 +18,8 @@ router.get(
     try {
       const { iscn_id: iscnId } = req.query;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
-      const iscnPrefix = getISCNPrefix(iscnId);
-      const likeNFTDoc = likeNFTCollection.doc(iscnPrefix).get();
+      const iscnPrefix = getISCNPrefixDocName(iscnId);
+      const likeNFTDoc = await likeNFTCollection.doc(iscnPrefix).get();
       const data = likeNFTDoc.data();
       if (!data) {
         res.sendStatus(404);
@@ -37,9 +42,10 @@ router.post(
         class_id: inputClassId,
       } = req.query;
       if (!iscnId && !inputClassId) throw new ValidationError('MISSING_CLASS_OR_ISCN_ID');
-      const iscnPrefix = getISCNPrefix(iscnId);
-      const likeNFTDoc = likeNFTCollection.doc(iscnPrefix).get();
-      if (likeNFTDoc) {
+      const iscnPrefix = getISCNPrefixDocName(iscnId);
+      const likeNFTDoc = await likeNFTCollection.doc(iscnPrefix).get();
+      const likeNFTdata = likeNFTDoc.data();
+      if (likeNFTdata) {
         res.sendStatus(409);
         return;
       }

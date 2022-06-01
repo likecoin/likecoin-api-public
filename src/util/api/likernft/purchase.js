@@ -1,16 +1,17 @@
 import BigNumber from 'bignumber.js';
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/parsing';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
-import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
+import { getISCNQueryClient } from '../../cosmos/iscn';
 import { getLikerNFTSigningClient } from '../../cosmos/nft';
 import { DEFAULT_GAS_PRICE } from '../../cosmos/tx';
 import {
   COSMOS_DENOM, LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_PRICE_MULTIPLY, LIKER_NFT_GAS_FEE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
+import { getISCNPrefixDocName } from './mint';
 
 export async function getLowerestUnsoldNFT(iscnId) {
-  const iscnPrefix = getISCNPrefix(iscnId);
+  const iscnPrefix = getISCNPrefixDocName(iscnId);
   const res = await likeNFTCollection.doc(iscnPrefix).collection('nft')
     .where('isSold', '==', false)
     .where('price', '>=', 0)
@@ -27,7 +28,7 @@ export async function getLowerestUnsoldNFT(iscnId) {
 }
 
 export async function getLatestNFTPrice(iscnId) {
-  const iscnPrefix = getISCNPrefix(iscnId);
+  const iscnPrefix = getISCNPrefixDocName(iscnId);
   const [nftData, nftDoc] = await Promise.all([
     getLowerestUnsoldNFT(iscnId),
     likeNFTCollection.doc(iscnPrefix).get(),
@@ -82,7 +83,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
 }
 
 export async function processNFTPurchase(likeWallet, iscnId) {
-  const iscnPrefix = getISCNPrefix(iscnId);
+  const iscnPrefix = getISCNPrefixDocName(iscnId);
   // lock iscn nft and get price
   const currentPrice = await db.runTransaction(async (t) => {
     const doc = await t.get(likeNFTCollection.doc(iscnPrefix));
