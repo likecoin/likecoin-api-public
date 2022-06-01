@@ -49,7 +49,7 @@ test('estimation: new', async (t) => {
   })
     .catch(err => err.response);
   t.is(res.status, 200);
-  t.is(res.data.LIKE, 0.230442);
+  t.is(res.data.LIKE, 0.17132514);
 });
 
 test('estimation: upload', async (t) => {
@@ -98,5 +98,5 @@ test('estimation: upload', async (t) => {
     })
     .catch(err => err.response);
   t.is(res.status, 200);
-  t.is(res.data.LIKE, 3.310442);
+  t.is(res.data.LIKE, 3.17212514);
 });
