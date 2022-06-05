@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { ValidationError } from '../../util/ValidationError';
+import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import {
-  getLatestNFTPrice,
+  getLatestNFTPriceAndInfo,
   getGasPrice,
   checkTxGrantAndAmount,
   processNFTPurchase,
@@ -16,12 +17,13 @@ router.get(
       try {
         const { iscn_id: iscnId } = req.query;
         if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
-        const price = await getLatestNFTPrice(iscnId);
+        const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId);
         const gasFee = getGasPrice();
         res.json({
           price,
           gasFee,
-          total: price + gasFee,
+          totalPrice: price + gasFee,
+          metadata: filterLikeNFTISCNData(info),
         });
       } catch (err) {
         next(err);
@@ -38,7 +40,7 @@ router.post(
     try {
       const { tx_hash: txHash, iscn_id: iscnId } = req.query;
       if (!txHash || !iscnId) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
-      const nftPrice = await getLatestNFTPrice(iscnId);
+      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId);
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
       const result = await checkTxGrantAndAmount(txHash, totalPrice);

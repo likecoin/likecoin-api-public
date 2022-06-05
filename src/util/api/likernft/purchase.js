@@ -29,21 +29,28 @@ export async function getLowerestUnsoldNFT(iscnId) {
   return payload;
 }
 
-export async function getLatestNFTPrice(iscnId) {
+export async function getLatestNFTPriceAndInfo(iscnId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const [nftData, nftDoc] = await Promise.all([
     getLowerestUnsoldNFT(iscnId),
     likeNFTCollection.doc(iscnPrefix).get(),
   ]);
   const nftDocData = nftDoc.data();
-  if (!nftData || !nftDocData) return -1;
-  // nft has defined price
-  if (nftData.price) return nftData.price;
-  // use current price for 0/undefined price nft
+  let price = -1;
   const {
     currentPrice,
   } = nftDocData;
-  return currentPrice;
+  // nft has defined price
+  if (nftData.price) {
+    ({ price } = nftData);
+  } else {
+    // use current price for 0/undefined price nft
+    price = currentPrice;
+  }
+  return {
+    ...nftDocData,
+    price,
+  };
 }
 
 export function getGasPrice() {
