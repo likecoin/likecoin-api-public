@@ -135,7 +135,9 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     }
 
     const totalPrice = nftPrice + gasFee;
-    const nftAmount = new BigNumber(nftPrice).shiftedBy(9).toFixed(0);
+    // TODO: split with stakeholder
+    const sellerPrice = nftPrice;
+    const sellerAmount = new BigNumber(nftPrice).shiftedBy(9).toFixed(0);
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
     const signingClient = await getLikerNFTSigningClient();
     const txMessages = [
@@ -156,7 +158,7 @@ export async function processNFTPurchase(likeWallet, iscnId) {
         value: {
           fromAddress: LIKER_NFT_TARGET_ADDRESS,
           toAddress: sellerWallet,
-          amount: [{ denom: COSMOS_DENOM, amount: nftAmount }],
+          amount: [{ denom: COSMOS_DENOM, amount: sellerAmount }],
         },
       },
     ];
@@ -198,6 +200,10 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           timestamp,
           fromWallet,
           toWallet,
+          sellerWallet,
+          sellerLIKE: sellerPrice,
+          // stakeholderWallets,
+          // stakeholderLIKEs,
         });
       }
     });
