@@ -4,8 +4,9 @@ import { formatSendAuthorizationMsgExec } from '@likecoin/iscn-js/dist/messages/
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
-  getNFTQueryClient, getNFTISCNOwner, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
+  getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
+import { getISCNStakeholderRewards } from '../../cosmos/iscn';
 import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence } from '../../cosmos/tx';
 import {
   NFT_COSMOS_DENOM,
@@ -16,6 +17,9 @@ import {
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from './mint';
+
+const SELLER_RATIO = 0.8;
+const STAKEHOLDERS_RATIO = 0.2;
 
 export async function getLowerestUnsoldNFT(iscnId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -127,23 +131,49 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     const gasFee = getGasPrice();
 
     const isFirstSale = !nftItemPrice; // first sale if price = 0;
+    const iscnData = await getNFTISCNData(iscnId);
+    if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
+    const { owner, data } = iscnData;
     let sellerWallet;
     let nftPrice;
     if (isFirstSale) {
       nftPrice = currentPrice;
-      // TODO: split according to stakeholders
-      sellerWallet = await getNFTISCNOwner(iscnId);
+      sellerWallet = owner;
     } else {
       nftPrice = nftItemPrice;
-      // TODO: split according to stakeholders
-      sellerWallet = nftItemSellerWallet || await getNFTISCNOwner(iscnId);
+      sellerWallet = nftItemSellerWallet || owner;
     }
 
     const totalPrice = nftPrice + gasFee;
-    // TODO: split with stakeholder
-    const sellerPrice = nftPrice;
-    const sellerAmount = new BigNumber(nftPrice).shiftedBy(9).toFixed(0);
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
+    const sellerAmount = new BigNumber(nftPrice)
+      .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
+    const stakeholdersAmount = new BigNumber(nftPrice)
+      .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
+    const transferMessages = [
+      {
+        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+        value: {
+          fromAddress: LIKER_NFT_TARGET_ADDRESS,
+          toAddress: sellerWallet,
+          amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
+        },
+      },
+    ];
+
+    const stakeholderMap = await getISCNStakeholderRewards(data, stakeholdersAmount, owner);
+    stakeholderMap.forEach((amount, wallet) => {
+      transferMessages.push(
+        {
+          typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+          value: {
+            fromAddress: LIKER_NFT_TARGET_ADDRESS,
+            toAddress: wallet,
+            amount: [{ denom: NFT_COSMOS_DENOM, amount }],
+          },
+        },
+      );
+    });
     const signingClient = await getLikerNFTSigningClient();
     const txMessages = [
       formatSendAuthorizationMsgExec(
@@ -157,15 +187,8 @@ export async function processNFTPurchase(likeWallet, iscnId) {
         likeWallet,
         classId,
         nftId,
-      ), {
-        // TODO: use stakeholder and multisend
-        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-        value: {
-          fromAddress: LIKER_NFT_TARGET_ADDRESS,
-          toAddress: sellerWallet,
-          amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
-        },
-      },
+      ),
+      ...transferMessages,
     ];
     let res;
     const client = signingClient.getSigningStargateClient();
@@ -220,9 +243,10 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           fromWallet,
           toWallet,
           sellerWallet,
-          sellerLIKE: sellerPrice,
-          // stakeholderWallets,
-          // stakeholderLIKEs,
+          sellerLIKE: new BigNumber(sellerAmount).shiftedBy(-9).toFixed(),
+          stakeholderWallets: [...stakeholderMap.keys()],
+          stakeholderLIKEs: [...stakeholderMap.values()]
+            .map(a => new BigNumber(a).shiftedBy(-9).toFixed()),
         });
       }
     });

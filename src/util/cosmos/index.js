@@ -95,6 +95,15 @@ export function verifyCosmosSignInPayload({
   return valid;
 }
 
+export function isValidAddress(address) {
+  try {
+    bech32.decode(address);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export function isValidCosmosAddress(address) {
   return /^cosmos1[ac-hj-np-z02-9]{38}$/.test(address);
 }

@@ -37,6 +37,15 @@ export async function createNFTSigningClient(privateKey) {
   return { client, wallet };
 }
 
+export async function getNFTISCNData(iscnId) {
+  const client = await getNFTQueryClient();
+  const res = await client.queryRecordsById(iscnId);
+  if (!res || !res.records || !res.records.length) return {};
+  return {
+    owner: res.owner,
+    data: res.records[0].data,
+  };
+}
 
 export async function getNFTISCNOwner(iscnId) {
   const client = await getNFTQueryClient();
