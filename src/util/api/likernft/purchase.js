@@ -3,11 +3,10 @@ import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsin
 import { formatSendAuthorizationMsgExec } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
-import { getISCNQueryClient, getISCNOwner } from '../../cosmos/iscn';
-import { getLikerNFTSigningClient } from '../../cosmos/nft';
+import { getNFTQueryClient, getNFTISCNOwner, getLikerNFTSigningClient } from '../../cosmos/nft';
 import { DEFAULT_GAS_PRICE } from '../../cosmos/tx';
 import {
-  COSMOS_DENOM, LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_PRICE_MULTIPLY, LIKER_NFT_GAS_FEE,
+  NFT_COSMOS_DENOM, LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_PRICE_MULTIPLY, LIKER_NFT_GAS_FEE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from './mint';
@@ -58,7 +57,7 @@ export function getGasPrice() {
 }
 
 export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_NFT_TARGET_ADDRESS) {
-  const client = await getISCNQueryClient();
+  const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
   const parsed = parseTxInfoFromIndexedTx(tx);
@@ -84,7 +83,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   }
   // TODO: parse limit from query instead of tx
   const { spendLimit } = authorization.value;
-  const limit = spendLimit.find(s => s.denom === COSMOS_DENOM);
+  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
   if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
   const { amount } = limit;
   const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
@@ -127,11 +126,11 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     if (isFirstSale) {
       nftPrice = currentPrice;
       // TODO: split according to stakeholders
-      sellerWallet = await getISCNOwner(iscnId);
+      sellerWallet = await getNFTISCNOwner(iscnId);
     } else {
       nftPrice = nftItemPrice;
       // TODO: split according to stakeholders
-      sellerWallet = nftItemSellerWallet || await getISCNOwner(iscnId);
+      sellerWallet = nftItemSellerWallet || await getNFTISCNOwner(iscnId);
     }
 
     const totalPrice = nftPrice + gasFee;
@@ -145,7 +144,7 @@ export async function processNFTPurchase(likeWallet, iscnId) {
         LIKER_NFT_TARGET_ADDRESS,
         likeWallet,
         LIKER_NFT_TARGET_ADDRESS,
-        [{ denom: COSMOS_DENOM, amount: totalAmount }],
+        [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
       ),
       formatMsgSend(
         LIKER_NFT_TARGET_ADDRESS,
@@ -158,7 +157,7 @@ export async function processNFTPurchase(likeWallet, iscnId) {
         value: {
           fromAddress: LIKER_NFT_TARGET_ADDRESS,
           toAddress: sellerWallet,
-          amount: [{ denom: COSMOS_DENOM, amount: sellerAmount }],
+          amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
         },
       },
     ];

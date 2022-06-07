@@ -1,7 +1,8 @@
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { db, likeNFTCollection } from '../../firebase';
-import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
+import { getISCNPrefix } from '../../cosmos/iscn';
+import { getNFTQueryClient } from '../../cosmos/nft';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 
 export function getISCNPrefixDocName(iscnId) {
@@ -10,7 +11,7 @@ export function getISCNPrefixDocName(iscnId) {
 }
 
 export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
-  const c = await getISCNQueryClient();
+  const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
   let nfts = [];
   let next = new Uint8Array([0x00]);
@@ -26,7 +27,7 @@ export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRE
 
 export async function getNFTClassIdByISCNId(iscnId) {
   const iscnPrefix = getISCNPrefix(iscnId);
-  const c = await getISCNQueryClient();
+  const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
   const res = await client.likenft.classesByISCN(iscnPrefix);
   if (!res || !res.classes || !res.classes[0]) return '';
@@ -34,7 +35,7 @@ export async function getNFTClassIdByISCNId(iscnId) {
 }
 
 export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
-  const client = await getISCNQueryClient();
+  const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
   const parsed = parseTxInfoFromIndexedTx(tx);

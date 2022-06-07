@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
-import { getISCNOwner } from '../../util/cosmos/iscn';
+import { getNFTISCNOwner } from '../../util/cosmos/nft';
 import {
   getISCNPrefixDocName,
   parseNFTInformationFromTxHash,
@@ -70,7 +70,7 @@ router.post(
       }
       if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
       if (!sellerWallet) {
-        sellerWallet = await getISCNOwner(iscnId);
+        sellerWallet = await getNFTISCNOwner(iscnId);
       }
       const {
         nfts,

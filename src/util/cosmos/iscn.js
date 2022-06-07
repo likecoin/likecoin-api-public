@@ -53,12 +53,6 @@ export async function getISCNSigningAddressInfo() {
   };
 }
 
-export async function getISCNOwner(iscnId) {
-  const client = await getISCNQueryClient();
-  const res = await client.queryRecordsById(iscnId);
-  return res && res.owner;
-}
-
 export async function getISCNStakeholders(iscnId) {
   const client = await getISCNQueryClient();
   const res = await client.queryRecordsById(iscnId);

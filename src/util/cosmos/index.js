@@ -44,9 +44,9 @@ export async function getCosmosTotalSupply() {
 
 let cosmosQueryClient = null;
 
-async function getQueryClient() {
+export async function getQueryClient(rpc = cosmosRpcEndpoint) {
   if (!cosmosQueryClient) {
-    const tendermint34Client = await Tendermint34Client.connect(cosmosRpcEndpoint);
+    const tendermint34Client = await Tendermint34Client.connect(rpc);
     const queryClient = QueryClient.withExtensions(
       tendermint34Client,
       setupAuthExtension,
