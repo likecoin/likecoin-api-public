@@ -3,10 +3,16 @@ import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsin
 import { formatSendAuthorizationMsgExec } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
-import { getNFTQueryClient, getNFTISCNOwner, getLikerNFTSigningClient } from '../../cosmos/nft';
-import { DEFAULT_GAS_PRICE } from '../../cosmos/tx';
 import {
-  NFT_COSMOS_DENOM, LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_PRICE_MULTIPLY, LIKER_NFT_GAS_FEE,
+  getNFTQueryClient, getNFTISCNOwner, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
+} from '../../cosmos/nft';
+import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence } from '../../cosmos/tx';
+import {
+  NFT_COSMOS_DENOM,
+  NFT_CHAIN_ID,
+  LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_PRICE_MULTIPLY,
+  LIKER_NFT_GAS_FEE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from './mint';
@@ -162,10 +168,24 @@ export async function processNFTPurchase(likeWallet, iscnId) {
       },
     ];
     let res;
+    const client = signingClient.getSigningStargateClient();
+    const fee = calculateTxGasFee(txMessages.length);
+    const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+    const txSigningFunction = ({ sequence }) => client.sign(
+      address,
+      txMessages,
+      fee,
+      'nft api',
+      {
+        accountNumber,
+        sequence,
+        chainId: NFT_CHAIN_ID,
+      },
+    );
     try {
-      res = await signingClient.sendMessages(
-        LIKER_NFT_TARGET_ADDRESS,
-        txMessages,
+      res = await sendTransactionWithSequence(
+        address,
+        txSigningFunction,
       );
     } catch (err) {
       console.error(err);
