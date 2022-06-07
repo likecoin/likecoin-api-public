@@ -1,4 +1,5 @@
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { db, likeNFTCollection } from '../../firebase';
 import { getISCNQueryClient, getISCNPrefix } from '../../cosmos/iscn';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
@@ -12,15 +13,15 @@ export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRE
   const c = await getISCNQueryClient();
   const client = await c.getQueryClient();
   let nfts = [];
-  let pagination;
+  let next = new Uint8Array([0x00]);
   do {
     /* eslint-disable no-await-in-loop */
-    const res = await client.nft.NFTs(classId, address);
-    ({ pagination } = res);
+    const res = await client.nft.NFTs(classId, address, PageRequest.fromPartial({ key: next }));
+    ({ nextKey: next } = res.pagination);
     nfts = nfts.concat(res.nfts);
-  } while (pagination.nextKey && pagination.nextKey.length);
+  } while (next && next.length);
   const nftIds = nfts.map(n => n.id);
-  return { total: Number(pagination.total), nftIds, nfts };
+  return { nftIds, nfts };
 }
 
 export async function getNFTClassIdByISCNId(iscnId) {

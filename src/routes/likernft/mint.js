@@ -73,14 +73,13 @@ router.post(
         sellerWallet = await getISCNOwner(iscnId);
       }
       const {
-        total,
         nfts,
       } = await getNFTsByClassId(classId);
-      if (!total || !nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
+      if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
       await writeMintedFTInfo(iscnId, sellerWallet, {
         classId,
-        totalCount: total,
+        totalCount: nfts.length,
         uri: nfts[0].uri,
       }, nfts);
 
