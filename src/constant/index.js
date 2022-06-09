@@ -139,3 +139,7 @@ export const LIKE_DEFAULT_PRICE = 0.0082625;
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
 export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,likecoin&vs_currencies=usd';
+
+export const LIKECOIN_DARK_GREEN_THEME_COLOR = '#28646E';
+
+export const APP_LIKE_CO_ISCN_VIEW_URL = `https://app.${IS_TESTNET ? 'rinkeby.' : ''}like.co/view/`;

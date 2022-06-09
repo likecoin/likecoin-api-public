@@ -332,6 +332,28 @@ export function filterLikeNFTISCNData({
   };
 }
 
+
+export function filterLikeNFTMetadata({
+  image,
+  externalUrl,
+  description,
+  name,
+  backgroundColor,
+  animationUrl,
+  youtubeUrl,
+}) {
+  // key with underscore as in https://docs.opensea.io/docs/metadata-standards
+  return {
+    image,
+    external_url: externalUrl,
+    description,
+    name,
+    background_color: backgroundColor,
+    animation_url: animationUrl,
+    youtube_url: youtubeUrl,
+  };
+}
+
 export function filterOAuthClientInfo({
   avatar,
   audience,

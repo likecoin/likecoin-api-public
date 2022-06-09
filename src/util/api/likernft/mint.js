@@ -1,13 +1,25 @@
-import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { parseTxInfoFromIndexedTx, parseNFTClassDataFields } from '@likecoin/iscn-js/dist/messages/parsing';
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { db, likeNFTCollection } from '../../firebase';
 import { getISCNPrefix } from '../../cosmos/iscn';
 import { getNFTQueryClient } from '../../cosmos/nft';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
+import {
+  AVATAR_DEFAULT_PATH,
+  APP_LIKE_CO_ISCN_VIEW_URL,
+  LIKECOIN_DARK_GREEN_THEME_COLOR,
+} from '../../../constant';
 
 export function getISCNPrefixDocName(iscnId) {
   const prefix = getISCNPrefix(iscnId);
   return encodeURIComponent(prefix);
+}
+
+export async function getNFTClassByClassId(classId) {
+  const c = await getNFTQueryClient();
+  const client = await c.getQueryClient();
+  const res = await client.nft.class(classId);
+  return parseNFTClassDataFields(res);
 }
 
 export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
@@ -56,22 +68,33 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const {
     classId,
+    name,
+    description,
     totalCount,
     uri,
   } = classData;
-  likeNFTCollection.doc(iscnPrefix).create({
-    classId,
-    totalCount,
-    currentPrice: LIKER_NFT_STARTING_PRICE,
-    basePrice: LIKER_NFT_STARTING_PRICE,
-    soldCount: 0,
-    uri,
-    isProcessing: false,
-  });
-  likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
-    id: classId,
-    uri,
-  });
+  await Promise.all([
+    likeNFTCollection.doc(iscnPrefix).create({
+      classId,
+      totalCount,
+      currentPrice: LIKER_NFT_STARTING_PRICE,
+      basePrice: LIKER_NFT_STARTING_PRICE,
+      soldCount: 0,
+      uri,
+      isProcessing: false,
+    }),
+    likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
+      id: classId,
+      uri,
+      metadata: {
+        image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
+        externalUrl: `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
+        description,
+        name,
+        backgroundColor: LIKECOIN_DARK_GREEN_THEME_COLOR,
+      },
+    }),
+  ]);
   let batch = db.batch();
   for (let i = 0; i < nfts.length; i += 1) {
     const {
