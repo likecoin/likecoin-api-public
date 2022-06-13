@@ -4,7 +4,7 @@ import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
-import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
+import { getLikerNFTDynamicData, getDynamicNFTImage, getISCNDocByClassID } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -19,12 +19,11 @@ router.get(
       } = req.query;
 
       let classId = inputClassId;
-      let classData;
+      let classDocRef;
       if (!classId && !iscnId) {
         throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
       }
       if (iscnId) {
-        let classDocRef;
         if (!classId) {
           const iscnPrefix = getISCNPrefixDocName(iscnId);
           const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
@@ -39,15 +38,11 @@ router.get(
           const iscnPrefix = getISCNPrefixDocName(iscnId);
           classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId);
         }
-        classData = await classDocRef.get();
       } else {
-        const query = await likeNFTCollection.collectionGroup('class').where('id', '==', classId).limit(1).get();
-        if (!query.docs.length) {
-          res.status(404).send('NFT_CLASS_NOT_FOUND');
-          return;
-        }
-        classData = query.docs[0].data();
+        const doc = await getISCNDocByClassID(classId);
+        classDocRef = doc.ref.collection('class').doc(classId);
       }
+      const classData = await classDocRef.get();
       if (!classData) {
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
@@ -69,13 +64,9 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const query = await likeNFTCollection.collectionGroup('class').where('id', '==', classId).limit(1).get();
-      if (!query.docs.length) {
-        res.status(404).send('NFT_CLASS_NOT_FOUND');
-        return;
-      }
-      const queryRef = query.docs[0];
-      const classData = queryRef.data();
+      const doc = await getISCNDocByClassID(classId);
+      const classDocRef = await doc.ref.collection('class').doc(classId).get();
+      const classData = classDocRef.data();
       // const iscnRef = queryRef.parent.parent;
       // const iscnDocRef = iscnDataRef.get();
       // const iscnData = await iscnDocRef();

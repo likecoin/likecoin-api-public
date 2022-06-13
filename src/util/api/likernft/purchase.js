@@ -21,9 +21,11 @@ import { getISCNPrefixDocName } from './mint';
 const SELLER_RATIO = 0.8;
 const STAKEHOLDERS_RATIO = 0.2;
 
-export async function getLowerestUnsoldNFT(iscnId) {
+export async function getLowerestUnsoldNFT(iscnId, classId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
-  const res = await likeNFTCollection.doc(iscnPrefix).collection('nft')
+  const res = await likeNFTCollection.doc(iscnPrefix)
+    .collection('class').doc(classId)
+    .collection('nft')
     .where('isSold', '==', false)
     .where('price', '>=', 0)
     .orderBy('price')
@@ -229,12 +231,15 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           isProcessing: false,
           soldCount: FieldValue.increment(1),
         });
-        t.update(likeNFTCollection.doc(iscnPrefix).collection('class').doc(nftId), {
+        t.update(likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId), {
           lastSoldPrice: nftPrice,
           lastSoldNftId: nftId,
           soldCount: FieldValue.increment(1),
         });
-        t.update(likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId), {
+        t.update(likeNFTCollection.doc(iscnPrefix)
+          .collection('class').doc(classId)
+          .collection('nft')
+          .doc(nftId), {
           price: nftPrice,
           isSold: true,
         });

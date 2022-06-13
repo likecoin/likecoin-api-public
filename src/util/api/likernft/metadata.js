@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import axios from 'axios';
 import { EXTERNAL_HOSTNAME } from '../../../constant';
+import { ValidationError } from '../../ValidationError';
+import { likeNFTCollection } from '../../firebase';
 
 let maskData;
 async function getImageMask(
@@ -58,6 +60,14 @@ export async function getLikerNFTDynamicData(classId, classData) {
     image: `https://${EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
   };
+}
+
+export async function getISCNDocByClassID(classId) {
+  const iscnQuery = await likeNFTCollection.where('classId', '==', classId).limit(1).get();
+  if (!iscnQuery.docs.length) {
+    throw new ValidationError('NFT_CLASS_NOT_FOUND');
+  }
+  return iscnQuery.docs[0];
 }
 
 export default getLikerNFTDynamicData;

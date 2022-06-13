@@ -320,7 +320,7 @@ export function filterLikeNFTISCNData({
   currentPrice,
   basePrice,
   soldCount,
-  uri,
+  classUri,
 }) {
   return {
     classId,
@@ -328,7 +328,7 @@ export function filterLikeNFTISCNData({
     currentPrice,
     basePrice,
     soldCount,
-    uri,
+    classUri,
   };
 }
 

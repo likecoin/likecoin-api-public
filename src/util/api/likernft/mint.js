@@ -76,11 +76,12 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
   await Promise.all([
     likeNFTCollection.doc(iscnPrefix).create({
       classId,
+      classes: [classId],
       totalCount,
       currentPrice: LIKER_NFT_STARTING_PRICE,
       basePrice: LIKER_NFT_STARTING_PRICE,
       soldCount: 0,
-      uri,
+      classUri: uri,
       isProcessing: false,
     }),
     likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
@@ -104,7 +105,10 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
       uri: nftUri,
     } = nfts[i];
     batch.create(
-      likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId),
+      likeNFTCollection.doc(iscnPrefix)
+        .collection('class').doc(classId)
+        .collection('nft')
+        .doc(nftId),
       {
         id: nftId,
         uri: nftUri,
