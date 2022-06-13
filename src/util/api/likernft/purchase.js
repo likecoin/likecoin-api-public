@@ -229,6 +229,11 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           isProcessing: false,
           soldCount: FieldValue.increment(1),
         });
+        t.update(likeNFTCollection.doc(iscnPrefix).collection('class').doc(nftId), {
+          lastSoldPrice: nftPrice,
+          lastSoldNftId: nftId,
+          soldCount: FieldValue.increment(1),
+        });
         t.update(likeNFTCollection.doc(iscnPrefix).collection('nft').doc(nftId), {
           price: nftPrice,
           isSold: true,

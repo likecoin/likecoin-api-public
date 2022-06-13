@@ -86,6 +86,8 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
     likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
       id: classId,
       uri,
+      lastSoldPrice: 0,
+      soldCount: 0,
       metadata: {
         image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
         externalUrl: `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
