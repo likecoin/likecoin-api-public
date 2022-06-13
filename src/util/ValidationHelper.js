@@ -315,20 +315,24 @@ export function filterSocialLinksMeta({
 }
 
 export function filterLikeNFTISCNData({
+  iscnId,
   classId,
   totalCount,
   currentPrice,
   basePrice,
   soldCount,
   classUri,
+  creatorWallet,
 }) {
   return {
+    iscnId,
     classId,
     totalCount,
     currentPrice,
     basePrice,
     soldCount,
     classUri,
+    creatorWallet,
   };
 }
 

@@ -7,6 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
+import { getISCNDocByClassID } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -15,15 +16,23 @@ router.get(
   async (req, res, next) => {
     try {
       try {
-        const { iscn_id: iscnId } = req.query;
-        if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
+        const { iscn_id: inputIscnId, class_id: classId } = req.query;
+        if (!inputIscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
+        let iscnId = inputIscnId;
+        if (!iscnId) {
+          const doc = await getISCNDocByClassID(classId);
+          iscnId = doc.id;
+        }
         const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId);
         const gasFee = getGasPrice();
         res.json({
           price,
           gasFee,
           totalPrice: price + gasFee,
-          metadata: filterLikeNFTISCNData(info),
+          metadata: filterLikeNFTISCNData({
+            ...info,
+            iscnId,
+          }),
         });
       } catch (err) {
         next(err);
@@ -38,8 +47,13 @@ router.post(
   '/purchase',
   async (req, res, next) => {
     try {
-      const { tx_hash: txHash, iscn_id: iscnId } = req.query;
-      if (!txHash || !iscnId) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
+      const { tx_hash: txHash, iscn_id: inputIscnId, class_id: inputClassId } = req.query;
+      if (!txHash || (!inputIscnId && !inputClassId)) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
+      let iscnId = inputIscnId;
+      if (!iscnId) {
+        const doc = await getISCNDocByClassID(inputClassId);
+        iscnId = doc.id;
+      }
       const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId);
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
@@ -59,6 +73,7 @@ router.post(
       } = await processNFTPurchase(likeWallet, iscnId);
       res.json({
         txHash: transactionHash,
+        iscnId,
         classId,
         nftId,
         nftPrice: actualNftPrice,
