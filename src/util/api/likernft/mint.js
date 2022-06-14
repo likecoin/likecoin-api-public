@@ -71,6 +71,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
     data: iscnData,
   } = await getNFTISCNData(iscnId);
   const url = iscnData.contentMetadata && iscnData.contentMetadata.url;
+  const timestamp = Date.now();
   const {
     classId,
     name = '',
@@ -89,6 +90,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
       classUri: uri,
       creatorWallet: sellerWallet,
       isProcessing: false,
+      timestamp,
     }),
     likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
       id: classId,
@@ -96,6 +98,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
       lastSoldPrice: 0,
       soldCount: 0,
       creatorWallet: sellerWallet,
+      timestamp,
       metadata: {
         image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
         externalUrl: url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
@@ -123,6 +126,7 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
         isSold: false,
         classId,
         sellerWallet,
+        timestamp,
       },
     );
     if (i % 500 === 0) {

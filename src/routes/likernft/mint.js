@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
-import { getNFTISCNOwner } from '../../util/cosmos/nft';
 import {
   getISCNPrefixDocName,
   parseNFTInformationFromTxHash,

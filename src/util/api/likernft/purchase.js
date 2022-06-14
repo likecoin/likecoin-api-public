@@ -230,10 +230,12 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           currentPrice: nftItemPrice ? dbCurrentPrice : dbCurrentPrice * LIKER_NFT_PRICE_MULTIPLY,
           isProcessing: false,
           soldCount: FieldValue.increment(1),
+          lastSoldTimestamp: timestamp,
         });
         t.update(likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId), {
           lastSoldPrice: nftPrice,
           lastSoldNftId: nftId,
+          lastSoldTimestamp: timestamp,
           soldCount: FieldValue.increment(1),
         });
         t.update(likeNFTCollection.doc(iscnPrefix)
@@ -242,6 +244,7 @@ export async function processNFTPurchase(likeWallet, iscnId) {
           .doc(nftId), {
           price: nftPrice,
           isSold: true,
+          lastSoldTimestamp: timestamp,
         });
         t.create(likeNFTCollection.doc(iscnPrefix).collection('transaction')
           .doc(transactionHash), {
