@@ -68,10 +68,10 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const {
     classId,
-    name,
-    description,
+    name = '',
+    description = '',
     totalCount,
-    uri,
+    uri = '',
   } = classData;
   await Promise.all([
     likeNFTCollection.doc(iscnPrefix).create({
