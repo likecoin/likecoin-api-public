@@ -4,7 +4,12 @@ import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
-import { getLikerNFTDynamicData, getDynamicNFTImage, getISCNDocByClassID } from '../../util/api/likernft/metadata';
+import {
+  getLikerNFTDynamicData,
+  getDynamicNFTImage,
+  getISCNDocByClassID,
+} from '../../util/api/likernft/metadata';
+import { getNFTClassDataById } from '../../util/cosmos/nft';
 
 const router = Router();
 
@@ -42,15 +47,21 @@ router.get(
         const doc = await getISCNDocByClassID(classId);
         classDocRef = doc.ref.collection('class').doc(classId);
       }
+
       const classData = await classDocRef.get();
       if (!classData) {
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
       }
-      const dynamicData = await getLikerNFTDynamicData(classId, classData);
+      const [chainData, dynamicData] = await Promise.all([
+        getNFTClassDataById(classId),
+        getLikerNFTDynamicData(classId, classData),
+      ]);
+
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
-        ...classData.metadata,
+        ...(classData.metadata || {}),
+        ...chainData,
         ...dynamicData,
       }));
     } catch (err) {

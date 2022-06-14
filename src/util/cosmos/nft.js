@@ -65,6 +65,13 @@ export async function getISCNFromNFTClassId(classId) {
   };
 }
 
+export async function getNFTClassDataById(classId) {
+  const client = await getNFTQueryClient();
+  const res = await client.queryNFTClass(classId);
+  if (!res) return null;
+  return res.class;
+}
+
 export async function getLikerNFTSigningClient() {
   if (!signingClient) {
     const { client, wallet } = await createNFTSigningClient(LIKER_NFT_PRIVATE_KEY);
