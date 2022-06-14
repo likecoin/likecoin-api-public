@@ -76,15 +76,12 @@ router.post(
         classId = await getNFTClassIdByISCNId(iscnId);
       }
       if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
-      if (!sellerWallet) {
-        sellerWallet = await getNFTISCNOwner(iscnId);
-      }
       const {
         nfts,
       } = await getNFTsByClassId(classId);
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
-      await writeMintedFTInfo(iscnId, sellerWallet, {
+      await writeMintedFTInfo(iscnId, {
         classId,
         totalCount: nfts.length,
         uri: nfts[0].uri,

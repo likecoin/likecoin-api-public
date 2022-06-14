@@ -48,8 +48,7 @@ export async function getNFTISCNData(iscnId) {
 }
 
 export async function getNFTISCNOwner(iscnId) {
-  const client = await getNFTQueryClient();
-  const res = await client.queryRecordsById(iscnId);
+  const res = await getNFTISCNData(iscnId);
   return res && res.owner;
 }
 

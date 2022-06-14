@@ -2,7 +2,7 @@ import { parseTxInfoFromIndexedTx, parseNFTClassDataFields } from '@likecoin/isc
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { db, likeNFTCollection } from '../../firebase';
 import { getISCNPrefix } from '../../cosmos/iscn';
-import { getNFTQueryClient } from '../../cosmos/nft';
+import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import {
   AVATAR_DEFAULT_PATH,
@@ -64,8 +64,13 @@ export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_T
   };
 }
 
-export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
+export async function writeMintedFTInfo(iscnId, classData, nfts) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
+  const {
+    owner: sellerWallet,
+    data: iscnData,
+  } = await getNFTISCNData(iscnId);
+  const url = iscnData.contentMetadata && iscnData.contentMetadata.url;
   const {
     classId,
     name = '',
@@ -93,7 +98,7 @@ export async function writeMintedFTInfo(iscnId, sellerWallet, classData, nfts) {
       creatorWallet: sellerWallet,
       metadata: {
         image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
-        externalUrl: `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
+        externalUrl: url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
         description,
         name,
         backgroundColor: LIKECOIN_DARK_GREEN_THEME_COLOR,
