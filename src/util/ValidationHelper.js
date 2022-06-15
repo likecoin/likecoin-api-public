@@ -345,6 +345,8 @@ export function filterLikeNFTMetadata({
   backgroundColor,
   animationUrl,
   youtubeUrl,
+  iscnOwner,
+  iscnStakeholders,
 }) {
   // key with underscore as in https://docs.opensea.io/docs/metadata-standards
   return {
@@ -355,6 +357,8 @@ export function filterLikeNFTMetadata({
     background_color: backgroundColor,
     animation_url: animationUrl,
     youtube_url: youtubeUrl,
+    iscn_owner: iscnOwner,
+    iscn_stakeholders: iscnStakeholders,
   };
 }
 

@@ -9,7 +9,7 @@ import {
   getDynamicNFTImage,
   getISCNDocByClassID,
 } from '../../util/api/likernft/metadata';
-import { getNFTClassDataById } from '../../util/cosmos/nft';
+import { getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId } from '../../util/cosmos/nft';
 
 const router = Router();
 
@@ -18,16 +18,17 @@ router.get(
   async (req, res, next) => {
     try {
       const {
-        iscn_id: iscnId,
+        iscn_id: inputIscnId,
         class_id: inputClassId,
         // nft_id: nftId, // not used since all nft in a class use same metadata
       } = req.query;
 
       let classId = inputClassId;
       let classDocRef;
-      if (!classId && !iscnId) {
+      if (!classId && !inputIscnId) {
         throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
       }
+      let iscnId = inputIscnId;
       if (iscnId) {
         if (!classId) {
           const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -44,22 +45,28 @@ router.get(
           classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId);
         }
       } else {
+        ({ iscnIdPrefix: iscnId } = await getISCNFromNFTClassId(classId));
         const doc = await getISCNDocByClassID(classId);
         classDocRef = doc.ref.collection('class').doc(classId);
       }
 
-      const classData = await classDocRef.get();
+      const classDoc = await classDocRef.get();
+      const classData = classDoc.data();
       if (!classData) {
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
       }
-      const [chainData, dynamicData] = await Promise.all([
+
+      const [{ owner: iscnOwner, data: iscnData }, chainData, dynamicData] = await Promise.all([
+        getNFTISCNData(iscnId),
         getNFTClassDataById(classId),
         getLikerNFTDynamicData(classId, classData),
       ]);
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
+        iscnOwner,
+        iscnStakeholders: iscnData.stakeholders,
         ...(classData.metadata || {}),
         ...chainData,
         ...dynamicData,
