@@ -62,7 +62,16 @@ export async function getLikerNFTDynamicData(classId, classData) {
   };
 }
 
-export async function getISCNDocByClassID(classId) {
+export async function getCurrentClassIdByISCNId(iscnId) {
+  const iscnDoc = await likeNFTCollection.doc(iscnId).get();
+  const iscnData = iscnDoc.data();
+  if (!iscnData) {
+    throw new ValidationError('ISCN_NFT_NOT_FOUND');
+  }
+  return iscnData.classId;
+}
+
+export async function getISCNDocByClassId(classId) {
   const iscnQuery = await likeNFTCollection.where('classId', '==', classId).limit(1).get();
   if (!iscnQuery.docs.length) {
     throw new ValidationError('NFT_CLASS_NOT_FOUND');

@@ -40,10 +40,10 @@ export async function getLowerestUnsoldNFT(iscnId, classId) {
   return payload;
 }
 
-export async function getLatestNFTPriceAndInfo(iscnId) {
+export async function getLatestNFTPriceAndInfo(iscnId, classId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const [nftData, nftDoc] = await Promise.all([
-    getLowerestUnsoldNFT(iscnId),
+    getLowerestUnsoldNFT(iscnId, classId),
     likeNFTCollection.doc(iscnPrefix).get(),
   ]);
   const nftDocData = nftDoc.data();
@@ -106,7 +106,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnId) {
+export async function processNFTPurchase(likeWallet, iscnId, classId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   // lock iscn nft and get price
   const currentPrice = await db.runTransaction(async (t) => {
@@ -123,11 +123,10 @@ export async function processNFTPurchase(likeWallet, iscnId) {
     return price;
   });
   try {
-    const nftData = await getLowerestUnsoldNFT(iscnId);
+    const nftData = await getLowerestUnsoldNFT(iscnId, classId);
     const {
       id: nftId,
       price: nftItemPrice,
-      classId,
       sellerWallet: nftItemSellerWallet,
     } = nftData;
     const gasFee = getGasPrice();

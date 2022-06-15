@@ -7,7 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { getISCNDocByClassID } from '../../util/api/likernft/metadata';
+import { getISCNDocByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -16,14 +16,18 @@ router.get(
   async (req, res, next) => {
     try {
       try {
-        const { iscn_id: inputIscnId, class_id: classId } = req.query;
-        if (!inputIscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
+        const { iscn_id: inputIscnId, class_id: inputClassId } = req.query;
+        if (!inputIscnId && !inputClassId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
         let iscnId = inputIscnId;
+        let classId = inputClassId;
         if (!iscnId) {
           const doc = await getISCNDocByClassID(classId);
           iscnId = doc.id;
         }
-        const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId);
+        if (!classId) {
+          classId = await getCurrentClassIdByISCNId(inputIscnId);
+        }
+        const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId, classId);
         const gasFee = getGasPrice();
         res.json({
           price,
@@ -50,11 +54,15 @@ router.post(
       const { tx_hash: txHash, iscn_id: inputIscnId, class_id: inputClassId } = req.query;
       if (!txHash || (!inputIscnId && !inputClassId)) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
       let iscnId = inputIscnId;
+      let classId = inputClassId;
       if (!iscnId) {
         const doc = await getISCNDocByClassID(inputClassId);
         iscnId = doc.id;
       }
-      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId);
+      if (!classId) {
+        classId = await getCurrentClassIdByISCNId(inputIscnId);
+      }
+      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
       const result = await checkTxGrantAndAmount(txHash, totalPrice);
@@ -66,11 +74,10 @@ router.post(
       } = result;
       const {
         transactionHash,
-        classId,
         nftId,
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
-      } = await processNFTPurchase(likeWallet, iscnId);
+      } = await processNFTPurchase(likeWallet, iscnId, classId);
       res.json({
         txHash: transactionHash,
         iscnId,
