@@ -7,7 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { getISCNDocByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft/metadata';
+import { getISCNIdByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -21,8 +21,7 @@ router.get(
         let iscnId = inputIscnId;
         let classId = inputClassId;
         if (!iscnId) {
-          const doc = await getISCNDocByClassId(inputClassId);
-          iscnId = doc.id;
+          iscnId = await getISCNIdByClassId(inputClassId);
         }
         if (!classId) {
           classId = await getCurrentClassIdByISCNId(inputIscnId);
@@ -56,8 +55,7 @@ router.post(
       let iscnId = inputIscnId;
       let classId = inputClassId;
       if (!iscnId) {
-        const doc = await getISCNDocByClassId(inputClassId);
-        iscnId = doc.id;
+        iscnId = await getISCNIdByClassId(inputClassId);
       }
       if (!classId) {
         classId = await getCurrentClassIdByISCNId(inputIscnId);

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { EXTERNAL_HOSTNAME } from '../../../constant';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
+import { getISCNPrefixDocName } from './mint';
 
 let maskData;
 async function getImageMask(
@@ -63,7 +64,8 @@ export async function getLikerNFTDynamicData(classId, classData) {
 }
 
 export async function getCurrentClassIdByISCNId(iscnId) {
-  const iscnDoc = await likeNFTCollection.doc(iscnId).get();
+  const iscnPrefix = getISCNPrefixDocName(iscnId);
+  const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
   const iscnData = iscnDoc.data();
   if (!iscnData) {
     throw new ValidationError('ISCN_NFT_NOT_FOUND');
@@ -77,6 +79,11 @@ export async function getISCNDocByClassId(classId) {
     throw new ValidationError('NFT_CLASS_NOT_FOUND');
   }
   return iscnQuery.docs[0];
+}
+
+export async function getISCNIdByClassId(classId) {
+  const doc = await getISCNDocByClassId(classId);
+  return decodeURIComponent(doc.id);
 }
 
 export default getLikerNFTDynamicData;
