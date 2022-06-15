@@ -7,7 +7,7 @@ import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
 import {
   getLikerNFTDynamicData,
   getDynamicNFTImage,
-  getISCNDocByClassID,
+  getISCNDocByClassId,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId } from '../../util/cosmos/nft';
 
@@ -46,7 +46,7 @@ router.get(
         }
       } else {
         ({ iscnIdPrefix: iscnId } = await getISCNFromNFTClassId(classId));
-        const doc = await getISCNDocByClassID(classId);
+        const doc = await getISCNDocByClassId(classId);
         classDocRef = doc.ref.collection('class').doc(classId);
       }
 
@@ -82,7 +82,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const doc = await getISCNDocByClassID(classId);
+      const doc = await getISCNDocByClassId(classId);
       const classDocRef = await doc.ref.collection('class').doc(classId).get();
       const classData = classDocRef.data();
       // const iscnRef = queryRef.parent.parent;

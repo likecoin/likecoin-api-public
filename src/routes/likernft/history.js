@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
-import { getISCNDocByClassID } from '../../util/api/likernft/metadata';
+import { getISCNDocByClassId } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.get(
       }
       let list = [];
       if (classId) {
-        const doc = await getISCNDocByClassID(classId);
+        const doc = await getISCNDocByClassId(classId);
         const queryObj = await doc.ref('transaction')
           .where('classId', '==', classId);
         if (nftId) queryObj.where('nftId', '==', nftId);

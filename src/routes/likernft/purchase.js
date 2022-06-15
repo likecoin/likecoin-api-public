@@ -21,7 +21,7 @@ router.get(
         let iscnId = inputIscnId;
         let classId = inputClassId;
         if (!iscnId) {
-          const doc = await getISCNDocByClassID(classId);
+          const doc = await getISCNDocByClassId(inputClassId);
           iscnId = doc.id;
         }
         if (!classId) {
@@ -56,7 +56,7 @@ router.post(
       let iscnId = inputIscnId;
       let classId = inputClassId;
       if (!iscnId) {
-        const doc = await getISCNDocByClassID(inputClassId);
+        const doc = await getISCNDocByClassId(inputClassId);
         iscnId = doc.id;
       }
       if (!classId) {

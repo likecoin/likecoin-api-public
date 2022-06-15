@@ -9,7 +9,7 @@ import {
   getNFTClassIdByISCNId,
   writeMintedFTInfo,
 } from '../../util/api/likernft/mint';
-import { getISCNDocByClassID } from '../../util/api/likernft/metadata';
+import { getISCNDocByClassId } from '../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -21,7 +21,7 @@ router.get(
       if (!iscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
       let iscnNFTData;
       if (!iscnId) {
-        const doc = await getISCNDocByClassID(classId);
+        const doc = await getISCNDocByClassId(classId);
         iscnNFTData = doc.data();
       } else {
         const iscnPrefix = getISCNPrefixDocName(iscnId);
