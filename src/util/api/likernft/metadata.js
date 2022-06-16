@@ -1,3 +1,4 @@
+import path from 'path';
 import sharp from 'sharp';
 import axios from 'axios';
 import { EXTERNAL_HOSTNAME } from '../../../constant';
@@ -6,14 +7,10 @@ import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from './mint';
 
 let maskData;
-async function getImageMask(
-  maskUrl = 'https://s3.us-west-2.amazonaws.com/secure.notion-static.com/b35cd824-4acc-4678-b7d1-b7c70176eaab/ISCN_PressKit_Colou_Light.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220613%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20220613T141949Z&X-Amz-Expires=86400&X-Amz-Signature=c5778415d09b0e2695c3cb2c75aa2e3d500101edf3c0ed842231a2f9313e7c1f&X-Amz-SignedHeaders=host&response-content-disposition=filename%20%3D%22ISCN_PressKit_Colou_Light.png%22&x-id=GetObject',
-) {
+async function getImageMask() {
   if (maskData) return maskData;
-  const { data } = await axios.get(maskUrl, { responseType: 'arraybuffer' });
-  // TODO: use pipe
-  const buffer = Buffer.from(data);
-  maskData = await sharp(buffer)
+  const imgPath = path.join(__dirname, '../../../assets/iscn.png');
+  maskData = await sharp(imgPath)
     .resize(512, 512)
     .extractChannel('green')
     .toBuffer();
