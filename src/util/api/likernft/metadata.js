@@ -1,7 +1,7 @@
 import path from 'path';
 import sharp from 'sharp';
 import axios from 'axios';
-import { EXTERNAL_HOSTNAME } from '../../../constant';
+import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from './mint';
@@ -55,7 +55,7 @@ export async function getLikerNFTDynamicData(classId, classData) {
   const { soldCount } = classData;
   const backgroundColor = await getDynamicBackgroundColor(soldCount);
   return {
-    image: `https://${EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
+    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
   };
 }
