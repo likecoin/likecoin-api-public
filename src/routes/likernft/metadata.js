@@ -65,6 +65,7 @@ router.get(
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
+        iscnId,
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,
         ...(classData.metadata || {}),
