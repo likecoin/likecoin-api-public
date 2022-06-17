@@ -46,6 +46,13 @@ export async function getNFTClassIdByISCNId(iscnId) {
   return res.classes[0].id;
 }
 
+export async function getNFTOwner(classId, nftId) {
+  const c = await getNFTQueryClient();
+  const client = await c.getQueryClient();
+  const res = await client.nft.owner(classId, nftId);
+  return res.owner;
+}
+
 export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();

@@ -3,13 +3,14 @@ import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
+import { getISCNPrefixDocName, getNFTsByClassId, getNFTOwner } from '../../util/api/likernft/mint';
 import {
   getLikerNFTDynamicData,
   getDynamicNFTImage,
   getISCNDocByClassId,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId } from '../../util/cosmos/nft';
+import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
 
@@ -72,6 +73,53 @@ router.get(
         ...chainData,
         ...dynamicData,
       }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/metadata/owners',
+  async (req, res, next) => {
+    try {
+      const {
+        iscn_id: iscnId,
+        class_id: inputClassId,
+      } = req.query;
+
+      let classId = inputClassId;
+      if (!classId && !iscnId) {
+        throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
+      }
+      if (!classId) {
+        const iscnPrefix = getISCNPrefixDocName(iscnId);
+        const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
+        const iscnData = iscnDoc.data();
+        if (!iscnData || !iscnData.classId) {
+          res.status(404).send('ISCN_NFT_NOT_FOUND');
+          return;
+        }
+        ({ classId } = iscnData);
+      }
+      const [{ nfts }, { nfts: apiNFTs = [] }] = await Promise.all([
+        getNFTsByClassId(classId, ''),
+        getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS),
+      ]);
+      const apiOwnedNFTIds = apiNFTs.map(n => n.id);
+      const ownerMap = {
+        // don't include api holded wallet
+        // LIKER_NFT_TARGET_ADDRESS: apiOwnedNFTIds,
+      };
+      const nftIds = nfts.map(n => n.id)
+        .filter(id => !apiOwnedNFTIds.includes(id));
+      const owners = await Promise.all(nftIds.map(id => getNFTOwner(classId, id)));
+      owners.forEach((owner, index) => {
+        ownerMap[owner] = ownerMap[owner] || [];
+        ownerMap[owner].push(nftIds[index]);
+      });
+      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.json(ownerMap);
     } catch (err) {
       next(err);
     }
