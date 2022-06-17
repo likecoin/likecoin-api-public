@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
-import { formatSendAuthorizationMsgExec } from '@likecoin/iscn-js/dist/messages/authz';
+import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
@@ -177,7 +177,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
     });
     const signingClient = await getLikerNFTSigningClient();
     const txMessages = [
-      formatSendAuthorizationMsgExec(
+      formatMsgExecSendAuthorization(
         LIKER_NFT_TARGET_ADDRESS,
         likeWallet,
         LIKER_NFT_TARGET_ADDRESS,
