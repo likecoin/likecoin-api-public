@@ -243,8 +243,12 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
           .collection('nft')
           .doc(nftId), {
           price: nftPrice,
+          lastSoldPrice: nftPrice,
+          soldCount: FieldValue.increment(1),
           isSold: true,
+          ownerWallet: toWallet,
           lastSoldTimestamp: timestamp,
+          sellerWallet: null,
         });
         t.create(likeNFTCollection.doc(iscnPrefix).collection('transaction')
           .doc(transactionHash), {

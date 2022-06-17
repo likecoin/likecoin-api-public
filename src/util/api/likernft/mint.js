@@ -71,7 +71,7 @@ export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_T
   };
 }
 
-export async function writeMintedFTInfo(iscnId, classData, nfts) {
+export async function writeMintedNFTInfo(iscnId, classData, nfts) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const {
     owner: sellerWallet,
@@ -130,9 +130,11 @@ export async function writeMintedFTInfo(iscnId, classData, nfts) {
         id: nftId,
         uri: nftUri,
         price: 0,
+        soldCount: 0,
         isSold: false,
         classId,
         sellerWallet,
+        ownerWallet: LIKER_NFT_TARGET_ADDRESS,
         timestamp,
       },
     );

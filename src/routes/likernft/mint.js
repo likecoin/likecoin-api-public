@@ -7,7 +7,7 @@ import {
   parseNFTInformationFromTxHash,
   getNFTsByClassId,
   getNFTClassIdByISCNId,
-  writeMintedFTInfo,
+  writeMintedNFTInfo,
 } from '../../util/api/likernft/mint';
 import { getISCNDocByClassId } from '../../util/api/likernft/metadata';
 
@@ -80,7 +80,7 @@ router.post(
       } = await getNFTsByClassId(classId);
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
-      await writeMintedFTInfo(iscnId, {
+      await writeMintedNFTInfo(iscnId, {
         classId,
         totalCount: nfts.length,
         uri: nfts[0].uri,
