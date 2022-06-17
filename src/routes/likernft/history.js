@@ -20,15 +20,15 @@ router.get(
       let list = [];
       if (classId) {
         const doc = await getISCNDocByClassId(classId);
-        const queryObj = await doc.ref('transaction')
-          .where('classId', '==', classId);
-        if (nftId) queryObj.where('nftId', '==', nftId);
+        let queryObj = await doc.ref.collection('transaction');
+        if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
         const query = await queryObj.orderBy('timestamp', 'desc').get();
         list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
       } else if (iscnId) {
         const iscnPrefix = getISCNPrefixDocName(iscnId);
-        const query = await likeNFTCollection.doc(iscnPrefix)
-          .collection('transaction').orderBy('timestamp', 'desc').get();
+        let queryObj = likeNFTCollection.doc(iscnPrefix).collection('transaction');
+        if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
+        const query = queryObj.orderBy('timestamp', 'desc').get();
         list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
       }
       res.json({
