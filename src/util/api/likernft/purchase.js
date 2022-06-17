@@ -193,7 +193,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
     ];
     let res;
     const client = signingClient.getSigningStargateClient();
-    const fee = calculateTxGasFee(txMessages.length);
+    const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
     const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
     const txSigningFunction = ({ sequence }) => client.sign(
       address,
@@ -210,6 +210,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
       res = await sendTransactionWithSequence(
         address,
         txSigningFunction,
+        client,
       );
     } catch (err) {
       console.error(err);

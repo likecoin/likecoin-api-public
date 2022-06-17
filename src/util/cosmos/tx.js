@@ -78,8 +78,8 @@ async function computeTransactionHash(signedTx) {
   return txHash.toUpperCase();
 }
 
-async function internalSendTransaction(signedTx) {
-  const client = await getClient();
+async function internalSendTransaction(signedTx, c) {
+  const client = c || await getClient();
   const txBytes = TxRaw.encode(signedTx).finish();
   try {
     const res = await client.broadcastTx(txBytes);
@@ -94,7 +94,7 @@ async function internalSendTransaction(signedTx) {
   }
 }
 
-export async function sendTransactionWithSequence(senderAddress, signingFunction) {
+export async function sendTransactionWithSequence(senderAddress, signingFunction, client) {
   let res;
   let signedTx;
   const { sequence: seq1 } = await getAccountInfo(senderAddress);
@@ -112,7 +112,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
   });
   signedTx = await signingFunction({ sequence: pendingCount });
   try {
-    res = await internalSendTransaction(signedTx);
+    res = await internalSendTransaction(signedTx, client);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -130,7 +130,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
 
   try {
     if (!res) {
-      res = await internalSendTransaction(signedTx);
+      res = await internalSendTransaction(signedTx, client);
     }
     await db.runTransaction(t => t.get(counterRef).then((d) => {
       if (pendingCount + 1 > d.data().value) {
@@ -161,12 +161,12 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
   };
 }
 
-export function calculateTxGasFee(messageLength = 1) {
+export function calculateTxGasFee(messageLength = 1, denom = COSMOS_DENOM) {
   const gas = DEFAULT_TRANSFER_GAS;
   const feeAmount = new BigNumber(gas)
     .multipliedBy(DEFAULT_GAS_PRICE).multipliedBy(messageLength).toFixed(0);
   return {
-    amount: [{ denom: COSMOS_DENOM, amount: feeAmount }],
+    amount: [{ denom, amount: feeAmount }],
     gas: new BigNumber(gas).multipliedBy(messageLength).toFixed(0),
   };
 }
