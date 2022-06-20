@@ -3,7 +3,7 @@ import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNPrefixDocName, getNFTsByClassId, getNFTOwner } from '../../util/api/likernft/mint';
+import { getISCNPrefixDocName, getNFTOwner } from '../../util/api/likernft/mint';
 import {
   getLikerNFTDynamicData,
   getDynamicNFTImage,
@@ -84,11 +84,12 @@ router.get(
   async (req, res, next) => {
     try {
       const {
-        iscn_id: iscnId,
+        iscn_id: inputIscnId,
         class_id: inputClassId,
       } = req.query;
 
       let classId = inputClassId;
+      let iscnId = inputIscnId;
       if (!classId && !iscnId) {
         throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
       }
@@ -101,18 +102,20 @@ router.get(
           return;
         }
         ({ classId } = iscnData);
+      } else {
+        ({ iscnIdPrefix: iscnId } = await getISCNFromNFTClassId(classId));
       }
-      const [{ nfts }, { nfts: apiNFTs = [] }] = await Promise.all([
-        getNFTsByClassId(classId, ''),
-        getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS),
-      ]);
-      const apiOwnedNFTIds = apiNFTs.map(n => n.id);
+      const iscnPrefix = getISCNPrefixDocName(iscnId);
+      const nftQuery = await likeNFTCollection.doc(iscnPrefix)
+        .collection('class').doc(classId)
+        .collection('nft')
+        .where('ownerWallet', '!=', LIKER_NFT_TARGET_ADDRESS)
+        .get();
+      const nftIds = nftQuery.docs.map(n => n.id);
       const ownerMap = {
         // don't include api holded wallet
         // LIKER_NFT_TARGET_ADDRESS: apiOwnedNFTIds,
       };
-      const nftIds = nfts.map(n => n.id)
-        .filter(id => !apiOwnedNFTIds.includes(id));
       const owners = await Promise.all(nftIds.map(id => getNFTOwner(classId, id)));
       owners.forEach((owner, index) => {
         ownerMap[owner] = ownerMap[owner] || [];
