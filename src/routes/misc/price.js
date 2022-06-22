@@ -1,7 +1,5 @@
 import axios from 'axios';
 import { Router } from 'express';
-import https from 'https';
-import fs from 'fs';
 
 import {
   COINGECKO_PRICE_URL,
@@ -9,7 +7,6 @@ import {
 } from '../../constant';
 import {
   CMC_API_CACHE_S,
-  BITASSET_API_BASE_URL,
 } from '../../../config/config';
 
 const router = Router();
@@ -19,13 +16,6 @@ const USDTWD = 30.51;
 const LOW_THRESHOLD_PRICE_TWD = 0.03;
 const LOW_THRESHOLD_PRICE_USD = LOW_THRESHOLD_PRICE_TWD / USDTWD;
 
-const bitassetAgent = new https.Agent({ ca: fs.readFileSync('./ssl/bitasset.pem') });
-const bitassetAxios = axios.create({
-  baseURL: BITASSET_API_BASE_URL || 'https://api.bitasset.pro',
-  timeout: 20000,
-  httpsAgent: bitassetAgent,
-});
-
 router.get('/price', async (req, res) => {
   const { currency = 'usd' } = req.query;
   let price;
@@ -34,21 +24,6 @@ router.get('/price', async (req, res) => {
       axios.get(COINGECKO_PRICE_URL)
         .then(r => r.data.market_data.current_price[currency])
         .catch(() => undefined),
-      bitassetAxios.get('/v1/cash/public/query-depth?contractId=152') // LIKETWD
-        .then((r) => {
-          if (currency === 'usd') {
-            return parseFloat(r.data.data.lastPrice) / USDTWD;
-          }
-          if (currency === 'twd') {
-            return parseFloat(r.data.data.lastPrice);
-          }
-          throw new Error('Undefined BitAsset currency');
-        })
-        .catch((err) => {
-          const msg = (err.response && err.response.data) || err;
-          console.error(msg);
-          return undefined;
-        }),
     ]);
     const validPrices = prices.filter(p => !isNaN(p)); // eslint-disable-line no-restricted-globals
     if (!validPrices.length) {
