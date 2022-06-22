@@ -5,6 +5,7 @@ import BigNumber from 'bignumber.js';
 import publisher from '../../util/gcloudPub';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
+import { sleep } from '../../util/misc';
 import {
   getISCNSigningClient,
   getISCNQueryClient,
@@ -142,7 +143,18 @@ async function handleRegisterISCN(req, res, next) {
     } = iscnRes;
     const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
     let totalLIKE = gasLIKE.plus(iscnLike);
-    const [iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash);
+    let iscnId;
+    const QUERY_RETRY_LIMIT = 6;
+    let tryCount = 0;
+    while (!iscnId && tryCount < QUERY_RETRY_LIMIT) {
+      /* eslint-disable no-await-in-loop */
+      ([iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash));
+      if (!iscnId) await sleep(2000);
+      tryCount += 1;
+      /* eslint-enable no-await-in-loop */
+    }
+    console.log(`ISCN ID: ${iscnId}`);
+
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'ISCNFreeRegister',
       txHash: iscnTxHash,
