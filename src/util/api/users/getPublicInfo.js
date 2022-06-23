@@ -44,9 +44,7 @@ export function formatUserCivicLikerProperies(id, data) {
 }
 
 export async function getUserWithCivicLikerProperties(id) {
-  const [userDoc] = await Promise.all([
-    dbRef.doc(id).get(),
-  ]);
+  const userDoc = await dbRef.doc(id).get();
   if (!userDoc.exists) return null;
 
   const data = userDoc.data();
