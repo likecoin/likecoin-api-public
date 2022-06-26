@@ -5,25 +5,19 @@ import { likeNFTCollection } from '../../util/firebase';
 import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
 import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
+import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
 
 router.get(
   '/mint',
-  async (req, res, next) => {
+  fetchISCNIdAndClassId,
+  async (_, res, next) => {
     try {
-      const { iscn_id: iscnId, class_id: classId } = req.query;
-      if (!iscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
-      let iscnNFTData;
-      if (!iscnId) {
-        const doc = await getISCNDocByClassId(classId);
-        iscnNFTData = doc.data();
-      } else {
-        const iscnPrefix = getISCNPrefixDocName(iscnId);
-        const likeNFTDoc = await likeNFTCollection.doc(iscnPrefix).get();
-        iscnNFTData = likeNFTDoc.data();
-      }
+      const { classId } = res.locals;
+      const doc = await getISCNDocByClassId(classId);
+      const iscnNFTData = doc.data();
       if (!iscnNFTData) {
         res.sendStatus(404);
         return;

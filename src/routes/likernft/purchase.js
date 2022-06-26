@@ -7,25 +7,17 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { getISCNIdByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft';
+import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 
 const router = Router();
 
 router.get(
   '/purchase',
-  async (req, res, next) => {
+  fetchISCNIdAndClassId,
+  async (_, res, next) => {
     try {
       try {
-        const { iscn_id: inputIscnId, class_id: inputClassId } = req.query;
-        if (!inputIscnId && !inputClassId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
-        let iscnId = inputIscnId;
-        let classId = inputClassId;
-        if (!iscnId) {
-          iscnId = await getISCNIdByClassId(inputClassId);
-        }
-        if (!classId) {
-          classId = await getCurrentClassIdByISCNId(inputIscnId);
-        }
+        const { iscnId, classId } = res.locals;
         const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId, classId);
         const gasFee = getGasPrice();
         res.json({
@@ -48,18 +40,12 @@ router.get(
 
 router.post(
   '/purchase',
+  fetchISCNIdAndClassId,
   async (req, res, next) => {
     try {
-      const { tx_hash: txHash, iscn_id: inputIscnId, class_id: inputClassId } = req.query;
-      if (!txHash || (!inputIscnId && !inputClassId)) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
-      let iscnId = inputIscnId;
-      let classId = inputClassId;
-      if (!iscnId) {
-        iscnId = await getISCNIdByClassId(inputClassId);
-      }
-      if (!classId) {
-        classId = await getCurrentClassIdByISCNId(inputIscnId);
-      }
+      const { tx_hash: txHash } = req.query;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
+      const { iscnId, classId } = res.locals;
       const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;

@@ -1,53 +1,22 @@
 import { Router } from 'express';
 import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection } from '../../util/firebase';
-import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
+import { getISCNDocByClassId } from '../../util/api/likernft';
 import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
-import {
-  getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId, getNFTOwner,
-} from '../../util/cosmos/nft';
+import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
+import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
 
 router.get(
   '/metadata',
-  async (req, res, next) => {
+  fetchISCNIdAndClassId,
+  async (_, res, next) => {
     try {
-      const {
-        iscn_id: inputIscnId,
-        class_id: inputClassId,
-        // nft_id: nftId, // not used since all nft in a class use same metadata
-      } = req.query;
-
-      let classId = inputClassId;
-      let classDocRef;
-      if (!classId && !inputIscnId) {
-        throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
-      }
-      let iscnId = inputIscnId;
-      if (iscnId) {
-        if (!classId) {
-          const iscnPrefix = getISCNPrefixDocName(iscnId);
-          const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
-          const iscnData = iscnDoc.data();
-          if (!iscnData || !iscnData.classId) {
-            res.status(404).send('ISCN_NFT_NOT_FOUND');
-            return;
-          }
-          ({ classId } = iscnData);
-          classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(iscnData.classId);
-        } else {
-          const iscnPrefix = getISCNPrefixDocName(iscnId);
-          classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId);
-        }
-      } else {
-        ({ iscnIdPrefix: iscnId } = await getISCNFromNFTClassId(classId));
-        const doc = await getISCNDocByClassId(classId);
-        classDocRef = doc.ref.collection('class').doc(classId);
-      }
+      const { classId, iscnId, iscnPrefix } = res.locals;
+      const classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId);
 
       const classDoc = await classDocRef.get();
       const classData = classDoc.data();
@@ -79,31 +48,10 @@ router.get(
 
 router.get(
   '/metadata/owners',
-  async (req, res, next) => {
+  fetchISCNIdAndClassId,
+  async (_, res, next) => {
     try {
-      const {
-        iscn_id: inputIscnId,
-        class_id: inputClassId,
-      } = req.query;
-
-      let classId = inputClassId;
-      let iscnId = inputIscnId;
-      if (!classId && !iscnId) {
-        throw new ValidationError('PLEASE_DEFINE_QUERY_ID');
-      }
-      if (!classId) {
-        const iscnPrefix = getISCNPrefixDocName(iscnId);
-        const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
-        const iscnData = iscnDoc.data();
-        if (!iscnData || !iscnData.classId) {
-          res.status(404).send('ISCN_NFT_NOT_FOUND');
-          return;
-        }
-        ({ classId } = iscnData);
-      } else {
-        ({ iscnIdPrefix: iscnId } = await getISCNFromNFTClassId(classId));
-      }
-      const iscnPrefix = getISCNPrefixDocName(iscnId);
+      const { classId, iscnPrefix } = res.locals;
       const nftQuery = await likeNFTCollection.doc(iscnPrefix)
         .collection('class').doc(classId)
         .collection('nft')
