@@ -9,6 +9,7 @@ import {
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
+  formatUserCivicLikerProperies,
 } from '../../util/api/users/getPublicInfo';
 
 const router = Router();
@@ -36,10 +37,18 @@ router.get('/id/:id/min', async (req, res, next) => {
 router.get('/addr/:addr/min', async (req, res, next) => {
   try {
     const { addr } = req.params;
+    const { type } = req.query;
+    let types = [];
+    if (type) {
+      types = type.split(',');
+    }
     if (!checkAddressValid(addr)) throw new ValidationError('Invalid address');
     const query = await dbRef.where('wallet', '==', addr).get();
     if (query.docs.length > 0) {
-      res.sendStatus(200);
+      res.set('Cache-Control', 'public, max-age=30');
+      const userDoc = query.docs[0];
+      const payload = formatUserCivicLikerProperies(userDoc.id, userDoc.data());
+      res.json(filterUserDataMin(payload, types));
     } else {
       res.sendStatus(404);
     }

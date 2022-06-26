@@ -572,6 +572,8 @@ test('USER: Get user by address min', async (t) => {
     .catch(err => err.response);
 
   t.is(res.status, 200);
+  t.is(res.data.wallet, testingWallet1);
+  t.not(res.data.email, testingEmail1);
 
   res = await axiosist.get('/api/users/addr/0xazdfsadf/min')
     .catch(err => err.response);
