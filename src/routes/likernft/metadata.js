@@ -3,13 +3,11 @@ import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNPrefixDocName, getNFTOwner } from '../../util/api/likernft/mint';
+import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
+import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
 import {
-  getLikerNFTDynamicData,
-  getDynamicNFTImage,
-  getISCNDocByClassId,
-} from '../../util/api/likernft/metadata';
-import { getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId } from '../../util/cosmos/nft';
+  getNFTISCNData, getNFTClassDataById, getISCNFromNFTClassId, getNFTOwner,
+} from '../../util/cosmos/nft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();

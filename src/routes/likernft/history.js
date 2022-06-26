@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { likeNFTCollection } from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
-import { getISCNPrefixDocName } from '../../util/api/likernft/mint';
-import { getISCNDocByClassId } from '../../util/api/likernft/metadata';
+import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
 
 const router = Router();
 

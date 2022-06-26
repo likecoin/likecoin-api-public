@@ -16,7 +16,7 @@ import {
   LIKER_NFT_GAS_FEE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
-import { getISCNPrefixDocName } from './mint';
+import { getISCNPrefixDocName } from '.';
 
 const SELLER_RATIO = 0.8;
 const STAKEHOLDERS_RATIO = 0.2;
@@ -199,7 +199,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
       address,
       txMessages,
       fee,
-      'nft api',
+      'like.co NFT API',
       {
         accountNumber,
         sequence,

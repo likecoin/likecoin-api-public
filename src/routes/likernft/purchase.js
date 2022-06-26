@@ -7,7 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { getISCNIdByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft/metadata';
+import { getISCNIdByClassId, getCurrentClassIdByISCNId } from '../../util/api/likernft';
 
 const router = Router();
 

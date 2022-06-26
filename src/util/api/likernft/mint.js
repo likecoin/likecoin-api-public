@@ -1,7 +1,6 @@
-import { parseTxInfoFromIndexedTx, parseNFTClassDataFields } from '@likecoin/iscn-js/dist/messages/parsing';
-import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
+import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { getISCNPrefixDocName } from '.';
 import { db, likeNFTCollection } from '../../firebase';
-import { getISCNPrefix } from '../../cosmos/iscn';
 import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import {
@@ -10,50 +9,7 @@ import {
   LIKECOIN_DARK_GREEN_THEME_COLOR,
 } from '../../../constant';
 
-export function getISCNPrefixDocName(iscnId) {
-  const prefix = getISCNPrefix(iscnId);
-  return encodeURIComponent(prefix);
-}
-
-export async function getNFTClassByClassId(classId) {
-  const c = await getNFTQueryClient();
-  const client = await c.getQueryClient();
-  const res = await client.nft.class(classId);
-  return parseNFTClassDataFields(res);
-}
-
-export async function getNFTsByClassId(classId, address = LIKER_NFT_TARGET_ADDRESS) {
-  const c = await getNFTQueryClient();
-  const client = await c.getQueryClient();
-  let nfts = [];
-  let next = new Uint8Array([0x00]);
-  do {
-    /* eslint-disable no-await-in-loop */
-    const res = await client.nft.NFTs(classId, address, PageRequest.fromPartial({ key: next }));
-    ({ nextKey: next } = res.pagination);
-    nfts = nfts.concat(res.nfts);
-  } while (next && next.length);
-  const nftIds = nfts.map(n => n.id);
-  return { nftIds, nfts };
-}
-
-export async function getNFTClassIdByISCNId(iscnId) {
-  const iscnPrefix = getISCNPrefix(iscnId);
-  const c = await getNFTQueryClient();
-  const client = await c.getQueryClient();
-  const res = await client.likenft.classesByISCN(iscnPrefix);
-  if (!res || !res.classes || !res.classes[0]) return '';
-  return res.classes[0].id;
-}
-
-export async function getNFTOwner(classId, nftId) {
-  const c = await getNFTQueryClient();
-  const client = await c.getQueryClient();
-  const res = await client.nft.owner(classId, nftId);
-  return res.owner;
-}
-
-export async function parseNFTInformationFromTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
+export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
@@ -139,6 +95,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       },
     );
     if (i % 500 === 0) {
+      // eslint-disable-next-line no-await-in-loop
       await batch.commit();
       batch = db.batch();
     }

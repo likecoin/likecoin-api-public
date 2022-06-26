@@ -2,14 +2,10 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
-import {
-  getISCNPrefixDocName,
-  parseNFTInformationFromTxHash,
-  getNFTsByClassId,
-  getNFTClassIdByISCNId,
-  writeMintedNFTInfo,
-} from '../../util/api/likernft/mint';
-import { getISCNDocByClassId } from '../../util/api/likernft/metadata';
+import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
+import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
+import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
+import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
 
@@ -60,7 +56,7 @@ router.post(
       let classId = inputClassId;
       let sellerWallet;
       if (txHash) {
-        const info = await parseNFTInformationFromTxHash(txHash);
+        const info = await parseNFTInformationFromSendTxHash(txHash);
         if (info) {
           const {
             classId: resClassId,
@@ -77,7 +73,7 @@ router.post(
       if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
       const {
         nfts,
-      } = await getNFTsByClassId(classId);
+      } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS);
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
       await writeMintedNFTInfo(iscnId, {
