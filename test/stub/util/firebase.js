@@ -16,6 +16,7 @@ const userData = require('../../test/data/user.json').users;
 const subscriptionData = require('../../test/data/subscription.json').subscriptions;
 const txData = require('../../test/data/tx.json').tx;
 const missionData = require('../../test/data/mission.json').missions;
+const likerNftData = require('../../test/data/likernft.json').likernft;
 
 const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
 
@@ -191,6 +192,7 @@ export const missionCollection = createCollection(missionData);
 export const couponCollection = createCollection([]);
 export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
+export const likeNFTCollection = createCollection(likerNftData);
 
 function runTransaction(updateFunc) {
   return updateFunc({

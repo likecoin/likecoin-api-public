@@ -22,7 +22,8 @@ router.get(
         res.sendStatus(404);
         return;
       }
-      res.json(filterLikeNFTISCNData(iscnNFTData));
+      const iscnId = decodeURIComponent(doc.id);
+      res.json(filterLikeNFTISCNData({ iscnId, ...doc.data() }));
     } catch (err) {
       next(err);
     }
