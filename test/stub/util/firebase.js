@@ -70,6 +70,7 @@ function querySnapshotDocs(data, originalData) {
         create: (setData, config) => docSet(database, d.id, setData, config),
         update: updateData => docUpdate(database, d.id, d, updateData),
         delete: () => docDelete(database, { id: d.id }),
+        collection: id => createCollection(d.collection[id]),
       },
       data: () => docData(d),
       exists: true,
@@ -96,6 +97,8 @@ function collectionWhere(data, field, op, value) {
     whereData = data.filter(d => d[field] >= value);
   } else if (op === '<=') {
     whereData = data.filter(d => d[field] <= value);
+  } else if (op === '!=') {
+    whereData = data.filter(d => d[field] !== value);
   } else {
     console.error(`operator ${op} is not supported`);
   }
