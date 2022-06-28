@@ -7,6 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
+import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 
 const router = Router();
@@ -26,7 +27,7 @@ router.get(
           totalPrice: price + gasFee,
           metadata: filterLikeNFTISCNData({
             ...info,
-            iscnId,
+            iscnId: getISCNPrefix(iscnId),
           }),
         });
       } catch (err) {
@@ -44,7 +45,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { tx_hash: txHash } = req.query;
-      if (!txHash) throw new ValidationError('MISSING_TX_HASH_OR_ISCN_ID');
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const { iscnId, classId } = res.locals;
       const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
       const gasFee = getGasPrice();
@@ -64,7 +65,7 @@ router.post(
       } = await processNFTPurchase(likeWallet, iscnId, classId);
       res.json({
         txHash: transactionHash,
-        iscnId,
+        iscnId: getISCNPrefix(iscnId),
         classId,
         nftId,
         nftPrice: actualNftPrice,

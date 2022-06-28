@@ -27,6 +27,14 @@
                                     "price": 1,
                                     "sellerWallet": "like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42",
                                     "uri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-00027b31-b5a7-429b-84c8-b25a2e45c173"
+                                }, {
+                                    "id": "liker-0030e3e2-f5f9-40c7-8649-833e61a9bc35",
+                                    "classId": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+                                    "isSold": false,
+                                    "price": 0,
+                                    "sellerWallet": "like1jnns8ttx8nhxleatsgwnrcandgw7a8sx24nc78",
+                                    "soldCount": 1,
+                                    "uri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-0030e3e2-f5f9-40c7-8649-833e61a9bc35"
                                 }
                             ]
                         },

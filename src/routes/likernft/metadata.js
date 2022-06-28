@@ -6,6 +6,7 @@ import { getISCNDocByClassId } from '../../util/api/likernft';
 import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
@@ -33,7 +34,7 @@ router.get(
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
-        iscnId,
+        iscnId: getISCNPrefix(iscnId),
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,
         ...(classData.metadata || {}),

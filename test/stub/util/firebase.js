@@ -92,12 +92,18 @@ function collectionWhere(data, field, op, value) {
     }
   } else if (op === 'array-contains') {
     whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
+  } else if (op === '>=') {
+    whereData = data.filter(d => d[field] >= value);
+  } else if (op === '<=') {
+    whereData = data.filter(d => d[field] <= value);
+  } else {
+    console.error(`operator ${op} is not supported`);
   }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField, sOp, sValue) => collectionWhere(whereData, sField, sOp, sValue),
     orderBy: (sField, order = 'asc') => {
-      if (sField in data[0] && (order === 'asc' || order === 'desc')) {
+      if (!data[0] || (sField in data[0] && (order === 'asc' || order === 'desc'))) {
         return queryObj;
       }
       throw new Error('orderBy is incorrect.');

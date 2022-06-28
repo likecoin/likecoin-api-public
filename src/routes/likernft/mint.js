@@ -6,6 +6,7 @@ import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../uti
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
 import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 
 const router = Router();
@@ -79,7 +80,7 @@ router.post(
 
       res.json({
         classId,
-        iscnId,
+        iscnId: getISCNPrefix(iscnId),
         nftCount: nfts.length,
         sellerWallet,
       });
