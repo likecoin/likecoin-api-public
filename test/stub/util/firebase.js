@@ -99,7 +99,7 @@ function collectionWhere(data, field, op, value) {
     whereData = data.filter(d => d[field] <= value);
   } else if (op === '!=') {
     whereData = data.filter(d => d[field] !== value);
-  } else {
+  } else if (op) {
     console.error(`operator ${op} is not supported`);
   }
   const docs = querySnapshotDocs(whereData, data);
@@ -192,6 +192,13 @@ function createCollection(data) {
   };
 }
 
+const dbData = [
+  userData,
+  subscriptionData,
+  txData,
+  missionData,
+  likerNftData,
+];
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
 export const subscriptionUserCollection = createCollection(subscriptionData);
@@ -229,6 +236,22 @@ function createDb() {
       update: (ref, data) => ref.update(data),
       commit: () => {},
     }),
+    collectionGroup: (group) => {
+      let data = [];
+      dbData.forEach((root) => {
+        root.forEach((d) => {
+          if (d.collection) {
+            if (d.collection[group]) data = data.concat(d.collection[group]);
+            Object.values(d.collection).forEach((c) => {
+              c.forEach((cd) => {
+                if (cd.collection && cd.collection[group]) data = data.concat(cd.collection[group]);
+              });
+            });
+          }
+        });
+      });
+      return collectionWhere(data);
+    },
   };
 }
 
