@@ -3,6 +3,7 @@ import { getISCNPrefixDocName } from '.';
 import { db, likeNFTCollection } from '../../firebase';
 import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
 import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
+import { getNFTBatchInfo } from './purchase';
 import {
   AVATAR_DEFAULT_PATH,
   APP_LIKE_CO_ISCN_VIEW_URL,
@@ -42,12 +43,15 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
     totalCount,
     uri = '',
   } = classData;
+  const { price, count } = getNFTBatchInfo(1);
   await Promise.all([
     likeNFTCollection.doc(iscnPrefix).create({
       classId,
       classes: [classId],
       totalCount,
-      currentPrice: LIKER_NFT_STARTING_PRICE,
+      currentPrice: price,
+      currentBatch: 1,
+      batchRemainingCount: count,
       basePrice: LIKER_NFT_STARTING_PRICE,
       soldCount: 0,
       classUri: uri,

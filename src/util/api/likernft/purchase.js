@@ -12,8 +12,12 @@ import {
   NFT_COSMOS_DENOM,
   NFT_CHAIN_ID,
   LIKER_NFT_TARGET_ADDRESS,
-  LIKER_NFT_PRICE_MULTIPLY,
   LIKER_NFT_GAS_FEE,
+  LIKER_NFT_STARTING_PRICE,
+  LIKER_NFT_PRICE_MULTIPLY,
+  LIKER_NFT_PRICE_DECAY,
+  LIKER_NFT_DECAY_START_BATCH,
+  LIKER_NFT_DECAY_END_BATCH,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
@@ -66,6 +70,25 @@ export async function getLatestNFTPriceAndInfo(iscnId, classId) {
 
 export function getGasPrice() {
   return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+}
+
+export function getNFTBatchInfo(batchNumber) {
+  const count = batchNumber + 1;
+  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
+  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
+  const decayMultiplier = Math.min(
+    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
+    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
+  );
+  let lastPrice = price;
+  for (let i = 1; i <= decayMultiplier; i += 1) {
+    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
+    lastPrice = price;
+  }
+  return {
+    price,
+    count,
+  };
 }
 
 export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_NFT_TARGET_ADDRESS) {
@@ -222,12 +245,30 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
     await db.runTransaction(async (t) => {
       const doc = await t.get(likeNFTCollection.doc(iscnPrefix));
       const docData = doc.data();
-      const { isProcessing, currentPrice: dbCurrentPrice } = docData;
+      const {
+        isProcessing,
+        currentPrice: dbCurrentPrice,
+        currentBatch: dbCurrentBatch,
+        batchRemainingCount: dbBatchRemainingCount,
+      } = docData;
       if (isProcessing) {
         const fromWallet = LIKER_NFT_TARGET_ADDRESS;
         const toWallet = likeWallet;
+        let currentBatch = dbCurrentBatch;
+        let batchRemainingCount = dbBatchRemainingCount;
+        let newPrice = dbCurrentPrice;
+        if (isFirstSale) {
+          batchRemainingCount -= 1;
+          const isNewBatch = batchRemainingCount <= 0;
+          if (isNewBatch) {
+            currentBatch = dbCurrentBatch + 1;
+            ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(currentBatch));
+          }
+        }
         t.update(likeNFTCollection.doc(iscnPrefix), {
-          currentPrice: nftItemPrice ? dbCurrentPrice : dbCurrentPrice * LIKER_NFT_PRICE_MULTIPLY,
+          currentPrice: newPrice,
+          currentBatch,
+          batchRemainingCount,
           isProcessing: false,
           soldCount: FieldValue.increment(1),
           lastSoldTimestamp: timestamp,
