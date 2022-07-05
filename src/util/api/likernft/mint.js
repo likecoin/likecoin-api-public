@@ -92,6 +92,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
         price: 0,
         soldCount: 0,
         isSold: false,
+        isProcessing: false,
         classId,
         sellerWallet,
         ownerWallet: LIKER_NFT_TARGET_ADDRESS,
