@@ -57,6 +57,7 @@ export async function getLatestNFTPriceAndInfo(iscnId, classId) {
     currentPrice,
   } = nftDocData;
   // nft has defined price
+  if (!nftData) throw new ValidationError('NFT_SOLD_OUT');
   if (nftData.price) {
     ({ price } = nftData);
   } else {
