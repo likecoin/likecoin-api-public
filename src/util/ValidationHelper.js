@@ -111,7 +111,7 @@ export function filterUserDataMin(userObject, types = []) {
     isCivicLikerTrial,
     isSubscribedCivicLiker,
     civicLikerSince,
-    description: description || '',
+    description,
   };
   if (types.includes('payment')) {
     output.paymentRedirectWhiteList = userObject.paymentRedirectWhiteList;
