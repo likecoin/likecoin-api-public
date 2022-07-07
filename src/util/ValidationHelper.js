@@ -99,6 +99,7 @@ export function filterUserDataMin(userObject, types = []) {
     isSubscribedCivicLiker,
     isCivicLikerTrial,
     civicLikerSince,
+    description,
   } = userObject;
   const output = {
     user,
@@ -110,6 +111,7 @@ export function filterUserDataMin(userObject, types = []) {
     isCivicLikerTrial,
     isSubscribedCivicLiker,
     civicLikerSince,
+    description: description || '',
   };
   if (types.includes('payment')) {
     output.paymentRedirectWhiteList = userObject.paymentRedirectWhiteList;
