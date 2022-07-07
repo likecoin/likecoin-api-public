@@ -43,16 +43,17 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
     totalCount,
     uri = '',
   } = classData;
-  const { price, count } = getNFTBatchInfo(1);
+  const currentBatch = 0;
+  const { price, count } = getNFTBatchInfo(currentBatch);
   await Promise.all([
     likeNFTCollection.doc(iscnPrefix).create({
       classId,
       classes: [classId],
       totalCount,
       currentPrice: price,
-      currentBatch: 1,
+      currentBatch,
       batchRemainingCount: count,
-      basePrice: LIKER_NFT_STARTING_PRICE,
+      basePrice: price,
       soldCount: 0,
       classUri: uri,
       creatorWallet: sellerWallet,
