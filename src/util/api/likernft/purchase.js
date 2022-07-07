@@ -125,6 +125,10 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const { amount } = limit;
   const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
   if (amountInLIKE.lt(totalPrice)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
+
+  const balance = await q.getBalance(granter, NFT_COSMOS_DENOM);
+  const balanceAmountInLIKE = new BigNumber(balance.amount || 0).shiftedBy(-9);
+  if (balanceAmountInLIKE.lt(totalPrice)) throw new ValidationError('GRANTER_AMOUNT_NOT_ENOUGH');
   return {
     granter,
     spendLimit: amountInLIKE.toNumber(),
