@@ -24,6 +24,7 @@ import { getISCNPrefixDocName } from '.';
 
 const SELLER_RATIO = 0.8;
 const STAKEHOLDERS_RATIO = 0.2;
+const EXPIRATION_BUFFER_TIME = 10000;
 
 export async function getLowerestUnsoldNFT(iscnId, classId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -110,7 +111,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
   const { granter, grant } = message.value;
   const { authorization, expiration } = grant;
-  if (Date.now() > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
+  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
   const qs = await client.getQueryClient();
   try {
     const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
