@@ -42,7 +42,7 @@ router.get(
         classIdSet.add(doc.data().classId);
       });
       createdClassesQuery.docs.forEach((doc) => {
-        classIdSet.add(doc.id);
+        classIdSet.add(doc.data().classId);
       });
       res.json({
         list: Array.from(classIdSet),
