@@ -285,14 +285,16 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       let batchRemainingCount = dbBatchRemainingCount;
       let newPrice = dbCurrentPrice;
       let processingCount = dbProcessingCount;
-      if (isFirstSale) {
+      if (dbCurrentBatch === currentBatch) {
         processingCount = FieldValue.increment(-1);
-        batchRemainingCount -= 1;
-        const isNewBatch = batchRemainingCount <= 0;
-        if (isNewBatch) {
-          processingCount = 0;
-          updatedBatch = dbCurrentBatch + 1;
-          ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+        if (isFirstSale) {
+          batchRemainingCount -= 1;
+          const isNewBatch = batchRemainingCount <= 0;
+          if (isNewBatch) {
+            processingCount = 0;
+            updatedBatch = dbCurrentBatch + 1;
+            ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+          }
         }
       }
       t.update(iscnRef, {
