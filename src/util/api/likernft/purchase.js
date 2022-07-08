@@ -55,17 +55,20 @@ export async function getLatestNFTPriceAndInfo(iscnId, classId) {
   let price = -1;
   const {
     currentPrice,
+    lastSoldPrice,
   } = nftDocData;
-  // nft has defined price
-  if (!nftData) throw new ValidationError('NFT_SOLD_OUT');
-  if (nftData.price) {
-    ({ price } = nftData);
-  } else {
-    // use current price for 0/undefined price nft
-    price = currentPrice;
+  if (nftData) {
+    // nft has defined price
+    if (nftData.price) {
+      ({ price } = nftData);
+    } else {
+      // use current price for 0/undefined price nft
+      price = currentPrice;
+    }
   }
   return {
     ...nftDocData,
+    lastSoldPrice: lastSoldPrice || currentPrice,
     price,
   };
 }
@@ -293,6 +296,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
         batchRemainingCount,
         processingCount,
         soldCount: FieldValue.increment(1),
+        lastSoldPrice: nftPrice,
         lastSoldTimestamp: timestamp,
       });
       t.update(classRef, {
