@@ -2,7 +2,7 @@ import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsin
 import { getISCNPrefixDocName } from '.';
 import { db, likeNFTCollection } from '../../firebase';
 import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
-import { LIKER_NFT_STARTING_PRICE, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
+import { LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import { getNFTBatchInfo } from './purchase';
 import {
   AVATAR_DEFAULT_PATH,
