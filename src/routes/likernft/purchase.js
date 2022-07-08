@@ -58,13 +58,14 @@ router.post(
       }
       const {
         granter: likeWallet,
+        spendLimit: grantedAmount,
       } = result;
       const {
         transactionHash,
         nftId,
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
-      } = await processNFTPurchase(likeWallet, iscnId, classId);
+      } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount);
       res.json({
         txHash: transactionHash,
         iscnId: getISCNPrefix(iscnId),

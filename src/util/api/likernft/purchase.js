@@ -138,7 +138,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnId, classId) {
+export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmount) {
   const iscnData = await getNFTISCNData(iscnId);
   if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -173,6 +173,9 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
     } = docData;
     if (processingCount >= batchRemainingCount) {
       throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+    }
+    if (price > grantedAmount) {
+      throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
     }
     t.update(iscnRef, { processingCount: FieldValue.increment(1) });
     t.update(nftRef, { isProcessing: true });
@@ -262,7 +265,8 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
       console.error(err);
       throw new ValidationError(err);
     }
-    const { transactionHash } = res;
+    const { transactionHash, code } = res;
+    if (code !== 0) throw new ValidationError('TX_NOT_SUCCESS');
     const timestamp = Date.now();
     // update price and unlock
     await db.runTransaction(async (t) => {
@@ -296,6 +300,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
         batchRemainingCount,
         processingCount,
         soldCount: FieldValue.increment(1),
+        nftRemainingCount: FieldValue.increment(-1),
         lastSoldPrice: nftPrice,
         lastSoldTimestamp: timestamp,
       });

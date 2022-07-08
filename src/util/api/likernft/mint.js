@@ -50,6 +50,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       classId,
       classes: [classId],
       totalCount,
+      nftRemainingCount: nfts.length,
       currentPrice: price,
       currentBatch,
       batchRemainingCount: count,
@@ -57,7 +58,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       soldCount: 0,
       classUri: uri,
       creatorWallet: sellerWallet,
-      isProcessing: false,
+      procrssingCount: 0,
       timestamp,
     }),
     likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
