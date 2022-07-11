@@ -8,6 +8,7 @@ import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cos
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
+import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
 
@@ -27,10 +28,13 @@ router.get(
       }
 
       const [{ owner: iscnOwner, data: iscnData }, chainData, dynamicData] = await Promise.all([
-        getNFTISCNData(iscnId),
-        getNFTClassDataById(classId),
-        getLikerNFTDynamicData(classId, classData),
+        getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
+        getNFTClassDataById(classId).catch(err => console.error(err)),
+        getLikerNFTDynamicData(classId, classData).catch(err => console.error(err)),
       ]);
+      if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
+      if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
+      if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
