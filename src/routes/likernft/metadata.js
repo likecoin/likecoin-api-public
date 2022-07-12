@@ -88,6 +88,8 @@ router.get(
       const doc = await getISCNDocByClassId(classId);
       const classDocRef = await doc.ref.collection('class').doc(classId).get();
       const classData = classDocRef.data();
+      // TODO: remove if no use
+      // To get ISCN data from nft col:
       // const iscnRef = queryRef.parent.parent;
       // const iscnDocRef = iscnDataRef.get();
       // const iscnData = await iscnDocRef();
