@@ -43,8 +43,8 @@ router.get(
         { data: mintData },
         { data: sendData },
       ] = await Promise.all([
-        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.EventNewClass.class_id=%27%22${classId}%22%27`),
-        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.EventMintNFT.class_id=%27%22${classId}%22%27`),
+        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.v1.EventNewClass.class_id=%27%22${classId}%22%27`),
+        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.v1.EventMintNFT.class_id=%27%22${classId}%22%27`),
         axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=cosmos.nft.v1beta1.EventSend.class_id=%27%22${classId}%22%27`),
       ]);
       let list = [];
