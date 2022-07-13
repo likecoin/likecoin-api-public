@@ -88,4 +88,6 @@ config.APP_SERVER = 'likecoin-api-pulic';
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
 
+config.API_EXTERNAL_HOSTNAME = 'https://api.rinkeby.like.co';
+
 module.exports = config;

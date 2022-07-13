@@ -4,14 +4,14 @@ import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNIdByClassId } from '../../util/api/likernft';
-import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
+import {
+  getLikerNFTDynamicData, getImageStream, getMaskedNFTImage, delay,
+} from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
-import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
+import { LIKER_NFT_TARGET_ADDRESS, API_EXTERNAL_HOSTNAME } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
-
-const querystring = require('querystring');
 
 const router = Router();
 
@@ -29,7 +29,6 @@ router.get(
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
       }
-      console.log(iscnId);
       const [{ owner: iscnOwner, data: iscnData }, chainData, dynamicData] = await Promise.all([
         getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
         getNFTClassDataById(classId).catch(err => console.error(err)),
@@ -83,31 +82,34 @@ router.get(
   },
 );
 
+let maskedNFTImage;
 router.get(
   '/metadata/image/class_(:classId)(.png)?',
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      // const doc = await getISCNDocByClassId(classId);
-      // const classDocRef = await doc.ref.collection('class').doc(classId).get();
-      // const classData = classDocRef.data();
       const iscnId = await getISCNIdByClassId(classId);
-      const iscnData = await iscnInfoCollection.doc(querystring.escape(iscnId)).get();
-      // let image
-      let dynamicData;
-      if (!iscnData) {
+      let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
+      maskedNFTImage = await getMaskedNFTImage();
+      let imageStream;
+      if (!iscnData.exists) {
         await axios.post(
-          'https://api.rinkeby.like.co/like/info',
+          `${API_EXTERNAL_HOSTNAME}/like/info`,
           { iscnId },
         );
-        // await getDynamicNFTImage;
-      } else {
+        await delay(5);
+        iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
+        if (!iscnData.exists) {
+          imageStream = await getImageStream('', '', '');
+        }
+      }
+      if (iscnData.exists) {
         const { image, title } = iscnData.data();
-        console.log(image);
-        dynamicData = await getDynamicNFTImage('', title);
+        imageStream = await getImageStream(image, title, 'black');
       }
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.type('png').send(dynamicData);
+      imageStream.pipe(maskedNFTImage).pipe(res);
+      return;
     } catch (err) {
       next(err);
     }

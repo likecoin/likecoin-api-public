@@ -1,54 +1,64 @@
 import path from 'path';
-import sharp from 'sharp';
 import axios from 'axios';
+import sharp from 'sharp';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
-const Text2SVG = require('text-to-svg');
-
-async function pasteText(
-  text, fontSize, color,
-) {
-  const text2SVG = Text2SVG.loadSync();
-  const attributes = { fill: color };
-  const options = {
-    fontSize,
-    anchor: 'top',
-    attributes,
-  };
-  const svg = Buffer.from(text2SVG.getSVG(text, options));
-  return svg;
+async function addTextOnImage(text, color) {
+  const width = 512;
+  const height = 512;
+  const svgImage = `
+    <svg width="${width}" height="${height}">
+      <style>
+      .title { fill: ${color}; font-size: 100px; font-weight: bold;}
+      </style>
+      <text x="50%" y="50%" text-anchor="middle" class="title">${text}</text>
+    </svg>
+    `;
+  const svgBuffer = Buffer.from(svgImage);
+  const a = await sharp(svgBuffer)
+    .png();
+  return a;
 }
 
 async function getImageMask() {
   const imgPath = path.join(__dirname, '../../../assets/iscn.png');
   const maskData = await sharp(imgPath)
-    .resize(300, 300)
+    .resize({
+      width: 512,
+      height: 512,
+    })
     .toBuffer();
   return maskData;
 }
 
-async function getMaskedNFTImage(imageData) {
-  // TODO: use pipe
-  const mask = await getImageMask();
-  const combinedData = await sharp(imageData)
-    .flatten({ background: 'blue' })
+let mask;
+export async function getMaskedNFTImage() {
+  mask = await getImageMask();
+  const combinedData = await sharp()
     .resize({
       fit: sharp.fit.contain,
       width: 512,
       height: 512,
+      background: 'white', // image white borders
     })
     .ensureAlpha()
-    .composite([{
-      input: mask,
-      gravity: 'south',
-    }])
-    .toBuffer();
+    .composite([{ input: mask }])
+    .png();
   return combinedData;
 }
 
-export async function getDynamicNFTImage(image, title) {
-  const imageData = image ? await axios.get(image, { responseType: 'arraybuffer' }).data : await pasteText(title, 1000, 'black');
-  return getMaskedNFTImage(imageData);
+export async function getImageStream(image, title, color) {
+  const randomHex = Math.floor(Math.random() * 16777215).toString(16);
+  const ogImageUrl = `https://singlecolorimage.com/get/${randomHex}/512x512`;
+  let imageStream;
+  if (image) {
+    imageStream = (await axios({ method: 'get', url: image, responseType: 'stream' })).data;
+  } else if (title) {
+    imageStream = await addTextOnImage(title, color);
+  } else {
+    imageStream = (await axios({ method: 'get', url: ogImageUrl, responseType: 'stream' })).data;
+  }
+  return imageStream;
 }
 
 export async function getDynamicBackgroundColor(soldCount) {
@@ -64,13 +74,16 @@ export async function getDynamicBackgroundColor(soldCount) {
 }
 
 export async function getLikerNFTDynamicData(classId, classData) {
-  console.log(4);
-
   const { soldCount } = classData;
   const backgroundColor = await getDynamicBackgroundColor(soldCount);
-  console.log(4);
   return {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
   };
+}
+
+export function delay(n) {
+  return new Promise(((resolve) => {
+    setTimeout(resolve, n * 1000);
+  }));
 }
