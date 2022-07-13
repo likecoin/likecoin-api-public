@@ -12,6 +12,7 @@ export const {
   email: testingEmail1,
   wallet: testingWallet1,
   cosmosWallet: testingCosmosWallet1,
+  likeWallet: testingLikeWallet1,
   locale: testingUser1Locale,
   creatorPitch: testingUser1CreatorPitch,
 } = userData.users[0];
@@ -26,6 +27,8 @@ export const {
 } = userData.users[1];
 export const invalidWallet = '4b25758E41f9240C8EB8831cEc7F1a02686387fa';
 export const testingWallet3 = '0x9113EC0624802E6BB2b13d7e123C91Aa5D130314'; // wallet that is not used
+export const testingCosmosWallet3 = 'cosmos154xjc0r3770jahjnjs46qrdtezqm9htplr0cjl'; // wallet that is not used
+export const testingLikeWallet3 = 'like154xjc0r3770jahjnjs46qrdtezqm9htpvln63y'; // wallet that is not used
 export const {
   id: testingUser4,
   wallet: testingWallet4,

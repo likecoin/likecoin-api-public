@@ -5,6 +5,7 @@ import {
 import { ValidationError } from '../../util/ValidationError';
 import {
   checkAddressValid,
+  checkCosmosAddressValid,
   filterUserDataMin,
 } from '../../util/ValidationHelper';
 import {
@@ -42,8 +43,17 @@ router.get('/addr/:addr/min', async (req, res, next) => {
     if (type) {
       types = type.split(',');
     }
-    if (!checkAddressValid(addr)) throw new ValidationError('Invalid address');
-    const query = await dbRef.where('wallet', '==', addr).get();
+    let field;
+    if (checkAddressValid(addr)) {
+      field = 'wallet';
+    } else if (checkCosmosAddressValid(addr, 'like')) {
+      field = 'likeWallet';
+    } else if (checkCosmosAddressValid(addr, 'cosmos')) {
+      field = 'cosmosWallet';
+    } else {
+      throw new ValidationError('Invalid address');
+    }
+    const query = await dbRef.where(field, '==', addr).limit(1).get();
     if (query.docs.length > 0) {
       res.set('Cache-Control', 'public, max-age=30');
       const userDoc = query.docs[0];
