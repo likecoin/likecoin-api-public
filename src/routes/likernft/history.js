@@ -43,15 +43,17 @@ router.get(
         { data: mintData },
         { data: sendData },
       ] = await Promise.all([
-        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.EventNewClass.class_id=%27%22${classId}%22%27`),
-        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.EventMintNFT.class_id=%27%22${classId}%22%27`),
+        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.v1.EventNewClass.class_id=%27%22${classId}%22%27`),
+        axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.v1.EventMintNFT.class_id=%27%22${classId}%22%27`),
         axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=cosmos.nft.v1beta1.EventSend.class_id=%27%22${classId}%22%27`),
       ]);
-      const list = [];
-      list.concat(newClassData.tx_responses || []);
-      list.concat(mintData.tx_responses || []);
-      list.concat(sendData.tx_responses || []);
-      list.map((d) => {
+      let list = [];
+      list = list.concat(newClassData.tx_responses || []);
+      let set = new Set(list.map(t => t.txhash));
+      list = list.concat((mintData.tx_responses || []).filter(t => !set.has(t.txhash)));
+      set = new Set(list.map(t => t.txhash));
+      list = list.concat((sendData.tx_responses || []).filter(t => !set.has(t.txhash)));
+      list = list.map((d) => {
         const {
           height,
           txhash,

@@ -35,6 +35,7 @@ router.get(
         db.collectionGroup('nft')
           .where('sellerWallet', '==', wallet)
           .where('soldCount', '>=', 0).get(),
+        // TODO: what if iscn owner changed?
         likeNFTCollection.where('creatorWallet', '==', wallet).get(),
       ]);
       const classIdSet = new Set();
@@ -42,7 +43,7 @@ router.get(
         classIdSet.add(doc.data().classId);
       });
       createdClassesQuery.docs.forEach((doc) => {
-        classIdSet.add(doc.id);
+        classIdSet.add(doc.data().classId);
       });
       res.json({
         list: Array.from(classIdSet),

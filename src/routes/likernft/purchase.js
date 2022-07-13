@@ -19,12 +19,13 @@ router.get(
     try {
       try {
         const { iscnId, classId } = res.locals;
-        const { price, ...info } = await getLatestNFTPriceAndInfo(iscnId, classId);
+        const { price, lastSoldPrice, ...info } = await getLatestNFTPriceAndInfo(iscnId, classId);
         const gasFee = getGasPrice();
         res.json({
           price,
           gasFee,
           totalPrice: price + gasFee,
+          lastSoldPrice,
           metadata: filterLikeNFTISCNData({
             ...info,
             iscnId: getISCNPrefix(iscnId),
@@ -48,6 +49,7 @@ router.post(
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const { iscnId, classId } = res.locals;
       const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
+      if (nftPrice <= 0) throw new ValidationError('NFT_SOLD_OUT');
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
       const result = await checkTxGrantAndAmount(txHash, totalPrice);
@@ -56,13 +58,14 @@ router.post(
       }
       const {
         granter: likeWallet,
+        spendLimit: grantedAmount,
       } = result;
       const {
         transactionHash,
         nftId,
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
-      } = await processNFTPurchase(likeWallet, iscnId, classId);
+      } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount);
       res.json({
         txHash: transactionHash,
         iscnId: getISCNPrefix(iscnId),

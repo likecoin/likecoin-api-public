@@ -24,6 +24,7 @@ import { getISCNPrefixDocName } from '.';
 
 const SELLER_RATIO = 0.8;
 const STAKEHOLDERS_RATIO = 0.2;
+const EXPIRATION_BUFFER_TIME = 10000;
 
 export async function getLowerestUnsoldNFT(iscnId, classId) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -55,17 +56,20 @@ export async function getLatestNFTPriceAndInfo(iscnId, classId) {
   let price = -1;
   const {
     currentPrice,
+    lastSoldPrice,
   } = nftDocData;
-  // nft has defined price
-  if (!nftData) throw new ValidationError('NFT_SOLD_OUT');
-  if (nftData.price) {
-    ({ price } = nftData);
-  } else {
-    // use current price for 0/undefined price nft
-    price = currentPrice;
+  if (nftData) {
+    // nft has defined price
+    if (nftData.price) {
+      ({ price } = nftData);
+    } else {
+      // use current price for 0/undefined price nft
+      price = currentPrice;
+    }
   }
   return {
     ...nftDocData,
+    lastSoldPrice: lastSoldPrice || currentPrice,
     price,
   };
 }
@@ -107,7 +111,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
   const { granter, grant } = message.value;
   const { authorization, expiration } = grant;
-  if (Date.now() > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
+  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
   const qs = await client.getQueryClient();
   try {
     const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
@@ -125,13 +129,17 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const { amount } = limit;
   const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
   if (amountInLIKE.lt(totalPrice)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
+
+  const balance = await q.getBalance(granter, NFT_COSMOS_DENOM);
+  const balanceAmountInLIKE = new BigNumber(balance.amount || 0).shiftedBy(-9);
+  if (balanceAmountInLIKE.lt(totalPrice)) throw new ValidationError('GRANTER_AMOUNT_NOT_ENOUGH');
   return {
     granter,
     spendLimit: amountInLIKE.toNumber(),
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnId, classId) {
+export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmount) {
   const iscnData = await getNFTISCNData(iscnId);
   if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -166,6 +174,9 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
     } = docData;
     if (processingCount >= batchRemainingCount) {
       throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+    }
+    if (price > grantedAmount) {
+      throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
     }
     t.update(iscnRef, { processingCount: FieldValue.increment(1) });
     t.update(nftRef, { isProcessing: true });
@@ -255,7 +266,8 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
       console.error(err);
       throw new ValidationError(err);
     }
-    const { transactionHash } = res;
+    const { transactionHash, code } = res;
+    if (code !== 0) throw new ValidationError('TX_NOT_SUCCESS');
     const timestamp = Date.now();
     // update price and unlock
     await db.runTransaction(async (t) => {
@@ -273,14 +285,16 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
       let batchRemainingCount = dbBatchRemainingCount;
       let newPrice = dbCurrentPrice;
       let processingCount = dbProcessingCount;
-      if (isFirstSale) {
+      if (dbCurrentBatch === currentBatch) {
         processingCount = FieldValue.increment(-1);
-        batchRemainingCount -= 1;
-        const isNewBatch = batchRemainingCount <= 0;
-        if (isNewBatch) {
-          processingCount = 0;
-          updatedBatch = dbCurrentBatch + 1;
-          ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+        if (isFirstSale) {
+          batchRemainingCount -= 1;
+          const isNewBatch = batchRemainingCount <= 0;
+          if (isNewBatch) {
+            processingCount = 0;
+            updatedBatch = dbCurrentBatch + 1;
+            ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+          }
         }
       }
       t.update(iscnRef, {
@@ -289,6 +303,8 @@ export async function processNFTPurchase(likeWallet, iscnId, classId) {
         batchRemainingCount,
         processingCount,
         soldCount: FieldValue.increment(1),
+        nftRemainingCount: FieldValue.increment(-1),
+        lastSoldPrice: nftPrice,
         lastSoldTimestamp: timestamp,
       });
       t.update(classRef, {
