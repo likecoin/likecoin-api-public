@@ -54,7 +54,7 @@ export async function getISCNSigningAddressInfo() {
 }
 
 export function getISCNPrefix(input) {
-  const res = /^(iscn:\/\/likecoin-chain\/[A-Za-z0-9-]+)\/[0-9]+$/.exec(input);
+  const res = /^(iscn:\/\/likecoin-chain\/[A-Za-z0-9-_]+)\/[0-9]+$/.exec(input);
   if (!res) return input;
   const [, prefix] = res;
   return prefix;

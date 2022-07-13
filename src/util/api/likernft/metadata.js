@@ -3,37 +3,52 @@ import sharp from 'sharp';
 import axios from 'axios';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
-let maskData;
+const Text2SVG = require('text-to-svg');
+
+async function pasteText(
+  text, fontSize, color,
+) {
+  const text2SVG = Text2SVG.loadSync();
+  const attributes = { fill: color };
+  const options = {
+    fontSize,
+    anchor: 'top',
+    attributes,
+  };
+  const svg = Buffer.from(text2SVG.getSVG(text, options));
+  return svg;
+}
+
 async function getImageMask() {
-  if (maskData) return maskData;
   const imgPath = path.join(__dirname, '../../../assets/iscn.png');
-  maskData = await sharp(imgPath)
-    .resize(512, 512)
-    .extractChannel('green')
+  const maskData = await sharp(imgPath)
+    .resize(300, 300)
     .toBuffer();
   return maskData;
 }
 
-async function getMaskedNFTImage(ogImageUrl) {
+async function getMaskedNFTImage(imageData) {
   // TODO: use pipe
-  const [mask, imageRes] = await Promise.all([
-    getImageMask(), axios.get(ogImageUrl, { responseType: 'arraybuffer' }),
-  ]);
-  const combinedData = await sharp(imageRes.data)
+  const mask = await getImageMask();
+  const combinedData = await sharp(imageData)
+    .flatten({ background: 'blue' })
+    .resize({
+      fit: sharp.fit.contain,
+      width: 512,
+      height: 512,
+    })
     .ensureAlpha()
-    .joinChannel(mask)
+    .composite([{
+      input: mask,
+      gravity: 'south',
+    }])
     .toBuffer();
   return combinedData;
 }
 
-export async function getDynamicNFTImage(classId, classData) {
-  // TODO: use real og
-  let { ogImageUrl } = classData;
-  if (!ogImageUrl) {
-    const randomHex = Math.floor(Math.random() * 16777215).toString(16);
-    ogImageUrl = `https://singlecolorimage.com/get/${randomHex}/512x512`;
-  }
-  return getMaskedNFTImage(ogImageUrl);
+export async function getDynamicNFTImage(image, title) {
+  const imageData = image ? await axios.get(image, { responseType: 'arraybuffer' }).data : await pasteText(title, 1000, 'black');
+  return getMaskedNFTImage(imageData);
 }
 
 export async function getDynamicBackgroundColor(soldCount) {
@@ -49,8 +64,11 @@ export async function getDynamicBackgroundColor(soldCount) {
 }
 
 export async function getLikerNFTDynamicData(classId, classData) {
+  console.log(4);
+
   const { soldCount } = classData;
   const backgroundColor = await getDynamicBackgroundColor(soldCount);
+  console.log(4);
   return {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
