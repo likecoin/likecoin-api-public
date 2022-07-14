@@ -93,7 +93,7 @@ router.get(
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
-          `${API_EXTERNAL_HOSTNAME}/like/info`,
+          `https://${API_EXTERNAL_HOSTNAME}/like/info`,
           { iscnId },
         );
         await sleep(1000);
