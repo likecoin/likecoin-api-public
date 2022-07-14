@@ -1,17 +1,18 @@
 import { Router } from 'express';
 import axios from 'axios';
-import { ONE_DAY_IN_S } from '../../constant';
+import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNIdByClassId } from '../../util/api/likernft';
 import {
-  getLikerNFTDynamicData, getImageStream, getMaskedNFTImage, delay,
+  getLikerNFTDynamicData, getImageStream, getMaskedNFTImage,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
-import { LIKER_NFT_TARGET_ADDRESS, API_EXTERNAL_HOSTNAME } from '../../../config/config';
+import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
+import { sleep } from '../../util/misc';
 
 const router = Router();
 
@@ -82,31 +83,28 @@ router.get(
   },
 );
 
-let maskedNFTImage;
 router.get(
   '/metadata/image/class_(:classId)(.png)?',
   async (req, res, next) => {
     try {
       const { classId } = req.params;
       const iscnId = await getISCNIdByClassId(classId);
+      const maskedNFTImage = await getMaskedNFTImage();
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
-      maskedNFTImage = await getMaskedNFTImage();
-      let imageStream;
       if (!iscnData.exists) {
         await axios.post(
           `${API_EXTERNAL_HOSTNAME}/like/info`,
           { iscnId },
         );
-        await delay(5);
+        await sleep(1000);
         iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
-        if (!iscnData.exists) {
-          imageStream = await getImageStream('', '', '');
-        }
       }
+      let image;
+      let title;
       if (iscnData.exists) {
-        const { image, title } = iscnData.data();
-        imageStream = await getImageStream(image, title, 'black');
+        ({ image, title } = iscnData.data());
       }
+      const imageStream = await getImageStream(image, title, 'black');
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       imageStream.pipe(maskedNFTImage).pipe(res);
       return;

@@ -3,9 +3,11 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
+const ALL_CAP = 512;
+
 async function addTextOnImage(text, color) {
-  const width = 512;
-  const height = 512;
+  const width = ALL_CAP;
+  const height = ALL_CAP;
   const svgImage = `
     <svg width="${width}" height="${height}">
       <style>
@@ -14,18 +16,16 @@ async function addTextOnImage(text, color) {
       <text x="50%" y="50%" text-anchor="middle" class="title">${text}</text>
     </svg>
     `;
-  const svgBuffer = Buffer.from(svgImage);
-  const a = await sharp(svgBuffer)
-    .png();
-  return a;
+  const svgPng = await sharp(Buffer.from(svgImage)).png();
+  return svgPng;
 }
 
 async function getImageMask() {
   const imgPath = path.join(__dirname, '../../../assets/iscn.png');
   const maskData = await sharp(imgPath)
     .resize({
-      width: 512,
-      height: 512,
+      width: ALL_CAP,
+      height: ALL_CAP,
     })
     .toBuffer();
   return maskData;
@@ -33,12 +33,12 @@ async function getImageMask() {
 
 let mask;
 export async function getMaskedNFTImage() {
-  mask = await getImageMask();
+  if (!mask) mask = await getImageMask();
   const combinedData = await sharp()
     .resize({
       fit: sharp.fit.contain,
-      width: 512,
-      height: 512,
+      width: ALL_CAP,
+      height: ALL_CAP,
       background: 'white', // image white borders
     })
     .ensureAlpha()
@@ -48,15 +48,11 @@ export async function getMaskedNFTImage() {
 }
 
 export async function getImageStream(image, title, color) {
-  const randomHex = Math.floor(Math.random() * 16777215).toString(16);
-  const ogImageUrl = `https://singlecolorimage.com/get/${randomHex}/512x512`;
   let imageStream;
   if (image) {
     imageStream = (await axios({ method: 'get', url: image, responseType: 'stream' })).data;
-  } else if (title) {
-    imageStream = await addTextOnImage(title, color);
   } else {
-    imageStream = (await axios({ method: 'get', url: ogImageUrl, responseType: 'stream' })).data;
+    imageStream = await addTextOnImage(title, color);
   }
   return imageStream;
 }
@@ -80,10 +76,4 @@ export async function getLikerNFTDynamicData(classId, classData) {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
   };
-}
-
-export function delay(n) {
-  return new Promise(((resolve) => {
-    setTimeout(resolve, n * 1000);
-  }));
 }
