@@ -2,7 +2,7 @@ import test from 'ava';
 import axiosist from './axiosist';
 
 // const ISCN_ID_PREFIX = 'iscn://likecoin-chain/jDIU6eXjSttrEUvIPfvZZaMeGB6ckGOGX0EL4UYGraU';
-const CLASS_ID = 'likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa';
+const CLASS_ID = 'likenft1rjmx2tr3fxj5gylnems3yz2y9hmz9k6vdjfewzav86cqu3gp3vaq83zw56';
 // const NFT_ID_1 = 'liker-00027b31-b5a7-429b-84c8-b25a2e45c173';
 // const NFT_ID_2 = 'liker-0030e3e2-f5f9-40c7-8649-833e61a9bc35';
 
