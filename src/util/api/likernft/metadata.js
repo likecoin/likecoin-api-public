@@ -42,7 +42,7 @@ export async function getImage(image, title) {
     const textDataBuffer = await addTextOnImage(title, 'black');
     imageBuffer = await sharp(textDataBuffer)
       .png()
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .flatten({ background: { r: 250, g: 250, b: 250 } })
       .toBuffer();
   }
   const imageResizedBuffer = await sharp(imageBuffer)
@@ -57,8 +57,9 @@ export async function getImage(image, title) {
     .ensureAlpha()
     .joinChannel(maskBuffer)
     .toBuffer();
+  const randColor = () => `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0').toUpperCase()}`;
   const combinedWithBackgroudBuffer = await sharp(combinedBuffer)
-    .flatten({ background: { r: 100, g: 0, b: 0 } })
+    .flatten({ background: randColor() })
     .toBuffer();
   const finalPng = await sharp(combinedWithBackgroudBuffer)
     .png();
