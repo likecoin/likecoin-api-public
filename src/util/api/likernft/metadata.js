@@ -3,48 +3,66 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
-const ALL_CAP = 512;
+const IMAGE_HEIGHT = 512;
+const IMAGE_WIDTH = 512;
 
 async function addTextOnImage(text, color) {
-  const width = ALL_CAP;
-  const height = ALL_CAP;
   const svgImage = `
-    <svg width="${width}" height="${height}">
+    <svg width="${IMAGE_WIDTH}" height="${IMAGE_HEIGHT}">
       <style>
       .title { fill: ${color}; font-size: 100px; font-weight: bold;}
       </style>
-      <text x="50%" y="50%" text-anchor="middle" class="title">${text}</text>
+      <text x="50%" y="55%" text-anchor="middle" class="title">${text}</text>
     </svg>
     `;
-  const svgPng = await sharp(Buffer.from(svgImage)).png();
-  return svgPng;
+  return Buffer.from(svgImage);
 }
 
+let maskData;
 async function getImageMask() {
-  const imgPath = path.join(__dirname, '../../../assets/iscn.png');
-  const maskData = await sharp(imgPath)
+  if (maskData) return maskData;
+  // const imgPath = path.join(__dirname, '../../../assets/iscn.png');
+  const imgPath = path.join(__dirname, '../../../assets/book.png');
+  maskData = await sharp(imgPath)
     .resize({
-      width: ALL_CAP,
-      height: ALL_CAP,
+      height: IMAGE_HEIGHT,
+      width: IMAGE_HEIGHT,
     })
+    .extractChannel('alpha')
     .toBuffer();
   return maskData;
 }
 
-let mask;
-export async function getMaskedNFTImage() {
-  if (!mask) mask = await getImageMask();
-  const combinedData = await sharp()
+export async function getImage(image, title) {
+  const maskBuffer = await getImageMask();
+  let imageBuffer;
+  if (image) {
+    imageBuffer = (await axios.get(image, { responseType: 'arraybuffer' })).data;
+  } else {
+    const textDataBuffer = await addTextOnImage(title, 'black');
+    imageBuffer = await sharp(textDataBuffer)
+      .png()
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .toBuffer();
+  }
+  const imageResizedBuffer = await sharp(imageBuffer)
     .resize({
-      fit: sharp.fit.contain,
-      width: ALL_CAP,
-      height: ALL_CAP,
-      background: 'white', // image white borders
+      fit: sharp.fit.cover,
+      width: IMAGE_WIDTH,
+      height: IMAGE_HEIGHT,
     })
+    .png()
+    .toBuffer();
+  const combinedBuffer = await sharp(imageResizedBuffer)
     .ensureAlpha()
-    .composite([{ input: mask }])
+    .joinChannel(maskBuffer)
+    .toBuffer();
+  const combinedWithBackgroudBuffer = await sharp(combinedBuffer)
+    .flatten({ background: { r: 100, g: 0, b: 0 } })
+    .toBuffer();
+  const finalPng = await sharp(combinedWithBackgroudBuffer)
     .png();
-  return combinedData;
+  return finalPng;
 }
 
 export async function getImageStream(image, title, color) {

@@ -5,7 +5,7 @@ import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNIdByClassId } from '../../util/api/likernft';
 import {
-  getLikerNFTDynamicData, getImageStream, getMaskedNFTImage,
+  getLikerNFTDynamicData, getImage,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
@@ -89,7 +89,6 @@ router.get(
     try {
       const { classId } = req.params;
       const iscnId = await getISCNIdByClassId(classId);
-      const maskedNFTImage = await getMaskedNFTImage();
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
@@ -99,14 +98,14 @@ router.get(
         await sleep(1000);
         iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       }
-      let image;
-      let title;
+      let image = '';
+      let title = '';
       if (iscnData.exists) {
         ({ image, title } = iscnData.data());
       }
-      const imageStream = await getImageStream(image, title, 'black');
+      const finalPng = await getImage(image, title);
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
-      imageStream.pipe(maskedNFTImage).pipe(res);
+      finalPng.pipe(res);
       return;
     } catch (err) {
       next(err);
