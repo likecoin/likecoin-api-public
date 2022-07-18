@@ -21,7 +21,6 @@ async function addTextOnImage(text, color) {
 let maskData;
 async function getImageMask() {
   if (maskData) return maskData;
-  // const imgPath = path.join(__dirname, '../../../assets/iscn.png');
   const imgPath = path.join(__dirname, '../../../assets/book.png');
   maskData = await sharp(imgPath)
     .resize({
@@ -33,7 +32,7 @@ async function getImageMask() {
   return maskData;
 }
 
-export async function getImage(image, title) {
+export async function getFinalNFTImage(image, title) {
   const maskBuffer = await getImageMask();
   let imageBuffer;
   if (image) {
@@ -57,23 +56,11 @@ export async function getImage(image, title) {
     .ensureAlpha()
     .joinChannel(maskBuffer)
     .toBuffer();
-  const randColor = () => `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0').toUpperCase()}`;
   const combinedWithBackgroudBuffer = await sharp(combinedBuffer)
-    .flatten({ background: randColor() })
     .toBuffer();
   const finalPng = await sharp(combinedWithBackgroudBuffer)
     .png();
   return finalPng;
-}
-
-export async function getImageStream(image, title, color) {
-  let imageStream;
-  if (image) {
-    imageStream = (await axios({ method: 'get', url: image, responseType: 'stream' })).data;
-  } else {
-    imageStream = await addTextOnImage(title, color);
-  }
-  return imageStream;
 }
 
 export async function getDynamicBackgroundColor(soldCount) {
