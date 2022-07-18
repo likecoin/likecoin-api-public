@@ -19,7 +19,7 @@ async function addTextOnImage(text, color) {
 }
 
 let maskData;
-async function getImageMask() {
+export async function getImageMask() {
   if (maskData) return maskData;
   const imgPath = path.join(__dirname, '../../../assets/book.png');
   maskData = await sharp(imgPath)
@@ -32,35 +32,34 @@ async function getImageMask() {
   return maskData;
 }
 
-export async function getFinalNFTImage(image, title) {
-  const maskBuffer = await getImageMask();
+export async function getBasicImage(image, title) {
   let imageBuffer;
   if (image) {
-    imageBuffer = (await axios.get(image, { responseType: 'arraybuffer' })).data;
+    imageBuffer = (await axios.get(image, { responseType: 'stream' })).data;
   } else {
     const textDataBuffer = await addTextOnImage(title, 'black');
     imageBuffer = await sharp(textDataBuffer)
       .png()
-      .flatten({ background: { r: 250, g: 250, b: 250 } })
-      .toBuffer();
+      .flatten({ background: { r: 250, g: 250, b: 250 } });
   }
-  const imageResizedBuffer = await sharp(imageBuffer)
+  return imageBuffer;
+}
+
+export async function getCombinedImage() {
+  const maskBuffer = await getImageMask();
+  return sharp()
+    .ensureAlpha()
+    .joinChannel(maskBuffer);
+}
+
+export function getResizedImage() {
+  return sharp()
     .resize({
       fit: sharp.fit.cover,
       width: IMAGE_WIDTH,
       height: IMAGE_HEIGHT,
     })
-    .png()
-    .toBuffer();
-  const combinedBuffer = await sharp(imageResizedBuffer)
-    .ensureAlpha()
-    .joinChannel(maskBuffer)
-    .toBuffer();
-  const combinedWithBackgroudBuffer = await sharp(combinedBuffer)
-    .toBuffer();
-  const finalPng = await sharp(combinedWithBackgroudBuffer)
     .png();
-  return finalPng;
 }
 
 export async function getDynamicBackgroundColor(soldCount) {

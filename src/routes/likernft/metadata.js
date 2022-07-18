@@ -5,7 +5,7 @@ import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNIdByClassId } from '../../util/api/likernft';
 import {
-  getLikerNFTDynamicData, getFinalNFTImage,
+  getLikerNFTDynamicData, getBasicImage, getCombinedImage, getResizedImage,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
@@ -103,9 +103,11 @@ router.get(
       if (iscnData.exists) {
         ({ image, title } = iscnData.data());
       }
-      const finalPng = await getFinalNFTImage(image, title);
+      const basicImage = await getBasicImage(image, title);
+      const resizedImage = getResizedImage();
+      const combinedImage = await getCombinedImage();
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
-      finalPng.pipe(res);
+      basicImage.pipe(resizedImage).pipe(combinedImage).pipe(res);
       return;
     } catch (err) {
       next(err);
