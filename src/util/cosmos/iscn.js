@@ -3,9 +3,7 @@ import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { getAccountInfo } from '.';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
-import {
-  COSMOS_RPC_ENDPOINT,
-} from '../../../config/config';
+import { COSMOS_RPC_ENDPOINT, COSMOS_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
 let queryClient = null;
 let signingClient = null;
@@ -27,7 +25,7 @@ export async function getISCNSigningClient() {
     const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes);
     const [wallet] = await signer.getAccounts();
     const client = new ISCNSigningClient();
-    await client.connectWithSigner(COSMOS_RPC_ENDPOINT, signer);
+    await client.connectWithSigner(COSMOS_SIGNING_RPC_ENDPOINT, signer);
     signingWallet = wallet;
     signingClient = client;
   }

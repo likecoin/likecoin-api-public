@@ -14,6 +14,7 @@ config.FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
 
 config.COSMOS_LCD_ENDPOINT = 'https://node.testnet.like.co';
 config.COSMOS_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
+config.COSMOS_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.COSMOS_CHAIN_ID = 'likecoin-public-testnet-5';
 config.ISCN_DEV_LCD_ENDPOINT = 'localhost:1317';
 config.ISCN_DEV_CHAIN_ID = 'iscn-dev-chain';
