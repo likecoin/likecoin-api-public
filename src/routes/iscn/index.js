@@ -144,7 +144,7 @@ async function handleRegisterISCN(req, res, next) {
     const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
     let totalLIKE = gasLIKE.plus(iscnLike);
     let iscnId;
-    const QUERY_RETRY_LIMIT = 6;
+    const QUERY_RETRY_LIMIT = 10;
     let tryCount = 0;
     while (!iscnId && tryCount < QUERY_RETRY_LIMIT) {
       /* eslint-disable no-await-in-loop */
@@ -153,7 +153,15 @@ async function handleRegisterISCN(req, res, next) {
       tryCount += 1;
       /* eslint-enable no-await-in-loop */
     }
-    console.log(`ISCN ID: ${iscnId}`);
+
+    // TODO: remove iscn debug
+    if (iscnId) {
+      console.log(`ISCN ID: ${iscnId}`);
+    } else if (iscnTxHash) {
+      console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
+    } else {
+      console.error('Cannot find ISCN ID and ISCN TX');
+    }
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'ISCNFreeRegister',
@@ -179,7 +187,8 @@ async function handleRegisterISCN(req, res, next) {
     });
 
     const wallet = likeWallet || cosmosWallet;
-    if (isClaim && wallet) {
+    if (isClaim && iscnId && wallet) {
+      // TODO handle missing iscnId by refetch?
       const transferSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
         address,
         wallet,
