@@ -78,4 +78,6 @@ config.APP_SERVER = 'likecoin-api-pulic';
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
 
+config.IS_CHAIN_UPGRADING = false;
+
 module.exports = config;

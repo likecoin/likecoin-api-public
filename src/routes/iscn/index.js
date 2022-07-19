@@ -24,7 +24,7 @@ import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 
-const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
+const { ARWEAVE_LIKE_TARGET_ADDRESS, IS_CHAIN_UPGRADING } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -107,15 +107,6 @@ async function handleRegisterISCN(req, res, next) {
       address,
       accountNumber,
     } = res.locals.signingInfo;
-    const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
-      address,
-      ISCNPayload, {
-        accountNumber,
-        sequence,
-        chainId: COSMOS_CHAIN_ID,
-        broadcast: false,
-      },
-    );
 
     if (req.query.estimate) {
       const uploadPrice = req.uploadPrice || 0;
@@ -130,6 +121,21 @@ async function handleRegisterISCN(req, res, next) {
       res.json({ LIKE });
       return;
     }
+
+    if (IS_CHAIN_UPGRADING) {
+      res.status(400).send('CHAIN_UPGRADING');
+      return;
+    }
+
+    const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
+      address,
+      ISCNPayload, {
+        accountNumber,
+        sequence,
+        chainId: COSMOS_CHAIN_ID,
+        broadcast: false,
+      },
+    );
 
     const [iscnFee, iscnRes] = await Promise.all([
       signingClient.estimateISCNTxFee(address, ISCNPayload),
@@ -282,6 +288,11 @@ router.post('/upload',
         next();
         return;
       }
+      if (IS_CHAIN_UPGRADING) {
+        res.status(400).send('CHAIN_UPGRADING');
+        return;
+      }
+
       const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
       const signingClient = await getISCNSigningClient();
       if (!res.locals.signingInfo) {
