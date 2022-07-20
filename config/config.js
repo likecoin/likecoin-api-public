@@ -22,6 +22,10 @@ config.COSMOS_CHAIN_ID = 'likecoin-public-testnet-5';
 config.ISCN_DEV_LCD_ENDPOINT = 'localhost:1317';
 config.ISCN_DEV_CHAIN_ID = 'iscn-dev-chain';
 config.COSMOS_DENOM = 'nanoekil';
+config.NFT_RPC_ENDPOINT = 'https://node.testnet.like.co';
+config.NFT_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co';
+config.NFT_CHAIN_ID = 'likecoin-public-testnet-5';
+config.NFT_COSMOS_DENOM = 'nanoekil';
 
 config.ARWEAVE_LIKE_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';

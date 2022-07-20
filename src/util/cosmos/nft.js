@@ -7,7 +7,7 @@ import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { getQueryClient } from '.';
 import { getISCNPrefix } from './iscn';
 import { LIKER_NFT_PRIVATE_KEY } from '../../../config/secret';
-import { NFT_RPC_ENDPOINT } from '../../../config/config';
+import { NFT_RPC_ENDPOINT, NFT_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
 let queryClient = null;
 let signingClient = null;
@@ -35,7 +35,7 @@ export async function createNFTSigningClient(privateKey) {
   const signer = await DirectSecp256k1Wallet.fromKey(privateKeyBytes, 'like');
   const [wallet] = await signer.getAccounts();
   const client = new ISCNSigningClient();
-  await client.connectWithSigner(NFT_RPC_ENDPOINT, signer);
+  await client.connectWithSigner(NFT_SIGNING_RPC_ENDPOINT, signer);
   return { client, wallet };
 }
 
