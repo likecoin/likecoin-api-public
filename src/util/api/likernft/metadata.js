@@ -1,39 +1,65 @@
 import path from 'path';
-import sharp from 'sharp';
 import axios from 'axios';
+import sharp from 'sharp';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
+const IMAGE_HEIGHT = 512;
+const IMAGE_WIDTH = 512;
+
+async function addTextOnImage(text, color) {
+  const svgImage = `
+    <svg width="${IMAGE_WIDTH}" height="${IMAGE_HEIGHT}">
+      <style>
+      .title { fill: ${color}; font-size: 100px; font-weight: bold;}
+      </style>
+      <text x="50%" y="55%" text-anchor="middle" class="title">${text}</text>
+    </svg>
+    `;
+  return Buffer.from(svgImage);
+}
+
 let maskData;
-async function getImageMask() {
+export async function getImageMask() {
   if (maskData) return maskData;
-  const imgPath = path.join(__dirname, '../../../assets/iscn.png');
+  const imgPath = path.join(__dirname, '../../../assets/book.png');
   maskData = await sharp(imgPath)
-    .resize(512, 512)
-    .extractChannel('green')
+    .resize({
+      height: IMAGE_HEIGHT,
+      width: IMAGE_HEIGHT,
+    })
+    .extractChannel('alpha')
     .toBuffer();
   return maskData;
 }
 
-async function getMaskedNFTImage(ogImageUrl) {
-  // TODO: use pipe
-  const [mask, imageRes] = await Promise.all([
-    getImageMask(), axios.get(ogImageUrl, { responseType: 'arraybuffer' }),
-  ]);
-  const combinedData = await sharp(imageRes.data)
-    .ensureAlpha()
-    .joinChannel(mask)
-    .toBuffer();
-  return combinedData;
+export async function getBasicImage(image, title) {
+  let imageBuffer;
+  if (image) {
+    imageBuffer = (await axios.get(image, { responseType: 'stream' })).data;
+  } else {
+    const textDataBuffer = await addTextOnImage(title, 'black');
+    imageBuffer = await sharp(textDataBuffer)
+      .png()
+      .flatten({ background: { r: 250, g: 250, b: 250 } });
+  }
+  return imageBuffer;
 }
 
-export async function getDynamicNFTImage(classId, classData) {
-  // TODO: use real og
-  let { ogImageUrl } = classData;
-  if (!ogImageUrl) {
-    const randomHex = Math.floor(Math.random() * 16777215).toString(16);
-    ogImageUrl = `https://singlecolorimage.com/get/${randomHex}/512x512`;
-  }
-  return getMaskedNFTImage(ogImageUrl);
+export async function getCombinedImage() {
+  const maskBuffer = await getImageMask();
+  return sharp()
+    .ensureAlpha()
+    .joinChannel(maskBuffer);
+}
+
+export function getResizedImage() {
+  return sharp()
+    .resize({
+      fit: sharp.fit.cover,
+      width: IMAGE_WIDTH,
+      height: IMAGE_HEIGHT,
+    })
+    .png();
 }
 
 export async function getDynamicBackgroundColor(soldCount) {

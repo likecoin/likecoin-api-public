@@ -1,14 +1,18 @@
 import { Router } from 'express';
-import { ONE_DAY_IN_S } from '../../constant';
-import { likeNFTCollection } from '../../util/firebase';
+import axios from 'axios';
+import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
+import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNDocByClassId } from '../../util/api/likernft';
-import { getLikerNFTDynamicData, getDynamicNFTImage } from '../../util/api/likernft/metadata';
+import { getISCNIdByClassId } from '../../util/api/likernft';
+import {
+  getLikerNFTDynamicData, getBasicImage, getCombinedImage, getResizedImage,
+} from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
+import { sleep } from '../../util/misc';
 
 const router = Router();
 
@@ -26,7 +30,6 @@ router.get(
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
       }
-
       const [{ owner: iscnOwner, data: iscnData }, chainData, dynamicData] = await Promise.all([
         getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
         getNFTClassDataById(classId).catch(err => console.error(err)),
@@ -85,17 +88,27 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const doc = await getISCNDocByClassId(classId);
-      const classDocRef = await doc.ref.collection('class').doc(classId).get();
-      const classData = classDocRef.data();
-      // TODO: remove if no use
-      // To get ISCN data from nft col:
-      // const iscnRef = queryRef.parent.parent;
-      // const iscnDocRef = iscnDataRef.get();
-      // const iscnData = await iscnDocRef();
-      const dynamicData = await getDynamicNFTImage(classId, classData);
+      const iscnId = await getISCNIdByClassId(classId);
+      let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
+      if (!iscnData.exists) {
+        await axios.post(
+          `https://${API_EXTERNAL_HOSTNAME}/like/info`,
+          { iscnId },
+        );
+        await sleep(1000);
+        iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
+      }
+      let image = '';
+      let title = '';
+      if (iscnData.exists) {
+        ({ image, title } = iscnData.data());
+      }
+      const basicImage = await getBasicImage(image, title);
+      const resizedImage = getResizedImage();
+      const combinedImage = await getCombinedImage();
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.type('png').send(dynamicData);
+      basicImage.pipe(resizedImage).pipe(combinedImage).pipe(res);
+      return;
     } catch (err) {
       next(err);
     }
