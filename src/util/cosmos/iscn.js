@@ -2,11 +2,12 @@
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import BigNumber from 'bignumber.js';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
-export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 import { getAccountInfo, isValidAddress, convertAddressPrefix } from '.';
 import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import { COSMOS_RPC_ENDPOINT, COSMOS_SIGNING_RPC_ENDPOINT } from '../../../config/config';
+
+export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 
 let queryClient = null;
 let signingClient = null;
