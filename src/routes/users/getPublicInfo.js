@@ -5,10 +5,12 @@ import {
 import { ValidationError } from '../../util/ValidationError';
 import {
   checkAddressValid,
+  checkCosmosAddressValid,
   filterUserDataMin,
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
+  formatUserCivicLikerProperies,
 } from '../../util/api/users/getPublicInfo';
 
 const router = Router();
@@ -36,10 +38,27 @@ router.get('/id/:id/min', async (req, res, next) => {
 router.get('/addr/:addr/min', async (req, res, next) => {
   try {
     const { addr } = req.params;
-    if (!checkAddressValid(addr)) throw new ValidationError('Invalid address');
-    const query = await dbRef.where('wallet', '==', addr).get();
+    const { type } = req.query;
+    let types = [];
+    if (type) {
+      types = type.split(',');
+    }
+    let field;
+    if (checkAddressValid(addr)) {
+      field = 'wallet';
+    } else if (checkCosmosAddressValid(addr, 'like')) {
+      field = 'likeWallet';
+    } else if (checkCosmosAddressValid(addr, 'cosmos')) {
+      field = 'cosmosWallet';
+    } else {
+      throw new ValidationError('Invalid address');
+    }
+    const query = await dbRef.where(field, '==', addr).limit(1).get();
     if (query.docs.length > 0) {
-      res.sendStatus(200);
+      res.set('Cache-Control', 'public, max-age=30');
+      const userDoc = query.docs[0];
+      const payload = formatUserCivicLikerProperies(userDoc.id, userDoc.data());
+      res.json(filterUserDataMin(payload, types));
     } else {
       res.sendStatus(404);
     }

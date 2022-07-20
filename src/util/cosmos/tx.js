@@ -14,6 +14,7 @@ import { PUBSUB_TOPIC_MISC } from '../../constant';
 const {
   COSMOS_DENOM,
   COSMOS_RPC_ENDPOINT,
+  COSMOS_SIGNING_RPC_ENDPOINT,
   COSMOS_GAS_PRICE,
 } = require('../../../config/config');
 
@@ -22,6 +23,12 @@ export const DEFAULT_TRANSFER_GAS = 80000;
 export const DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS = 59714;
 
 let stargateClient = null;
+let broadcastClient = null;
+
+async function getBroadcastClient() {
+  if (!broadcastClient) broadcastClient = await StargateClient.connect(COSMOS_SIGNING_RPC_ENDPOINT);
+  return broadcastClient;
+}
 
 async function getClient() {
   if (!stargateClient) stargateClient = await StargateClient.connect(COSMOS_RPC_ENDPOINT);
@@ -79,7 +86,7 @@ async function computeTransactionHash(signedTx) {
 }
 
 async function internalSendTransaction(signedTx, c) {
-  const client = c || await getClient();
+  const client = c || await getBroadcastClient();
   const txBytes = TxRaw.encode(signedTx).finish();
   try {
     const res = await client.broadcastTx(txBytes);

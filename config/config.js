@@ -17,6 +17,7 @@ config.FIRESTORE_ISCN_INFO_ROOT = process.env.FIRESTORE_ISCN_INFO_ROOT;
 config.COSMOS_LCD_INDEXER_ENDPOINT = 'https://node.testnet.like.co';
 config.COSMOS_LCD_ENDPOINT = 'https://node.testnet.like.co';
 config.COSMOS_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
+config.COSMOS_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.COSMOS_CHAIN_ID = 'likecoin-public-testnet-5';
 config.ISCN_DEV_LCD_ENDPOINT = 'localhost:1317';
 config.ISCN_DEV_CHAIN_ID = 'iscn-dev-chain';
@@ -88,5 +89,7 @@ config.APP_SERVER = 'likecoin-api-pulic';
 
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
+
+config.IS_CHAIN_UPGRADING = false;
 
 module.exports = config;

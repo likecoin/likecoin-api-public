@@ -5,6 +5,7 @@ import BigNumber from 'bignumber.js';
 import publisher from '../../util/gcloudPub';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
+import { sleep } from '../../util/misc';
 import {
   getISCNSigningClient,
   getISCNQueryClient,
@@ -23,7 +24,7 @@ import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
 
-const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
+const { ARWEAVE_LIKE_TARGET_ADDRESS, IS_CHAIN_UPGRADING } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -106,15 +107,6 @@ async function handleRegisterISCN(req, res, next) {
       address,
       accountNumber,
     } = res.locals.signingInfo;
-    const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
-      address,
-      ISCNPayload, {
-        accountNumber,
-        sequence,
-        chainId: COSMOS_CHAIN_ID,
-        broadcast: false,
-      },
-    );
 
     if (req.query.estimate) {
       const uploadPrice = req.uploadPrice || 0;
@@ -130,6 +122,21 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
+    if (IS_CHAIN_UPGRADING) {
+      res.status(400).send('CHAIN_UPGRADING');
+      return;
+    }
+
+    const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
+      address,
+      ISCNPayload, {
+        accountNumber,
+        sequence,
+        chainId: COSMOS_CHAIN_ID,
+        broadcast: false,
+      },
+    );
+
     const [iscnFee, iscnRes] = await Promise.all([
       signingClient.estimateISCNTxFee(address, ISCNPayload),
       sendTransactionWithSequence(address, createIscnSigningFunction),
@@ -142,7 +149,26 @@ async function handleRegisterISCN(req, res, next) {
     } = iscnRes;
     const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
     let totalLIKE = gasLIKE.plus(iscnLike);
-    const [iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash);
+    let iscnId;
+    const QUERY_RETRY_LIMIT = 10;
+    let tryCount = 0;
+    while (!iscnId && tryCount < QUERY_RETRY_LIMIT) {
+      /* eslint-disable no-await-in-loop */
+      ([iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash));
+      if (!iscnId) await sleep(2000);
+      tryCount += 1;
+      /* eslint-enable no-await-in-loop */
+    }
+
+    // TODO: remove iscn debug
+    if (iscnId) {
+      console.log(`ISCN ID: ${iscnId}`);
+    } else if (iscnTxHash) {
+      console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
+    } else {
+      console.error('Cannot find ISCN ID and ISCN TX');
+    }
+
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'ISCNFreeRegister',
       txHash: iscnTxHash,
@@ -167,7 +193,8 @@ async function handleRegisterISCN(req, res, next) {
     });
 
     const wallet = likeWallet || cosmosWallet;
-    if (isClaim && wallet) {
+    if (isClaim && iscnId && wallet) {
+      // TODO handle missing iscnId by refetch?
       const transferSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
         address,
         wallet,
@@ -261,6 +288,11 @@ router.post('/upload',
         next();
         return;
       }
+      if (IS_CHAIN_UPGRADING) {
+        res.status(400).send('CHAIN_UPGRADING');
+        return;
+      }
+
       const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
       const signingClient = await getISCNSigningClient();
       if (!res.locals.signingInfo) {

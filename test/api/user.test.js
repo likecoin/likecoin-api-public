@@ -8,6 +8,8 @@ import {
   testingDisplayName1,
   testingEmail1,
   testingWallet1,
+  testingCosmosWallet1,
+  testingLikeWallet1,
   testingCivicLikerSince1,
   testingCivicLikerEnd1,
   testingUser2,
@@ -15,6 +17,8 @@ import {
   testingWallet2,
   invalidWallet,
   testingWallet3,
+  testingCosmosWallet3,
+  testingLikeWallet3,
   privateKey1,
   privateKey2,
   privateKey3,
@@ -572,6 +576,27 @@ test('USER: Get user by address min', async (t) => {
     .catch(err => err.response);
 
   t.is(res.status, 200);
+  t.is(res.data.wallet, testingWallet1);
+  t.not(res.data.email, testingEmail1);
+
+
+  wallet = testingCosmosWallet1;
+  res = await axiosist.get(`/api/users/addr/${wallet}/min`)
+    .catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.cosmosWallet, wallet);
+  t.is(res.data.displayName, testingDisplayName1);
+  t.not(res.data.email, testingEmail1);
+
+  wallet = testingLikeWallet1;
+  res = await axiosist.get(`/api/users/addr/${wallet}/min`)
+    .catch(err => err.response);
+
+  t.is(res.status, 200);
+  t.is(res.data.likeWallet, wallet);
+  t.is(res.data.displayName, testingDisplayName1);
+  t.not(res.data.email, testingEmail1);
 
   res = await axiosist.get('/api/users/addr/0xazdfsadf/min')
     .catch(err => err.response);
@@ -579,6 +604,18 @@ test('USER: Get user by address min', async (t) => {
   t.is(res.status, 400);
 
   wallet = testingWallet3;
+  res = await axiosist.get(`/api/users/addr/${wallet}/min`)
+    .catch(err => err.response);
+
+  t.is(res.status, 404);
+
+  wallet = testingCosmosWallet3;
+  res = await axiosist.get(`/api/users/addr/${wallet}/min`)
+    .catch(err => err.response);
+
+  t.is(res.status, 404);
+
+  wallet = testingLikeWallet3;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
     .catch(err => err.response);
 

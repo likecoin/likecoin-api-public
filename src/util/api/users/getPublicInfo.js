@@ -7,14 +7,9 @@ import {
   userCollection as dbRef,
 } from '../../firebase';
 
-export async function getUserWithCivicLikerProperties(id) {
-  const [userDoc] = await Promise.all([
-    dbRef.doc(id).get(),
-  ]);
-  if (!userDoc.exists) return null;
-
-  const payload = userDoc.data();
-  const { avatar, civicLiker } = payload;
+export function formatUserCivicLikerProperies(id, data) {
+  const { avatar, civicLiker } = data;
+  const payload = data;
   payload.user = id;
   if (!avatar) {
     payload.avatar = AVATAR_DEFAULT_PATH;
@@ -45,7 +40,15 @@ export async function getUserWithCivicLikerProperties(id) {
       payload.isExpiredCivicLiker = true;
     }
   }
+  return payload;
+}
 
+export async function getUserWithCivicLikerProperties(id) {
+  const userDoc = await dbRef.doc(id).get();
+  if (!userDoc.exists) return null;
+
+  const data = userDoc.data();
+  const payload = formatUserCivicLikerProperies(id, data);
   return payload;
 }
 
