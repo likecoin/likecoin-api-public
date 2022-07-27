@@ -3,8 +3,8 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
 
-const IMAGE_HEIGHT = 512;
-const IMAGE_WIDTH = 512;
+const IMAGE_WIDTH = 1280;
+const IMAGE_HEIGHT = 768;
 
 async function addTextOnImage(text, color) {
   const svgImage = `
