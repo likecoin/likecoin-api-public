@@ -1,13 +1,26 @@
 import { Router } from 'express';
 
-import { getCollector } from '../../util/api/likernft/socialgraph';
+import { getCollector, getCreator } from '../../util/api/likernft/socialgraph';
 
 const router = Router();
 
-router.get('/collector', async (_, res) => {
-  const result = await getCollector(
-    'like1qv66yzpgg9f8w46zj7gkuk9wd2nrpqmca3huxf',
-  );
+router.get('/collector', async (req, res) => {
+  const { creator } = req.query;
+  if (!creator) {
+    res.status(401).send({ error: 'creator is required' });
+    return;
+  }
+  const result = await getCollector(creator);
+  res.send(result);
+});
+
+router.get('/creator', async (req, res) => {
+  const { collector } = req.query;
+  if (!collector) {
+    res.status(401).send({ error: 'creator is required' });
+    return;
+  }
+  const result = await getCreator(collector);
   res.send(result);
 });
 

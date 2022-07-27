@@ -5,41 +5,50 @@ import { getLatestNFTPriceAndInfo } from './purchase';
 const api = axios.create({ baseURL: COSMOS_LCD_INDEXER_ENDPOINT });
 
 async function aggregate(accounts) {
-  const newAccounts = {};
   const promises = [];
+  const newAccounts = [];
   Object.entries(accounts).forEach(([owner, value]) => {
-    console.log(owner);
-    newAccounts[owner] = {
+    const account = {
+      account: owner,
       collections: [],
       count: value.count,
       totalValue: 0,
     };
     value.collections.forEach(
       ({ iscn_id_prefix: iscnPrefix, class_id: classId, count }) => {
-        console.log(iscnPrefix, classId, count);
         promises.push(
-          new Promise((resolve, reject) => {
+          new Promise((resolve) => {
             getLatestNFTPriceAndInfo(iscnPrefix, classId)
               .then(({ price }) => {
-                newAccounts[owner].collections.push({
+                account.collections.push({
                   iscnPrefix,
                   classId,
                   count,
                   price,
                   totalValue: count * price,
                 });
-                newAccounts[owner].totalValue += count * price;
+                account.totalValue += count * price;
                 resolve(true);
               })
-              .catch(reject);
+              .catch((err) => {
+                console.log(err, iscnPrefix, classId);
+                account.collections.push({
+                  iscnPrefix,
+                  classId,
+                  count,
+                  price: 0,
+                  totalValue: 0,
+                });
+                resolve();
+              });
           }),
         );
       },
     );
+    newAccounts.push(account);
   });
-  console.log(promises);
   await Promise.all(promises);
-  return newAccounts;
+  return newAccounts.sort((a, b) => b.totalValue - a.totalValue);
 }
 
 async function getCollector(creator) {
@@ -60,10 +69,22 @@ async function getCollector(creator) {
   }
 }
 
-function getCreator(collector) {
-  return {
-    creators: { collector },
-  };
+async function getCreator(collector) {
+  try {
+    const res = await api.get(
+      `/likechain/likenft/v1/creator?collector=${collector}`,
+    );
+    const payload = {
+      ...res.data,
+      creators: await aggregate(res.data.creators),
+    };
+
+    console.dir(payload, { depth: null });
+    return payload;
+  } catch (err) {
+    console.log(err.message);
+    return { error: err.message };
+  }
 }
 
 export { getCollector, getCreator };
