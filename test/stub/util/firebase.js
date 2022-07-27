@@ -16,6 +16,7 @@ const userData = require('../../test/data/user.json').users;
 const subscriptionData = require('../../test/data/subscription.json').subscriptions;
 const txData = require('../../test/data/tx.json').tx;
 const missionData = require('../../test/data/mission.json').missions;
+const likerNftData = require('../../test/data/likernft.json').likernft;
 
 const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
 
@@ -69,6 +70,7 @@ function querySnapshotDocs(data, originalData) {
         create: (setData, config) => docSet(database, d.id, setData, config),
         update: updateData => docUpdate(database, d.id, d, updateData),
         delete: () => docDelete(database, { id: d.id }),
+        collection: id => createCollection(d.collection[id]),
       },
       data: () => docData(d),
       exists: true,
@@ -91,12 +93,20 @@ function collectionWhere(data, field, op, value) {
     }
   } else if (op === 'array-contains') {
     whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
+  } else if (op === '>=') {
+    whereData = data.filter(d => d[field] >= value);
+  } else if (op === '<=') {
+    whereData = data.filter(d => d[field] <= value);
+  } else if (op === '!=') {
+    whereData = data.filter(d => d[field] !== value);
+  } else if (op) {
+    console.error(`operator ${op} is not supported`);
   }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField, sOp, sValue) => collectionWhere(whereData, sField, sOp, sValue),
     orderBy: (sField, order = 'asc') => {
-      if (sField in data[0] && (order === 'asc' || order === 'desc')) {
+      if (!data[0] || (sField in data[0] && (order === 'asc' || order === 'desc'))) {
         return queryObj;
       }
       throw new Error('orderBy is incorrect.');
@@ -182,6 +192,13 @@ function createCollection(data) {
   };
 }
 
+const dbData = [
+  userData,
+  subscriptionData,
+  txData,
+  missionData,
+  likerNftData,
+];
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
 export const subscriptionUserCollection = createCollection(subscriptionData);
@@ -191,6 +208,7 @@ export const missionCollection = createCollection(missionData);
 export const couponCollection = createCollection([]);
 export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
+export const likeNFTCollection = createCollection(likerNftData);
 
 function runTransaction(updateFunc) {
   return updateFunc({
@@ -218,6 +236,22 @@ function createDb() {
       update: (ref, data) => ref.update(data),
       commit: () => {},
     }),
+    collectionGroup: (group) => {
+      let data = [];
+      dbData.forEach((root) => {
+        root.forEach((d) => {
+          if (d.collection) {
+            if (d.collection[group]) data = data.concat(d.collection[group]);
+            Object.values(d.collection).forEach((c) => {
+              c.forEach((cd) => {
+                if (cd.collection && cd.collection[group]) data = data.concat(cd.collection[group]);
+              });
+            });
+          }
+        });
+      });
+      return collectionWhere(data);
+    },
   };
 }
 

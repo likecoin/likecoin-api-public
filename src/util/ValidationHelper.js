@@ -316,6 +316,56 @@ export function filterSocialLinksMeta({
   };
 }
 
+export function filterLikeNFTISCNData({
+  iscnId,
+  classId,
+  totalCount,
+  currentPrice,
+  basePrice,
+  soldCount,
+  classUri,
+  creatorWallet,
+}) {
+  return {
+    iscnId,
+    classId,
+    totalCount,
+    currentPrice,
+    basePrice,
+    soldCount,
+    classUri,
+    creatorWallet,
+  };
+}
+
+
+export function filterLikeNFTMetadata({
+  image,
+  externalUrl,
+  description,
+  name,
+  backgroundColor,
+  animationUrl,
+  youtubeUrl,
+  iscnOwner,
+  iscnStakeholders,
+  iscnId,
+}) {
+  // key with underscore as in https://docs.opensea.io/docs/metadata-standards
+  return {
+    image,
+    external_url: externalUrl,
+    description,
+    name,
+    background_color: backgroundColor,
+    animation_url: animationUrl,
+    youtube_url: youtubeUrl,
+    iscn_id: iscnId,
+    iscn_owner: iscnOwner,
+    iscn_stakeholders: iscnStakeholders,
+  };
+}
+
 export function filterOAuthClientInfo({
   avatar,
   audience,

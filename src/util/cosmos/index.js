@@ -44,9 +44,9 @@ export async function getCosmosTotalSupply() {
 
 let cosmosQueryClient = null;
 
-async function getQueryClient() {
+export async function getQueryClient(rpc = cosmosRpcEndpoint) {
   if (!cosmosQueryClient) {
-    const tendermint34Client = await Tendermint34Client.connect(cosmosRpcEndpoint);
+    const tendermint34Client = await Tendermint34Client.connect(rpc);
     const queryClient = QueryClient.withExtensions(
       tendermint34Client,
       setupAuthExtension,
@@ -93,6 +93,15 @@ export function verifyCosmosSignInPayload({
   const valid = secp256k1.verify(msgHash, signatureBinary, publicKeyBinary)
     && (cosmosAddress === inputWallet || likeAddress === inputWallet);
   return valid;
+}
+
+export function isValidAddress(address) {
+  try {
+    bech32.decode(address);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export function isValidCosmosAddress(address) {

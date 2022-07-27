@@ -1,0 +1,76 @@
+{
+    "likernft": [
+        {
+            "id": "iscn%3A%2F%2Flikecoin-chain%2FjDIU6eXjSttrEUvIPfvZZaMeGB6ckGOGX0EL4UYGraU",
+            "basePrice": 1,
+            "classId": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+            "classUri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-00027b31-b5a7-429b-84c8-b25a2e45c173",
+            "classes": ["likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa"],
+            "creatorWallet": "like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42",
+            "currentPrice": 2,
+            "isProcessing": false,
+            "lastSoldTimestamp": 1655442807980,
+            "soldCount": 1,
+            "totalCount": 1000,
+            "collection": {
+                "class": [
+                    {
+                        "id": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+                        "collection": {
+                            "nft": [
+                                {
+                                    "id": "liker-00027b31-b5a7-429b-84c8-b25a2e45c173",
+                                    "classId": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+                                    "isSold": true,
+                                    "isProcessing": false,
+                                    "lastSoldTimestamp": 1655442807980,
+                                    "ownerWallet": "like1jnns8ttx8nhxleatsgwnrcandgw7a8sx24nc78",
+                                    "price": 1,
+                                    "sellerWallet": "like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42",
+                                    "uri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-00027b31-b5a7-429b-84c8-b25a2e45c173"
+                                }, {
+                                    "id": "liker-0030e3e2-f5f9-40c7-8649-833e61a9bc35",
+                                    "classId": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+                                    "isSold": false,
+                                    "isProcessing": false,
+                                    "price": 0,
+                                    "sellerWallet": "like1jnns8ttx8nhxleatsgwnrcandgw7a8sx24nc78",
+                                    "soldCount": 1,
+                                    "uri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-0030e3e2-f5f9-40c7-8649-833e61a9bc35"
+                                }
+                            ]
+                        },
+                        "creatorWallet": "like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42",
+                        "lastSoldNftId": "liker-00027b31-b5a7-429b-84c8-b25a2e45c173",
+                        "lastSoldPrice": 1,
+                        "lastSoldTimestamp": 1655442807980,
+                        "metadata": {
+                            "backgroundColor": "#28646E",
+                            "description": "",
+                            "externalUrl": "https://app.rinkeby.like.co/view/iscn%3A%2F%2Flikecoin-chain%2FjDIU6eXjSttrEUvIPfvZZaMeGB6ckGOGX0EL4UYGraU%2F1",
+                            "image": "https://static.like.co/likecoin_de-portrait.jpg",
+                            "name": ""
+                        },
+                        "soldCount": 1,
+                        "uri": "https://api.rinkeby.like.co/likernft/metadata?class_id=likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa&nft_id=liker-00027b31-b5a7-429b-84c8-b25a2e45c173"
+                    }
+                ],
+                "transaction": [
+                    {
+                        "id": "5D5FA1727B20D84675FB6F98240712034E1ABDD04B400F9609093F092E2DAAF9",
+                        "classId": "likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszvqufa",
+                        "fromWallet": "like1yney2cqn5qdrlc50yr5l53898ufdhxafqz9gxp",
+                        "nftId": "liker-00027b31-b5a7-429b-84c8-b25a2e45c173",
+                        "price": 1,
+                        "sellerLIKE": "0.8",
+                        "sellerWallet": "like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42",
+                        "stakeholderLIKEs": ["0.2"],
+                        "stakeholderWallets": ["like1lsagfzrm4gz28he4wunt63sts5xzmczw5a2m42"],
+                        "timestamp": 1655442807980,
+                        "toWallet": "like1jnns8ttx8nhxleatsgwnrcandgw7a8sx24nc78"
+                    }
+                ]
+            }
+        }
+    ]
+}

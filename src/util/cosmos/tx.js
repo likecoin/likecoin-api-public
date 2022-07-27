@@ -4,6 +4,7 @@ import { StargateClient } from '@cosmjs/stargate';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import createHash from 'create-hash';
+import BigNumber from 'bignumber.js';
 import { getAccountInfo } from './index';
 import { db, txCollection as txLogRef } from '../firebase';
 import { sleep } from '../misc';
@@ -84,8 +85,8 @@ async function computeTransactionHash(signedTx) {
   return txHash.toUpperCase();
 }
 
-async function internalSendTransaction(signedTx) {
-  const client = await getBroadcastClient();
+async function internalSendTransaction(signedTx, c) {
+  const client = c || await getBroadcastClient();
   const txBytes = TxRaw.encode(signedTx).finish();
   try {
     const res = await client.broadcastTx(txBytes);
@@ -100,7 +101,7 @@ async function internalSendTransaction(signedTx) {
   }
 }
 
-export async function sendTransactionWithSequence(senderAddress, signingFunction) {
+export async function sendTransactionWithSequence(senderAddress, signingFunction, client) {
   let res;
   let signedTx;
   const { sequence: seq1 } = await getAccountInfo(senderAddress);
@@ -118,7 +119,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
   });
   signedTx = await signingFunction({ sequence: pendingCount });
   try {
-    res = await internalSendTransaction(signedTx);
+    res = await internalSendTransaction(signedTx, client);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -136,7 +137,7 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
 
   try {
     if (!res) {
-      res = await internalSendTransaction(signedTx);
+      res = await internalSendTransaction(signedTx, client);
     }
     await db.runTransaction(t => t.get(counterRef).then((d) => {
       if (pendingCount + 1 > d.data().value) {
@@ -167,13 +168,18 @@ export async function sendTransactionWithSequence(senderAddress, signingFunction
   };
 }
 
-export function generateSendTxData(senderAddress, toAddress, amount) {
+export function calculateTxGasFee(messageLength = 1, denom = COSMOS_DENOM) {
   const gas = DEFAULT_TRANSFER_GAS;
-  const feeAmount = (gas * DEFAULT_GAS_PRICE).toFixed(0);
-  const fee = {
-    amount: [{ denom: COSMOS_DENOM, amount: feeAmount }],
-    gas: gas.toString(),
+  const feeAmount = new BigNumber(gas)
+    .multipliedBy(DEFAULT_GAS_PRICE).multipliedBy(messageLength).toFixed(0);
+  return {
+    amount: [{ denom, amount: feeAmount }],
+    gas: new BigNumber(gas).multipliedBy(messageLength).toFixed(0),
   };
+}
+
+export function generateSendTxData(senderAddress, toAddress, amount) {
+  const fee = calculateTxGasFee();
   const messages = [{
     typeUrl: '/cosmos.bank.v1beta1.MsgSend',
     value: {

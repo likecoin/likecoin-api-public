@@ -14,6 +14,7 @@ import oembed from './oembed';
 import cosmos from './cosmos';
 import arweave from './arweave';
 import iscn from './iscn';
+import likernft from './likernft';
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use('/oembed', oembed);
 router.use('/cosmos', cosmos);
 router.use('/arweave', arweave);
 router.use('/iscn', iscn);
+router.use('/likernft', likernft);
 
 export default router;

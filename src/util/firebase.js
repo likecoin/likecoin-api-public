@@ -11,6 +11,8 @@ import {
   FIRESTORE_COUPON_ROOT,
   FIRESTORE_CONFIG_ROOT,
   FIRESTORE_OAUTH_CLIENT_ROOT,
+  FIRESTORE_LIKER_NFT_ROOT,
+  FIRESTORE_ISCN_INFO_ROOT,
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
 
@@ -37,6 +39,9 @@ export const payoutCollection = getCollectionIfDefined(FIRESTORE_PAYOUT_ROOT);
 export const couponCollection = getCollectionIfDefined(FIRESTORE_COUPON_ROOT);
 export const configCollection = getCollectionIfDefined(FIRESTORE_CONFIG_ROOT);
 export const oAuthClientCollection = getCollectionIfDefined(FIRESTORE_OAUTH_CLIENT_ROOT);
+export const likeNFTCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_ROOT);
+export const iscnInfoCollection = getCollectionIfDefined(FIRESTORE_ISCN_INFO_ROOT);
+
 export const bucket = FIREBASE_STORAGE_BUCKET ? admin.storage().bucket() : null;
 
 export { admin };
