@@ -6,7 +6,7 @@ const router = Router();
 
 router.get('/collector', async (_, res) => {
   const result = await getCollector(
-    'like156gedr03g3ggwktzhygfusax4df46k8dh6w0me',
+    'like1qv66yzpgg9f8w46zj7gkuk9wd2nrpqmca3huxf',
   );
   res.send(result);
 });
