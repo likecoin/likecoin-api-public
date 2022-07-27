@@ -61,7 +61,6 @@ async function getCollector(creator) {
       collectors: await aggregate(res.data.collectors),
     };
 
-    console.dir(payload, { depth: null });
     return payload;
   } catch (err) {
     console.log(err.message);
@@ -79,7 +78,6 @@ async function getCreator(collector) {
       creators: await aggregate(res.data.creators),
     };
 
-    console.dir(payload, { depth: null });
     return payload;
   } catch (err) {
     console.log(err.message);
