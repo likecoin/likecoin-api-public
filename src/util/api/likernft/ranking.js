@@ -10,18 +10,25 @@ const api = axios.create({
 function aggregate(classes) {
   const promises = classes.map(
     c => getLatestNFTPriceAndInfo(c.parent.iscn_id_prefix, c.id, false)
-      .then(({ lastSoldPrice: price }) => ({
+      .then(({ lastSoldPrice: price, soldCount }) => ({
         ...c,
         price,
+        soldCount,
       }))
-      .catch(() => c),
+      .catch(() => ({
+        ...c,
+        price: 0,
+        soldCount: 0,
+      })),
   );
   return Promise.all(promises);
 }
 
-async function getRanking() {
-  const res = await api.get('/likechain/likenft/v1/ranking');
-  const newClasses = (await aggregate(res.data.classes)).sort((a, b) => b.price - a.price);
+async function getRanking(queryString, order) {
+  const res = await api.get(`/likechain/likenft/v1/ranking?${queryString}`);
+  const newClasses = res.data.classes
+    ? (await aggregate(res.data.classes)).sort((a, b) => b[order] - a[order])
+    : [];
   return {
     ...res.data,
     classes: newClasses,
