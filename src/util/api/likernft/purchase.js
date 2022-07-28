@@ -46,10 +46,10 @@ export async function getLowerestUnsoldNFT(iscnId, classId) {
   return payload;
 }
 
-export async function getLatestNFTPriceAndInfo(iscnId, classId) {
+export async function getLatestNFTPriceAndInfo(iscnId, classId, includeUnsold = true) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
   const [nftData, nftDoc] = await Promise.all([
-    getLowerestUnsoldNFT(iscnId, classId),
+    includeUnsold ? getLowerestUnsoldNFT(iscnId, classId) : null,
     likeNFTCollection.doc(iscnPrefix).get(),
   ]);
   const nftDocData = nftDoc.data();

@@ -17,7 +17,7 @@ async function aggregate(accounts) {
     value.collections.forEach(
       ({ iscn_id_prefix: iscnPrefix, class_id: classId, count }) => {
         promises.push(
-          getLatestNFTPriceAndInfo(iscnPrefix, classId)
+          getLatestNFTPriceAndInfo(iscnPrefix, classId, false)
             .then(({ lastSoldPrice: price }) => {
               account.collections.push({
                 iscnPrefix,
