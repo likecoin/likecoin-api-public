@@ -17,31 +17,27 @@ async function aggregate(accounts) {
     value.collections.forEach(
       ({ iscn_id_prefix: iscnPrefix, class_id: classId, count }) => {
         promises.push(
-          new Promise((resolve) => {
-            getLatestNFTPriceAndInfo(iscnPrefix, classId)
-              .then(({ price }) => {
-                account.collections.push({
-                  iscnPrefix,
-                  classId,
-                  count,
-                  price,
-                  totalValue: count * price,
-                });
-                account.totalValue += count * price;
-                resolve(true);
-              })
-              .catch((err) => {
-                console.log(err, iscnPrefix, classId);
-                account.collections.push({
-                  iscnPrefix,
-                  classId,
-                  count,
-                  price: 0,
-                  totalValue: 0,
-                });
-                resolve();
+          getLatestNFTPriceAndInfo(iscnPrefix, classId)
+            .then(({ lastSoldPrice: price }) => {
+              account.collections.push({
+                iscnPrefix,
+                classId,
+                count,
+                price,
+                totalValue: count * price,
               });
-          }),
+              account.totalValue += count * price;
+            })
+            .catch((err) => {
+              console.log(err, iscnPrefix, classId);
+              account.collections.push({
+                iscnPrefix,
+                classId,
+                count,
+                price: 0,
+                totalValue: 0,
+              });
+            }),
         );
       },
     );
@@ -63,8 +59,7 @@ async function getCollector(creator) {
 
     return payload;
   } catch (err) {
-    console.log(err.message);
-    return {};
+    throw err;
   }
 }
 
@@ -80,8 +75,7 @@ async function getCreator(collector) {
 
     return payload;
   } catch (err) {
-    console.log(err.message);
-    return { error: err.message };
+    throw err;
   }
 }
 

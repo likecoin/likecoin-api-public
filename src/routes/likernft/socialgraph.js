@@ -4,24 +4,32 @@ import { getCollector, getCreator } from '../../util/api/likernft/socialgraph';
 
 const router = Router();
 
-router.get('/collector', async (req, res) => {
-  const { creator } = req.query;
-  if (!creator) {
-    res.status(401).send({ error: 'creator is required' });
-    return;
+router.get('/collector', async (req, res, next) => {
+  try {
+    const { creator } = req.query;
+    if (!creator) {
+      res.status(400).json({ error: 'MISSING_CREATOR' });
+      return;
+    }
+    const result = await getCollector(creator);
+    res.json(result);
+  } catch (err) {
+    next(err);
   }
-  const result = await getCollector(creator);
-  res.send(result);
 });
 
-router.get('/creator', async (req, res) => {
-  const { collector } = req.query;
-  if (!collector) {
-    res.status(401).send({ error: 'creator is required' });
-    return;
+router.get('/creator', async (req, res, next) => {
+  try {
+    const { collector } = req.query;
+    if (!collector) {
+      res.status(400).json({ error: 'MISSING_COLLECTOR' });
+      return;
+    }
+    const result = await getCreator(collector);
+    res.json(result);
+  } catch (err) {
+    next(err);
   }
-  const result = await getCreator(collector);
-  res.send(result);
 });
 
 export default router;
