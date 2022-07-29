@@ -1,11 +1,8 @@
 import { Router } from 'express';
-import axios from 'axios';
 
 import { ValidationError } from '../../util/ValidationError';
 import { getISCNIdByClassId } from '../../util/api/likernft';
-import { processNFTTransfer } from '../../util/api/likernft/transfer';
-
-import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../config/config';
+import { getNFTTransferInfo, processNFTTransfer } from '../../util/api/likernft/transfer';
 
 const router = Router();
 
@@ -13,19 +10,19 @@ router.post(
   '/transfer',
   async (req, res, next) => {
     try {
-      const { tx_hash: txHash } = req.query;
+      const { tx_hash: txHash, nft_id: nftId } = req.query;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
-      const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs/${txHash}`);
+      const info = await getNFTTransferInfo(txHash, nftId);
+      if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {
-        class_id: classId,
-        id: nftId,
-        sender,
-        receiver,
-      } = data.tx.body.messages[0];
+        fromAddress,
+        toAddress,
+        classId,
+        txTimestamp,
+      } = info;
       const iscnId = await getISCNIdByClassId(classId);
-      const { timestamp: txTimestamp } = data.tx_response;
       await processNFTTransfer({
-        newOwnerAddress: receiver,
+        newOwnerAddress: toAddress,
         iscnId,
         classId,
         nftId,
@@ -37,8 +34,8 @@ router.post(
         iscnId,
         classId,
         nftId,
-        fromAddress: sender,
-        toAddress: receiver,
+        fromAddress,
+        toAddress,
       });
     } catch (err) {
       next(err);
