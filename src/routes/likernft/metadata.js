@@ -88,7 +88,8 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const iscnId = await getISCNIdByClassId(classId);
+      const prefix = await getISCNIdByClassId(classId);
+      const iscnId = `${prefix}/0`; // hardcode version 0 wait fix
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
@@ -108,6 +109,7 @@ router.get(
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.type('png');
       basicImage
         .pipe(resizedImage)
         // .pipe(combinedImage)
