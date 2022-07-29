@@ -16,8 +16,8 @@ export async function processNFTTransfer({
   await db.runTransaction(async (t) => {
     const nftDoc = await t.get(nftRef);
     if (!nftDoc.exists) throw new ValidationError('NFT_NOT_FOUND');
-    const { lastUpdateTimestamp: dbTimestamp } = nftDoc.data();
-    if (dbTimestamp && txTimestamp <= dbTimestamp) throw new ValidationError('OUTDATED_TRANSFER_DATA');
+    const { lastUpdateTimestamp: dbTimestamp = 0 } = nftDoc.data();
+    if (txTimestamp <= dbTimestamp) throw new ValidationError('OUTDATED_TRANSFER_DATA');
     t.update(nftRef, {
       ownerWallet: newOwnerAddress,
       lastUpdateTimestamp: txTimestamp,
