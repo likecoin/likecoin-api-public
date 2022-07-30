@@ -11,7 +11,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { tx_hash: txHash, nft_id: nftId } = req.query;
-      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      if (!txHash || !nftId) throw new ValidationError('MISSING_TX_HASH_OR_NFT_ID');
       const info = await getNFTTransferInfo(txHash, nftId);
       if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {
