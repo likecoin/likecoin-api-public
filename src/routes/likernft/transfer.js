@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { ValidationError } from '../../util/ValidationError';
 import { getISCNIdByClassId } from '../../util/api/likernft';
 import { getNFTTransferInfo, processNFTTransfer } from '../../util/api/likernft/transfer';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -34,6 +36,17 @@ router.post(
         iscnId,
         classId,
         nftId,
+        fromAddress,
+        toAddress,
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTTransfer',
+        classId,
+        iscnId,
+        nftId,
+        txHash,
+        timestamp: txTimestamp,
         fromAddress,
         toAddress,
       });

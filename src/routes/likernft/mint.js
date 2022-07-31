@@ -8,6 +8,8 @@ import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -72,10 +74,11 @@ router.post(
       } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS);
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
+      const { uri } = nfts[0];
       await writeMintedNFTInfo(iscnId, {
         classId,
         totalCount: nfts.length,
-        uri: nfts[0].uri,
+        uri,
       }, nfts);
 
       res.json({
@@ -83,6 +86,17 @@ router.post(
         iscnId: getISCNPrefix(iscnId),
         nftCount: nfts.length,
         sellerWallet,
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTMint',
+        classId,
+        iscnId: getISCNPrefix(iscnId),
+        txHash,
+        nftCount: nfts.length,
+        sellerWallet,
+        apiWallet: LIKER_NFT_TARGET_ADDRESS,
+        uri,
       });
     } catch (err) {
       next(err);
