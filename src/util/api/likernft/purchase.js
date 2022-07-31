@@ -21,6 +21,8 @@ import {
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
+import publisher from '../../gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const SELLER_RATIO = 0.8;
 const STAKEHOLDERS_RATIO = 0.2;
@@ -139,7 +141,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmount) {
+export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmount, req) {
   const iscnData = await getNFTISCNData(iscnId);
   if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -270,6 +272,20 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
     if (code !== 0) throw new ValidationError('TX_NOT_SUCCESS');
     const timestamp = Date.now();
     // update price and unlock
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTPurchaseTransaction',
+      txHash: transactionHash,
+      iscnId: iscnPrefix,
+      classId,
+      nftId,
+      buyerWallet: likeWallet,
+    });
+
+    const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
+    const stakeholderWallets = [...stakeholderMap.keys()];
+    const stakeholderLIKEs = [...stakeholderMap.values()]
+      .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
     await db.runTransaction(async (t) => {
       const doc = await t.get(iscnRef);
       const docData = doc.data();
@@ -333,10 +349,9 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
         fromWallet,
         toWallet,
         sellerWallet,
-        sellerLIKE: new BigNumber(sellerAmount).shiftedBy(-9).toFixed(),
-        stakeholderWallets: [...stakeholderMap.keys()],
-        stakeholderLIKEs: [...stakeholderMap.values()]
-          .map(a => new BigNumber(a).shiftedBy(-9).toFixed()),
+        sellerLIKE,
+        stakeholderWallets,
+        stakeholderLIKEs,
       });
     });
     return {
@@ -345,6 +360,10 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       nftId,
       nftPrice,
       gasFee,
+      sellerWallet,
+      sellerLIKE,
+      stakeholderWallets,
+      stakeholderLIKEs,
     };
   } catch (err) {
     console.error(err);
@@ -356,6 +375,13 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       if (docCurrentBatch === currentBatch) {
         t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
       }
+    });
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTPurchaseError',
+      iscnId: iscnPrefix,
+      classId,
+      nftId,
+      buyerWallet: likeWallet,
     });
     throw err;
   }

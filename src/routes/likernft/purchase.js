@@ -9,6 +9,8 @@ import {
 } from '../../util/api/likernft/purchase';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -65,7 +67,11 @@ router.post(
         nftId,
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
-      } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount);
+        sellerWallet,
+        sellerLIKE,
+        stakeholderWallets,
+        stakeholderLIKEs,
+      } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount, req);
       res.json({
         txHash: transactionHash,
         iscnId: getISCNPrefix(iscnId),
@@ -73,6 +79,21 @@ router.post(
         nftId,
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseSuccess',
+        txHash: transactionHash,
+        iscnId: getISCNPrefix(iscnId),
+        classId,
+        nftId,
+        nftPrice: actualNftPrice,
+        gasFee: actualGasFee,
+        buyerWallet: likeWallet,
+        sellerWallet,
+        sellerLIKE,
+        stakeholderWallets,
+        stakeholderLIKEs,
       });
     } catch (err) {
       next(err);
