@@ -1,11 +1,13 @@
 import { ValidationError } from '../util/ValidationError';
 
 export default function errorHandler(err, req, res, next) {
-  const msg = (err.response && err.response.data) || err;
   if (err instanceof ValidationError) {
-    console.error(err.message);
+    console.error(JSON.stringify(err.message));
   } else {
-    console.error(msg);
+    console.error(JSON.stringify({
+      severity: 'ERROR',
+      message: { err, stack: err.stack },
+    }));
   }
   if (res.headersSent) {
     return next(err);
