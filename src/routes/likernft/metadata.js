@@ -100,9 +100,9 @@ router.get(
         iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       }
       let image = '';
-      let title = '';
+      let title = 'Writing NFT';
       if (iscnData.exists) {
-        ({ image, title } = iscnData.data());
+        ({ image, title = 'Writing NFT' } = iscnData.data());
       }
       const basicImage = await getBasicImage(image, title);
       const resizedImage = getResizedImage();
