@@ -93,6 +93,7 @@ export async function getISCNStakeholderRewards(iscnData, rewardAmount, owner = 
   if (stakeholders && stakeholders.length) {
     const likeWalletsAndLikerIds = await Promise.all(stakeholders.map(async (stakeholder) => {
       const id = stakeholder.entity['@id'];
+      if (!id) return null;
       const res = await getLikeWalletAndLikerIdFromId(id);
       return res && res.likeWallet;
     }));
