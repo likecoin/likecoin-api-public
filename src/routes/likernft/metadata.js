@@ -89,7 +89,9 @@ router.get(
     try {
       const { classId } = req.params;
       const prefix = await getISCNIdByClassId(classId);
-      const iscnId = `${prefix}/0`; // hardcode version 0 wait fix
+      const { data } = await getNFTISCNData(prefix);
+      if (!data) throw new ValidationError('ISCN_NOT_FOUND');
+      const iscnId = (data && data['@id']);
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
