@@ -7,7 +7,9 @@ import { getISCNIdByClassId } from '../../util/api/likernft';
 import {
   getLikerNFTDynamicData, getBasicImage, /* getCombinedImage, */ getResizedImage,
 } from '../../util/api/likernft/metadata';
-import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
+import {
+  getNFTISCNData, getNFTClassDataById, getNFTOwner,
+} from '../../util/cosmos/nft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
@@ -89,7 +91,9 @@ router.get(
     try {
       const { classId } = req.params;
       const prefix = await getISCNIdByClassId(classId);
-      const iscnId = `${prefix}/0`; // hardcode version 0 wait fix
+      const { data } = await getNFTISCNData(prefix);
+      if (!data) throw new ValidationError('ISCN_NOT_FOUND');
+      const iscnId = (data && data['@id']);
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
