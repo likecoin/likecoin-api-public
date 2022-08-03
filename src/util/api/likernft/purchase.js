@@ -378,6 +378,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       if (docCurrentBatch === currentBatch) {
         t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
       }
+      t.update(nftRef, { isProcessing: false });
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTPurchaseError',
