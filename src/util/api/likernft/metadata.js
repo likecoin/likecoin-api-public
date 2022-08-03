@@ -42,7 +42,7 @@ export async function getBasicImage(image, title) {
       .png()
       .flatten({ background: { r: 250, g: 250, b: 250 } });
   }
-  return imageBuffer;
+  return { image: imageBuffer, isDefault: !image };
 }
 
 export async function getCombinedImage() {

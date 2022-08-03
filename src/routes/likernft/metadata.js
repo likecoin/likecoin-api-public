@@ -106,11 +106,12 @@ router.get(
       if (iscnData.exists) {
         ({ image, title = 'Writing NFT' } = iscnData.data());
       }
-      const basicImage = await getBasicImage(image, title);
+      const { image: basicImage, isDefault: isImageMissing } = await getBasicImage(image, title);
       const resizedImage = getResizedImage();
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();
-      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      const cacheTime = isImageMissing ? 60 : 3600;
+      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
       res.type('png');
       basicImage
         .pipe(resizedImage)
