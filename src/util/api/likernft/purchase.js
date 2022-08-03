@@ -269,7 +269,10 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       throw new ValidationError(err);
     }
     const { transactionHash, code } = res;
-    if (code !== 0) throw new ValidationError('TX_NOT_SUCCESS');
+    if (code !== 0) {
+      console.error(`Tx ${transactionHash} failed with code ${code}`);
+      throw new ValidationError('TX_NOT_SUCCESS');
+    }
     const timestamp = Date.now();
     // update price and unlock
 
