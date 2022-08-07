@@ -49,8 +49,8 @@ router.post(
   fetchISCNIdAndClassId,
   async (req, res, next) => {
     try {
-      const { tx_hash: txHash, user_ts: userTs } = req.query;
-      if (Date.now() - userTs > API_EXPIRATION_BUFFER_TIME) throw new ValidationError('USER_TIME_OUT_SYNC');
+      const { tx_hash: txHash, ts } = req.query;
+      if (ts && (Date.now() - ts > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const { iscnId, classId } = res.locals;
       const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
