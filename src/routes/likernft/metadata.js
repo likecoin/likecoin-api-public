@@ -75,7 +75,7 @@ router.get(
         ownerMap[owner] = ownerMap[owner] || [];
         ownerMap[owner].push(nftIds[index]);
       });
-      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(ownerMap);
     } catch (err) {
       next(err);
