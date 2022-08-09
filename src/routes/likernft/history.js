@@ -4,6 +4,7 @@ import { ValidationError } from '../../util/ValidationError';
 import { getISCNDocByClassId } from '../../util/api/likernft';
 import { fetchISCNIdAndClassId } from '../../middleware/likernft';
 import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../config/config';
+import { ONE_DAY_IN_S } from '../../constant';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.get(
       if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
       const query = await queryObj.orderBy('timestamp', 'desc').get();
       list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
+      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list,
       });
