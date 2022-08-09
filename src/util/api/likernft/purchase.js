@@ -344,6 +344,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       });
       t.create(iscnRef.collection('transaction')
         .doc(transactionHash), {
+        event: 'purchase',
         txHash: transactionHash,
         price: nftPrice,
         classId,

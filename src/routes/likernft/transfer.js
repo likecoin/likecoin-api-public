@@ -24,10 +24,12 @@ router.post(
       } = info;
       const iscnId = await getISCNIdByClassId(classId);
       await processNFTTransfer({
-        newOwnerAddress: toAddress,
+        fromAddress,
+        toAddress,
         iscnId,
         classId,
         nftId,
+        txHash,
         txTimestamp,
       });
       res.json({

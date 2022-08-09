@@ -26,10 +26,12 @@ export async function getNFTTransferInfo(txHash, nftId) {
 }
 
 export async function processNFTTransfer({
-  newOwnerAddress,
+  fromAddress,
+  toAddress,
   iscnId,
   classId,
   nftId,
+  txHash,
   txTimestamp,
 }) {
   const iscnPrefix = getISCNPrefixDocName(iscnId);
@@ -42,8 +44,18 @@ export async function processNFTTransfer({
     const { lastUpdateTimestamp: dbTimestamp = 0 } = nftDoc.data();
     if (txTimestamp <= dbTimestamp) throw new ValidationError('OUTDATED_TRANSFER_DATA');
     t.update(nftRef, {
-      ownerWallet: newOwnerAddress,
+      ownerWallet: toAddress,
       lastUpdateTimestamp: txTimestamp,
+    });
+    t.create(iscnRef.collection('transaction')
+      .doc(txHash), {
+      event: 'transfer',
+      txHash,
+      classId,
+      nftId,
+      timestamp: txTimestamp,
+      fromWallet: fromAddress,
+      toWallet: toAddress,
     });
   });
 }
