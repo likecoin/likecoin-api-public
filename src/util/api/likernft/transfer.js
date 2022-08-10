@@ -16,12 +16,12 @@ export async function getNFTTransferInfo(txHash, nftId) {
     sender: fromAddress,
     receiver: toAddress,
   } = message;
-  const { timestamp: txTimestamp } = data.tx_response;
+  const { timestamp } = data.tx_response;
   return {
     fromAddress,
     toAddress,
     classId,
-    txTimestamp,
+    txTimestamp: Date.parse(timestamp),
   };
 }
 
