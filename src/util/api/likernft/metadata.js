@@ -34,15 +34,22 @@ export async function getImageMask() {
 
 export async function getBasicImage(image, title) {
   let imageBuffer;
+  let isDefault = true;
   if (image) {
-    imageBuffer = (await axios.get(image, { responseType: 'stream' })).data;
-  } else {
-    const textDataBuffer = await addTextOnImage(title, 'black');
+    const imageData = (await axios.get(image, { responseType: 'stream' }).catch(() => {}));
+    if (imageData && imageData.data) {
+      imageBuffer = imageData.data;
+      isDefault = false;
+    }
+  }
+  if (isDefault) {
+    const escapedTitle = title.replace(/&/g, '&amp;');
+    const textDataBuffer = await addTextOnImage(escapedTitle, 'black');
     imageBuffer = await sharp(textDataBuffer)
       .png()
       .flatten({ background: { r: 250, g: 250, b: 250 } });
   }
-  return { image: imageBuffer, isDefault: !image };
+  return { image: imageBuffer, isDefault };
 }
 
 export async function getCombinedImage() {
