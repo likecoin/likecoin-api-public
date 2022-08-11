@@ -43,7 +43,8 @@ export async function getBasicImage(image, title) {
     }
   }
   if (isDefault) {
-    const textDataBuffer = await addTextOnImage(title, 'black');
+    const titleFix = title.replace('&', '&amp;');
+    const textDataBuffer = await addTextOnImage(titleFix, 'black');
     imageBuffer = await sharp(textDataBuffer)
       .png()
       .flatten({ background: { r: 250, g: 250, b: 250 } });
