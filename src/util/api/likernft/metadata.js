@@ -43,8 +43,8 @@ export async function getBasicImage(image, title) {
     }
   }
   if (isDefault) {
-    const titleFix = title.replace('&', '&amp;');
-    const textDataBuffer = await addTextOnImage(titleFix, 'black');
+    const escapedTitle = title.replace(/&/g, '&amp;');
+    const textDataBuffer = await addTextOnImage(escapedTitle, 'black');
     imageBuffer = await sharp(textDataBuffer)
       .png()
       .flatten({ background: { r: 250, g: 250, b: 250 } });
