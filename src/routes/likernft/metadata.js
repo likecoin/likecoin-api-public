@@ -30,11 +30,11 @@ router.get(
         res.status(404).send('NFT_DATA_NOT_FOUND');
         return;
       }
-      const [{ owner: iscnOwner, data: iscnData }, chainData, dynamicData] = await Promise.all([
+      const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
         getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
         getNFTClassDataById(classId).catch(err => console.error(err)),
-        getLikerNFTDynamicData(classId, classData).catch(err => console.error(err)),
       ]);
+      const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
       if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
       if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
       if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');

@@ -81,11 +81,15 @@ export async function getDynamicBackgroundColor(soldCount) {
   return '#d2f0f0';
 }
 
-export async function getLikerNFTDynamicData(classId, classData) {
+export function getLikerNFTDynamicData(classId, classData, iscnData) {
   const { soldCount } = classData;
-  const backgroundColor = await getDynamicBackgroundColor(soldCount);
-  return {
+  const { contentMetadata: { url, description } = {} } = iscnData;
+  const backgroundColor = getDynamicBackgroundColor(soldCount);
+  const payload = {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
     backgroundColor,
   };
+  if (description) payload.description = description;
+  if (url) payload.url = url;
+  return payload;
 }
