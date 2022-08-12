@@ -34,9 +34,9 @@ router.get(
         getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
         getNFTClassDataById(classId).catch(err => console.error(err)),
       ]);
-      const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
       if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
       if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
+      const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
       if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
