@@ -90,6 +90,6 @@ export function getLikerNFTDynamicData(classId, classData, iscnData) {
     backgroundColor,
   };
   if (description) payload.description = description;
-  if (url) payload.url = url;
+  if (url) payload.externalUrl = url;
   return payload;
 }
