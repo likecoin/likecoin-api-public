@@ -32,6 +32,7 @@ config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
 config.REPLICA_IPFS_ENDPOINTS = [];
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
+config.LIKER_NFT_FEE_ADDRESS = '';
 config.LIKER_NFT_STARTING_PRICE = 8;
 config.LIKER_NFT_PRICE_MULTIPLY = 2;
 config.LIKER_NFT_PRICE_DECAY = 0.2;

@@ -12,6 +12,7 @@ import {
   NFT_COSMOS_DENOM,
   NFT_CHAIN_ID,
   LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_FEE_ADDRESS,
   LIKER_NFT_GAS_FEE,
   LIKER_NFT_STARTING_PRICE,
   LIKER_NFT_PRICE_MULTIPLY,
@@ -24,8 +25,9 @@ import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
-const SELLER_RATIO = 0.8;
+const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const STAKEHOLDERS_RATIO = 0.2;
+const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
 export async function getLowerestUnsoldNFT(iscnId, classId) {
@@ -153,6 +155,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
     price: nftItemPrice,
     sellerWallet: nftItemSellerWallet,
   } = nftData;
+  const feeWallet = LIKER_NFT_FEE_ADDRESS;
 
   const isFirstSale = !nftItemPrice; // first sale if price = 0;
 
@@ -199,6 +202,8 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
 
     const totalPrice = nftPrice + gasFee;
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
+    const feeAmount = new BigNumber(nftPrice)
+      .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
     const sellerAmount = new BigNumber(nftPrice)
       .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
     const stakeholdersAmount = new BigNumber(nftPrice)
@@ -213,6 +218,16 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
         },
       },
     ];
+    if (feeAmount && new BigNumber(feeAmount).gt(0)) {
+      transferMessages.push({
+        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+        value: {
+          fromAddress: LIKER_NFT_TARGET_ADDRESS,
+          toAddress: feeWallet,
+          amount: [{ denom: NFT_COSMOS_DENOM, amount: feeAmount }],
+        },
+      });
+    }
 
     const stakeholderMap = await getISCNStakeholderRewards(data, stakeholdersAmount, owner);
     stakeholderMap.forEach((amount, wallet) => {
@@ -288,6 +303,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
     });
 
     const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
+    const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
     const stakeholderWallets = [...stakeholderMap.keys()];
     const stakeholderLIKEs = [...stakeholderMap.values()]
       .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
@@ -370,6 +386,8 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       sellerLIKE,
       stakeholderWallets,
       stakeholderLIKEs,
+      feeWallet,
+      feeLIKE,
     };
   } catch (err) {
     // eslint-disable-next-line no-console
