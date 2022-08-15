@@ -74,6 +74,8 @@ router.post(
         sellerLIKE,
         stakeholderWallets,
         stakeholderLIKEs,
+        feeWallet,
+        feeLIKE,
       } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount, req);
       res.json({
         txHash: transactionHash,
@@ -95,8 +97,13 @@ router.post(
         buyerWallet: likeWallet,
         sellerWallet,
         sellerLIKE,
+        sellerLIKENumber: Number(sellerLIKE),
         stakeholderWallets,
         stakeholderLIKEs,
+        stakeholderLIKEsNumber: stakeholderLIKEs.map(l => Number(l)),
+        feeWallet,
+        feeLIKE,
+        feeLIKENumber: Number(sellerLIKE),
       });
     } catch (err) {
       next(err);
