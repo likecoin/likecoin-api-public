@@ -69,7 +69,7 @@ export function getResizedImage() {
     .png();
 }
 
-export async function getDynamicBackgroundColor(soldCount) {
+export function getDynamicBackgroundColor(soldCount) {
   // TODO: replace with actual color map
   if (soldCount > 100) {
     return '#28646e';
