@@ -31,7 +31,9 @@ router.get(
         return;
       }
       const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
+        // eslint-disable-next-line no-console
         getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
+        // eslint-disable-next-line no-console
         getNFTClassDataById(classId).catch(err => console.error(err)),
       ]);
       if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');

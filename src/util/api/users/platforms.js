@@ -38,6 +38,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
     try {
       payload.avatar = await handleAvatarLinkAndGetURL(user, avatarURL);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
     }
   }

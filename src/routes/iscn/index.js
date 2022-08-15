@@ -44,6 +44,7 @@ async function handleRegisterISCN(req, res, next) {
       try {
         metadata = JSON.parse(metadata);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error(err);
         res.status(400).send('INVALID_METADATA');
         return;
@@ -162,10 +163,13 @@ async function handleRegisterISCN(req, res, next) {
 
     // TODO: remove iscn debug
     if (iscnId) {
+      // eslint-disable-next-line no-console
       console.log(`ISCN ID: ${iscnId}`);
     } else if (iscnTxHash) {
+      // eslint-disable-next-line no-console
       console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
     } else {
+      // eslint-disable-next-line no-console
       console.error('Cannot find ISCN ID and ISCN TX');
     }
 

@@ -123,6 +123,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     } catch (err) {
       if (err instanceof ValidationError) throw err;
       if (typeof err === 'object') {
+        // eslint-disable-next-line no-console
         console.error(err);
         res.status(400).json(err);
         return;

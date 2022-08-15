@@ -137,7 +137,9 @@ router.post(
               const cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
               payload.cosmosWallet = cosmosWallet;
             } catch (err) {
+              // eslint-disable-next-line no-console
               console.error('Cannot create cosmos wallet');
+              // eslint-disable-next-line no-console
               console.error(err);
               throw new ValidationError('COSMOS_WALLET_PENDING');
             }
@@ -147,7 +149,9 @@ router.post(
               const likeWallet = await convertAddressPrefix(payload.cosmosWallet, 'like');
               payload.likeWallet = likeWallet;
             } catch (err) {
+              // eslint-disable-next-line no-console
               console.error('Cannot create cosmos wallet');
+              // eslint-disable-next-line no-console
               console.error(err);
               throw new ValidationError('COSMOS_WALLET_PENDING');
             }
@@ -217,7 +221,10 @@ router.post(
           );
         } catch (err) {
           /* no update will return 400 error */
-          if (!err.response || err.response.status !== 400) console.error(err);
+          if (!err.response || err.response.status !== 400) {
+            // eslint-disable-next-line no-console
+            console.error(err);
+          }
         }
       }
 
@@ -354,7 +361,9 @@ router.post(
       try {
         avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error('Avatar file handling error:');
+        // eslint-disable-next-line no-console
         console.error(err);
         throw new ValidationError('INVALID_AVATAR');
       }
@@ -520,6 +529,7 @@ router.post('/login', async (req, res, next) => {
           isLocked,
         } = doc.data();
         if (isLocked) {
+          // eslint-disable-next-line no-console
           console.log(`Locked user: ${user}`);
           throw new ValidationError('USER_LOCKED');
         }
@@ -569,7 +579,10 @@ router.post('/login', async (req, res, next) => {
               );
             } catch (err) {
               /* no update will return 400 error */
-              if (!err.response || err.response.status !== 400) console.error(err);
+              if (!err.response || err.response.status !== 400) {
+                // eslint-disable-next-line no-console
+                console.error(err);
+              }
             }
           }
         }
@@ -614,6 +627,7 @@ router.post('/logout', jwtAuth('read'), async (req, res, next) => {
       try {
         await dbRef.doc(user).collection('session').doc(jti).delete();
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error(err);
       }
       const doc = await dbRef.doc(user).get();

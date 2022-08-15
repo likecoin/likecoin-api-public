@@ -21,6 +21,7 @@ router.get('/likepay/:txId', async (req, res, next) => {
         uuid,
       } = decodeLikePayId(txId));
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
       throw new ValidationError('PAYLOAD_PARSE_FAILED');
     }

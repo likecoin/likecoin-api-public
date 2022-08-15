@@ -33,6 +33,7 @@ router.get('/price', async (req, res) => {
       price = Math.max(...validPrices);
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
   if (

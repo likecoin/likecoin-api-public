@@ -27,7 +27,10 @@ const getInstance = (() => {
 export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
   const client = getInstance();
   const fileBlob = file.buffer;
-  if (!onlyHash) client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
+  if (!onlyHash) {
+    // eslint-disable-next-line no-console
+    client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
+  }
   const res = await client.primary.add(fileBlob, { onlyHash });
   return res.cid.toString();
 }
@@ -53,6 +56,7 @@ export async function uploadFilesToIPFS(files, { onlyHash = false } = {}) {
   const directoryName = 'tmp';
   if (!onlyHash) {
     client.replicas.map(
+      // eslint-disable-next-line no-console
       c => internalUploadAll(c, files, { directoryName, onlyHash }).catch(e => console.error(e)),
     );
   }

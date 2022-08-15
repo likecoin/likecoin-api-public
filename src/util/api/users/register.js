@@ -136,7 +136,9 @@ export async function handleUserRegistration({
       avatarURL = await handleAvatarLinkAndGetURL(user, avatarURLInput);
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('Avatar file handling error:');
+    // eslint-disable-next-line no-console
     console.error(err);
   }
   let hasReferrer = false;
@@ -269,6 +271,7 @@ export async function handleUserRegistration({
             });
           }
         } catch (err) {
+          // eslint-disable-next-line no-console
           console.error(err);
         }
       }

@@ -265,11 +265,13 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
         client,
       );
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
       throw new ValidationError(err);
     }
     const { transactionHash, code } = res;
     if (code !== 0) {
+      // eslint-disable-next-line no-console
       console.error(`Tx ${transactionHash} failed with code ${code}`);
       throw new ValidationError('TX_NOT_SUCCESS');
     }
@@ -370,6 +372,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
       stakeholderLIKEs,
     };
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
     // reset lock
     await db.runTransaction(async (t) => {
