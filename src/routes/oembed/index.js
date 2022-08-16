@@ -139,16 +139,27 @@ async function processNftClass(req, res, { parsedURL }) {
   };
 }
 
+function parseURL(url) {
+  // need to support URL without protocol
+  try {
+    return new URL(url);
+  } catch (_) {
+    try {
+      return new URL(`https://${url}`);
+    } catch (__) {
+      return null;
+    }
+  }
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const { url, format = 'json' } = req.query;
     if (!url) {
       throw new ValidationError('No url query in oEmbed request');
     }
-    let parsedURL;
-    try {
-      parsedURL = new URL(url);
-    } catch (err) {
+    const parsedURL = parseURL(url);
+    if (url === null) {
       throw new ValidationError(`Invalid url query (${url}) in oEmbed request`);
     }
     const match = domainRegexp.exec(parsedURL.host);

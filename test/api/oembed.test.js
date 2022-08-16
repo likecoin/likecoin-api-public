@@ -15,7 +15,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingDisplayName1), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.author_url, `https://rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
@@ -25,7 +25,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingDisplayName1), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.author_url, `https://rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
@@ -35,7 +35,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingDisplayName1), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.author_url, `https://rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
@@ -45,7 +45,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingUser2), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://rinkeby.like.co/${testingUser2}`);
+  t.is(res.data.author_url, `https://rinkeby.like.co/${testingUser2}`);
   t.is(res.data.thumbnail_width, 50);
   t.is(res.data.thumbnail_height, 50);
 
@@ -55,7 +55,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingDisplayName1), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://button.rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.author_url, `https://button.rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
@@ -65,7 +65,7 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.type, 'rich');
   t.is(res.data.title.includes(testingDisplayName1), true);
   t.is(res.data.version, '1.0');
-  t.is(res.data.url, `https://button.rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.author_url, `https://button.rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
@@ -73,7 +73,12 @@ test('OEMBED: success cases', async (t) => {
   res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)
     .catch(err => err.response);
   t.is(res.status, 200);
-  t.true(res.data.includes('<?xml version="1.0" encoding="utf-8" standalone="yes"?><oembed><type>rich</type><version>1.0</version><title>Like testing&apos;s work</title><url>https://rinkeby.like.co/testing</url>'));
+  t.true(res.data.includes('<?xml version="1.0" encoding="utf-8" standalone="yes"?><oembed>'));
+  t.true(res.data.includes('<type>rich</type>'));
+  t.true(res.data.includes('<version>1.0</version>'));
+  t.true(res.data.includes('<title>Like testing&apos;s work</title>'));
+  t.true(res.data.includes('<author_name>testing</author_name>'));
+  t.true(res.data.includes('<author_url>https://rinkeby.like.co/testing</author_url>'));
 });
 
 test('OEMBED: failure cases', async (t) => {
