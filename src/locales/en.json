@@ -1,8 +1,14 @@
 {
   "LikeButton": {
-    "head": {
+    "user": {
       "title": "Like {{name}}'s work",
       "description": "Reward Creativity, powered by LikeCoin"
+    },
+    "nftclass": {
+      "title": "{{nftClass}}"
+    },
+    "iscn": {
+      "title": "{{iscnId}}"
     }
   },
   "Email": {

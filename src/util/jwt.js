@@ -38,7 +38,9 @@ if (publicECDSACertPath) {
       if (!internalDefaultVerifyAlgorithm) internalDefaultVerifyAlgorithm = 'ES256';
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('ECDSA cert not exist for jwt');
   }
 }
@@ -51,7 +53,9 @@ if (secretECDSACertPath) {
       if (!internalDefaultSignAlgorithm) internalDefaultSignAlgorithm = 'ES256';
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('ECDSA sign key not exist for jwt');
   }
 }
@@ -64,7 +68,9 @@ if (publicCertPath) {
       if (!internalDefaultVerifyAlgorithm) internalDefaultVerifyAlgorithm = 'RS256';
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('RSA cert not exist for jwt');
   }
 }
@@ -77,7 +83,9 @@ if (secretCertPath) {
       if (!internalDefaultSignAlgorithm) internalDefaultSignAlgorithm = 'RS256';
     }
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('RSA sign key not exist for jwt');
   }
 }
@@ -85,7 +93,9 @@ if (authCorePublicCertPath) {
   try {
     authCoreVerifySecret = fs.readFileSync(authCorePublicCertPath);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('auth core cert not exist for jwt');
   }
 }
@@ -94,7 +104,9 @@ if (authCoreSecretCertPath) {
   try {
     authCoreSignSecret = fs.readFileSync(authCoreSecretCertPath);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
+    // eslint-disable-next-line no-console
     console.error('auth core cert not exist for jwt');
   }
 }

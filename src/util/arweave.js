@@ -63,6 +63,7 @@ export async function getArweaveIdFromHashes(ipfsHash) {
     }
     return undefined;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
     return undefined;
   }

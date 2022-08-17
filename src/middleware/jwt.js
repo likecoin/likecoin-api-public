@@ -30,6 +30,7 @@ async function fetchProviderClientInfo(clientId, req) {
       req.auth = info;
       return info.secret;
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
     }
   }
@@ -185,6 +186,7 @@ export const jwtOptionalAuth = (
           res.status(401).send('TOKEN_EXPIRED');
           return;
         }
+        // eslint-disable-next-line no-console
         console.error(e);
         res.status(401).send('LOGIN_NEEDED');
         return;

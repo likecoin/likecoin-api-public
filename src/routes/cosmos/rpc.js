@@ -26,6 +26,7 @@ try {
   proxyPath = urlObj.pathname;
   proxyPath = proxyPath.slice(0, proxyPath.length - 1);
 } catch (err) {
+  // eslint-disable-next-line no-console
   console.error(err);
 }
 
@@ -261,6 +262,7 @@ if (COSMOS_RPC_ENDPOINT) {
               try {
                 await handlePostTxReq(userReq.body, JSON.parse(proxyResData.toString('utf8')), userReq, userRes);
               } catch (err) {
+                // eslint-disable-next-line no-console
                 console.error(err);
               }
               break;

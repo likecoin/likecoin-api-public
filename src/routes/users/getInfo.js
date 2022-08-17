@@ -23,6 +23,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
       if (payload.isLocked) {
+        // eslint-disable-next-line no-console
         console.log(`Locked user: ${username}`);
         throw new Error('USER_LOCKED');
       }

@@ -10,6 +10,7 @@ export async function logTransferDelegatedTx(payload) {
       ...payload,
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
 }
@@ -24,6 +25,7 @@ export async function logETHTx(payload) {
       ...payload,
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
 }
@@ -38,6 +40,7 @@ export async function logClaimCouponTx(payload) {
       ...payload,
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
 }
@@ -53,6 +56,7 @@ export async function logCosmosTx(payload) {
       ...payload,
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
 }
@@ -68,6 +72,7 @@ export async function logISCNTx(payload) {
       ...payload,
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
   }
 }

@@ -175,7 +175,10 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           );
         } catch (err) {
           /* no update will return 400 error */
-          if (!err.response || err.response.status !== 400) console.error(err);
+          if (!err.response || err.response.status !== 400) {
+            // eslint-disable-next-line no-console
+            console.error(err);
+          }
         }
         break;
       }

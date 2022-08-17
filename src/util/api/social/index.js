@@ -230,6 +230,7 @@ export async function tryToLinkSocialPlatform(
     }
     return platformPayload;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
     return null;
   }

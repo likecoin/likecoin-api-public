@@ -192,6 +192,7 @@ export async function lazyUpdateAppMetaData(req, user) {
       try {
         await checkPhoneVerification(username);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error(err);
       }
     }
@@ -201,6 +202,7 @@ export async function lazyUpdateAppMetaData(req, user) {
     try {
       await checkPhoneVerification(username);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
     }
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

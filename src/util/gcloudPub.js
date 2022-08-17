@@ -55,6 +55,7 @@ publisher.publish = async (publishTopic, req, obj) => {
   try {
     await publisherWrapper[publishTopic].publish(dataBuffer);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('ERROR:', err);
   }
 };

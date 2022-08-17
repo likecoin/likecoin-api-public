@@ -18,6 +18,7 @@ router.get('/list', async (req, res, next) => {
     res.set('Cache-Control', 'public, max-age=600');
     res.json(list);
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(err);
     next(err);
   }

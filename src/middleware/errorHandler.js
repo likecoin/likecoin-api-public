@@ -2,8 +2,10 @@ import { ValidationError } from '../util/ValidationError';
 
 export default function errorHandler(err, req, res, next) {
   if (err instanceof ValidationError) {
+    // eslint-disable-next-line no-console
     console.error(JSON.stringify(err.message));
   } else {
+    // eslint-disable-next-line no-console
     console.error(JSON.stringify({
       severity: 'ERROR',
       message: { err, stack: err.stack },

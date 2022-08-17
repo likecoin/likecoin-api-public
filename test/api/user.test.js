@@ -554,7 +554,10 @@ test('USER: Get user by id', async (t) => {
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => console.log(err));
+  }).catch(
+    // eslint-disable-next-line no-console
+    err => console.log(err),
+  );
   t.is(res.status, 200);
   t.is(res.data.wallet, testingWallet1);
   t.is(res.data.displayName, testingDisplayName1);
