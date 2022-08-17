@@ -12,9 +12,10 @@ export const fetchISCNPrefixAndClassId = async (req, res, next) => {
     let iscnPrefix;
     if (!iscnId) {
       iscnPrefix = await getISCNPrefixByClassId(classId);
+    } else {
+      iscnPrefix = getISCNPrefix(iscnId);
     }
     if (!classId) {
-      iscnPrefix = getISCNPrefix(iscnId);
       classId = await getCurrentClassIdByISCNId(iscnPrefix);
     }
     res.locals.iscnPrefix = iscnPrefix;
