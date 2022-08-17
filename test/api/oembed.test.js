@@ -9,6 +9,7 @@ import axiosist from './axiosist';
 test('OEMBED: success cases', async (t) => {
   let res;
 
+  /* User button test */
   res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}`)
     .catch(err => err.response);
   t.is(res.status, 200);
@@ -68,6 +69,51 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.author_url, `https://button.rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
+
+  /* ISCN ID button test */
+  const iscnIdPrefix = 'iscn://likecoin-chain/IKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo';
+  for (const iscnId of [iscnIdPrefix, `${iscnIdPrefix}/3`]) {
+    const queryURLs = [
+      `https://button.rinkeby.like.co/iscn?iscn_id=${iscnId}`,
+      `https://button.rinkeby.like.co/iscn?iscn_id=${encodeURIComponent(iscnId)}`,
+      `https://button.rinkeby.like.co/iscn/?iscn_id=${iscnId}`,
+      `https://button.rinkeby.like.co/iscn/?iscn_id=${encodeURIComponent(iscnId)}`,
+      `https://button.rinkeby.like.co?iscn_id=${iscnId}`,
+      `https://button.rinkeby.like.co?iscn_id=${encodeURIComponent(iscnId)}`,
+      `https://button.rinkeby.like.co/?iscn_id=${iscnId}`,
+      `https://button.rinkeby.like.co/?iscn_id=${encodeURIComponent(iscnId)}`,
+      `https://button.rinkeby.like.co/${iscnId}`,
+      `https://button.rinkeby.like.co/iscn/${iscnId}`,
+    ];
+    for (const oEmbedURL of queryURLs) {
+      res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
+        .catch(err => err.response);
+      t.is(res.status, 200);
+      t.is(res.data.type, 'rich');
+      t.is(res.data.version, '1.0');
+      t.is(decodeURIComponent(res.data.html).includes(iscnId), true);
+    }
+  }
+
+  /* NFT class button test */
+  const nftClass = 'likenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg';
+  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/${nftClass}`)
+    .catch(err => err.response);
+  t.is(res.status, 200);
+  t.is(res.data.type, 'rich');
+  t.is(res.data.version, '1.0');
+  t.is(res.data.thumbnail_width, 100);
+  t.is(res.data.thumbnail_height, 100);
+  t.is(res.data.html.includes(nftClass), true);
+
+  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/nft/${nftClass}`)
+    .catch(err => err.response);
+  t.is(res.status, 200);
+  t.is(res.data.type, 'rich');
+  t.is(res.data.version, '1.0');
+  t.is(res.data.thumbnail_width, 100);
+  t.is(res.data.thumbnail_height, 100);
+  t.is(res.data.html.includes(nftClass), true);
 
   /* xml format test */
   res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)
