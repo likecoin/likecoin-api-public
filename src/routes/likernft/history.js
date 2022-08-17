@@ -2,7 +2,7 @@ import { Router } from 'express';
 import axios from 'axios';
 import { ValidationError } from '../../util/ValidationError';
 import { getISCNDocByClassId } from '../../util/api/likernft';
-import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../config/config';
 import { ONE_DAY_IN_S } from '../../constant';
 
@@ -10,7 +10,7 @@ const router = Router();
 
 router.get(
   '/history',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
       const { nft_id: nftId } = req.query;
@@ -36,7 +36,7 @@ router.get(
 
 router.get(
   '/events',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
       const { classId } = res.locals;

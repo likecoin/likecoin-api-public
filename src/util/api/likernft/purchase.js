@@ -30,9 +30,8 @@ const STAKEHOLDERS_RATIO = 0.2;
 const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
-export async function getLowerestUnsoldNFT(iscnId, classId) {
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
-  const res = await likeNFTCollection.doc(iscnPrefix)
+export async function getLowerestUnsoldNFT(iscnPrefixDocName, classId) {
+  const res = await likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
     .where('isSold', '==', false)
@@ -50,11 +49,11 @@ export async function getLowerestUnsoldNFT(iscnId, classId) {
   return payload;
 }
 
-export async function getLatestNFTPriceAndInfo(iscnId, classId) {
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
+export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const [nftData, nftDoc] = await Promise.all([
-    getLowerestUnsoldNFT(iscnId, classId),
-    likeNFTCollection.doc(iscnPrefix).get(),
+    getLowerestUnsoldNFT(iscnPrefixDocName, classId),
+    likeNFTCollection.doc(iscnPrefixDocName).get(),
   ]);
   const nftDocData = nftDoc.data();
   let price = -1;
@@ -143,13 +142,13 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmount, req) {
-  const iscnData = await getNFTISCNData(iscnId);
+export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grantedAmount, req) {
+  const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
 
   // get price
-  const nftData = await getLowerestUnsoldNFT(iscnId, classId);
+  const nftData = await getLowerestUnsoldNFT(iscnPrefixDocName, classId);
   const {
     id: nftId,
     price: nftItemPrice,
@@ -159,7 +158,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
 
   const isFirstSale = !nftItemPrice; // first sale if price = 0;
 
-  const iscnRef = likeNFTCollection.doc(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
   const nftRef = classRef.collection('nft').doc(nftId);
 
@@ -394,7 +393,7 @@ export async function processNFTPurchase(likeWallet, iscnId, classId, grantedAmo
     console.error(err);
     // reset lock
     await db.runTransaction(async (t) => {
-      const doc = await t.get(likeNFTCollection.doc(iscnPrefix));
+      const doc = await t.get(iscnRef);
       const docData = doc.data();
       const { currentBatch: docCurrentBatch } = docData;
       if (docCurrentBatch === currentBatch) {

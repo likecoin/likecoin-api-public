@@ -28,14 +28,14 @@ export async function getNFTTransferInfo(txHash, nftId) {
 export async function processNFTTransfer({
   fromAddress,
   toAddress,
-  iscnId,
+  iscnPrefix,
   classId,
   nftId,
   txHash,
   txTimestamp,
 }) {
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
-  const iscnRef = likeNFTCollection.doc(iscnPrefix);
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
   const nftRef = classRef.collection('nft').doc(nftId);
   await db.runTransaction(async (t) => {

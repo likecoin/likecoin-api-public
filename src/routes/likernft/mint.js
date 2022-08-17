@@ -5,7 +5,7 @@ import { likeNFTCollection } from '../../util/firebase';
 import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
 import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
-import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
@@ -15,7 +15,7 @@ const router = Router();
 
 router.get(
   '/mint',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
       const { classId } = res.locals;
@@ -25,8 +25,8 @@ router.get(
         res.sendStatus(404);
         return;
       }
-      const iscnId = decodeURIComponent(doc.id);
-      res.json(filterLikeNFTISCNData({ iscnId, ...doc.data() }));
+      const iscnPrefix = decodeURIComponent(doc.id);
+      res.json(filterLikeNFTISCNData({ iscnId: iscnPrefix, ...doc.data() }));
     } catch (err) {
       next(err);
     }
@@ -43,8 +43,9 @@ router.post(
         class_id: inputClassId,
       } = req.query;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
-      const iscnPrefix = getISCNPrefixDocName(iscnId);
-      const likeNFTDoc = await likeNFTCollection.doc(iscnPrefix).get();
+      const iscnPrefix = getISCNPrefix(iscnId);
+      const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
+      const likeNFTDoc = await likeNFTCollection.doc(iscnPrefixDocName).get();
       const likeNFTdata = likeNFTDoc.data();
       if (likeNFTdata) {
         res.sendStatus(409);
@@ -75,7 +76,7 @@ router.post(
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
       const { uri } = nfts[0];
-      await writeMintedNFTInfo(iscnId, {
+      await writeMintedNFTInfo(iscnPrefix, {
         classId,
         totalCount: nfts.length,
         uri,
@@ -83,7 +84,7 @@ router.post(
 
       res.json({
         classId,
-        iscnId: getISCNPrefix(iscnId),
+        iscnId: iscnPrefix,
         nftCount: nfts.length,
         sellerWallet,
       });
@@ -91,7 +92,7 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTMint',
         classId,
-        iscnId: getISCNPrefix(iscnId),
+        iscnId: iscnPrefix,
         txHash,
         nftCount: nfts.length,
         sellerWallet,

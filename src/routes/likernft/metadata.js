@@ -3,13 +3,12 @@ import axios from 'axios';
 import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
-import { getISCNIdByClassId } from '../../util/api/likernft';
+import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import {
   getLikerNFTDynamicData, getBasicImage, /* getCombinedImage, */ getResizedImage,
 } from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
-import { fetchISCNIdAndClassId } from '../../middleware/likernft';
-import { getISCNPrefix } from '../../util/cosmos/iscn';
+import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
@@ -18,11 +17,11 @@ const router = Router();
 
 router.get(
   '/metadata',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
-      const { classId, iscnId, iscnPrefix } = res.locals;
-      const classDocRef = likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId);
+      const { classId, iscnPrefixDocName, iscnPrefix } = res.locals;
+      const classDocRef = likeNFTCollection.doc(iscnPrefixDocName).collection('class').doc(classId);
 
       const classDoc = await classDocRef.get();
       const classData = classDoc.data();
@@ -32,7 +31,7 @@ router.get(
       }
       const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
         // eslint-disable-next-line no-console
-        getNFTISCNData(iscnId).catch((err) => { console.error(err); return {}; }),
+        getNFTISCNData(iscnPrefix).catch((err) => { console.error(err); return {}; }),
         // eslint-disable-next-line no-console
         getNFTClassDataById(classId).catch(err => console.error(err)),
       ]);
@@ -43,7 +42,7 @@ router.get(
 
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
-        iscnId: getISCNPrefix(iscnId),
+        iscnId: iscnPrefix,
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,
         ...(classData.metadata || {}),
@@ -58,11 +57,11 @@ router.get(
 
 router.get(
   '/metadata/owners',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
-      const { classId, iscnPrefix } = res.locals;
-      const nftQuery = await likeNFTCollection.doc(iscnPrefix)
+      const { classId, iscnPrefixDocName } = res.locals;
+      const nftQuery = await likeNFTCollection.doc(iscnPrefixDocName)
         .collection('class').doc(classId)
         .collection('nft')
         .where('ownerWallet', '!=', LIKER_NFT_TARGET_ADDRESS)
@@ -90,8 +89,8 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const prefix = await getISCNIdByClassId(classId);
-      const { data } = await getNFTISCNData(prefix);
+      const iscnPrefix = await getISCNPrefixByClassId(classId);
+      const { data } = await getNFTISCNData(iscnPrefix);
       if (!data) throw new ValidationError('ISCN_NOT_FOUND');
       const iscnId = (data && data['@id']);
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();

@@ -1,26 +1,30 @@
 import { ValidationError } from '../util/ValidationError';
+import { getISCNPrefix } from '../util/cosmos/iscn';
 import {
-  getISCNIdByClassId, getCurrentClassIdByISCNId, getISCNPrefixDocName,
+  getISCNPrefixByClassId, getCurrentClassIdByISCNId, getISCNPrefixDocName,
 } from '../util/api/likernft';
 
-export const fetchISCNIdAndClassId = async (req, res, next) => {
+export const fetchISCNPrefixAndClassId = async (req, res, next) => {
   try {
-    let { iscn_id: iscnId, class_id: classId } = req.query;
+    const { iscn_id: iscnId } = req.query;
+    let { class_id: classId } = req.query;
     if (!iscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
-
+    let iscnPrefix;
     if (!iscnId) {
-      iscnId = await getISCNIdByClassId(classId);
+      iscnPrefix = await getISCNPrefixByClassId(classId);
+    } else {
+      iscnPrefix = getISCNPrefix(iscnId);
     }
     if (!classId) {
-      classId = await getCurrentClassIdByISCNId(iscnId);
+      classId = await getCurrentClassIdByISCNId(iscnPrefix);
     }
-    res.locals.iscnId = iscnId;
+    res.locals.iscnPrefix = iscnPrefix;
     res.locals.classId = classId;
-    res.locals.iscnPrefix = getISCNPrefixDocName(iscnId);
+    res.locals.iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
     next();
   } catch (err) {
     next(err);
   }
 };
 
-export default fetchISCNIdAndClassId;
+export default fetchISCNPrefixAndClassId;

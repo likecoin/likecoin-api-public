@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { ValidationError } from '../../util/ValidationError';
-import { getISCNIdByClassId } from '../../util/api/likernft';
+import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import { getNFTTransferInfo, processNFTTransfer } from '../../util/api/likernft/transfer';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
@@ -22,11 +22,11 @@ router.post(
         classId,
         txTimestamp,
       } = info;
-      const iscnId = await getISCNIdByClassId(classId);
+      const iscnPrefix = await getISCNPrefixByClassId(classId);
       await processNFTTransfer({
         fromAddress,
         toAddress,
-        iscnId,
+        iscnPrefix,
         classId,
         nftId,
         txHash,
@@ -35,7 +35,7 @@ router.post(
       res.json({
         txTimestamp,
         txHash,
-        iscnId,
+        iscnId: iscnPrefix,
         classId,
         nftId,
         fromAddress,
@@ -45,7 +45,7 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTTransfer',
         classId,
-        iscnId,
+        iscnId: iscnPrefix,
         nftId,
         txHash,
         timestamp: txTimestamp,

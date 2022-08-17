@@ -28,12 +28,12 @@ export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_N
   };
 }
 
-export async function writeMintedNFTInfo(iscnId, classData, nfts) {
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
+export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const {
     owner: sellerWallet,
     data: iscnData,
-  } = await getNFTISCNData(iscnId);
+  } = await getNFTISCNData(iscnPrefix);
   const url = iscnData.contentMetadata && iscnData.contentMetadata.url;
   const timestamp = Date.now();
   const {
@@ -45,8 +45,9 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
   } = classData;
   const currentBatch = 0;
   const { price, count } = getNFTBatchInfo(currentBatch);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   await Promise.all([
-    likeNFTCollection.doc(iscnPrefix).create({
+    iscnRef.create({
       classId,
       classes: [classId],
       totalCount,
@@ -61,7 +62,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       processingCount: 0,
       timestamp,
     }),
-    likeNFTCollection.doc(iscnPrefix).collection('class').doc(classId).create({
+    iscnRef.collection('class').doc(classId).create({
       id: classId,
       uri,
       lastSoldPrice: 0,
@@ -70,7 +71,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       timestamp,
       metadata: {
         image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
-        externalUrl: url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnId)}`,
+        externalUrl: url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnPrefix)}`,
         description,
         name,
         backgroundColor: LIKECOIN_DARK_GREEN_THEME_COLOR,
@@ -84,7 +85,7 @@ export async function writeMintedNFTInfo(iscnId, classData, nfts) {
       uri: nftUri,
     } = nfts[i];
     batch.create(
-      likeNFTCollection.doc(iscnPrefix)
+      iscnRef
         .collection('class').doc(classId)
         .collection('nft')
         .doc(nftId),

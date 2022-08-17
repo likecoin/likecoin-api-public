@@ -7,8 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { getISCNPrefix } from '../../util/cosmos/iscn';
-import { fetchISCNIdAndClassId } from '../../middleware/likernft';
+import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 
@@ -18,12 +17,14 @@ const router = Router();
 
 router.get(
   '/purchase',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
       try {
-        const { iscnId, classId } = res.locals;
-        const { price, lastSoldPrice, ...info } = await getLatestNFTPriceAndInfo(iscnId, classId);
+        const { iscnPrefix, classId } = res.locals;
+        const { price, lastSoldPrice, ...info } = await getLatestNFTPriceAndInfo(
+          iscnPrefix, classId,
+        );
         const gasFee = getGasPrice();
         res.json({
           price,
@@ -32,7 +33,7 @@ router.get(
           lastSoldPrice,
           metadata: filterLikeNFTISCNData({
             ...info,
-            iscnId: getISCNPrefix(iscnId),
+            iscnId: iscnPrefix,
           }),
         });
       } catch (err) {
@@ -46,14 +47,14 @@ router.get(
 
 router.post(
   '/purchase',
-  fetchISCNIdAndClassId,
+  fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
       const { tx_hash: txHash, ts } = req.query;
       if (ts && (Date.now() - ts > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
-      const { iscnId, classId } = res.locals;
-      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnId, classId);
+      const { iscnPrefix, classId } = res.locals;
+      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
       if (nftPrice <= 0) throw new ValidationError('NFT_SOLD_OUT');
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
@@ -76,10 +77,10 @@ router.post(
         stakeholderLIKEs,
         feeWallet,
         feeLIKE,
-      } = await processNFTPurchase(likeWallet, iscnId, classId, grantedAmount, req);
+      } = await processNFTPurchase(likeWallet, iscnPrefix, classId, grantedAmount, req);
       res.json({
         txHash: transactionHash,
-        iscnId: getISCNPrefix(iscnId),
+        iscnId: iscnPrefix,
         classId,
         nftId,
         nftPrice: actualNftPrice,
@@ -89,7 +90,7 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTPurchaseSuccess',
         txHash: transactionHash,
-        iscnId: getISCNPrefix(iscnId),
+        iscnId: iscnPrefix,
         classId,
         nftId,
         nftPrice: actualNftPrice,
