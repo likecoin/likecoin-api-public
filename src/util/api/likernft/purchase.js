@@ -26,7 +26,7 @@ import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
-const STAKEHOLDERS_RATIO = 0.2;
+const STAKEHOLDERS_RATIO = 0.1;
 const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
