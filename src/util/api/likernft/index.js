@@ -10,8 +10,8 @@ export function getISCNPrefixDocName(iscnId) {
 }
 
 export async function getCurrentClassIdByISCNId(iscnId) {
-  const iscnPrefix = getISCNPrefixDocName(iscnId);
-  const iscnDoc = await likeNFTCollection.doc(iscnPrefix).get();
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
+  const iscnDoc = await likeNFTCollection.doc(iscnPrefixDocName).get();
   const iscnData = iscnDoc.data();
   if (!iscnData) {
     throw new ValidationError('ISCN_NFT_NOT_FOUND');
@@ -27,7 +27,7 @@ export async function getISCNDocByClassId(classId) {
   return iscnQuery.docs[0];
 }
 
-export async function getISCNIdByClassId(classId) {
+export async function getISCNPrefixByClassId(classId) {
   const doc = await getISCNDocByClassId(classId);
   return decodeURIComponent(doc.id);
 }
