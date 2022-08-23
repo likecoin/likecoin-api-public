@@ -35,7 +35,7 @@ async function processLikerId(req, res, { parsedURL }) {
 
   const replyUrl = `https://${parsedURL.host}/${username}`;
   const src = `https://${parsedURL.host}/in/embed/${username}/button`;
-  const maxWidth = Number.parseInt(req.query.maxwidth || 485, 10);
+  const maxWidth = Number.parseInt(req.query.maxwidth || 360, 10);
   const maxHeight = Number.parseInt(req.query.maxheight || 212, 10);
   const thumbnailLength = Math.min(100, maxWidth, maxHeight);
   const displayName = payload.displayName || username;
