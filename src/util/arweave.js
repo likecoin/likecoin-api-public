@@ -160,17 +160,18 @@ export async function estimateARPrices(files, checkDuplicate = true) {
   };
 }
 
-export async function convertARPriceToLIKE(ar, {
-  priceRatio: inputPriceRatio = '', margin = 0.05, decimal = 0,
-} = {}) {
-  let priceRatio = inputPriceRatio;
-  if (!priceRatio) {
-    const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API);
-    const { likecoin, arweave: arweavePrice } = data;
-    priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
-  }
+async function getPriceRatioBigNumber() {
+  const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API);
+  const { likecoin, arweave: arweavePrice } = data;
+  const priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
   // At least 1 LIKE for 1 AR
   const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
+  return priceRatioBigNumber;
+}
+
+export function convertARPriceToLIKE(ar, {
+  priceRatioBigNumber, margin = 0.05, decimal = 0,
+}) {
   const res = new BigNumber(ar.AR)
     .multipliedBy(priceRatioBigNumber)
     .multipliedBy(1 + margin)
@@ -186,10 +187,13 @@ export async function convertARPriceToLIKE(ar, {
 
 export async function convertARPricesToLIKE(ar,
   { margin = 0.05, decimal = 0 } = {}) {
+  const priceRatioBigNumber = await getPriceRatioBigNumber();
   if (!(ar.list && ar.list.length)) {
-    return convertARPriceToLIKE(ar, { margin, decimal });
+    return convertARPriceToLIKE(ar, { priceRatioBigNumber, margin, decimal });
   }
-  const newList = await Promise.all(ar.list.map(a => convertARPriceToLIKE(a, { margin, decimal })));
+  const newList = ar.list.map(
+    a => convertARPriceToLIKE(a, { priceRatioBigNumber, margin, decimal }),
+  );
   const totalLIKE = newList.reduce((acc, cur) => acc.plus(cur.LIKE), new BigNumber(0));
   return {
     ...ar,
