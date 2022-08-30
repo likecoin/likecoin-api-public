@@ -70,30 +70,59 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
 
+  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/user/${testingUser1}`)
+    .catch(err => err.response);
+  t.is(res.status, 200);
+  t.is(res.data.type, 'rich');
+  t.is(res.data.title.includes(testingDisplayName1), true);
+  t.is(res.data.version, '1.0');
+  t.is(res.data.author_url, `https://button.rinkeby.like.co/${testingUser1}`);
+  t.is(res.data.thumbnail_width, 100);
+  t.is(res.data.thumbnail_height, 100);
+
   /* ISCN ID button test */
-  const iscnIdPrefix = 'iscn://likecoin-chain/IKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo';
-  for (const iscnId of [iscnIdPrefix, `${iscnIdPrefix}/3`]) {
-    const queryURLs = [
-      `https://button.rinkeby.like.co/iscn?iscn_id=${iscnId}`,
-      `https://button.rinkeby.like.co/iscn?iscn_id=${encodeURIComponent(iscnId)}`,
-      `https://button.rinkeby.like.co/iscn/?iscn_id=${iscnId}`,
-      `https://button.rinkeby.like.co/iscn/?iscn_id=${encodeURIComponent(iscnId)}`,
-      `https://button.rinkeby.like.co?iscn_id=${iscnId}`,
-      `https://button.rinkeby.like.co?iscn_id=${encodeURIComponent(iscnId)}`,
-      `https://button.rinkeby.like.co/?iscn_id=${iscnId}`,
-      `https://button.rinkeby.like.co/?iscn_id=${encodeURIComponent(iscnId)}`,
-      `https://button.rinkeby.like.co/${iscnId}`,
-      `https://button.rinkeby.like.co/iscn/${iscnId}`,
-    ];
-    for (const oEmbedURL of queryURLs) {
-      res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
-        .catch(err => err.response);
-      t.is(res.status, 200);
-      t.is(res.data.type, 'rich');
-      t.is(res.data.version, '1.0');
-      t.is(decodeURIComponent(res.data.html).includes(iscnId), true);
+  const iscnIdPrefix = 'iscn://likecoin-chain/fKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo';
+  for (const rawIscnId of [iscnIdPrefix, `${iscnIdPrefix}/3`]) {
+    // Embedly removed one '/'
+    for (const iscnId of [rawIscnId, rawIscnId.replace('iscn://', 'iscn:/')]) {
+      for (const param of [iscnId, encodeURIComponent(iscnId)]) {
+        const queryURLs = [
+          `https://button.rinkeby.like.co/iscn?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/iscn/?iscn_id=${param}`,
+          `https://button.rinkeby.like.co?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/${param}`,
+          `https://button.rinkeby.like.co/iscn/${param}`,
+          `https://button.rinkeby.like.co/in/like/${param}`,
+        ];
+        for (const oEmbedURL of queryURLs) {
+          res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
+            .catch(err => err.response);
+          t.is(res.status, 200);
+          t.is(res.data.type, 'rich');
+          t.is(res.data.version, '1.0');
+          t.is(decodeURIComponent(res.data.html).includes(rawIscnId), true);
+        }
+      }
     }
   }
+  /* extra tests extracted from Embedly requests */
+  const extraTestURLs = [
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%3A%2Flikecoin-chain%2FfKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo%2F1&format=json',
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%2Fiscn%3A%2Flikecoin-chain%2FIKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo&format=json',
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%3A%2Flikecoin-chain%2FIKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo&format=json',
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%2Fiscn%3A%2Flikecoin-chain%2FfKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo%2F1&format=json',
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fnft%2Flikenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg&format=json',
+    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fin%2Flike%2Flikenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg&format=json',
+  ];
+  for (const url of extraTestURLs) {
+    res = await axiosist.get(url)
+      .catch(err => err.response);
+    t.is(res.status, 200, `url = ${url}`);
+    t.is(res.data.type, 'rich');
+    t.is(res.data.version, '1.0');
+  }
+
 
   /* NFT class button test */
   const nftClass = 'likenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg';
@@ -107,6 +136,15 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.html.includes(nftClass), true);
 
   res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/nft/${nftClass}`)
+    .catch(err => err.response);
+  t.is(res.status, 200);
+  t.is(res.data.type, 'rich');
+  t.is(res.data.version, '1.0');
+  t.is(res.data.thumbnail_width, 100);
+  t.is(res.data.thumbnail_height, 100);
+  t.is(res.data.html.includes(nftClass), true);
+
+  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/in/like/${nftClass}`)
     .catch(err => err.response);
   t.is(res.status, 200);
   t.is(res.data.type, 'rich');
