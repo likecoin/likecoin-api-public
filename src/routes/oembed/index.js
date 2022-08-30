@@ -13,12 +13,15 @@ import {
 const allowedSubdomains = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
 const domainRegexp = /^((?:[a-z0-9]+\.)+)?like\.co$/;
 
-// matches like.co/(id), button.like.co/(id) and button.like.co/in/like/(id)
-const userUrlRegexp = /^(?:\/in\/like)?\/([-_a-z0-9]+)$/;
-
 const router = Router();
 
 async function processLikerId(req, res, { parsedURL }) {
+  // matches
+  // (1) /(user_id)
+  // (2) /in/like/(user_id)
+  // (3) /user/(user_id)
+  const userUrlRegexp = /^\/(?:in\/like\/|user\/)?([-_a-z0-9]+)$/;
+
   const { pathname } = parsedURL;
   const pathnameMatch = userUrlRegexp.exec(pathname);
   if (!pathnameMatch) {
@@ -57,15 +60,20 @@ async function processLikerId(req, res, { parsedURL }) {
 
 function getRequestIscnId(parsedURL) {
   // matches
-  // (1) like.co/iscn?iscn_id=(iscn_id)
-  // (2) like.co/iscn/?iscn_id=(iscn_id)
-  // (3) like.co/?iscn_id=(iscn_id)
-  // (4) like.co?iscn_id=(iscn_id)
-  // (5) like.co/iscn/(iscn_id)
-  // (6) like.co/(iscn_id)
+  // (1) /iscn?iscn_id=(iscn_id)
+  // (2) /iscn/?iscn_id=(iscn_id)
+  // (3) /?iscn_id=(iscn_id)
+  // (4) ?iscn_id=(iscn_id)
+  // (5) /iscn/(iscn_id)
+  // (6) /(iscn_id)
 
   // iscn_id could be (and should be?) URL component encoded
-  const iscnIdRegexp = /^iscn:\/\/([-_.:=+,a-zA-Z0-9]+)\/([-_.:=+,a-zA-Z0-9]+)(?:\/([0-9]+))?$/;
+  // (but seems Embedly is ignoring the whole query string...)
+
+  // URL from Embedly is missing one `/` in `iscn://`
+  // (i.e. we are receiving `iscn:/blablabla`)
+  // so one extra `?` in regexp
+  const iscnIdRegexp = /^iscn:\/\/?([-_.:=+,a-zA-Z0-9]+)\/([-_.:=+,a-zA-Z0-9]+)(?:\/([0-9]+))?\/?$/;
 
   const { pathname } = parsedURL;
   let iscnId = '';
@@ -74,7 +82,7 @@ function getRequestIscnId(parsedURL) {
     iscnId = parsedURL.searchParams.get('iscn_id');
   } else {
     // case 5-6
-    const match = /^\/(?:iscn\/)?(.*)$/.exec(decodeURIComponent(pathname));
+    const match = /^\/(?:iscn\/|in\/like\/)?(.*)$/.exec(decodeURIComponent(pathname));
     if (!match) {
       return null;
     }
@@ -82,6 +90,10 @@ function getRequestIscnId(parsedURL) {
   }
   iscnId = decodeURIComponent(iscnId);
   if (iscnId && iscnIdRegexp.exec(iscnId)) {
+    // fix the double slash
+    if (iscnId.match(/^iscn:\/[^/]/)) {
+      iscnId = iscnId.replace('iscn:/', 'iscn://');
+    }
     return iscnId;
   }
   return null;
@@ -109,12 +121,13 @@ async function processIscnId(req, res, { parsedURL }) {
 
 async function processNftClass(req, res, { parsedURL }) {
   // matches
-  // like.co/nft/(nft_class)
-  // like.co/(nft_class)
+  // /in/like/(nft_class)
+  // /nft/(nft_class)
+  // /(nft_class)
 
   // In theory it is possible to have a username 'likenft[a-z0-9]+'
   // In practice it is not likely and this user may choose more explicit url format if needed
-  const nftUrlRegexp = /^\/(?:nft\/)?(likenft[a-z0-9]+)$/;
+  const nftUrlRegexp = /^\/(?:nft\/|in\/like\/)?(likenft1[ac-hj-np-z02-9]+)$/;
   const match = nftUrlRegexp.exec(parsedURL.pathname);
   if (!match) {
     return null;
@@ -175,7 +188,8 @@ router.get('/', async (req, res, next) => {
       throw new ValidationError(`Invalid format ${format} in oEmbed request`);
     }
 
-    const hostname = (subdomain && subdomain.includes('rinkeby')) ? 'rinkeby.like.co' : 'like.co';
+    const isTestingServer = (subdomain && subdomain.includes('rinkeby'));
+    const hostname = isTestingServer ? 'rinkeby.like.co' : 'like.co';
     for (const handler of [processIscnId, processNftClass, processLikerId]) {
       const result = await handler(req, res, { parsedURL });
       if (result) {
