@@ -8,10 +8,8 @@ import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
 import getPublicInfo from './routes/getPublicInfo';
-import userChallenge from './routes/users/challenge';
 import userGetInfo from './routes/users/apiGetInfo';
 import userRegister from './routes/users/apiRegister';
-import storeInvite from './routes/misc/storeInvite';
 
 const path = require('path');
 
@@ -48,15 +46,12 @@ app.use((req, res, next) => {
 //   next();
 // });
 app.use('/api', getPublicInfo);
-app.use('/api/users', userChallenge);
 app.use('/api/users', userGetInfo);
 app.use('/api/users', userRegister);
 
 app.use(getPublicInfo);
-app.use('/users', userChallenge);
 app.use('/users', userGetInfo);
 app.use('/users', userRegister);
-app.use('/misc', storeInvite);
 
 app.get('/healthz', (req, res) => {
   res.sendStatus(200);
