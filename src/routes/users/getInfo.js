@@ -7,10 +7,8 @@ import {
   filterUserData,
 } from '../../util/ValidationHelper';
 import {
-  getIntercomUserHash,
   getCrispUserHash,
   getUserWithCivicLikerProperties,
-  getUserAgentPlatform,
   getUserAgentIsApp,
 } from '../../util/api/users';
 import { lazyUpdateAppMetaData } from '../../util/api/users/app';
@@ -27,7 +25,6 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         console.log(`Locked user: ${username}`);
         throw new Error('USER_LOCKED');
       }
-      payload.intercomToken = getIntercomUserHash(username, { type: getUserAgentPlatform(req) });
       if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
       await dbRef.doc(username).collection('session').doc(req.user.jti).set({

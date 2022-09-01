@@ -17,9 +17,6 @@ import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
 import { jwtSign } from '../../jwt';
 import {
-  INTERCOM_USER_HASH_SECRET,
-  INTERCOM_USER_ANDROID_HASH_SECRET,
-  INTERCOM_USER_IOS_HASH_SECRET,
   CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
@@ -79,26 +76,6 @@ export function getCrispUserHash(email) {
   if (!CRISP_USER_HASH_SECRET) return undefined;
   return crypto.createHmac('sha256', CRISP_USER_HASH_SECRET)
     .update(email)
-    .digest('hex');
-}
-
-export function getIntercomUserHash(user, { type = 'web' } = {}) {
-  let secret = INTERCOM_USER_HASH_SECRET;
-  switch (type) {
-    case 'web':
-      if (INTERCOM_USER_HASH_SECRET) secret = INTERCOM_USER_HASH_SECRET;
-      break;
-    case 'android':
-      if (INTERCOM_USER_ANDROID_HASH_SECRET) secret = INTERCOM_USER_ANDROID_HASH_SECRET;
-      break;
-    case 'ios':
-      if (INTERCOM_USER_IOS_HASH_SECRET) secret = INTERCOM_USER_IOS_HASH_SECRET;
-      break;
-    default: break;
-  }
-  if (!secret) return undefined;
-  return crypto.createHmac('sha256', secret)
-    .update(user)
     .digest('hex');
 }
 
