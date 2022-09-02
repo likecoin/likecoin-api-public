@@ -152,7 +152,9 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grantedAmount, req) {
+export async function processNFTPurchase({
+  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount,
+}, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
@@ -255,13 +257,13 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
     const txMessages = [
       formatMsgExecSendAuthorization(
         LIKER_NFT_TARGET_ADDRESS,
-        likeWallet,
+        granterWallet,
         LIKER_NFT_TARGET_ADDRESS,
         [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
       ),
       formatMsgSend(
         LIKER_NFT_TARGET_ADDRESS,
-        likeWallet,
+        buyerWallet,
         classId,
         nftId,
       ),
@@ -308,7 +310,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
       iscnId: iscnPrefix,
       classId,
       nftId,
-      buyerWallet: likeWallet,
+      buyerWallet,
     });
 
     const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
@@ -326,7 +328,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
         processingCount: dbProcessingCount,
       } = docData;
       const fromWallet = LIKER_NFT_TARGET_ADDRESS;
-      const toWallet = likeWallet;
+      const toWallet = buyerWallet;
       let updatedBatch = dbCurrentBatch;
       let batchRemainingCount = dbBatchRemainingCount;
       let newPrice = dbCurrentPrice;
@@ -379,6 +381,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
         timestamp,
         fromWallet,
         toWallet,
+        granterWallet,
         sellerWallet,
         sellerLIKE,
         stakeholderWallets,
@@ -416,7 +419,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
       iscnId: iscnPrefix,
       classId,
       nftId,
-      buyerWallet: likeWallet,
+      buyerWallet,
     });
     throw err;
   }
