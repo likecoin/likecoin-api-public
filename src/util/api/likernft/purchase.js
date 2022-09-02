@@ -30,6 +30,25 @@ const STAKEHOLDERS_RATIO = 0.1;
 const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
+export function getNFTBatchInfo(batchNumber) {
+  const count = batchNumber + 1;
+  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
+  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
+  const decayMultiplier = Math.min(
+    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
+    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
+  );
+  let lastPrice = price;
+  for (let i = 1; i <= decayMultiplier; i += 1) {
+    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
+    lastPrice = price;
+  }
+  return {
+    price,
+    count,
+  };
+}
+
 export async function getLowerestUnsoldNFT(iscnPrefixDocName, classId) {
   const res = await likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
@@ -59,6 +78,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   let price = -1;
   const {
     currentPrice,
+    currentBatch,
     lastSoldPrice,
   } = nftDocData;
   if (nftData) {
@@ -70,34 +90,17 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
       price = currentPrice;
     }
   }
+  const { price: nextPriceLevel } = getNFTBatchInfo(currentBatch + 1);
   return {
     ...nftDocData,
     lastSoldPrice: lastSoldPrice || currentPrice,
     price,
+    nextPriceLevel,
   };
 }
 
 export function getGasPrice() {
   return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
-}
-
-export function getNFTBatchInfo(batchNumber) {
-  const count = batchNumber + 1;
-  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
-  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
-  const decayMultiplier = Math.min(
-    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
-    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
-  );
-  let lastPrice = price;
-  for (let i = 1; i <= decayMultiplier; i += 1) {
-    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
-    lastPrice = price;
-  }
-  return {
-    price,
-    count,
-  };
 }
 
 export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
