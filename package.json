@@ -85,6 +85,7 @@
     "secp256k1": "^3.8.0",
     "sharp": "^0.26.3",
     "source-map-support": "^0.5.9",
+    "stripe": "^10.7.0",
     "twit": "^2.2.11",
     "url-parse": "^1.4.4",
     "uuid": "^3.3.2",
