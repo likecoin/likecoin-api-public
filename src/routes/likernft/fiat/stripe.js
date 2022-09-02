@@ -5,6 +5,7 @@ import stripe from '../../../util/stripe';
 import { likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixAndClassId } from '../../../middleware/likernft';
 import { getFiatPriceForLIKE } from '../../../util/api/likernft/fiat';
+import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
 import { ValidationError } from '../../../util/ValidationError';
@@ -16,6 +17,37 @@ import { STRIPE_WEBHOOK_SECRET } from '../../../../config/config';
 const uuidv4 = require('uuid/v4');
 
 const router = Router();
+
+router.post('/stripe/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res, next) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      res.sendStatus(400);
+      return;
+    }
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        if (session.payment_status === 'paid') {
+          await processStripeFiatNFTPurchase(session, req);
+        }
+        break;
+      }
+      default: {
+        res.sendStatus(415);
+        return;
+      }
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post(
   '/stripe/new',
