@@ -100,4 +100,28 @@ router.post(
   },
 );
 
+router.get(
+  '/stripe/status',
+  async (req, res, next) => {
+    try {
+      const { payment_id: paymentId, session_id: sessionId } = req.query;
+      if (!paymentId && !sessionId) throw new ValidationError('PAYMENT_ID_NEEDED');
+      let doc;
+      if (paymentId) {
+        doc = await likeNFTFiatCollection.doc(paymentId).get();
+      } else {
+        doc = await findPaymentFromStripeSessionId(sessionId);
+      }
+      if (!doc.data()) {
+        res.status(404).send('PAYMENT_ID_NOT_FOUND');
+        return;
+      }
+      const docData = doc.data();
+      res.json(filterLikeNFTFiatData(docData));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 export default router;

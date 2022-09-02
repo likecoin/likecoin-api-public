@@ -338,7 +338,6 @@ export function filterLikeNFTISCNData({
   };
 }
 
-
 export function filterLikeNFTMetadata({
   image,
   externalUrl,
@@ -363,6 +362,14 @@ export function filterLikeNFTMetadata({
     iscn_id: iscnId,
     iscn_owner: iscnOwner,
     iscn_stakeholders: iscnStakeholders,
+  };
+}
+
+export function filterLikeNFTFiatData({
+  status,
+}) {
+  return {
+    status,
   };
 }
 
