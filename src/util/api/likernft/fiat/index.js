@@ -1,10 +1,11 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
+
+import { COINGECKO_PRICE_URL } from '../../../../constant';
 import {
   LIKER_NFT_FIAT_FEE_USD,
   LIKER_NFT_FIAT_MIN_RATIO,
-} from '../../../../config/config';
-import { COINGECKO_PRICE_URL } from '../../../constant';
+} from '../../../../../config/config';
 
 const LRU = require('lru-cache');
 
