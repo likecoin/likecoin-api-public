@@ -4,10 +4,8 @@ import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
-import {
-  getLikerNFTDynamicData, getBasicImage, /* getCombinedImage, */ getResizedImage,
-} from '../../util/api/likernft/metadata';
-import { getNFTISCNData, getNFTClassDataById, getNFTOwner } from '../../util/cosmos/nft';
+import { getClassMetadata, getBasicImage, getResizedImage } from '../../util/api/likernft/metadata';
+import { getNFTISCNData, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
@@ -20,26 +18,14 @@ router.get(
   fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
-      const { classId, iscnPrefixDocName, iscnPrefix } = res.locals;
-      const classDocRef = likeNFTCollection.doc(iscnPrefixDocName).collection('class').doc(classId);
-
-      const classDoc = await classDocRef.get();
-      const classData = classDoc.data();
-      if (!classData) {
-        res.status(404).send('NFT_DATA_NOT_FOUND');
-        return;
-      }
-      const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
-        // eslint-disable-next-line no-console
-        getNFTISCNData(iscnPrefix).catch((err) => { console.error(err); return {}; }),
-        // eslint-disable-next-line no-console
-        getNFTClassDataById(classId).catch(err => console.error(err)),
-      ]);
-      if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
-      if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
-      const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
-      if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
-
+      const { classId, iscnPrefix } = res.locals;
+      const {
+        iscnOwner,
+        classData,
+        iscnData,
+        chainData,
+        dynamicData,
+      } = await getClassMetadata({ classId, iscnPrefix });
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
         iscnId: iscnPrefix,
