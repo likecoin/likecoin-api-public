@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
+import BigNumber from 'bignumber.js';
 
 import stripe from '../../../util/stripe';
+import { isValidLikeAddress } from '../../../util/cosmos';
 import { likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixAndClassId } from '../../../middleware/likernft';
-import { getFiatPriceForLIKE } from '../../../util/api/likernft/fiat';
+import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
@@ -33,9 +35,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        if (session.payment_status === 'paid') {
-          await processStripeFiatNFTPurchase(session, req);
-        }
+        await processStripeFiatNFTPurchase(session, req);
         break;
       }
       default: {
@@ -54,25 +54,29 @@ router.post(
   fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
-      const {
-        wallet,
-      } = req.query;
+      const { wallet } = req.query;
+      if (!wallet || !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const { classId, iscnPrefix } = res.locals;
       const [{
         price,
         // nextPriceLevel,
       }, {
-        image,
-        description,
-        name,
-        iscnId,
+        classData,
+        chainData,
+        dynamicData,
       }] = await Promise.all([
         getLatestNFTPriceAndInfo(iscnPrefix, classId),
         getClassMetadata({ classId, iscnPrefix }),
       ]);
+      const metadata = {
+        ...(classData.metadata || {}),
+        ...chainData,
+        ...dynamicData,
+      };
+      const { image, name, description } = metadata;
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
-      const fiatPrice = getFiatPriceForLIKE(totalPrice);
+      const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
       const paymentId = uuidv4();
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -88,11 +92,11 @@ router.post(
                 description,
                 images: [image],
                 metadata: {
-                  iscnId,
+                  iscnPrefix,
                   classId,
                 },
               },
-              unit_amount: fiatPrice * 100,
+              unit_amount: new BigNumber(fiatPriceString).shiftedBy(2).toNumber(),
             },
             adjustable_quantity: {
               enabled: false,
@@ -106,7 +110,7 @@ router.post(
         metadata: {
           wallet,
           classId,
-          iscnId,
+          iscnPrefix,
           paymentId,
         },
       });
@@ -118,7 +122,8 @@ router.post(
         classId,
         iscnPrefix,
         LIKEPrice: totalPrice,
-        fiatPrice,
+        fiatPrice: Number(fiatPriceString),
+        fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
       });

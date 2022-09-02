@@ -37,11 +37,11 @@ async function getLIKEPrice() {
   return Math.min(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
-export async function getFiatPriceForLIKE(LIKE, { buffer = 0.1 }) {
+export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
   const price = new BigNumber(LIKE).multipliedBy(rate).multipliedBy(1 + buffer);
   const total = price.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2);
-  return Number(total);
+  return total;
 }
 
 export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
