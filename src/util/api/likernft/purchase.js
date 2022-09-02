@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
@@ -100,6 +100,32 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
+export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
+  const client = await getNFTQueryClient();
+  const qs = await client.getQueryClient();
+  let grant;
+  try {
+    const c = await qs.authz.grants(granter, grantee, '/cosmos.bank.v1beta1.MsgSend');
+    if (!c) throw new ValidationError('GRANT_NOT_FOUND');
+    ([grant] = c.grants.map(parseAuthzGrant));
+  } catch (err) {
+    if (err.message.includes('no authorization found')) {
+      throw new ValidationError('GRANT_NOT_FOUND');
+    }
+    throw err;
+  }
+  if (!grant) throw new ValidationError('GRANT_NOT_FOUND');
+  const { expiration, authorization } = grant;
+  const { spendLimit } = authorization.value;
+  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
+  if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
+  const { amount } = limit;
+  const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
+  if (amountInLIKE.lt(targetAmount)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
+  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
+  return amount.toFixed();
+}
+
 export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
@@ -112,33 +138,14 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   if (!messages.length) throw new ValidationError('INCORRECT_GRANT_TARGET');
   const message = messages.find(m => m.value.grant.authorization.typeUrl === '/cosmos.bank.v1beta1.SendAuthorization');
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
-  const { granter, grant } = message.value;
-  const { authorization, expiration } = grant;
-  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
-  const qs = await client.getQueryClient();
-  try {
-    const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
-    if (!c) throw new ValidationError('GRANT_NOT_FOUND');
-  } catch (err) {
-    if (err.message.includes('no authorization found')) {
-      throw new ValidationError('GRANT_NOT_FOUND');
-    }
-    throw err;
-  }
-  // TODO: parse limit from query instead of tx
-  const { spendLimit } = authorization.value;
-  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
-  if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
-  const { amount } = limit;
-  const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
-  if (amountInLIKE.lt(totalPrice)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
-
+  const { granter } = message.value;
+  const amountInLIKEString = await checkWalletGrantAmount(granter, target, totalPrice);
   const balance = await q.getBalance(granter, NFT_COSMOS_DENOM);
   const balanceAmountInLIKE = new BigNumber(balance.amount || 0).shiftedBy(-9);
   if (balanceAmountInLIKE.lt(totalPrice)) throw new ValidationError('GRANTER_AMOUNT_NOT_ENOUGH');
   return {
     granter,
-    spendLimit: amountInLIKE.toNumber(),
+    spendLimit: new BigNumber(amountInLIKEString).toNumber(),
   };
 }
 
