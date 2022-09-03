@@ -47,7 +47,7 @@ export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
 export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
   const rate = await getLIKEPrice();
   const targetPrice = new BigNumber(targetLIKE).multipliedBy(rate);
-  const targetTotal = targetPrice.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2);
+  const targetTotal = targetPrice.plus(LIKER_NFT_FIAT_FEE_USD);
   return targetTotal.lte(fiat);
 }
 
@@ -89,7 +89,7 @@ export async function processFiatNFTPurchase({
   }
   await checkGranterFiatWalletGrant(LIKEPrice);
   const isHandled = await db.runTransaction(async (t) => {
-    const doc = t.get(docRef);
+    const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) throw new ValidationError('PAYMENT_ID_NOT_FOUND');
     const { status } = docData;

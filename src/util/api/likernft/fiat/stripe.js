@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
@@ -18,20 +19,21 @@ export async function processStripeFiatNFTPurchase(session, req) {
     type,
     wallet,
     classId,
-    iscnId,
+    iscnPrefix,
     LIKEPrice,
     fiatPrice,
+    fiatPriceString,
     status,
   } = docData;
   const paymentId = doc.id;
   if (type !== 'stripe') throw new ValidationError('PAYMENT_TYPE_NOT_STRIPE');
   if (status !== 'new') return true; // handled or handling
-  const fiatAmount = fiatPrice * 100;
-  const paymentIntent = await stripe.paymentIntents.get(session.payment_intent);
+  const fiatAmount = new BigNumber(fiatPriceString).shiftedBy(2);
+  const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+  if (fiatAmount.gt(paymentIntent.amount_capturable)) throw new ValidationError('ALREADY_CAPTURED');
   try {
-    if (paymentIntent.amount_capturable < fiatAmount) throw new ValidationError('ALREADY_CAPTURED');
     await processFiatNFTPurchase({
-      paymentId, likeWallet: wallet, iscnPrefix: iscnId, classId, LIKEPrice,
+      paymentId, likeWallet: wallet, iscnPrefix, classId, LIKEPrice, fiatPrice,
     }, req);
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -45,7 +47,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     return false;
   }
   await stripe.paymentIntents.capture(session.payment_intent, {
-    amount_to_capture: fiatPrice * 100,
+    amount_to_capture: fiatAmount.toNumber(),
   });
   return true;
 }
