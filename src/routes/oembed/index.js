@@ -172,7 +172,7 @@ router.get('/', async (req, res, next) => {
       throw new ValidationError('No url query in oEmbed request');
     }
     const parsedURL = parseURL(url);
-    if (url === null) {
+    if (parsedURL === null) {
       throw new ValidationError(`Invalid url query (${url}) in oEmbed request`);
     }
     const match = domainRegexp.exec(parsedURL.host);
