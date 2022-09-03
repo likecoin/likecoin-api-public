@@ -126,7 +126,7 @@ export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
   const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
   if (amountInLIKE.lt(targetAmount)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
   if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
-  return amount.toFixed();
+  return amountInLIKE.toFixed();
 }
 
 export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_NFT_TARGET_ADDRESS) {

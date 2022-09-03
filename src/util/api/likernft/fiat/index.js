@@ -54,14 +54,16 @@ export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
 export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 400000) {
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
-    fiatGranterWallet = wallet;
+    fiatGranterWallet = wallet.address;
   }
   try {
     await checkWalletGrantAmount(fiatGranterWallet, LIKER_NFT_TARGET_ADDRESS, targetAmount);
   } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
     const { client, wallet } = await getLikerNFTFiatSigningClientAndWallet();
     const res = await client.createSendGrant(
-      wallet,
+      wallet.address,
       LIKER_NFT_TARGET_ADDRESS,
       [{
         denom: NFT_COSMOS_DENOM,
@@ -83,7 +85,7 @@ export async function processFiatNFTPurchase({
   if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
-    fiatGranterWallet = wallet;
+    fiatGranterWallet = wallet.address;
   }
   await checkGranterFiatWalletGrant(LIKEPrice);
   const isHandled = await db.runTransaction(async (t) => {
