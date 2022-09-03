@@ -93,7 +93,6 @@ test('OEMBED: success cases', async (t) => {
           `https://button.rinkeby.like.co/?iscn_id=${param}`,
           `https://button.rinkeby.like.co/${param}`,
           `https://button.rinkeby.like.co/iscn/${param}`,
-          `https://button.rinkeby.like.co/in/like/${param}`,
         ];
         for (const oEmbedURL of queryURLs) {
           res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
@@ -112,8 +111,6 @@ test('OEMBED: success cases', async (t) => {
     '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%2Fiscn%3A%2Flikecoin-chain%2FIKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo&format=json',
     '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%3A%2Flikecoin-chain%2FIKI9PueuJiOsYvhN6z9jPJIm3UGMh17BQ3tEwEzslQo&format=json',
     '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%2Fiscn%3A%2Flikecoin-chain%2FfKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo%2F1&format=json',
-    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fnft%2Flikenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg&format=json',
-    '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fin%2Flike%2Flikenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg&format=json',
   ];
   for (const url of extraTestURLs) {
     res = await axiosist.get(url)
@@ -123,35 +120,26 @@ test('OEMBED: success cases', async (t) => {
     t.is(res.data.version, '1.0');
   }
 
-
   /* NFT class button test */
   const nftClass = 'likenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg';
-  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/${nftClass}`)
-    .catch(err => err.response);
-  t.is(res.status, 200);
-  t.is(res.data.type, 'rich');
-  t.is(res.data.version, '1.0');
-  t.is(res.data.thumbnail_width, 100);
-  t.is(res.data.thumbnail_height, 100);
-  t.is(res.data.html.includes(nftClass), true);
-
-  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/nft/${nftClass}`)
-    .catch(err => err.response);
-  t.is(res.status, 200);
-  t.is(res.data.type, 'rich');
-  t.is(res.data.version, '1.0');
-  t.is(res.data.thumbnail_width, 100);
-  t.is(res.data.thumbnail_height, 100);
-  t.is(res.data.html.includes(nftClass), true);
-
-  res = await axiosist.get(`/api/oembed?url=https://button.rinkeby.like.co/in/like/${nftClass}`)
-    .catch(err => err.response);
-  t.is(res.status, 200);
-  t.is(res.data.type, 'rich');
-  t.is(res.data.version, '1.0');
-  t.is(res.data.thumbnail_width, 100);
-  t.is(res.data.thumbnail_height, 100);
-  t.is(res.data.html.includes(nftClass), true);
+  const queryURLs = [
+    `https://button.rinkeby.like.co?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/iscn?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/iscn/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/nft?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/nft/?class_id=${nftClass}`,
+  ];
+  for (const oEmbedURL of queryURLs) {
+    res = await axiosist.get(`/api/oembed?url=${oEmbedURL}`)
+      .catch(err => err.response);
+    t.is(res.status, 200, `url = ${oEmbedURL}`);
+    t.is(res.data.type, 'rich');
+    t.is(res.data.version, '1.0');
+    t.is(res.data.thumbnail_width, 100);
+    t.is(res.data.thumbnail_height, 100);
+    t.is(res.data.html.includes(nftClass), true);
+  }
 
   /* xml format test */
   res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)

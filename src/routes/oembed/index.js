@@ -82,7 +82,7 @@ function getRequestIscnId(parsedURL) {
     iscnId = parsedURL.searchParams.get('iscn_id');
   } else {
     // case 5-6
-    const match = /^\/(?:iscn\/|in\/like\/)?(.*)$/.exec(decodeURIComponent(pathname));
+    const match = /^\/(?:iscn\/)?(.*)$/.exec(decodeURIComponent(pathname));
     if (!match) {
       return null;
     }
@@ -121,18 +121,19 @@ async function processIscnId(req, res, { parsedURL }) {
 
 async function processNftClass(req, res, { parsedURL }) {
   // matches
-  // /in/like/(nft_class)
-  // /nft/(nft_class)
-  // /(nft_class)
-
-  // In theory it is possible to have a username 'likenft[a-z0-9]+'
-  // In practice it is not likely and this user may choose more explicit url format if needed
-  const nftUrlRegexp = /^\/(?:nft\/|in\/like\/)?(likenft1[ac-hj-np-z02-9]+)$/;
-  const match = nftUrlRegexp.exec(parsedURL.pathname);
-  if (!match) {
+  // ?class_id=(class_id)
+  // /?class_id=(class_id)
+  // /iscn?class_id=(class_id)
+  // /iscn/?class_id=(class_id)
+  // /nft?class_id=(class_id)
+  // /nft/?class_id=(class_id)
+  let nftClass;
+  const { pathname } = parsedURL;
+  if (['', '/', '/iscn', '/iscn/', '/nft', '/nft/'].includes(pathname)) {
+    nftClass = parsedURL.searchParams.get('class_id');
+  } else {
     return null;
   }
-  const [, nftClass] = match;
   const src = `https://${parsedURL.host}/in/embed/nft/class/${nftClass}`;
   const maxWidth = Number.parseInt(req.query.maxwidth || 360, 10);
   const maxHeight = Number.parseInt(req.query.maxheight || 480, 10);
