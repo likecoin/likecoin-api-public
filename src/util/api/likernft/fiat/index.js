@@ -127,4 +127,4 @@ export async function processFiatNFTPurchase({
 
 /* Make sure we have a grant on start up */
 // eslint-disable-next-line no-console
-try { checkGranterFiatWalletGrant(65536); } catch (err) { console.err(err); }
+if (!process.env.CI) try { checkGranterFiatWalletGrant(65536); } catch (err) { console.err(err); }
