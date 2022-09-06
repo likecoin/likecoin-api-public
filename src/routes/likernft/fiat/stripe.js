@@ -25,7 +25,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     const sig = req.headers['stripe-signature'];
     let event;
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);

@@ -31,7 +31,13 @@ app.use(cors({ origin: true, credentials: true }));
 
 app.use(cookieParser());
 app.use(compression());
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+  verify: (req, _, buf) => {
+    if (req.path.includes('/stripe/webhook')) { // rawbody is needed for stripe webhook
+      req.rawBody = buf;
+    }
+  },
+}));
 app.use(i18n.init);
 app.use((req, res, next) => {
   if (req.body.locale) req.setLocale(res, req.body.locale);
