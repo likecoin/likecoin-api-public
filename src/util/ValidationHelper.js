@@ -368,10 +368,26 @@ export function filterLikeNFTMetadata({
 export function filterLikeNFTFiatData({
   status,
   errorMessage,
+  wallet,
+  classId,
+  iscnPrefix,
+  LIKEPrice,
+  fiatPrice,
+  fiatPriceString,
+  nftId,
+  transactionHash,
 }) {
   return {
     status,
     errorMessage,
+    wallet,
+    classId,
+    iscnPrefix,
+    LIKEPrice,
+    fiatPrice,
+    fiatPriceString,
+    nftId,
+    transactionHash,
   };
 }
 
