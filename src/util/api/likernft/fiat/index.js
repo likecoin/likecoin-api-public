@@ -34,7 +34,7 @@ async function getLIKEPrice() {
       })
       .catch(() => LIKER_NFT_FIAT_MIN_RATIO),
   ]);
-  return Math.min(price || LIKER_NFT_FIAT_MIN_RATIO);
+  return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
 export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
