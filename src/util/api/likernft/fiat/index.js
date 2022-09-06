@@ -108,7 +108,12 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
     }, req);
   } catch (err) {
-    await docRef.update({ status: 'error', error: err.toString() });
+    await docRef.update({
+      status: 'error',
+      error: err.toString(),
+      errorMessage: err.message,
+      errorStack: err.stack,
+    });
     throw err;
   }
   const {

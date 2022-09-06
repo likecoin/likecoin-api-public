@@ -367,9 +367,11 @@ export function filterLikeNFTMetadata({
 
 export function filterLikeNFTFiatData({
   status,
+  errorMessage,
 }) {
   return {
     status,
+    errorMessage,
   };
 }
 

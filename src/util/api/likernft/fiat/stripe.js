@@ -38,11 +38,13 @@ export async function processStripeFiatNFTPurchase(session, req) {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
-    try {
-      await stripe.paymentIntents.cancel(session.payment_intent);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
+    if (error instanceof ValidationError) {
+      try {
+        await stripe.paymentIntents.cancel(session.payment_intent);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
     }
     return false;
   }

@@ -28,7 +28,9 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(err);
+      console.error(JSON.stringify({
+        message: err, stack: err.stack,
+      }));
       res.sendStatus(400);
       return;
     }

@@ -156,7 +156,7 @@ export async function processNFTPurchase({
   buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount,
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
-  if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
+  if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
 
   // get price
