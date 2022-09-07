@@ -51,6 +51,30 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
   }
 });
 
+router.get(
+  '/price',
+  fetchISCNPrefixAndClassId,
+  async (_, res, next) => {
+    try {
+      const { classId, iscnPrefix } = res.locals;
+      const {
+        price,
+        // nextPriceLevel,
+      } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      const gasFee = getGasPrice();
+      const totalPrice = price + gasFee;
+      const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
+      res.json({
+        LIKEPrice: totalPrice,
+        fiatPrice: Number(fiatPriceString),
+        fiatPriceString,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.post(
   '/new',
   fetchISCNPrefixAndClassId,
@@ -132,6 +156,9 @@ router.post(
       res.json({
         id,
         url,
+        LIKEPrice: totalPrice,
+        fiatPrice: Number(fiatPriceString),
+        fiatPriceString,
       });
     } catch (err) {
       next(err);
