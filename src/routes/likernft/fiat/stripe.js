@@ -12,7 +12,8 @@ import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernf
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
-import { LIKER_LAND_HOSTNAME } from '../../../constant';
+import { LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import publisher from '../../../util/gcloudPub';
 
 import { STRIPE_WEBHOOK_SECRET } from '../../../../config/config';
 
@@ -140,10 +141,10 @@ router.post(
           paymentId,
         },
       });
-      const { url, id } = session;
+      const { url, id: sessionId } = session;
       await likeNFTFiatCollection.doc(paymentId).create({
         type: 'stripe',
-        sessionId: id,
+        sessionId,
         wallet,
         classId,
         iscnPrefix,
@@ -153,12 +154,25 @@ router.post(
         status: 'new',
         timestamp: Date.now(),
       });
+      const LIKEPrice = totalPrice;
+      const fiatPrice = Number(fiatPriceString);
       res.json({
-        id,
+        id: sessionId,
         url,
-        LIKEPrice: totalPrice,
-        fiatPrice: Number(fiatPriceString),
+        LIKEPrice,
+        fiatPrice,
         fiatPriceString,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTFiatPaymentNew',
+        type: 'stripe',
+        paymentId,
+        buyerWallet: wallet,
+        classId,
+        iscnPrefix,
+        fiatPrice,
+        LIKEPrice,
+        sessionId,
       });
     } catch (err) {
       next(err);

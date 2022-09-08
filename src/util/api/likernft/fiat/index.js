@@ -2,9 +2,10 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
-import { COINGECKO_PRICE_URL } from '../../../../constant';
+import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
+import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_FIAT_FEE_USD,
@@ -71,23 +72,26 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
       }],
       Date.now() + 2629743000, // one month,
     );
-    // TODO: publish log
-    // eslint-disable-next-line no-console
-    console.log(res);
+    publisher.publish(PUBSUB_TOPIC_MISC, null, {
+      logType: 'LikerNFTFiatWalletRegrant',
+      targetAmount,
+      grantAmount,
+      txHash: res.transactionHash,
+      wallet: wallet.address,
+      targetWallet: LIKER_NFT_TARGET_ADDRESS,
+    });
   }
 }
 
 export async function processFiatNFTPurchase({
   paymentId, likeWallet, iscnPrefix, classId, fiatPrice, LIKEPrice,
 }, req) {
-  const docRef = likeNFTFiatCollection.doc(paymentId);
-  const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
-  if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
     fiatGranterWallet = wallet.address;
   }
   await checkGranterFiatWalletGrant(LIKEPrice);
+  const docRef = likeNFTFiatCollection.doc(paymentId);
   const isHandled = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
@@ -97,9 +101,24 @@ export async function processFiatNFTPurchase({
     t.update(docRef, { status: 'processing' });
     return false;
   });
-  if (isHandled) return null;
+  if (isHandled) {
+    // eslint-disable-next-line no-console
+    console.log(`NFT Fiat Payment already handled ${paymentId}`);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTFiatPaymentAlreadyHandled',
+      paymentId,
+      buyerWallet: likeWallet,
+      classId,
+      iscnPrefix,
+      fiatPrice,
+      LIKEPrice,
+    });
+    return null;
+  }
   let res;
   try {
+    const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
+    if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
     res = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefix,
@@ -108,11 +127,26 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
     }, req);
   } catch (err) {
+    const error = err.toString();
+    const errorMessage = err.message;
+    const errorStack = err.stack;
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTFiatPaymentPurchaseError',
+      paymentId,
+      buyerWallet: likeWallet,
+      classId,
+      iscnPrefix,
+      fiatPrice,
+      LIKEPrice,
+      error,
+      errorMessage,
+      errorStack,
+    });
     await docRef.update({
       status: 'error',
-      error: err.toString(),
-      errorMessage: err.message,
-      errorStack: err.stack,
+      error,
+      errorMessage,
+      errorStack,
     });
     throw err;
   }
@@ -121,6 +155,17 @@ export async function processFiatNFTPurchase({
     nftId,
     nftPrice: actualNftPrice,
   } = res;
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'LikerNFTFiatPaymentSuccess',
+    paymentId,
+    buyerWallet: likeWallet,
+    classId,
+    iscnPrefix,
+    fiatPrice,
+    LIKEPrice,
+    transactionHash,
+    nftId,
+  });
   await docRef.update({
     transactionHash,
     nftId,
