@@ -129,6 +129,8 @@ test('OEMBED: success cases', async (t) => {
     `https://button.rinkeby.like.co/iscn/?class_id=${nftClass}`,
     `https://button.rinkeby.like.co/nft?class_id=${nftClass}`,
     `https://button.rinkeby.like.co/nft/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/${nftClass}`,
+    `https://button.rinkeby.like.co/nft/${nftClass}`,
   ];
   for (const oEmbedURL of queryURLs) {
     res = await axiosist.get(`/api/oembed?url=${oEmbedURL}`)

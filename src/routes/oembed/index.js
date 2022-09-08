@@ -121,18 +121,27 @@ async function processIscnId(req, res, { parsedURL }) {
 
 async function processNftClass(req, res, { parsedURL }) {
   // matches
-  // ?class_id=(class_id)
-  // /?class_id=(class_id)
-  // /iscn?class_id=(class_id)
-  // /iscn/?class_id=(class_id)
-  // /nft?class_id=(class_id)
-  // /nft/?class_id=(class_id)
+  // (1) ?class_id=(class_id)
+  // (2) /?class_id=(class_id)
+  // (3) /iscn?class_id=(class_id)
+  // (4) /iscn/?class_id=(class_id)
+  // (5) /nft?class_id=(class_id)
+  // (6) /nft/?class_id=(class_id)
+  // (7) /(nft_class)
+  // (8) /nft/(nft_class)
   let nftClass;
   const { pathname } = parsedURL;
   if (['', '/', '/iscn', '/iscn/', '/nft', '/nft/'].includes(pathname)) {
+    // case 1-6
     nftClass = parsedURL.searchParams.get('class_id');
   } else {
-    return null;
+    // case 7-8
+    const nftUrlRegexp = /^\/(?:nft\/)?(likenft1[ac-hj-np-z02-9]+)$/;
+    const match = nftUrlRegexp.exec(parsedURL.pathname);
+    if (!match) {
+      return null;
+    }
+    [, nftClass] = match;
   }
   const src = `https://${parsedURL.host}/in/embed/nft/class/${nftClass}`;
   const maxWidth = Number.parseInt(req.query.maxwidth || 360, 10);
