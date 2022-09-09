@@ -123,7 +123,7 @@ router.post(
                   classId,
                 },
               },
-              unit_amount: new BigNumber(fiatPriceString).shiftedBy(2).toNumber(),
+              unit_amount: Number(new BigNumber(fiatPriceString).shiftedBy(2).toFixed(0)),
             },
             adjustable_quantity: {
               enabled: false,

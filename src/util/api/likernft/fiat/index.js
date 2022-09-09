@@ -16,25 +16,26 @@ import { ValidationError } from '../../../ValidationError';
 
 const LRU = require('lru-cache');
 
-const priceCache = new LRU({ max: 1, maxAge: 10 * 60 * 1000 }); // 10 min
+const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
 const CURRENCY = 'usd';
 
 let fiatGranterWallet;
 
 async function getLIKEPrice() {
-  const cachedPrice = priceCache.get(CURRENCY);
-  if (cachedPrice) {
-    return cachedPrice;
-  }
-  const price = await Promise.all([
-    axios.get(COINGECKO_PRICE_URL)
+  const hasCache = priceCache.has(CURRENCY);
+  const cachedPrice = priceCache.get(CURRENCY, { allowStale: true });
+  let price;
+  if (hasCache) {
+    price = cachedPrice;
+  } else {
+    price = await axios.get(COINGECKO_PRICE_URL)
       .then((r) => {
         const p = r.data.market_data.current_price[CURRENCY];
         priceCache.set(CURRENCY, p);
         return p;
       })
-      .catch(() => LIKER_NFT_FIAT_MIN_RATIO),
-  ]);
+      .catch(() => cachedPrice || LIKER_NFT_FIAT_MIN_RATIO);
+  }
   return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
