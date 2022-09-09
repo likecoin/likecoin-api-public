@@ -187,7 +187,7 @@ router.get('/', async (req, res, next) => {
     }
     const match = domainRegexp.exec(parsedURL.host);
     if (!match) {
-      throw new ValidationError(`Invalid url query (${url}) in oEmbed request`);
+      throw new ValidationError(`Invalid domain (${url}) in oEmbed request`);
     }
     const subdomain = match[1];
     if (subdomain && !allowedSubdomains.includes(subdomain)) {

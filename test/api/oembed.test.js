@@ -178,7 +178,7 @@ test('OEMBED: failure cases', async (t) => {
   res = await axiosist.get('/api/oembed?url=www.invalidurl.co/testing')
     .catch(err => err.response);
   t.is(res.status, 400);
-  t.is(res.data, 'Invalid url query (www.invalidurl.co/testing) in oEmbed request');
+  t.is(res.data, 'Invalid domain (www.invalidurl.co/testing) in oEmbed request');
 
   res = await axiosist.get('/api/oembed?url=www.invalidurl.like.co/testing')
     .catch(err => err.response);
