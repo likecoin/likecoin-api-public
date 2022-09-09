@@ -13,6 +13,8 @@ import {
 const allowedSubdomains = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
 const domainRegexp = /^((?:[a-z0-9]+\.)+)?like\.co$/;
 
+const widgetURLPaths = ['', '/', '/iscn', '/iscn/', '/nft', '/nft/', '/in/nft', '/in/nft/'];
+
 const router = Router();
 
 async function processLikerId(req, res, { parsedURL }) {
@@ -59,14 +61,6 @@ async function processLikerId(req, res, { parsedURL }) {
 }
 
 function getRequestIscnId(parsedURL) {
-  // matches
-  // (1) /iscn?iscn_id=(iscn_id)
-  // (2) /iscn/?iscn_id=(iscn_id)
-  // (3) /?iscn_id=(iscn_id)
-  // (4) ?iscn_id=(iscn_id)
-  // (5) /iscn/(iscn_id)
-  // (6) /(iscn_id)
-
   // iscn_id could be (and should be?) URL component encoded
   // (but seems Embedly is ignoring the whole query string...)
 
@@ -77,12 +71,24 @@ function getRequestIscnId(parsedURL) {
 
   const { pathname } = parsedURL;
   let iscnId = '';
-  if (['', '/', '/iscn', '/iscn/'].includes(pathname)) {
-    // case 1-4
+  if (widgetURLPaths.includes(pathname)) {
+    // Matches
+    // ?iscn_id=(iscn_id)
+    // /?iscn_id=(iscn_id)
+    // /iscn?iscn_id=(iscn_id)
+    // /iscn/?iscn_id=(iscn_id)
+    // /nft?iscn_id=(iscn_id)
+    // /nft/?iscn_id=(iscn_id)
+    // /in/nft?iscn_id=(iscn_id)
+    // /in/nft/?iscn_id=(iscn_id)
     iscnId = parsedURL.searchParams.get('iscn_id');
   } else {
-    // case 5-6
-    const match = /^\/(?:iscn\/)?(.*)$/.exec(decodeURIComponent(pathname));
+    // Matches
+    // /(iscn_id)
+    // /iscn/(iscn_id)
+    // /nft/(iscn_id)
+    // /in/nft/(iscn_id)
+    const match = /^\/(?:iscn\/|nft\/|in\/nft\/)?(.*)$/.exec(decodeURIComponent(pathname));
     if (!match) {
       return null;
     }
@@ -120,23 +126,26 @@ async function processIscnId(req, res, { parsedURL }) {
 }
 
 async function processNftClass(req, res, { parsedURL }) {
-  // matches
-  // (1) ?class_id=(class_id)
-  // (2) /?class_id=(class_id)
-  // (3) /iscn?class_id=(class_id)
-  // (4) /iscn/?class_id=(class_id)
-  // (5) /nft?class_id=(class_id)
-  // (6) /nft/?class_id=(class_id)
-  // (7) /(nft_class)
-  // (8) /nft/(nft_class)
   let nftClass;
   const { pathname } = parsedURL;
-  if (['', '/', '/iscn', '/iscn/', '/nft', '/nft/'].includes(pathname)) {
-    // case 1-6
+  if (widgetURLPaths.includes(pathname)) {
+    // Matches
+    // ?class_id=(class_id)
+    // /?class_id=(class_id)
+    // /iscn?class_id=(class_id)
+    // /iscn/?class_id=(class_id)
+    // /nft?class_id=(class_id)
+    // /nft/?class_id=(class_id)
+    // /in/nft?class_id=(class_id)
+    // /in/nft/?class_id=(class_id)
     nftClass = parsedURL.searchParams.get('class_id');
   } else {
-    // case 7-8
-    const nftUrlRegexp = /^\/(?:nft\/)?(likenft1[ac-hj-np-z02-9]+)$/;
+    // Matches
+    // /(class_id)
+    // /iscn/(class_id)
+    // /nft/(class_id)
+    // /in/nft/(class_id)
+    const nftUrlRegexp = /^\/(?:iscn\/|nft\/|in\/nft\/)?(likenft1[ac-hj-np-z02-9]+)$/;
     const match = nftUrlRegexp.exec(parsedURL.pathname);
     if (!match) {
       return null;

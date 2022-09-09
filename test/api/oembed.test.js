@@ -87,12 +87,18 @@ test('OEMBED: success cases', async (t) => {
     for (const iscnId of [rawIscnId, rawIscnId.replace('iscn://', 'iscn:/')]) {
       for (const param of [iscnId, encodeURIComponent(iscnId)]) {
         const queryURLs = [
-          `https://button.rinkeby.like.co/iscn?iscn_id=${param}`,
-          `https://button.rinkeby.like.co/iscn/?iscn_id=${param}`,
           `https://button.rinkeby.like.co?iscn_id=${param}`,
           `https://button.rinkeby.like.co/?iscn_id=${param}`,
           `https://button.rinkeby.like.co/${param}`,
+          `https://button.rinkeby.like.co/iscn?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/iscn/?iscn_id=${param}`,
           `https://button.rinkeby.like.co/iscn/${param}`,
+          `https://button.rinkeby.like.co/nft?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/nft/?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/nft/${param}`,
+          `https://button.rinkeby.like.co/in/nft?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/in/nft/?iscn_id=${param}`,
+          `https://button.rinkeby.like.co/in/nft/${param}`,
         ];
         for (const oEmbedURL of queryURLs) {
           res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
@@ -125,12 +131,16 @@ test('OEMBED: success cases', async (t) => {
   const queryURLs = [
     `https://button.rinkeby.like.co?class_id=${nftClass}`,
     `https://button.rinkeby.like.co/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/${nftClass}`,
     `https://button.rinkeby.like.co/iscn?class_id=${nftClass}`,
     `https://button.rinkeby.like.co/iscn/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/iscn/${nftClass}`,
     `https://button.rinkeby.like.co/nft?class_id=${nftClass}`,
     `https://button.rinkeby.like.co/nft/?class_id=${nftClass}`,
-    `https://button.rinkeby.like.co/${nftClass}`,
     `https://button.rinkeby.like.co/nft/${nftClass}`,
+    `https://button.rinkeby.like.co/in/nft?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/in/nft/?class_id=${nftClass}`,
+    `https://button.rinkeby.like.co/in/nft/${nftClass}`,
   ];
   for (const oEmbedURL of queryURLs) {
     res = await axiosist.get(`/api/oembed?url=${oEmbedURL}`)
