@@ -108,7 +108,7 @@ router.post(
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
-        cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/${classId}`,
+        cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`,
         line_items: [
           {
             // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
