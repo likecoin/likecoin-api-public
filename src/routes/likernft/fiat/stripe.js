@@ -100,11 +100,14 @@ router.post(
         ...chainData,
         ...dynamicData,
       };
-      const { image, name, description } = metadata;
+      let { name = '', description = '' } = metadata;
+      const { image } = metadata;
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
       const paymentId = uuidv4();
+      name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
+      description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
