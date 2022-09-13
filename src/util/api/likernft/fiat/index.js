@@ -55,7 +55,9 @@ export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
 
 export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 400000) {
   if (!fiatGranterWallet) {
-    const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
+    const res = await getLikerNFTFiatSigningClientAndWallet();
+    if (!res) throw new Error('GRANT_FIAT_WALLET_NOT_SET');
+    const { wallet } = res;
     fiatGranterWallet = wallet.address;
   }
   try {
@@ -178,4 +180,4 @@ export async function processFiatNFTPurchase({
 
 /* Make sure we have a grant on start up */
 // eslint-disable-next-line no-console
-if (!process.env.CI) try { checkGranterFiatWalletGrant(65536); } catch (err) { console.err(err); }
+if (!process.env.CI) checkGranterFiatWalletGrant(65536).catch(console.error);

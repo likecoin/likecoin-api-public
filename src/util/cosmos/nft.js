@@ -114,6 +114,7 @@ export async function getLikerNFTSigningClient() {
 }
 
 export async function getLikerNFTFiatSigningClientAndWallet() {
+  if (!LIKER_NFT_FIAT_PRIVATE_KEY) return null;
   const { client, wallet } = await createNFTSigningClient(LIKER_NFT_FIAT_PRIVATE_KEY);
   return { client, wallet };
 }
