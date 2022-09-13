@@ -13,6 +13,8 @@ import {
 const allowedSubdomains = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
 const domainRegexp = /^((?:[a-z0-9]+\.)+)?like\.co$/;
 
+const widgetURLPaths = ['', '/', '/iscn', '/iscn/', '/nft', '/nft/', '/in/nft', '/in/nft/'];
+
 const router = Router();
 
 async function processLikerId(req, res, { parsedURL }) {
@@ -59,14 +61,6 @@ async function processLikerId(req, res, { parsedURL }) {
 }
 
 function getRequestIscnId(parsedURL) {
-  // matches
-  // (1) /iscn?iscn_id=(iscn_id)
-  // (2) /iscn/?iscn_id=(iscn_id)
-  // (3) /?iscn_id=(iscn_id)
-  // (4) ?iscn_id=(iscn_id)
-  // (5) /iscn/(iscn_id)
-  // (6) /(iscn_id)
-
   // iscn_id could be (and should be?) URL component encoded
   // (but seems Embedly is ignoring the whole query string...)
 
@@ -77,12 +71,24 @@ function getRequestIscnId(parsedURL) {
 
   const { pathname } = parsedURL;
   let iscnId = '';
-  if (['', '/', '/iscn', '/iscn/'].includes(pathname)) {
-    // case 1-4
+  if (widgetURLPaths.includes(pathname)) {
+    // Matches
+    // ?iscn_id=(iscn_id)
+    // /?iscn_id=(iscn_id)
+    // /iscn?iscn_id=(iscn_id)
+    // /iscn/?iscn_id=(iscn_id)
+    // /nft?iscn_id=(iscn_id)
+    // /nft/?iscn_id=(iscn_id)
+    // /in/nft?iscn_id=(iscn_id)
+    // /in/nft/?iscn_id=(iscn_id)
     iscnId = parsedURL.searchParams.get('iscn_id');
   } else {
-    // case 5-6
-    const match = /^\/(?:iscn\/|in\/like\/)?(.*)$/.exec(decodeURIComponent(pathname));
+    // Matches
+    // /(iscn_id)
+    // /iscn/(iscn_id)
+    // /nft/(iscn_id)
+    // /in/nft/(iscn_id)
+    const match = /^\/(?:iscn\/|nft\/|in\/nft\/)?(.*)$/.exec(decodeURIComponent(pathname));
     if (!match) {
       return null;
     }
@@ -120,19 +126,32 @@ async function processIscnId(req, res, { parsedURL }) {
 }
 
 async function processNftClass(req, res, { parsedURL }) {
-  // matches
-  // /in/like/(nft_class)
-  // /nft/(nft_class)
-  // /(nft_class)
-
-  // In theory it is possible to have a username 'likenft[a-z0-9]+'
-  // In practice it is not likely and this user may choose more explicit url format if needed
-  const nftUrlRegexp = /^\/(?:nft\/|in\/like\/)?(likenft1[ac-hj-np-z02-9]+)$/;
-  const match = nftUrlRegexp.exec(parsedURL.pathname);
-  if (!match) {
-    return null;
+  let nftClass;
+  const { pathname } = parsedURL;
+  if (widgetURLPaths.includes(pathname)) {
+    // Matches
+    // ?class_id=(class_id)
+    // /?class_id=(class_id)
+    // /iscn?class_id=(class_id)
+    // /iscn/?class_id=(class_id)
+    // /nft?class_id=(class_id)
+    // /nft/?class_id=(class_id)
+    // /in/nft?class_id=(class_id)
+    // /in/nft/?class_id=(class_id)
+    nftClass = parsedURL.searchParams.get('class_id');
+  } else {
+    // Matches
+    // /(class_id)
+    // /iscn/(class_id)
+    // /nft/(class_id)
+    // /in/nft/(class_id)
+    const nftUrlRegexp = /^\/(?:iscn\/|nft\/|in\/nft\/)?(likenft1[ac-hj-np-z02-9]+)$/;
+    const match = nftUrlRegexp.exec(parsedURL.pathname);
+    if (!match) {
+      return null;
+    }
+    [, nftClass] = match;
   }
-  const [, nftClass] = match;
   const src = `https://${parsedURL.host}/in/embed/nft/class/${nftClass}`;
   const maxWidth = Number.parseInt(req.query.maxwidth || 360, 10);
   const maxHeight = Number.parseInt(req.query.maxheight || 480, 10);
@@ -172,12 +191,12 @@ router.get('/', async (req, res, next) => {
       throw new ValidationError('No url query in oEmbed request');
     }
     const parsedURL = parseURL(url);
-    if (url === null) {
+    if (parsedURL === null) {
       throw new ValidationError(`Invalid url query (${url}) in oEmbed request`);
     }
     const match = domainRegexp.exec(parsedURL.host);
     if (!match) {
-      throw new ValidationError(`Invalid url query (${url}) in oEmbed request`);
+      throw new ValidationError(`Invalid domain (${url}) in oEmbed request`);
     }
     const subdomain = match[1];
     if (subdomain && !allowedSubdomains.includes(subdomain)) {
