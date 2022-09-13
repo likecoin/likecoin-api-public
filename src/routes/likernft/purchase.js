@@ -77,7 +77,9 @@ router.post(
         stakeholderLIKEs,
         feeWallet,
         feeLIKE,
-      } = await processNFTPurchase(likeWallet, iscnPrefix, classId, grantedAmount, req);
+      } = await processNFTPurchase({
+        buyerWallet: likeWallet, iscnPrefix, classId, granterWallet: likeWallet, grantedAmount,
+      }, req);
       res.json({
         txHash: transactionHash,
         iscnId: iscnPrefix,

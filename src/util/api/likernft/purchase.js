@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
+import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
@@ -30,6 +30,25 @@ const STAKEHOLDERS_RATIO = 0.1;
 const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
+export function getNFTBatchInfo(batchNumber) {
+  const count = batchNumber + 1;
+  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
+  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
+  const decayMultiplier = Math.min(
+    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
+    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
+  );
+  let lastPrice = price;
+  for (let i = 1; i <= decayMultiplier; i += 1) {
+    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
+    lastPrice = price;
+  }
+  return {
+    price,
+    count,
+  };
+}
+
 export async function getLowerestUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
@@ -59,6 +78,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   let price = -1;
   const {
     currentPrice,
+    currentBatch,
     lastSoldPrice,
   } = nftDocData;
   if (nftData) {
@@ -70,10 +90,12 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
       price = currentPrice;
     }
   }
+  const { price: nextPriceLevel } = getNFTBatchInfo(currentBatch + 1);
   return {
     ...nftDocData,
     lastSoldPrice: lastSoldPrice || currentPrice,
     price,
+    nextPriceLevel,
   };
 }
 
@@ -81,23 +103,30 @@ export function getGasPrice() {
   return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
 }
 
-export function getNFTBatchInfo(batchNumber) {
-  const count = batchNumber + 1;
-  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
-  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
-  const decayMultiplier = Math.min(
-    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
-    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
-  );
-  let lastPrice = price;
-  for (let i = 1; i <= decayMultiplier; i += 1) {
-    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
-    lastPrice = price;
+export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
+  const client = await getNFTQueryClient();
+  const qs = await client.getQueryClient();
+  let grant;
+  try {
+    const c = await qs.authz.grants(granter, grantee, '/cosmos.bank.v1beta1.MsgSend');
+    if (!c) throw new ValidationError('GRANT_NOT_FOUND');
+    ([grant] = c.grants.map(parseAuthzGrant));
+  } catch (err) {
+    if (err.message.includes('no authorization found')) {
+      throw new ValidationError('GRANT_NOT_FOUND');
+    }
+    throw err;
   }
-  return {
-    price,
-    count,
-  };
+  if (!grant) throw new ValidationError('GRANT_NOT_FOUND');
+  const { expiration, authorization } = grant;
+  const { spendLimit } = authorization.value;
+  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
+  if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
+  const { amount } = limit;
+  const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
+  if (amountInLIKE.lt(targetAmount)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
+  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
+  return amountInLIKE.toFixed();
 }
 
 export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_NFT_TARGET_ADDRESS) {
@@ -112,39 +141,22 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   if (!messages.length) throw new ValidationError('INCORRECT_GRANT_TARGET');
   const message = messages.find(m => m.value.grant.authorization.typeUrl === '/cosmos.bank.v1beta1.SendAuthorization');
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
-  const { granter, grant } = message.value;
-  const { authorization, expiration } = grant;
-  if (Date.now() + EXPIRATION_BUFFER_TIME > expiration * 1000) throw new ValidationError('GRANT_EXPIRED');
-  const qs = await client.getQueryClient();
-  try {
-    const c = await qs.authz.grants(granter, target, '/cosmos.bank.v1beta1.MsgSend');
-    if (!c) throw new ValidationError('GRANT_NOT_FOUND');
-  } catch (err) {
-    if (err.message.includes('no authorization found')) {
-      throw new ValidationError('GRANT_NOT_FOUND');
-    }
-    throw err;
-  }
-  // TODO: parse limit from query instead of tx
-  const { spendLimit } = authorization.value;
-  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
-  if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
-  const { amount } = limit;
-  const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
-  if (amountInLIKE.lt(totalPrice)) throw new ValidationError('GRANT_AMOUNT_NOT_ENOUGH');
-
+  const { granter } = message.value;
+  const amountInLIKEString = await checkWalletGrantAmount(granter, target, totalPrice);
   const balance = await q.getBalance(granter, NFT_COSMOS_DENOM);
   const balanceAmountInLIKE = new BigNumber(balance.amount || 0).shiftedBy(-9);
   if (balanceAmountInLIKE.lt(totalPrice)) throw new ValidationError('GRANTER_AMOUNT_NOT_ENOUGH');
   return {
     granter,
-    spendLimit: amountInLIKE.toNumber(),
+    spendLimit: new BigNumber(amountInLIKEString).toNumber(),
   };
 }
 
-export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grantedAmount, req) {
+export async function processNFTPurchase({
+  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount,
+}, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
-  if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
+  if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
@@ -250,13 +262,13 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
     const txMessages = [
       formatMsgExecSendAuthorization(
         LIKER_NFT_TARGET_ADDRESS,
-        likeWallet,
+        granterWallet,
         LIKER_NFT_TARGET_ADDRESS,
         [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
       ),
       formatMsgSend(
         LIKER_NFT_TARGET_ADDRESS,
-        likeWallet,
+        buyerWallet,
         classId,
         nftId,
       ),
@@ -303,7 +315,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
       iscnId: iscnPrefix,
       classId,
       nftId,
-      buyerWallet: likeWallet,
+      buyerWallet,
     });
 
     const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
@@ -321,7 +333,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
         processingCount: dbProcessingCount,
       } = docData;
       const fromWallet = LIKER_NFT_TARGET_ADDRESS;
-      const toWallet = likeWallet;
+      const toWallet = buyerWallet;
       let updatedBatch = dbCurrentBatch;
       let batchRemainingCount = dbBatchRemainingCount;
       let newPrice = dbCurrentPrice;
@@ -374,6 +386,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
         timestamp,
         fromWallet,
         toWallet,
+        granterWallet,
         sellerWallet,
         sellerLIKE,
         stakeholderWallets,
@@ -411,7 +424,7 @@ export async function processNFTPurchase(likeWallet, iscnPrefix, classId, grante
       iscnId: iscnPrefix,
       classId,
       nftId,
-      buyerWallet: likeWallet,
+      buyerWallet,
     });
     throw err;
   }

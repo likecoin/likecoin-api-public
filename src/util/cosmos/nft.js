@@ -6,7 +6,7 @@ import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
 import { getQueryClient } from '.';
 import { getISCNPrefix } from './iscn';
-import { LIKER_NFT_PRIVATE_KEY } from '../../../config/secret';
+import { LIKER_NFT_PRIVATE_KEY, LIKER_NFT_FIAT_PRIVATE_KEY } from '../../../config/secret';
 import { NFT_RPC_ENDPOINT, NFT_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
 let queryClient = null;
@@ -111,6 +111,11 @@ export async function getLikerNFTSigningClient() {
     signingClient = client;
   }
   return signingClient;
+}
+
+export async function getLikerNFTFiatSigningClientAndWallet() {
+  const { client, wallet } = await createNFTSigningClient(LIKER_NFT_FIAT_PRIVATE_KEY);
+  return { client, wallet };
 }
 
 export async function getLikerNFTSigningAddressInfo() {

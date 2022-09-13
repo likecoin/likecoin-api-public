@@ -1,7 +1,12 @@
 import path from 'path';
 import axios from 'axios';
 import sharp from 'sharp';
+
 import { API_EXTERNAL_HOSTNAME } from '../../../constant';
+import { likeNFTCollection } from '../../firebase';
+import { getISCNPrefixDocName } from '.';
+import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
+import { ValidationError } from '../../ValidationError';
 
 const IMAGE_WIDTH = 1280;
 const IMAGE_HEIGHT = 768;
@@ -92,4 +97,30 @@ export function getLikerNFTDynamicData(classId, classData, iscnData) {
   if (description) payload.description = description;
   if (url) payload.externalUrl = url;
   return payload;
+}
+
+export async function getClassMetadata({ classId, iscnPrefix }) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const classDocRef = likeNFTCollection.doc(iscnPrefixDocName).collection('class').doc(classId);
+  const classDoc = await classDocRef.get();
+  const classData = classDoc.data();
+  if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND');
+
+  const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
+    // eslint-disable-next-line no-console
+    getNFTISCNData(iscnPrefix).catch((err) => { console.error(err); return {}; }),
+    // eslint-disable-next-line no-console
+    getNFTClassDataById(classId).catch(err => console.error(err)),
+  ]);
+  if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
+  if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
+  const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
+  if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
+  return {
+    iscnOwner,
+    classData,
+    iscnData,
+    chainData,
+    dynamicData,
+  };
 }

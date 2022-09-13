@@ -7,8 +7,7 @@ export default function errorHandler(err, req, res, next) {
   } else {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify({
-      severity: 'ERROR',
-      message: { err, stack: err.stack },
+      message: err, stack: err.stack,
     }));
   }
   if (res.headersSent) {
