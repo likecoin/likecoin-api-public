@@ -178,6 +178,137 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
+export async function handleNFTPurchaseTransaction({
+  iscnPrefix,
+  iscnData,
+  classId,
+  nftId,
+  nftPrice,
+  sellerWallet,
+  buyerWallet,
+  granterWallet,
+  feeWallet,
+}, req) {
+  const gasFee = getGasPrice();
+  const { owner, data } = iscnData;
+  const totalPrice = nftPrice + gasFee;
+  const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
+  const feeAmount = new BigNumber(nftPrice)
+    .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
+  const sellerAmount = new BigNumber(nftPrice)
+    .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
+  const stakeholdersAmount = new BigNumber(nftPrice)
+    .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
+  const transferMessages = [
+    {
+      typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+      value: {
+        fromAddress: LIKER_NFT_TARGET_ADDRESS,
+        toAddress: sellerWallet,
+        amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
+      },
+    },
+  ];
+  if (feeAmount && new BigNumber(feeAmount).gt(0)) {
+    transferMessages.push({
+      typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+      value: {
+        fromAddress: LIKER_NFT_TARGET_ADDRESS,
+        toAddress: feeWallet,
+        amount: [{ denom: NFT_COSMOS_DENOM, amount: feeAmount }],
+      },
+    });
+  }
+
+  const stakeholderMap = await getISCNStakeholderRewards(data, stakeholdersAmount, owner);
+  stakeholderMap.forEach((amount, wallet) => {
+    transferMessages.push(
+      {
+        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+        value: {
+          fromAddress: LIKER_NFT_TARGET_ADDRESS,
+          toAddress: wallet,
+          amount: [{ denom: NFT_COSMOS_DENOM, amount }],
+        },
+      },
+    );
+  });
+  const signingClient = await getLikerNFTSigningClient();
+  const txMessages = [
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_TARGET_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
+    ),
+    formatMsgSend(
+      LIKER_NFT_TARGET_ADDRESS,
+      buyerWallet,
+      classId,
+      nftId,
+    ),
+    ...transferMessages,
+  ];
+  let res;
+  const client = signingClient.getSigningStargateClient();
+  const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
+  const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+  const txSigningFunction = ({ sequence }) => client.sign(
+    address,
+    txMessages,
+    fee,
+    'like.co NFT API',
+    {
+      accountNumber,
+      sequence,
+      chainId: NFT_CHAIN_ID,
+    },
+  );
+  try {
+    res = await sendTransactionWithSequence(
+      address,
+      txSigningFunction,
+      client,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    throw new ValidationError(err);
+  }
+  const { transactionHash, code } = res;
+  if (code !== 0) {
+    // eslint-disable-next-line no-console
+    console.error(`Tx ${transactionHash} failed with code ${code}`);
+    throw new ValidationError('TX_NOT_SUCCESS');
+  }
+  const timestamp = Date.now();
+  // update price and unlock
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'LikerNFTPurchaseTransaction',
+    txHash: transactionHash,
+    iscnId: iscnPrefix,
+    classId,
+    nftId,
+    buyerWallet,
+  });
+
+  const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
+  const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
+  const stakeholderWallets = [...stakeholderMap.keys()];
+  const stakeholderLIKEs = [...stakeholderMap.values()]
+    .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
+  return {
+    transactionHash,
+    timestamp,
+    sellerLIKE,
+    feeLIKE,
+    stakeholderWallets,
+    stakeholderLIKEs,
+    gasFee,
+  };
+}
+
 export async function processNFTPurchase({
   buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount, nftId: targetNftId,
 }, req) {
@@ -247,123 +378,28 @@ export async function processNFTPurchase({
     };
     /* eslint-enable no-underscore-dangle */
   });
+  const nftRef = classRef.collection('nft').doc(nftId);
   try {
     const feeWallet = LIKER_NFT_FEE_ADDRESS;
-
-    const gasFee = getGasPrice();
-    const { data } = iscnData;
-    if (nftPrice > grantedAmount) {
-      throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
-    }
-    const totalPrice = nftPrice + gasFee;
-    const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
-    const feeAmount = new BigNumber(nftPrice)
-      .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
-    const sellerAmount = new BigNumber(nftPrice)
-      .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
-    const stakeholdersAmount = new BigNumber(nftPrice)
-      .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
-    const transferMessages = [
-      {
-        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-        value: {
-          fromAddress: LIKER_NFT_TARGET_ADDRESS,
-          toAddress: sellerWallet,
-          amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
-        },
-      },
-    ];
-    if (feeAmount && new BigNumber(feeAmount).gt(0)) {
-      transferMessages.push({
-        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-        value: {
-          fromAddress: LIKER_NFT_TARGET_ADDRESS,
-          toAddress: feeWallet,
-          amount: [{ denom: NFT_COSMOS_DENOM, amount: feeAmount }],
-        },
-      });
-    }
-
-    const stakeholderMap = await getISCNStakeholderRewards(data, stakeholdersAmount, owner);
-    stakeholderMap.forEach((amount, wallet) => {
-      transferMessages.push(
-        {
-          typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-          value: {
-            fromAddress: LIKER_NFT_TARGET_ADDRESS,
-            toAddress: wallet,
-            amount: [{ denom: NFT_COSMOS_DENOM, amount }],
-          },
-        },
-      );
-    });
-    const signingClient = await getLikerNFTSigningClient();
-    const txMessages = [
-      formatMsgExecSendAuthorization(
-        LIKER_NFT_TARGET_ADDRESS,
-        granterWallet,
-        LIKER_NFT_TARGET_ADDRESS,
-        [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
-      ),
-      formatMsgSend(
-        LIKER_NFT_TARGET_ADDRESS,
-        buyerWallet,
-        classId,
-        nftId,
-      ),
-      ...transferMessages,
-    ];
-    let res;
-    const client = signingClient.getSigningStargateClient();
-    const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
-    const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
-    const txSigningFunction = ({ sequence }) => client.sign(
-      address,
-      txMessages,
-      fee,
-      'like.co NFT API',
-      {
-        accountNumber,
-        sequence,
-        chainId: NFT_CHAIN_ID,
-      },
-    );
-    try {
-      res = await sendTransactionWithSequence(
-        address,
-        txSigningFunction,
-        client,
-      );
-    } catch (err) {
-    // eslint-disable-next-line no-console
-      console.error(err);
-      throw new ValidationError(err);
-    }
-    const { transactionHash, code } = res;
-    if (code !== 0) {
-    // eslint-disable-next-line no-console
-      console.error(`Tx ${transactionHash} failed with code ${code}`);
-      throw new ValidationError('TX_NOT_SUCCESS');
-    }
-    const timestamp = Date.now();
-    // update price and unlock
-
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTPurchaseTransaction',
-      txHash: transactionHash,
-      iscnId: iscnPrefix,
+    const {
+      transactionHash,
+      timestamp,
+      sellerLIKE,
+      feeLIKE,
+      stakeholderWallets,
+      stakeholderLIKEs,
+      gasFee,
+    } = await handleNFTPurchaseTransaction({
+      iscnPrefix,
+      iscnData,
       classId,
       nftId,
+      nftPrice,
+      sellerWallet,
       buyerWallet,
+      granterWallet,
+      feeWallet,
     });
-
-    const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
-    const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
-    const stakeholderWallets = [...stakeholderMap.keys()];
-    const stakeholderLIKEs = [...stakeholderMap.values()]
-      .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
-
-    const nftRef = classRef.collection('nft').doc(nftId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(iscnRef);
       const docData = doc.data();
