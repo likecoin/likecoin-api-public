@@ -17,7 +17,7 @@ router.post(
         class_id: classId,
         nft_id: nftId,
       } = req.query;
-      if (!txHash || !nftId) throw new ValidationError('MISSING_TX_HASH_OR_NFT_ID');
+      if (!txHash || !classId || !nftId) throw new ValidationError('MISSING_TX_HASH_CLASS_ID_OR_NFT_ID');
       const info = await getNFTTransferInfo(txHash, classId, nftId);
       if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {

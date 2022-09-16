@@ -20,7 +20,6 @@ export async function getNFTTransferInfo(txHash, classId, nftId) {
   return {
     fromAddress,
     toAddress,
-    classId,
     txTimestamp: Date.parse(timestamp),
   };
 }
