@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ValidationError } from '../../util/ValidationError';
 import { getNFTTransferInfo } from '../../util/api/likernft/transfer';
 import { updateSellNFTInfo } from '../../util/api/likernft/sell';
-import { getISCNDocByClassId } from '../../util/api/likernft';
+import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import { getNFTOwner } from '../../util/cosmos/nft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
@@ -21,10 +21,11 @@ router.post(
         price: priceString,
       } = req.query;
 
-      const price = Number(priceString);
       if (!classId || !nftId) throw new ValidationError('MISSING_NFT_ID');
       if (!txHash) throw new ValidationError('MISSING_TX_ID');
       if (!priceString) throw new ValidationError('MISSING_PRICE');
+      const price = Number(priceString);
+      if (!price || price <= 0) throw new ValidationError('INVALID_PRICE');
       const info = await getNFTTransferInfo(txHash, classId, nftId);
       if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {
@@ -33,8 +34,7 @@ router.post(
         txTimestamp,
       } = info;
       if (toAddress !== LIKER_NFT_TARGET_ADDRESS) throw new ValidationError('INVALID_TX_RECEIVER');
-      const iscnDoc = await getISCNDocByClassId(classId);
-      const iscnPrefix = iscnDoc.id;
+      const iscnPrefix = await getISCNPrefixByClassId(classId);
       const owner = await getNFTOwner(classId, nftId);
       if (owner !== LIKER_NFT_TARGET_ADDRESS) throw new ValidationError('NFT_NOT_RECEIVED');
 

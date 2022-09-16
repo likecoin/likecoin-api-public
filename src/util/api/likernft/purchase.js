@@ -49,14 +49,13 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-export async function getLowerestUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
+export async function getLowestUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
     .where('isSold', '==', false)
     .where('isProcessing', '==', false)
-    .where('price', '>=', 0)
-    .orderBy('price')
+    .where('price', '==', 0)
     .limit(1);
   const res = await (transaction ? transaction.get(ref) : ref.get());
   if (!res.docs.length) return null;
@@ -68,34 +67,61 @@ export async function getLowerestUnsoldNFT(iscnPrefixDocName, classId, { transac
   return payload;
 }
 
+export async function getLowestSellingNFT(iscnPrefixDocName, classId) {
+  const ref = likeNFTCollection.doc(iscnPrefixDocName)
+    .collection('class').doc(classId)
+    .collection('nft')
+    .where('isSold', '==', false)
+    .where('isProcessing', '==', false)
+    .where('price', '>', 0)
+    .orderBy('price', 'asc')
+    .limit(1);
+  const res = await ref.get();
+  if (!res.docs.length) return null;
+  const doc = res.docs[0];
+  const payload = {
+    id: doc.id,
+    ...doc.data(),
+  };
+  return payload;
+}
+
 export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const [nftData, nftDoc] = await Promise.all([
-    getLowerestUnsoldNFT(iscnPrefixDocName, classId),
+  const [newNftData, sellingNftData, nftDoc] = await Promise.all([
+    getLowestUnsoldNFT(iscnPrefixDocName, classId),
+    getLowestSellingNFT(iscnPrefixDocName, classId),
     likeNFTCollection.doc(iscnPrefixDocName).get(),
   ]);
   const nftDocData = nftDoc.data();
   let price = -1;
+  let isResell = false;
+  let nftId;
   const {
     currentPrice,
     currentBatch,
     lastSoldPrice,
   } = nftDocData;
-  if (nftData) {
+  if (newNftData) {
+    price = currentPrice;
+    // Do not set NFT ID since another fresh one might be used on purchase instead
+  }
+  if (sellingNftData) {
     // nft has defined price
-    if (nftData.price) {
-      ({ price } = nftData);
-    } else {
-      // use current price for 0/undefined price nft
-      price = currentPrice;
+    if (sellingNftData.price && sellingNftData.price <= price) {
+      ({ price } = sellingNftData);
+      nftId = sellingNftData.id;
+      isResell = true;
     }
   }
   const { price: nextPriceLevel } = getNFTBatchInfo(currentBatch + 1);
   return {
     ...nftDocData,
+    nftId,
     lastSoldPrice: lastSoldPrice || currentPrice,
     price,
     nextPriceLevel,
+    isResell,
   };
 }
 
@@ -153,69 +179,82 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
 }
 
 export async function processNFTPurchase({
-  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount,
+  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount, nftId: targetNftId,
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
+  const { owner } = iscnData;
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
-  const feeWallet = LIKER_NFT_FEE_ADDRESS;
 
   // lock iscn nft
   const {
-    price: currentPrice,
-    batch: currentBatch,
-    nftRef,
-    nftData,
+    isResell,
+    nftId,
+    nftPrice,
+    sellerWallet,
+    currentBatch,
   } = await db.runTransaction(async (t) => {
-    // get price
-    const txNftData = await getLowerestUnsoldNFT(iscnPrefixDocName, classId, { transaction: t });
-    const { id: nftId } = txNftData;
-    const txNftRef = classRef.collection('nft').doc(nftId);
-    const doc = await t.get(iscnRef);
-    const nftDoc = await t.get(txNftRef);
-    const { isProcessing } = nftDoc.data();
-    if (isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-    const docData = doc.data();
-    if (!docData) throw new ValidationError('ISCN_NFT_NOT_FOUND');
-    const {
-      processingCount = 0,
-      currentPrice: price,
-      currentBatch: batch,
-      batchRemainingCount,
-    } = docData;
-    if (processingCount >= batchRemainingCount) {
-      throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+    /* eslint-disable no-underscore-dangle */
+    let _nftPrice = 0;
+    let _currentBatch = -1;
+    let _sellerWallet;
+    let nftDocData;
+    if (!targetNftId) { // get fresh ones if not targeted nft id
+      nftDocData = await getLowestUnsoldNFT(iscnPrefixDocName, classId, { transaction: t });
+    } else {
+      const nftDoc = await t.get(classRef.collection('nft').doc(targetNftId));
+      nftDocData = { id: nftDoc.id, ...nftDoc.data() };
     }
-    if (price > grantedAmount) {
+    const {
+      id: _nftId, isProcessing, price = 0, sellerWallet: nftSellerWallet,
+    } = nftDocData;
+    if (isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+    const _isResell = !!price;
+    if (_isResell) {
+      _nftPrice = price;
+      _sellerWallet = nftSellerWallet || owner;
+    } else {
+      const doc = await t.get(iscnRef);
+      const docData = doc.data();
+      if (!docData) throw new ValidationError('ISCN_NFT_NOT_FOUND');
+      const {
+        processingCount = 0,
+        currentPrice,
+        currentBatch: batch,
+        batchRemainingCount,
+      } = docData;
+      _sellerWallet = owner;
+      _nftPrice = currentPrice;
+      _currentBatch = batch;
+      if (processingCount >= batchRemainingCount) {
+        throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+      }
+      t.update(iscnRef, { processingCount: FieldValue.increment(1) });
+    }
+    if (_nftPrice > grantedAmount) {
       throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
     }
-    t.update(iscnRef, { processingCount: FieldValue.increment(1) });
+    const txNftRef = classRef.collection('nft').doc(_nftId);
     t.update(txNftRef, { isProcessing: true });
     return {
-      price, batch, nftRef: txNftRef, nftData: txNftData,
+      isResell: _isResell,
+      nftId: _nftId,
+      nftPrice: _nftPrice,
+      sellerWallet: _sellerWallet,
+      currentBatch: _currentBatch,
     };
+    /* eslint-enable no-underscore-dangle */
   });
-  const {
-    id: nftId,
-    price: nftItemPrice,
-    sellerWallet: nftItemSellerWallet,
-  } = nftData;
-  const isFirstSale = !nftItemPrice; // first sale if price = 0;
   try {
-    const gasFee = getGasPrice();
-    let sellerWallet;
-    const { owner, data } = iscnData;
-    let nftPrice;
-    if (isFirstSale) {
-      nftPrice = currentPrice;
-      sellerWallet = owner;
-    } else {
-      nftPrice = nftItemPrice;
-      sellerWallet = nftItemSellerWallet || owner;
-    }
+    const feeWallet = LIKER_NFT_FEE_ADDRESS;
 
+    const gasFee = getGasPrice();
+    const { data } = iscnData;
+    if (nftPrice > grantedAmount) {
+      throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
+    }
     const totalPrice = nftPrice + gasFee;
     const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
     const feeAmount = new BigNumber(nftPrice)
@@ -296,13 +335,13 @@ export async function processNFTPurchase({
         client,
       );
     } catch (err) {
-      // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
       console.error(err);
       throw new ValidationError(err);
     }
     const { transactionHash, code } = res;
     if (code !== 0) {
-      // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
       console.error(`Tx ${transactionHash} failed with code ${code}`);
       throw new ValidationError('TX_NOT_SUCCESS');
     }
@@ -323,6 +362,8 @@ export async function processNFTPurchase({
     const stakeholderWallets = [...stakeholderMap.keys()];
     const stakeholderLIKEs = [...stakeholderMap.values()]
       .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
+
+    const nftRef = classRef.collection('nft').doc(nftId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(iscnRef);
       const docData = doc.data();
@@ -339,8 +380,8 @@ export async function processNFTPurchase({
       let newPrice = dbCurrentPrice;
       let processingCount = dbProcessingCount;
       if (dbCurrentBatch === currentBatch) {
-        processingCount = FieldValue.increment(-1);
-        if (isFirstSale) {
+        if (!isResell) {
+          processingCount = FieldValue.increment(-1);
           batchRemainingCount -= 1;
           const isNewBatch = batchRemainingCount <= 0;
           if (isNewBatch) {
@@ -411,11 +452,13 @@ export async function processNFTPurchase({
     console.error(err);
     // reset lock
     await db.runTransaction(async (t) => {
-      const doc = await t.get(iscnRef);
-      const docData = doc.data();
-      const { currentBatch: docCurrentBatch } = docData;
-      if (docCurrentBatch === currentBatch) {
-        t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
+      if (!isResell) {
+        const doc = await t.get(iscnRef);
+        const docData = doc.data();
+        const { currentBatch: docCurrentBatch } = docData;
+        if (docCurrentBatch === currentBatch) {
+          t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
+        }
       }
       t.update(nftRef, { isProcessing: false });
     });
