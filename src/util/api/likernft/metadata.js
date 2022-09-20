@@ -39,22 +39,25 @@ export async function getImageMask() {
 
 export async function getBasicImage(image, title) {
   let imageBuffer;
+  let contentType;
   let isDefault = true;
   if (image) {
     const imageData = (await axios.get(image, { responseType: 'stream' }).catch(() => {}));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
+      contentType = imageData.headers['content-type'] || 'image/png';
       isDefault = false;
     }
   }
   if (isDefault) {
     const escapedTitle = title.replace(/&/g, '&amp;');
     const textDataBuffer = await addTextOnImage(escapedTitle, 'black');
+    contentType = 'image/png';
     imageBuffer = await sharp(textDataBuffer)
       .png()
       .flatten({ background: { r: 250, g: 250, b: 250 } });
   }
-  return { image: imageBuffer, isDefault };
+  return { image: imageBuffer, contentType, isDefault };
 }
 
 export async function getCombinedImage() {
@@ -70,8 +73,7 @@ export function getResizedImage() {
       fit: sharp.fit.cover,
       width: IMAGE_WIDTH,
       height: IMAGE_HEIGHT,
-    })
-    .png();
+    });
 }
 
 export function getDynamicBackgroundColor(soldCount) {
@@ -91,7 +93,7 @@ export function getLikerNFTDynamicData(classId, classData, iscnData) {
   const { contentMetadata: { url, description } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor(soldCount);
   const payload = {
-    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}.png`,
+    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}`,
     backgroundColor,
   };
   if (description) payload.description = description;
