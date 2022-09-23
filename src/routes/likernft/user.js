@@ -15,7 +15,7 @@ router.get(
       const [sellingNftsQuery, createdClassesQuery] = await Promise.all([
         db.collectionGroup('nft')
           .where('sellerWallet', '==', wallet)
-          .where('soldCount', '>=', 0).get(),
+          .where('soldCount', '>', 0).get(),
         // TODO: what if iscn owner changed?
         likeNFTCollection.where('creatorWallet', '==', wallet).get(),
       ]);
