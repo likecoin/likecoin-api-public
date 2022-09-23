@@ -49,7 +49,7 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-export async function getLowestUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
+export async function getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
@@ -89,7 +89,7 @@ export async function getLowestSellingNFT(iscnPrefixDocName, classId) {
 export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const [newNftData, sellingNftData, nftDoc] = await Promise.all([
-    getLowestUnsoldNFT(iscnPrefixDocName, classId),
+    getFirstUnsoldNFT(iscnPrefixDocName, classId),
     getLowestSellingNFT(iscnPrefixDocName, classId),
     likeNFTCollection.doc(iscnPrefixDocName).get(),
   ]);
@@ -333,7 +333,7 @@ export async function processNFTPurchase({
     let _sellerWallet;
     let nftDocData;
     if (!targetNftId) { // get fresh ones if not targeted nft id
-      nftDocData = await getLowestUnsoldNFT(iscnPrefixDocName, classId, { transaction: t });
+      nftDocData = await getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction: t });
     } else {
       const nftDoc = await t.get(classRef.collection('nft').doc(targetNftId));
       nftDocData = { id: nftDoc.id, ...nftDoc.data() };
