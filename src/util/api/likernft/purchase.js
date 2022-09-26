@@ -108,7 +108,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   }
   if (sellingNftData) {
     // nft has defined price
-    if (sellingNftData.price && sellingNftData.price <= price) {
+    if (sellingNftData.price && (price === -1 || sellingNftData.price <= price)) {
       ({ price } = sellingNftData);
       nftId = sellingNftData.id;
       isResell = true;
