@@ -325,6 +325,7 @@ export function filterLikeNFTISCNData({
   soldCount,
   classUri,
   creatorWallet,
+  ownerWallet,
 }) {
   return {
     iscnId,
@@ -335,6 +336,7 @@ export function filterLikeNFTISCNData({
     soldCount,
     classUri,
     creatorWallet,
+    ownerWallet,
   };
 }
 
