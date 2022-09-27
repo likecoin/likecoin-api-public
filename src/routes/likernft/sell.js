@@ -25,7 +25,7 @@ router.post(
       if (!txHash) throw new ValidationError('MISSING_TX_ID');
       if (!priceString) throw new ValidationError('MISSING_PRICE');
       const price = Number(priceString);
-      if (!price || price <= 0) throw new ValidationError('INVALID_PRICE');
+      if (!price || !Number.isFinite(price) || price <= 0) throw new ValidationError('INVALID_PRICE');
       const info = await getNFTTransferInfo(txHash, classId, nftId);
       if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {
