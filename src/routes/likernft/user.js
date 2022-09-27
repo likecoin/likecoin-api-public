@@ -17,7 +17,7 @@ router.get(
           .where('sellerWallet', '==', wallet)
           .where('soldCount', '>', 0).get(),
         // TODO: what if iscn owner changed?
-        likeNFTCollection.where('creatorWallet', '==', wallet).get(),
+        likeNFTCollection.where('ownerWallet', '==', wallet).get(),
       ]);
       const classIdSet = new Set();
       sellingNftsQuery.docs.forEach((doc) => {
