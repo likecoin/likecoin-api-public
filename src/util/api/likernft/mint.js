@@ -59,6 +59,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
       soldCount: 0,
       classUri: uri,
       creatorWallet: sellerWallet,
+      ownerWallet: sellerWallet,
       processingCount: 0,
       timestamp,
     }),
