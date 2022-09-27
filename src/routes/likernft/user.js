@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { db, likeNFTCollection } from '../../util/firebase';
 import { isValidLikeAddress } from '../../util/cosmos';
-import { getNFTISCNOwner } from '../../util/cosmos/nft';
+import { filterOwnedClassIds } from '../../util/api/likernft/user';
 import { ValidationError } from '../../util/ValidationError';
 import { ONE_DAY_IN_S } from '../../constant';
 
+const UPDATE_COOLDOWN = 60 * 1000;
+const updateCooldownMap = {};
 
 const router = Router();
 
@@ -21,19 +23,16 @@ router.get(
         likeNFTCollection.where('ownerWallet', '==', wallet).get(),
       ]);
       const classIdSet = new Set();
-      ownedClassesQuery.docs.forEach((doc) => {
-        classIdSet.add(doc.data().classId);
-      });
-      const batch = db.batch();
-      const promises = ownedClassesQuery.docs.map(async (doc) => {
-        const iscnPrefix = decodeURIComponent(doc.id);
-        const owner = await getNFTISCNOwner(iscnPrefix);
-        if (owner !== wallet) {
-          classIdSet.delete(doc.data().classId);
-          batch.update({ ownerWallet: owner });
-        }
-      });
-      await Promise.all(promises);
+      const now = Date.now();
+      if (!updateCooldownMap[wallet] || now - updateCooldownMap[wallet] > UPDATE_COOLDOWN) {
+        updateCooldownMap[wallet] = now;
+        const ownedClassIds = await filterOwnedClassIds(ownedClassesQuery.docs, wallet);
+        ownedClassIds.forEach(classId => classIdSet.add(classId));
+      } else {
+        ownedClassesQuery.docs.forEach((doc) => {
+          classIdSet.add(doc.data().classId);
+        });
+      }
       sellingNftsQuery.docs.forEach((doc) => {
         classIdSet.add(doc.data().classId);
       });
@@ -41,7 +40,6 @@ router.get(
       res.json({
         list: Array.from(classIdSet),
       });
-      await batch.commit();
     } catch (err) {
       next(err);
     }
