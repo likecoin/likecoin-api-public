@@ -54,7 +54,11 @@ router.post(
       if (ts && (Date.now() - ts > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const { iscnPrefix, classId } = res.locals;
-      const { price: nftPrice } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      const {
+        price: nftPrice,
+        isResell,
+        nftId: targetNftId,
+      } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
       if (nftPrice <= 0) throw new ValidationError('NFT_SOLD_OUT');
       const gasFee = getGasPrice();
       const totalPrice = nftPrice + gasFee;
@@ -78,7 +82,12 @@ router.post(
         feeWallet,
         feeLIKE,
       } = await processNFTPurchase({
-        buyerWallet: likeWallet, iscnPrefix, classId, granterWallet: likeWallet, grantedAmount,
+        nftId: isResell ? targetNftId : undefined,
+        buyerWallet: likeWallet,
+        iscnPrefix,
+        classId,
+        granterWallet: likeWallet,
+        grantedAmount,
       }, req);
       res.json({
         txHash: transactionHash,
