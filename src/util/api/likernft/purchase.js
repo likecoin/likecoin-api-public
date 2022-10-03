@@ -189,7 +189,7 @@ export async function handleNFTPurchaseTransaction({
   isResell,
 }, req) {
   const STAKEHOLDERS_RATIO = isResell ? 0.1 : 1 - FEE_RATIO;
-  const SELLER_RATIO = isResell ? 1 - FEE_RATIO - STAKEHOLDERS_RATIO : 0;
+  const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
   const { owner, data } = iscnData;
   const totalPrice = nftPrice + gasFee;
