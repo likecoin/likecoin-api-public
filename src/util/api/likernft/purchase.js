@@ -2,11 +2,11 @@ import BigNumber from 'bignumber.js';
 import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
+import { getStakeholderMapFromParsedIscnData } from '@likecoin/iscn-js/dist/iscn/parsing';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
-import { getISCNStakeholderRewards } from '../../cosmos/iscn';
 import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence } from '../../cosmos/tx';
 import {
   NFT_COSMOS_DENOM,
@@ -222,8 +222,8 @@ export async function handleNFTPurchaseTransaction({
     });
   }
 
-  const stakeholderMap = await getISCNStakeholderRewards(data, stakeholdersAmount, owner);
-  stakeholderMap.forEach((amount, wallet) => {
+  const stakeholderMap = await getStakeholderMapFromParsedIscnData(data, owner, { totalLIKE: stakeholdersAmount });
+  stakeholderMap.forEach(({ LIKE: amount }, wallet) => {
     transferMessages.push(
       {
         typeUrl: '/cosmos.bank.v1beta1.MsgSend',

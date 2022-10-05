@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import {
   PUBSUB_TOPIC_MISC,
   TEST_MODE,
@@ -38,7 +39,6 @@ import loginPlatforms from './platforms';
 import {
   isValidCosmosAddress,
   isValidLikeAddress,
-  convertAddressPrefix,
 } from '../../util/cosmos';
 
 const Multer = require('multer');
@@ -146,7 +146,7 @@ router.post(
           }
           if (!payload.likeWallet && payload.cosmosWallet) {
             try {
-              const likeWallet = await convertAddressPrefix(payload.cosmosWallet, 'like');
+              const likeWallet = await changeAddressPrefix(payload.cosmosWallet, 'like');
               payload.likeWallet = likeWallet;
             } catch (err) {
               // eslint-disable-next-line no-console
@@ -183,8 +183,8 @@ router.post(
             throw new ValidationError('INVALID_SIGN');
           }
           payload = req.body;
-          payload.cosmosWallet = convertAddressPrefix(inputWallet, 'cosmos');
-          payload.likeWallet = convertAddressPrefix(inputWallet, 'like');
+          payload.cosmosWallet = changeAddressPrefix(inputWallet, 'cosmos');
+          payload.likeWallet = changeAddressPrefix(inputWallet, 'like');
           payload.displayName = displayName || user;
           payload.email = email;
           payload.isEmailVerified = false;
@@ -551,11 +551,11 @@ router.post('/login', async (req, res, next) => {
           const { accessToken } = req.body;
           if (!cosmosWallet) {
             const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-            const newLikeWallet = convertAddressPrefix(newWallet, 'like');
+            const newLikeWallet = changeAddressPrefix(newWallet, 'like');
             await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
           }
           if (!likeWallet && cosmosWallet) {
-            const newLikeWallet = convertAddressPrefix(cosmosWallet, 'like');
+            const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
             await dbRef.doc(user).update({ likeWallet: newLikeWallet });
           }
           const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
