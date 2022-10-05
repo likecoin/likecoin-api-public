@@ -1,8 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
-import BigNumber from 'bignumber.js';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
-import { getAccountInfo, isValidAddress, convertAddressPrefix } from '.';
+import { getLikeWalletAddress } from '@likecoin/iscn-js/dist/iscn/addressParsing';
+import { getAccountInfo } from '.';
 import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import { COSMOS_RPC_ENDPOINT, COSMOS_SIGNING_RPC_ENDPOINT } from '../../../config/config';
@@ -72,51 +72,7 @@ export async function getLikeWalletAndLikerIdFromId(id) {
       ({ likeWallet } = info);
     }
   } else {
-    let inputAddress = id;
-    const addressLengthWithoutPrefixAnd1 = 38;
-    if (id.startsWith('did:like:')) {
-      inputAddress = `like1${id.slice(id.length - addressLengthWithoutPrefixAnd1)}`;
-    } else if (id.startsWith('did:cosmos:')) {
-      inputAddress = `cosmos1${id.slice(id.length - addressLengthWithoutPrefixAnd1)}`;
-    }
-
-    if (isValidAddress(inputAddress)) {
-      likeWallet = convertAddressPrefix(inputAddress, 'like');
-    }
+    likeWallet = getLikeWalletAddress(id);
   }
   return { likeWallet, likerId };
-}
-
-export async function getISCNStakeholderRewards(iscnData, rewardAmount, owner = null) {
-  const amountMap = new Map();
-  const { stakeholders } = iscnData;
-  if (stakeholders && stakeholders.length) {
-    const likeWalletsAndLikerIds = await Promise.all(stakeholders.map(async (stakeholder) => {
-      const id = stakeholder.entity['@id'];
-      if (!id) return null;
-      const res = await getLikeWalletAndLikerIdFromId(id);
-      return res && res.likeWallet;
-    }));
-    const weightMap = new Map();
-    likeWalletsAndLikerIds.forEach((likeWallet, i) => {
-      if (likeWallet) {
-        let weight = new BigNumber(stakeholders[i].rewardProportion);
-        if (weightMap.has(likeWallet)) {
-          weight = weightMap.get(likeWallet).plus(weight);
-        }
-        weightMap.set(likeWallet, weight);
-      }
-    });
-    const totalWeight = [...weightMap.values()]
-      .reduce((prev, curr) => prev.plus(curr), new BigNumber(0));
-    weightMap.forEach((weight, address) => {
-      const amount = weight.times(rewardAmount).div(totalWeight).toFixed(0, 1);
-      amountMap.set(address, amount);
-    });
-  }
-
-  if (!amountMap.size && owner) {
-    amountMap.set(owner, rewardAmount);
-  }
-  return amountMap;
 }

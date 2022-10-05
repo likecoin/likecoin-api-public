@@ -96,26 +96,12 @@ export function verifyCosmosSignInPayload({
   return valid;
 }
 
-export function isValidAddress(address) {
-  try {
-    bech32.decode(address);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 export function isValidCosmosAddress(address) {
   return /^cosmos1[ac-hj-np-z02-9]{38}$/.test(address);
 }
 
 export function isValidLikeAddress(address) {
   return /^like1[ac-hj-np-z02-9]{38}$/.test(address);
-}
-
-export function convertAddressPrefix(address, prefix = 'like') {
-  const { words } = bech32.decode(address);
-  return bech32.encode(prefix, words);
 }
 
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;

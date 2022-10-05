@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import { PUBSUB_TOPIC_MISC, TEST_MODE } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -13,7 +14,6 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
 import publisher from '../../../util/gcloudPub';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../../util/jwt';
-import { convertAddressPrefix } from '../../../util/cosmos';
 
 const router = Router();
 
@@ -113,7 +113,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
         }
         if (!likeWallet && cosmosWallet) {
-          likeWallet = convertAddressPrefix(cosmosWallet, 'like');
+          likeWallet = changeAddressPrefix(cosmosWallet, 'like');
         }
         const [userQuery, emailQuery, walletQuery, likeWalletQuery] = await Promise.all([
           dbRef.where('authCoreUserId', '==', authCoreUserId).get(),
