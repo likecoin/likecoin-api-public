@@ -222,7 +222,9 @@ export async function handleNFTPurchaseTransaction({
     });
   }
 
-  const stakeholderMap = await getStakeholderMapFromParsedIscnData(data, owner, { totalLIKE: stakeholdersAmount });
+  const stakeholderMap = await getStakeholderMapFromParsedIscnData(
+    data, owner, { totalLIKE: stakeholdersAmount },
+  );
   stakeholderMap.forEach(({ LIKE: amount }, wallet) => {
     transferMessages.push(
       {
