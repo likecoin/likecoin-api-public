@@ -26,8 +26,6 @@ import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
-const STAKEHOLDERS_RATIO = 0.1;
-const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
 const EXPIRATION_BUFFER_TIME = 10000;
 
 export function getNFTBatchInfo(batchNumber) {
@@ -188,7 +186,10 @@ export async function handleNFTPurchaseTransaction({
   buyerWallet,
   granterWallet,
   feeWallet,
+  isResell,
 }, req) {
+  const STAKEHOLDERS_RATIO = isResell ? 0.1 : 1 - FEE_RATIO;
+  const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
   const { owner, data } = iscnData;
   const totalPrice = nftPrice + gasFee;
@@ -199,16 +200,17 @@ export async function handleNFTPurchaseTransaction({
     .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
   const stakeholdersAmount = new BigNumber(nftPrice)
     .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
-  const transferMessages = [
-    {
+  const transferMessages = [];
+  if (sellerAmount && new BigNumber(sellerAmount).gt(0)) {
+    transferMessages.push({
       typeUrl: '/cosmos.bank.v1beta1.MsgSend',
       value: {
         fromAddress: LIKER_NFT_TARGET_ADDRESS,
         toAddress: sellerWallet,
         amount: [{ denom: NFT_COSMOS_DENOM, amount: sellerAmount }],
       },
-    },
-  ];
+    });
+  }
   if (feeAmount && new BigNumber(feeAmount).gt(0)) {
     transferMessages.push({
       typeUrl: '/cosmos.bank.v1beta1.MsgSend',
