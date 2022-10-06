@@ -31,6 +31,7 @@ router.get(
         iscnId: iscnPrefix,
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,
+        iscnRecordTimestamp: iscnData.recordTimestamp,
         ...(classData.metadata || {}),
         ...chainData,
         ...dynamicData,
