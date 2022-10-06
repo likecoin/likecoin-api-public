@@ -232,7 +232,7 @@ export async function handleNFTPurchaseTransaction({
         value: {
           fromAddress: LIKER_NFT_TARGET_ADDRESS,
           toAddress: wallet,
-          amount: [{ denom: NFT_COSMOS_DENOM, amount }],
+          amount: [{ denom: NFT_COSMOS_DENOM, amount: amount.toFixed(0) }],
         },
       },
     );
