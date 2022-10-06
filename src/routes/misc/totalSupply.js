@@ -13,7 +13,6 @@ const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
 const LikeCoin = new web3.eth.Contract(LIKE_COIN_ABI, LIKE_COIN_ADDRESS);
 
 const reservedEthWallets = IS_TESTNET ? [
-  '0xaa2f5b6AE13bA7a3d466FFce8cD390519337AaDe',
 ] : [
   '0xe790610b59414dd50aeeeaac0b7784644ac5588c', // ecosystem development pool
   '0x48bbaaf8fc448e641895e5ec6909dfd805ec3a85', // unknown 1
