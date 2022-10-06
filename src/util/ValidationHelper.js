@@ -351,6 +351,7 @@ export function filterLikeNFTMetadata({
   iscnOwner,
   iscnStakeholders,
   iscnId,
+  iscnRecordTimestamp,
 }) {
   // key with underscore as in https://docs.opensea.io/docs/metadata-standards
   return {
@@ -363,6 +364,7 @@ export function filterLikeNFTMetadata({
     youtube_url: youtubeUrl,
     iscn_id: iscnId,
     iscn_owner: iscnOwner,
+    iscn_record_timestamp: iscnRecordTimestamp,
     iscn_stakeholders: iscnStakeholders,
   };
 }
