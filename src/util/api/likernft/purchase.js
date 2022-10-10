@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
-import { getStakeholderMapFromParsedIscnData } from '@likecoin/iscn-js/dist/iscn/parsing';
+import { parseAndCalculateStakeholderRewards } from '@likecoin/iscn-js/dist/iscn/parsing';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
@@ -222,10 +222,10 @@ export async function handleNFTPurchaseTransaction({
     });
   }
 
-  const stakeholderMap = await getStakeholderMapFromParsedIscnData(
-    data, owner, { totalLIKE: stakeholdersAmount },
+  const stakeholderMap = await parseAndCalculateStakeholderRewards(
+    data, owner, { totalAmount: stakeholdersAmount },
   );
-  stakeholderMap.forEach(({ LIKE: amount }, wallet) => {
+  stakeholderMap.forEach(({ amount }, wallet) => {
     transferMessages.push(
       {
         typeUrl: '/cosmos.bank.v1beta1.MsgSend',
@@ -235,7 +235,7 @@ export async function handleNFTPurchaseTransaction({
           // TODO: fix iscn-js to use string for amount input and output
           amount: [{
             denom: NFT_COSMOS_DENOM,
-            amount: new BigNumber(amount).toFixed(0, BigNumber.ROUND_DOWN),
+            amount,
           }],
         },
       },
