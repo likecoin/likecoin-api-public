@@ -280,7 +280,7 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     if (checkDuplicate) {
       arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
     } else {
-      arweaveIds = [];
+      arweaveIds = new Array(files.length);
     }
   }
   const anchorId = (await arweave.api.get('/tx_anchor')).data;
