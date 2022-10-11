@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { db, likeNFTCollection } from '../../util/firebase';
 import { isValidLikeAddress } from '../../util/cosmos';
+import { filterOwnedClassIds } from '../../util/api/likernft/user';
 import { ValidationError } from '../../util/ValidationError';
+import { ONE_DAY_IN_S } from '../../constant';
 
+const UPDATE_COOLDOWN = 60 * 1000;
+const updateCooldownMap = {};
 
 const router = Router();
 
@@ -12,20 +16,27 @@ router.get(
     try {
       const { wallet } = req.params;
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const [sellingNftsQuery, createdClassesQuery] = await Promise.all([
+      const [sellingNftsQuery, ownedClassesQuery] = await Promise.all([
         db.collectionGroup('nft')
           .where('sellerWallet', '==', wallet)
           .where('soldCount', '>', 0).get(),
-        // TODO: what if iscn owner changed?
-        likeNFTCollection.where('creatorWallet', '==', wallet).get(),
+        likeNFTCollection.where('ownerWallet', '==', wallet).get(),
       ]);
       const classIdSet = new Set();
+      const now = Date.now();
+      if (!updateCooldownMap[wallet] || now - updateCooldownMap[wallet] > UPDATE_COOLDOWN) {
+        updateCooldownMap[wallet] = now;
+        const ownedClassIds = await filterOwnedClassIds(ownedClassesQuery.docs, wallet);
+        ownedClassIds.forEach(classId => classIdSet.add(classId));
+      } else {
+        ownedClassesQuery.docs.forEach((doc) => {
+          classIdSet.add(doc.data().classId);
+        });
+      }
       sellingNftsQuery.docs.forEach((doc) => {
         classIdSet.add(doc.data().classId);
       });
-      createdClassesQuery.docs.forEach((doc) => {
-        classIdSet.add(doc.data().classId);
-      });
+      res.set('Cache-Control', `public, max-age=60 s-maxage=60 stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list: Array.from(classIdSet),
       });
