@@ -138,11 +138,11 @@ async function handleRegisterISCN(req, res, next) {
       },
     );
 
-    const [iscnFee, iscnRes] = await Promise.all([
-      signingClient.estimateISCNTxFee(address, ISCNPayload),
+    const [iscnGasFee, iscnRes] = await Promise.all([
+      signingClient.esimateISCNTxGasAndFee(address, ISCNPayload),
       sendTransactionWithSequence(address, createIscnSigningFunction),
     ]);
-    const iscnLike = new BigNumber(iscnFee.amount).shiftedBy(-9);
+    const iscnLike = new BigNumber(iscnGasFee.iscnFee.amount).shiftedBy(-9);
     const {
       transactionHash: iscnTxHash,
       gasWanted = 0,
