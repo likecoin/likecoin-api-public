@@ -37,12 +37,17 @@ export async function getImageMask() {
   return maskData;
 }
 
+function encodedURL(url) {
+  if (decodeURI(url) !== url) return url;
+  return encodeURI(url);
+}
+
 export async function getBasicImage(image, title) {
   let imageBuffer;
   let contentType;
   let isDefault = true;
   if (image) {
-    const imageData = (await axios.get(encodeURI(image), { responseType: 'stream' }).catch(() => {}));
+    const imageData = (await axios.get(encodedURL(image), { responseType: 'stream' }).catch(() => {}));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
       contentType = imageData.headers['content-type'] || 'image/png';
