@@ -82,7 +82,6 @@ router.post('/upload',
         AR,
         list: existingPriceListWithManifest,
       } = prices;
-      const [, ...existingFilesPriceList] = existingPriceListWithManifest;
 
       // shortcut for existing file without checking tx
       if (existingArweaveId) {
@@ -125,8 +124,11 @@ router.post('/upload',
         res.status(400).send('TX_AMOUNT_NOT_ENOUGH');
         return;
       }
-      const arweaveIdList = existingFilesPriceList
-        ? existingFilesPriceList.map(l => l.arweaveId) : undefined;
+      let arweaveIdList;
+      if (existingPriceListWithManifest) {
+        const [, ...existingFilesPriceList] = existingPriceListWithManifest;
+        arweaveIdList = existingFilesPriceList.map(l => l.arweaveId);
+      }
       const [{ arweaveId, list }] = await Promise.all([
         uploadFilesToArweave(arFiles, arweaveIdList, checkDuplicate),
         uploadFilesToIPFS(arFiles),
