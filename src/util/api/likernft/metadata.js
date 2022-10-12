@@ -42,7 +42,7 @@ export async function getBasicImage(image, title) {
   let contentType;
   let isDefault = true;
   if (image) {
-    const imageData = (await axios.get(image, { responseType: 'stream' }).catch(() => {}));
+    const imageData = (await axios.get(encodeURI(image), { responseType: 'stream' }).catch(() => {}));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
       contentType = imageData.headers['content-type'] || 'image/png';
