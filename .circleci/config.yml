@@ -44,7 +44,7 @@ jobs:
   deploy_rinkeby_api:
     working_directory: ~/like-api-public
     docker:
-      - image: lakoo/node-gcloud-docker
+      - image: cimg/gcp:2022.09
     environment:
       - DEBIAN_FRONTEND: noninteractive
       - TERM: dumb
@@ -54,8 +54,8 @@ jobs:
       - run:
           name: Setup gcloud
           command: |
-            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /test-account-auth.json
-            gcloud auth activate-service-account --key-file /test-account-auth.json
+            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
+            gcloud auth activate-service-account --key-file /tmp/account-auth.json
             gcloud config set project ${TEST_PROJECT_NAME}
             gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
@@ -80,7 +80,7 @@ jobs:
   deploy_testnet_api:
     working_directory: ~/like-api-public
     docker:
-      - image: lakoo/node-gcloud-docker
+      - image: cimg/gcp:2022.09
     environment:
       - DEBIAN_FRONTEND: noninteractive
       - TERM: dumb
@@ -90,8 +90,8 @@ jobs:
       - run:
           name: Setup gcloud
           command: |
-            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /test-account-auth.json
-            gcloud auth activate-service-account --key-file /test-account-auth.json
+            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
+            gcloud auth activate-service-account --key-file /tmp/account-auth.json
             gcloud config set project ${TEST_PROJECT_NAME}
             gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
@@ -116,7 +116,7 @@ jobs:
   deploy_mainnet_api:
     working_directory: ~/like-api-public
     docker:
-      - image: lakoo/node-gcloud-docker
+      - image: cimg/gcp:2022.09
     environment:
       - DEBIAN_FRONTEND: noninteractive
       - TERM: dumb
@@ -126,8 +126,8 @@ jobs:
       - run:
           name: Setup gcloud
           command: |
-            echo ${GCLOUD_SERVICE_KEY} | base64 -d > /account-auth.json
-            gcloud auth activate-service-account --key-file /account-auth.json
+            echo ${GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
+            gcloud auth activate-service-account --key-file /tmp/account-auth.json
             gcloud config set project ${PROJECT_NAME}
             gcloud --quiet config set container/cluster ${PROD_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
