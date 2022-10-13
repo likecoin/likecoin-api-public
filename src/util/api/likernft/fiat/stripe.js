@@ -1,10 +1,12 @@
 import BigNumber from 'bignumber.js';
+import axios from 'axios';
 import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
-import { PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
+import { NFT_MESSAGE_WEBHOOK } from '../../../../../config/config';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -13,7 +15,11 @@ export async function findPaymentFromStripeSessionId(sessionId) {
 }
 
 export async function processStripeFiatNFTPurchase(session, req) {
-  const sessionId = session.id;
+  const {
+    id: sessionId,
+    metadata = {},
+    customer_details: customer = {},
+  } = session;
   const doc = await findPaymentFromStripeSessionId(sessionId);
   if (!doc) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const docData = doc.data();
@@ -109,5 +115,23 @@ export async function processStripeFiatNFTPurchase(session, req) {
     LIKEPrice,
     sessionId,
   });
+  if (NFT_MESSAGE_WEBHOOK) {
+    try {
+      const {
+        wallet: metadataWallet,
+        // iscnPrefix,
+        // paymentId,
+        isPendingClaim,
+      } = metadata;
+      const { email } = customer;
+      let text = `${metadataWallet || email} bought ${classId} for ${fiatPriceString}, paymentId ${paymentId}`;
+      if (isPendingClaim) text = `(Unclaimed NFT) ${text}`;
+      if (IS_TESTNET) text = `(TESTNET) ${text}`;
+      await axios.post(NFT_MESSAGE_WEBHOOK, { text });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
   return true;
 }
