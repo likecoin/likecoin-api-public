@@ -15,7 +15,10 @@ import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
 import { LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 
-import { STRIPE_WEBHOOK_SECRET } from '../../../../config/config';
+import {
+  STRIPE_WEBHOOK_SECRET,
+  LIKER_NFT_FEE_ADDRESS,
+} from '../../../../config/config';
 
 const uuidv4 = require('uuid/v4');
 
@@ -81,8 +84,10 @@ router.post(
   fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
-      const { wallet } = req.query;
-      if (!wallet || !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      let { wallet } = req.query;
+      const dummyWallet = LIKER_NFT_FEE_ADDRESS;
+      if (!(wallet || dummyWallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      const isPendingClaim = !wallet;
       const { classId, iscnPrefix } = res.locals;
       const [{
         price,
@@ -142,9 +147,13 @@ router.post(
           classId,
           iscnPrefix,
           paymentId,
+          isPendingClaim,
         },
       });
       const { url, id: sessionId } = session;
+      if (isPendingClaim) {
+        wallet = dummyWallet;
+      }
       await likeNFTFiatCollection.doc(paymentId).create({
         type: 'stripe',
         sessionId,
@@ -156,6 +165,7 @@ router.post(
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
+        isPendingClaim,
       });
       const LIKEPrice = totalPrice;
       const fiatPrice = Number(fiatPriceString);
@@ -165,6 +175,7 @@ router.post(
         LIKEPrice,
         fiatPrice,
         fiatPriceString,
+        isPendingClaim,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTFiatPaymentNew',

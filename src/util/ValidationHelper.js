@@ -371,6 +371,8 @@ export function filterLikeNFTMetadata({
 
 export function filterLikeNFTFiatData({
   status,
+  sessionId,
+  isPendingClaim,
   errorMessage,
   wallet,
   classId,
@@ -383,6 +385,8 @@ export function filterLikeNFTFiatData({
 }) {
   return {
     status,
+    sessionId,
+    isPendingClaim,
     errorMessage,
     wallet,
     classId,
