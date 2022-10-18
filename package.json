@@ -73,7 +73,7 @@
     "file-type": "^12.4.2",
     "firebase-admin": "^10.3.0",
     "i18n": "^0.8.3",
-    "ipfs-http-client": "^53.0.1",
+    "ipfs-http-client": "^56.0.3",
     "ipfs-only-hash": "^4.0.0",
     "js-sha256": "^0.9.0",
     "jsonwebtoken": "^8.4.0",
