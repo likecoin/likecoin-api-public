@@ -31,6 +31,7 @@ config.NFT_COSMOS_DENOM = 'nanoekil';
 config.ARWEAVE_LIKE_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
 config.REPLICA_IPFS_ENDPOINTS = [];
+config.WEB3_STORAGE_API_TOKEN = '';
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
 config.LIKER_NFT_FEE_ADDRESS = '';

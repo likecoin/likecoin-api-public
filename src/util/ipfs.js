@@ -1,4 +1,6 @@
 import { create } from 'ipfs-http-client';
+import { CarReader } from '@ipld/car';
+import { Web3Storage } from 'web3.storage';
 
 const hash = require('ipfs-only-hash');
 
@@ -7,6 +9,7 @@ const config = require('../../config/config');
 const {
   IPFS_ENDPOINT,
   REPLICA_IPFS_ENDPOINTS = [],
+  WEB3_STORAGE_API_TOKEN,
 } = config;
 
 const IPFS_TIMEOUT = 60000;
@@ -24,6 +27,29 @@ const getInstance = (() => {
   };
 })();
 
+const getWeb3StorageClient = (() => {
+  let client = null;
+  return () => {
+    if (!client && WEB3_STORAGE_API_TOKEN) {
+      client = new Web3Storage({ token: WEB3_STORAGE_API_TOKEN });
+    }
+    return client;
+  };
+})();
+
+async function uploadCARToIPFSByWeb3Storage(car) {
+  try {
+    const client = getWeb3StorageClient();
+    if (client) {
+      const reader = await CarReader.fromIterable(car);
+      await client.putCar(reader);
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error();
+  }
+}
+
 export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
   const client = getInstance();
   const fileBlob = file.buffer;
@@ -32,6 +58,8 @@ export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
     client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
   }
   const res = await client.primary.add(fileBlob, { onlyHash });
+  const out = client.primary.dag.export(res.cid);
+  await uploadCARToIPFSByWeb3Storage(out);
   return res.cid.toString();
 }
 
@@ -45,6 +73,8 @@ async function internalUploadAll(client, files, { directoryName = 'tmp', onlyHas
   const results = [];
   // eslint-disable-next-line no-restricted-syntax
   for await (const result of promises) {
+    const out = client.dag.export(result.cid);
+    await uploadCARToIPFSByWeb3Storage(out);
     results.push(result);
   }
   return results;
