@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: ~/likecoin-api-public
     docker:
-      - image: node:14
+      - image: node:16
     steps:
       - checkout
       # - restore_cache:

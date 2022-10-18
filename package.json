@@ -2,7 +2,7 @@
   "name": "likecoin-api-public",
   "version": "1.0.0",
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "description": "",
   "main": "src/index.js",
