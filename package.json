@@ -45,6 +45,7 @@
   "dependencies": {
     "@cosmjs/stargate": "^0.28.4",
     "@google-cloud/pubsub": "^3.1.1",
+    "@ipld/car": "^4.1.6",
     "@likecoin/iscn-js": "0.4.1",
     "@likecoin/likecoin-email-templates": "^1.2.2",
     "@likecoin/secretd-js": "^0.4.3",
@@ -92,6 +93,7 @@
     "uuid-parse": "^1.1.0",
     "web3": "^1.2.11",
     "web3-utils": "^1.2.11",
+    "web3.storage": "^4.4.0",
     "ws": "^7.5.5",
     "xml": "^1.0.1"
   },
