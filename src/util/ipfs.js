@@ -37,12 +37,13 @@ const getWeb3StorageClient = (() => {
   };
 })();
 
-async function uploadCARToIPFSByWeb3Storage(car) {
+async function uploadCARToIPFSByWeb3Storage(ipfsHttpClient, cid) {
   try {
-    const client = getWeb3StorageClient();
-    if (client) {
+    const web3StorageClient = getWeb3StorageClient();
+    if (web3StorageClient) {
+      const car = ipfsHttpClient.dag.export(cid);
       const reader = await CarReader.fromIterable(car);
-      await client.putCar(reader);
+      await web3StorageClient.putCar(reader);
     }
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -58,8 +59,7 @@ export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
     client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
   }
   const res = await client.primary.add(fileBlob, { onlyHash });
-  const out = client.primary.dag.export(res.cid);
-  await uploadCARToIPFSByWeb3Storage(out);
+  await uploadCARToIPFSByWeb3Storage(client.primary, res.cid);
   return res.cid.toString();
 }
 
@@ -73,8 +73,7 @@ async function internalUploadAll(client, files, { directoryName = 'tmp', onlyHas
   const results = [];
   // eslint-disable-next-line no-restricted-syntax
   for await (const result of promises) {
-    const out = client.dag.export(result.cid);
-    await uploadCARToIPFSByWeb3Storage(out);
+    await uploadCARToIPFSByWeb3Storage(client, result.cid);
     results.push(result);
   }
   return results;
