@@ -147,7 +147,7 @@ router.post(
           classId,
           iscnPrefix,
           paymentId,
-          isPendingClaim,
+          isPendingClaim: isPendingClaim ? 'true' : undefined,
         },
       });
       const { url, id: sessionId } = session;
