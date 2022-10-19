@@ -6,7 +6,7 @@ export const ETH_NETWORK_NAME = IS_TESTNET ? 'rinkeby' : 'mainnet';
 
 export const INFURA_HOST = IS_TESTNET ? 'https://goerli.infura.io/v3/9a6771595426445cb247e83d4ad85645' : 'https://mainnet.infura.io/v3/9a6771595426445cb247e83d4ad85645';
 
-export const MIN_USER_ID_LENGTH = 7;
+export const MIN_USER_ID_LENGTH = 5;
 
 export const MAX_USER_ID_LENGTH = 20;
 

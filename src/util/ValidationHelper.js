@@ -3,6 +3,8 @@ import {
   GETTING_STARTED_TASKS,
   DISPLAY_SOCIAL_MEDIA_OPTIONS,
   ONE_DAY_IN_MS,
+  MIN_USER_ID_LENGTH,
+  MAX_USER_ID_LENGTH,
 } from '../constant';
 
 export function checkAddressValid(addr) {
@@ -10,7 +12,7 @@ export function checkAddressValid(addr) {
 }
 
 export function checkUserNameValid(user) {
-  return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= 7 && user.length <= 20);
+  return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= MIN_USER_ID_LENGTH && user.length <= MAX_USER_ID_LENGTH);
 }
 
 export function checkCosmosAddressValid(addr, prefix = 'cosmos') {
