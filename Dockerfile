@@ -13,6 +13,7 @@ RUN npm install
 ADD . /app
 ENV NODE_ENV production
 RUN npm run build
+RUN mkdir "/.npm" && chown -R 1337:0 "/.npm"
 ENV HOST 0.0.0.0
 EXPOSE 3000
 USER 1337
