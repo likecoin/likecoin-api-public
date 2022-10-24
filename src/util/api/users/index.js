@@ -136,7 +136,7 @@ export function checkSignPayload(from, payload, sign) {
 }
 
 export function checkCosmosSignPayload({
-  signature, publicKey, message, inputWallet,
+  signature, publicKey, message, inputWallet, action = '',
 }) {
   const verified = verifyCosmosSignInPayload({
     signature, publicKey, message, inputWallet,
@@ -152,10 +152,14 @@ export function checkCosmosSignPayload({
     throw new ValidationError('INVALID_PAYLOAD');
   }
   const {
-    ts,
+    action: payloadAction,
     cosmosWallet: payloadCosmosWallet,
     likeWallet: payloadLikeWallet,
+    ts,
   } = actualPayload;
+  if (action && action !== payloadAction) {
+    throw new ValidationError('PAYLOAD_ACTION_NOT_MATCH');
+  }
   if (payloadLikeWallet !== inputWallet && payloadCosmosWallet !== inputWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
   }

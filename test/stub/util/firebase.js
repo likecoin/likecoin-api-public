@@ -161,12 +161,13 @@ function collectionDoc(data, id) {
       }
       return global.Promise.resolve();
     },
-    delete: () => {
+    delete: () => new Promise((resolve, reject) => {
       if (obj) {
-        return docDelete(data, obj);
+        resolve(docDelete(data, obj));
+        return;
       }
-      throw new Error('Doc not exists for deletion.');
-    },
+      reject(new Error('Doc not exists for deletion.'));
+    }),
     collection: (collectionId) => {
       if (!obj.collection[collectionId]) {
         obj.collection[collectionId] = [];
@@ -236,6 +237,7 @@ function createDb() {
       update: (ref, data) => ref.update(data),
       commit: () => {},
     }),
+    recursiveDelete: ref => ref.delete(),
     collectionGroup: (group) => {
       let data = [];
       dbData.forEach((root) => {
