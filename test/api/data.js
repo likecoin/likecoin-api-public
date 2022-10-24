@@ -40,6 +40,10 @@ export const {
   id: testingUser5,
   wallet: testingWallet5,
 } = userData.users[5];
+export const {
+  id: testDeleteUser,
+  likeWallet: testDeleteUserLikeWallet,
+} = userData.users.find(u => u.id === 'testdelete');
 
 export const {
   id: txHash,

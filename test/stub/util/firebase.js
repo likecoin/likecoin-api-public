@@ -203,6 +203,8 @@ const dbData = [
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
 export const subscriptionUserCollection = createCollection(subscriptionData);
+export const civicUserMetadataCollection = createCollection([]);
+export const superLikeUserCollection = createCollection([]);
 export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);
@@ -210,6 +212,9 @@ export const couponCollection = createCollection([]);
 export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
 export const likeNFTCollection = createCollection(likerNftData);
+export const likeButtonUrlCollection = createCollection([]);
+export const iscnInfoCollection = createCollection([]);
+export const iscnMappingCollection = createCollection([]);
 
 function runTransaction(updateFunc) {
   return updateFunc({
