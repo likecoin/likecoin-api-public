@@ -154,6 +154,15 @@
             "referrals": [
             ]
           }
+        },
+        {
+          "id": "testdelete",
+          "displayName": "testdelete",
+          "likeWallet": "like1eh7da36pzlqhalltsurdatas20h7zhlzuzfr6u",
+          "collection": {
+            "referrals": [
+            ]
+          }
         }
     ]
 }

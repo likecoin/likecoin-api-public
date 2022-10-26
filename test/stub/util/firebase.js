@@ -161,12 +161,13 @@ function collectionDoc(data, id) {
       }
       return global.Promise.resolve();
     },
-    delete: () => {
+    delete: () => new Promise((resolve, reject) => {
       if (obj) {
-        return docDelete(data, obj);
+        resolve(docDelete(data, obj));
+        return;
       }
-      throw new Error('Doc not exists for deletion.');
-    },
+      reject(new Error('Doc not exists for deletion.'));
+    }),
     collection: (collectionId) => {
       if (!obj.collection[collectionId]) {
         obj.collection[collectionId] = [];
@@ -202,6 +203,8 @@ const dbData = [
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
 export const subscriptionUserCollection = createCollection(subscriptionData);
+export const civicUserMetadataCollection = createCollection([]);
+export const superLikeUserCollection = createCollection([]);
 export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);
@@ -209,6 +212,9 @@ export const couponCollection = createCollection([]);
 export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
 export const likeNFTCollection = createCollection(likerNftData);
+export const likeButtonUrlCollection = createCollection([]);
+export const iscnInfoCollection = createCollection([]);
+export const iscnMappingCollection = createCollection([]);
 
 function runTransaction(updateFunc) {
   return updateFunc({
@@ -236,6 +242,7 @@ function createDb() {
       update: (ref, data) => ref.update(data),
       commit: () => {},
     }),
+    recursiveDelete: ref => ref.delete(),
     collectionGroup: (group) => {
       let data = [];
       dbData.forEach((root) => {

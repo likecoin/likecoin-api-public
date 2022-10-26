@@ -20,6 +20,10 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
     const username = req.user.user;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
+      if (payload.isDeleted) {
+        res.sendStatus(404);
+        return;
+      }
       if (payload.isLocked) {
         // eslint-disable-next-line no-console
         console.log(`Locked user: ${username}`);
@@ -56,6 +60,10 @@ router.get('/id/:id', jwtAuth('read'), async (req, res, next) => {
     }
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
+      if (payload.isDeleted) {
+        res.sendStatus(404);
+        return;
+      }
       res.json(filterUserData(payload));
     } else {
       res.sendStatus(404);

@@ -4,6 +4,8 @@ import fs from 'fs';
 import { createHash } from 'crypto';
 import jsonStringify from 'fast-json-stable-stringify';
 import {
+  testingCosmosWallet0,
+  testingLikeWallet0,
   testingUser1,
   testingDisplayName1,
   testingEmail1,
@@ -22,15 +24,13 @@ import {
   privateKey1,
   privateKey2,
   privateKey3,
+  cosmosPrivateKeyNew,
 } from './data';
 import axiosist from './axiosist';
 import {
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../src/constant';
 import {
-  TEST_COSMOS_ADDRESS,
-  TEST_LIKE_ADDRESS,
-  TEST_COSMOS_PRIVATE_KEY,
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
 
@@ -45,7 +45,7 @@ function signERCProfile(signData, privateKey) {
 }
 
 test.serial('USER: Register cosmos user. Case: fail', async (t) => {
-  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const cosmosWallet = testingCosmosWallet0;
   const payload = {
     ts: Date.now(),
     cosmosWallet,
@@ -58,7 +58,7 @@ test.serial('USER: Register cosmos user. Case: fail', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
+    from: testingCosmosWallet0,
     platform: 'cosmosWallet',
     user: 'testing-new-fail',
     email: 'test@cosmos.user',
@@ -67,7 +67,7 @@ test.serial('USER: Register cosmos user. Case: fail', async (t) => {
 });
 
 test.serial('USER: Register cosmos user. Case: success', async (t) => {
-  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const cosmosWallet = testingCosmosWallet0;
   const payload = {
     ts: Date.now(),
     cosmosWallet,
@@ -75,12 +75,12 @@ test.serial('USER: Register cosmos user. Case: success', async (t) => {
   const {
     signed: message,
     signature: { signature, pub_key: publicKey },
-  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  } = signWithCosmos(payload, cosmosPrivateKeyNew);
   const res = await axiosist.post('/api/users/new', {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
+    from: testingCosmosWallet0,
     platform: 'cosmosWallet',
     user: 'testing-new-user',
     email: 'test@cosmos.user',
@@ -89,7 +89,7 @@ test.serial('USER: Register cosmos user. Case: success', async (t) => {
 });
 
 test.serial('USER: Login cosmos user. Case: sucess', async (t) => {
-  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const cosmosWallet = testingCosmosWallet0;
   const payload = {
     ts: Date.now(),
     cosmosWallet,
@@ -97,19 +97,19 @@ test.serial('USER: Login cosmos user. Case: sucess', async (t) => {
   const {
     signed: message,
     signature: { signature, pub_key: publicKey },
-  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  } = signWithCosmos(payload, cosmosPrivateKeyNew);
   const res = await axiosist.post('/api/users/login', {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
+    from: testingCosmosWallet0,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 200);
 });
 
 test.serial('USER: Login cosmos user. Case: fail', async (t) => {
-  const cosmosWallet = TEST_COSMOS_ADDRESS;
+  const cosmosWallet = testingCosmosWallet0;
   const payload = {
     ts: Date.now(),
     cosmosWallet,
@@ -122,14 +122,14 @@ test.serial('USER: Login cosmos user. Case: fail', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_COSMOS_ADDRESS,
+    from: testingCosmosWallet0,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 400);
 });
 
 test.serial('USER: Login like user. Case: sucess', async (t) => {
-  const likeWallet = TEST_LIKE_ADDRESS;
+  const likeWallet = testingLikeWallet0;
   const payload = {
     ts: Date.now(),
     likeWallet,
@@ -137,19 +137,19 @@ test.serial('USER: Login like user. Case: sucess', async (t) => {
   const {
     signed: message,
     signature: { signature, pub_key: publicKey },
-  } = signWithCosmos(payload, TEST_COSMOS_PRIVATE_KEY);
+  } = signWithCosmos(payload, cosmosPrivateKeyNew);
   const res = await axiosist.post('/api/users/login', {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_LIKE_ADDRESS,
+    from: testingLikeWallet0,
     platform: 'likeWallet',
   });
   t.is(res.status, 200);
 });
 
 test.serial('USER: Login like user. Case: fail, wrong signature', async (t) => {
-  const likeWallet = TEST_LIKE_ADDRESS;
+  const likeWallet = testingLikeWallet0;
   const payload = {
     ts: Date.now(),
     likeWallet,
@@ -162,7 +162,7 @@ test.serial('USER: Login like user. Case: fail, wrong signature', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_LIKE_ADDRESS,
+    from: testingLikeWallet0,
     platform: 'likeWallet',
   });
   t.is(res.status, 400);
@@ -170,7 +170,7 @@ test.serial('USER: Login like user. Case: fail, wrong signature', async (t) => {
 
 
 test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
-  const likeWallet = TEST_LIKE_ADDRESS;
+  const likeWallet = testingLikeWallet0;
   const payload = {
     ts: Date.now(),
     likeWallet,
@@ -183,7 +183,7 @@ test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: TEST_LIKE_ADDRESS,
+    from: testingLikeWallet0,
     platform: 'cosmosWallet',
   });
   t.is(res.status, 400);

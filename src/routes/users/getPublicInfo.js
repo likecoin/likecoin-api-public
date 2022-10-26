@@ -25,6 +25,10 @@ router.get('/id/:id/min', async (req, res, next) => {
     }
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
+      if (payload.isDeleted) {
+        res.sendStatus(404);
+        return;
+      }
       res.set('Cache-Control', 'public, max-age=30');
       res.json(filterUserDataMin(payload, types));
     } else {
@@ -58,6 +62,10 @@ router.get('/addr/:addr/min', async (req, res, next) => {
       res.set('Cache-Control', 'public, max-age=30');
       const userDoc = query.docs[0];
       const payload = formatUserCivicLikerProperies(userDoc.id, userDoc.data());
+      if (payload.isDeleted) {
+        res.sendStatus(404);
+        return;
+      }
       res.json(filterUserDataMin(payload, types));
     } else {
       res.sendStatus(404);
