@@ -9,7 +9,7 @@ import {
 } from '../../util/api/likernft/purchase';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 
 const API_EXPIRATION_BUFFER_TIME = 5000;
 
@@ -98,8 +98,7 @@ router.post(
         gasFee: actualGasFee,
       });
 
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTPurchaseSuccess',
+      const logPayload = {
         txHash: transactionHash,
         iscnId: iscnPrefix,
         classId,
@@ -116,6 +115,14 @@ router.post(
         feeWallet,
         feeLIKE,
         feeLIKENumber: Number(sellerLIKE),
+      };
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseSuccess',
+        ...logPayload,
+      });
+      publisher.publish(PUBSUB_TOPIC_WNFT, req, {
+        type: 'purchase',
+        ...logPayload,
       });
     } catch (err) {
       next(err);

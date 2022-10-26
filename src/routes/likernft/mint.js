@@ -9,7 +9,7 @@ import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 
 const router = Router();
 
@@ -89,8 +89,7 @@ router.post(
         sellerWallet,
       });
 
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTMint',
+      const logPayload = {
         classId,
         iscnId: iscnPrefix,
         txHash,
@@ -98,6 +97,15 @@ router.post(
         sellerWallet,
         apiWallet: LIKER_NFT_TARGET_ADDRESS,
         uri,
+      };
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTMint',
+        ...logPayload,
+      });
+      publisher.publish(PUBSUB_TOPIC_WNFT, req, {
+        type: 'mint',
+        ...logPayload,
       });
     } catch (err) {
       next(err);
