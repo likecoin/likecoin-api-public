@@ -1,4 +1,5 @@
 import {
+  API_EXTERNAL_HOSTNAME,
   AVATAR_DEFAULT_PATH,
   CIVIC_LIKER_START_DATE,
   SUBSCRIPTION_GRACE_PERIOD,
@@ -8,12 +9,10 @@ import {
 } from '../../firebase';
 
 export function formatUserCivicLikerProperies(id, data) {
-  const { avatar, civicLiker } = data;
+  const { civicLiker } = data;
   const payload = data;
   payload.user = id;
-  if (!avatar) {
-    payload.avatar = AVATAR_DEFAULT_PATH;
-  }
+  payload.avatar = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar`;
 
   if (civicLiker) {
     const {
@@ -50,6 +49,17 @@ export async function getUserWithCivicLikerProperties(id) {
   const data = userDoc.data();
   const payload = formatUserCivicLikerProperies(id, data);
   return payload;
+}
+
+export async function getUserAvatar(id) {
+  const userDoc = await dbRef.doc(id).get();
+  if (!userDoc.exists) return null;
+
+  const data = userDoc.data();
+  if (data.isDeleted) return null;
+
+  const { avatar } = data;
+  return avatar || AVATAR_DEFAULT_PATH;
 }
 
 export default getUserWithCivicLikerProperties;
