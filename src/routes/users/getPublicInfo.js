@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import axios from 'axios';
+import sharp from 'sharp';
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
@@ -11,7 +13,9 @@ import {
 import {
   getUserWithCivicLikerProperties,
   formatUserCivicLikerProperies,
+  getUserAvatar,
 } from '../../util/api/users/getPublicInfo';
+import { ONE_DAY_IN_S } from '../../constant';
 
 const router = Router();
 
@@ -38,6 +42,37 @@ router.get('/id/:id/min', async (req, res, next) => {
     next(err);
   }
 });
+
+
+router.get('/id/:id/avatar', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { size = '400' } = req.query;
+    const sizeNum = parseInt(size, 10);
+    if (Number.isNaN(sizeNum) || sizeNum <= 0 || sizeNum > 400) {
+      throw new ValidationError('Invalid size');
+    }
+
+    const avatar = await getUserAvatar(id);
+    if (avatar) {
+      const { data: stream } = await axios.get(avatar, {
+        responseType: 'stream',
+      });
+      const resizer = sharp()
+        .resize(sizeNum, sizeNum)
+        .jpeg();
+      stream.pipe(resizer).pipe(res);
+
+      const cacheTime = 3600;
+      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 router.get('/addr/:addr/min', async (req, res, next) => {
   try {
