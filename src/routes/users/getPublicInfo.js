@@ -1,19 +1,14 @@
 import { Router } from 'express';
 import axios from 'axios';
 import sharp from 'sharp';
-import {
-  userCollection as dbRef,
-} from '../../util/firebase';
 import { ValidationError } from '../../util/ValidationError';
 import {
-  checkAddressValid,
-  checkCosmosAddressValid,
   filterUserDataMin,
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
-  formatUserCivicLikerProperies,
   getUserAvatar,
+  getUserWithCivicLikerPropertiesByWallet,
 } from '../../util/api/users/getPublicInfo';
 import { ONE_DAY_IN_S } from '../../constant';
 
@@ -21,18 +16,14 @@ const router = Router();
 
 router.get('/id/:id/min', async (req, res, next) => {
   try {
-    const username = req.params.id;
+    const { id } = req.params;
     const { type } = req.query;
     let types = [];
     if (type) {
       types = type.split(',');
     }
-    const payload = await getUserWithCivicLikerProperties(username);
+    const payload = await getUserWithCivicLikerProperties(id);
     if (payload) {
-      if (payload.isDeleted) {
-        res.sendStatus(404);
-        return;
-      }
       res.set('Cache-Control', 'public, max-age=30');
       res.json(filterUserDataMin(payload, types));
     } else {
@@ -47,24 +38,23 @@ router.get('/id/:id/min', async (req, res, next) => {
 router.get('/id/:id/avatar', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { size = '400' } = req.query;
-    const sizeNum = parseInt(size, 10);
-    if (Number.isNaN(sizeNum) || sizeNum <= 0 || sizeNum > 400) {
+    const { size: inputSizeStr = '400' } = req.query;
+    const inputSizeNum = parseInt(inputSizeStr, 10);
+    if (Number.isNaN(inputSizeNum)) {
       throw new ValidationError('Invalid size');
     }
+    const size = Math.min(Math.max(inputSizeNum, 20), 400);
 
     const avatar = await getUserAvatar(id);
     if (avatar) {
-      const { data: stream } = await axios.get(avatar, {
+      const { headers, data } = await axios.get(avatar, {
         responseType: 'stream',
       });
-      const resizer = sharp()
-        .resize(sizeNum, sizeNum)
-        .jpeg();
-      stream.pipe(resizer).pipe(res);
-
+      const resizer = sharp().resize(size, size);
       const cacheTime = 3600;
       res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.type(headers['content-type'] || 'image/jpeg');
+      data.pipe(resizer).pipe(res);
     } else {
       res.sendStatus(404);
     }
@@ -72,7 +62,6 @@ router.get('/id/:id/avatar', async (req, res, next) => {
     next(err);
   }
 });
-
 
 router.get('/addr/:addr/min', async (req, res, next) => {
   try {
@@ -82,25 +71,9 @@ router.get('/addr/:addr/min', async (req, res, next) => {
     if (type) {
       types = type.split(',');
     }
-    let field;
-    if (checkAddressValid(addr)) {
-      field = 'wallet';
-    } else if (checkCosmosAddressValid(addr, 'like')) {
-      field = 'likeWallet';
-    } else if (checkCosmosAddressValid(addr, 'cosmos')) {
-      field = 'cosmosWallet';
-    } else {
-      throw new ValidationError('Invalid address');
-    }
-    const query = await dbRef.where(field, '==', addr).limit(1).get();
-    if (query.docs.length > 0) {
+    const payload = await getUserWithCivicLikerPropertiesByWallet(addr);
+    if (payload) {
       res.set('Cache-Control', 'public, max-age=30');
-      const userDoc = query.docs[0];
-      const payload = formatUserCivicLikerProperies(userDoc.id, userDoc.data());
-      if (payload.isDeleted) {
-        res.sendStatus(404);
-        return;
-      }
       res.json(filterUserDataMin(payload, types));
     } else {
       res.sendStatus(404);
