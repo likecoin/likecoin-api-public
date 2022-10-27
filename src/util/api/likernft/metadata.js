@@ -91,8 +91,8 @@ export function getDynamicBackgroundColor({ currentBatch }) {
   return NFT_GEM_COLOR[gemLevel];
 }
 
-export function getLikerNFTDynamicData(classId, classData, iscnData) {
-  const { currentBatch } = classData;
+export function getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData) {
+  const { currentBatch } = iscnDocData;
   const { contentMetadata: { url, description } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor({ currentBatch });
   const payload = {
@@ -106,8 +106,10 @@ export function getLikerNFTDynamicData(classId, classData, iscnData) {
 
 export async function getClassMetadata({ classId, iscnPrefix }) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const classDocRef = likeNFTCollection.doc(iscnPrefixDocName).collection('class').doc(classId);
-  const classDoc = await classDocRef.get();
+  const iscnDocRef = likeNFTCollection.doc(iscnPrefixDocName);
+  const classDocRef = iscnDocRef.collection('class').doc(classId);
+  const [iscnDoc, classDoc] = await Promise.all([iscnDocRef.get(), classDocRef.get()]);
+  const iscnDocData = iscnDoc.data();
   const classData = classDoc.data();
   if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND');
 
@@ -119,7 +121,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   ]);
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
   if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
-  const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
+  const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
   return {
     iscnOwner,
