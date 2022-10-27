@@ -2,7 +2,7 @@ import path from 'path';
 import axios from 'axios';
 import sharp from 'sharp';
 
-import { API_EXTERNAL_HOSTNAME } from '../../../constant';
+import { API_EXTERNAL_HOSTNAME, NFT_GEM_COLOR } from '../../../constant';
 import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
@@ -81,22 +81,20 @@ export function getResizedImage() {
     });
 }
 
-export function getDynamicBackgroundColor(soldCount) {
-  // TODO: replace with actual color map
-  if (soldCount > 100) {
-    return '#28646e';
-  } if (soldCount > 10) {
-    return '#16a122';
-  } if (soldCount > 1) {
-    return '#50e3c2';
+export function getDynamicBackgroundColor({ currentBatch }) {
+  let gemLevel = currentBatch;
+  if (currentBatch >= 14 && currentBatch <= 16) {
+    gemLevel = 14;
+  } else if (currentBatch >= 17) {
+    gemLevel = 15;
   }
-  return '#d2f0f0';
+  return NFT_GEM_COLOR[gemLevel];
 }
 
-export function getLikerNFTDynamicData(classId, classData, iscnData) {
-  const { soldCount } = classData;
+export function getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData) {
+  const { currentBatch } = iscnDocData;
   const { contentMetadata: { url, description } = {} } = iscnData;
-  const backgroundColor = getDynamicBackgroundColor(soldCount);
+  const backgroundColor = getDynamicBackgroundColor({ currentBatch });
   const payload = {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}`,
     backgroundColor,
@@ -108,8 +106,10 @@ export function getLikerNFTDynamicData(classId, classData, iscnData) {
 
 export async function getClassMetadata({ classId, iscnPrefix }) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const classDocRef = likeNFTCollection.doc(iscnPrefixDocName).collection('class').doc(classId);
-  const classDoc = await classDocRef.get();
+  const iscnDocRef = likeNFTCollection.doc(iscnPrefixDocName);
+  const classDocRef = iscnDocRef.collection('class').doc(classId);
+  const [iscnDoc, classDoc] = await Promise.all([iscnDocRef.get(), classDocRef.get()]);
+  const iscnDocData = iscnDoc.data();
   const classData = classDoc.data();
   if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND');
 
@@ -121,7 +121,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   ]);
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
   if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
-  const dynamicData = getLikerNFTDynamicData(classId, classData, iscnData);
+  const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
   return {
     iscnOwner,
