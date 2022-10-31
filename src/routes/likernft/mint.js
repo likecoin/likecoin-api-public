@@ -53,17 +53,14 @@ router.post(
       }
 
       let classId = inputClassId;
-      let sellerWallet;
       if (txHash) {
         const info = await parseNFTInformationFromSendTxHash(txHash);
         if (info) {
           const {
             classId: resClassId,
-            fromWallet,
           } = info;
           if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
           classId = resClassId;
-          sellerWallet = fromWallet;
         }
       }
       if (!classId) {
@@ -76,7 +73,7 @@ router.post(
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
       const { uri } = nfts[0];
-      await writeMintedNFTInfo(iscnPrefix, {
+      const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
         classId,
         totalCount: nfts.length,
         uri,
@@ -103,7 +100,7 @@ router.post(
         logType: 'LikerNFTMint',
         ...logPayload,
       });
-      publisher.publish(PUBSUB_TOPIC_WNFT, req, {
+      publisher.publish(PUBSUB_TOPIC_WNFT, null, {
         type: 'mint',
         ...logPayload,
       });

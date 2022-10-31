@@ -120,7 +120,7 @@ router.post(
         logType: 'LikerNFTPurchaseSuccess',
         ...logPayload,
       });
-      publisher.publish(PUBSUB_TOPIC_WNFT, req, {
+      publisher.publish(PUBSUB_TOPIC_WNFT, null, {
         type: 'purchase',
         ...logPayload,
       });
