@@ -1,6 +1,7 @@
 import {
   ETH_NETWORK_NAME,
   PUBSUB_TOPIC_MISC,
+  PUBSUB_TOPIC_WNFT,
 } from '../constant';
 
 const { PubSub } = require('@google-cloud/pubsub');
@@ -11,6 +12,7 @@ const config = require('../../config/config');
 const pubsub = new PubSub();
 const topics = [
   PUBSUB_TOPIC_MISC,
+  PUBSUB_TOPIC_WNFT,
 ];
 const publisher = {};
 const publisherWrapper = {};
