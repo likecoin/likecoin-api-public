@@ -3,6 +3,7 @@ import {
   AVATAR_DEFAULT_PATH,
   CIVIC_LIKER_START_DATE,
   SUBSCRIPTION_GRACE_PERIOD,
+  DEFAULT_AVATAR_SIZE,
 } from '../../../constant';
 import { ValidationError } from '../../ValidationError';
 import {
@@ -31,7 +32,7 @@ function formatUserCivicLikerProperies(userDoc) {
   const { civicLiker } = data;
   const payload = data;
   payload.user = id;
-  payload.avatar = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar`;
+  payload.avatar = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
 
   if (civicLiker) {
     const {
@@ -88,7 +89,7 @@ export async function getUserWithCivicLikerPropertiesByWallet(addr) {
     throw new ValidationError('Invalid address');
   }
   const query = await dbRef.where(field, '==', addr).limit(1).get();
-  if (query.docs.length < 0) return null;
+  if (!query.docs.length) return null;
   const userDoc = query.docs[0];
   if (!isValidUserDoc(userDoc)) return null;
   const payload = formatUserCivicLikerProperies(userDoc);
