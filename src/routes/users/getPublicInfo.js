@@ -10,7 +10,7 @@ import {
   getUserAvatar,
   getUserWithCivicLikerPropertiesByWallet,
 } from '../../util/api/users/getPublicInfo';
-import { ONE_DAY_IN_S, DEFAULT_AVATAR_SIZE } from '../../constant';
+import { ONE_DAY_IN_S, AVATAR_DEFAULT_PATH, DEFAULT_AVATAR_SIZE } from '../../constant';
 
 const router = Router();
 
@@ -50,14 +50,32 @@ router.get('/id/:id/avatar', async (req, res, next) => {
       res.sendStatus(404);
       return;
     }
-    const { headers, data } = await axios.get(avatar, {
-      responseType: 'stream',
-    });
     const resizer = sharp().resize(size, size);
-    const cacheTime = 3600;
-    res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
-    res.type(headers['content-type'] || 'image/jpeg');
-    data.pipe(resizer).pipe(res);
+    try {
+      const { headers, data } = await axios.get(avatar, {
+        responseType: 'stream',
+      });
+      const cacheTime = 3600;
+      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.type(headers['content-type'] || 'image/jpeg');
+      data.pipe(resizer).pipe(res);
+    } catch (error) {
+      if (avatar === AVATAR_DEFAULT_PATH) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch default avatar');
+        throw error;
+      }
+      // eslint-disable-next-line no-console
+      console.error(`Failed to fetch avatar ${avatar} for user ${id}, using default avatar instead`);
+      // eslint-disable-next-line no-console
+      console.error(error);
+      const { headers, data } = await axios.get(AVATAR_DEFAULT_PATH, {
+        responseType: 'stream',
+      });
+      res.set('Cache-Control', 'no-store');
+      res.type(headers['content-type'] || 'image/jpeg');
+      data.pipe(resizer).pipe(res);
+    }
   } catch (err) {
     next(err);
   }
