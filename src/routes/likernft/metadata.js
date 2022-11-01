@@ -4,7 +4,9 @@ import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
-import { getClassMetadata, getBasicImage, getResizedImage } from '../../util/api/likernft/metadata';
+import {
+  getClassMetadata, getBasicImage, getResizedImage, DEFAULT_NFT_IMAGE_WIDTH,
+} from '../../util/api/likernft/metadata';
 import { getNFTISCNData, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
@@ -76,6 +78,12 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
+      const { size: inputSizeStr = DEFAULT_NFT_IMAGE_WIDTH } = req.query;
+      const inputSizeNum = parseInt(inputSizeStr, 10);
+      if (Number.isNaN(inputSizeNum)) {
+        throw new ValidationError('Invalid size');
+      }
+      const size = Math.min(Math.max(inputSizeNum, 1), 1920);
       const iscnPrefix = await getISCNPrefixByClassId(classId);
       const { data } = await getNFTISCNData(iscnPrefix);
       if (!data) throw new ValidationError('ISCN_NOT_FOUND');
@@ -99,7 +107,7 @@ router.get(
         contentType,
         isDefault: isImageMissing,
       } = await getBasicImage(image, title);
-      const resizedImage = getResizedImage();
+      const resizedImage = getResizedImage(size);
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();
       const cacheTime = isImageMissing ? 60 : 3600;
