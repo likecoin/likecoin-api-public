@@ -8,12 +8,12 @@ import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
 import { ValidationError } from '../../ValidationError';
 
-const IMAGE_WIDTH = 1280;
-const IMAGE_HEIGHT = 768;
+export const DEFAULT_NFT_IMAGE_WIDTH = 1280;
+export const DEFAULT_NFT_IMAGE_HEIGHT = 768;
 
 async function addTextOnImage(text, color) {
   const svgImage = `
-    <svg width="${IMAGE_WIDTH}" height="${IMAGE_HEIGHT}">
+    <svg width="${DEFAULT_NFT_IMAGE_WIDTH}" height="${DEFAULT_NFT_IMAGE_HEIGHT}">
       <style>
       .title { fill: ${color}; font-size: 100px; font-weight: bold;}
       </style>
@@ -29,8 +29,8 @@ export async function getImageMask() {
   const imgPath = path.join(__dirname, '../../../assets/book.png');
   maskData = await sharp(imgPath)
     .resize({
-      height: IMAGE_HEIGHT,
-      width: IMAGE_HEIGHT,
+      height: DEFAULT_NFT_IMAGE_HEIGHT,
+      width: DEFAULT_NFT_IMAGE_HEIGHT,
     })
     .extractChannel('alpha')
     .toBuffer();
@@ -72,12 +72,12 @@ export async function getCombinedImage() {
     .joinChannel(maskBuffer);
 }
 
-export function getResizedImage() {
+export function getResizedImage(size = DEFAULT_NFT_IMAGE_WIDTH) {
   return sharp()
     .resize({
       fit: sharp.fit.cover,
-      width: IMAGE_WIDTH,
-      height: IMAGE_HEIGHT,
+      width: size,
+      height: Math.round((size / DEFAULT_NFT_IMAGE_WIDTH) * DEFAULT_NFT_IMAGE_HEIGHT),
     });
 }
 
@@ -96,7 +96,7 @@ export function getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData
   const { contentMetadata: { url, description } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor({ currentBatch });
   const payload = {
-    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}`,
+    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`,
     backgroundColor,
   };
   if (description) payload.description = description;
