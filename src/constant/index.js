@@ -15,6 +15,8 @@ export const MEDIUM_REGEX = /^(?:https?:\/\/)?[^/]*\/media\/[a-zA-Z0-9_]+(?:\?po
 
 export const PUBSUB_TOPIC_MISC = 'misc';
 
+export const PUBSUB_TOPIC_WNFT = 'wnft';
+
 export const LOGIN_MESSAGE = 'Login - Reinventing the Like';
 
 export const EXTERNAL_HOSTNAME = process.env.EXTERNAL_HOSTNAME || (IS_TESTNET ? 'rinkeby.like.co' : 'like.co');

@@ -9,7 +9,7 @@ import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 
 const router = Router();
 
@@ -53,17 +53,14 @@ router.post(
       }
 
       let classId = inputClassId;
-      let sellerWallet;
       if (txHash) {
         const info = await parseNFTInformationFromSendTxHash(txHash);
         if (info) {
           const {
             classId: resClassId,
-            fromWallet,
           } = info;
           if (classId && classId !== resClassId) throw new ValidationError('CLASS_ID_NOT_MATCH_TX');
           classId = resClassId;
-          sellerWallet = fromWallet;
         }
       }
       if (!classId) {
@@ -76,7 +73,7 @@ router.post(
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
       const { uri } = nfts[0];
-      await writeMintedNFTInfo(iscnPrefix, {
+      const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
         classId,
         totalCount: nfts.length,
         uri,
@@ -89,8 +86,7 @@ router.post(
         sellerWallet,
       });
 
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTMint',
+      const logPayload = {
         classId,
         iscnId: iscnPrefix,
         txHash,
@@ -98,6 +94,15 @@ router.post(
         sellerWallet,
         apiWallet: LIKER_NFT_TARGET_ADDRESS,
         uri,
+      };
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTMint',
+        ...logPayload,
+      });
+      publisher.publish(PUBSUB_TOPIC_WNFT, null, {
+        type: 'mint',
+        ...logPayload,
       });
     } catch (err) {
       next(err);
