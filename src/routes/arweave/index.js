@@ -45,7 +45,7 @@ router.post(
         key,
         arweaveId,
         AR,
-        LIKE,
+        LIKE: Number(LIKE),
         prices: list,
       });
       res.json({
@@ -139,7 +139,7 @@ router.post('/upload',
         key,
         arweaveId,
         AR,
-        LIKE,
+        LIKE: Number(LIKE),
         files: list,
         txHash,
       });
