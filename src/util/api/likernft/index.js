@@ -14,7 +14,7 @@ export async function getCurrentClassIdByISCNId(iscnId) {
   const iscnDoc = await likeNFTCollection.doc(iscnPrefixDocName).get();
   const iscnData = iscnDoc.data();
   if (!iscnData) {
-    throw new ValidationError('ISCN_NFT_NOT_FOUND');
+    throw new ValidationError('ISCN_NFT_NOT_FOUND', 404);
   }
   return iscnData.classId;
 }
@@ -22,7 +22,7 @@ export async function getCurrentClassIdByISCNId(iscnId) {
 export async function getISCNDocByClassId(classId) {
   const iscnQuery = await likeNFTCollection.where('classId', '==', classId).limit(1).get();
   if (!iscnQuery.docs.length) {
-    throw new ValidationError('NFT_CLASS_NOT_FOUND');
+    throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
   }
   return iscnQuery.docs[0];
 }
