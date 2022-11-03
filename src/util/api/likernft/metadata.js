@@ -111,7 +111,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   const [iscnDoc, classDoc] = await Promise.all([iscnDocRef.get(), classDocRef.get()]);
   const iscnDocData = iscnDoc.data();
   const classData = classDoc.data();
-  if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND');
+  if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND', 404);
 
   const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
     // eslint-disable-next-line no-console
@@ -119,8 +119,8 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
     // eslint-disable-next-line no-console
     getNFTClassDataById(classId).catch(err => console.error(err)),
   ]);
-  if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND');
-  if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND');
+  if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND', 404);
+  if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
   const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
   return {

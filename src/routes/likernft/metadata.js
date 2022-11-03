@@ -86,7 +86,7 @@ router.get(
       const size = Math.min(Math.max(inputSizeNum, 1), 1920);
       const iscnPrefix = await getISCNPrefixByClassId(classId);
       const { data } = await getNFTISCNData(iscnPrefix);
-      if (!data) throw new ValidationError('ISCN_NOT_FOUND');
+      if (!data) throw new ValidationError('ISCN_NOT_FOUND', 404);
       const iscnId = (data && data['@id']);
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
