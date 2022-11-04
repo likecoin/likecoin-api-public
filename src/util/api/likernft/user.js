@@ -46,11 +46,11 @@ export async function getUserStat(wallet) {
   } = userStat;
   const collectedClassCount = collectedClasses.length;
   const collectedClassIds = collectedClasses.map(c => c.class_id);
-  const arrays = [];
+  const batches = [];
   for (let i = 0; i < collectedClassIds.length; i += FIRESTORE_IN_QUERY_LIMIT) {
-    arrays.push(collectedClassIds.slice(i, i + FIRESTORE_IN_QUERY_LIMIT));
+    batches.push(collectedClassIds.slice(i, i + FIRESTORE_IN_QUERY_LIMIT));
   }
-  const queries = await Promise.all(arrays.map(classIds => likeNFTCollection.where('classId', 'in', classIds).get()));
+  const queries = await Promise.all(batches.map(classIds => likeNFTCollection.where('classId', 'in', classIds).get()));
   const docs = queries.reduce((acc, q) => acc.concat(q.docs), []);
 
   const priceMap = {};
@@ -59,13 +59,17 @@ export async function getUserStat(wallet) {
     priceMap[classId] = currentPrice;
   });
 
-  const collectedNftValue = collectedClasses.reduce((acc, c) => {
+  let collectedCount = 0;
+  let collectedValue = 0;
+  collectedClasses.foreach((c) => {
+    collectedCount += c.count;
     const price = priceMap[c.class_id];
-    return price ? acc + price * c.count : acc;
-  }, 0);
+    if (price) collectedValue += price * c.count;
+  });
   return {
     collectedClassCount,
-    collectedNftValue,
+    collectedCount,
+    collectedValue,
     createdClassCount,
     createdCollectorCount,
   };
