@@ -305,7 +305,7 @@ export async function handleNFTPurchaseTransaction({
   const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
   const stakeholderWallets = [...stakeholderMap.keys()];
   const stakeholderLIKEs = [...stakeholderMap.values()]
-    .map(a => new BigNumber(a).shiftedBy(-9).toFixed());
+    .map(a => new BigNumber(a.amount).shiftedBy(-9).toFixed());
   return {
     transactionHash,
     timestamp,
