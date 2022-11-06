@@ -95,6 +95,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   let price = -1;
   let isResell = false;
   let nftId;
+  let nextNewNFTId;
   const {
     currentPrice,
     currentBatch,
@@ -103,6 +104,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   if (newNftData) {
     price = currentPrice;
     // Do not set NFT ID since another fresh one might be used on purchase instead
+    nextNewNFTId = newNftData.id;
   }
   if (sellingNftData) {
     // nft has defined price
@@ -116,6 +118,7 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   return {
     ...nftDocData,
     nftId,
+    nextNewNFTId,
     lastSoldPrice: lastSoldPrice || currentPrice,
     price,
     nextPriceLevel,

@@ -321,6 +321,7 @@ export function filterSocialLinksMeta({
 export function filterLikeNFTISCNData({
   iscnId,
   classId,
+  nextNewNFTId,
   totalCount,
   currentPrice,
   basePrice,
@@ -332,6 +333,7 @@ export function filterLikeNFTISCNData({
   return {
     iscnId,
     classId,
+    nextNewNFTId,
     totalCount,
     currentPrice,
     basePrice,
