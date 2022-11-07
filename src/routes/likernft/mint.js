@@ -4,7 +4,7 @@ import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
 import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
-import { getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
+import { getNFTClassDataById, getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
@@ -67,16 +67,26 @@ router.post(
         classId = await getNFTClassIdByISCNId(iscnId);
       }
       if (!classId) throw new ValidationError('CANNOT_FETCH_CLASS_ID');
-      const {
-        nfts,
-      } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS);
+      const [
+        { nfts },
+        chainClassData,
+      ] = await Promise.all([
+        getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS),
+        getNFTClassDataById(classId),
+      ]);
+      if (!chainClassData) throw new ValidationError('NFT_CLASS_ID_NOT_FOUND');
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
 
-      const { uri } = nfts[0];
+      const {
+        uri, name, descrption, metadata,
+      } = chainClassData;
       const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
         classId,
         totalCount: nfts.length,
         uri,
+        name,
+        descrption,
+        metadata,
       }, nfts);
 
       res.json({

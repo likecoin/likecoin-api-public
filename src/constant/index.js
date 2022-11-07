@@ -82,6 +82,8 @@ export const SUPPORTED_AVATAR_TYPE = new Set([
 
 export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.jpg';
 
+export const WNFT_DEFAULT_PATH = 'https://static.like.co/writing-nft.jpg';
+
 export const DEFAULT_AVATAR_SIZE = 400;
 
 export const DEFAULT_FOLLOW_IDS = [

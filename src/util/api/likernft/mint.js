@@ -5,7 +5,7 @@ import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import { getNFTBatchInfo } from './purchase';
 import {
-  AVATAR_DEFAULT_PATH,
+  WNFT_DEFAULT_PATH,
   APP_LIKE_CO_ISCN_VIEW_URL,
   LIKECOIN_DARK_GREEN_THEME_COLOR,
 } from '../../../constant';
@@ -42,10 +42,17 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     description = '',
     totalCount,
     uri = '',
+    metadata,
   } = classData;
   const currentBatch = 0;
   const { price, count } = getNFTBatchInfo(currentBatch);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
+  const {
+    external_url: externalUrl,
+    background_color: backgroundColor,
+    image,
+    otherData,
+  } = metadata;
   await Promise.all([
     iscnRef.create({
       classId,
@@ -71,11 +78,12 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
       creatorWallet: sellerWallet,
       timestamp,
       metadata: {
-        image: AVATAR_DEFAULT_PATH, // TODO: replace with default NFT image
-        externalUrl: url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnPrefix)}`,
+        ...otherData,
+        image: image || WNFT_DEFAULT_PATH, // TODO: replace with default NFT image
+        externalUrl: externalUrl || url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnPrefix)}`,
         description,
         name,
-        backgroundColor: LIKECOIN_DARK_GREEN_THEME_COLOR,
+        backgroundColor: backgroundColor || LIKECOIN_DARK_GREEN_THEME_COLOR,
       },
     }),
   ]);

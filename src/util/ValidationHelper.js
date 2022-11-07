@@ -356,9 +356,11 @@ export function filterLikeNFTMetadata({
   iscnStakeholders,
   iscnId,
   iscnRecordTimestamp,
+  ...data
 }) {
   // key with underscore as in https://docs.opensea.io/docs/metadata-standards
   return {
+    ...data,
     image,
     external_url: externalUrl,
     description,
