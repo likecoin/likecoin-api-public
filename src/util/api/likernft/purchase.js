@@ -103,7 +103,8 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   } = nftDocData;
   if (newNftData) {
     price = currentPrice;
-    // Do not set NFT ID since another fresh one might be used on purchase instead
+    // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
+    // another fresh one might be used on purchase instead
     nextNewNFTId = newNftData.id;
   }
   if (sellingNftData) {
