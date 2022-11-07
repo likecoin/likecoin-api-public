@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db, likeNFTCollection } from '../../util/firebase';
 import { isValidLikeAddress } from '../../util/cosmos';
-import { filterOwnedClassIds } from '../../util/api/likernft/user';
+import { filterOwnedClassIds, getUserStat } from '../../util/api/likernft/user';
 import { ValidationError } from '../../util/ValidationError';
 import { ONE_DAY_IN_S } from '../../constant';
 
@@ -40,6 +40,22 @@ router.get(
       res.json({
         list: Array.from(classIdSet),
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/user/:wallet/stats',
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.params;
+      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+
+      const userStat = await getUserStat(wallet);
+      res.set('Cache-Control', `public, max-age=60 s-maxage=60 stale-if-error=${ONE_DAY_IN_S}`);
+      res.json(userStat);
     } catch (err) {
       next(err);
     }
