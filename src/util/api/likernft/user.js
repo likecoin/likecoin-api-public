@@ -61,7 +61,7 @@ export async function getUserStat(wallet) {
 
   let collectedCount = 0;
   let collectedValue = 0;
-  collectedClasses.foreach((c) => {
+  collectedClasses.forEach((c) => {
     collectedCount += c.count;
     const price = priceMap[c.class_id];
     if (price) collectedValue += price * c.count;
