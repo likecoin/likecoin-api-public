@@ -83,7 +83,7 @@ router.post(
         data: { parent, metadata: classMetadata = {} } = {},
       } = chainClassData;
       const chainMetadata = {
-        ...classMetadata,
+        metadata: classMetadata,
         name,
         description,
         uri,

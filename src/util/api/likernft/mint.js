@@ -51,7 +51,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     external_url: externalUrl,
     background_color: backgroundColor,
     image,
-    otherData,
+    ...otherData
   } = metadata;
   await Promise.all([
     iscnRef.create({
