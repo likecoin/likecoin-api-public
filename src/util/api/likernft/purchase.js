@@ -191,6 +191,7 @@ export async function handleNFTPurchaseTransaction({
   granterWallet,
   feeWallet,
   isResell,
+  memo,
 }, req) {
   const STAKEHOLDERS_RATIO = isResell ? 0.1 : 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
@@ -269,7 +270,7 @@ export async function handleNFTPurchaseTransaction({
     address,
     txMessages,
     fee,
-    'like.co NFT API',
+    memo,
     {
       accountNumber,
       sequence,
@@ -330,6 +331,14 @@ export async function processNFTPurchase({
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
+  const classDoc = await classRef.get();
+  const {
+    metadata: {
+      message = '',
+    } = {},
+  } = classDoc.data();
+  const memo = message.replaceAll('{collector}', buyerWallet) || '';
+  if (!iscnData) throw new ValidationError('CLASS_DATA_NOT_FOUND');
 
   // lock iscn nft
   const {
@@ -411,6 +420,7 @@ export async function processNFTPurchase({
       buyerWallet,
       granterWallet,
       feeWallet,
+      memo,
     });
     await db.runTransaction(async (t) => {
       const doc = await t.get(iscnRef);

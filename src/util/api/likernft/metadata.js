@@ -123,13 +123,26 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   ]);
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND', 404);
   if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
+  const {
+    name,
+    description,
+    uri,
+    data: { parent, metadata: classMetadata = {} } = {},
+  } = chainData;
+  const chainMetadata = {
+    ...classMetadata,
+    name,
+    description,
+    uri,
+    parent,
+  };
   const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
   return {
     iscnOwner,
     classData,
     iscnData,
-    chainData,
+    chainData: chainMetadata,
     dynamicData,
   };
 }
