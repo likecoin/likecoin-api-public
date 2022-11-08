@@ -76,17 +76,23 @@ router.post(
       ]);
       if (!chainClassData) throw new ValidationError('NFT_CLASS_ID_NOT_FOUND');
       if (!nfts[0]) throw new ValidationError('NFT_NOT_RECEIVED');
-
       const {
-        uri, name, descrption, metadata,
+        name,
+        description,
+        uri,
+        data: { parent, metadata: classMetadata = {} } = {},
       } = chainClassData;
+      const chainMetadata = {
+        ...classMetadata,
+        name,
+        description,
+        uri,
+        parent,
+      };
       const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
+        ...chainMetadata,
         classId,
         totalCount: nfts.length,
-        uri,
-        name,
-        descrption,
-        metadata,
       }, nfts);
 
       res.json({
