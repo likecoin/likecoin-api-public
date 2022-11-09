@@ -6,7 +6,7 @@ import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
-import { NFT_MESSAGE_WEBHOOK } from '../../../../../config/config';
+import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -125,7 +125,11 @@ export async function processStripeFiatNFTPurchase(session, req) {
       } = metadata;
       const { email } = customer;
       let text = `${metadataWallet || email} bought ${classId} for ${fiatPriceString}, paymentId ${paymentId}`;
-      if (isPendingClaim) text = `(Unclaimed NFT) ${text}`;
+      if (isPendingClaim) {
+        let unclaimText = '(Unclaimed NFT)';
+        if (NFT_MESSAGE_SLACK_USER) unclaimText = `${unclaimText} <@${NFT_MESSAGE_SLACK_USER}>`;
+        text = `${unclaimText} ${text}`;
+      }
       if (IS_TESTNET) text = `(TESTNET) ${text}`;
       await axios.post(NFT_MESSAGE_WEBHOOK, { text });
     } catch (err) {
