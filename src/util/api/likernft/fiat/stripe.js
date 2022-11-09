@@ -4,7 +4,7 @@ import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
-import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
 
@@ -124,14 +124,51 @@ export async function processStripeFiatNFTPurchase(session, req) {
         isPendingClaim,
       } = metadata;
       const { email } = customer;
-      let text = `${metadataWallet || email} bought ${classId} for ${fiatPriceString}, paymentId ${paymentId}`;
-      if (isPendingClaim) {
-        let unclaimText = '(Unclaimed NFT)';
-        if (NFT_MESSAGE_SLACK_USER) unclaimText = `${unclaimText} <@${NFT_MESSAGE_SLACK_USER}>`;
-        text = `${unclaimText} ${text}`;
+      let text = '';
+      if (isPendingClaim && NFT_MESSAGE_SLACK_USER) {
+        text = `<@${NFT_MESSAGE_SLACK_USER}> `;
       }
-      if (IS_TESTNET) text = `(TESTNET) ${text}`;
-      await axios.post(NFT_MESSAGE_WEBHOOK, { text });
+      if (IS_TESTNET) text = `${text}[🚧 TESTNET] `;
+      text = `${text}${isPendingClaim ? 'An unclaimed ' : 'A '}NFT is bought`;
+
+      const blocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: metadataWallet ? `*Wallet*\n<https://${LIKER_LAND_HOSTNAME}/${wallet}|${wallet}>` : `*Email*\n${email}`,
+          },
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*Price*\nUSD ${fiatPriceString} (${LIKEPrice} LIKE)`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*Payment ID*\n${paymentId}`,
+            },
+          ],
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*NFT Class*\n<https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}|${classId}>`,
+          },
+        },
+      ];
+
+      await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
