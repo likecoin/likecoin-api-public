@@ -124,12 +124,16 @@ export async function processStripeFiatNFTPurchase(session, req) {
         isPendingClaim,
       } = metadata;
       const { email } = customer;
-      let text = '';
+      const words = [];
       if (isPendingClaim && NFT_MESSAGE_SLACK_USER) {
-        text = `<@${NFT_MESSAGE_SLACK_USER}> `;
+        words.push(`<@${NFT_MESSAGE_SLACK_USER}>`);
       }
-      if (IS_TESTNET) text = `${text}[🚧 TESTNET] `;
-      text = `${text}${isPendingClaim ? 'An unclaimed ' : 'A '}NFT is bought`;
+      if (IS_TESTNET) {
+        words.push('[🚧 TESTNET]');
+      }
+      words.push(isPendingClaim ? 'An unclaimed' : 'A');
+      words.push('NFT is bought');
+      const text = words.join(' ');
 
       const blocks = [
         {
