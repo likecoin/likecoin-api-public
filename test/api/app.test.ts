@@ -6,11 +6,11 @@ import {
   testingUser2,
 } from './data';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('app: get meta fail', async (t) => {
   const res = await axiosist.get('/api/app/meta')
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 401);
 });
@@ -23,7 +23,7 @@ test('app: get meta for old user', async (t) => {
       headers: {
         Cookie: `likecoin_auth=${token};`,
       },
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.isNew, false);
@@ -39,7 +39,7 @@ test.serial('app: get meta for new user', async (t) => {
       headers: {
         Cookie: `likecoin_auth=${token};`,
       },
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.isNew, true);
@@ -54,7 +54,7 @@ test.serial('app: post referral for new user', async (t) => {
       headers: {
         Cookie: `likecoin_auth=${token};`,
       },
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 });
@@ -68,7 +68,7 @@ test.serial('app: get meta for updated new user', async (t) => {
       headers: {
         Cookie: `likecoin_auth=${token};`,
       },
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.isNew, false);
@@ -83,7 +83,7 @@ test.serial('app: post referral fail for old user', async (t) => {
       headers: {
         Cookie: `likecoin_auth=${token};`,
       },
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
 });

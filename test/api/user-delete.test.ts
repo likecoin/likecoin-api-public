@@ -13,7 +13,7 @@ import {
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('USER: Delete authcore user. Case: fail, no authcore token', async (t) => {
   const likeWallet = testingLikeWallet1;

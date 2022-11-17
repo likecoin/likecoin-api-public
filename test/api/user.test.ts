@@ -3,6 +3,9 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { createHash } from 'crypto';
 import jsonStringify from 'fast-json-stable-stringify';
+import path from 'path';
+import sigUtil from 'eth-sig-util';
+import Web3 from 'web3';
 import {
   testingCosmosWallet0,
   testingLikeWallet0,
@@ -34,10 +37,7 @@ import {
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
 
-const path = require('path');
-const sigUtil = require('eth-sig-util');
-const Web3 = require('web3');
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
@@ -220,7 +220,7 @@ test.serial('USER: Edit user by JSON from Web. Case: success', async (t) => {
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 });
@@ -239,7 +239,7 @@ test.serial('USER: Edit user by JSON from Web. Case: editing existing email', as
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'EMAIL_CANNOT_BE_CHANGED');
@@ -256,7 +256,7 @@ test.serial('USER: Edit user by JSON from Web. Case: Incorrect email format', as
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'EMAIL_FORMAT_INCORRECT');
@@ -276,7 +276,7 @@ test.serial('USER: Edit user by form-data from Web. Case: invalid content-type',
       Cookie: `likecoin_auth=${token};`,
       ...payload.getHeaders(),
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'INVALID_PAYLOAD');
@@ -311,7 +311,7 @@ test.serial('USER: Email verification (Need restart server for clean memory data
       Accept: 'application/json',
       Cookie: `likecoin_auth=${token}`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
   t.is(res.status, 200);
   t.is(res.data, 'OK');
 });
@@ -324,7 +324,7 @@ test.serial('USER: Verify uuid. Case: wrong uuid', async (t) => {
       Accept: 'application/json',
       Cookie: `likecoin_auth=${token}`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
   t.is(res.status, 404);
 });
 
@@ -336,7 +336,7 @@ test.serial('USER: Verify uuid. Case: success (Need restart server for clean mem
       Accept: 'application/json',
       Cookie: `likecoin_auth=${token}`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
   t.is(res.status, 200);
   t.is(res.data.wallet, testingWallet2);
 });
@@ -356,7 +356,7 @@ test.serial('USER: Register user by form-data from Web. Case: invalid content-ty
       Cookie: `likecoin_auth=${token};`,
       ...payload.getHeaders(),
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'INVALID_CONTENT_TYPE');
@@ -378,7 +378,7 @@ test.serial('USER: Register user by form-data from App. Case: invalid platform',
       'User-Agent': 'LikeCoinApp',
       ...payload.getHeaders(),
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'INVALID_PLATFORM');
@@ -536,7 +536,7 @@ for (let i = 0; i < userCases.length; i += 1) {
       payload: formatedPayload,
       sign,
       platform: 'wallet',
-    }).catch(err => err.response);
+    }).catch(err => (err as any).response);
 
     t.is(res.status, 400);
   });
@@ -546,7 +546,7 @@ test('USER: Get user by id', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
   let res = await axiosist.get(`/api/users/id/${user}`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 401);
 
@@ -566,7 +566,7 @@ test('USER: Get user by id', async (t) => {
 test('USER: Get user by id min', async (t) => {
   const user = testingUser1;
   const res = await axiosist.get(`/api/users/id/${user}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.wallet, testingWallet1);
@@ -576,7 +576,7 @@ test('USER: Get user by id min', async (t) => {
 test('USER: Get user by address min', async (t) => {
   let wallet = testingWallet1;
   let res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.wallet, testingWallet1);
@@ -585,7 +585,7 @@ test('USER: Get user by address min', async (t) => {
 
   wallet = testingCosmosWallet1;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.cosmosWallet, wallet);
@@ -594,7 +594,7 @@ test('USER: Get user by address min', async (t) => {
 
   wallet = testingLikeWallet1;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.likeWallet, wallet);
@@ -602,25 +602,25 @@ test('USER: Get user by address min', async (t) => {
   t.not(res.data.email, testingEmail1);
 
   res = await axiosist.get('/api/users/addr/0xazdfsadf/min')
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 400);
 
   wallet = testingWallet3;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 404);
 
   wallet = testingCosmosWallet3;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 404);
 
   wallet = testingLikeWallet3;
   res = await axiosist.get(`/api/users/addr/${wallet}/min`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 404);
 });
@@ -630,7 +630,7 @@ test('USER: check user login status', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user, wallet });
   let res = await axiosist.get('/api/users/self')
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 401);
 
@@ -638,7 +638,7 @@ test('USER: check user login status', async (t) => {
     headers: {
       Cookie: `likecoin_auth=${token}`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.isCivicLikerTrial, true);
@@ -658,7 +658,7 @@ test('USER: Post user notitication option', async (t) => {
     headers: {
       Cookie: `likecoin_auth=${token}`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   res = await axiosist.get(`/api/users/id/${user}`, {
@@ -676,7 +676,7 @@ test('USER: Check New User Info: Available', async (t) => {
   const res = await axiosist.post('/api/users/new/check', {
     user,
     email,
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 });
@@ -687,7 +687,7 @@ test('USER: Check New User Info: User already exist', async (t) => {
   const res = await axiosist.post('/api/users/new/check', {
     user,
     email,
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data.error, 'USER_ALREADY_EXIST');
@@ -700,7 +700,7 @@ test('USER: Check New User Info: Email Already exist', async (t) => {
   const res = await axiosist.post('/api/users/new/check', {
     user,
     email,
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data.error, 'EMAIL_ALREADY_USED');

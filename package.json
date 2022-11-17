@@ -19,7 +19,7 @@
     "dev:docker:test:build": "docker-compose -f docker-compose-test.yml build",
     "dev:docker:test:stop": "docker-compose -f docker-compose-test.yml stop",
     "build": "NODE_ENV=production tsc",
-    "lint": "eslint --ext .ts,.js src",
+    "lint": "eslint --ext .ts,.js src test",
     "start": "NODE_ENV=production node dist/api.js",
     "start:web": "NODE_ENV=production node dist/web.js",
     "test": "nyc npm run test:stub",

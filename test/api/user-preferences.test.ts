@@ -7,7 +7,7 @@ import {
 } from './data';
 import axiosist from './axiosist';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('USER: Get user preferences. Case: success', async (t) => {
   const user = testingUser1;
@@ -124,7 +124,7 @@ test.serial('USER: Post payment redirect whitelist. Case: Success', async (t) =>
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 
@@ -132,7 +132,7 @@ test.serial('USER: Post payment redirect whitelist. Case: Success', async (t) =>
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   const { paymentRedirectWhiteList: whitelist } = res.data;
   t.is(res.status, 200);
@@ -158,7 +158,7 @@ test.serial('USER: Post payment redirect whitelist with duplicated URLs. Case: S
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 
@@ -166,7 +166,7 @@ test.serial('USER: Post payment redirect whitelist with duplicated URLs. Case: S
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   const { paymentRedirectWhiteList: whitelist } = res.data;
   t.is(res.status, 200);
@@ -186,7 +186,7 @@ test.serial('USER: Empty payment redirect whitelist with empty array. Case: Succ
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 
@@ -194,7 +194,7 @@ test.serial('USER: Empty payment redirect whitelist with empty array. Case: Succ
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.paymentRedirectWhiteList.length, 0);
@@ -210,7 +210,7 @@ test.serial('USER: Empty payment redirect whitelist with null. Case: Success', a
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
 
@@ -218,7 +218,7 @@ test.serial('USER: Empty payment redirect whitelist with null. Case: Success', a
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.paymentRedirectWhiteList.length, 0);
@@ -234,7 +234,7 @@ test('USER: Post payment redirect whitelist. Case: Invalid payload format', asyn
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'INVALID_PAYMENT_REDIRECT_WHITELIST');
@@ -254,7 +254,7 @@ test('USER: Post payment redirect whitelist. Case: Invalid url format', async (t
     headers: {
       Cookie: `likecoin_auth=${token};`,
     },
-  }).catch(err => err.response);
+  }).catch(err => (err as any).response);
 
   t.is(res.status, 400);
   t.is(res.data, 'INVALID_PAYMENT_REDIRECT_URL');

@@ -3,6 +3,7 @@ const stubCosmosAPI = {
     let value = {};
     if (path.startsWith('/auth/accounts/')) {
       value = {
+        // eslint-disable-next-line @typescript-eslint/camelcase
         sequence: '0', account_number: '0',
       };
     }

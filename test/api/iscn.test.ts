@@ -6,7 +6,7 @@ import {
   testingUser1,
 } from './data';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('estimation: new', async (t) => {
   const user = testingUser1;
@@ -47,7 +47,7 @@ test('estimation: new', async (t) => {
       Cookie: `likecoin_auth=${token};`,
     },
   })
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
   t.is(res.status, 200);
   t.true(res.data.LIKE > 0.01231);
   t.true(res.data.LIKE < 0.01232);
@@ -97,7 +97,7 @@ test('estimation: new', async (t) => {
 //         Cookie: `likecoin_auth=${token};`,
 //       },
 //     })
-//     .catch(err => err.response);
+//     .catch(err => (err as any).response);
 //   t.is(res.status, 200);
 //   t.is(res.data.LIKE, 3.01311472);
 // });

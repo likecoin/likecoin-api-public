@@ -1,6 +1,6 @@
-const userData = require('../data/user.json');
-const txData = require('../data/tx.json');
-const subscriptionData = require('../data/subscription.json');
+import userData from '../data/user.json';
+import txData from '../data/tx.json';
+import subscriptionData from '../data/subscription.json';
 
 //
 // test data
@@ -43,7 +43,7 @@ export const {
 export const {
   id: testDeleteUser,
   likeWallet: testDeleteUserLikeWallet,
-} = userData.users.find(u => u.id === 'testdelete');
+} = userData.users.find(u => u.id === 'testdelete') as any;
 
 export const {
   id: txHash,

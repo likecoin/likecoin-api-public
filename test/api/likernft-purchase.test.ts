@@ -7,7 +7,7 @@ const CLASS_ID = 'likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszv
 
 test('likernft: get purchase info via iscn id', async (t) => {
   const res = await axiosist.get(`/api/likernft/purchase?iscn_id=${ISCN_ID}`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.metadata.iscnId, ISCN_ID_PREFIX);
@@ -16,7 +16,7 @@ test('likernft: get purchase info via iscn id', async (t) => {
 
 test('likernft: get purchase info via class id', async (t) => {
   const res = await axiosist.get(`/api/likernft/purchase?class_id=${CLASS_ID}`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.metadata.iscnId, ISCN_ID_PREFIX);
@@ -25,7 +25,7 @@ test('likernft: get purchase info via class id', async (t) => {
 
 test('likernft: get purchase info of sold out nft', async (t) => {
   const res = await axiosist.get(`/api/likernft/purchase?iscn_id=${ISCN_ID}`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.metadata.iscnId, ISCN_ID_PREFIX);
@@ -34,7 +34,7 @@ test('likernft: get purchase info of sold out nft', async (t) => {
 
 test('likernft: post purchase fail due to exist', async (t) => {
   const res = await axiosist.post(`/api/likernft/purchase?iscn_id=${ISCN_ID}&class_id=${CLASS_ID}`)
-    .catch(err => err.response);
+    .catch(err => (err as any).response);
 
   t.is(res.status, 400);
 });

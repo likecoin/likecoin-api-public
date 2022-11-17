@@ -6,7 +6,7 @@ import {
 } from './data';
 import axiosist from './axiosist';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('USER: List user bookmarks. Case: success', async (t) => {
   const user = testingUser1;

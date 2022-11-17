@@ -8,7 +8,7 @@ import {
 import axiosist from './axiosist';
 import { DEFAULT_FOLLOW_IDS } from '../../src/constant';
 
-const { jwtSign } = require('./jwt');
+import { jwtSign } from './jwt';
 
 test('USER: List user follow. Case: success', async (t) => {
   const user = testingUser1;

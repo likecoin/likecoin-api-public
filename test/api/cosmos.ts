@@ -1,7 +1,7 @@
-const secp256k1 = require('secp256k1');
-const bech32 = require('bech32');
-const createHash = require('create-hash');
-const jsonStringify = require('fast-json-stable-stringify');
+import secp256k1 from 'secp256k1';
+import bech32 from 'bech32';
+import createHash from 'create-hash';
+import jsonStringify from 'fast-json-stable-stringify';
 
 export const ISCN_SECRET_ADDRESS = 'cosmos1l3e9pgs3mmwuwrh95fecme0s0qtn2880f2jmfe';
 
@@ -11,6 +11,7 @@ function signFormatter(signPayload) {
     msgs: [],
     fee: { gas: '1', amount: { denom: 'nanolike', amount: '0' } },
     sequence: '0',
+    // eslint-disable-next-line @typescript-eslint/camelcase
     account_number: '0',
   };
 }
@@ -34,6 +35,7 @@ function createSigner(privateKey) {
       signed: msg,
       signature: {
         signature: signature.toString('base64'),
+        // eslint-disable-next-line @typescript-eslint/camelcase
         pub_key: { value: publicKey.toString('base64') },
       },
     };
@@ -45,7 +47,7 @@ export function signWithPrivateKey(payload, privateKey) {
   const signBytes = signFormatter(payload);
   const privKey = Buffer.from(privateKey, 'hex');
   const signer = createSigner(privKey);
-  return signer.sign(signBytes, privateKey);
+  return signer.sign(signBytes);
 }
 
 export default ISCN_SECRET_ADDRESS;

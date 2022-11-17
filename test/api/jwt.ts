@@ -1,9 +1,13 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-function jwtSign({
+export function jwtSign({
   user,
   wallet,
   permissions = ['read', 'write'],
+}: {
+  user?: string;
+  wallet?: string;
+  permissions?: string[];
 }) {
   return jwt.sign({
     user,
@@ -16,4 +20,4 @@ function jwtSign({
   });
 }
 
-module.exports = { jwtSign };
+export default jwtSign;
