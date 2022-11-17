@@ -37,5 +37,6 @@ export async function getNFTClassByClassId(classId) {
   const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
   const res = await client.nft.class(classId);
-  return parseNFTClassDataFields(res);
+  if (!res.class) return new Error ('CLASS_NOT_FOUND');
+  return parseNFTClassDataFields(res.class);
 }

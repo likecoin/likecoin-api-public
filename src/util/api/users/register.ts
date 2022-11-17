@@ -162,7 +162,7 @@ export async function handleUserRegistration({
       throw err;
     }
   }
-  const createObj = {
+  const createObj: any = {
     displayName,
     cosmosWallet,
     authCoreUserId,
@@ -229,7 +229,7 @@ export async function handleUserRegistration({
     createObj.isPlatformDelegated = false;
   }
 
-  const timestampObj = { timestamp: Date.now() };
+  const timestampObj: any = { timestamp: Date.now() };
   if (NEW_USER_BONUS_COOLDOWN) {
     timestampObj.bonusCooldown = Date.now() + NEW_USER_BONUS_COOLDOWN;
   }
@@ -259,7 +259,7 @@ export async function handleUserRegistration({
   }
 
   if (authCoreUserId || (platform && platformUserId)) {
-    const doc = {};
+    const doc: any = {};
     if (authCoreUserId) {
       doc.authcore = { userId: authCoreUserId };
       if (platform === 'authcore' && accessToken && !TEST_MODE) {

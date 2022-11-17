@@ -14,7 +14,7 @@ export function filterMultipleTxData(data, filter = {}) {
     value,
     amount,
   } = data;
-  const { to: { addresses, id } = {} } = filter;
+  const { to: { addresses, id } = {} }: { to?: { addresses?: string[], id?: string} } = filter;
   const result = {};
   to.forEach((addr, index) => {
     if (addresses && !addresses.includes(addr)) return;
@@ -33,9 +33,9 @@ export function filterMultipleTxData(data, filter = {}) {
   });
   // Flatten the result to arrays.
   const tos = Object.keys(result);
-  const ids = [];
-  const values = [];
-  const amounts = [];
+  const ids: string[] = [];
+  const values: string[] = [];
+  const amounts: any[] = [];
   tos.forEach((addr) => {
     ids.push(result[addr].id);
     if (value) values.push(result[addr].value.toString());
@@ -57,7 +57,7 @@ export function decodeLikePayId(payId) {
     uuid: uuidBuffer,
     address: addressBuffer,
     amount: amountBuffer,
-  } = LikePayId.decode(buffer);
+  } = LikePayId.decode(buffer, undefined);
   const uuid = uuidParse.unparse(uuidBuffer);
   const address = bech32.encode('cosmos', bech32.toWords(addressBuffer));
   const bigAmount = Long.fromValue(amountBuffer, true).toString(10);

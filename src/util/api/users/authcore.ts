@@ -6,9 +6,14 @@ export async function createAuthCoreUserAndWallet({
   user,
   email,
   displayName,
-}, platforms = []) {
+}, platforms: any[] = []) {
   const authCoreToken = await authCoreJwtSignToken();
-  const registerPayload = {
+  const registerPayload: {
+    username: string;
+    email: string;
+    display_name: string;
+    oauth_factors: any[];
+  } = {
     username: user,
     email,
     display_name: displayName,

@@ -60,7 +60,7 @@ export async function handleAppReferrer(req, user, appReferrer) {
   // TODO: set email verification payload
 
   const batch = db.batch();
-  const metaPayload = {
+  const metaPayload: any = {
     [agentType]: true,
     lastAccessedTs: Date.now(),
     referrer: appReferrer,
@@ -114,7 +114,7 @@ export async function handleUpdateAppMetaData(req, user) {
     // user already have app first open log return;
     return;
   }
-  const payload = {
+  const payload: any = {
     [agentType]: true,
     ...expandEmailFlags(user),
     lastAccessedTs: Date.now(),
@@ -169,7 +169,7 @@ export async function lazyUpdateAppMetaData(req, user) {
     timestamp,
   } = user;
   const agentType = getUserAgentPlatform(req);
-  const updatePayload = {
+  const updatePayload: any = {
     [agentType]: true,
     ...expandEmailFlags(user),
     lastAccessedTs: Date.now(),

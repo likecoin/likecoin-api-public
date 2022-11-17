@@ -3,7 +3,8 @@ import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dis
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { parseAndCalculateStakeholderRewards } from '@likecoin/iscn-js/dist/iscn/parsing';
-import { db, likeNFTCollection, FieldValue } from '../../firebase';
+import { db, likeNFTCollection, FieldValue } from '../../firebase'
+import { Transaction } from '@google-cloud/firestore';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
@@ -24,6 +25,7 @@ import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { Request } from 'express';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
@@ -47,7 +49,7 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-export async function getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction } = {}) {
+export async function getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction }: { transaction?: Transaction } = {}) {
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
@@ -161,6 +163,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
+  if (!tx) throw new Error('TX_NOT_FOUND');
   const parsed = parseTxInfoFromIndexedTx(tx);
   let messages = parsed.tx.body.messages
     .filter(m => m.typeUrl === '/cosmos.authz.v1beta1.MsgGrant');
@@ -190,9 +193,9 @@ export async function handleNFTPurchaseTransaction({
   buyerWallet,
   granterWallet,
   feeWallet,
-  isResell,
+  isResell = false,
   memo,
-}, req) {
+}, req?: Request) {
   const STAKEHOLDERS_RATIO = isResell ? 0.1 : 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
@@ -205,7 +208,7 @@ export async function handleNFTPurchaseTransaction({
     .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
   const stakeholdersAmount = new BigNumber(nftPrice)
     .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
-  const transferMessages = [];
+  const transferMessages: any = [];
   if (sellerAmount && new BigNumber(sellerAmount).gt(0)) {
     transferMessages.push({
       typeUrl: '/cosmos.bank.v1beta1.MsgSend',
@@ -264,6 +267,7 @@ export async function handleNFTPurchaseTransaction({
   ];
   let res;
   const client = signingClient.getSigningStargateClient();
+  if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
   const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
   const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
   const txSigningFunction = ({ sequence }) => client.sign(
@@ -323,7 +327,7 @@ export async function handleNFTPurchaseTransaction({
 }
 
 export async function processNFTPurchase({
-  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount, nftId: targetNftId,
+  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount, nftId: targetNftId = undefined,
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');

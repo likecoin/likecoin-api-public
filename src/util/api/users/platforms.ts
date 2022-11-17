@@ -24,7 +24,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   if (!isPlatformDelegated || delegatedPlatform !== platform) {
     throw new ValidationError('USER_NOT_DELEGATED');
   }
-  const payload = {
+  const payload: any = {
     isPlatformDelegated: false,
     delegatedPlatform: FieldValue.delete(),
   };
@@ -92,7 +92,7 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     if (userAuthDoc.exists) {
       const { [platform]: { userId: sourceUserId } } = userAuthDoc.data();
       if (targetAuthDoc.exists) {
-        const { [platform]: { userId: targetUserId } = {} } = targetAuthDoc.data();
+        const { [platform]: { userId: targetUserId = '' } = {} } = targetAuthDoc.data();
         if (targetUserId && targetUserId !== sourceUserId) {
           throw new ValidationError('TARGET_USER_ALREADY_BINDED');
         }

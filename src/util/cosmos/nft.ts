@@ -13,7 +13,7 @@ import { NFT_RPC_ENDPOINT, NFT_SIGNING_RPC_ENDPOINT } from '../../../config/conf
 let queryClient: ISCNQueryClient | null = null;
 let signingClient: ISCNSigningClient | null = null;
 let signingWallet: AccountData | null = null;
-let signingAccountNumber: Long.Long | null = null;
+let signingAccountNumber: number | null = null;
 
 export async function getNFTQueryClient() {
   if (!queryClient) {
@@ -117,7 +117,7 @@ export async function getLikerNFTSigningClient() {
 }
 
 export async function getLikerNFTFiatSigningClientAndWallet() {
-  if (!LIKER_NFT_FIAT_PRIVATE_KEY) return null;
+  if (!LIKER_NFT_FIAT_PRIVATE_KEY) throw new Error('PRIVATE_KEY_NOT_SET');
   const { client, wallet } = await createNFTSigningClient(LIKER_NFT_FIAT_PRIVATE_KEY);
   return { client, wallet };
 }
@@ -127,7 +127,7 @@ export async function getLikerNFTSigningAddressInfo() {
   if (!signingWallet) throw new Error('CANNOT_FETCH_SIGNING_WALLET');
   if (!signingAccountNumber) {
     const { accountNumber } = await getNFTAccountInfo(signingWallet.address);
-    signingAccountNumber = accountNumber;
+    signingAccountNumber = accountNumber.toNumber();
   }
   return {
     address: signingWallet.address,

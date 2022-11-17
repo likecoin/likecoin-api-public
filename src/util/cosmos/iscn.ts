@@ -2,7 +2,6 @@
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { getLikeWalletAddress } from '@likecoin/iscn-js/dist/iscn/addressParsing';
-import Long from 'long';
 import { AccountData } from '@cosmjs/amino';
 import { getAccountInfo } from '.';
 import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';
@@ -15,7 +14,7 @@ export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsin
 let queryClient: ISCNQueryClient | null = null;
 let signingClient: ISCNSigningClient | null = null;
 let signingWallet: AccountData | null = null;
-let signingAccountNumber: Long.Long | null = null;
+let signingAccountNumber: number | null = null;
 
 export async function getISCNQueryClient() {
   if (!queryClient) {
@@ -49,7 +48,7 @@ export async function getISCNSigningAddressInfo() {
   if (!signingWallet) throw new Error('CANNOT_FETCH_SIGNING_WALLET');
   if (!signingAccountNumber) {
     const { accountNumber } = await getAccountInfo(signingWallet.address);
-    signingAccountNumber = accountNumber;
+    signingAccountNumber = accountNumber.toNumber();
   }
   return {
     address: signingWallet.address,

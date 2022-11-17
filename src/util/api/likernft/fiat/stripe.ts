@@ -124,7 +124,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
         isPendingClaim,
       } = metadata;
       const { email } = customer;
-      const words = [];
+      const words: string[] = [];
       if (isPendingClaim && NFT_MESSAGE_SLACK_USER) {
         words.push(`<@${NFT_MESSAGE_SLACK_USER}>`);
       }

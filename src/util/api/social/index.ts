@@ -19,13 +19,8 @@ export const isValidSocialLink = (link) => {
   if (!isValid) {
     try {
       let url = getUrlWithPrefix(link);
-      if (process.client) {
-        url = new URL(getUrlWithPrefix(link));
-        isValid = true;
-      } else {
-        const parsedLink = parse(url);
-        if (parsedLink.protocol && parsedLink.host) isValid = true;
-      }
+      const parsedLink = parse(url);
+      if (parsedLink.protocol && parsedLink.host) isValid = true;
     } catch (err) {
       // skip
     }
@@ -80,7 +75,7 @@ export async function socialLinkFacebook(user, accessToken, tryToOAuth = true) {
 
 export async function socialLinkTwitter(
   user,
-  { token, secret, oAuthVerifier },
+  { token, secret, oAuthVerifier = undefined },
   isAccessToken = false,
   tryToOAuth = true,
 ) {
@@ -127,7 +122,7 @@ export async function socialLinkMatters(
   user,
   {
     accessToken: inputAccessToken = '',
-    code,
+    code = undefined,
     refreshToken: inputRefreshToken = '',
   },
 ) {
@@ -177,7 +172,7 @@ export async function socialLinkMatters(
 export async function tryToLinkSocialPlatform(
   user,
   platform,
-  { accessToken, secret, refreshToken },
+  { accessToken, secret, refreshToken = undefined },
 ) {
   try {
     if (await checkPlatformAlreadyLinked(user, platform)) return null;

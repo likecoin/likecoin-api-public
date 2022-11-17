@@ -144,7 +144,7 @@ export function checkCosmosSignPayload({
   if (!verified) {
     throw new ValidationError('INVALID_SIGNATURE');
   }
-  let actualPayload = {};
+  let actualPayload: any = {};
   try {
     const { memo } = JSON.parse(message);
     actualPayload = JSON.parse(memo.substr(memo.indexOf('{')));

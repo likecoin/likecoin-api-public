@@ -68,7 +68,9 @@ export async function getCosmosAccountLIKE(address) {
 
 export async function getAccountInfo(address) {
   const queryClient = await getQueryClient();
-  const { value } = await queryClient.auth.account(address);
+  const res = await queryClient.auth.account(address);
+  if (!res) throw new Error('ACCOUNT_NOT_FOUND');
+  const { value } = res;
   const accountInfo = BaseAccount.decode(value);
   return accountInfo;
 }

@@ -14,6 +14,7 @@ export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_N
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
   const tx = await q.getTx(txHash);
+  if (!tx) return null;
   const parsed = parseTxInfoFromIndexedTx(tx);
   const messages = parsed.tx.body.messages
     .filter(m => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
@@ -34,6 +35,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     owner: sellerWallet,
     data: iscnData,
   } = await getNFTISCNData(iscnPrefix);
+  if (!iscnData) throw new Error('ISCN_DATA_NOT_FOUND');
   const url = iscnData.contentMetadata && iscnData.contentMetadata.url;
   const timestamp = Date.now();
   const {

@@ -95,9 +95,9 @@ export function getDynamicBackgroundColor({ currentBatch }) {
 
 export function getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData) {
   const { currentBatch } = iscnDocData;
-  const { contentMetadata: { url, description } = {} } = iscnData;
+  const { contentMetadata: { url = '', description = '' } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor({ currentBatch });
-  const payload = {
+  const payload: any = {
     image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`,
     backgroundColor,
   };
@@ -115,12 +115,13 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   const classData = classDoc.data();
   if (!classData) throw new ValidationError('NFT_DATA_NOT_FOUND', 404);
 
-  const [{ owner: iscnOwner, data: iscnData }, chainData] = await Promise.all([
+  const [res, chainData] = await Promise.all([
     // eslint-disable-next-line no-console
     getNFTISCNData(iscnPrefix).catch((err) => { console.error(err); return {}; }),
     // eslint-disable-next-line no-console
     getNFTClassDataById(classId).catch(err => console.error(err)),
   ]);
+  const { owner: iscnOwner, data: iscnData }: { owner?: string, data?: any } = res;
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND', 404);
   if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
   const {

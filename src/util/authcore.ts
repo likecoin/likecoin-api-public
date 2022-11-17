@@ -126,7 +126,7 @@ export async function registerAuthCoreUser(payload, accessToken) {
       },
     }));
   } catch (err) {
-    if (err.response) ({ data } = err.response);
+    if ((err as any).response) ({ data } = (err as any).response);
   }
   if (!data) throw new Error('no response from authcore');
   if (!data.user) {
@@ -159,8 +159,8 @@ export async function getAuthCoreCosmosWallet(accessToken: string, userId?: stri
     const [address] = addresses;
     return address;
   } catch (err) {
-    if (err.response) {
-      const { data } = err.response;
+    if ((err as any).response) {
+      const { data } = (err as any).response;
       if (data) throw data;
     }
     throw err;

@@ -13,6 +13,7 @@ import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
+import { DeliverTxResponse } from '@cosmjs/stargate';
 
 const LRU = require('lru-cache');
 
@@ -79,7 +80,7 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
       logType: 'LikerNFTFiatWalletRegrant',
       targetAmount,
       grantAmount,
-      txHash: res.transactionHash,
+      txHash: (res as DeliverTxResponse).transactionHash,
       wallet: wallet.address,
       targetWallet: LIKER_NFT_TARGET_ADDRESS,
     });
