@@ -12,7 +12,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { filter } = req.query;
-    let { before, after, limit } = req.query;
+    const { before, after, limit } = req.query;
     let queryRef = dbRef
       .doc(user)
       .collection('follow');

@@ -87,7 +87,7 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
     try {
       const { user } = req.user;
       const { archived = '0' } = req.query;
-      let { before, after, limit } = req.query;
+      const { before, after, limit } = req.query;
       let queryRef = dbRef
         .doc(user)
         .collection('bookmarks');

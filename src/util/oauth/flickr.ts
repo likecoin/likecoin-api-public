@@ -1,4 +1,8 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import axios from 'axios';
+import crypto from 'crypto';
+import querystring from 'querystring';
+import OAuth from 'oauth-1.0a';
 import { EXTERNAL_HOSTNAME } from '../../constant';
 import { ValidationError } from '../ValidationError';
 import {
@@ -6,9 +10,6 @@ import {
   FLICKR_APP_SECRET,
 } from '../../../config/config';
 
-const crypto = require('crypto');
-const querystring = require('querystring');
-const OAuth = require('oauth-1.0a');
 
 const oauth = new OAuth({
   consumer: {
@@ -30,7 +31,7 @@ export async function fetchFlickrOAuthInfo(user) {
   const { data } = await axios({
     url: req.url,
     method: req.method as 'POST',
-    data: querystring.stringify(oauth.authorize(req)),
+    data: querystring.stringify(oauth.authorize(req) as any),
   });
   const payload = querystring.parse(data);
   if (!payload.oauth_callback_confirmed) throw new ValidationError('get flickr token fail');
@@ -56,7 +57,7 @@ export async function fetchFlickrUser(oAuthToken, oAuthTokenSecret, oAuthVerifie
   const { data } = await axios({
     url: req.url,
     method: req.method as 'POST',
-    data: querystring.stringify(oauth.authorize(req, token)),
+    data: querystring.stringify(oauth.authorize(req, token)as any),
   });
   const payload = querystring.parse(data);
   if (!payload.user_nsid) throw new ValidationError('flickr oauth verify fail');

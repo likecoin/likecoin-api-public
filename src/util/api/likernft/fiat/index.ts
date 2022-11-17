@@ -1,6 +1,7 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 
+import { DeliverTxResponse } from '@cosmjs/stargate';
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
@@ -13,7 +14,6 @@ import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
-import { DeliverTxResponse } from '@cosmjs/stargate';
 
 const LRU = require('lru-cache');
 

@@ -1,13 +1,14 @@
-import { TEST_MODE, EXTERNAL_HOSTNAME } from '../constant';
-import {
-  PROVIDER_JWT_COMMON_SECRET,
-} from '../../config/config';
 
-const crypto = require('crypto');
-const fs = require('fs');
-const jwt = require('jsonwebtoken');
-const uuidv4 = require('uuid/v4');
+import crypto from 'crypto';
+import fs from 'fs';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import uuidv4 from 'uuid/v4';
+import { TEST_MODE, EXTERNAL_HOSTNAME } from '../constant';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config/config');
+
+const { PROVIDER_JWT_COMMON_SECRET } = config;
 
 export const defaultAudience = EXTERNAL_HOSTNAME;
 export const issuer = EXTERNAL_HOSTNAME;
@@ -198,7 +199,7 @@ export const jwtSignForAZP = (
   payload,
   secret,
   { audience = defaultAudience, expiresIn = '1h', azp }: {
-    audience?: string, expiresIn?: string, azp?: string,
+    audience?: string; expiresIn?: string; azp?: string;
   } = {},
 ) => {
   const opt: any = { algorithm: 'HS256', audience };
@@ -219,12 +220,11 @@ export const authCoreJwtVerify = (token) => {
   if (TEST_MODE && !authCorePublicCertPath && !authCoreVerifySecret) {
     return jwt.decode(
       token,
-      { algorithm: 'ES256' },
-    );
+    ) as JwtPayload;
   }
   return jwt.verify(
     token,
     authCoreVerifySecret,
-    { algorithm: 'ES256' },
-  );
+    { algorithms: ['ES256'] },
+  ) as JwtPayload;
 };

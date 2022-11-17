@@ -1,12 +1,12 @@
 import axios from 'axios';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
+import { AuthcoreVaultClient, AuthcoreCosmosProvider } from '@likecoin/secretd-js';
 import {
   AUTHCORE_API_ENDPOINT,
   AUTHCORE_SECRETD_STATIC_KEY,
 } from '../../config/config';
 import { ValidationError } from './ValidationError';
 
-const { AuthcoreVaultClient, AuthcoreCosmosProvider } = require('@likecoin/secretd-js');
 
 const api = axios.create({
   baseURL: `${AUTHCORE_API_ENDPOINT}/api`,
@@ -67,6 +67,7 @@ export async function updateAuthCoreUser(payload, accessToken) {
   } = payload;
   const user = {
     username: userName,
+    // eslint-disable-next-line @typescript-eslint/camelcase
     display_name: displayName,
   };
   await api.put('/auth/users/current', { user }, {
@@ -93,6 +94,7 @@ export async function updateAuthCoreUserById(authCoreUserId, payload, accessToke
   } = payload;
   const user = {
     username: userName,
+    // eslint-disable-next-line @typescript-eslint/camelcase
     display_name: displayName,
   };
   await api.put(`/management/users/${authCoreUserId}`, { user }, {

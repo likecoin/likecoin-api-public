@@ -1,9 +1,9 @@
 import { create, IPFSHTTPClient } from 'ipfs-http-client';
 import { CarReader } from '@ipld/car';
 import { Web3Storage } from 'web3.storage';
+import hash from 'ipfs-only-hash';
 
-const hash = require('ipfs-only-hash');
-
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const config = require('../../config/config');
 
 const {
@@ -16,8 +16,8 @@ const IPFS_TIMEOUT = 30000;
 
 const getInstance = (() => {
   let instances: {
-    primary: IPFSHTTPClient,
-    replicas: IPFSHTTPClient[],
+    primary: IPFSHTTPClient;
+    replicas: IPFSHTTPClient[];
   } | null = null;
   return () => {
     if (!instances) {

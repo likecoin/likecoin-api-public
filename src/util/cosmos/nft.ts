@@ -4,6 +4,7 @@ import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { AccountData } from '@cosmjs/amino';
 import { getQueryClient } from '.';
 import { getISCNPrefix } from './iscn';

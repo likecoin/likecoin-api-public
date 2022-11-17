@@ -16,6 +16,7 @@ const {
   COSMOS_RPC_ENDPOINT,
   COSMOS_SIGNING_RPC_ENDPOINT,
   COSMOS_GAS_PRICE,
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 } = require('../../../config/config');
 
 export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10;
@@ -101,7 +102,11 @@ async function internalSendTransaction(signedTx, c) {
   }
 }
 
-export async function sendTransactionWithSequence(senderAddress: string, signingFunction: ({ sequence }: { sequence: number }) => Promise<TxRaw>, client?: StargateClient) {
+export async function sendTransactionWithSequence(
+  senderAddress: string,
+  signingFunction: ({ sequence }: { sequence: number }) => Promise<TxRaw>,
+  client?: StargateClient,
+) {
   let res;
   let signedTx;
   const { sequence: seq1 } = await getAccountInfo(senderAddress);

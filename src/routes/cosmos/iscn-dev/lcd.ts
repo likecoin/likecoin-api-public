@@ -1,6 +1,7 @@
 import bodyParser from 'body-parser';
 import { Router } from 'express';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
+import proxy from 'express-http-proxy';
 
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import { ISCN_LCD_ENDPOINT } from '../../../util/cosmos';
@@ -9,7 +10,6 @@ import { logISCNTx } from '../../../util/txLogger';
 import { removeUndefinedObjectKey } from '../../../util/misc';
 import publisher from '../../../util/gcloudPub';
 
-const proxy = require('express-http-proxy');
 
 const httpAgent = new HttpAgent();
 const httpsAgent = new HttpsAgent();

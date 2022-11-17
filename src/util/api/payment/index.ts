@@ -46,7 +46,7 @@ async function fetchUserIdsByCosmosLikeWallet(wallet) {
   return { id: result.map(r => r.id || '') };
 }
 
-export async function fetchPaymentUserInfo({ from, to }: { from?: string, to?: string}) {
+export async function fetchPaymentUserInfo({ from, to }: { from?: string; to?: string}) {
   let fromQuery: Promise<any> = Promise.resolve({});
   if (from) {
     fromQuery = Array.isArray(from)

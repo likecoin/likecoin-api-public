@@ -1,3 +1,6 @@
+import expressjwt from 'express-jwt';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import LRU from 'lru-cache';
 import { setNoCacheHeader } from './noCache';
 import {
   getProviderJWTSecret,
@@ -16,9 +19,6 @@ import {
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 import { PERMISSION_GROUPS } from '../constant/jwt';
 
-const expressjwt = require('express-jwt');
-const jwt = require('jsonwebtoken');
-const LRU = require('lru-cache');
 
 const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
@@ -26,7 +26,7 @@ async function fetchProviderClientInfo(clientId, req) {
   const cachedClientInfo = providerClientInfoCache.get(clientId);
   if (cachedClientInfo) {
     try {
-      const info = JSON.parse(cachedClientInfo);
+      const info = JSON.parse(cachedClientInfo as string);
       req.auth = info;
       return info.secret;
     } catch (err) {
@@ -108,9 +108,14 @@ export const jwtAuth = (
   let algorithm = inputAlgorithm;
   try {
     const token = getToken(req);
-    const { payload, header } = jwt.decode(token, { complete: true });
-    if (payload && payload.azp) {
-      const clientSecret = await fetchProviderClientInfo(payload.azp, req);
+    const j = jwt.decode(token, { complete: true });
+    if (!j) {
+      res.status(401).send('LOGIN_NEEDED');
+      return;
+    }
+    const { payload, header } = j;
+    if (payload && (payload as JwtPayload).azp) {
+      const clientSecret = await fetchProviderClientInfo((payload as JwtPayload).azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
       algorithm = 'HS256';
     } else if (header && header.alg && verifyAlgorithms.includes(header.alg)) {
@@ -159,9 +164,14 @@ export const jwtOptionalAuth = (
   let algorithm = inputAlgorithm;
   try {
     const token = getToken(req);
-    const { payload, header } = jwt.decode(token, { complete: true });
-    if (payload && payload.azp) {
-      const clientSecret = await fetchProviderClientInfo(payload.azp, req);
+    const j = jwt.decode(token, { complete: true });
+    if (!j) {
+      res.status(401).send('LOGIN_NEEDED');
+      return;
+    }
+    const { payload, header } = j;
+    if (payload && (payload as JwtPayload).azp) {
+      const clientSecret = await fetchProviderClientInfo((payload as JwtPayload).azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
       algorithm = 'HS256';
     } else if (header && header.alg && verifyAlgorithms.includes(header.alg)) {
@@ -211,10 +221,10 @@ export const jwtOptionalAuth = (
 export const getJwtInfo = async (token) => {
   try {
     const decoded = jwt.decode(token);
-    if (decoded.azp) {
-      const clientSecret = await fetchProviderClientInfo(decoded.azp, {});
+    if (decoded && (decoded as JwtPayload).azp) {
+      const clientSecret = await fetchProviderClientInfo((decoded as JwtPayload).azp, {});
       const secret = getProviderJWTSecret(clientSecret);
-      return jwtVerify(token, secret);
+      return jwtVerify(token, secret) as JwtPayload;
     }
   } catch (err) {
     if ((err as Error).name === 'TokenExpiredError') throw err;

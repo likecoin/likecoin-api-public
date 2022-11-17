@@ -2,14 +2,13 @@ import bodyParser from 'body-parser';
 import { Router } from 'express';
 import BigNumber from 'bignumber.js';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
+import proxy from 'express-http-proxy';
 
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { COSMOS_LCD_ENDPOINT, amountToLIKE } from '../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
-
-const proxy = require('express-http-proxy');
 
 const keepAliveOptions = {
   timeout: 60000, // active socket keepalive for 60 seconds

@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import axios from 'axios';
+import crypto from 'crypto';
+import querystring from 'querystring';
 import { EXTERNAL_HOSTNAME, IS_TESTNET } from '../../constant';
 import { ValidationError } from '../ValidationError';
 import {
@@ -6,8 +9,6 @@ import {
   MATTERS_APP_SECRET,
 } from '../../../config/config';
 
-const crypto = require('crypto');
-const querystring = require('querystring');
 
 const MATTER_HOST = `${IS_TESTNET ? 'web-develop.' : ''}matters.news`;
 const MATTER_API_HOST = `${IS_TESTNET ? 'server-develop.' : 'server.'}matters.news`;

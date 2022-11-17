@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
+import { JwtPayload } from 'jsonwebtoken';
 import { PUBSUB_TOPIC_MISC, TEST_MODE } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -108,7 +109,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           email_verified: isEmailVerified,
           // TODO: update displayname after authcore fix default name privacy issue
           // name: displayName,
-        } = authCoreUser;
+        } = authCoreUser as JwtPayload;
         if (!cosmosWallet) {
           cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
         }

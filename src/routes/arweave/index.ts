@@ -8,6 +8,7 @@ import { queryLIKETransactionInfo } from '../../util/cosmos/tx';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ARWEAVE_LIKE_TARGET_ADDRESS } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB

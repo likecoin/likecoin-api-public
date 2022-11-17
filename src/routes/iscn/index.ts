@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bodyParser from 'body-parser';
 import multer from 'multer';
 import BigNumber from 'bignumber.js';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import publisher from '../../util/gcloudPub';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
@@ -23,8 +24,8 @@ import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicI
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
-import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ARWEAVE_LIKE_TARGET_ADDRESS, IS_CHAIN_UPGRADING } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
@@ -129,16 +130,17 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
-    const createIscnSigningFunction = async({ sequence }): Promise<TxRaw> => {
-      const res = await signingClient.createISCNRecord(
+    const createIscnSigningFunction = async ({ sequence }): Promise<TxRaw> => {
+      const r = await signingClient.createISCNRecord(
         address,
         ISCNPayload, {
-        accountNumber,
-        sequence,
-        chainId: COSMOS_CHAIN_ID,
-        broadcast: false,
-      });
-      return res as TxRaw;
+          accountNumber,
+          sequence,
+          chainId: COSMOS_CHAIN_ID,
+          broadcast: false,
+        },
+      );
+      return r as TxRaw;
     };
 
     const [iscnGasFee, iscnRes] = await Promise.all([
@@ -203,7 +205,7 @@ async function handleRegisterISCN(req, res, next) {
     if (isClaim && iscnId && wallet) {
       // TODO handle missing iscnId by refetch?
       const transferSigningFunction = async ({ sequence }: { sequence: number }) => {
-        const res = await signingClient.changeISCNOwnership(
+        const r = await signingClient.changeISCNOwnership(
           address,
           wallet,
           iscnId,
@@ -214,7 +216,7 @@ async function handleRegisterISCN(req, res, next) {
             broadcast: false,
           },
         );
-        return res as TxRaw;
+        return r as TxRaw;
       };
       const iscnTransferRes = await sendTransactionWithSequence(
         address,
@@ -307,7 +309,7 @@ router.post('/upload',
       const signingClient = await getISCNSigningClient();
       if (!res.locals.signingInfo) {
         const { address, accountNumber } = await getISCNSigningAddressInfo();
-        res.locals.signingInfo = { address, accountNumber: accountNumber };
+        res.locals.signingInfo = { address, accountNumber };
       }
       const {
         address,
@@ -318,7 +320,7 @@ router.post('/upload',
       const client = signingClient.getSigningStargateClient();
       if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
       const transferTxSigningFunction = async ({ sequence }: { sequence: number }) => {
-        const res = await client.sign(
+        const r = await client.sign(
           address,
           messages,
           fee,
@@ -329,8 +331,8 @@ router.post('/upload',
             chainId: COSMOS_CHAIN_ID,
           },
         );
-        return res as TxRaw;
-      }
+        return r as TxRaw;
+      };
       const arweaveIdList = existingPriceList ? existingPriceList.map(l => l.arweaveId) : undefined;
       const [txRes, { arweaveId, list }] = await Promise.all([
         sendTransactionWithSequence(

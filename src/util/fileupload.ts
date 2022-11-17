@@ -1,17 +1,16 @@
 import axios from 'axios';
-import {
-  bucket as fbBucket,
-} from './firebase';
+import sharp from 'sharp';
+import fileType from 'file-type';
+import { sha256 } from 'js-sha256';
+import md5 from 'md5-hex';
+import { ValidationError } from './ValidationError';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
 } from '../constant';
-import { ValidationError } from './ValidationError';
-
-const sharp = require('sharp');
-const fileType = require('file-type');
-const sha256 = require('js-sha256');
-const md5 = require('md5-hex');
+import {
+  bucket as fbBucket,
+} from './firebase';
 
 export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<string[]> {
   const isStream = file && typeof file.pipe === 'function';
@@ -49,7 +48,7 @@ export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<stri
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
   const type = fileType(file.buffer);
-  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+  if (!type || !SUPPORTED_AVATAR_TYPE.has(type.ext)) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 

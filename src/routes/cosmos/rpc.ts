@@ -5,15 +5,14 @@ import { TxRaw, TxBody, AuthInfo } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { MsgSend, MsgMultiSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { MsgDelegate, MsgBeginRedelegate, MsgUndelegate } from 'cosmjs-types/cosmos/staking/v1beta1/tx';
 import { MsgWithdrawDelegatorReward } from 'cosmjs-types/cosmos/distribution/v1beta1/tx';
+import proxy from 'express-http-proxy';
+import uuidv4 from 'uuid/v4';
 
 import { PUBSUB_TOPIC_MISC, RPC_TX_UPDATE_COOKIE_KEY } from '../../constant';
 import { COSMOS_RPC_ENDPOINT, amountToLIKE } from '../../util/cosmos';
 import { fetchPaymentUserInfo } from '../../util/api/payment';
 import { logCosmosTx } from '../../util/txLogger';
 import publisher from '../../util/gcloudPub';
-
-const proxy = require('express-http-proxy');
-const uuidv4 = require('uuid/v4');
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();

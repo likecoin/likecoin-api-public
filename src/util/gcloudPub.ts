@@ -60,7 +60,7 @@ const publisher = {
       // eslint-disable-next-line no-console
       console.error('ERROR:', err);
     }
-  }
+  },
 };
 
 export default publisher;

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import web3Utils from 'web3-utils';
 import {
   TRANSACTION_QUERY_LIMIT,
 } from '../../constant';
@@ -14,7 +15,6 @@ import {
   checkAddressValid,
 } from '../../util/ValidationHelper';
 
-const web3Utils = require('web3-utils');
 
 const router = Router();
 
@@ -26,7 +26,7 @@ router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
       return;
     }
 
-    let { ts: tsQs, count: countQs } = req.query;
+    const { ts: tsQs, count: countQs } = req.query;
     let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
     let count = Number(countQs);
@@ -89,7 +89,7 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       return;
     }
 
-    let { ts: tsQs, count: countQs } = req.query;
+    const { ts: tsQs, count: countQs } = req.query;
     let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
     let count = Number(countQs);

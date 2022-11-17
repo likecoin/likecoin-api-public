@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import axios from 'axios';
+import crypto from 'crypto';
+import querystring from 'querystring';
 import { EXTERNAL_HOSTNAME } from '../../constant';
 import { ValidationError } from '../ValidationError';
 import {
@@ -6,8 +9,6 @@ import {
   MEDIUM_APP_SECRET,
 } from '../../../config/config';
 
-const crypto = require('crypto');
-const querystring = require('querystring');
 
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/medium`;
 const SCOPE = 'basicProfile';

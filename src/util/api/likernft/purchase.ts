@@ -3,8 +3,9 @@ import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dis
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { parseAndCalculateStakeholderRewards } from '@likecoin/iscn-js/dist/iscn/parsing';
-import { db, likeNFTCollection, FieldValue } from '../../firebase'
 import { Transaction } from '@google-cloud/firestore';
+import { Request } from 'express';
+import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
@@ -25,7 +26,6 @@ import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
-import { Request } from 'express';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;

@@ -2,6 +2,7 @@
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { getLikeWalletAddress } from '@likecoin/iscn-js/dist/iscn/addressParsing';
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { AccountData } from '@cosmjs/amino';
 import { getAccountInfo } from '.';
 import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';

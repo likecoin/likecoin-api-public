@@ -1,10 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 import EmailTemplate from '@likecoin/likecoin-email-templates';
+import sgMail from '@sendgrid/mail';
 import {
   SENDGRID_API_KEY,
 } from '../../config/config';
-
-const sgMail = require('@sendgrid/mail');
 
 sgMail.setApiKey(SENDGRID_API_KEY);
 
@@ -46,7 +45,7 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
 export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
   const title = res.__('Email.InvitationEmail.subject', { referrer });
   const msg = {
-    Source: 'Liker Land <noreply@liker.land>',
+    from: 'Liker Land <noreply@liker.land>',
     to: email,
     subject: title,
     html: EmailTemplate.Basic({

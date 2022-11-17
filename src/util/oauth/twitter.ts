@@ -1,4 +1,8 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import axios from 'axios';
+import crypto from 'crypto';
+import querystring from 'querystring';
+import OAuth from 'oauth-1.0a';
 import { EXTERNAL_HOSTNAME } from '../../constant';
 import { ValidationError } from '../ValidationError';
 import {
@@ -6,9 +10,6 @@ import {
   TWITTER_API_SECRET,
 } from '../../../config/config';
 
-const crypto = require('crypto');
-const querystring = require('querystring');
-const OAuth = require('oauth-1.0a');
 
 const oauth = new OAuth({
   consumer: {
@@ -30,7 +31,7 @@ export async function fetchTwitterOAuthInfo(user) {
   const { data } = await axios({
     url: req.url,
     method: req.method as 'POST',
-    data: querystring.stringify(oauth.authorize(req)),
+    data: querystring.stringify(oauth.authorize(req) as any),
   });
   const payload = querystring.parse(data);
   if (!payload.oauth_callback_confirmed) throw new ValidationError('get twitter token fail');
@@ -56,7 +57,7 @@ export async function fetchTwitterUser(oAuthToken, oAuthTokenSecret, oAuthVerifi
   const { data } = await axios({
     url: req.url,
     method: req.method as 'POST',
-    data: querystring.stringify(oauth.authorize(req, token)),
+    data: querystring.stringify(oauth.authorize(req, token) as any),
   });
   const payload = querystring.parse(data);
   if (!payload.user_id) throw new ValidationError('twitter oauth verify fail');
@@ -85,7 +86,7 @@ export async function fetchTwitterUserByAccessToken(accessToken, secret) {
     method: 'GET',
   };
   const { data } = await axios({
-    url: `${req.url}?${querystring.stringify(oauth.authorize(req, token))}`,
+    url: `${req.url}?${querystring.stringify(oauth.authorize(req, token) as any)}`,
     method: req.method as 'GET',
   });
   const payload = data;

@@ -121,7 +121,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
     // eslint-disable-next-line no-console
     getNFTClassDataById(classId).catch(err => console.error(err)),
   ]);
-  const { owner: iscnOwner, data: iscnData }: { owner?: string, data?: any } = res;
+  const { owner: iscnOwner, data: iscnData }: { owner?: string; data?: any } = res;
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND', 404);
   if (!chainData) throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
   const {

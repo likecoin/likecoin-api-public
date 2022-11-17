@@ -18,7 +18,7 @@ export const isValidSocialLink = (link) => {
   let isValid = W3C_EMAIL_REGEX.test(link);
   if (!isValid) {
     try {
-      let url = getUrlWithPrefix(link);
+      const url = getUrlWithPrefix(link);
       const parsedLink = parse(url);
       if (parsedLink.protocol && parsedLink.host) isValid = true;
     } catch (err) {

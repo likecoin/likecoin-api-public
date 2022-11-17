@@ -14,7 +14,7 @@ export function filterMultipleTxData(data, filter = {}) {
     value,
     amount,
   } = data;
-  const { to: { addresses, id } = {} }: { to?: { addresses?: string[], id?: string} } = filter;
+  const { to: { addresses, id } = {} }: { to?: { addresses?: string[]; id?: string} } = filter;
   const result = {};
   to.forEach((addr, index) => {
     if (addresses && !addresses.includes(addr)) return;

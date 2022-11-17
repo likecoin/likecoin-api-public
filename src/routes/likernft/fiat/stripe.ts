@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import BigNumber from 'bignumber.js';
+import uuidv4 from 'uuid/v4';
 
 import stripe from '../../../util/stripe';
 import { isValidLikeAddress } from '../../../util/cosmos';
@@ -19,8 +20,6 @@ import {
   STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_FEE_ADDRESS,
 } from '../../../../config/config';
-
-const uuidv4 = require('uuid/v4');
 
 const router = Router();
 
@@ -113,6 +112,7 @@ router.post(
       const paymentId = uuidv4();
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
+      /* eslint-disable @typescript-eslint/camelcase */
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
@@ -150,6 +150,7 @@ router.post(
           isPendingClaim: isPendingClaim ? 'true' : undefined,
         },
       });
+      /* eslint-enable @typescript-eslint/camelcase */
       const { url, id: sessionId } = session;
       if (isPendingClaim) {
         wallet = dummyWallet;

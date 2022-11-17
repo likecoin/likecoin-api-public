@@ -18,6 +18,7 @@ const IPFS_KEY = 'IPFS-Add';
 const IPFS_CONSTRAINT_KEY = 'standard';
 const IPFS_CONSTRAINT = 'v0.1';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const jwk = require('../../config/arweave-key.json');
 
 const arweaveGraphQL = Arweave.init({
@@ -132,6 +133,7 @@ export async function estimateARPrice(data, checkDuplicate = true) {
   }
   const transaction = await arweave.createTransaction({
     data: buffer,
+    // eslint-disable-next-line @typescript-eslint/camelcase
     last_tx: 'stub_for_estimate',
   }, jwk);
   const { reward } = transaction;
@@ -211,6 +213,7 @@ export async function submitToArweave(data, ipfsHash, { anchorId }: { anchorId?:
   const anchor = anchorId || (await arweave.api.get('/tx_anchor')).data;
   const { mimetype, buffer } = data;
   const transaction = await arweave.createTransaction({
+    // eslint-disable-next-line @typescript-eslint/camelcase
     data: buffer, last_tx: anchor,
   }, jwk);
   transaction.addTag('User-Agent', 'api.like.co');

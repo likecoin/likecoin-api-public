@@ -13,10 +13,10 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
       .collection('notifications')
       .orderBy('ts', 'desc');
 
-    let { after, before } = req.query;
+    const { after, before } = req.query;
     if (after) {
       try {
-        queryRef = queryRef.endBefore( Number(after));
+        queryRef = queryRef.endBefore(Number(after));
       } catch (err) {
         // no-op
       }
@@ -54,8 +54,8 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
 router.post('/notifications/read', jwtAuth('write:notifications'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    let { before: beforeQs } = req.query;
-    let before: number = 0;
+    const { before: beforeQs } = req.query;
+    let before = 0;
     if (beforeQs) {
       try {
         before = Number(beforeQs);

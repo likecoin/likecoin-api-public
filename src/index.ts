@@ -27,7 +27,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(bodyParser.json({
   verify: (req, _, buf) => {
-    let r: Request = req as any;
+    const r: Request = req as any;
     if (r.path.includes('/stripe/webhook')) { // rawbody is needed for stripe webhook
       r.rawBody = buf;
     }

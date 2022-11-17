@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import uuidv4 from 'uuid/v4';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
@@ -9,8 +10,6 @@ import {
 import publisher from '../../util/gcloudPub';
 import { sendVerificationEmail, sendVerificationWithCouponEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
-
-const uuidv4 = require('uuid/v4');
 
 const THIRTY_S_IN_MS = 30000;
 

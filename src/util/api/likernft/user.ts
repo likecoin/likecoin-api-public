@@ -11,7 +11,7 @@ export async function filterOwnedClassIds(iscnDocs, wallet) {
   iscnDocs.forEach((doc) => {
     classIdSet.add(doc.data().classId);
   });
-  const docsToUpdate: {doc, owner: string}[] = [];
+  const docsToUpdate: {doc; owner: string}[] = [];
   const checkOwnerPromises = iscnDocs.map(async (doc) => {
     const iscnPrefix = decodeURIComponent(doc.id);
     const owner = await getNFTISCNOwner(iscnPrefix);
@@ -23,7 +23,7 @@ export async function filterOwnedClassIds(iscnDocs, wallet) {
   await Promise.all(checkOwnerPromises);
 
   if (docsToUpdate.length) {
-    const batches: {doc, owner: string}[][] = [];
+    const batches: {doc; owner: string}[][] = [];
     for (let i = 0; i < docsToUpdate.length; i += BATCH_SIZE) {
       batches.push(docsToUpdate.slice(i, i + BATCH_SIZE));
     }
