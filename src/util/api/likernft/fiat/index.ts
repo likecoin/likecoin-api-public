@@ -131,9 +131,9 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
     }, req);
   } catch (err) {
-    const error = err.toString();
-    const errorMessage = err.message;
-    const errorStack = err.stack;
+    const error = (err as Error).toString();
+    const errorMessage = (err as Error).message;
+    const errorStack = (err as Error).stack;
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTFiatPaymentPurchaseError',
       paymentId,

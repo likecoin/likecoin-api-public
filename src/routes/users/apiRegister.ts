@@ -44,8 +44,8 @@ router.post('/new/check', async (req, res, next) => {
       });
     } catch (err) {
       if (err instanceof ValidationError) {
-        const payload: any = { error: err.message };
-        if (err.message === 'USER_ALREADY_EXIST' || err.message === 'INVALID_USER_NAME') {
+        const payload: any = { error: (err as Error).message };
+        if ((err as Error).message === 'USER_ALREADY_EXIST' || (err as Error).message === 'INVALID_USER_NAME') {
           const suggestName = await suggestAvailableUserName(user);
           payload.alternative = suggestName;
         }
@@ -193,7 +193,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       platform,
       user,
       email,
-      error: err.message || JSON.stringify(err),
+      error: (err as Error).message || JSON.stringify(err),
     });
     next(err);
   }
@@ -368,7 +368,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
       user,
       platform,
       action,
-      error: err.message || JSON.stringify(err),
+      error: (err as Error).message || JSON.stringify(err),
     });
     next(err);
   }

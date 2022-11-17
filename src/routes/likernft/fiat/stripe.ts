@@ -33,7 +33,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(JSON.stringify({
-        message: err, stack: err.stack,
+        message: err, stack: (err as Error).stack,
       }));
       res.sendStatus(400);
       return;

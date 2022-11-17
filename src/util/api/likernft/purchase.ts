@@ -142,7 +142,7 @@ export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
     if (!c) throw new ValidationError('GRANT_NOT_FOUND');
     ([grant] = c.grants.map(parseAuthzGrant));
   } catch (err) {
-    if (err.message.includes('no authorization found')) {
+    if ((err as Error).message.includes('no authorization found')) {
       throw new ValidationError('GRANT_NOT_FOUND');
     }
     throw err;

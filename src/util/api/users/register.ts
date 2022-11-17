@@ -146,7 +146,7 @@ export async function handleUserRegistration({
     try {
       hasReferrer = await checkReferrerExists(referrer);
     } catch (err) {
-      if (err.message === 'REFERRER_LIMIT_EXCCEDDED') {
+      if ((err as Error).message === 'REFERRER_LIMIT_EXCCEDDED') {
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'eventBlockReferrer',
           user,

@@ -61,8 +61,8 @@ export async function processStripeFiatNFTPurchase(session, req) {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
-    const errorMessage = error.message;
-    const errorStack = error.stack;
+    const errorMessage = (error as Error).message;
+    const errorStack = (error as Error).stack;
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTFiatPaymentError',
       type: 'stripe',
@@ -73,7 +73,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       fiatPrice,
       LIKEPrice,
       sessionId,
-      error: error.toString(),
+      error: (error as Error).toString(),
       errorMessage,
       errorStack,
     });
@@ -90,7 +90,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
           fiatPrice,
           LIKEPrice,
           sessionId,
-          error: error.toString(),
+          error: (error as Error).toString(),
           errorMessage,
           errorStack,
         });

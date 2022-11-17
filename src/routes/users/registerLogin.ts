@@ -220,7 +220,7 @@ router.post(
           );
         } catch (err) {
           /* no update will return 400 error */
-          if (!err.response || err.response.status !== 400) {
+          if (!(err as any).response || (err as any).response.status !== 400) {
             // eslint-disable-next-line no-console
             console.error(err);
           }
@@ -253,7 +253,7 @@ router.post(
         platform,
         user,
         email,
-        error: err.message || JSON.stringify(err),
+        error: (err as Error).message || JSON.stringify(err),
       });
       next(err);
     }
@@ -578,7 +578,7 @@ router.post('/login', async (req, res, next) => {
               );
             } catch (err) {
               /* no update will return 400 error */
-              if (!err.response || err.response.status !== 400) {
+              if (!(err as any).response || (err as any).response.status !== 400) {
                 // eslint-disable-next-line no-console
                 console.error(err);
               }

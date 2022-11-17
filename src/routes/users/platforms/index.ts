@@ -175,7 +175,7 @@ router.post('/login/:platform/add', jwtAuth('write'), async (req, res, next) => 
           );
         } catch (err) {
           /* no update will return 400 error */
-          if (!err.response || err.response.status !== 400) {
+          if (!(err as any).response || (err as any).response.status !== 400) {
             // eslint-disable-next-line no-console
             console.error(err);
           }

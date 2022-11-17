@@ -92,12 +92,12 @@ async function internalSendTransaction(signedTx, c) {
     const res = await client.broadcastTx(txBytes);
     return res;
   } catch (err) {
-    const { message } = err;
+    const { message } = err as Error;
     if (message && message.includes('tx already exists')) {
       const transactionHash = await computeTransactionHash(signedTx);
       return { transactionHash };
     }
-    throw new Error(err);
+    throw err;
   }
 }
 
@@ -123,7 +123,7 @@ export async function sendTransactionWithSequence(senderAddress: string, signing
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
-    const { message } = err;
+    const { message } = err as Error;
     if (message && message.includes('code 32')) {
       // eslint-disable-next-line no-console
       console.log(`Nonce ${pendingCount} failed, trying refetch sequence`);
@@ -153,7 +153,7 @@ export async function sendTransactionWithSequence(senderAddress: string, signing
       fromWallet: senderAddress,
       txHash: (res || {}).transactionHash,
       txSequence: pendingCount,
-      error: err.toString(),
+      error: (err as string).toString(),
     });
     // eslint-disable-next-line no-console
     console.error(err);
