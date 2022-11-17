@@ -13,11 +13,16 @@ const fileType = require('file-type');
 const sha256 = require('js-sha256');
 const md5 = require('md5-hex');
 
-export function uploadFileAndGetLink(file, { filename, mimetype }) {
+export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<string[]> {
   const isStream = file && typeof file.pipe === 'function';
   return new Promise((resolve, reject) => {
     if (!file) {
       reject(new Error('No file'));
+      return;
+    }
+    if (!fbBucket) {
+      reject(new Error('Bucket not inited'));
+      return;
     }
     const blob = fbBucket.file(filename);
     const blobStream = blob.createWriteStream({
@@ -26,7 +31,7 @@ export function uploadFileAndGetLink(file, { filename, mimetype }) {
       },
     });
     blobStream.on('error', (err) => {
-      reject(new Error(`Something is wrong! ${err || err.msg}`));
+      reject(new Error(`Something is wrong! ${err || (err as any).msg}`));
     });
     blobStream.on('finish', () => {
       resolve(blob.getSignedUrl({

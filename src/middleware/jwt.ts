@@ -79,7 +79,7 @@ function checkPermissions(inputScopes, targetScope) {
   if (!currentScopes) return false;
   if (!Array.isArray(currentScopes)) currentScopes = currentScopes.split(' ');
   const expandedTargetScope = expandScope(targetScope);
-  const expandedCurrentScopes = [];
+  const expandedCurrentScopes: string[] = [];
   currentScopes = currentScopes.reduce((acc, s) => acc.concat(...expandScopeGroup(s)), []);
   currentScopes.forEach((s) => {
     if (!s.includes(':') && !['read', 'write', 'profile', 'email'].includes(s)) {
@@ -217,7 +217,7 @@ export const getJwtInfo = async (token) => {
       return jwtVerify(token, secret);
     }
   } catch (err) {
-    if (err.name === 'TokenExpiredError') throw err;
+    if ((err as any).name === 'TokenExpiredError') throw err;
     // no op
   }
   return {};

@@ -27,13 +27,13 @@ function parseAuthCoreUser(user) {
   } = user;
   let isEmailVerified = false;
   if (typeof emailVerifiedTs === 'string') {
-    isEmailVerified = emailVerifiedTs && (new Date(emailVerifiedTs)).getTime() > 0;
+    isEmailVerified = !!emailVerifiedTs && (new Date(emailVerifiedTs)).getTime() > 0;
   } else if (typeof emailVerifiedTs === 'boolean') {
     isEmailVerified = emailVerifiedTs;
   }
   let isPhoneVerified = false;
   if (typeof phoneVerifiedTs === 'string') {
-    isPhoneVerified = phoneVerifiedTs && (new Date(phoneVerifiedTs)).getTime() > 0;
+    isPhoneVerified = !!phoneVerifiedTs && (new Date(phoneVerifiedTs)).getTime() > 0;
   } else if (typeof phoneVerifiedTs === 'boolean') {
     isPhoneVerified = phoneVerifiedTs;
   }
@@ -141,12 +141,12 @@ export async function registerAuthCoreUser(payload, accessToken) {
   return { ...data.user };
 }
 
-export async function getAuthCoreCosmosWallet(accessToken, userId) {
+export async function getAuthCoreCosmosWallet(accessToken: string, userId?: string) {
   try {
-    const vaultOpt = { apiBaseURL: AUTHCORE_API_ENDPOINT, accessToken };
+    const vaultOpt: any = { apiBaseURL: AUTHCORE_API_ENDPOINT, accessToken };
     if (userId) vaultOpt.staticKey = AUTHCORE_SECRETD_STATIC_KEY;
     const client = new AuthcoreVaultClient(vaultOpt);
-    const cosmosProviderOpt = { client };
+    const cosmosProviderOpt: any = { client };
     if (userId) {
       const uid = await client.authcoreLookupOrCreateUser(userId);
       cosmosProviderOpt.oid = `user/${uid}/hdwallet_default`;

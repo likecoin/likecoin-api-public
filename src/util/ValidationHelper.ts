@@ -90,7 +90,7 @@ export function filterUserData(u) {
   };
 }
 
-export function filterUserDataMin(userObject, types = []) {
+export function filterUserDataMin(userObject, types: string[] = []) {
   const {
     user,
     displayName,
@@ -103,7 +103,7 @@ export function filterUserDataMin(userObject, types = []) {
     civicLikerSince,
     description,
   } = userObject;
-  const output = {
+  const output: any = {
     user,
     displayName,
     avatar,
@@ -124,7 +124,7 @@ export function filterUserDataMin(userObject, types = []) {
   return output;
 }
 
-export function filterUserDataScoped(u, scope = []) {
+export function filterUserDataScoped(u, scope: string[] = []) {
   const user = filterUserData(u);
   let output = filterUserDataMin(u);
   if (scope.includes('email')) output.email = user.email;
@@ -266,7 +266,7 @@ export function filterSocialPlatformPersonal({
   url,
   isPublic,
 }) {
-  const data = {
+  const data: any = {
     displayName,
     id: userId,
     isPublic: isPublic !== false,

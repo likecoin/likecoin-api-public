@@ -202,7 +202,7 @@ export async function convertARPricesToLIKE(ar,
   };
 }
 
-export async function submitToArweave(data, ipfsHash, { anchorId } = {}) {
+export async function submitToArweave(data, ipfsHash, { anchorId }: { anchorId?: string } = {}) {
   const anchor = anchorId || (await arweave.api.get('/tx_anchor')).data;
   const { mimetype, buffer } = data;
   const transaction = await arweave.createTransaction({
@@ -249,7 +249,7 @@ export async function uploadFileToArweave(data, checkDuplicate = true) {
 }
 
 async function uploadManifestFile(filesWithId, { anchorId, checkDuplicate = true }) {
-  const manifest = await generateManifestFile(filesWithId);
+  const manifest: any = await generateManifestFile(filesWithId);
   const manifestIPFSHash = await getFileIPFSHash(manifest);
   let arweaveId;
   if (checkDuplicate) arweaveId = await getArweaveIdFromHashes(manifestIPFSHash);
@@ -265,7 +265,7 @@ async function uploadManifestFile(filesWithId, { anchorId, checkDuplicate = true
 
 export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate = true) {
   if (files.length === 1) {
-    return uploadFileToArweave(files[0], { checkDuplicate });
+    return uploadFileToArweave(files[0], checkDuplicate);
   }
 
   const [

@@ -7,6 +7,8 @@ import createHash from 'create-hash';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import {
+  AuthExtension,
+  BankExtension,
   QueryClient,
   setupAuthExtension,
   setupBankExtension,
@@ -43,7 +45,7 @@ export async function getCosmosTotalSupply() {
   return amountToLIKE(data.amount);
 }
 
-let cosmosQueryClient = null;
+let cosmosQueryClient: QueryClient & AuthExtension & BankExtension | null = null;
 
 export async function getQueryClient(rpc = cosmosRpcEndpoint) {
   if (!cosmosQueryClient) {

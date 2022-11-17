@@ -12,10 +12,10 @@ const config = require('../../config/config');
 export const defaultAudience = EXTERNAL_HOSTNAME;
 export const issuer = EXTERNAL_HOSTNAME;
 
-const signAlgorithms = [];
-const signSecrets = {};
-const internalVerifyAlgorithms = [];
-const internalVerifySecrets = {};
+const signAlgorithms: string[] = [];
+const signSecrets: any = {};
+const internalVerifyAlgorithms: string[] = [];
+const internalVerifySecrets: any = {};
 let internalDefaultSignAlgorithm;
 let internalDefaultVerifyAlgorithm;
 let authCoreSignSecret;
@@ -160,7 +160,7 @@ export function getToken(req) {
 export const jwtVerify = (
   token,
   secret = defaultVerifySecret,
-  { ignoreExpiration, audience = defaultAudience } = {},
+  { ignoreExpiration = false, audience = defaultAudience } = {},
 ) => {
   const opt = { audience, issuer };
   return jwt.verify(token, secret, { ...opt, ignoreExpiration });
@@ -169,7 +169,7 @@ export const jwtVerify = (
 const internalSign = (
   payload,
   secret,
-  opt = {},
+  opt: any = {},
 ) => {
   const options = opt;
   const jwtid = uuidv4();
@@ -197,9 +197,11 @@ export const jwtSign = (
 export const jwtSignForAZP = (
   payload,
   secret,
-  { audience = defaultAudience, expiresIn = '1h', azp } = {},
+  { audience = defaultAudience, expiresIn = '1h', azp }: {
+    audience?: string, expiresIn?: string, azp?: string,
+  } = {},
 ) => {
-  const opt = { algorithm: 'HS256', audience };
+  const opt: any = { algorithm: 'HS256', audience };
   if (expiresIn) opt.expiresIn = expiresIn;
   return internalSign({ ...payload, azp }, secret, opt);
 };

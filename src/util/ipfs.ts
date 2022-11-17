@@ -1,4 +1,4 @@
-import { create } from 'ipfs-http-client';
+import { create, IPFSHTTPClient } from 'ipfs-http-client';
 import { CarReader } from '@ipld/car';
 import { Web3Storage } from 'web3.storage';
 
@@ -15,7 +15,10 @@ const {
 const IPFS_TIMEOUT = 30000;
 
 const getInstance = (() => {
-  let instances = null;
+  let instances: {
+    primary: IPFSHTTPClient,
+    replicas: IPFSHTTPClient[],
+  } | null = null;
   return () => {
     if (!instances) {
       instances = {
@@ -28,7 +31,7 @@ const getInstance = (() => {
 })();
 
 const getWeb3StorageClient = (() => {
-  let client = null;
+  let client: Web3Storage | null = null;
   return () => {
     if (!client && WEB3_STORAGE_API_TOKEN) {
       client = new Web3Storage({ token: WEB3_STORAGE_API_TOKEN });
@@ -70,7 +73,7 @@ async function internalUploadAll(client, files, { directoryName = 'tmp', onlyHas
       path: `/${directoryName}/${f.key}`,
     })), { onlyHash },
   );
-  const results = [];
+  const results: any[] = [];
   // eslint-disable-next-line no-restricted-syntax
   for await (const result of promises) {
     results.push(result);

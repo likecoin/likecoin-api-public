@@ -29,7 +29,7 @@ export async function fetchFlickrOAuthInfo(user) {
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method,
+    method: req.method as 'POST',
     data: querystring.stringify(oauth.authorize(req)),
   });
   const payload = querystring.parse(data);
@@ -55,7 +55,7 @@ export async function fetchFlickrUser(oAuthToken, oAuthTokenSecret, oAuthVerifie
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method,
+    method: req.method as 'POST',
     data: querystring.stringify(oauth.authorize(req, token)),
   });
   const payload = querystring.parse(data);

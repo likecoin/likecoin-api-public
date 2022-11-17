@@ -29,7 +29,7 @@ export async function fetchTwitterOAuthInfo(user) {
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method,
+    method: req.method as 'POST',
     data: querystring.stringify(oauth.authorize(req)),
   });
   const payload = querystring.parse(data);
@@ -55,7 +55,7 @@ export async function fetchTwitterUser(oAuthToken, oAuthTokenSecret, oAuthVerifi
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method,
+    method: req.method as 'POST',
     data: querystring.stringify(oauth.authorize(req, token)),
   });
   const payload = querystring.parse(data);
@@ -86,7 +86,7 @@ export async function fetchTwitterUserByAccessToken(accessToken, secret) {
   };
   const { data } = await axios({
     url: `${req.url}?${querystring.stringify(oauth.authorize(req, token))}`,
-    method: req.method,
+    method: req.method as 'GET',
   });
   const payload = data;
   if (!payload.id_str) throw new ValidationError('twitter oauth verify fail');

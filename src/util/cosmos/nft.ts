@@ -4,15 +4,16 @@ import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import { PageRequest } from 'cosmjs-types/cosmos/base/query/v1beta1/pagination';
+import { AccountData } from '@cosmjs/amino';
 import { getQueryClient } from '.';
 import { getISCNPrefix } from './iscn';
 import { LIKER_NFT_PRIVATE_KEY, LIKER_NFT_FIAT_PRIVATE_KEY } from '../../../config/secret';
 import { NFT_RPC_ENDPOINT, NFT_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
-let queryClient = null;
-let signingClient = null;
-let signingWallet = null;
-let signingAccountNumber = null;
+let queryClient: ISCNQueryClient | null = null;
+let signingClient: ISCNSigningClient | null = null;
+let signingWallet: AccountData | null = null;
+let signingAccountNumber: Long.Long | null = null;
 
 export async function getNFTQueryClient() {
   if (!queryClient) {
@@ -25,7 +26,9 @@ export async function getNFTQueryClient() {
 
 export async function getNFTAccountInfo(address) {
   const q = await getQueryClient(NFT_RPC_ENDPOINT);
-  const { value } = await q.auth.account(address);
+  const res = await q.auth.account(address);
+  if (!res) throw new Error('ACCOUNT_NOT_FOUND');
+  const { value } = res;
   const accountInfo = BaseAccount.decode(value);
   return accountInfo;
 }
@@ -76,12 +79,12 @@ export async function getNFTClassDataById(classId) {
 export async function getNFTsByClassId(classId, address) {
   const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
-  let nfts = [];
-  let next = new Uint8Array([0x00]);
+  let nfts: any[] = [];
+  let next: Uint8Array | null = new Uint8Array([0x00]);
   do {
     /* eslint-disable no-await-in-loop */
     const res = await client.nft.NFTs(classId, address, PageRequest.fromPartial({ key: next }));
-    ({ nextKey: next } = res.pagination);
+    ({ nextKey: next } = res.pagination || {});
     nfts = nfts.concat(res.nfts);
   } while (next && next.length);
   const nftIds = nfts.map(n => n.id);
@@ -121,6 +124,7 @@ export async function getLikerNFTFiatSigningClientAndWallet() {
 
 export async function getLikerNFTSigningAddressInfo() {
   if (!signingWallet) await getLikerNFTSigningClient();
+  if (!signingWallet) throw new Error('CANNOT_FETCH_SIGNING_WALLET');
   if (!signingAccountNumber) {
     const { accountNumber } = await getNFTAccountInfo(signingWallet.address);
     signingAccountNumber = accountNumber;

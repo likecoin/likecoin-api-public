@@ -22,8 +22,8 @@ export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10;
 export const DEFAULT_TRANSFER_GAS = 80000;
 export const DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS = 59714;
 
-let stargateClient = null;
-let broadcastClient = null;
+let stargateClient: StargateClient | null = null;
+let broadcastClient: StargateClient | null = null;
 
 async function getBroadcastClient() {
   if (!broadcastClient) broadcastClient = await StargateClient.connect(COSMOS_SIGNING_RPC_ENDPOINT);

@@ -2,17 +2,20 @@
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
 import { getLikeWalletAddress } from '@likecoin/iscn-js/dist/iscn/addressParsing';
+import Long from 'long';
+import { AccountData } from '@cosmjs/amino';
 import { getAccountInfo } from '.';
 import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import { COSMOS_RPC_ENDPOINT, COSMOS_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
+
 export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 
-let queryClient = null;
-let signingClient = null;
-let signingWallet = null;
-let signingAccountNumber = null;
+let queryClient: ISCNQueryClient | null = null;
+let signingClient: ISCNSigningClient | null = null;
+let signingWallet: AccountData | null = null;
+let signingAccountNumber: Long.Long | null = null;
 
 export async function getISCNQueryClient() {
   if (!queryClient) {
@@ -43,6 +46,7 @@ export async function getISCNSigningClient() {
 
 export async function getISCNSigningAddressInfo() {
   if (!signingWallet) await getISCNSigningClient();
+  if (!signingWallet) throw new Error('CANNOT_FETCH_SIGNING_WALLET');
   if (!signingAccountNumber) {
     const { accountNumber } = await getAccountInfo(signingWallet.address);
     signingAccountNumber = accountNumber;
@@ -61,8 +65,8 @@ export function getISCNPrefix(input) {
 }
 
 export async function getLikeWalletAndLikerIdFromId(id) {
-  let likeWallet = null;
-  let likerId = null;
+  let likeWallet: string | null = null;
+  let likerId: string | null = null;
 
   const res = id.match(/^https:\/\/like\.co\/([a-z0-9_-]{6,20})/);
   if (res) {

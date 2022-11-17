@@ -41,7 +41,7 @@ export async function fetchMattersAccessToken(code) {
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method,
+    method: req.method as 'POST',
     data: querystring.stringify(req.data),
   });
   const { access_token: accessToken, refresh_token: refreshToken } = data;
