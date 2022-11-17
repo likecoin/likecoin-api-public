@@ -1,6 +1,6 @@
-import express from 'express';
+import express, { Request } from 'express';
+import path from 'path';
 import cookieParser from 'cookie-parser';
-import compression from 'compression';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
@@ -11,12 +11,10 @@ import getPublicInfo from './routes/getPublicInfo';
 import userGetInfo from './routes/users/apiGetInfo';
 import userRegister from './routes/users/apiRegister';
 
-const path = require('path');
-
 const app = express();
 
 const host = process.env.HOST || '127.0.0.1';
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT || 3000);
 app.set('port', port);
 
 if (process.env.NODE_ENV === 'production') app.disable('x-powered-by');
@@ -30,17 +28,17 @@ i18n.configure({
 app.use(cors({ origin: true, credentials: true }));
 
 app.use(cookieParser());
-app.use(compression());
 app.use(bodyParser.json({
   verify: (req, _, buf) => {
-    if (req.path.includes('/stripe/webhook')) { // rawbody is needed for stripe webhook
-      req.rawBody = buf;
+    let r: Request = req as any;
+    if (r.path.includes('/stripe/webhook')) { // rawbody is needed for stripe webhook
+      r.rawBody = buf;
     }
   },
 }));
 app.use(i18n.init);
 app.use((req, res, next) => {
-  if (req.body.locale) req.setLocale(res, req.body.locale);
+  if (req.body.locale) req.setLocale(req.body.locale);
   next();
 });
 

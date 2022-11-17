@@ -1,6 +1,6 @@
 import express from 'express';
+import path from 'path';
 import cookieParser from 'cookie-parser';
-import compression from 'compression';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
@@ -10,12 +10,10 @@ import { IS_TESTNET, TEST_MODE } from './constant';
 import errorHandler from './middleware/errorHandler';
 import allRoutes from './routes/all';
 
-const path = require('path');
-
 const app = express();
 
 const host = process.env.HOST || '127.0.0.1';
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT || 3000);
 app.set('port', port);
 
 if (process.env.NODE_ENV === 'production') app.disable('x-powered-by');
@@ -32,11 +30,10 @@ if (IS_TESTNET || TEST_MODE) corsWhiteList.push(/^http(s)?:\/\/localhost(:\d+)?$
 app.use(cors({ origin: corsWhiteList, credentials: true }));
 
 app.use(cookieParser());
-app.use(compression());
 app.use(bodyParser.json());
 app.use(i18n.init);
 app.use((req, res, next) => {
-  if (req.body.locale) req.setLocale(res, req.body.locale);
+  if (req.body.locale) req.setLocale(req.body.locale);
   next();
 });
 

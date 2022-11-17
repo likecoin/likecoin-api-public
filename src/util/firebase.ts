@@ -24,7 +24,7 @@ import serviceAccount from '../../config/serviceAccountKey.json';
 let database;
 if (!process.env.CI) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(serviceAccount as unknown as string),
     storageBucket: FIREBASE_STORAGE_BUCKET,
   });
 
