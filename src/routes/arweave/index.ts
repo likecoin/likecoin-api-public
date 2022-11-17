@@ -22,7 +22,7 @@ router.post(
     try {
       const { files } = req;
       const { deduplicate = '1' } = req.query;
-      const checkDuplicate = deduplicate && deduplicate !== '0';
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,
@@ -67,7 +67,7 @@ router.post('/upload',
     try {
       const { files } = req;
       const { deduplicate = '1' } = req.query;
-      const checkDuplicate = deduplicate && deduplicate !== '0';
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,

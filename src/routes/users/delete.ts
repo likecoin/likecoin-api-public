@@ -21,7 +21,7 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
     const {
       authCoreAccessToken,
       signature: {
-        signature, publicKey, message,
+        signature = '', publicKey = '', message = '',
       } = {},
     } = req.body;
     if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');

@@ -23,6 +23,7 @@ import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicI
 import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
 import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
 import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 
 const { ARWEAVE_LIKE_TARGET_ADDRESS, IS_CHAIN_UPGRADING } = require('../../../config/config');
 
@@ -102,7 +103,7 @@ async function handleRegisterISCN(req, res, next) {
     };
     if (!res.locals.signingInfo) {
       const { address, accountNumber } = await getISCNSigningAddressInfo();
-      res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
+      res.locals.signingInfo = { address, accountNumber };
     }
     const {
       address,
@@ -110,8 +111,8 @@ async function handleRegisterISCN(req, res, next) {
     } = res.locals.signingInfo;
 
     if (req.query.estimate) {
-      const uploadPrice = req.uploadPrice || 0;
-      const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(address, ISCNPayload);
+      const uploadPrice = req.locals.uploadPrice || 0;
+      const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(ISCNPayload);
       const changeISCNOwnershipFee = new BigNumber(DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS)
         .multipliedBy(DEFAULT_GAS_PRICE);
       const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount)
@@ -128,18 +129,20 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
-    const createIscnSigningFunction = ({ sequence }) => signingClient.createISCNRecord(
-      address,
-      ISCNPayload, {
+    const createIscnSigningFunction = async({ sequence }): Promise<TxRaw> => {
+      const res = await signingClient.createISCNRecord(
+        address,
+        ISCNPayload, {
         accountNumber,
         sequence,
         chainId: COSMOS_CHAIN_ID,
         broadcast: false,
-      },
-    );
+      });
+      return res as TxRaw;
+    };
 
     const [iscnGasFee, iscnRes] = await Promise.all([
-      signingClient.esimateISCNTxGasAndFee(address, ISCNPayload),
+      signingClient.esimateISCNTxGasAndFee(ISCNPayload),
       sendTransactionWithSequence(address, createIscnSigningFunction),
     ]);
     const iscnLike = new BigNumber(iscnGasFee.iscnFee.amount).shiftedBy(-9);
@@ -199,17 +202,20 @@ async function handleRegisterISCN(req, res, next) {
     const wallet = likeWallet || cosmosWallet;
     if (isClaim && iscnId && wallet) {
       // TODO handle missing iscnId by refetch?
-      const transferSigningFunction = ({ sequence }) => signingClient.changeISCNOwnership(
-        address,
-        wallet,
-        iscnId,
-        {
-          accountNumber,
-          sequence,
-          chainId: COSMOS_CHAIN_ID,
-          broadcast: false,
-        },
-      );
+      const transferSigningFunction = async ({ sequence }: { sequence: number }) => {
+        const res = await signingClient.changeISCNOwnership(
+          address,
+          wallet,
+          iscnId,
+          {
+            accountNumber,
+            sequence,
+            chainId: COSMOS_CHAIN_ID,
+            broadcast: false,
+          },
+        );
+        return res as TxRaw;
+      };
       const iscnTransferRes = await sendTransactionWithSequence(
         address,
         transferSigningFunction,
@@ -258,7 +264,7 @@ router.post('/upload',
       }
       const { files } = req;
       const { deduplicate = '1' } = req.query;
-      const checkDuplicate = deduplicate && deduplicate !== '0';
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const [
         ipfsHash,
@@ -288,7 +294,7 @@ router.post('/upload',
       if (req.query.estimate) {
         // eslint-disable-next-line max-len
         const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
-        req.uploadPrice = Number(LIKE) + txSignNeed;
+        req.locals.uploadPrice = Number(LIKE) + txSignNeed;
         next();
         return;
       }
@@ -301,7 +307,7 @@ router.post('/upload',
       const signingClient = await getISCNSigningClient();
       if (!res.locals.signingInfo) {
         const { address, accountNumber } = await getISCNSigningAddressInfo();
-        res.locals.signingInfo = { address, accountNumber: accountNumber.toNumber() };
+        res.locals.signingInfo = { address, accountNumber: accountNumber };
       }
       const {
         address,
@@ -310,17 +316,21 @@ router.post('/upload',
       const { messages, fee } = generateSendTxData(address, ARWEAVE_LIKE_TARGET_ADDRESS, amount);
       const memo = JSON.stringify({ ipfs: ipfsHash });
       const client = signingClient.getSigningStargateClient();
-      const transferTxSigningFunction = ({ sequence }) => client.sign(
-        address,
-        messages,
-        fee,
-        memo,
-        {
-          accountNumber,
-          sequence,
-          chainId: COSMOS_CHAIN_ID,
-        },
-      );
+      if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
+      const transferTxSigningFunction = async ({ sequence }: { sequence: number }) => {
+        const res = await client.sign(
+          address,
+          messages,
+          fee,
+          memo,
+          {
+            accountNumber,
+            sequence,
+            chainId: COSMOS_CHAIN_ID,
+          },
+        );
+        return res as TxRaw;
+      }
       const arweaveIdList = existingPriceList ? existingPriceList.map(l => l.arweaveId) : undefined;
       const [txRes, { arweaveId, list }] = await Promise.all([
         sendTransactionWithSequence(

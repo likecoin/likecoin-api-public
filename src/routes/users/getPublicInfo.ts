@@ -17,10 +17,10 @@ const router = Router();
 router.get('/id/:id/min', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { type } = req.query;
-    let types = [];
+    const { type = '' } = req.query;
+    let types: string[] = [];
     if (type) {
-      types = type.split(',');
+      types = (type as string).split(',');
     }
     const payload = await getUserWithCivicLikerProperties(id);
     if (!payload) {
@@ -39,7 +39,7 @@ router.get('/id/:id/avatar', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { size: inputSizeStr = DEFAULT_AVATAR_SIZE } = req.query;
-    const inputSizeNum = parseInt(inputSizeStr, 10);
+    const inputSizeNum = parseInt(inputSizeStr as string, 10);
     if (Number.isNaN(inputSizeNum)) {
       throw new ValidationError('Invalid size');
     }
@@ -85,9 +85,9 @@ router.get('/addr/:addr/min', async (req, res, next) => {
   try {
     const { addr } = req.params;
     const { type } = req.query;
-    let types = [];
+    let types: string[] = [];
     if (type) {
-      types = type.split(',');
+      types = (type as string).split(',');
     }
     const payload = await getUserWithCivicLikerPropertiesByWallet(addr);
     if (!payload) {

@@ -141,7 +141,12 @@ export async function estimateARPrice(data, checkDuplicate = true) {
   };
 }
 
-export async function estimateARPrices(files, checkDuplicate = true) {
+export async function estimateARPrices(files, checkDuplicate = true): Promise<{
+  key?: string;
+  arweaveId?: string;
+  AR: string;
+  list?: any[];
+}> {
   if (files.length === 1) {
     return estimateARPrice(files[0], checkDuplicate);
   }

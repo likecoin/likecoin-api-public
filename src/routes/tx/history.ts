@@ -26,10 +26,10 @@ router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
       return;
     }
 
-    let { ts, count } = req.query;
-    ts = Number(ts);
+    let { ts: tsQs, count: countQs } = req.query;
+    let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
-    count = Number(count);
+    let count = Number(countQs);
     if (!count || Number.isNaN(count) || count > TRANSACTION_QUERY_LIMIT) {
       count = TRANSACTION_QUERY_LIMIT;
     }
@@ -89,10 +89,10 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       return;
     }
 
-    let { ts, count } = req.query;
-    ts = Number(ts);
+    let { ts: tsQs, count: countQs } = req.query;
+    let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
-    count = Number(count);
+    let count = Number(countQs);
     if (!count || Number.isNaN(count) || count > TRANSACTION_QUERY_LIMIT) {
       count = TRANSACTION_QUERY_LIMIT;
     }

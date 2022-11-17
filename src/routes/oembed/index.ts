@@ -203,7 +203,7 @@ router.get('/', async (req, res, next) => {
       throw new ValidationError(`Invalid subdomain (${url}) in oEmbed request`);
     }
 
-    if (!['json', 'xml'].includes(format)) {
+    if (!['json', 'xml'].includes(format as string)) {
       throw new ValidationError(`Invalid format ${format} in oEmbed request`);
     }
 
@@ -212,7 +212,7 @@ router.get('/', async (req, res, next) => {
     for (const handler of [processIscnId, processNftClass, processLikerId]) {
       const result = await handler(req, res, { parsedURL });
       if (result) {
-        if (!result.error) {
+        if (!((result as any).error)) {
           const oEmbedResponse = {
             type: 'rich',
             version: '1.0',

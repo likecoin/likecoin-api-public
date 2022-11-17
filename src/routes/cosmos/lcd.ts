@@ -44,7 +44,7 @@ router.post('/bank/accounts/:address/transfers', async (req, res, next) => {
       toReferrer,
       toLocale,
       toRegisterTime,
-    } = await fetchPaymentUserInfo({ from, to, type: 'cosmos' });
+    } = await fetchPaymentUserInfo({ from, to });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventSimulatePayCosmos',
       fromUser: fromId,

@@ -24,8 +24,8 @@ async function handlePostTxReq(reqData, resData, req) {
     tx: {
       msg,
       fee: {
-        amount: feeAmount,
-        gas,
+        amount: feeAmount = '',
+        gas = '',
       } = {},
       memo,
       signatures: [{
@@ -45,7 +45,7 @@ async function handlePostTxReq(reqData, resData, req) {
       stakeholders: { stakeholders = [] } = {},
       rights: { rights = [] } = {},
       content = {},
-      timestamp: contentTimestamp,
+      timestamp: contentTimestamp = 0,
     } = {},
   } = payloadValue;
   const { fingerprint } = content;

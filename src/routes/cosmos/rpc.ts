@@ -42,11 +42,11 @@ async function handlePostTxReq(reqData, resData, req, res) {
     signerInfos: [signerInfo], fee: {
       gasLimit: longGasLimit,
       amount: feeAmount,
-    },
+    } = {},
   } = authInfo;
   const { sequence: longSequence } = signerInfo;
-  const sequence = longSequence.toString();
-  const gas = longGasLimit.toString();
+  const sequence = (longSequence || '').toString();
+  const gas = (longGasLimit || '').toString();
   const { messages, memo } = txBody;
   /* TODO: handle multiple MsgSend msg */
   if (!messages || !messages.length || !messages[0]) return;

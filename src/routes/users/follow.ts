@@ -24,28 +24,25 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     queryRef = queryRef.orderBy('ts', 'desc');
     if (after) {
       try {
-        after = Number(after);
-        queryRef = queryRef.endBefore(after);
+        queryRef = queryRef.endBefore(Number(after));
       } catch (err) {
         // no-op
       }
     }
     if (before) {
       try {
-        before = Number(before);
-        queryRef = queryRef.startAfter(before);
+        queryRef = queryRef.startAfter(Number(before));
       } catch (err) {
         // no-op
       }
     }
-    if (!limit) limit = API_DEFAULT_SIZE_LIMIT;
-    const query = await queryRef.limit(limit).get();
-    const list = [];
+    const query = await queryRef.limit(limit || API_DEFAULT_SIZE_LIMIT).get();
+    const list: any[] = [];
     query.docs.forEach((d) => {
       list.push(filterFollow({ id: d.id, ...d.data() }));
     });
 
-    const defaultPushList = [];
+    const defaultPushList: string[] = [];
     if (!filter && !after && !before) { // check for default follow if no filter is applied
       const defaultPayload = {
         ts: Date.now(),

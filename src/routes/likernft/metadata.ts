@@ -79,7 +79,7 @@ router.get(
     try {
       const { classId } = req.params;
       const { size: inputSizeStr = DEFAULT_NFT_IMAGE_WIDTH } = req.query;
-      const inputSizeNum = parseInt(inputSizeStr, 10);
+      const inputSizeNum = parseInt(inputSizeStr as string, 10);
       if (Number.isNaN(inputSizeNum)) {
         throw new ValidationError('Invalid size');
       }
@@ -87,7 +87,8 @@ router.get(
       const iscnPrefix = await getISCNPrefixByClassId(classId);
       const { data } = await getNFTISCNData(iscnPrefix);
       if (!data) throw new ValidationError('ISCN_NOT_FOUND', 404);
-      const iscnId = (data && data['@id']);
+      const iscnId = data && data['@id'] as string;
+      if (!iscnId) throw new ValidationError('ISCN_ID_NOT_FOUND', 404);
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(

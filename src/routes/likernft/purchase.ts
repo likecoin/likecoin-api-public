@@ -51,7 +51,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { tx_hash: txHash, ts } = req.query;
-      if (ts && (Date.now() - ts > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
+      if (ts && (Date.now() - Number(ts) > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const { iscnPrefix, classId } = res.locals;
       const {

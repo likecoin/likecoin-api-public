@@ -101,7 +101,7 @@ async function internalSendTransaction(signedTx, c) {
   }
 }
 
-export async function sendTransactionWithSequence(senderAddress, signingFunction, client) {
+export async function sendTransactionWithSequence(senderAddress: string, signingFunction: ({ sequence }: { sequence: number }) => Promise<TxRaw>, client?: StargateClient) {
   let res;
   let signedTx;
   const { sequence: seq1 } = await getAccountInfo(senderAddress);

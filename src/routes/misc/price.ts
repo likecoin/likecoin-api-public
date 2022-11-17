@@ -22,7 +22,7 @@ router.get('/price', async (req, res) => {
   try {
     const prices = await Promise.all([
       axios.get(COINGECKO_PRICE_URL)
-        .then(r => r.data.market_data.current_price[currency])
+        .then(r => r.data.market_data.current_price[currency as string])
         .catch(() => undefined),
     ]);
     const validPrices = prices.filter(p => !isNaN(p)); // eslint-disable-line no-restricted-globals

@@ -44,7 +44,7 @@ router.post('/new/check', async (req, res, next) => {
       });
     } catch (err) {
       if (err instanceof ValidationError) {
-        const payload = { error: err.message };
+        const payload: any = { error: err.message };
         if (err.message === 'USER_ALREADY_EXIST' || err.message === 'INVALID_USER_NAME') {
           const suggestName = await suggestAvailableUserName(user);
           payload.alternative = suggestName;
@@ -150,7 +150,6 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         accessToken: platformAccessToken,
         sourceURL: sourceURL || (req.auth.domain ? `https://${req.auth.domain}/` : undefined),
       },
-      res,
       req,
       isPlatformDelegated: autoLinkOAuth,
     });

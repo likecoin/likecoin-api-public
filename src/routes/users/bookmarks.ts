@@ -102,23 +102,20 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
       queryRef = queryRef.orderBy('ts', 'desc');
       if (after) {
         try {
-          after = Number(after);
-          queryRef = queryRef.endBefore(after);
+          queryRef = queryRef.endBefore(Number(after));
         } catch (err) {
           // no-op
         }
       }
       if (before) {
         try {
-          before = Number(before);
-          queryRef = queryRef.startAfter(before);
+          queryRef = queryRef.startAfter(Number(before));
         } catch (err) {
           // no-op
         }
       }
-      if (!limit) limit = API_DEFAULT_SIZE_LIMIT;
-      const query = await queryRef.limit(limit).get();
-      let list = [];
+      const query = await queryRef.limit(limit || API_DEFAULT_SIZE_LIMIT).get();
+      let list: any[] = [];
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));
       });

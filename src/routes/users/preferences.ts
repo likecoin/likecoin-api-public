@@ -41,7 +41,7 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
       creatorPitch,
       paymentRedirectWhiteList: inputPaymentRedirectWhiteList,
     } = req.body;
-    const payload = {};
+    const payload: any = {};
 
     if (locale) {
       if (!supportedLocales.includes(locale)) {

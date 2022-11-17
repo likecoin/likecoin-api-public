@@ -16,16 +16,14 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
     let { after, before } = req.query;
     if (after) {
       try {
-        after = Number(after);
-        queryRef = queryRef.endBefore(after);
+        queryRef = queryRef.endBefore( Number(after));
       } catch (err) {
         // no-op
       }
     }
     if (before) {
       try {
-        before = Number(before);
-        queryRef = queryRef.startAfter(before);
+        queryRef = queryRef.startAfter(Number(before));
       } catch (err) {
         // no-op
       }
@@ -43,7 +41,7 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
       limit = 64;
     }
     const query = await queryRef.limit(limit).get();
-    const list = [];
+    const list: any[] = [];
     query.docs.forEach((d) => {
       list.push(filterNotification({ id: d.id, ...d.data() }));
     });
@@ -56,10 +54,11 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
 router.post('/notifications/read', jwtAuth('write:notifications'), async (req, res, next) => {
   try {
     const { user } = req.user;
-    let { before } = req.query;
-    if (before) {
+    let { before: beforeQs } = req.query;
+    let before: number = 0;
+    if (beforeQs) {
       try {
-        before = Number(before);
+        before = Number(beforeQs);
       } catch (err) {
         res.status(400).send('INVALID_BEFORE');
         return;
@@ -73,7 +72,7 @@ router.post('/notifications/read', jwtAuth('write:notifications'), async (req, r
       .startAfter(before)
       .get();
     if (query.docs.length) {
-      const batchCommits = [];
+      const batchCommits: Promise<any>[] = [];
       const maxOpsPerBatch = 500;
       for (let i = 0; i < query.docs.length; i += maxOpsPerBatch) {
         const batch = db.batch();

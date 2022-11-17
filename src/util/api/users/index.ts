@@ -261,6 +261,14 @@ async function userInfoQuery({
   platform,
   platformUserId,
   authCoreUserId,
+}: {
+  user: string,
+  cosmosWallet?: string,
+  likeWallet?: string,
+  email?: string,
+  platform?: string,
+  platformUserId?: string,
+  authCoreUserId?: string,
 }) {
   const userNameQuery = dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
@@ -344,6 +352,14 @@ export async function checkUserInfoUniqueness({
   platform,
   platformUserId,
   authCoreUserId,
+}: {
+  user: string,
+  cosmosWallet?: string,
+  likeWallet?: string,
+  email?: string,
+  platform?: string,
+  platformUserId?: string,
+  authCoreUserId?: string,
 }) {
   const userDoc = await dbRef.doc(user).get();
   if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');

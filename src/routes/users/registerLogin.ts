@@ -204,7 +204,6 @@ router.post(
           platform,
           platformUserId,
         },
-        res,
         req,
       });
 
@@ -291,7 +290,7 @@ router.post(
         authCoreUserId,
       } = oldUserObj.data();
 
-      const updateObj = {
+      const updateObj: any = {
         displayName,
         description,
         isEmailEnabled,
@@ -410,7 +409,7 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
       phone,
       isPhoneVerified,
     } = await getAuthCoreUser(authCoreAccessToken);
-    const updateObj = {
+    const updateObj: any = {
       email,
       displayName,
       isEmailVerified,

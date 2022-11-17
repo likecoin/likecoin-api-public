@@ -22,7 +22,7 @@ router.post('/verify/user/:id/', async (req, res, next) => {
     const { coupon, ref } = req.body;
     const userRef = dbRef.doc(username);
     const doc = await userRef.get();
-    let user = {};
+    let user: any = {};
     let verificationUUID;
     if (doc.exists) {
       user = doc.data();
@@ -86,8 +86,8 @@ router.post('/verify/:uuid', async (req, res, next) => {
         isEmailVerified: true,
       });
 
-      const promises = [];
-      const payload = { done: true };
+      const promises: Promise<any>[] = [];
+      const payload: any = { done: true };
       const { referrer } = user.data();
       if (referrer) {
         promises.push(dbRef.doc(referrer).collection('referrals').doc(user.id).update({ isEmailVerified: true }));

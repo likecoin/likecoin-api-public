@@ -49,7 +49,7 @@ router.get(
         axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=likechain.likenft.v1.EventMintNFT.class_id=%27%22${classId}%22%27`),
         axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs?events=cosmos.nft.v1beta1.EventSend.class_id=%27%22${classId}%22%27`),
       ]);
-      let list = [];
+      let list: any[] = [];
       list = list.concat(newClassData.tx_responses || []);
       let set = new Set(list.map(t => t.txhash));
       list = list.concat((mintData.tx_responses || []).filter(t => !set.has(t.txhash)));

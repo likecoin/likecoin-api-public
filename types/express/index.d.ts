@@ -2,6 +2,7 @@ declare namespace Express {
    export interface Request {
       user?: any,
       auth?: any,
+      locals?: any,
       rawBody?: any,
       setLocale: (string) => void,
    }
