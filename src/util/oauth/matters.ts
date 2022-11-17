@@ -48,7 +48,7 @@ export async function fetchMattersAccessToken(code) {
   return { accessToken, refreshToken };
 }
 
-export async function fetchMattersUser({ code = undefined, accessToken: inputToken = undefined }) {
+export async function fetchMattersUser({ code = '', accessToken: inputToken = '' }) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
   if (!code && !inputToken) throw new ValidationError('missing code or accessToken');
   let accessToken = inputToken;

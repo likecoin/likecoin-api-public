@@ -4,6 +4,8 @@ declare namespace Express {
       auth?: any,
       locals?: any,
       rawBody?: any,
+      file?: any,
+      files?: any[],
       setLocale: (string) => void,
    }
 }
