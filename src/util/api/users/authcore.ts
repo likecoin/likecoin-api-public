@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import { authCoreJwtSignToken } from '../../jwt';
 import { registerAuthCoreUser, createAuthCoreCosmosWalletViaServiceAccount } from '../../authcore';

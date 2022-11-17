@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import uuidv4 from 'uuid/v4';
+import urlParse from 'url-parse';
 import { userCollection as dbRef } from '../../util/firebase';
 import { filterBookmarks } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
@@ -6,8 +8,6 @@ import { addUrlToMetadataCrawler, removeQueryStringFromBookmarkUrl } from '../..
 import { PUBSUB_TOPIC_MISC, API_DEFAULT_SIZE_LIMIT } from '../../constant';
 import publisher from '../../util/gcloudPub';
 
-const uuidv4 = require('uuid/v4');
-const urlParse = require('url-parse');
 
 async function queryBookmark(user, { bookmarkID, url }) {
   let doc;

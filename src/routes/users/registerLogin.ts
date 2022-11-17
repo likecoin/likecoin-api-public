@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
+import Multer from 'multer';
+import RateLimit from 'express-rate-limit';
 import {
   PUBSUB_TOPIC_MISC,
   TEST_MODE,
@@ -41,8 +43,6 @@ import {
   isValidLikeAddress,
 } from '../../util/cosmos';
 
-const Multer = require('multer');
-const RateLimit = require('express-rate-limit');
 
 export const THIRTY_S_IN_MS = 30000;
 

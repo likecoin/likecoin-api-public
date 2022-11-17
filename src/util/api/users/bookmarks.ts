@@ -1,12 +1,12 @@
 import axios from 'axios';
+import querystring from 'querystring';
+import URL from 'url-parse';
 import { QUERY_STRING_TO_REMOVE } from '../../../constant';
 import {
   LIKECO_INTERNAL_API_ENDPOINT,
   LIKECO_INTERNAL_API_KEY,
 } from '../../../../config/config';
 
-const querystring = require('querystring');
-const URL = require('url-parse');
 
 export function addUrlToMetadataCrawler(url) {
   return axios.post(

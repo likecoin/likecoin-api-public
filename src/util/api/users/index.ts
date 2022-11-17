@@ -1,5 +1,9 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import disposableDomains from 'disposable-email-domains';
+import web3Utils from 'web3-utils';
+import sigUtil from 'eth-sig-util';
+import LRU from 'lru-cache';
 import {
   AUTH_COOKIE_OPTION,
   BUTTON_COOKIE_OPTION,
@@ -21,10 +25,6 @@ import {
 } from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 
-const disposableDomains = require('disposable-email-domains');
-const web3Utils = require('web3-utils');
-const sigUtil = require('eth-sig-util');
-const LRU = require('lru-cache');
 
 const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 

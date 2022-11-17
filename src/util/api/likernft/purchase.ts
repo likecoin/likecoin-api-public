@@ -3,6 +3,7 @@ import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dis
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { parseAndCalculateStakeholderRewards } from '@likecoin/iscn-js/dist/iscn/parsing';
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { Transaction } from '@google-cloud/firestore';
 import { Request } from 'express';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
@@ -49,7 +50,11 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-export async function getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction }: { transaction?: Transaction } = {}) {
+export async function getFirstUnsoldNFT(
+  iscnPrefixDocName,
+  classId,
+  { transaction }: { transaction?: Transaction } = {},
+) {
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
@@ -327,7 +332,12 @@ export async function handleNFTPurchaseTransaction({
 }
 
 export async function processNFTPurchase({
-  buyerWallet, iscnPrefix, classId, granterWallet = buyerWallet, grantedAmount, nftId: targetNftId = undefined,
+  buyerWallet,
+  iscnPrefix,
+  classId,
+  granterWallet = buyerWallet,
+  grantedAmount,
+  nftId: targetNftId = undefined,
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');

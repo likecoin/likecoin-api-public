@@ -2,6 +2,7 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 
 import { DeliverTxResponse } from '@cosmjs/stargate';
+import LRU from 'lru-cache';
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
@@ -15,7 +16,6 @@ import {
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
-const LRU = require('lru-cache');
 
 const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
 const CURRENCY = 'usd';
