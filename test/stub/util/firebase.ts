@@ -9,10 +9,10 @@ export const { FieldValue } = admin.firestore;
 console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
 
 const userData = require('../../test/data/user.json').users;
-const configData = require('../../test/data/config.json').config;
-const userAuthData = require('../../test/data/user-auth.json').usersAuth;
-const userSubData = require('../../test/data/subscription-user.json').subscriptionUsers;
-const userCivicData = require('../../test/data/user-civic-metadata.json').userCivicMetadata;
+const subscriptionData = require('../../test/data/subscription.json').subscriptions;
+const txData = require('../../test/data/tx.json').tx;
+const missionData = require('../../test/data/mission.json').missions;
+const likerNftData = require('../../test/data/likernft.json').likernft;
 
 function docData(obj) {
   const res = {
@@ -56,11 +56,15 @@ function querySnapshotDocs(data) {
     const docObj = {
       id: d.id,
       ref: {
-        set: (setData, config) => docSet(data, d.id, setData, config),
+        set: (setData, config = {}) => docSet(data, d.id, setData, config),
         create: setData => docSet(data, d.id, setData),
         update: updateData => docUpdate(d, updateData),
+        delete: () => docDelete(data, { id: d.id }),
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        collection: id => createCollection(d.collection[id]),
       },
       data: () => docData(d),
+      exists: true,
     };
     return docObj;
   });
@@ -68,8 +72,26 @@ function querySnapshotDocs(data) {
 
 function collectionWhere(data, field = '', op = '', value = '') {
   let whereData = data;
-  if (field && value && op === '==') {
-    whereData = data.filter(d => d[field] === value);
+  if (op === '==') {
+    if (field.includes('.')) {
+      const fields = field.split('.');
+      whereData = data.filter(d => fields.reduce((acc, f) => {
+        if (!acc) return acc;
+        return acc[f];
+      }, d));
+    } else {
+      whereData = data.filter(d => d[field] === value);
+    }
+  } else if (op === 'array-contains') {
+    whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
+  } else if (op === '>=') {
+    whereData = data.filter(d => d[field] >= value);
+  } else if (op === '<=') {
+    whereData = data.filter(d => d[field] <= value);
+  } else if (op === '!=') {
+    whereData = data.filter(d => d[field] !== value);
+  } else if (op) {
+    console.error(`operator ${op} is not supported`);
   }
   const docs = querySnapshotDocs(whereData);
   const queryObj = {
@@ -80,7 +102,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
       }
       throw new Error('orderBy is incorrect.');
     },
-    startAt: () => queryObj,
+    startAt: (_: number) => queryObj,
     startAfter: (_: number) => queryObj,
     endBefore: (_: number) => queryObj,
     limit: (limit) => {
@@ -124,7 +146,7 @@ function collectionDoc(data, id) {
         ref: this,
       });
     },
-    set: (setData, config) => docSet(data, id, setData, config),
+    set: (setData, config = {}) => docSet(data, id, setData, config),
     create: setData => docSet(data, id, setData),
     update: (updateData) => {
       if (obj) {
@@ -161,20 +183,33 @@ function createCollection(data) {
         forEach: f => docs.forEach(f),
       });
     },
-    orderBy: () => collectionWhere(data),
+    startAt: (_: number) => collectionWhere(data),
+    startAfter: (_: number) => collectionWhere(data),
+    endBefore: (_: number) => collectionWhere(data),
+    limit: (_: number) => collectionWhere(data),
+    orderBy: (sField, order = 'asc') => collectionWhere(data),
   };
 }
 
+const dbData = [
+  userData,
+  subscriptionData,
+  txData,
+  missionData,
+  likerNftData,
+];
 export const userCollection = createCollection(userData);
-export const userAuthCollection = createCollection(userAuthData);
-export const subscriptionUserCollection = createCollection(userSubData);
-export const civicUserMetadataCollection = createCollection(userCivicData);
-export const txCollection = createCollection([]);
+export const userAuthCollection = createCollection([]);
+export const subscriptionUserCollection = createCollection(subscriptionData);
+export const civicUserMetadataCollection = createCollection([]);
+export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
-export const missionCollection = createCollection([]);
+export const missionCollection = createCollection(missionData);
 export const payoutCollection = createCollection([]);
-export const configCollection = createCollection(configData);
+export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
+export const likeNFTCollection = createCollection(likerNftData);
+export const likeNFTFiatCollection = createCollection([]);
 export const likeButtonUrlCollection = createCollection([]);
 export const iscnInfoCollection = createCollection([]);
 export const iscnMappingCollection = createCollection([]);
@@ -186,7 +221,7 @@ function runTransaction(updateFunc) {
   return updateFunc({
     get: ref => ref.get(),
     create: (ref, data) => ref.create(data),
-    set: (ref, data, config) => ref.create(data, config),
+    set: (ref, data, config = {}) => ref.create(data, config),
     update: (ref, data) => ref.update(data),
   });
 }
@@ -201,11 +236,29 @@ function createDb() {
     batch: () => ({
       get: ref => ref.get(),
       create: (ref, data) => ref.create(data),
-      set: (ref, data, config) => ref.create(data, config),
+      set: (ref, data, config = {}) => ref.create(data, config),
       update: (ref, data) => ref.update(data),
+      delete: ref => ref.delete(),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
-      commit: () => {},
+      commit: async () => {},
     }),
+    recursiveDelete: ref => ref.delete(),
+    collectionGroup: (group) => {
+      let data = [];
+      dbData.forEach((root) => {
+        root.forEach((d) => {
+          if (d.collection) {
+            if (d.collection[group]) data = data.concat(d.collection[group]);
+            Object.values(d.collection).forEach((c: any) => {
+              c.forEach((cd) => {
+                if (cd.collection && cd.collection[group]) data = data.concat(cd.collection[group]);
+              });
+            });
+          }
+        });
+      });
+      return collectionWhere(data);
+    },
   };
 }
 

@@ -36,9 +36,9 @@ function stubAndTest() {
     unsetStub();
   });
   try {
-    const [, , script, testFile = '*'] = process.argv;
-    const testTarget = process.env.npm_package_config_test_file_pattern.replace('{}', testFile);
-    execSync(`npm run ${script} ${testTarget}`, { env: process.env, stdio: 'inherit' });
+    const [, , script] = process.argv;
+    console.log(script);
+    execSync(`npm run ${script}`, { env: process.env, stdio: 'inherit' });
   } catch (e) {
     unsetStub();
     process.exit(1);

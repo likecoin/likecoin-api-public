@@ -1,3 +1,5 @@
+// eslint-disable-next-line import/no-unresolved
+// eslint-disable-next-line import/no-unresolved
 import test from 'ava';
 // import FormData from 'form-data';
 // import fs from 'fs';

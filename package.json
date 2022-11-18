@@ -6,9 +6,6 @@
   },
   "description": "",
   "main": "src/index.js",
-  "config": {
-    "test_file_pattern": "test/api/{}.test.js"
-  },
   "scripts": {
     "clean": "rm -rf dist && mkdir dist && ln -s ../config ./dist/config",
     "dev": "IS_TESTNET=true nodemon src/index.ts",
@@ -25,8 +22,8 @@
     "start:web": "NODE_ENV=production node dist/src/web.js",
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
-    "test:api": "IS_TESTNET=true CI=true ava -v",
-    "report-coverage": "nyc report --reporter=text-lcov > coverage.lcov"
+    "test:data": "cp ./test/data/* ./dist/test/data",
+    "test:api": "npm run test:data && IS_TESTNET=true CI=true TS_NODE_FILES=true c8 ava --timeout=1m -v"
   },
   "repository": {
     "type": "git",
@@ -39,15 +36,19 @@
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "ava": {
+    "require": [
+      "source-map-support/register"
+    ],
     "files": [
       "test/**/*.test.ts"
     ],
-    "require": [
-      "ts-node/register"
-    ],
-    "extensions": [
-      "ts"
-    ]
+    "typescript": {
+			"rewritePaths": {
+				"test/": "dist/test/",
+				"src/": "dist/src/"
+			},
+      "compile": false
+    }
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.28.4",
@@ -94,7 +95,6 @@
     "protobufjs": "^6.8.8",
     "secp256k1": "^3.8.0",
     "sharp": "^0.31.1",
-    "source-map-support": "^0.5.9",
     "stripe": "^10.7.0",
     "twit": "^2.2.11",
     "url-parse": "^1.4.4",
@@ -107,13 +107,15 @@
     "xml": "^1.0.1"
   },
   "devDependencies": {
+    "@ava/typescript": "^3.0.1",
     "@types/cookie-parser": "^1.4.3",
     "@types/express": "^4.17.14",
     "@types/node": "^18.11.9",
     "@typescript-eslint/eslint-plugin": "^2.31.0",
     "@typescript-eslint/parser": "^2.31.0",
-    "ava": "^1.4.1",
+    "ava": "^5.0.1",
     "axiosist": "^0.3.0",
+    "c8": "^7.12.0",
     "eslint": "^5.10.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-loader": "^2.1.1",
@@ -121,7 +123,7 @@
     "form-data": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
     "nodemon": "^1.19.4",
-    "nyc": "^13.1.0",
+    "source-map-support": "^0.5.21",
     "ts-node": "^10.9.1",
     "typescript": "^4.8.4"
   }

@@ -21,7 +21,7 @@ export function uploadFileAndGetLink() {
 
 export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
   const type = fileType(file.buffer);
-  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+  if (!type || !SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 
@@ -44,7 +44,7 @@ export async function handleAvatarLinkAndGetURL(user, url) {
   });
   data = await fileType.stream(data);
   const type = data.fileType;
-  if (!SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
+  if (!type || !SUPPORTED_AVATAR_TYPE.has(type && type.ext)) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
   let transformer = sharp();
