@@ -119,7 +119,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
     // eslint-disable-next-line no-console
     getNFTISCNData(iscnPrefix).catch((err) => { console.error(err); return {}; }),
     // eslint-disable-next-line no-console
-    getNFTClassDataById(classId).catch(err => console.error(err)),
+    getNFTClassDataById(classId).catch((err) => console.error(err)),
   ]);
   const { owner: iscnOwner, data: iscnData }: { owner?: string; data?: any } = res;
   if (!iscnData) throw new ValidationError('ISCN_NOT_FOUND', 404);

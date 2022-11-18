@@ -1,5 +1,5 @@
 export function sleep(time) {
-  return new Promise(resolve => setTimeout(resolve, time));
+  return new Promise((resolve) => { setTimeout(resolve, time); });
 }
 
 export function removeUndefinedObjectKey(obj) {

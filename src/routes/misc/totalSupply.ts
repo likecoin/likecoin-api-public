@@ -43,7 +43,7 @@ router.get('/totalsupply/erc20', async (req, res) => {
 router.get('/circulating/erc20', async (req, res) => {
   const rawSupply = await LikeCoin.methods.totalSupply().call();
   const amounts = await Promise.all(reservedEthWallets
-    .map(w => LikeCoin.methods.balanceOf(w).call().catch((err) => {
+    .map((w) => LikeCoin.methods.balanceOf(w).call().catch((err) => {
       // eslint-disable-next-line no-console
       console.error(err);
       return 0;
@@ -71,7 +71,7 @@ router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
 router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
   const rawSupply = await getCosmosTotalSupply();
   const amounts = await Promise.all(reservedCosmosWallets
-    .map(w => getCosmosAccountLIKE(w).catch((err) => {
+    .map((w) => getCosmosAccountLIKE(w).catch((err) => {
       // eslint-disable-next-line no-console
       console.error(err);
       return 0;

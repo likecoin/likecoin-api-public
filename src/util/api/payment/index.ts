@@ -43,7 +43,7 @@ async function fetchUserIdsByCosmosLikeWallet(wallet) {
       });
   });
   const result = await Promise.all(walletQuerys);
-  return { id: result.map(r => r.id || '') };
+  return { id: result.map((r) => r.id || '') };
 }
 
 export async function fetchPaymentUserInfo({ from, to }: { from?: string; to?: string}) {

@@ -61,7 +61,8 @@ router.post(
   },
 );
 
-router.post('/upload',
+router.post(
+  '/upload',
   multer({ limits: { fileSize: maxSize } }).any(),
   checkFileValid,
   async (req, res, next) => {
@@ -128,7 +129,7 @@ router.post('/upload',
       let arweaveIdList;
       if (existingPriceListWithManifest) {
         const [, ...existingFilesPriceList] = existingPriceListWithManifest;
-        arweaveIdList = existingFilesPriceList.map(l => l.arweaveId);
+        arweaveIdList = existingFilesPriceList.map((l) => l.arweaveId);
       }
       const [{ arweaveId, list }] = await Promise.all([
         uploadFilesToArweave(arFiles, arweaveIdList, checkDuplicate),
@@ -148,6 +149,7 @@ router.post('/upload',
     } catch (error) {
       next(error);
     }
-  });
+  },
+);
 
 export default router;

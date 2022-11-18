@@ -13,43 +13,46 @@ import { jwtSign } from './jwt';
 test('estimation: new', async (t) => {
   const user = testingUser1;
   const token = jwtSign({ user });
-  const res = await axiosist.post('/api/iscn/new?claim=1&estimate=1', {
-    recordNotes: 'A Message posted on depub.SPACE',
-    contentFingerprints: [
-      'https://depub.blog',
-    ],
-    stakeholders: [
-      {
-        entity: {
-          '@id': 'like156gedr03g3ggwktzhygfusax4df46k8dh6w0me',
-          name: 'kuan',
+  const res = await axiosist.post(
+    '/api/iscn/new?claim=1&estimate=1',
+    {
+      recordNotes: 'A Message posted on depub.SPACE',
+      contentFingerprints: [
+        'https://depub.blog',
+      ],
+      stakeholders: [
+        {
+          entity: {
+            '@id': 'like156gedr03g3ggwktzhygfusax4df46k8dh6w0me',
+            name: 'kuan',
+          },
+          rewardProportion: 0.975,
+          contributionType: 'http://schema.org/author',
         },
-        rewardProportion: 0.975,
-        contributionType: 'http://schema.org/author',
-      },
-      {
-        entity: {
-          '@id': 'https://depub.SPACE',
-          name: 'depub.SPACE',
+        {
+          entity: {
+            '@id': 'https://depub.SPACE',
+            name: 'depub.SPACE',
+          },
+          rewardProportion: 0,
+          contributionType: 'http://schema.org/publisher',
         },
-        rewardProportion: 0,
-        contributionType: 'http://schema.org/publisher',
-      },
-    ],
-    type: 'CreativeWork',
-    name: '0000',
-    description: 'for api new iscn test #superlike',
-    datePublished: '',
-    url: '',
-    usageInfo: '',
-    keywords: [],
-  },
-  {
-    headers: {
-      Cookie: `likecoin_auth=${token};`,
+      ],
+      type: 'CreativeWork',
+      name: '0000',
+      description: 'for api new iscn test #superlike',
+      datePublished: '',
+      url: '',
+      usageInfo: '',
+      keywords: [],
     },
-  })
-    .catch(err => (err as any).response);
+    {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    },
+  )
+    .catch((err) => (err as any).response);
   t.is(res.status, 200);
   t.true(res.data.LIKE > 0.01);
   t.true(res.data.LIKE < 0.1);

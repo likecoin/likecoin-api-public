@@ -4,7 +4,7 @@ export function checkFileValid(req, res, next) {
     return;
   }
   const { files } = req;
-  if (files.length > 1 && !files.find(f => f.fieldname === 'index.html')) {
+  if (files.length > 1 && !files.find((f) => f.fieldname === 'index.html')) {
     res.status(400).send('MISSING_INDEX_FILE');
     return;
   }

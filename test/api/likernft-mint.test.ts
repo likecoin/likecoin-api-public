@@ -8,7 +8,7 @@ const CLASS_ID = 'likenft1swtgvmt2w5atqqrelga3p8vgg67dkrwrgr75hfgpyzh5umlnqtgszv
 
 test('likernft: get mint info via iscn id', async (t) => {
   const res = await axiosist.get(`/api/likernft/mint?iscn_id=${ISCN_ID}`)
-    .catch(err => (err as any).response);
+    .catch((err) => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.iscnId, ISCN_ID_PREFIX);
@@ -17,7 +17,7 @@ test('likernft: get mint info via iscn id', async (t) => {
 
 test('likernft: get mint info via class id', async (t) => {
   const res = await axiosist.get(`/api/likernft/mint?class_id=${CLASS_ID}`)
-    .catch(err => (err as any).response);
+    .catch((err) => (err as any).response);
 
   t.is(res.status, 200);
   t.is(res.data.iscnId, ISCN_ID_PREFIX);
@@ -26,7 +26,7 @@ test('likernft: get mint info via class id', async (t) => {
 
 test('likernft: post mint fail due to exist', async (t) => {
   const res = await axiosist.post(`/api/likernft/mint?iscn_id=${ISCN_ID}&class_id=${CLASS_ID}`)
-    .catch(err => (err as any).response);
+    .catch((err) => (err as any).response);
 
   t.is(res.status, 409);
 });

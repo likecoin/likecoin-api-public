@@ -34,7 +34,6 @@ router.get('/id/:id/min', async (req, res, next) => {
   }
 });
 
-
 router.get('/id/:id/avatar', async (req, res, next) => {
   try {
     const { id } = req.params;

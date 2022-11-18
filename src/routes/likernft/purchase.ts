@@ -22,9 +22,11 @@ router.get(
     try {
       try {
         const { iscnPrefix, classId } = res.locals;
-        const { price, lastSoldPrice, ...info } = await getLatestNFTPriceAndInfo(
-          iscnPrefix, classId,
-        );
+        const {
+          price,
+          lastSoldPrice,
+          ...info
+        } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
         const gasFee = getGasPrice();
         res.json({
           price,
@@ -111,7 +113,7 @@ router.post(
         sellerLIKENumber: Number(sellerLIKE),
         stakeholderWallets,
         stakeholderLIKEs,
-        stakeholderLIKEsNumber: stakeholderLIKEs.map(l => Number(l)),
+        stakeholderLIKEsNumber: stakeholderLIKEs.map((l) => Number(l)),
         feeWallet,
         feeLIKE,
         feeLIKENumber: Number(sellerLIKE),

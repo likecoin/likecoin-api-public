@@ -106,7 +106,7 @@ test.serial('USER: Add follow. Case: success', async (t) => {
   });
   t.is(res.status, 200);
   t.is(res.data.list.length, DEFAULT_FOLLOW_IDS.length + 1);
-  t.is(res.data.list.find(l => l.id === testingUser1).isFollowed, true);
+  t.is(res.data.list.find((l) => l.id === testingUser1).isFollowed, true);
 });
 
 test.serial('USER: Remove follow. Case: success', async (t) => {
@@ -127,5 +127,5 @@ test.serial('USER: Remove follow. Case: success', async (t) => {
   });
   t.is(res.status, 200);
   t.is(res.data.list.length, DEFAULT_FOLLOW_IDS.length + 1);
-  t.is(res.data.list.find(l => l.id === testingUser1).isFollowed, false);
+  t.is(res.data.list.find((l) => l.id === testingUser1).isFollowed, false);
 });

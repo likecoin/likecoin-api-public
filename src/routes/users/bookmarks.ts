@@ -8,7 +8,6 @@ import { addUrlToMetadataCrawler, removeQueryStringFromBookmarkUrl } from '../..
 import { PUBSUB_TOPIC_MISC, API_DEFAULT_SIZE_LIMIT } from '../../constant';
 import publisher from '../../util/gcloudPub';
 
-
 async function queryBookmark(user, { bookmarkID, url }) {
   let doc;
   if (url) {
@@ -39,11 +38,12 @@ async function updateArchiveState(user, bookmarkID, value) {
 
 const router = Router();
 
-router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
+router.get(
+  '/bookmarks/:id?',
+  jwtAuth('read:bookmarks'),
   /**
    * Handle `/bookmarks/:id` or `/bookmarks?url=`
-   */
-  async (req, res, next) => {
+   */ async (req, res, next) => {
     try {
       const bookmarkID = req.params.id;
       const inputUrl = req.body.url || req.query.url;
@@ -82,8 +82,7 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
   },
   /**
    * Handle `/bookmarks`
-   */
-  async (req, res, next) => {
+   */ async (req, res, next) => {
     try {
       const { user } = req.user;
       const { archived = '0' } = req.query;
@@ -119,12 +118,13 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));
       });
-      if (archived === '0') list = list.filter(b => !b.isArchived);
+      if (archived === '0') list = list.filter((b) => !b.isArchived);
       res.json({ list });
     } catch (err) {
       next(err);
     }
-  });
+  },
+);
 
 router.post('/bookmarks', jwtAuth('write:bookmarks'), async (req, res, next) => {
   try {
@@ -238,6 +238,5 @@ router.delete('/bookmarks/:id?', jwtAuth('write:bookmarks'), async (req, res, ne
     next(err);
   }
 });
-
 
 export default router;

@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
@@ -9,7 +8,6 @@ import {
   FLICKR_APP_KEY,
   FLICKR_APP_SECRET,
 } from '../../../config/config';
-
 
 const oauth = new OAuth({
   consumer: {

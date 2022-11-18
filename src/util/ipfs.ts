@@ -23,7 +23,7 @@ const getInstance = (() => {
     if (!instances) {
       instances = {
         primary: create({ url: IPFS_ENDPOINT, timeout: IPFS_TIMEOUT }),
-        replicas: REPLICA_IPFS_ENDPOINTS.map(url => create({ url, timeout: IPFS_TIMEOUT })),
+        replicas: REPLICA_IPFS_ENDPOINTS.map((url) => create({ url, timeout: IPFS_TIMEOUT })),
       };
     }
     return instances;
@@ -59,7 +59,7 @@ export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
   const fileBlob = file.buffer;
   if (!onlyHash) {
     // eslint-disable-next-line no-console
-    client.replicas.map(c => c.add(fileBlob).catch(e => console.error(e)));
+    client.replicas.map((c) => c.add(fileBlob).catch((e) => console.error(e)));
   }
   const res = await client.primary.add(fileBlob, { onlyHash });
   if (!onlyHash) await uploadCARToIPFSByWeb3Storage(client.primary, res.cid);
@@ -67,19 +67,17 @@ export async function uploadFileToIPFS(file, { onlyHash = false } = {}) {
 }
 
 async function internalUploadAll(client, files, { directoryName = 'tmp', onlyHash = false } = {}) {
-  const promises = client.addAll(
-    files.map(f => ({
-      content: f.buffer,
-      path: `/${directoryName}/${f.key}`,
-    })), { onlyHash },
-  );
+  const promises = client.addAll(files.map((f) => ({
+    content: f.buffer,
+    path: `/${directoryName}/${f.key}`,
+  })), { onlyHash });
   const results: any[] = [];
   // eslint-disable-next-line no-restricted-syntax
   for await (const result of promises) {
     results.push(result);
   }
   if (!onlyHash) {
-    await Promise.all(results.map(r => uploadCARToIPFSByWeb3Storage(client, r.cid)));
+    await Promise.all(results.map((r) => uploadCARToIPFSByWeb3Storage(client, r.cid)));
   }
   return results;
 }
@@ -90,14 +88,15 @@ export async function uploadFilesToIPFS(files, { onlyHash = false } = {}) {
   const directoryName = 'tmp';
   if (!onlyHash) {
     client.replicas.map(
+      (c) => internalUploadAll(c, files, { directoryName, onlyHash })
       // eslint-disable-next-line no-console
-      c => internalUploadAll(c, files, { directoryName, onlyHash }).catch(e => console.error(e)),
+        .catch((e) => console.error(e)),
     );
   }
   const results = await internalUploadAll(client.primary, files, { directoryName, onlyHash });
-  let entry = results.find(r => r.path === directoryName);
+  let entry = results.find((r) => r.path === directoryName);
   if (!entry) {
-    entry = results.find((r => r.path.endsWith('index.html')));
+    entry = results.find(((r) => r.path.endsWith('index.html')));
   }
   if (!entry) return '';
   const contentHash = entry.cid.toString();

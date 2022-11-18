@@ -45,12 +45,12 @@ export async function getUserStat(wallet) {
     collector_count: createdCollectorCount,
   } = userStat;
   const collectedClassCount = collectedClasses.length;
-  const collectedClassIds: string[] = collectedClasses.map(c => c.class_id);
+  const collectedClassIds: string[] = collectedClasses.map((c) => c.class_id);
   const batches: string[][] = [];
   for (let i = 0; i < collectedClassIds.length; i += FIRESTORE_IN_QUERY_LIMIT) {
     batches.push(collectedClassIds.slice(i, i + FIRESTORE_IN_QUERY_LIMIT));
   }
-  const queries = await Promise.all(batches.map(classIds => likeNFTCollection.where('classId', 'in', classIds).get()));
+  const queries = await Promise.all(batches.map((classIds) => likeNFTCollection.where('classId', 'in', classIds).get()));
   const docs = queries.reduce((acc, q) => acc.concat(q.docs), [] as any[]);
 
   const priceMap = {};

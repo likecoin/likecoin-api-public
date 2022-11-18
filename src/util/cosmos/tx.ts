@@ -59,15 +59,15 @@ export async function queryLIKETransactionInfo(txHash, targetAddress) {
       };
     }
     return null;
-  })).filter(m => !!m);
-  const message = messages.find(m => m && m.value.toAddress === targetAddress);
+  })).filter((m) => !!m);
+  const message = messages.find((m) => m && m.value.toAddress === targetAddress);
   if (!message) return null;
   const {
     fromAddress,
     toAddress,
     amount: amounts,
   } = message.value;
-  const amount = amounts.find(a => a.denom === COSMOS_DENOM);
+  const amount = amounts.find((a) => a.denom === COSMOS_DENOM);
   return {
     from: fromAddress,
     to: toAddress,
@@ -144,7 +144,7 @@ export async function sendTransactionWithSequence(
     if (!res) {
       res = await internalSendTransaction(signedTx, client);
     }
-    await db.runTransaction(t => t.get(counterRef).then((d) => {
+    await db.runTransaction((t) => t.get(counterRef).then((d) => {
       if (pendingCount + 1 > d.data().value) {
         return t.update(counterRef, {
           value: pendingCount + 1,

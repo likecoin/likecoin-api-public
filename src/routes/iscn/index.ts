@@ -133,7 +133,8 @@ async function handleRegisterISCN(req, res, next) {
     const createIscnSigningFunction = async ({ sequence }): Promise<TxRaw> => {
       const r = await signingClient.createISCNRecord(
         address,
-        ISCNPayload, {
+        ISCNPayload,
+        {
           accountNumber,
           sequence,
           chainId: COSMOS_CHAIN_ID,
@@ -252,7 +253,8 @@ router.post(
   handleRegisterISCN,
 );
 
-router.post('/upload',
+router.post(
+  '/upload',
   jwtAuth('write:like'),
   bodyParser.urlencoded({ extended: false }),
   multer({ limits: { fileSize: maxSize } }).any(),
@@ -333,7 +335,9 @@ router.post('/upload',
         );
         return r as TxRaw;
       };
-      const arweaveIdList = existingPriceList ? existingPriceList.map(l => l.arweaveId) : undefined;
+      const arweaveIdList = existingPriceList ? existingPriceList.map(
+        (l) => l.arweaveId,
+      ) : undefined;
       const [txRes, { arweaveId, list }] = await Promise.all([
         sendTransactionWithSequence(
           address,
@@ -367,6 +371,7 @@ router.post('/upload',
       next(error);
     }
   },
-  handleRegisterISCN);
+  handleRegisterISCN,
+);
 
 export default router;

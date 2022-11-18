@@ -19,7 +19,6 @@ import {
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 import { PERMISSION_GROUPS } from '../constant/jwt';
 
-
 const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
 async function fetchProviderClientInfo(clientId, req) {
@@ -89,7 +88,7 @@ function checkPermissions(inputScopes, targetScope) {
       expandedCurrentScopes.push(s);
     }
   });
-  if (expandedCurrentScopes.find(scope => expandedTargetScope.includes(scope))) {
+  if (expandedCurrentScopes.find((scope) => expandedTargetScope.includes(scope))) {
     return true;
   }
   return false;

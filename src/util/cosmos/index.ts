@@ -1,4 +1,3 @@
-
 import BigNumber from 'bignumber.js';
 import bech32 from 'bech32';
 import secp256k1 from 'secp256k1';

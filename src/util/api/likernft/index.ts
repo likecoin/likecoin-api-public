@@ -32,7 +32,6 @@ export async function getISCNPrefixByClassId(classId) {
   return decodeURIComponent(doc.id);
 }
 
-
 export async function getNFTClassByClassId(classId) {
   const c = await getNFTQueryClient();
   const client = await c.getQueryClient();

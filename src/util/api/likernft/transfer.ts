@@ -9,7 +9,7 @@ import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../../config/config';
 export async function getNFTTransferInfo(txHash, classId, nftId) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs/${txHash}`);
   if (!data) return null;
-  const message = data.tx.body.messages.find(m => m['@type'] === '/cosmos.nft.v1beta1.MsgSend'
+  const message = data.tx.body.messages.find((m) => m['@type'] === '/cosmos.nft.v1beta1.MsgSend'
       && m.id === nftId && m.class_id === classId);
   if (!message) return null;
   const {

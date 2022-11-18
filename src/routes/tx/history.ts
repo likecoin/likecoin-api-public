@@ -15,7 +15,6 @@ import {
   checkAddressValid,
 } from '../../util/ValidationHelper';
 
-
 const router = Router();
 
 router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {

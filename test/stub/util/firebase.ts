@@ -24,10 +24,10 @@ function docData(obj) {
 }
 
 function docUpdate(data, id, obj, updateData) {
-  if (Object.values(updateData).some(v => typeof v === 'undefined')) {
+  if (Object.values(updateData).some((v) => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
-  const index = data.findIndex(d => d.id === id);
+  const index = data.findIndex((d) => d.id === id);
   if (index === -1) throw new Error('not found');
   // eslint-disable-next-line no-param-reassign
   data[id] = Object.assign(obj, updateData);
@@ -35,15 +35,15 @@ function docUpdate(data, id, obj, updateData) {
 }
 
 function docDelete(data, { id }) {
-  const index = data.findIndex(obj => obj.id === id);
+  const index = data.findIndex((obj) => obj.id === id);
   data.splice(index, 1);
 }
 
 function docSet(data, id, setData, config: any = {}) {
-  if (Object.values(setData).some(v => typeof v === 'undefined')) {
+  if (Object.values(setData).some((v) => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
-  const obj = data.find(d => d.id === id);
+  const obj = data.find((d) => d.id === id);
   if (obj && config && config.merge) {
     return docUpdate(data, id, obj, setData);
   }
@@ -62,11 +62,11 @@ function querySnapshotDocs(inputData, originalData) {
       id: d.id,
       ref: {
         set: async (setData, config = {}) => docSet(originalData, d.id, setData, config),
-        create: async setData => docSet(originalData, d.id, setData),
-        update: async updateData => docUpdate(originalData, d.id, d, updateData),
+        create: async (setData) => docSet(originalData, d.id, setData),
+        update: async (updateData) => docUpdate(originalData, d.id, d, updateData),
         delete: async () => docDelete(originalData, { id: d.id }),
         // eslint-disable-next-line no-use-before-define
-        collection: id => createCollection(d.collection[id]),
+        collection: (id) => createCollection(d.collection[id]),
       },
       data: () => docData(d),
       exists: true,
@@ -80,21 +80,21 @@ function collectionWhere(data, field = '', op = '', value = '') {
   if (op === '==') {
     if (field.includes('.')) {
       const fields = field.split('.');
-      whereData = data.filter(d => fields.reduce((acc, f) => {
+      whereData = data.filter((d) => fields.reduce((acc, f) => {
         if (!acc) return acc;
         return acc[f];
       }, d));
     } else {
-      whereData = data.filter(d => d[field] === value);
+      whereData = data.filter((d) => d[field] === value);
     }
   } else if (op === 'array-contains') {
-    whereData = data.filter(d => Array.isArray(d[field]) && d[field].includes(value));
+    whereData = data.filter((d) => Array.isArray(d[field]) && d[field].includes(value));
   } else if (op === '>=') {
-    whereData = data.filter(d => d[field] >= value);
+    whereData = data.filter((d) => d[field] >= value);
   } else if (op === '<=') {
-    whereData = data.filter(d => d[field] <= value);
+    whereData = data.filter((d) => d[field] <= value);
   } else if (op === '!=') {
-    whereData = data.filter(d => d[field] !== value);
+    whereData = data.filter((d) => d[field] !== value);
   } else if (op) {
     console.error(`operator ${op} is not supported`);
   }
@@ -118,7 +118,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
     },
     get: () => global.Promise.resolve({
       docs,
-      forEach: f => docs.forEach(f),
+      forEach: (f) => docs.forEach(f),
     }),
   };
   return queryObj;
@@ -126,7 +126,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
 
 function collectionDoc(data, id) {
   let docObj;
-  const obj = data.find(d => d.id === id);
+  const obj = data.find((d) => d.id === id);
   if (obj) {
     // deep clone data object
     const cloneObj = cloneDeep(obj);
@@ -152,7 +152,7 @@ function collectionDoc(data, id) {
       });
     },
     set: async (setData, config = {}) => docSet(data, id, setData, config),
-    create: async setData => docSet(data, id, setData),
+    create: async (setData) => docSet(data, id, setData),
     update: async (updateData) => {
       if (obj) {
         return docUpdate(data, id, obj, updateData);
@@ -180,12 +180,12 @@ function collectionDoc(data, id) {
 function createCollection(data) {
   return {
     where: (field, op, value) => collectionWhere(data, field, op, value),
-    doc: id => collectionDoc(data, id),
+    doc: (id) => collectionDoc(data, id),
     get: () => {
       const docs = querySnapshotDocs(data, data);
       return global.Promise.resolve({
         docs,
-        forEach: f => docs.forEach(f),
+        forEach: (f) => docs.forEach(f),
       });
     },
     startAt: (_: number) => collectionWhere(data),
@@ -224,7 +224,7 @@ export const exchangeHubCollection = createCollection([]);
 
 function runTransaction(updateFunc) {
   return updateFunc({
-    get: ref => ref.get(),
+    get: (ref) => ref.get(),
     create: (ref, data) => ref.create(data),
     set: (ref, data, config = {}) => ref.create(data, config),
     update: (ref, data) => ref.update(data),
@@ -237,17 +237,17 @@ async function initDb() {
 
 function createDb() {
   return {
-    runTransaction: updateFunc => runTransaction(updateFunc),
+    runTransaction: (updateFunc) => runTransaction(updateFunc),
     batch: () => ({
-      get: ref => ref.get(),
+      get: (ref) => ref.get(),
       create: (ref, data) => ref.create(data),
       set: (ref, data, config = {}) => ref.create(data, config),
       update: (ref, data) => ref.update(data),
-      delete: ref => ref.delete(),
+      delete: (ref) => ref.delete(),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       commit: async () => {},
     }),
-    recursiveDelete: ref => ref.delete(),
+    recursiveDelete: (ref) => ref.delete(),
     collectionGroup: (group) => {
       let data = [];
       dbData.forEach((root) => {

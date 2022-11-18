@@ -83,7 +83,7 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
       res.status(400).send('EXPIRED');
       return;
     }
-    if (!metadata || Object.keys(metadata).some(m => !TX_METADATA_TYPES.includes(m))) {
+    if (!metadata || Object.keys(metadata).some((m) => !TX_METADATA_TYPES.includes(m))) {
       res.status(400).send('INVALID_METADATA');
       return;
     }

@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
@@ -9,7 +8,6 @@ import {
   TWITTER_API_KEY,
   TWITTER_API_SECRET,
 } from '../../../config/config';
-
 
 const oauth = new OAuth({
   consumer: {

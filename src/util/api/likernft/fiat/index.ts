@@ -16,7 +16,6 @@ import {
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
-
 const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
 const CURRENCY = 'usd';
 

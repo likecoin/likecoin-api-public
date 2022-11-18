@@ -34,7 +34,7 @@ router.get('/likepay/:txId', async (req, res, next) => {
       .where('remarks', '==', uuid)
       .orderBy('ts', 'desc')
       .get();
-    const results = dataTo.docs.map(d => ({ id: d.id, ...filterTxData(d.data()) }));
+    const results = dataTo.docs.map((d) => ({ id: d.id, ...filterTxData(d.data()) }));
     res.json(results);
   } catch (err) {
     next(err);

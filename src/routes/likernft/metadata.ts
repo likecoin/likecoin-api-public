@@ -55,12 +55,12 @@ router.get(
         .collection('nft')
         .where('ownerWallet', '!=', LIKER_NFT_TARGET_ADDRESS)
         .get();
-      const nftIds = nftQuery.docs.map(n => n.id);
+      const nftIds = nftQuery.docs.map((n) => n.id);
       const ownerMap = {
         // don't include api holded wallet
         // LIKER_NFT_TARGET_ADDRESS: apiOwnedNFTIds,
       };
-      const owners = await Promise.all(nftIds.map(id => getNFTOwner(classId, id)));
+      const owners = await Promise.all(nftIds.map((id) => getNFTOwner(classId, id)));
       owners.forEach((owner, index) => {
         ownerMap[owner] = ownerMap[owner] || [];
         ownerMap[owner].push(nftIds[index]);

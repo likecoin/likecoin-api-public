@@ -23,7 +23,7 @@ router.get(
       let queryObj = await doc.ref.collection('transaction');
       if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
       const query = await queryObj.orderBy('timestamp', 'desc').get();
-      list = query.docs.map(d => ({ txHash: d.id, ...(d.data() || {}) }));
+      list = query.docs.map((d) => ({ txHash: d.id, ...(d.data() || {}) }));
       res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list,
@@ -51,10 +51,10 @@ router.get(
       ]);
       let list: any[] = [];
       list = list.concat(newClassData.tx_responses || []);
-      let set = new Set(list.map(t => t.txhash));
-      list = list.concat((mintData.tx_responses || []).filter(t => !set.has(t.txhash)));
-      set = new Set(list.map(t => t.txhash));
-      list = list.concat((sendData.tx_responses || []).filter(t => !set.has(t.txhash)));
+      let set = new Set(list.map((t) => t.txhash));
+      list = list.concat((mintData.tx_responses || []).filter((t) => !set.has(t.txhash)));
+      set = new Set(list.map((t) => t.txhash));
+      list = list.concat((sendData.tx_responses || []).filter((t) => !set.has(t.txhash)));
       list = list.map((d) => {
         const {
           height,

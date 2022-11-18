@@ -7,7 +7,7 @@ export async function addDefaultFollowers(userId) {
     isFollowed: true,
     ts: Date.now(),
   };
-  DEFAULT_FOLLOW_IDS.forEach(id => batch.set(
+  DEFAULT_FOLLOW_IDS.forEach((id) => batch.set(
     dbRef.doc(userId).collection('follow').doc(id),
     createObj,
   ));

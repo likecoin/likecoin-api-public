@@ -27,7 +27,7 @@ router.get(
       if (!updateCooldownMap[wallet] || now - updateCooldownMap[wallet] > UPDATE_COOLDOWN) {
         updateCooldownMap[wallet] = now;
         const ownedClassIds = await filterOwnedClassIds(ownedClassesQuery.docs, wallet);
-        ownedClassIds.forEach(classId => classIdSet.add(classId));
+        ownedClassIds.forEach((classId) => classIdSet.add(classId));
       } else {
         ownedClassesQuery.docs.forEach((doc) => {
           classIdSet.add(doc.data().classId);

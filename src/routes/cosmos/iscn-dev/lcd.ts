@@ -10,14 +10,12 @@ import { logISCNTx } from '../../../util/txLogger';
 import { removeUndefinedObjectKey } from '../../../util/misc';
 import publisher from '../../../util/gcloudPub';
 
-
 const httpAgent = new HttpAgent();
 const httpsAgent = new HttpsAgent();
 
 /* This file is a middleware for logging before passing request to cosmos LCD API */
 const router = Router();
 router.use(bodyParser.json({ type: 'text/plain' }));
-
 
 async function handlePostTxReq(reqData, resData, req) {
   const {
@@ -49,11 +47,11 @@ async function handlePostTxReq(reqData, resData, req) {
     } = {},
   } = payloadValue;
   const { fingerprint } = content;
-  const rightHoldersIds = rights.map(r => r.holder && r.holder.id);
-  const rightTermHashes = rights.map(r => r.terms && r.terms.hash);
-  const stakeholdersIds = stakeholders.map(r => r.stakeholder && r.stakeholder.id);
+  const rightHoldersIds = rights.map((r) => r.holder && r.holder.id);
+  const rightTermHashes = rights.map((r) => r.terms && r.terms.hash);
+  const stakeholdersIds = stakeholders.map((r) => r.stakeholder && r.stakeholder.id);
 
-  const { id: creatorWallet } = stakeholders.find(s => s.type === 'Creator') || {};
+  const { id: creatorWallet } = stakeholders.find((s) => s.type === 'Creator') || {};
   // HACK: use to param to query creator id
   const {
     fromId,

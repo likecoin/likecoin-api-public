@@ -10,8 +10,8 @@ import {
   FieldValue,
 } from '../../firebase';
 
-const hasHttp = link => /https?:\/\//.test(link);
-export const getUrlWithPrefix = link => (hasHttp(link) ? link : `https://${link}`);
+const hasHttp = (link) => /https?:\/\//.test(link);
+export const getUrlWithPrefix = (link) => (hasHttp(link) ? link : `https://${link}`);
 
 export const isValidSocialLink = (link) => {
   if (link.length >= 2048) return false;

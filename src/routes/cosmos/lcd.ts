@@ -107,11 +107,11 @@ async function handlePostTxReq(reqData, resData, req) {
         inputs,
         outputs,
       } = payloadValue;
-      from = inputs.length > 1 ? inputs.map(i => i.address) : inputs[0].address;
-      to = outputs.length > 1 ? outputs.map(o => o.address) : outputs[0].address;
-      amounts = outputs.length > 1 ? outputs.map(o => o.coins[0]) : [outputs[0].coins[0]];
+      from = inputs.length > 1 ? inputs.map((i) => i.address) : inputs[0].address;
+      to = outputs.length > 1 ? outputs.map((o) => o.address) : outputs[0].address;
+      amounts = outputs.length > 1 ? outputs.map((o) => o.coins[0]) : [outputs[0].coins[0]];
       // TODO: filter denom?
-      if (!amounts.every(a => a.denom === amounts[0].denom)) return;
+      if (!amounts.every((a) => a.denom === amounts[0].denom)) return;
       amount = {
         denom: amounts[0].denom,
         amount: amounts.reduce((acc, a) => acc.plus(a.amount), new BigNumber(0)).toFixed(),
@@ -152,7 +152,7 @@ async function handlePostTxReq(reqData, resData, req) {
     await logCosmosTx(txRecord);
     const status = 'pending';
     const likeAmount = amountToLIKE(amount);
-    const likeAmountSplit = amounts.map(a => amountToLIKE(a));
+    const likeAmountSplit = amounts.map((a) => amountToLIKE(a));
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventPayCosmos',

@@ -43,7 +43,6 @@ import {
   isValidLikeAddress,
 } from '../../util/cosmos';
 
-
 export const THIRTY_S_IN_MS = 30000;
 
 const multer = Multer({
@@ -59,7 +58,7 @@ const apiLimiter = new RateLimit({
   windowMs: REGISTER_LIMIT_WINDOW,
   max: REGISTER_LIMIT_COUNT || 0,
   skipFailedRequests: true,
-  keyGenerator: req => (req.headers['x-real-ip'] || req.ip),
+  keyGenerator: (req) => (req.headers['x-real-ip'] || req.ip),
   onLimitReached: (req) => {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventAPILimitReached',

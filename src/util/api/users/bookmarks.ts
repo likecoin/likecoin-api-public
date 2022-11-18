@@ -7,7 +7,6 @@ import {
   LIKECO_INTERNAL_API_KEY,
 } from '../../../../config/config';
 
-
 export function addUrlToMetadataCrawler(url) {
   return axios.post(
     `${LIKECO_INTERNAL_API_ENDPOINT}/like-button-info`,

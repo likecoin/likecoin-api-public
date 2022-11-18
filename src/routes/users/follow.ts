@@ -49,7 +49,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
         isFollow: true,
       };
       DEFAULT_FOLLOW_IDS.forEach((id) => {
-        if (!list.find((l => l.id === id))) {
+        if (!list.find(((l) => l.id === id))) {
           list.push({ id, ...defaultPayload });
           defaultPushList.push(id);
         }
@@ -57,7 +57,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     }
     res.json({ list });
     if (defaultPushList && defaultPushList.length) {
-      await Promise.all(defaultPushList.map(id => addFollowUser(user, id)));
+      await Promise.all(defaultPushList.map((id) => addFollowUser(user, id)));
     }
   } catch (err) {
     next(err);

@@ -7,7 +7,6 @@ import { setNoCacheHeader } from './noCache';
 import { ValidationError } from '../util/ValidationError';
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 
-
 const providerOAuthClientInfo = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
 export const getOAuthClientInfo = ({ checkSecret = true } = {}) => async (req, res, next) => {

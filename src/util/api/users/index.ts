@@ -25,7 +25,6 @@ import {
 } from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 
-
 const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 
 export const FIVE_MIN_IN_MS = 300000;

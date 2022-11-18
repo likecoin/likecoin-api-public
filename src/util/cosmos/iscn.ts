@@ -9,7 +9,6 @@ import { getUserWithCivicLikerProperties } from '../api/users/getPublicInfo';
 import { COSMOS_PRIVATE_KEY } from '../../../config/secret';
 import { COSMOS_RPC_ENDPOINT, COSMOS_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
-
 export { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 
 let queryClient: ISCNQueryClient | null = null;

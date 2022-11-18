@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
@@ -8,7 +7,6 @@ import {
   MEDIUM_APP_ID,
   MEDIUM_APP_SECRET,
 } from '../../../config/config';
-
 
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/medium`;
 const SCOPE = 'basicProfile';

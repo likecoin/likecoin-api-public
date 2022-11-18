@@ -10,7 +10,6 @@ import {
 } from './ipfs';
 import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../constant';
 
-
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
 const IPFS_KEY = 'IPFS-Add';
@@ -71,7 +70,7 @@ export async function getArweaveIdFromHashes(ipfsHash) {
 }
 
 async function generateManifest(files, { stub = false } = {}) {
-  const isIndexExists = !!files.find(f => f.key === 'index.html');
+  const isIndexExists = !!files.find((f) => f.key === 'index.html');
   let list = files;
   if (stub) {
     // stub some string as arweave id for estimation
@@ -91,7 +90,7 @@ async function generateManifest(files, { stub = false } = {}) {
     }));
   }
   const filePaths = list
-    .filter(p => p.key && p.arweaveId)
+    .filter((p) => p.key && p.arweaveId)
     .reduce((acc, p) => {
       acc[p.key] = {
         id: p.arweaveId,
@@ -151,9 +150,9 @@ export async function estimateARPrices(files, checkDuplicate = true): Promise<{
   if (files.length === 1) {
     return estimateARPrice(files[0], checkDuplicate);
   }
-  const prices = await Promise.all(files.map(f => estimateARPrice(f, checkDuplicate)));
+  const prices = await Promise.all(files.map((f) => estimateARPrice(f, checkDuplicate)));
   const filesWithPrice = files.map((f, i) => ({ ...f, arweaveId: prices[i].arweaveId }));
-  const checkManifestDuplicate = checkDuplicate && !filesWithPrice.find(p => !p.arweaveId);
+  const checkManifestDuplicate = checkDuplicate && !filesWithPrice.find((p) => !p.arweaveId);
   const manifest = await generateManifestFile(filesWithPrice, { stub: true });
   const manifestPrice = await estimateARPrice(manifest, checkManifestDuplicate);
 
@@ -191,14 +190,16 @@ export function convertARPriceToLIKE(ar, {
   };
 }
 
-export async function convertARPricesToLIKE(ar,
-  { margin = 0.05, decimal = 0 } = {}) {
+export async function convertARPricesToLIKE(
+  ar,
+  { margin = 0.05, decimal = 0 } = {},
+) {
   const priceRatioBigNumber = await getPriceRatioBigNumber();
   if (!(ar.list && ar.list.length)) {
     return convertARPriceToLIKE(ar, { priceRatioBigNumber, margin, decimal });
   }
   const newList = ar.list.map(
-    a => convertARPriceToLIKE(a, { priceRatioBigNumber, margin, decimal }),
+    (a) => convertARPriceToLIKE(a, { priceRatioBigNumber, margin, decimal }),
   );
   const totalLIKE = newList.reduce((acc, cur) => acc.plus(cur.LIKE), new BigNumber(0));
   return {
@@ -279,18 +280,18 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     ipfsHashes,
   ] = await Promise.all([
     getFolderIPFSHash(files),
-    Promise.all(files.map(f => getFileIPFSHash(f))),
+    Promise.all(files.map((f) => getFileIPFSHash(f))),
   ]);
   let arweaveIds = arweaveIdList;
   if (!arweaveIds) {
     if (checkDuplicate) {
-      arweaveIds = await Promise.all(ipfsHashes.map(h => getArweaveIdFromHashes(h)));
+      arweaveIds = await Promise.all(ipfsHashes.map((h) => getArweaveIdFromHashes(h)));
     } else {
       arweaveIds = new Array(files.length);
     }
   }
   const anchorId = (await arweave.api.get('/tx_anchor')).data;
-  if (!arweaveIds.some(id => !id)) {
+  if (!arweaveIds.some((id) => !id)) {
     const filesWithId = files.map((f, i) => ({ ...f, arweaveId: arweaveIds[i] }));
     const {
       manifest, ipfsHash: manifestIPFSHash,

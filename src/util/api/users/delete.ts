@@ -60,7 +60,7 @@ export async function deleteAllUserData(user) {
     clearUserButtonData(user),
     clearUserMappingData(user),
   // eslint-disable-next-line no-console
-  ].map(p => p.catch(e => console.error(e))));
+  ].map((p) => p.catch((e) => console.error(e))));
   await userCollection
     .doc(user).set({ isDeleted: true, timestamp: Date.now() });
 }

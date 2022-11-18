@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
@@ -8,7 +7,6 @@ import {
   MATTERS_APP_ID,
   MATTERS_APP_SECRET,
 } from '../../../config/config';
-
 
 const MATTER_HOST = `${IS_TESTNET ? 'web-develop.' : ''}matters.news`;
 const MATTER_API_HOST = `${IS_TESTNET ? 'server-develop.' : 'server.'}matters.news`;

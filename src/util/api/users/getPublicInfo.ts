@@ -14,7 +14,6 @@ import {
   userCollection as dbRef,
 } from '../../firebase';
 
-
 function isValidUserDoc(userDoc) {
   if (!userDoc || !userDoc.exists) {
     return false;

@@ -32,7 +32,7 @@ if (!process.env.CI) {
 }
 export const db = database;
 
-const getCollectionIfDefined = root => (root ? database.collection(root) : null);
+const getCollectionIfDefined = (root) => (root ? database.collection(root) : null);
 
 export const userCollection = getCollectionIfDefined(FIRESTORE_USER_ROOT);
 export const userAuthCollection = getCollectionIfDefined(FIRESTORE_USER_AUTH_ROOT);

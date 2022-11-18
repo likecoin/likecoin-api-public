@@ -155,7 +155,7 @@ export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
   if (!grant) throw new ValidationError('GRANT_NOT_FOUND');
   const { expiration, authorization } = grant;
   const { spendLimit } = authorization.value;
-  const limit = spendLimit.find(s => s.denom === NFT_COSMOS_DENOM);
+  const limit = spendLimit.find((s) => s.denom === NFT_COSMOS_DENOM);
   if (!limit) throw new ValidationError('SEND_GRANT_DENOM_NOT_FOUND');
   const { amount } = limit;
   const amountInLIKE = new BigNumber(amount).shiftedBy(-9);
@@ -171,11 +171,11 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   if (!tx) throw new Error('TX_NOT_FOUND');
   const parsed = parseTxInfoFromIndexedTx(tx);
   let messages = parsed.tx.body.messages
-    .filter(m => m.typeUrl === '/cosmos.authz.v1beta1.MsgGrant');
+    .filter((m) => m.typeUrl === '/cosmos.authz.v1beta1.MsgGrant');
   if (!messages.length) throw new ValidationError('GRANT_MSG_NOT_FOUND');
-  messages = messages.filter(m => m.value.grantee === target);
+  messages = messages.filter((m) => m.value.grantee === target);
   if (!messages.length) throw new ValidationError('INCORRECT_GRANT_TARGET');
-  const message = messages.find(m => m.value.grant.authorization.typeUrl === '/cosmos.bank.v1beta1.SendAuthorization');
+  const message = messages.find((m) => m.value.grant.authorization.typeUrl === '/cosmos.bank.v1beta1.SendAuthorization');
   if (!message) throw new ValidationError('SEND_GRANT_NOT_FOUND');
   const { granter } = message.value;
   const amountInLIKEString = await checkWalletGrantAmount(granter, target, totalPrice);
@@ -236,7 +236,9 @@ export async function handleNFTPurchaseTransaction({
   }
 
   const stakeholderMap = await parseAndCalculateStakeholderRewards(
-    data, owner, { totalAmount: stakeholdersAmount },
+    data,
+    owner,
+    { totalAmount: stakeholdersAmount },
   );
   stakeholderMap.forEach(({ amount }, wallet) => {
     transferMessages.push(
@@ -319,7 +321,7 @@ export async function handleNFTPurchaseTransaction({
   const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
   const stakeholderWallets = [...stakeholderMap.keys()];
   const stakeholderLIKEs = [...stakeholderMap.values()]
-    .map(a => new BigNumber(a.amount).shiftedBy(-9).toFixed());
+    .map((a) => new BigNumber(a.amount).shiftedBy(-9).toFixed());
   return {
     transactionHash,
     timestamp,

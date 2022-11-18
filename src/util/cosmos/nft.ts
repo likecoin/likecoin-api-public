@@ -1,4 +1,3 @@
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { DirectSecp256k1Wallet } from '@cosmjs/proto-signing';
 import { ISCNQueryClient, ISCNSigningClient } from '@likecoin/iscn-js';
@@ -88,7 +87,7 @@ export async function getNFTsByClassId(classId, address) {
     ({ nextKey: next } = res.pagination || {});
     nfts = nfts.concat(res.nfts);
   } while (next && next.length);
-  const nftIds = nfts.map(n => n.id);
+  const nftIds = nfts.map((n) => n.id);
   return { nftIds, nfts };
 }
 

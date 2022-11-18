@@ -1,4 +1,3 @@
-
 /* eslint-disable no-underscore-dangle */
 import { Router } from 'express';
 import xml from 'xml';
@@ -228,7 +227,7 @@ router.get('/', async (req, res, next) => {
             case 'xml': {
               res.set('Content-Type', 'text/xml');
               const xmlArray = Object.keys(oEmbedResponse).map(
-                key => ({ [key]: oEmbedResponse[key] }),
+                (key) => ({ [key]: oEmbedResponse[key] }),
               );
               res.send(xml({ oembed: xmlArray }, { declaration: { encoding: 'utf-8', standalone: 'yes' } }));
               break;

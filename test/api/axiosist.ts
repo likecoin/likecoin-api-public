@@ -8,7 +8,6 @@ import allRoutes from '../../src/routes/all';
 import errorHandler from '../../src/middleware/errorHandler';
 import { supportedLocales } from '../../src/locales';
 
-
 i18n.configure({
   locales: supportedLocales,
   directory: path.resolve(__dirname, '../../src/locales'),

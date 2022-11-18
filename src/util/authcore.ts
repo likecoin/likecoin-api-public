@@ -7,7 +7,6 @@ import {
 } from '../../config/config';
 import { ValidationError } from './ValidationError';
 
-
 const api = axios.create({
   baseURL: `${AUTHCORE_API_ENDPOINT}/api`,
   httpAgent: new HttpAgent(),
@@ -111,7 +110,7 @@ export async function getAuthCoreUserOAuthFactors(accessToken) {
   if (!data) throw new Error('AUTHCORE_OAUTH_ERROR');
   if (!data.oauth_factors) return [];
   const oAuthFactors = data.oauth_factors;
-  return oAuthFactors.map(f => ({
+  return oAuthFactors.map((f) => ({
     service: (f.service || 'FACEBOOK').toLowerCase(),
     userId: f.oauth_user_id,
   }));

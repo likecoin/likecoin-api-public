@@ -17,10 +17,10 @@ export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_N
   if (!tx) return null;
   const parsed = parseTxInfoFromIndexedTx(tx);
   const messages = parsed.tx.body.messages
-    .filter(m => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
-    .filter(m => m.value.receiver === target);
+    .filter((m) => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
+    .filter((m) => m.value.receiver === target);
   if (!messages.length) return null;
-  const nftIds = messages.map(m => m.value.id);
+  const nftIds = messages.map((m) => m.value.id);
   return {
     fromWallet: messages[0].value.sender,
     total: messages.length,
