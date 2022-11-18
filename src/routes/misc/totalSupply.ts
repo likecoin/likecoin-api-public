@@ -10,7 +10,7 @@ import { getCosmosTotalSupply, getCosmosAccountLIKE } from '../../util/cosmos';
 const router = Router();
 
 const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const LikeCoin = new web3.eth.Contract(LIKE_COIN_ABI, LIKE_COIN_ADDRESS);
 

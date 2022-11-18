@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/camelcase */
+
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';

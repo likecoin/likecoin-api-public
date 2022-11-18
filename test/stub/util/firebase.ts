@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint import/no-unresolved: "off" */
 /* eslint import/extensions: "off" */
 import * as admin from 'firebase-admin';
@@ -64,7 +65,7 @@ function querySnapshotDocs(inputData, originalData) {
         create: async setData => docSet(originalData, d.id, setData),
         update: async updateData => docUpdate(originalData, d.id, d, updateData),
         delete: async () => docDelete(originalData, { id: d.id }),
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        // eslint-disable-next-line no-use-before-define
         collection: id => createCollection(d.collection[id]),
       },
       data: () => docData(d),

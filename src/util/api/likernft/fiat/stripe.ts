@@ -102,7 +102,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
     return false;
   }
   await stripe.paymentIntents.capture(session.payment_intent, {
-    // eslint-disable-next-line @typescript-eslint/camelcase
     amount_to_capture: fiatAmount.toNumber(),
   });
   publisher.publish(PUBSUB_TOPIC_MISC, req, {

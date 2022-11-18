@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/camelcase */
+
 /* eslint-disable no-underscore-dangle */
 import { Router } from 'express';
 import xml from 'xml';

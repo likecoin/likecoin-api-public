@@ -8,10 +8,10 @@ import md5 from 'md5-hex';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 } from '../constant';
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { ValidationError } from './ValidationError';
 

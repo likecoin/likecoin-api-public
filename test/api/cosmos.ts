@@ -11,7 +11,6 @@ function signFormatter(signPayload) {
     msgs: [],
     fee: { gas: '1', amount: { denom: 'nanolike', amount: '0' } },
     sequence: '0',
-    // eslint-disable-next-line @typescript-eslint/camelcase
     account_number: '0',
   };
 }
@@ -35,7 +34,6 @@ function createSigner(privateKey) {
       signed: msg,
       signature: {
         signature: signature.toString('base64'),
-        // eslint-disable-next-line @typescript-eslint/camelcase
         pub_key: { value: publicKey.toString('base64') },
       },
     };

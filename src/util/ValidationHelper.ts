@@ -360,7 +360,7 @@ export function filterLikeNFTMetadata({
 }) {
   // key with underscore as in https://docs.opensea.io/docs/metadata-standards
   return {
-    /* eslint-disable @typescript-eslint/camelcase */
+
     ...data,
     image,
     external_url: externalUrl,
@@ -373,7 +373,7 @@ export function filterLikeNFTMetadata({
     iscn_owner: iscnOwner,
     iscn_record_timestamp: iscnRecordTimestamp,
     iscn_stakeholders: iscnStakeholders,
-    /* eslint-enable @typescript-eslint/camelcase */
+
   };
 }
 

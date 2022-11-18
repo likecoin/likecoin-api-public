@@ -67,7 +67,6 @@ export async function updateAuthCoreUser(payload, accessToken) {
   } = payload;
   const user = {
     username: userName,
-    // eslint-disable-next-line @typescript-eslint/camelcase
     display_name: displayName,
   };
   await api.put('/auth/users/current', { user }, {
@@ -94,7 +93,6 @@ export async function updateAuthCoreUserById(authCoreUserId, payload, accessToke
   } = payload;
   const user = {
     username: userName,
-    // eslint-disable-next-line @typescript-eslint/camelcase
     display_name: displayName,
   };
   await api.put(`/management/users/${authCoreUserId}`, { user }, {
