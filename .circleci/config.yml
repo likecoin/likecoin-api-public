@@ -4,6 +4,7 @@ jobs:
     working_directory: ~/likecoin-api-public
     docker:
       - image: node:16
+    resource_class: medium+
     steps:
       - checkout
       # - restore_cache:
@@ -36,7 +37,7 @@ jobs:
           command: npm run test
       - run:
           name: Upload coverage
-          command: npm run report-coverage && codecov
+          command: codecov
       # - save_cache:
       #     key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
       #     paths:
