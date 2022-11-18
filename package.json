@@ -16,14 +16,14 @@
     "dev:docker:test": "npm run dev:docker:test:build && docker-compose -f docker-compose-test.yml up -d",
     "dev:docker:test:build": "docker-compose -f docker-compose-test.yml build",
     "dev:docker:test:stop": "docker-compose -f docker-compose-test.yml stop",
-    "build": "npm run clean && NODE_ENV=production tsc",
+    "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/",
     "lint": "eslint --ext .ts,.js src test",
     "start": "NODE_ENV=production node dist/src/api.js",
     "start:web": "NODE_ENV=production node dist/src/web.js",
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
     "test:data": "cp ./test/data/* ./dist/test/data",
-    "test:api": "npm run test:data && IS_TESTNET=true CI=true TS_NODE_FILES=true c8 ava --timeout=1m -v"
+    "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true c8 ava --timeout=1m -v"
   },
   "repository": {
     "type": "git",

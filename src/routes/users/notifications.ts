@@ -40,7 +40,7 @@ router.get('/notifications', jwtAuth('read:notifications'), async (req, res, nex
     if (!limit) {
       limit = 64;
     }
-    const query = await queryRef.limit(limit).get();
+    const query = await queryRef.limit(Number(limit)).get();
     const list: any[] = [];
     query.docs.forEach((d) => {
       list.push(filterNotification({ id: d.id, ...d.data() }));

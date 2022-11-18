@@ -38,6 +38,10 @@ function stubAndTest() {
   try {
     const [, , script] = process.argv;
     console.log(script);
+    execSync('npm run clean', { env: process.env, stdio: 'inherit' });
+    execSync('npm run build', { env: process.env, stdio: 'inherit' });
+    execSync('npm run test:data', { env: process.env, stdio: 'inherit' });
+    execSync('sleep 2', { env: process.env, stdio: 'inherit' });
     execSync(`npm run ${script}`, { env: process.env, stdio: 'inherit' });
   } catch (e) {
     unsetStub();

@@ -13,7 +13,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     const { user } = req.user;
     const { filter } = req.query;
     const { before, after, limit } = req.query;
-    let queryRef = dbRef
+    let queryRef: any = dbRef
       .doc(user)
       .collection('follow');
     if (filter === 'followed') {
@@ -36,7 +36,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
         // no-op
       }
     }
-    const query = await queryRef.limit(limit || API_DEFAULT_SIZE_LIMIT).get();
+    const query = await queryRef.limit(Number(limit) || API_DEFAULT_SIZE_LIMIT).get();
     const list: any[] = [];
     query.docs.forEach((d) => {
       list.push(filterFollow({ id: d.id, ...d.data() }));

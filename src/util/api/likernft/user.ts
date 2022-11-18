@@ -51,7 +51,7 @@ export async function getUserStat(wallet) {
     batches.push(collectedClassIds.slice(i, i + FIRESTORE_IN_QUERY_LIMIT));
   }
   const queries = await Promise.all(batches.map(classIds => likeNFTCollection.where('classId', 'in', classIds).get()));
-  const docs = queries.reduce((acc, q) => acc.concat(q.docs), []);
+  const docs = queries.reduce((acc, q) => acc.concat(q.docs), [] as any[]);
 
   const priceMap = {};
   docs.forEach((doc) => {

@@ -14,7 +14,7 @@ export function addUrlToMetadataCrawler(url) {
     { list: [querystring.escape(url)] },
     {
       headers: {
-        Authorization: LIKECO_INTERNAL_API_KEY,
+        Authorization: LIKECO_INTERNAL_API_KEY || '',
       },
     },
   );

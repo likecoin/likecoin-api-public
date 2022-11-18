@@ -88,7 +88,7 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
       const { user } = req.user;
       const { archived = '0' } = req.query;
       const { before, after, limit } = req.query;
-      let queryRef = dbRef
+      let queryRef: any = dbRef
         .doc(user)
         .collection('bookmarks');
       if (archived === '0') {
@@ -114,7 +114,7 @@ router.get('/bookmarks/:id?', jwtAuth('read:bookmarks'),
           // no-op
         }
       }
-      const query = await queryRef.limit(limit || API_DEFAULT_SIZE_LIMIT).get();
+      const query = await queryRef.limit(Number(limit) || API_DEFAULT_SIZE_LIMIT).get();
       let list: any[] = [];
       query.docs.forEach((d) => {
         list.push(filterBookmarks({ id: d.id, ...d.data() }));

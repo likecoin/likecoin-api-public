@@ -112,7 +112,7 @@ async function handleRegisterISCN(req, res, next) {
     } = res.locals.signingInfo;
 
     if (req.query.estimate) {
-      const uploadPrice = req.locals.uploadPrice || 0;
+      const uploadPrice = res.locals.uploadPrice || 0;
       const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(ISCNPayload);
       const changeISCNOwnershipFee = new BigNumber(DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS)
         .multipliedBy(DEFAULT_GAS_PRICE);
@@ -296,7 +296,7 @@ router.post('/upload',
       if (req.query.estimate) {
         // eslint-disable-next-line max-len
         const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
-        req.locals.uploadPrice = Number(LIKE) + txSignNeed;
+        res.locals.uploadPrice = Number(LIKE) + txSignNeed;
         next();
         return;
       }

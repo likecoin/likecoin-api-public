@@ -7,7 +7,7 @@ import {
 } from './data';
 import axiosist from './axiosist';
 
-test('OEMBED: success cases', async (t) => {
+test('OEMBED: user button', async (t) => {
   let res;
 
   /* User button test */
@@ -80,7 +80,9 @@ test('OEMBED: success cases', async (t) => {
   t.is(res.data.author_url, `https://button.rinkeby.like.co/${testingUser1}`);
   t.is(res.data.thumbnail_width, 100);
   t.is(res.data.thumbnail_height, 100);
+});
 
+test('OEMBED: iscn id button', async (t) => {
   /* ISCN ID button test */
   const iscnIdPrefix = 'iscn://likecoin-chain/fKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo';
   for (const rawIscnId of [iscnIdPrefix, `${iscnIdPrefix}/3`]) {
@@ -102,7 +104,7 @@ test('OEMBED: success cases', async (t) => {
           `https://button.rinkeby.like.co/in/nft/${param}`,
         ];
         for (const oEmbedURL of queryURLs) {
-          res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
+          const res = await axiosist.get(`/api/oembed?url=${encodeURIComponent(oEmbedURL)}`)
             .catch(err => (err as any).response);
           t.is(res.status, 200);
           t.is(res.data.type, 'rich');
@@ -120,13 +122,15 @@ test('OEMBED: success cases', async (t) => {
     '/api/oembed?url=https%3A%2F%2Fbutton.rinkeby.like.co%2Fiscn%2Fiscn%3A%2Flikecoin-chain%2FfKzVj-8lF59UATj1-egqV1YLJcBz39as_t0dedHHFIo%2F1&format=json',
   ];
   for (const url of extraTestURLs) {
-    res = await axiosist.get(url)
+    const res = await axiosist.get(url)
       .catch(err => (err as any).response);
     t.is(res.status, 200, `url = ${url}`);
     t.is(res.data.type, 'rich');
     t.is(res.data.version, '1.0');
   }
+});
 
+test('OEMBED: nft class button', async (t) => {
   /* NFT class button test */
   const nftClass = 'likenft10f06wfaql5fxf3g4sy8v57p98lzp7ad92cu34f9aeyhyeklchznsav5npg';
   const queryURLs = [
@@ -144,7 +148,7 @@ test('OEMBED: success cases', async (t) => {
     `https://button.rinkeby.like.co/in/nft/${nftClass}`,
   ];
   for (const oEmbedURL of queryURLs) {
-    res = await axiosist.get(`/api/oembed?url=${oEmbedURL}`)
+    const res = await axiosist.get(`/api/oembed?url=${oEmbedURL}`)
       .catch(err => (err as any).response);
     t.is(res.status, 200, `url = ${oEmbedURL}`);
     t.is(res.data.type, 'rich');
@@ -153,9 +157,11 @@ test('OEMBED: success cases', async (t) => {
     t.is(res.data.thumbnail_height, 100);
     t.is(res.data.html.includes(nftClass), true);
   }
+});
 
+test('OEMBED: xml format test', async (t) => {
   /* xml format test */
-  res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)
+  const res = await axiosist.get(`/api/oembed?url=https://rinkeby.like.co/${testingUser1}&format=xml`)
     .catch(err => (err as any).response);
   t.is(res.status, 200);
   t.true(res.data.includes('<?xml version="1.0" encoding="utf-8" standalone="yes"?><oembed>'));

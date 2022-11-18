@@ -62,7 +62,7 @@ export async function getFirstUnsoldNFT(
     .where('isProcessing', '==', false)
     .where('price', '==', 0)
     .limit(1);
-  const res = await (transaction ? transaction.get(ref) : ref.get());
+  const res = await (transaction ? transaction.get(ref as any) : ref.get());
   if (!res.docs.length) return null;
   const doc = res.docs[0];
   const payload = {

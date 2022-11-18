@@ -22,11 +22,14 @@ function docData(obj) {
   return res;
 }
 
-function docUpdate(obj, updateData) {
+function docUpdate(data, id, obj, updateData) {
   if (Object.values(updateData).some(v => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
-  Object.assign(obj, updateData);
+  const index = data.findIndex(d => d.id === id);
+  if (index === -1) throw new Error('not found');
+  // eslint-disable-next-line no-param-reassign
+  data[id] = Object.assign(obj, updateData);
   return global.Promise.resolve();
 }
 
@@ -41,7 +44,7 @@ function docSet(data, id, setData, config: any = {}) {
   }
   const obj = data.find(d => d.id === id);
   if (obj && config && config.merge) {
-    return docUpdate(obj, setData);
+    return docUpdate(data, id, obj, setData);
   }
   const pushData = {
     ...setData,
@@ -51,15 +54,16 @@ function docSet(data, id, setData, config: any = {}) {
   return global.Promise.resolve();
 }
 
-function querySnapshotDocs(data) {
+function querySnapshotDocs(inputData, originalData) {
+  const data = inputData;
   return data.map((d) => {
     const docObj = {
       id: d.id,
       ref: {
-        set: (setData, config = {}) => docSet(data, d.id, setData, config),
-        create: setData => docSet(data, d.id, setData),
-        update: updateData => docUpdate(d, updateData),
-        delete: () => docDelete(data, { id: d.id }),
+        set: async (setData, config = {}) => docSet(originalData, d.id, setData, config),
+        create: async setData => docSet(originalData, d.id, setData),
+        update: async updateData => docUpdate(originalData, d.id, d, updateData),
+        delete: async () => docDelete(originalData, { id: d.id }),
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         collection: id => createCollection(d.collection[id]),
       },
@@ -93,7 +97,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
   } else if (op) {
     console.error(`operator ${op} is not supported`);
   }
-  const docs = querySnapshotDocs(whereData);
+  const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField, sOp, sValue) => collectionWhere(whereData, sField, sOp, sValue),
     orderBy: (sField, order = 'asc') => {
@@ -140,21 +144,21 @@ function collectionDoc(data, id) {
   }
 
   return {
-    get: function get() {
+    get: async function get() {
       return global.Promise.resolve({
         ...docObj,
         ref: this,
       });
     },
-    set: (setData, config = {}) => docSet(data, id, setData, config),
-    create: setData => docSet(data, id, setData),
-    update: (updateData) => {
+    set: async (setData, config = {}) => docSet(data, id, setData, config),
+    create: async setData => docSet(data, id, setData),
+    update: async (updateData) => {
       if (obj) {
-        return docUpdate(obj, updateData);
+        return docUpdate(data, id, obj, updateData);
       }
       return global.Promise.resolve();
     },
-    delete: () => {
+    delete: async () => {
       if (obj) {
         return docDelete(data, obj);
       }
@@ -177,7 +181,7 @@ function createCollection(data) {
     where: (field, op, value) => collectionWhere(data, field, op, value),
     doc: id => collectionDoc(data, id),
     get: () => {
-      const docs = querySnapshotDocs(data);
+      const docs = querySnapshotDocs(data, data);
       return global.Promise.resolve({
         docs,
         forEach: f => docs.forEach(f),
