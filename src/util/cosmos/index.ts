@@ -95,7 +95,7 @@ export function verifyCosmosSignInPayload({
   msgSha256.update(message);
   const msgHash = msgSha256.digest();
   const { cosmosAddress, likeAddress } = publicKeyBinaryToAddresses(publicKeyBinary);
-  const valid = secp256k1.verify(msgHash, signatureBinary, publicKeyBinary)
+  const valid = secp256k1.ecdsaVerify(signatureBinary, msgHash, publicKeyBinary)
     && (cosmosAddress === inputWallet || likeAddress === inputWallet);
   return valid;
 }

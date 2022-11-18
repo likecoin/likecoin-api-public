@@ -29,7 +29,7 @@ function createSigner(privateKey) {
     const msgSha256 = createHash('sha256');
     msgSha256.update(jsonStringify(msg));
     const msgHash = msgSha256.digest();
-    const { signature: signatureArr } = secp256k1.sign(msgHash, privateKey);
+    const { signature: signatureArr } = secp256k1.ecdsaSign(msgHash, privateKey);
     const signature = Buffer.from(signatureArr);
     return {
       signed: msg,
