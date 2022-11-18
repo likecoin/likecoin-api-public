@@ -35,21 +35,6 @@
     "url": "https://github.com/likecoin/likecoin-api-public/issues"
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
-  "ava": {
-    "require": [
-      "source-map-support/register"
-    ],
-    "files": [
-      "test/**/*.test.ts"
-    ],
-    "typescript": {
-      "rewritePaths": {
-        "test/": "dist/test/",
-        "src/": "dist/src/"
-      },
-      "compile": false
-    }
-  },
   "dependencies": {
     "@cosmjs/stargate": "^0.28.4",
     "@google-cloud/pubsub": "^3.1.1",
