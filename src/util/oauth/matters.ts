@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { Method } from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
 import { EXTERNAL_HOSTNAME, IS_TESTNET } from '../../constant';
@@ -40,7 +40,7 @@ export async function fetchMattersAccessToken(code) {
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method as 'POST',
+    method: req.method as Method,
     data: querystring.stringify(req.data),
   });
   const { access_token: accessToken, refresh_token: refreshToken } = data;

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { Method } from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
 import OAuth from 'oauth-1.0a';
@@ -28,7 +28,7 @@ export async function fetchFlickrOAuthInfo(user) {
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method as 'POST',
+    method: req.method as Method,
     data: querystring.stringify(oauth.authorize(req) as any),
   });
   const payload = querystring.parse(data);
@@ -54,8 +54,8 @@ export async function fetchFlickrUser(oAuthToken, oAuthTokenSecret, oAuthVerifie
   };
   const { data } = await axios({
     url: req.url,
-    method: req.method as 'POST',
-    data: querystring.stringify(oauth.authorize(req, token)as any),
+    method: req.method as Method,
+    data: querystring.stringify(oauth.authorize(req, token) as any),
   });
   const payload = querystring.parse(data);
   if (!payload.user_nsid) throw new ValidationError('flickr oauth verify fail');
