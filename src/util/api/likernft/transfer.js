@@ -16,8 +16,9 @@ export async function getNFTTransferInfo(txHash, classId, nftId) {
     sender: fromAddress,
     receiver: toAddress,
   } = message;
-  const { timestamp } = data.tx_response;
+  const { code, timestamp } = data.tx_response;
   return {
+    code,
     fromAddress,
     toAddress,
     txTimestamp: Date.parse(timestamp),
