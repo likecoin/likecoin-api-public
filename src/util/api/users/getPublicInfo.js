@@ -29,10 +29,12 @@ function isValidUserDoc(userDoc) {
 function formatUserCivicLikerProperies(userDoc) {
   const { id } = userDoc;
   const data = userDoc.data();
-  const { civicLiker } = data;
+  const { civicLiker, avatarHash } = data;
   const payload = data;
   payload.user = id;
-  payload.avatar = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
+  let avatarUrl = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
+  if (avatarHash) avatarUrl += `&hash=${avatarHash}`;
+  payload.avatar = avatarUrl;
 
   if (civicLiker) {
     const {
