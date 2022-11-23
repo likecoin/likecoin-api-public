@@ -22,8 +22,8 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
 
+  const hash256 = sha256(file.buffer);
   if (avatarSHA256) {
-    const hash256 = sha256(file.buffer);
     if (hash256 !== avatarSHA256) throw new ValidationError('avatar sha not match');
   }
 
@@ -34,7 +34,7 @@ export async function handleAvatarUploadAndGetURL(user, file, avatarSHA256) {
     mimetype: file.mimetype,
   });
   const versionHash = md5(file.buffer).substring(0, 7);
-  return `${avatarUrl}&${versionHash}`;
+  return { url: `${avatarUrl}&${versionHash}`, hash: hash256 };
 }
 
 export async function handleAvatarLinkAndGetURL(user, url) {
