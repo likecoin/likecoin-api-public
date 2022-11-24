@@ -370,7 +370,7 @@ router.post(
         throw new ValidationError('INVALID_AVATAR');
       }
 
-      const payload = { avatar: avatarUrl };
+      const payload: any = { avatar: avatarUrl };
       if (avatarHash) payload.avatarHash = avatarHash;
       await dbRef.doc(user).update(payload);
       res.json({ avatar: avatarUrl });
