@@ -1,0 +1,118 @@
+/* eslint-disable no-underscore-dangle */
+import EmailTemplate from '@likecoin/likecoin-email-templates';
+import aws from 'aws-sdk';
+import { TEST_MODE } from '../constant';
+
+if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
+
+const ses = new aws.SES();
+
+export async function sendVerificationEmail(res, user, ref) {
+  const params = {
+    Source: '"Liker Land" <noreply@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendVerificationEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [user.email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: res.__('Email.VerifiyEmail.subject'),
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: EmailTemplate.Basic({
+            title: res.__('Email.VerifiyEmail.subject'),
+            body: res.__('Email.VerifiyEmail.body', {
+              name: user.displayName,
+              uuid: user.verificationUUID,
+              ref,
+            }) + res.__('Email.signature'),
+          }),
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
+  const params = {
+    Source: '"Liker Land" <noreply@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendVerificationWithCouponEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [user.email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: res.__('Email.VerifiyAndCouponEmail.subject'),
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: EmailTemplate.Basic({
+            title: res.__('Email.VerifiyAndCouponEmail.subject'),
+            body: res.__('Email.VerifiyAndCouponEmail.body', {
+              name: user.displayName,
+              uuid: user.verificationUUID,
+              coupon,
+              ref,
+            }) + res.__('Email.signature'),
+          }),
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
+  const title = res.__('Email.InvitationEmail.subject', { referrer });
+  const params = {
+    Source: '"Liker Land" <noreply@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendInvitationEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: EmailTemplate.Basic({
+            title,
+            body: res.__('Email.InvitationEmail.body', {
+              referrerId,
+              referrer,
+              email,
+            }) + res.__('Email.signature'),
+          }),
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}

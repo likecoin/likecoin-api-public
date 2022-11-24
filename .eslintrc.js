@@ -1,6 +1,41 @@
 module.exports = {
-  extends: 'airbnb-base',
+  extends: [
+    'airbnb-base',
+    'plugin:@typescript-eslint/recommended'
+  ],
+  parser: '@typescript-eslint/parser',
+  plugins: [
+    '@typescript-eslint'
+  ],
+  settings: {
+    'import/parsers': {
+      '@typescript-eslint/parser': [
+        '.ts',
+        '.tsx'
+      ]
+    },
+    'import/resolver': {
+      node: {
+        extensions: [
+          '.js',
+          '.jsx',
+          '.ts',
+          '.tsx'
+        ]
+      }
+    }
+  },
   rules: {
+    'import/extensions': [
+       'error',
+       'ignorePackages',
+       {
+         'js': 'never',
+         'jsx': 'never',
+         'ts': 'never',
+         'tsx': 'never'
+       }
+    ],
     'no-console': 'error',
     'no-await-in-loop': 'off',
     'no-restricted-syntax': [

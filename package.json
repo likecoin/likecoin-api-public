@@ -6,11 +6,9 @@
   },
   "description": "",
   "main": "src/index.js",
-  "config": {
-    "test_file_pattern": "test/api/{}.test.js"
-  },
   "scripts": {
-    "dev": "IS_TESTNET=true backpack dev",
+    "clean": "rm -rf dist && mkdir dist && ln -s ../config ./dist/config",
+    "dev": "IS_TESTNET=true nodemon src/index.ts",
     "dev:stub": "IS_TESTNET=true node ./test/stub/runner dev",
     "dev:docker:api": "docker-compose -f docker-compose-dev.yml up -d",
     "dev:docker:build": "docker-compose build",
@@ -18,14 +16,14 @@
     "dev:docker:test": "npm run dev:docker:test:build && docker-compose -f docker-compose-test.yml up -d",
     "dev:docker:test:build": "docker-compose -f docker-compose-test.yml build",
     "dev:docker:test:stop": "docker-compose -f docker-compose-test.yml stop",
-    "build": "NODE_ENV=production backpack build",
-    "lint": "eslint src test",
-    "start": "NODE_ENV=production node build/api.js",
-    "start:web": "NODE_ENV=production node build/web.js",
-    "test": "nyc npm run test:stub",
+    "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/",
+    "lint": "eslint --ext .ts,.js src test --fix",
+    "start": "NODE_ENV=production node dist/src/api.js",
+    "start:web": "NODE_ENV=production node dist/src/web.js",
+    "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
-    "test:api": "IS_TESTNET=true CI=true ava -v",
-    "report-coverage": "nyc report --reporter=text-lcov > coverage.lcov"
+    "test:data": "cp ./test/data/* ./dist/test/data",
+    "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true c8 ava --timeout=1m -v"
   },
   "repository": {
     "type": "git",
@@ -37,19 +35,16 @@
     "url": "https://github.com/likecoin/likecoin-api-public/issues"
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
-  "ava": {
-    "require": [
-      "./test/_register"
-    ]
-  },
   "dependencies": {
     "@cosmjs/stargate": "^0.28.4",
     "@google-cloud/pubsub": "^3.1.1",
     "@ipld/car": "^4.1.6",
-    "@likecoin/iscn-js": "0.4.1",
+    "@likecoin/iscn-js": "0.4.2",
     "@likecoin/likecoin-email-templates": "^1.2.2",
     "@likecoin/secretd-js": "^0.4.3",
     "@sendgrid/mail": "^6.5.5",
+    "@types/sharp": "^0.31.0",
+    "@types/url-parse": "^1.4.8",
     "agentkeepalive": "^4.1.3",
     "arweave": "^1.10.17",
     "aws-sdk": "^2.384.0",
@@ -58,7 +53,6 @@
     "bech32": "^1.1.3",
     "bignumber.js": "^8.0.1",
     "body-parser": "^1.18.3",
-    "compression": "^1.7.3",
     "cookie-parser": "^1.4.3",
     "cors": "^2.8.5",
     "cosmjs-types": "^0.5.0",
@@ -83,9 +77,8 @@
     "multer": "^1.4.1",
     "oauth-1.0a": "^2.2.5",
     "protobufjs": "^6.8.8",
-    "secp256k1": "^3.8.0",
+    "secp256k1": "^4.0.3",
     "sharp": "^0.31.1",
-    "source-map-support": "^0.5.9",
     "stripe": "^10.7.0",
     "twit": "^2.2.11",
     "url-parse": "^1.4.4",
@@ -98,17 +91,23 @@
     "xml": "^1.0.1"
   },
   "devDependencies": {
-    "@babel/register": "^7.0.0",
-    "ava": "^1.4.1",
+    "@ava/typescript": "^3.0.1",
+    "@types/cookie-parser": "^1.4.3",
+    "@types/express": "^4.17.14",
+    "@types/node": "^18.11.9",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
+    "ava": "^5.0.1",
     "axiosist": "^0.3.0",
-    "backpack-core": "^0.8.3",
-    "eslint": "^5.10.0",
-    "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-loader": "^2.1.1",
+    "c8": "^7.12.0",
+    "eslint": "^7.11.0",
+    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.14.0",
     "form-data": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
     "nodemon": "^1.19.4",
-    "nyc": "^13.1.0"
+    "source-map-support": "^0.5.21",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.4"
   }
 }

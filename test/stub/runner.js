@@ -1,14 +1,15 @@
 /* eslint no-console: "off" */
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { execSync } = require('child_process');
 
 function setStub() {
   console.log('Setting Stub');
   execSync('mkdir -p config');
-  execSync('cp ./src/util/fileupload.js ./src/util/fileupload.js.bak || true');
-  execSync('cp ./src/util/firebase.js ./src/util/firebase.js.bak || true');
-  execSync('cp ./src/util/ses.js ./src/util/ses.js.bak || true');
-  execSync('cp ./src/util/sendgrid.js ./src/util/sendgrid.js.bak || true');
-  execSync('cp ./src/util/cosmos/api.js ./src/util/cosmos/api.js.bak || true');
+  execSync('cp ./src/util/fileupload.ts ./src/util/fileupload.ts.bak || true');
+  execSync('cp ./src/util/firebase.ts ./src/util/firebase.ts.bak || true');
+  execSync('cp ./src/util/ses.ts ./src/util/ses.ts.bak || true');
+  execSync('cp ./src/util/sendgrid.ts ./src/util/sendgrid.ts.bak || true');
+  execSync('cp ./src/util/cosmos/api.ts ./src/util/cosmos/api.ts.bak || true');
   execSync('rsync -a ./test/stub/util/ ./src/util/');
   execSync('cp ./config/accounts.js ./config/accounts.js.bak || true');
   execSync('cp ./config/config.js ./config/config.js.bak || true');
@@ -18,11 +19,11 @@ function setStub() {
 
 function unsetStub() {
   console.log('Unsetting Stub');
-  execSync('mv ./src/util/fileupload.js.bak ./src/util/fileupload.js');
-  execSync('mv ./src/util/firebase.js.bak ./src/util/firebase.js');
-  execSync('mv ./src/util/ses.js.bak ./src/util/ses.js');
-  execSync('mv ./src/util/sendgrid.js.bak ./src/util/sendgrid.js');
-  execSync('mv ./src/util/cosmos/api.js.bak ./src/util/cosmos/api.js');
+  execSync('mv ./src/util/fileupload.ts.bak ./src/util/fileupload.ts');
+  execSync('mv ./src/util/firebase.ts.bak ./src/util/firebase.ts');
+  execSync('mv ./src/util/ses.ts.bak ./src/util/ses.ts');
+  execSync('mv ./src/util/sendgrid.ts.bak ./src/util/sendgrid.ts');
+  execSync('mv ./src/util/cosmos/api.ts.bak ./src/util/cosmos/api.ts');
   execSync('mv ./config/accounts.js.bak ./config/accounts.js');
   execSync('mv ./config/config.js.bak ./config/config.js');
   execSync('mv ./config/secret.js.bak ./config/secret.js');
@@ -35,9 +36,13 @@ function stubAndTest() {
     unsetStub();
   });
   try {
-    const [, , script, testFile = '*'] = process.argv;
-    const testTarget = process.env.npm_package_config_test_file_pattern.replace('{}', testFile);
-    execSync(`npm run ${script} ${testTarget}`, { env: process.env, stdio: 'inherit' });
+    const [, , script] = process.argv;
+    console.log(script);
+    execSync('npm run clean', { env: process.env, stdio: 'inherit' });
+    execSync('npm run build', { env: process.env, stdio: 'inherit' });
+    execSync('npm run test:data', { env: process.env, stdio: 'inherit' });
+    execSync('sleep 2', { env: process.env, stdio: 'inherit' });
+    execSync(`npm run ${script}`, { env: process.env, stdio: 'inherit' });
   } catch (e) {
     unsetStub();
     process.exit(1);
