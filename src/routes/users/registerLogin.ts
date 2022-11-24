@@ -355,9 +355,13 @@ router.post(
       const { avatarSHA256 } = req.body;
       const { file } = req;
       let avatarUrl;
+      let avatarHash;
       if (!file) throw new ValidationError('MISSING_AVATAR_FILE');
       try {
-        avatarUrl = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+        ({
+          url: avatarUrl,
+          hash: avatarHash,
+        } = await handleAvatarUploadAndGetURL(user, file, avatarSHA256));
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Avatar file handling error:');
@@ -366,7 +370,9 @@ router.post(
         throw new ValidationError('INVALID_AVATAR');
       }
 
-      await dbRef.doc(user).update({ avatar: avatarUrl });
+      const payload = { avatar: avatarUrl };
+      if (avatarHash) payload.avatarHash = avatarHash;
+      await dbRef.doc(user).update(payload);
       res.json({ avatar: avatarUrl });
 
       const oldUserObj = await dbRef.doc(user).get();

@@ -129,9 +129,13 @@ export async function handleUserRegistration({
   // upload avatar
   const { file } = req;
   let avatarURL;
+  let avatarHash;
   try {
     if (file) {
-      avatarURL = await handleAvatarUploadAndGetURL(user, file, avatarSHA256);
+      ({
+        url: avatarURL,
+        hash: avatarHash,
+      } = await handleAvatarUploadAndGetURL(user, file, avatarSHA256));
     } else if (avatarURLInput) {
       avatarURL = await handleAvatarLinkAndGetURL(user, avatarURLInput);
     }
@@ -170,7 +174,10 @@ export async function handleUserRegistration({
     locale,
   };
 
-  if (avatarURL) createObj.avatar = avatarURL;
+  if (avatarURL) {
+    createObj.avatar = avatarURL;
+    if (avatarHash) createObj.avatarHash = avatarHash;
+  }
   if (likeWallet) createObj.likeWallet = likeWallet;
   if (hasReferrer) createObj.referrer = referrer;
   if (description) createObj.description = description;

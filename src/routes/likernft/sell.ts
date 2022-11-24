@@ -29,10 +29,12 @@ router.post(
       const info = await getNFTTransferInfo(txHash, classId, nftId);
       if (!info) throw new ValidationError('NO_MATCHING_TX_HASH_AND_NFT_ID');
       const {
+        code,
         fromAddress,
         toAddress,
         txTimestamp,
       } = info;
+      if (code) throw new ValidationError(`TX_FAILED_WITH_CODE_${code}`);
       if (toAddress !== LIKER_NFT_TARGET_ADDRESS) throw new ValidationError('INVALID_TX_RECEIVER');
       const iscnPrefix = await getISCNPrefixByClassId(classId);
       const owner = await getNFTOwner(classId, nftId);
