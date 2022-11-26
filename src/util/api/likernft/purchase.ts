@@ -10,7 +10,7 @@ import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
-import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence } from '../../cosmos/tx';
+import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH } from '../../cosmos/tx';
 import {
   NFT_COSMOS_DENOM,
   NFT_CHAIN_ID,
@@ -353,7 +353,8 @@ export async function processNFTPurchase({
       message = '',
     } = {},
   } = classDoc.data();
-  const memo = message.replaceAll('{collector}', buyerWallet) || '';
+  let memo = message.replaceAll('{collector}', buyerWallet) || '';
+  memo = memo.length > MAX_MEMO_LENGTH ? memo.substring(0, MAX_MEMO_LENGTH) : memo;
   if (!iscnData) throw new ValidationError('CLASS_DATA_NOT_FOUND');
 
   // lock iscn nft

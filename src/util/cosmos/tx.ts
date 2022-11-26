@@ -22,6 +22,7 @@ const {
 export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10;
 export const DEFAULT_TRANSFER_GAS = 80000;
 export const DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS = 59714;
+export const MAX_MEMO_LENGTH = 256;
 
 let stargateClient: StargateClient | null = null;
 let broadcastClient: StargateClient | null = null;
