@@ -354,7 +354,7 @@ export async function processNFTPurchase({
     } = {},
   } = classDoc.data();
   let memo = message.replaceAll('{collector}', buyerWallet) || '';
-  memo = memo.length > MAX_MEMO_LENGTH ? memo.substring(0, MAX_MEMO_LENGTH) : memo;
+  memo =  Buffer.byteLength(memo, 'utf8') > MAX_MEMO_LENGTH ? Buffer.from(memo).slice(0, MAX_MEMO_LENGTH).toString(); : memo;
   if (!iscnData) throw new ValidationError('CLASS_DATA_NOT_FOUND');
 
   // lock iscn nft
