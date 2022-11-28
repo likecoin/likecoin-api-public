@@ -132,7 +132,6 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     }
     const {
       userPayload,
-      socialPayload,
     } = await handleUserRegistration({
       payload: {
         avatarURL,
@@ -180,13 +179,6 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
       accessToken: jwtid,
       logType: 'eventAPIUserRegister',
     });
-    if (socialPayload) {
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        ...userPayload,
-        ...socialPayload,
-        logType: 'eventAPISocialLink',
-      });
-    }
   } catch (err) {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventAPIRegisterError',
