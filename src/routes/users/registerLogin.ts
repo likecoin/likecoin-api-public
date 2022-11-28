@@ -37,7 +37,6 @@ import {
   REGISTER_LIMIT_COUNT,
 } from '../../../config/config';
 
-import loginPlatforms from './platforms';
 import {
   isValidCosmosAddress,
   isValidLikeAddress,
@@ -65,8 +64,6 @@ const apiLimiter = new RateLimit({
     });
   },
 });
-
-router.use(loginPlatforms);
 
 function isJson(req) {
   return !!req.is('application/json');
@@ -195,7 +192,6 @@ router.post(
       }
       const {
         userPayload,
-        socialPayload,
       } = await handleUserRegistration({
         payload: {
           ...payload,
@@ -232,13 +228,6 @@ router.post(
         ...userPayload,
         logType: 'eventUserRegister',
       });
-      if (socialPayload) {
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          ...userPayload,
-          ...socialPayload,
-          logType: 'eventSocialLink',
-        });
-      }
       if (getUserAgentIsApp(req)) {
         if (appReferrer) {
           await handleAppReferrer(req, userPayload, appReferrer);

@@ -10,7 +10,9 @@ import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
-import { DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH } from '../../cosmos/tx';
+import {
+  DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH,
+} from '../../cosmos/tx';
 import {
   NFT_COSMOS_DENOM,
   NFT_CHAIN_ID,

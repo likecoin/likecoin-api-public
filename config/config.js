@@ -73,23 +73,6 @@ config.STRIPE_WEBHOOK_SECRET = '';
 
 config.CRISP_USER_HASH_SECRET = '';
 
-config.TWITTER_CONSUMER_KEY = '';
-config.TWITTER_CONSUMER_SECRET = '';
-config.TWITTER_ACCESS_TOKEN = '';
-config.TWITTER_ACCESS_TOKEN_SECRET = '';
-
-config.TWITTER_API_KEY = '';
-config.TWITTER_API_SECRET = '';
-
-config.FACEBOOK_APP_ID = '';
-config.FACEBOOK_APP_SECRET = '';
-
-config.FLICKR_APP_KEY = '';
-config.FLICKR_APP_SECRET = '';
-
-config.MEDIUM_APP_ID = '';
-config.MEDIUM_APP_SECRET = '';
-
 config.MATTERS_APP_ID = '';
 config.MATTERS_APP_SECRET = '';
 

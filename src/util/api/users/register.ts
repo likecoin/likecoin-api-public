@@ -21,7 +21,6 @@ import {
   checkUserInfoUniqueness,
   getUserAgentIsApp,
 } from '.';
-import { tryToLinkSocialPlatform } from '../social';
 import { addDefaultFollowers } from './follow';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, checkCosmosAddressValid } from '../../ValidationHelper';
@@ -302,11 +301,6 @@ export async function handleUserRegistration({
   }
   await batch.commit();
 
-  // TODO: fetch social info in authcore after confirm
-  const socialPayload = await tryToLinkSocialPlatform(user, platform, { accessToken, secret });
-
-  addDefaultFollowers(user);
-
   return {
     userPayload: {
       user,
@@ -330,6 +324,5 @@ export async function handleUserRegistration({
       utmSource,
       mediaChannels: createObj.mediaChannels,
     },
-    socialPayload,
   };
 }
