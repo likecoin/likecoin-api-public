@@ -153,12 +153,12 @@ export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/sim
 export const LIKECOIN_DARK_GREEN_THEME_COLOR = '#28646E';
 
 export const NFT_GEM_COLOR = [
-  '#000000',
-  '#D0D0D0',
-  '#D0D0D0',
-  '#D0D0D0',
   '#F7F7F7',
-  '#F7F7F7',
+  '#EBEBEB',
+  '#EBEBEB',
+  '#EBEBEB',
+  '#D0D0D0',
+  '#D0D0D0',
   '#2FAF93',
   '#2FAF93',
   '#44ABCC',
