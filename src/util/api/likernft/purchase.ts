@@ -240,7 +240,7 @@ export async function handleNFTPurchaseTransaction({
   const stakeholderMap = await parseAndCalculateStakeholderRewards(
     data,
     owner,
-    { totalAmount: stakeholdersAmount },
+    { totalAmount: stakeholdersAmount, precision: 0 },
   );
   stakeholderMap.forEach(({ amount }, wallet) => {
     transferMessages.push(
