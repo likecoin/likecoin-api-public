@@ -74,7 +74,7 @@ router.get(
 );
 
 router.get(
-  '/metadata/image/class_(:classId)(.png)?',
+  ['/image/class_(:classId)(.png)?', '/metadata/image/class_(:classId)(.png)?'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
