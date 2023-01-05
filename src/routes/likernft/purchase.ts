@@ -69,6 +69,7 @@ router.post(
         throw new ValidationError('SEND_GRANT_NOT_FOUND');
       }
       const {
+        memo,
         granter: likeWallet,
         spendLimit: grantedAmount,
       } = result;
@@ -90,6 +91,8 @@ router.post(
         classId,
         granterWallet: likeWallet,
         grantedAmount,
+        grantTxHash: txHash as string,
+        granterMemo: memo,
       }, req);
       res.json({
         txHash: transactionHash,
@@ -108,6 +111,8 @@ router.post(
         nftPrice: actualNftPrice,
         gasFee: actualGasFee,
         buyerWallet: likeWallet,
+        buyerMemo: memo,
+        grantTxHash: txHash as string,
         sellerWallet,
         sellerLIKE,
         sellerLIKENumber: Number(sellerLIKE),
