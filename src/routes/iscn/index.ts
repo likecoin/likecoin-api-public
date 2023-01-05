@@ -167,16 +167,14 @@ async function handleRegisterISCN(req, res, next) {
       /* eslint-enable no-await-in-loop */
     }
 
-    // TODO: remove iscn debug
-    if (iscnId) {
-      // eslint-disable-next-line no-console
-      console.log(`ISCN ID: ${iscnId}`);
-    } else if (iscnTxHash) {
-      // eslint-disable-next-line no-console
-      console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
-    } else {
-      // eslint-disable-next-line no-console
-      console.error('Cannot find ISCN ID and ISCN TX');
+    if (!iscnId) {
+      if (iscnTxHash) {
+        // eslint-disable-next-line no-console
+        console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('Cannot find ISCN ID and ISCN TX');
+      }
     }
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
