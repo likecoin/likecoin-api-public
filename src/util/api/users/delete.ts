@@ -1,3 +1,4 @@
+import { FIRESTORE_BATCH_SIZE } from '../../../constant';
 import {
   userCollection,
   userAuthCollection,
@@ -9,8 +10,6 @@ import {
   db,
 } from '../../firebase';
 
-const BATCH_SIZE = 250;
-
 async function clearUserButtonData(user) {
   const query = await likeButtonUrlCollection
     .where('user', '==', user)
@@ -20,12 +19,12 @@ async function clearUserButtonData(user) {
   let i;
   for (i = 0; i < query.docs.length; i += 1) {
     batch.delete(query.docs[i].ref);
-    if (i % BATCH_SIZE === 0) {
+    if (i % FIRESTORE_BATCH_SIZE === 0) {
       await batch.commit();
       batch = db.batch();
     }
   }
-  if (i % BATCH_SIZE) await batch.commit();
+  if (i % FIRESTORE_BATCH_SIZE) await batch.commit();
 }
 
 async function clearUserMappingData(user) {
@@ -37,12 +36,12 @@ async function clearUserMappingData(user) {
   let i;
   for (i = 0; i < query.docs.length; i += 1) {
     batch.delete(query.docs[i].ref);
-    if (i % BATCH_SIZE === 0) {
+    if (i % FIRESTORE_BATCH_SIZE === 0) {
       await batch.commit();
       batch = db.batch();
     }
   }
-  if (i % BATCH_SIZE) await batch.commit();
+  if (i % FIRESTORE_BATCH_SIZE) await batch.commit();
 }
 
 export async function deleteAllUserData(user) {

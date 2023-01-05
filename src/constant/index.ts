@@ -174,3 +174,5 @@ export const NFT_GEM_COLOR = [
 export const APP_LIKE_CO_ISCN_VIEW_URL = `https://app.${IS_TESTNET ? 'rinkeby.' : ''}like.co/view/`;
 
 export const FIRESTORE_IN_QUERY_LIMIT = 10;
+
+export const FIRESTORE_BATCH_SIZE = 200;
