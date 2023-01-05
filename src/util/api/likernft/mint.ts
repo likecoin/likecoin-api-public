@@ -8,6 +8,7 @@ import {
   WNFT_DEFAULT_PATH,
   APP_LIKE_CO_ISCN_VIEW_URL,
   LIKECOIN_DARK_GREEN_THEME_COLOR,
+  FIRESTORE_BATCH_SIZE,
 } from '../../../constant';
 
 export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
@@ -113,7 +114,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
         timestamp,
       },
     );
-    if (i % 500 === 0) {
+    if (i % FIRESTORE_BATCH_SIZE === 0) {
       // eslint-disable-next-line no-await-in-loop
       await batch.commit();
       batch = db.batch();
