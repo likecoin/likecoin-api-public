@@ -25,6 +25,7 @@ router.post(
         fromAddress,
         toAddress,
         txTimestamp,
+        memo,
       } = info;
       if (code) throw new ValidationError(`TX_FAILED_WITH_CODE_${code}`);
       const iscnPrefix = await getISCNPrefixByClassId(classId);
@@ -36,6 +37,7 @@ router.post(
         nftId,
         txHash,
         txTimestamp,
+        memo,
       });
       res.json({
         txTimestamp,
@@ -56,6 +58,7 @@ router.post(
         timestamp: txTimestamp,
         fromAddress,
         toAddress,
+        memo,
       });
     } catch (err) {
       next(err);

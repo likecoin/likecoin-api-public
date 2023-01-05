@@ -9,6 +9,7 @@ import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../../config/config';
 export async function getNFTTransferInfo(txHash, classId, nftId) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/tx/v1beta1/txs/${txHash}`);
   if (!data) return null;
+  const { memo } = data.tx.body;
   const message = data.tx.body.messages.find((m) => m['@type'] === '/cosmos.nft.v1beta1.MsgSend'
       && m.id === nftId && m.class_id === classId);
   if (!message) return null;
@@ -18,6 +19,7 @@ export async function getNFTTransferInfo(txHash, classId, nftId) {
   } = message;
   const { code, timestamp } = data.tx_response;
   return {
+    memo,
     code,
     fromAddress,
     toAddress,
@@ -33,6 +35,7 @@ export async function processNFTTransfer({
   nftId,
   txHash,
   txTimestamp,
+  memo,
 }) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
@@ -56,6 +59,7 @@ export async function processNFTTransfer({
       timestamp: txTimestamp,
       fromWallet: fromAddress,
       toWallet: toAddress,
+      memo,
     });
   });
 }
