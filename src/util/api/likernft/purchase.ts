@@ -172,6 +172,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const tx = await q.getTx(txHash);
   if (!tx) throw new Error('TX_NOT_FOUND');
   const parsed = parseTxInfoFromIndexedTx(tx);
+  const { memo } = parsed.tx.body;
   let messages = parsed.tx.body.messages
     .filter((m) => m.typeUrl === '/cosmos.authz.v1beta1.MsgGrant');
   if (!messages.length) throw new ValidationError('GRANT_MSG_NOT_FOUND');
@@ -185,6 +186,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   const balanceAmountInLIKE = new BigNumber(balance.amount || 0).shiftedBy(-9);
   if (balanceAmountInLIKE.lt(totalPrice)) throw new ValidationError('GRANTER_AMOUNT_NOT_ENOUGH');
   return {
+    memo,
     granter,
     spendLimit: new BigNumber(amountInLIKEString).toNumber(),
   };
@@ -339,9 +341,11 @@ export async function processNFTPurchase({
   buyerWallet,
   iscnPrefix,
   classId,
+  nftId: targetNftId = undefined,
   granterWallet = buyerWallet,
   grantedAmount,
-  nftId: targetNftId = undefined,
+  grantTxHash = '',
+  granterMemo = '',
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
@@ -498,6 +502,9 @@ export async function processNFTPurchase({
         .doc(transactionHash), {
         event: 'purchase',
         txHash: transactionHash,
+        grantTxHash,
+        granterMemo,
+        memo,
         price: nftPrice,
         classId,
         nftId,
