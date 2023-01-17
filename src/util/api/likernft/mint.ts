@@ -10,6 +10,7 @@ import {
   LIKECOIN_DARK_GREEN_THEME_COLOR,
   FIRESTORE_BATCH_SIZE,
 } from '../../../constant';
+import { sleep } from '../../misc';
 
 export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getNFTQueryClient();
@@ -56,46 +57,45 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     image,
     ...otherData
   } = metadata;
-  await Promise.all([
-    iscnRef.create({
-      classId,
-      classes: [classId],
-      totalCount,
-      nftRemainingCount: nfts.length,
-      currentPrice: price,
-      currentBatch,
-      batchRemainingCount: count,
-      basePrice: price,
-      soldCount: 0,
-      classUri: uri,
-      creatorWallet: sellerWallet,
-      ownerWallet: sellerWallet,
-      processingCount: 0,
-      timestamp,
-    }),
-    iscnRef.collection('class').doc(classId).create({
-      id: classId,
-      uri,
-      lastSoldPrice: 0,
-      soldCount: 0,
-      creatorWallet: sellerWallet,
-      timestamp,
-      metadata: {
-        ...otherData,
-        image: image || WNFT_DEFAULT_PATH, // TODO: replace with default NFT image
-        externalUrl: externalUrl || url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnPrefix)}`,
-        description,
-        name,
-        backgroundColor: backgroundColor || LIKECOIN_DARK_GREEN_THEME_COLOR,
-      },
-    }),
-  ]);
   let batch = db.batch();
-  for (let i = 0; i < nfts.length; i += 1) {
+  batch.create(iscnRef, {
+    classId,
+    classes: [classId],
+    totalCount,
+    nftRemainingCount: nfts.length,
+    currentPrice: price,
+    currentBatch,
+    batchRemainingCount: count,
+    basePrice: price,
+    soldCount: 0,
+    classUri: uri,
+    creatorWallet: sellerWallet,
+    ownerWallet: sellerWallet,
+    processingCount: 0,
+    timestamp,
+  });
+  batch.create(iscnRef.collection('class').doc(classId), {
+    id: classId,
+    uri,
+    lastSoldPrice: 0,
+    soldCount: 0,
+    creatorWallet: sellerWallet,
+    timestamp,
+    metadata: {
+      ...otherData,
+      image: image || WNFT_DEFAULT_PATH, // TODO: replace with default NFT image
+      externalUrl: externalUrl || url || `${APP_LIKE_CO_ISCN_VIEW_URL}${encodeURIComponent(iscnPrefix)}`,
+      description,
+      name,
+      backgroundColor: backgroundColor || LIKECOIN_DARK_GREEN_THEME_COLOR,
+    },
+  });
+  // 2 batched create calls above
+  for (let i = 2; i < nfts.length + 2; i += 1) {
     const {
       id: nftId,
       uri: nftUri,
-    } = nfts[i];
+    } = nfts[i - 2];
     batch.create(
       iscnRef
         .collection('class').doc(classId)
@@ -114,9 +114,11 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
         timestamp,
       },
     );
-    if (i % FIRESTORE_BATCH_SIZE === 0) {
+    if (i % FIRESTORE_BATCH_SIZE === FIRESTORE_BATCH_SIZE - 1) {
       // eslint-disable-next-line no-await-in-loop
       await batch.commit();
+      // TODO: remove this after solving API CPU hang error
+      await sleep(10);
       batch = db.batch();
     }
   }
