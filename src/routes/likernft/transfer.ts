@@ -4,7 +4,7 @@ import { ValidationError } from '../../util/ValidationError';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import { getNFTTransferInfo, processNFTTransfer } from '../../util/api/likernft/transfer';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 
 const router = Router();
 
@@ -49,8 +49,7 @@ router.post(
         toAddress,
       });
 
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTTransfer',
+      const logPayload = {
         classId,
         iscnId: iscnPrefix,
         nftId,
@@ -59,6 +58,14 @@ router.post(
         fromAddress,
         toAddress,
         memo,
+      };
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTTransfer',
+        ...logPayload,
+      });
+      publisher.publish(PUBSUB_TOPIC_WNFT, null, {
+        type: 'transfer',
+        ...logPayload,
       });
     } catch (err) {
       next(err);
