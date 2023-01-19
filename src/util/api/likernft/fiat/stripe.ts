@@ -28,6 +28,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     type,
     wallet,
     classId,
+    memo,
     iscnPrefix,
     LIKEPrice,
     fiatPrice,
@@ -56,7 +57,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
   }
   try {
     await processFiatNFTPurchase({
-      paymentId, likeWallet: wallet, iscnPrefix, classId, LIKEPrice, fiatPrice,
+      paymentId, likeWallet: wallet, iscnPrefix, classId, LIKEPrice, fiatPrice, memo,
     }, req);
   } catch (error) {
     // eslint-disable-next-line no-console

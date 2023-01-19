@@ -112,6 +112,7 @@ router.post(
       const paymentId = uuidv4();
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
+      const { memo } = req.body;
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
@@ -144,6 +145,7 @@ router.post(
         metadata: {
           wallet,
           classId,
+          memo,
           iscnPrefix,
           paymentId,
           isPendingClaim: isPendingClaim ? 'true' : undefined,
@@ -158,6 +160,7 @@ router.post(
         sessionId,
         wallet,
         classId,
+        memo,
         iscnPrefix,
         LIKEPrice: totalPrice,
         fiatPrice: Number(fiatPriceString),
@@ -181,6 +184,7 @@ router.post(
         type: 'stripe',
         paymentId,
         buyerWallet: wallet,
+        buyerMemo: memo,
         classId,
         iscnPrefix,
         fiatPrice,
