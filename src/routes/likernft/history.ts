@@ -13,15 +13,19 @@ router.get(
   fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
-      const { nft_id: nftId } = req.query;
+      const { nft_id: nftId, tx_hash: txHash } = req.query;
       const { classId } = res.locals;
       if (nftId && !classId) {
         throw new ValidationError('PLEASE_DEFINE_CLASS_ID');
       }
+      if (nftId && txHash) {
+        throw new ValidationError('CANNOT_DEFINE_BOTH_NFT_ID_AND_TX_HASH');
+      }
       let list = [];
       const doc = await getISCNDocByClassId(classId);
       let queryObj = await doc.ref.collection('transaction');
-      if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
+      if (txHash) queryObj = queryObj.where('txHash', '==', txHash);
+      else if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
       const query = await queryObj.orderBy('timestamp', 'desc').get();
       list = query.docs.map((d) => ({ txHash: d.id, ...(d.data() || {}) }));
       res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
