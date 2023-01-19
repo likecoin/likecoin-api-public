@@ -87,7 +87,7 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
 }
 
 export async function processFiatNFTPurchase({
-  paymentId, likeWallet, iscnPrefix, classId, fiatPrice, LIKEPrice,
+  paymentId, likeWallet, iscnPrefix, classId, fiatPrice, LIKEPrice, memo,
 }, req) {
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
@@ -111,6 +111,7 @@ export async function processFiatNFTPurchase({
       logType: 'LikerNFTFiatPaymentAlreadyHandled',
       paymentId,
       buyerWallet: likeWallet,
+      buyerMemo: memo,
       classId,
       iscnPrefix,
       fiatPrice,
@@ -128,6 +129,8 @@ export async function processFiatNFTPurchase({
       classId,
       granterWallet: fiatGranterWallet,
       grantedAmount: LIKEPrice,
+      grantTxHash: paymentId,
+      granterMemo: memo,
     }, req);
   } catch (err) {
     const error = (err as Error).toString();
@@ -137,6 +140,7 @@ export async function processFiatNFTPurchase({
       logType: 'LikerNFTFiatPaymentPurchaseError',
       paymentId,
       buyerWallet: likeWallet,
+      buyerMemo: memo,
       classId,
       iscnPrefix,
       fiatPrice,
@@ -162,6 +166,7 @@ export async function processFiatNFTPurchase({
     logType: 'LikerNFTFiatPaymentSuccess',
     paymentId,
     buyerWallet: likeWallet,
+    buyerMemo: memo,
     classId,
     iscnPrefix,
     fiatPrice,
