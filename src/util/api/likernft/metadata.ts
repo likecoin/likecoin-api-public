@@ -93,14 +93,15 @@ export function getDynamicBackgroundColor({ currentBatch }) {
   return NFT_GEM_COLOR[gemLevel];
 }
 
-export function getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData) {
+export function getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscnData) {
   const { currentBatch } = iscnDocData;
+  const { is_custom_image: isCustomImage = false } = classMetadata;
   const { contentMetadata: { url = '', description = '' } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor({ currentBatch });
   const payload: any = {
-    image: `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`,
     backgroundColor,
   };
+  if (!isCustomImage) payload.image =  `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`;
   if (description) payload.description = description;
   if (url) payload.externalUrl = url;
   return payload;
@@ -137,7 +138,7 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
     uri,
     parent,
   };
-  const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classData, iscnData);
+  const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
   return {
     iscnOwner,
