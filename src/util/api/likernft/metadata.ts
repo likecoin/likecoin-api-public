@@ -44,6 +44,10 @@ function encodedURL(url) {
   return encodeURI(url);
 }
 
+export function parseImageURLFromMetadata(image: string): string {
+  return image.replace('ar://', 'https://arweave.net/').replace('ipfs://', 'https://ipfs.io/ipfs/')
+}
+
 export async function getBasicImage(image, title) {
   let imageBuffer;
   let contentType;
