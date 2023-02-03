@@ -1,18 +1,24 @@
 import { Router } from 'express';
 import axios from 'axios';
-import { ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME } from '../../constant';
+import {
+  ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
+} from '../../constant';
 import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import {
-  getClassMetadata, getBasicImage, getResizedImage, DEFAULT_NFT_IMAGE_WIDTH,
+  getClassMetadata,
+  getBasicImage,
+  getResizedImage,
+  DEFAULT_NFT_IMAGE_WIDTH,
+  parseImageURLFromMetadata,
 } from '../../util/api/likernft/metadata';
-import { getNFTISCNData, getNFTOwner } from '../../util/cosmos/nft';
+import { getNFTClassDataById, getNFTISCNData, getNFTOwner } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
-import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER } from '../../constant/model';
+import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
 
 const router = Router();
 
@@ -131,10 +137,17 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const iscnPrefix = await getISCNPrefixByClassId(classId);
-      const { data } = await getNFTISCNData(iscnPrefix);
-      if (!data) throw new ValidationError('ISCN_NOT_FOUND', 404);
-      const model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
+      const chainData = await getNFTClassDataById(classId);
+      if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const {
+        is_custom_image: isCustomImage,
+        nft_meta_collection_id: collectionId,
+        image = '',
+      } = chainData.data.metadata;
+      if (collectionId !== WRITING_NFT_COLLECTION_ID) throw new ValidationError('NOT_WRITING_NFT');
+      const imageUrl = isCustomImage ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
+      let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
+      model = model.replace(new RegExp(IMAGE_URI_PLACEHOLDER, 'g'), imageUrl);
       res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-if-error=${ONE_DAY_IN_S}`);
       res.type('model/gltf+json');
       res.status(200).send(model);

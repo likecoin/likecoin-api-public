@@ -154,6 +154,8 @@ export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/sim
 
 export const LIKECOIN_DARK_GREEN_THEME_COLOR = '#28646E';
 
+export const WRITING_NFT_COLLECTION_ID = 'likerland_writing_nft';
+
 export const NFT_GEM_COLOR = [
   '#F7F7F7',
   '#EBEBEB',
