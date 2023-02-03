@@ -12,6 +12,7 @@ import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
+import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER } from '../../constant/model';
 
 const router = Router();
 
@@ -118,6 +119,25 @@ router.get(
         .pipe(resizedImage)
         // .pipe(combinedImage)
         .pipe(res);
+      return;
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  ['/model/class_(:classId).gltf', '/metadata/model/class_(:classId).gltf'],
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const iscnPrefix = await getISCNPrefixByClassId(classId);
+      const { data } = await getNFTISCNData(iscnPrefix);
+      if (!data) throw new ValidationError('ISCN_NOT_FOUND', 404);
+      const model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
+      res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-if-error=${ONE_DAY_IN_S}`);
+      res.type('model/gltf+json');
+      res.status(200).send(model);
       return;
     } catch (err) {
       next(err);

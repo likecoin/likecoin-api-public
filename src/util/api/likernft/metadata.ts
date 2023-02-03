@@ -101,7 +101,7 @@ export function getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscn
   const payload: any = {
     backgroundColor,
   };
-  if (!isCustomImage) payload.image =  `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`;
+  if (!isCustomImage) payload.image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`;
   if (description) payload.description = description;
   if (url) payload.externalUrl = url;
   return payload;
