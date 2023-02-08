@@ -8,6 +8,7 @@ import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
 import { ValidationError } from '../../ValidationError';
 
+export const DEFAULT_NFT_IMAGE_SIZE = 1280;
 export const DEFAULT_NFT_IMAGE_WIDTH = 1280;
 export const DEFAULT_NFT_IMAGE_HEIGHT = 768;
 
@@ -29,8 +30,9 @@ export async function getImageMask() {
   const imgPath = path.join(__dirname, '../../../assets/book.png');
   maskData = await sharp(imgPath)
     .resize({
-      height: DEFAULT_NFT_IMAGE_HEIGHT,
-      width: DEFAULT_NFT_IMAGE_HEIGHT,
+      width: DEFAULT_NFT_IMAGE_SIZE,
+      height: DEFAULT_NFT_IMAGE_SIZE,
+      fit: 'inside',
     })
     .extractChannel('alpha')
     .toBuffer();
