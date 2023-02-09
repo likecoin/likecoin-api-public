@@ -41,6 +41,7 @@ router.post(
         iscn_id: iscnId,
         tx_hash: txHash,
         class_id: inputClassId,
+        platform,
       } = req.query;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
@@ -93,6 +94,7 @@ router.post(
         ...chainMetadata,
         classId,
         totalCount: nfts.length,
+        platform,
       }, nfts);
 
       res.json({
@@ -110,6 +112,7 @@ router.post(
         sellerWallet,
         apiWallet: LIKER_NFT_TARGET_ADDRESS,
         uri,
+        platform,
       };
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

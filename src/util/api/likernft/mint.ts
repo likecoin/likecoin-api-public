@@ -47,6 +47,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     totalCount,
     uri = '',
     metadata = {},
+    platform,
   } = classData;
   const currentBatch = 0;
   const { price, count } = getNFTBatchInfo(currentBatch);
@@ -73,6 +74,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     ownerWallet: sellerWallet,
     processingCount: 0,
     timestamp,
+    platform,
   });
   batch.create(iscnRef.collection('class').doc(classId), {
     id: classId,
@@ -81,6 +83,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     soldCount: 0,
     creatorWallet: sellerWallet,
     timestamp,
+    platform,
     metadata: {
       ...otherData,
       image: image || WNFT_DEFAULT_PATH, // TODO: replace with default NFT image
