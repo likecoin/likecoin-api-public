@@ -92,10 +92,15 @@ router.get(
       }
       const size = Math.min(Math.max(inputSizeNum, 1), 1920);
       const iscnPrefix = await getISCNPrefixByClassId(classId);
-      const { data } = await getNFTISCNData(iscnPrefix);
-      if (!data) throw new ValidationError('ISCN_NOT_FOUND', 404);
-      const iscnId = data && data['@id'] as string;
+      const [{ data: ISCNData }, chainData] = await Promise.all([
+        getNFTISCNData(iscnPrefix),
+        getNFTClassDataById(classId),
+      ]);
+      if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      if (!ISCNData) throw new ValidationError('ISCN_NOT_FOUND', 404);
+      const iscnId = ISCNData && ISCNData['@id'] as string;
       if (!iscnId) throw new ValidationError('ISCN_ID_NOT_FOUND', 404);
+      const { image: chainImage } = chainData.data.metadata;
       let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       if (!iscnData.exists) {
         await axios.post(
@@ -105,16 +110,16 @@ router.get(
         await sleep(1000);
         iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
       }
-      let image = '';
+      let iscnImage = '';
       let title = 'Writing NFT';
       if (iscnData.exists) {
-        ({ image, title = 'Writing NFT' } = iscnData.data());
+        ({ image: iscnImage, title = 'Writing NFT' } = iscnData.data());
       }
       const {
         image: basicImage,
         contentType,
         isDefault: isImageMissing,
-      } = await getBasicImage(image, title);
+      } = await getBasicImage(iscnImage, parseImageURLFromMetadata(chainImage), title);
       const resizedImage = getResizedImage(size);
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();

@@ -50,12 +50,20 @@ export function parseImageURLFromMetadata(image: string): string {
   return image.replace('ar://', 'https://arweave.net/').replace('ipfs://', 'https://ipfs.io/ipfs/')
 }
 
-export async function getBasicImage(image, title) {
+export async function getBasicImage(iscnImage, chainImage, title) {
   let imageBuffer;
   let contentType;
   let isDefault = true;
-  if (image) {
-    const imageData = (await axios.get(encodedURL(image), { responseType: 'stream' }).catch(() => ({} as any)));
+  if (iscnImage) {
+    const imageData = (await axios.get(encodedURL(iscnImage), { responseType: 'stream' }).catch(() => ({} as any)));
+    if (imageData && imageData.data) {
+      imageBuffer = imageData.data;
+      contentType = imageData.headers['content-type'] || 'image/png';
+      isDefault = false;
+    }
+  }
+  if (chainImage && !imageBuffer) {
+    const imageData = (await axios.get(encodedURL(chainImage), { responseType: 'stream' }).catch(() => ({} as any)));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
       contentType = imageData.headers['content-type'] || 'image/png';
