@@ -1,4 +1,5 @@
 import axios from 'axios';
+import BigNumber from 'bignumber.js';
 import { db, likeNFTCollection } from '../../firebase';
 import { getNFTISCNOwner } from '../../cosmos/nft';
 import { FIRESTORE_IN_QUERY_LIMIT } from '../../../constant';
@@ -43,7 +44,9 @@ export async function getUserStat(wallet) {
     collected_classes: collectedClasses,
     created_count: createdClassCount,
     collector_count: createdCollectorCount,
+    total_sales: totalSalesInNanolike,
   } = userStat;
+  const createdTotalSales = new BigNumber(totalSalesInNanolike).shiftedBy(-9).toNumber();
   const collectedClassCount = collectedClasses.length;
   const collectedClassIds: string[] = collectedClasses.map((c) => c.class_id);
   const batches: string[][] = [];
@@ -72,5 +75,6 @@ export async function getUserStat(wallet) {
     collectedValue,
     createdClassCount,
     createdCollectorCount,
+    createdTotalSales,
   };
 }
