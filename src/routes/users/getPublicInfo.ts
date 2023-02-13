@@ -49,7 +49,10 @@ router.get('/id/:id/avatar', async (req, res, next) => {
       res.sendStatus(404);
       return;
     }
-    const resizer = sharp().resize(size, size);
+    const resizer = sharp()
+      .resize(size, size)
+      // eslint-disable-next-line no-console
+      .on('error', (err) => console.error(JSON.stringify(err)));
     try {
       const { headers, data } = await axios.get(avatar, {
         responseType: 'stream',

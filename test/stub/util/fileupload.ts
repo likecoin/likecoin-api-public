@@ -48,7 +48,10 @@ export async function handleAvatarLinkAndGetURL(user, url) {
     throw new ValidationError(`unsupported file format! ${(type || {}).ext || JSON.stringify(type)}`);
   }
   let transformer = sharp();
-  transformer = transformer.resize(400, 400);
+  transformer = transformer
+    .resize(400, 400)
+    // eslint-disable-next-line no-console
+    .on('error', (err) => console.error(JSON.stringify(err)));
   data.pipe(transformer);
   const [avatarUrl] = uploadFileAndGetLink();
   return avatarUrl;

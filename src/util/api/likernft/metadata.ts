@@ -47,7 +47,7 @@ function encodedURL(url) {
 }
 
 export function parseImageURLFromMetadata(image: string): string {
-  return image.replace('ar://', 'https://arweave.net/').replace('ipfs://', 'https://ipfs.io/ipfs/')
+  return image.replace('ar://', 'https://arweave.net/').replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
 
 export async function getBasicImage(iscnImage, chainImage, title) {
@@ -85,7 +85,9 @@ export async function getCombinedImage() {
   const maskBuffer = await getImageMask();
   return sharp()
     .ensureAlpha()
-    .joinChannel(maskBuffer);
+    .joinChannel(maskBuffer)
+    // eslint-disable-next-line no-console
+    .on('error', (err) => console.error(JSON.stringify(err)));
 }
 
 export function getResizedImage(size = DEFAULT_NFT_IMAGE_WIDTH) {
@@ -94,7 +96,9 @@ export function getResizedImage(size = DEFAULT_NFT_IMAGE_WIDTH) {
       fit: sharp.fit.cover,
       width: size,
       height: Math.round((size / DEFAULT_NFT_IMAGE_WIDTH) * DEFAULT_NFT_IMAGE_HEIGHT),
-    });
+    })
+    // eslint-disable-next-line no-console
+    .on('error', (err) => console.error(JSON.stringify(err)));
 }
 
 export function getDynamicBackgroundColor({ currentBatch }) {
