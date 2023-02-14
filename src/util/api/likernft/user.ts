@@ -46,7 +46,7 @@ export async function getUserStat(wallet) {
     collector_count: createdCollectorCount,
     total_sales: totalSalesInNanolike,
   } = userStat;
-  const createdTotalSales = new BigNumber(totalSalesInNanolike).shiftedBy(-9).toNumber();
+  const createdTotalSales = Number(new BigNumber(totalSalesInNanolike).shiftedBy(-9).toFixed());
   const collectedClassCount = collectedClasses.length;
   const collectedClassIds: string[] = collectedClasses.map((c) => c.class_id);
   const batches: string[][] = [];
