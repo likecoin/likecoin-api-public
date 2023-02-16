@@ -158,11 +158,19 @@ export async function getClassMetadata({ classId, iscnPrefix }) {
   };
   const dynamicData = getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscnData);
   if (!dynamicData) throw new ValidationError('NFT_CLASS_NOT_REGISTERED');
+  const metadata = {
+    ...(classData.metadata || {}),
+    ...chainData,
+    ...dynamicData,
+    // allow custom description in chain data to override crawled data
+    description: chainData.description || dynamicData.description,
+  };
   return {
     iscnOwner,
     classData,
     iscnData,
     chainData: chainMetadata,
     dynamicData,
+    metadata,
   };
 }

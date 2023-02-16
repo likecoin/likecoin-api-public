@@ -91,19 +91,10 @@ router.post(
       const [{
         price,
         // nextPriceLevel,
-      }, {
-        classData,
-        chainData,
-        dynamicData,
-      }] = await Promise.all([
+      }, { metadata }] = await Promise.all([
         getLatestNFTPriceAndInfo(iscnPrefix, classId),
         getClassMetadata({ classId, iscnPrefix }),
       ]);
-      const metadata = {
-        ...(classData.metadata || {}),
-        ...chainData,
-        ...dynamicData,
-      };
       let { name = '', description = '' } = metadata;
       const { image } = metadata;
       const gasFee = getGasPrice();
