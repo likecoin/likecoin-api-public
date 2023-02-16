@@ -30,10 +30,8 @@ router.get(
       const { classId, iscnPrefix } = res.locals;
       const {
         iscnOwner,
-        classData,
         iscnData,
-        chainData,
-        dynamicData,
+        metadata,
       } = await getClassMetadata({ classId, iscnPrefix });
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
@@ -41,9 +39,7 @@ router.get(
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,
         iscnRecordTimestamp: iscnData.recordTimestamp,
-        ...(classData.metadata || {}),
-        ...chainData,
-        ...dynamicData,
+        ...metadata,
       }));
     } catch (err) {
       next(err);
