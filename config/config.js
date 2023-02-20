@@ -78,6 +78,9 @@ config.MATTERS_APP_SECRET = '';
 
 config.SENDGRID_API_KEY = '';
 
+config.STABILITY_AI_API_KEY = '';
+config.STABILITY_AI_FIXED_PROMPTS = '2d, lowres, abstract, digital art';
+
 config.REGISTER_LIMIT_WINDOW = 3600000; // 1hour
 config.REGISTER_LIMIT_COUNT = 0; // 0 = disable
 config.NEW_USER_BONUS_COOLDOWN = 259200000; // 3 days
