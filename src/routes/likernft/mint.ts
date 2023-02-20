@@ -43,6 +43,7 @@ router.post(
         class_id: inputClassId,
         platform,
       } = req.query;
+      const { contentUrl } = req.body;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
@@ -113,6 +114,7 @@ router.post(
         apiWallet: LIKER_NFT_TARGET_ADDRESS,
         uri,
         platform,
+        contentUrl,
       };
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
