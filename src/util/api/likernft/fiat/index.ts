@@ -7,6 +7,7 @@ import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
+import { processNFTBuyListing } from '../listing';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
@@ -87,7 +88,15 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
 }
 
 export async function processFiatNFTPurchase({
-  paymentId, likeWallet, iscnPrefix, classId, fiatPrice, LIKEPrice, memo,
+  paymentId,
+  likeWallet,
+  iscnPrefix,
+  classId,
+  nftId: listingNftId,
+  seller,
+  LIKEPrice,
+  fiatPrice,
+  memo,
 }, req) {
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
@@ -123,15 +132,27 @@ export async function processFiatNFTPurchase({
   try {
     const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
     if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
-    res = await processNFTPurchase({
-      buyerWallet: likeWallet,
-      iscnPrefix,
-      classId,
-      granterWallet: fiatGranterWallet,
-      grantedAmount: LIKEPrice,
-      grantTxHash: paymentId,
-      granterMemo: memo,
-    }, req);
+    if (listingNftId && seller) {
+      res = await processNFTBuyListing({
+        buyerWallet: likeWallet,
+        iscnPrefix,
+        classId,
+        nftId: listingNftId,
+        sellerWallet: seller,
+        priceInLIKE: LIKEPrice,
+        memo,
+      }, req);
+    } else {
+      res = await processNFTPurchase({
+        buyerWallet: likeWallet,
+        iscnPrefix,
+        classId,
+        granterWallet: fiatGranterWallet,
+        grantedAmount: LIKEPrice,
+        grantTxHash: paymentId,
+        granterMemo: memo,
+      }, req);
+    }
   } catch (err) {
     const error = (err as Error).toString();
     const errorMessage = (err as Error).message;
