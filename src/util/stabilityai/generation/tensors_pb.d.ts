@@ -1,3 +1,4 @@
+/* eslint-disable */
 // package: tensors
 // file: tensors.proto
 

@@ -31,7 +31,7 @@ export async function generateImageFromText(text: string): Promise<Uint8Array> {
     }],
   });
 
-  const res = await executeGenerationRequest(client, request, metadata)
+  const res = await executeGenerationRequest(client, request, metadata);
   if (res instanceof Error) throw res;
   if (!res.imageArtifacts.length) throw new ValidationError('RESULT_FILTERED_PLEASE_RETRY');
   return res.imageArtifacts[0].getBinary_asU8();

@@ -1,3 +1,4 @@
+/* eslint-disable */
 // GENERATED CODE -- DO NOT EDIT!
 
 // package: gooseai

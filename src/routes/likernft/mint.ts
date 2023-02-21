@@ -4,12 +4,15 @@ import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
 import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
-import { getNFTClassDataById, getNFTsByClassId, getNFTClassIdByISCNId } from '../../util/cosmos/nft';
+import {
+  getNFTClassDataById, getNFTsByClassId, getNFTClassIdByISCNId, getNFTISCNData,
+} from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
+import { generateImageFromText } from '../../util/stabilityai/textToImage';
 
 const router = Router();
 
@@ -124,6 +127,45 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_WNFT, null, {
         type: 'mint',
         ...logPayload,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/mint/image',
+  async (req, res, next) => {
+    try {
+      const {
+        iscn_id: iscnId,
+        from,
+        platform,
+      } = req.query;
+      if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
+      const iscnPrefix = getISCNPrefix(iscnId);
+      const { data, owner } = await getNFTISCNData(iscnId);
+      if (!data) throw new ValidationError('ISCN_ID_NOT_FOUND');
+      if (owner !== from) throw new ValidationError('NOT_ISCN_OWNER');
+      const {
+        contentMetadata: {
+          name = '',
+          description = '',
+          keywords = '',
+        } = {},
+      } = data;
+      const prompt = `${name}, ${description}, ${keywords}`;
+      const image = await generateImageFromText(prompt);
+      res.type('.png').send(Buffer.from(image));
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTGenerateImage',
+        iscnId: iscnPrefix,
+        name,
+        description,
+        keywords,
+        platform,
       });
     } catch (err) {
       next(err);

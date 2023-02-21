@@ -1,3 +1,4 @@
+/* eslint-disable */
 // package: gooseai
 // file: generation.proto
 
