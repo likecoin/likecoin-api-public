@@ -80,6 +80,8 @@ config.SENDGRID_API_KEY = '';
 
 config.STABILITY_AI_API_KEY = '';
 config.STABILITY_AI_FIXED_PROMPTS = '2d, lowres, abstract, digital art';
+config.IMAGE_GENERATION_LIMIT_WINDOW = 600;
+config.IMAGE_GENERATION_LIMIT_COUNT = 2;
 
 config.REGISTER_LIMIT_WINDOW = 3600000; // 1hour
 config.REGISTER_LIMIT_COUNT = 0; // 0 = disable

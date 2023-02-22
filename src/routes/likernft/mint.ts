@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import RateLimit from 'express-rate-limit';
+
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import { likeNFTCollection } from '../../util/firebase';
@@ -9,10 +11,14 @@ import {
 } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
-import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 import { generateImageFromText } from '../../util/stabilityai/textToImage';
+import {
+  LIKER_NFT_TARGET_ADDRESS,
+  IMAGE_GENERATION_LIMIT_WINDOW,
+  IMAGE_GENERATION_LIMIT_COUNT,
+} from '../../../config/config';
 
 const router = Router();
 
@@ -134,8 +140,23 @@ router.post(
   },
 );
 
+const imageRateLimiter = new RateLimit({
+  windowMs: IMAGE_GENERATION_LIMIT_WINDOW,
+  max: IMAGE_GENERATION_LIMIT_COUNT || 0,
+  skipFailedRequests: true,
+  keyGenerator: (req) => req.query.iscn_id || req.headers['x-real-ip'] || req.ip,
+  onLimitReached: (req) => {
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventAPILimitReached',
+      iscnId: req.query.iscn_id,
+      wallet: req.query.from,
+    });
+  },
+});
+
 router.post(
   '/mint/image',
+  imageRateLimiter,
   async (req, res, next) => {
     try {
       const {
