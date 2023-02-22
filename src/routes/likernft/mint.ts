@@ -16,6 +16,8 @@ import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 import { generateImageFromText } from '../../util/stabilityai/textToImage';
 import {
   LIKER_NFT_TARGET_ADDRESS,
+  IMAGE_GENERATION_PROMPT_PREFIX,
+  IMAGE_GENERATION_PROMPT_SUFFIX,
   IMAGE_GENERATION_LIMIT_WINDOW,
   IMAGE_GENERATION_LIMIT_COUNT,
 } from '../../../config/config';
@@ -176,7 +178,9 @@ router.post(
           keywords = '',
         } = {},
       } = data;
-      const prompt = `${name}, ${description}, ${keywords}`;
+      let prompt = `${name}, ${description}, ${keywords}`;
+      if (IMAGE_GENERATION_PROMPT_PREFIX) prompt = `${IMAGE_GENERATION_PROMPT_PREFIX}${prompt}`;
+      if (IMAGE_GENERATION_PROMPT_SUFFIX) prompt = `${prompt}${IMAGE_GENERATION_PROMPT_SUFFIX}`;
       const image = await generateImageFromText(prompt);
       res.type('.png').send(Buffer.from(image));
 
@@ -187,6 +191,7 @@ router.post(
         description,
         keywords,
         platform,
+        prompt,
       });
     } catch (err) {
       next(err);

@@ -5,11 +5,7 @@ import {
   buildGenerationRequest,
   executeGenerationRequest,
 } from './helpers';
-
-import {
-  STABILITY_AI_API_KEY,
-  STABILITY_AI_FIXED_PROMPTS,
-} from '../../../config/config';
+import { STABILITY_AI_API_KEY } from '../../../config/config';
 import { ValidationError } from '../ValidationError';
 
 // This is a NodeJS-specific requirement - browsers implementations should omit this line.
@@ -26,9 +22,7 @@ export async function generateImageFromText(text: string): Promise<Uint8Array> {
   if (!STABILITY_AI_API_KEY) throw new ValidationError('API_KEY_NOT_SET');
   const request = buildGenerationRequest('stable-diffusion-512-v2-1', {
     type: 'text-to-image',
-    prompts: [{
-      text: `${STABILITY_AI_FIXED_PROMPTS}, ${text}`,
-    }],
+    prompts: [{ text }],
   });
 
   const res = await executeGenerationRequest(client, request, metadata);
