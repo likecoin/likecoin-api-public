@@ -116,7 +116,7 @@ router.post(
       const { classId, iscnPrefix } = res.locals;
       const promises = [getClassMetadata({ classId, iscnPrefix })] as any;
       const { nftId = '', seller = '', memo } = req.body;
-      const isListing = nftId && seller;
+      const isListing = !!(nftId && seller);
       if (isListing) {
         promises.push(fetchNFTListingInfoByNFTId(classId, nftId));
       } else {
@@ -129,7 +129,7 @@ router.post(
       let price = 0;
       if (isListing) {
         const listingInfo = formatListingInfo(info);
-        if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
+        if (!listingInfo || listingInfo.seller !== seller) throw new ValidationError('LISTING_NOT_FOUND');
         ({ price } = listingInfo);
       } else {
         const purchaseInfo = info;
