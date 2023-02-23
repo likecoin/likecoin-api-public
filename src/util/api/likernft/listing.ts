@@ -14,7 +14,7 @@ import {
 } from '../../../../config/config';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
-function formateListingInfo(info: {
+export function formatListingInfo(info: {
   // eslint-disable-next-line camelcase
   class_id: string;
   // eslint-disable-next-line camelcase
@@ -42,7 +42,7 @@ function formateListingInfo(info: {
 export async function fetchNFTListingInfo(classId: string) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`);
   const info = data.listings
-    .map(formateListingInfo)
+    .map(formatListingInfo)
     .sort((a, b) => a.price - b.price);
   return info;
 }
@@ -50,8 +50,7 @@ export async function fetchNFTListingInfo(classId: string) {
 export async function fetchNFTListingInfoByNFTId(classId: string, nftId: string) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}/${nftId}`);
   const info = data.listings[0];
-  if (!info) return null;
-  return formateListingInfo(info);
+  return info || null;
 }
 
 async function handleNFTBuyListingTransaction({
@@ -59,26 +58,25 @@ async function handleNFTBuyListingTransaction({
   classId,
   nftId,
   sellerWallet,
-  priceInLIKE,
+  price,
   memo = '',
 }: {
   buyerWallet: string;
   classId: string;
   nftId: string;
   sellerWallet: string;
-  priceInLIKE: number;
+  price: string;
   memo?: string;
 }) {
   const { client, wallet } = await getLikerNFTFiatSigningClientAndWallet();
   const fiatWallet = wallet.address;
-  const amount = new BigNumber(priceInLIKE).shiftedBy(9).toFixed(0);
   const txMessages = [
     formatMsgBuyNFT(
       fiatWallet,
       classId,
       nftId,
       sellerWallet,
-      amount,
+      price,
     ),
     formatMsgSend(
       fiatWallet,
@@ -109,11 +107,11 @@ export async function processNFTBuyListing({
   priceInLIKE: number;
   memo?: string;
 }, req) {
-  const listingInfo = await fetchNFTListingInfo(classId);
-  const listing = listingInfo.find((l) => l.nftId === nftId && l.seller === sellerWallet);
-  if (!listing) throw new ValidationError('LISTING_NOT_FOUND');
-  const { price: actualNftPrice } = listing;
-  if (priceInLIKE < actualNftPrice) throw new ValidationError('LISTING_PRICE_NOT_MATCH');
+  const listingInfo = await fetchNFTListingInfoByNFTId(classId, nftId);
+  if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
+  const { price: actualNftPrice } = listingInfo;
+  const actualPriceInLIKE = new BigNumber(actualNftPrice).shiftedBy(-9).toNumber();
+  if (priceInLIKE < actualPriceInLIKE) throw new ValidationError('LISTING_PRICE_NOT_MATCH');
 
   try {
     const res = await handleNFTBuyListingTransaction({
@@ -121,7 +119,7 @@ export async function processNFTBuyListing({
       classId,
       nftId,
       sellerWallet,
-      priceInLIKE: actualNftPrice,
+      price: actualNftPrice,
       memo,
     });
     const { transactionHash, code } = res;

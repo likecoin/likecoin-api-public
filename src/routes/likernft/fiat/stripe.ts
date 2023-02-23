@@ -10,7 +10,7 @@ import { fetchISCNPrefixAndClassId } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
-import { fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
+import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
@@ -128,7 +128,7 @@ router.post(
       const gasFee = getGasPrice();
       let price = 0;
       if (isListing) {
-        const listingInfo = info;
+        const listingInfo = formatListingInfo(info);
         if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
         ({ price } = listingInfo);
       } else {
