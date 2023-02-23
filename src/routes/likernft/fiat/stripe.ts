@@ -74,12 +74,21 @@ router.get(
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
-      const payload = {
+      const payload: {
+        LIKEPrice: number,
+        fiatPrice: number,
+        fiatPriceString: string,
+        isListing: boolean,
+        listingInfo: null | {
+          nftId: string,
+          seller: string,
+        },
+      } = {
         LIKEPrice: totalPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
         isListing,
-        listingInfo: {},
+        listingInfo: null,
       };
       if (isListing) {
         const { nftId, seller } = firstListing;
