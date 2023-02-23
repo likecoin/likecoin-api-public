@@ -10,7 +10,7 @@ import { fetchISCNPrefixAndClassId } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
-import { fetchNFTListingInfo } from '../../../util/api/likernft/listing';
+import { fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
@@ -114,11 +114,11 @@ router.post(
       if (!(wallet || dummyWallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const isPendingClaim = !wallet;
       const { classId, iscnPrefix } = res.locals;
-      const promises = [getClassMetadata({ classId, iscnPrefix })];
+      const promises = [getClassMetadata({ classId, iscnPrefix })] as any;
       const { nftId = '', seller = '', memo } = req.body;
       const isListing = nftId && seller;
       if (isListing) {
-        promises.push(fetchNFTListingInfo(classId));
+        promises.push(fetchNFTListingInfoByNFTId(classId, nftId));
       } else {
         promises.push(getLatestNFTPriceAndInfo(iscnPrefix, classId));
       }
@@ -129,9 +129,8 @@ router.post(
       let price = 0;
       if (isListing) {
         const listingInfo = info;
-        const targetListing = listingInfo.find((l) => l.nftId === nftId && l.seller === seller);
-        if (!targetListing) throw new ValidationError('LISTING_NOT_FOUND');
-        ({ price } = targetListing);
+        if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
+        ({ price } = listingInfo);
       } else {
         const purchaseInfo = info;
         ({ price } = purchaseInfo);

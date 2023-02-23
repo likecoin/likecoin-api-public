@@ -14,26 +14,44 @@ import {
 } from '../../../../config/config';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
+function formateListingInfo(info: {
+  // eslint-disable-next-line camelcase
+  class_id: string;
+  // eslint-disable-next-line camelcase
+  nft_id: string;
+  seller: string;
+  price: string;
+  expiration: string;
+}) {
+  const {
+    class_id: classId,
+    nft_id: nftId,
+    seller,
+    price,
+    expiration,
+  } = info;
+  return {
+    classId,
+    nftId,
+    seller,
+    price: new BigNumber(price).shiftedBy(-9).toNumber(),
+    expiration: new Date(expiration),
+  };
+}
+
 export async function fetchNFTListingInfo(classId: string) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`);
   const info = data.listings
-    .map((l) => {
-      const {
-        nft_id: nftId,
-        seller,
-        price,
-        expiration,
-      } = l;
-      return {
-        classId,
-        nftId,
-        seller,
-        price: new BigNumber(price).shiftedBy(-9).toNumber(),
-        expiration: new Date(expiration),
-      };
-    })
+    .map(formateListingInfo)
     .sort((a, b) => a.price - b.price);
   return info;
+}
+
+export async function fetchNFTListingInfoByNFTId(classId: string, nftId: string) {
+  const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}/${nftId}`);
+  const info = data.listings[0];
+  if (!info) return null;
+  return formateListingInfo(info);
 }
 
 async function handleNFTBuyListingTransaction({
