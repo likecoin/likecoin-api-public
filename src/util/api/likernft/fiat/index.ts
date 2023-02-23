@@ -92,6 +92,7 @@ export async function processFiatNFTPurchase({
   likeWallet,
   iscnPrefix,
   classId,
+  isListing,
   nftId: listingNftId,
   seller,
   LIKEPrice,
@@ -132,7 +133,7 @@ export async function processFiatNFTPurchase({
   try {
     const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
     if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
-    if (listingNftId && seller) {
+    if (isListing) {
       res = await processNFTBuyListing({
         buyerWallet: likeWallet,
         iscnPrefix,

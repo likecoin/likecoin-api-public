@@ -190,6 +190,7 @@ router.post(
         sessionId,
         wallet,
         classId,
+        isListing,
         nftId,
         seller,
         memo,
