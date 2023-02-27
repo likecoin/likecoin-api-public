@@ -68,7 +68,9 @@ router.get(
         getLatestNFTPriceAndInfo(iscnPrefix, classId),
         fetchNFTListingInfo(classId),
       ]);
-      const firstListing = listingInfo[0];
+      const firstListing = listingInfo
+        .map(formatListingInfo)
+        .sort((a, b) => a.price - b.price)[0];
       const isListing = !!firstListing && firstListing.price <= purchaseInfo.price;
       const price = isListing ? firstListing.price : purchaseInfo.price;
       const gasFee = getGasPrice();

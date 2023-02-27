@@ -41,9 +41,7 @@ export function formatListingInfo(info: {
 
 export async function fetchNFTListingInfo(classId: string) {
   const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`);
-  const info = data.listings
-    .map(formatListingInfo)
-    .sort((a, b) => a.price - b.price);
+  const info = data.listings;
   return info;
 }
 
@@ -110,8 +108,8 @@ export async function processNFTBuyListing({
   const listingInfo = await fetchNFTListingInfoByNFTId(classId, nftId);
   if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
   const { price: actualNftPrice } = listingInfo;
-  const actualPriceInLIKE = new BigNumber(actualNftPrice).shiftedBy(-9).toNumber();
-  if (priceInLIKE < actualPriceInLIKE) throw new ValidationError('LISTING_PRICE_NOT_MATCH');
+  const actualPriceInLIKE = new BigNumber(actualNftPrice).shiftedBy(-9);
+  if (new BigNumber(priceInLIKE).lt(actualPriceInLIKE)) throw new ValidationError('LISTING_PRICE_NOT_MATCH');
 
   try {
     const res = await handleNFTBuyListingTransaction({
