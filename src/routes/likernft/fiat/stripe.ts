@@ -119,24 +119,23 @@ router.post(
       const promises = [getClassMetadata({ classId, iscnPrefix })] as any;
       const { nftId = '', seller = '', memo } = req.body;
       const isListing = !!(nftId && seller);
-      if (isListing) {
-        promises.push(fetchNFTListingInfoByNFTId(classId, nftId));
-      } else {
-        promises.push(getLatestNFTPriceAndInfo(iscnPrefix, classId));
-      }
-      const [{ metadata }, info] = await Promise.all(promises) as any;
+      const getPricePromise = isListing
+        ? fetchNFTListingInfoByNFTId(classId, nftId)
+          .then((info) => {
+            if (!info) throw new ValidationError('LISTING_NOT_FOUND');
+            const listingInfo = formatListingInfo(info);
+            if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
+            if (listingInfo.seller !== seller) throw new ValidationError('LISTING_SELLER_NOT_MATCH');
+            const { price } = listingInfo;
+            return price;
+          })
+        : getLatestNFTPriceAndInfo(iscnPrefix, classId)
+          .then(({ price }) => price);
+      promises.push(getPricePromise);
+      const [{ metadata }, price] = await Promise.all(promises) as any;
       let { name = '', description = '' } = metadata;
       const { image } = metadata;
       const gasFee = getGasPrice();
-      let price = 0;
-      if (isListing) {
-        const listingInfo = formatListingInfo(info);
-        if (!listingInfo || listingInfo.seller !== seller) throw new ValidationError('LISTING_NOT_FOUND');
-        ({ price } = listingInfo);
-      } else {
-        const purchaseInfo = info;
-        ({ price } = purchaseInfo);
-      }
       const totalPrice = price + gasFee;
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
       const paymentId = uuidv4();

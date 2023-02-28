@@ -43,7 +43,7 @@ async function getLIKEPrice() {
 export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
   const price = new BigNumber(LIKE).multipliedBy(rate).multipliedBy(1 + buffer);
-  const total = price.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2, 2); // ROUND_CEIL
+  const total = price.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2, BigNumber.ROUND_CEIL);
   return total;
 }
 
