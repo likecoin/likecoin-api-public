@@ -10,6 +10,7 @@ import { fetchISCNPrefixAndClassId } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
+import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { getClassMetadata } from '../../../util/api/likernft/metadata';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
@@ -60,18 +61,45 @@ router.get(
   async (_, res, next) => {
     try {
       const { classId, iscnPrefix } = res.locals;
-      const {
-        price,
-        // nextPriceLevel,
-      } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      const [
+        purchaseInfo,
+        listingInfo,
+      ] = await Promise.all([
+        getLatestNFTPriceAndInfo(iscnPrefix, classId),
+        fetchNFTListingInfo(classId),
+      ]);
+      const firstListing = listingInfo
+        .map(formatListingInfo)
+        .sort((a, b) => a.price - b.price)[0];
+      const isListing = !!firstListing && firstListing.price <= purchaseInfo.price;
+      const price = isListing ? firstListing.price : purchaseInfo.price;
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
-      res.json({
+      const payload: {
+        LIKEPrice: number,
+        fiatPrice: number,
+        fiatPriceString: string,
+        isListing: boolean,
+        listingInfo: null | {
+          nftId: string,
+          seller: string,
+        },
+      } = {
         LIKEPrice: totalPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
-      });
+        isListing,
+        listingInfo: null,
+      };
+      if (isListing) {
+        const { nftId, seller } = firstListing;
+        payload.listingInfo = {
+          nftId,
+          seller,
+        };
+      }
+      res.json(payload);
     } catch (err) {
       next(err);
     }
@@ -88,13 +116,23 @@ router.post(
       if (!(wallet || dummyWallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const isPendingClaim = !wallet;
       const { classId, iscnPrefix } = res.locals;
-      const [{
-        price,
-        // nextPriceLevel,
-      }, { metadata }] = await Promise.all([
-        getLatestNFTPriceAndInfo(iscnPrefix, classId),
-        getClassMetadata({ classId, iscnPrefix }),
-      ]);
+      const promises = [getClassMetadata({ classId, iscnPrefix })] as any;
+      const { nftId = '', seller = '', memo } = req.body;
+      const isListing = !!(nftId && seller);
+      const getPricePromise = isListing
+        ? fetchNFTListingInfoByNFTId(classId, nftId)
+          .then((info) => {
+            if (!info) throw new ValidationError('LISTING_NOT_FOUND');
+            const listingInfo = formatListingInfo(info);
+            if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
+            if (listingInfo.seller !== seller) throw new ValidationError('LISTING_SELLER_NOT_MATCH');
+            const { price } = listingInfo;
+            return price;
+          })
+        : getLatestNFTPriceAndInfo(iscnPrefix, classId)
+          .then(({ price }) => price);
+      promises.push(getPricePromise);
+      const [{ metadata }, price] = await Promise.all(promises) as any;
       let { name = '', description = '' } = metadata;
       const { image } = metadata;
       const gasFee = getGasPrice();
@@ -103,7 +141,6 @@ router.post(
       const paymentId = uuidv4();
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
-      const { memo } = req.body;
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
@@ -136,6 +173,9 @@ router.post(
         metadata: {
           wallet,
           classId,
+          isListing,
+          nftId,
+          seller,
           memo,
           iscnPrefix,
           paymentId,
@@ -151,6 +191,9 @@ router.post(
         sessionId,
         wallet,
         classId,
+        isListing,
+        nftId,
+        seller,
         memo,
         iscnPrefix,
         LIKEPrice: totalPrice,
@@ -176,6 +219,9 @@ router.post(
         paymentId,
         buyerWallet: wallet,
         buyerMemo: memo,
+        isListing,
+        sellerWallet: seller,
+        nftId,
         classId,
         iscnPrefix,
         fiatPrice,
