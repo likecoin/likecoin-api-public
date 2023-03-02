@@ -134,7 +134,7 @@ export async function processNFTBuyListing({
       nftId,
       buyerWallet,
     });
-    return { transactionHash, nftId, actualNftPrice };
+    return { transactionHash, nftId, nftPrice: actualNftPrice };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
