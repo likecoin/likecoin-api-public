@@ -3,7 +3,7 @@ import bodyParser from 'body-parser';
 
 import stripe from '../../../util/stripe';
 import { isValidLikeAddress } from '../../../util/cosmos';
-import { likeNFTSubscriptionCollection } from '../../../util/firebase';
+import { likeNFTSubscriptionUserCollection } from '../../../util/firebase';
 import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 import { ValidationError } from '../../../util/ValidationError';
 import { APP_LIKE_CO_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -99,7 +99,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
-      const doc = await likeNFTSubscriptionCollection.doc(wallet).get();
+      const doc = await likeNFTSubscriptionUserCollection.doc(wallet).get();
       if (!doc.data()) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;

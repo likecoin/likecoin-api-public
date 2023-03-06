@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Stripe from 'stripe';
 import stripe from '../../../stripe';
-import { likeNFTSubscriptionCollection } from '../../../firebase';
+import { likeNFTSubscriptionUserCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
@@ -77,7 +77,7 @@ export async function processStripeNFTSubscriptionSession(
   const priceId = priceIds.find((id) => id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
   if (!priceId) throw new ValidationError('TARGET_PRICE_ID_NOT_FOUND');
   try {
-    await likeNFTSubscriptionCollection.doc(wallet).set({
+    await likeNFTSubscriptionUserCollection.doc(wallet).set({
       type: 'stripe',
       currentBillingPeriod: 'month',
       currentPeriodStart,
@@ -147,7 +147,7 @@ export async function processStripeNFTSubscriptionInvoice(
   const customer: Stripe.Customer = await stripe.customer.get(customerId);
   const { email } = customer;
   try {
-    await likeNFTSubscriptionCollection.doc(wallet).update({
+    await likeNFTSubscriptionUserCollection.doc(wallet).update({
       type: 'stripe',
       currentBillingPeriod: 'month',
       currentPeriodStart,
