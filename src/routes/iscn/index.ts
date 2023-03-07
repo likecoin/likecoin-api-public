@@ -17,16 +17,15 @@ import {
   DEFAULT_TRANSFER_GAS,
   DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS,
   sendTransactionWithSequence,
-  generateSendTxData,
 } from '../../util/cosmos/tx';
 import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
-import { checkFileValid, convertMulterFiles } from '../../util/api/arweave';
-import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../util/arweave';
-import { getIPFSHash, uploadFilesToIPFS } from '../../util/ipfs';
+import {
+  checkFileValid, convertMulterFiles, estimateUploadToArweave, processSigningUploadToArweave,
+} from '../../util/api/arweave';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ARWEAVE_LIKE_TARGET_ADDRESS, IS_CHAIN_UPGRADING } = require('../../../config/config');
+const { IS_CHAIN_UPGRADING } = require('../../../config/config');
 
 const maxSize = 100 * 1024 * 1024; // 100 MB
 
@@ -264,89 +263,61 @@ router.post(
         // TODO: remove oauth check when open to personal call
         res.status(403).send('OAUTH_NEEDED');
       }
-      const { files } = req;
-      const { deduplicate = '1' } = req.query;
-      const checkDuplicate = !!deduplicate && deduplicate !== '0';
-      const arFiles = convertMulterFiles(files);
-      const [
-        ipfsHash,
-        prices,
-      ] = await Promise.all([
-        getIPFSHash(arFiles),
-        estimateARPrices(arFiles, checkDuplicate),
-      ]);
-      const {
-        key,
-        arweaveId: existingArweaveId,
-        AR,
-        list: existingPriceList,
-      } = prices;
-
-      if (existingArweaveId) {
-        res.locals.arweaveId = existingArweaveId;
-        res.locals.ipfsHash = ipfsHash;
-        next();
-        return;
-      }
-      const { LIKE } = await convertARPricesToLIKE(prices, { margin: 0.05 });
-      if (!LIKE) {
-        res.status(500).send('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE');
-        return;
-      }
-      if (req.query.estimate) {
-        // eslint-disable-next-line max-len
-        const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
-        res.locals.uploadPrice = Number(LIKE) + txSignNeed;
-        next();
-        return;
-      }
       if (IS_CHAIN_UPGRADING) {
         res.status(400).send('CHAIN_UPGRADING');
         return;
       }
+      const { files } = req;
+      const { deduplicate = '1', estimate } = req.query;
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
+      const arFiles = convertMulterFiles(files);
 
-      const amount = new BigNumber(LIKE).shiftedBy(9).toFixed();
-      const signingClient = await getISCNSigningClient();
-      if (!res.locals.signingInfo) {
-        const { address, accountNumber } = await getISCNSigningAddressInfo();
-        res.locals.signingInfo = { address, accountNumber };
+      if (estimate) {
+        // eslint-disable-next-line max-len
+        const { LIKE } = await estimateUploadToArweave(arFiles, { addTxFee: true, checkDuplicate });
+        const txSignNeed = new BigNumber(DEFAULT_TRANSFER_GAS)
+          .multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+        res.locals.uploadPrice = Number(LIKE) + txSignNeed;
+        next();
+        return;
       }
+
+      const signingClient = await getISCNSigningClient();
+      let { signingInfo } = res.locals;
+      if (!signingInfo) {
+        const { address, accountNumber } = await getISCNSigningAddressInfo();
+        signingInfo = { address, accountNumber };
+        res.locals.signingInfo = signingInfo;
+      }
+      const result = await processSigningUploadToArweave(
+        arFiles,
+        signingClient,
+        signingInfo,
+        { checkDuplicate },
+      );
+
       const {
-        address,
-        accountNumber,
-      } = res.locals.signingInfo;
-      const { messages, fee } = generateSendTxData(address, ARWEAVE_LIKE_TARGET_ADDRESS, amount);
-      const memo = JSON.stringify({ ipfs: ipfsHash });
-      const client = signingClient.getSigningStargateClient();
-      if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
-      const transferTxSigningFunction = async ({ sequence }: { sequence: number }) => {
-        const r = await client.sign(
-          address,
-          messages,
-          fee,
-          memo,
-          {
-            accountNumber,
-            sequence,
-            chainId: COSMOS_CHAIN_ID,
-          },
-        );
-        return r as TxRaw;
-      };
-      const arweaveIdList = existingPriceList ? existingPriceList.map(
-        (l) => l.arweaveId,
-      ) : undefined;
-      const [txRes, { arweaveId, list }] = await Promise.all([
-        sendTransactionWithSequence(
-          address,
-          transferTxSigningFunction,
-        ),
-        uploadFilesToArweave(arFiles, arweaveIdList, checkDuplicate),
-        uploadFilesToIPFS(arFiles),
-      ]);
-      const { transactionHash, gasUsed, gasWanted } = txRes;
-      const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
-      const totalLIKE = gasLIKE.plus(LIKE);
+        isExists,
+        key,
+        arweaveId,
+        ipfsHash,
+        AR,
+        LIKE,
+        list,
+        gasLIKE,
+        totalLIKE,
+        gasUsed,
+        gasWanted,
+        transactionHash,
+      } = result;
+
+      if (isExists) {
+        res.locals.arweaveId = arweaveId;
+        res.locals.ipfsHash = ipfsHash;
+        next();
+        return;
+      }
+
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveFreeUpload',
         ipfsHash,
