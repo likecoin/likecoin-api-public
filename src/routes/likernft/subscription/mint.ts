@@ -1,11 +1,21 @@
 import { Router } from 'express';
+import multer from 'multer';
 
 import { isValidLikeAddress } from '../../../util/cosmos';
 import {
   likeNFTSubscriptionTxCollection,
 } from '../../../util/firebase';
+import {
+  ARWEAVE_MAX_SIZE,
+  checkFileValid,
+  convertMulterFiles,
+  processSigningUploadToArweave,
+} from '../../../util/api/arweave';
 import { ValidationError } from '../../../util/ValidationError';
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import publisher from '../../../util/gcloudPub';
 import { checkUserIsActiveNFTSubscriber, createNewMintTransaction, getAllMintTransaction } from '../../../util/api/likernft/subscription';
+import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient } from '../../../util/cosmos/nft';
 
 const router = Router();
 
@@ -21,14 +31,147 @@ router.post(
       res.json({
         statusId,
       });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNewMint',
+        statusId,
+        wallet,
+      });
     } catch (error) {
       next(error);
     }
   },
 );
 
+router.post(
+  '/mint/:statusId/arweave',
+  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
+  checkFileValid,
+  async (req, res, next) => {
+    try {
+      const { files } = req;
+      const { deduplicate = '1' } = req.query;
+      const { statusId } = req.params;
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
+      const arFiles = convertMulterFiles(files);
+      const signingClient = await getLikerNFTSigningClient();
+      const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+      const signingInfo = { address, accountNumber };
+      const result = await processSigningUploadToArweave(
+        arFiles,
+        signingClient,
+        signingInfo,
+        { checkDuplicate },
+      );
+      const {
+        key,
+        arweaveId,
+        ipfsHash,
+        AR,
+        LIKE,
+        list,
+        gasLIKE,
+        totalLIKE,
+        gasUsed,
+        gasWanted,
+        transactionHash,
+      } = result;
+      res.json({
+        statusId,
+        arweaveId,
+        ipfsHash,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionISCNArweaveUpload',
+        statusId,
+        wallet,
+        ipfsHash,
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        files: list,
+        gasLIKEString: gasLIKE && gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE && gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE && totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE && totalLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
+        txHash: transactionHash,
+        fromProvider: (req.user || {}).azp || undefined,
+      });
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/mint/:statusId/nft/cover',
+  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
+  checkFileValid,
+  async (req, res, next) => {
+    try {
+      const { files } = req;
+      const { deduplicate = '1', wallet } = req.query;
+      const { statusId } = req.params;
+      const checkDuplicate = !!deduplicate && deduplicate !== '0';
+      if (files && files.length > 1) throw new ValidationError('TOO_MANY_FILES');
+      const arFiles = convertMulterFiles(files);
+      const signingClient = await getLikerNFTSigningClient();
+      const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+      const signingInfo = { address, accountNumber };
+      const result = await processSigningUploadToArweave(
+        arFiles,
+        signingClient,
+        signingInfo,
+        { checkDuplicate },
+      );
+      const {
+        key,
+        arweaveId,
+        ipfsHash,
+        AR,
+        LIKE,
+        list,
+        gasLIKE,
+        totalLIKE,
+        gasUsed,
+        gasWanted,
+        transactionHash,
+      } = result;
+      res.json({
+        statusId,
+        arweaveId,
+        ipfsHash,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNFTCoverArweaveUpload',
+        statusId,
+        wallet,
+        ipfsHash,
+        key,
+        arweaveId,
+        AR,
+        LIKE,
+        files: list,
+        gasLIKEString: gasLIKE && gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE && gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE && totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE && totalLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
+        txHash: transactionHash,
+      });
+      next();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.get(
-  '/mint/status/:statusId',
+  '/mint/:statusId/status',
   async (req, res, next) => {
     try {
       const { statusId } = req.params;
