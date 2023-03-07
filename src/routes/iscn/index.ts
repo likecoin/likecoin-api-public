@@ -2,27 +2,22 @@ import { Router } from 'express';
 import bodyParser from 'body-parser';
 import multer from 'multer';
 import BigNumber from 'bignumber.js';
-import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import publisher from '../../util/gcloudPub';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../constant';
 import { jwtAuth } from '../../middleware/jwt';
-import { sleep } from '../../util/misc';
 import {
   getISCNSigningClient,
-  getISCNQueryClient,
   getISCNSigningAddressInfo,
 } from '../../util/cosmos/iscn';
 import {
   DEFAULT_GAS_PRICE,
   DEFAULT_TRANSFER_GAS,
-  DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS,
-  sendTransactionWithSequence,
 } from '../../util/cosmos/tx';
-import { COSMOS_CHAIN_ID } from '../../util/cosmos';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import {
   checkFileValid, convertMulterFiles, estimateUploadToArweave, processSigningUploadToArweave,
 } from '../../util/api/arweave';
+import { estimateCreateISCN, processCreateISCN, processTransferISCN } from '../../util/api/iscn';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { IS_CHAIN_UPGRADING } = require('../../../config/config');
@@ -38,7 +33,7 @@ async function handleRegisterISCN(req, res, next) {
       // TODO: remove oauth check when open to personal call
       res.status(403).send('OAUTH_NEEDED');
     }
-    const { claim = 1 } = req.query;
+    const { claim = 1, estimate } = req.query;
     const isClaim = claim && claim !== '0';
     let metadata = req.body.metadata || req.body || {};
     if (typeof metadata === 'string') {
@@ -74,9 +69,8 @@ async function handleRegisterISCN(req, res, next) {
       res.status(400).send('KEYWORDS_SHOULD_BE_ARRAY');
       return;
     }
-    const [signingClient, queryClient, userInfo] = await Promise.all([
+    const [signingClient, userInfo] = await Promise.all([
       getISCNSigningClient(),
-      getISCNQueryClient(),
       getUserWithCivicLikerProperties(user),
     ]);
     if (!userInfo) {
@@ -101,25 +95,16 @@ async function handleRegisterISCN(req, res, next) {
       datePublished,
       url,
     };
-    if (!res.locals.signingInfo) {
-      const { address, accountNumber } = await getISCNSigningAddressInfo();
-      res.locals.signingInfo = { address, accountNumber };
-    }
-    const {
-      address,
-      accountNumber,
-    } = res.locals.signingInfo;
 
-    if (req.query.estimate) {
-      const uploadPrice = res.locals.uploadPrice || 0;
-      const iscnGasAndFee = await signingClient.esimateISCNTxGasAndFee(ISCNPayload);
-      const changeISCNOwnershipFee = new BigNumber(DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS)
-        .multipliedBy(DEFAULT_GAS_PRICE);
-      const newISCNPrice = new BigNumber(iscnGasAndFee.gas.fee.amount[0].amount)
-        .plus(iscnGasAndFee.iscnFee.amount)
-        .plus(changeISCNOwnershipFee).shiftedBy(-9)
-        .toNumber();
-      const LIKE = newISCNPrice + uploadPrice;
+    let { signingInfo } = res.locals;
+    if (!signingInfo) {
+      const { address, accountNumber } = await getISCNSigningAddressInfo();
+      signingInfo = { address, accountNumber };
+      res.locals.signingInfo = signingInfo;
+    }
+
+    if (estimate) {
+      const LIKE = await estimateCreateISCN(ISCNPayload, signingClient);
       res.json({ LIKE });
       return;
     }
@@ -129,42 +114,16 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
-    const createIscnSigningFunction = async ({ sequence }): Promise<TxRaw> => {
-      const r = await signingClient.createISCNRecord(
-        address,
-        ISCNPayload,
-        {
-          accountNumber,
-          sequence,
-          chainId: COSMOS_CHAIN_ID,
-          broadcast: false,
-        },
-      );
-      return r as TxRaw;
-    };
-
-    const [iscnGasFee, iscnRes] = await Promise.all([
-      signingClient.esimateISCNTxGasAndFee(ISCNPayload),
-      sendTransactionWithSequence(address, createIscnSigningFunction),
-    ]);
-    const iscnLike = new BigNumber(iscnGasFee.iscnFee.amount).shiftedBy(-9);
     const {
+      iscnId,
+      iscnLIKE,
+      gasLIKE,
+      gasUsed,
+      gasWanted,
       transactionHash: iscnTxHash,
-      gasWanted = 0,
-      gasUsed = 0,
-    } = iscnRes;
-    const gasLIKE = new BigNumber(gasWanted).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
-    let totalLIKE = gasLIKE.plus(iscnLike);
-    let iscnId;
-    const QUERY_RETRY_LIMIT = 10;
-    let tryCount = 0;
-    while (!iscnId && tryCount < QUERY_RETRY_LIMIT) {
-      /* eslint-disable no-await-in-loop */
-      ([iscnId] = await queryClient.queryISCNIdsByTx(iscnTxHash));
-      if (!iscnId) await sleep(2000);
-      tryCount += 1;
-      /* eslint-enable no-await-in-loop */
-    }
+    } = await processCreateISCN(ISCNPayload, signingClient, signingInfo);
+
+    let totalLIKE = gasLIKE.plus(iscnLIKE);
 
     if (!iscnId) {
       if (iscnTxHash) {
@@ -180,8 +139,8 @@ async function handleRegisterISCN(req, res, next) {
       logType: 'ISCNFreeRegister',
       txHash: iscnTxHash,
       iscnId,
-      iscnLIKEString: iscnLike.toFixed(),
-      iscnLIKENumber: iscnLike.toNumber(),
+      iscnLIKEString: iscnLIKE.toFixed(),
+      iscnLIKENumber: iscnLIKE.toNumber(),
       gasLIKEString: gasLIKE.toFixed(),
       gasLIKENumber: gasLIKE.toNumber(),
       totalLIKEString: totalLIKE.toFixed(),
@@ -201,31 +160,11 @@ async function handleRegisterISCN(req, res, next) {
 
     const wallet = likeWallet || cosmosWallet;
     if (isClaim && iscnId && wallet) {
-      // TODO handle missing iscnId by refetch?
-      const transferSigningFunction = async ({ sequence }: { sequence: number }) => {
-        const r = await signingClient.changeISCNOwnership(
-          address,
-          wallet,
-          iscnId,
-          {
-            accountNumber,
-            sequence,
-            chainId: COSMOS_CHAIN_ID,
-            broadcast: false,
-          },
-        );
-        return r as TxRaw;
-      };
-      const iscnTransferRes = await sendTransactionWithSequence(
-        address,
-        transferSigningFunction,
-      );
       const {
-        transactionHash: iscnTransferTxHash,
         gasUsed: transferGasUsed,
-      } = iscnTransferRes;
-      const transferGasLIKE = new BigNumber(transferGasUsed)
-        .multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9);
+        gasLIKE: transferGasLIKE,
+        transactionHash: iscnTransferTxHash,
+      } = await processTransferISCN(iscnId, wallet, signingClient, signingInfo);
       totalLIKE = totalLIKE.plus(transferGasLIKE);
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'ISCNFreeRegisterTransfer',
