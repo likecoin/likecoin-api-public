@@ -14,7 +14,12 @@ import {
 import { ValidationError } from '../../../util/ValidationError';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
-import { checkUserIsActiveNFTSubscriber, createNewMintTransaction, getAllMintTransaction } from '../../../util/api/likernft/subscription';
+import {
+  checkUserIsActiveNFTSubscriber,
+  createNewMintTransaction,
+  getAllMintTransaction,
+  verifyAuthorizationHeader,
+} from '../../../util/api/likernft/subscription';
 import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient, getNFTISCNData } from '../../../util/cosmos/nft';
 import { processCreateISCN } from '../../../util/api/iscn';
 import { createRoyaltyConfig, processMintNFTClass, processNewNFTClass } from '../../../util/api/likernft/subscription/mint';
@@ -46,6 +51,7 @@ router.post(
 
 router.post(
   '/mint/:statusId/arweave',
+  verifyAuthorizationHeader,
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
   async (req, res, next) => {
@@ -110,6 +116,7 @@ router.post(
 
 router.post(
   '/mint/:statusId/iscn',
+  verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
       const { statusId } = req.params;
@@ -177,6 +184,7 @@ router.post(
 
 router.post(
   '/mint/:statusId/nft/cover',
+  verifyAuthorizationHeader,
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
   async (req, res, next) => {
@@ -241,6 +249,7 @@ router.post(
 
 router.post(
   '/mint/:statusId/nft/class',
+  verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
@@ -328,6 +337,7 @@ router.post(
 
 router.post(
   '/mint/:statusId/nft/mint',
+  verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
