@@ -16,6 +16,7 @@ import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { checkUserIsActiveNFTSubscriber, createNewMintTransaction, getAllMintTransaction } from '../../../util/api/likernft/subscription';
 import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient } from '../../../util/cosmos/nft';
+import { processCreateISCN } from '../../../util/api/iscn';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
-      const { deduplicate = '1' } = req.query;
+      const { deduplicate = '1', wallet } = req.query;
       const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
@@ -98,6 +99,73 @@ router.post(
         gasWanted,
         txHash: transactionHash,
         fromProvider: (req.user || {}).azp || undefined,
+      });
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/mint/:statusId/iscn',
+  async (req, res, next) => {
+    try {
+      const { statusId } = req.params;
+      const { metadata } = req.body;
+      const { wallet } = req.query;
+      const {
+        contentFingerprints = [],
+        stakeholders = [],
+        type,
+        name,
+        description,
+        usageInfo,
+        keywords = [],
+        datePublished,
+        url,
+      } = metadata;
+
+      const ISCNPayload = {
+        contentFingerprints,
+        stakeholders,
+        type,
+        name,
+        description,
+        usageInfo,
+        keywords,
+        recordNotes: wallet as string,
+        datePublished,
+        url,
+      };
+      const signingClient = await getLikerNFTSigningClient();
+      const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+      const signingInfo = { address, accountNumber };
+      const result = await processCreateISCN(ISCNPayload, signingClient, signingInfo);
+      const {
+        transactionHash,
+        iscnId,
+        iscnLIKE,
+        gasLIKE,
+        gasUsed,
+        gasWanted,
+      } = result;
+      res.json({
+        txHash: transactionHash,
+        iscnId,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionCreateISCN',
+        wallet,
+        statusId,
+        txHash: transactionHash,
+        iscnId,
+        iscnLIKEString: iscnLIKE.toFixed(),
+        iscnLIKENumber: iscnLIKE.toNumber(),
+        gasLIKEString: gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
       });
       next();
     } catch (error) {
