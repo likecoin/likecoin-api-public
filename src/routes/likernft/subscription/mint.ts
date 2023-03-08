@@ -15,8 +15,9 @@ import { ValidationError } from '../../../util/ValidationError';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { checkUserIsActiveNFTSubscriber, createNewMintTransaction, getAllMintTransaction } from '../../../util/api/likernft/subscription';
-import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient } from '../../../util/cosmos/nft';
+import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient, getNFTISCNData } from '../../../util/cosmos/nft';
 import { processCreateISCN } from '../../../util/api/iscn';
+import { createRoyaltyConfig, processMintNFTClass, processNewNFTClass } from '../../../util/api/likernft/subscription/mint';
 
 const router = Router();
 
@@ -232,6 +233,157 @@ router.post(
         txHash: transactionHash,
       });
       next();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/mint/:statusId/nft/class',
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.query;
+      const { statusId } = req.params;
+      const {
+        iscnId,
+        name,
+        description,
+        image,
+        externalURL,
+        message,
+        isCustomImage,
+      } = req.body;
+      const signingClient = await getLikerNFTSigningClient();
+      const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+      const signingInfo = { address, accountNumber };
+      const result = await processNewNFTClass(
+        iscnId,
+        {
+          name,
+          description,
+          image,
+          externalURL,
+          message,
+          isCustomImage,
+        },
+        signingClient,
+        signingInfo,
+      );
+      const {
+        transactionHash,
+        classId,
+        gasLIKE,
+        totalLIKE,
+        gasUsed,
+        gasWanted,
+      } = result;
+      const iscnData = await getNFTISCNData(iscnId);
+      const royaltyResult = await createRoyaltyConfig(
+        iscnData.data,
+        address,
+        classId,
+        signingClient,
+        signingInfo,
+      );
+      const {
+        transactionHash: royaltyTransactionHash,
+        gasUsed: royaltyGasUsed,
+        gasWanted: royaltyGasWanted,
+      } = royaltyResult;
+
+      res.json({
+        txHash: transactionHash,
+        classId,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNFTNewClass',
+        statusId,
+        wallet,
+        iscnId,
+        classId,
+        gasLIKEString: gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
+        transactionHash,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNFTNewRoyalty',
+        statusId,
+        wallet,
+        iscnId,
+        classId,
+        gasUsed: royaltyGasUsed,
+        gasWanted: royaltyGasWanted,
+        transactionHash: royaltyTransactionHash,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/mint/:statusId/nft/mint',
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.query;
+      const { statusId } = req.params;
+      const {
+        iscnId,
+        classId,
+        name,
+        image,
+        message,
+      } = req.body;
+      const amount = 500;
+      const signingClient = await getLikerNFTSigningClient();
+      const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
+      const signingInfo = { address, accountNumber };
+      const result = await processMintNFTClass(
+        iscnId,
+        classId,
+        {
+          name,
+          image,
+          message,
+        },
+        amount,
+        wallet as string,
+        signingClient,
+        signingInfo,
+      );
+      const {
+        nftsIds,
+        transactionHash,
+        totalLIKE,
+        gasLIKE,
+        gasWanted,
+        gasUsed,
+      } = result;
+      res.json({
+        txHash: transactionHash,
+        classId,
+        nftsIds,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNFTMintNFT',
+        statusId,
+        wallet,
+        iscnId,
+        classId,
+        mintAmount: amount,
+        gasLIKEString: gasLIKE.toFixed(),
+        gasLIKENumber: gasLIKE.toNumber(),
+        totalLIKEString: totalLIKE.toFixed(),
+        totalLIKENumber: totalLIKE.toNumber(),
+        gasUsed,
+        gasWanted,
+        transactionHash,
+      });
     } catch (err) {
       next(err);
     }
