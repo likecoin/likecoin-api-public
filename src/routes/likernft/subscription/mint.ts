@@ -28,6 +28,7 @@ import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient, getNFTISCNData
 import { processCreateISCN } from '../../../util/api/iscn';
 import { createRoyaltyConfig, processMintNFTClass, processNewNFTClass } from '../../../util/api/likernft/subscription/mint';
 import { checkCosmosSignPayload } from '../../../util/api/users';
+import { filterNFTSubscriptionMintStatus } from '../../../util/ValidationHelper';
 
 const router = Router();
 
@@ -492,7 +493,7 @@ router.get(
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
       }
-      res.json(docData);
+      res.json(filterNFTSubscriptionMintStatus(docData));
     } catch (err) {
       next(err);
     }
@@ -512,7 +513,7 @@ router.post(
       }
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const list = await getAllMintTransaction(wallet as string);
-      res.json({ list: list.map((i) => i) });
+      res.json({ list: list.map((s) => filterNFTSubscriptionMintStatus(s)) });
     } catch (err) {
       next(err);
     }
