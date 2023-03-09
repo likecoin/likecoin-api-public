@@ -23,6 +23,7 @@ import {
 import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient, getNFTISCNData } from '../../../util/cosmos/nft';
 import { processCreateISCN } from '../../../util/api/iscn';
 import { createRoyaltyConfig, processMintNFTClass, processNewNFTClass } from '../../../util/api/likernft/subscription/mint';
+import { checkCosmosSignPayload } from '../../../util/api/users';
 
 const router = Router();
 
@@ -31,12 +32,19 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
+      const { signature, publicKey, message } = req.body;
+      if (!checkCosmosSignPayload({
+        signature, publicKey, message, inputWallet: wallet as string, action: 'new_mint',
+      })) {
+        throw new ValidationError('INVALID_SIGN', 401);
+      }
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const isActiveUser = await checkUserIsActiveNFTSubscriber(wallet as string);
       if (!isActiveUser) throw new ValidationError('NOT_SUBSCRIBED');
-      const statusId = await createNewMintTransaction(wallet as string);
+      const { statusId, statusSecret } = await createNewMintTransaction(wallet as string);
       res.json({
         statusId,
+        statusSecret,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'NFTSubscriptionNewMint',
@@ -418,14 +426,20 @@ router.get(
   },
 );
 
-router.get(
+router.post(
   '/mint/status/list',
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
+      const { signature, publicKey, message } = req.body;
+      if (!checkCosmosSignPayload({
+        signature, publicKey, message, inputWallet: wallet as string, action: 'list_mint',
+      })) {
+        throw new ValidationError('INVALID_SIGN', 401);
+      }
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const list = await getAllMintTransaction(wallet as string);
-      res.json({ list });
+      res.json({ list: list.map((i) => i) });
     } catch (err) {
       next(err);
     }

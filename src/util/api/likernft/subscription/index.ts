@@ -1,6 +1,8 @@
 import { createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { firestore } from 'firebase-admin';
 import { NextFunction, Request, Response } from 'express';
+
 import {
   likeNFTSubscriptionUserCollection,
   likeNFTSubscriptionTxCollection,
@@ -51,8 +53,8 @@ export async function createNewMintTransaction(wallet: string)
   };
 }
 
-export async function getAllMintTransaction(wallet: string): Promise<string> {
-  const res = await likeNFTSubscriptionTxCollection().where(wallet).orderBy('timestamp', 'desc').get();
+export async function getAllMintTransaction(wallet: string) {
+  const res: firestore.QuerySnapshot = await likeNFTSubscriptionTxCollection().where(wallet).orderBy('timestamp', 'desc').get();
   const docs = res.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   return docs;
 }
