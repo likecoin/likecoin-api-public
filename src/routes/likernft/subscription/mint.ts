@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 
+import axios from 'axios';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import {
   likeNFTSubscriptionTxCollection,
@@ -12,12 +13,15 @@ import {
   processSigningUploadToArweave,
 } from '../../../util/api/arweave';
 import { ValidationError } from '../../../util/ValidationError';
-import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { API_EXTERNAL_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import {
+  checkAndLockMintStatus,
   checkUserIsActiveNFTSubscriber,
   createNewMintTransaction,
   getAllMintTransaction,
+  unlockMintStatus,
+  updateAndUnlockMintStatus,
   verifyAuthorizationHeader,
 } from '../../../util/api/likernft/subscription';
 import { getLikerNFTSigningAddressInfo, getLikerNFTSigningClient, getNFTISCNData } from '../../../util/cosmos/nft';
@@ -68,6 +72,7 @@ router.post(
       const { deduplicate = '1', wallet } = req.query;
       const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
+      await checkAndLockMintStatus(statusId, 'arweave');
       const arFiles = convertMulterFiles(files);
       const signingClient = await getLikerNFTSigningClient();
       const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
@@ -91,8 +96,16 @@ router.post(
         gasWanted,
         transactionHash,
       } = result;
+      const payload: {[key: string]: string} = {
+        transactionHash,
+        arweaveId,
+        ipfsHash,
+      };
+      if (totalLIKE) payload.totalLIKE = totalLIKE.toFixed();
+      await updateAndUnlockMintStatus(statusId, 'arweave', payload);
       res.json({
         statusId,
+        transactionHash,
         arweaveId,
         ipfsHash,
       });
@@ -130,6 +143,7 @@ router.post(
       const { statusId } = req.params;
       const { metadata } = req.body;
       const { wallet } = req.query;
+      await checkAndLockMintStatus(statusId, 'iscn');
       const {
         contentFingerprints = [],
         stakeholders = [],
@@ -163,9 +177,15 @@ router.post(
         iscnId,
         iscnLIKE,
         gasLIKE,
+        totalLIKE,
         gasUsed,
         gasWanted,
       } = result;
+      await updateAndUnlockMintStatus(statusId, 'iscn', {
+        transactionHash,
+        iscnId,
+        totalLIKE: totalLIKE.toFixed(),
+      }, { iscnId });
       res.json({
         txHash: transactionHash,
         iscnId,
@@ -202,6 +222,7 @@ router.post(
       const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       if (files && files.length > 1) throw new ValidationError('TOO_MANY_FILES');
+      const { iscnId } = await checkAndLockMintStatus(statusId, 'coverArweave');
       const arFiles = convertMulterFiles(files);
       const signingClient = await getLikerNFTSigningClient();
       const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
@@ -225,6 +246,13 @@ router.post(
         gasWanted,
         transactionHash,
       } = result;
+      const payload: {[key: string]: string} = {
+        transactionHash,
+        arweaveId,
+        ipfsHash,
+      };
+      if (totalLIKE) payload.totalLIKE = totalLIKE.toFixed();
+      await updateAndUnlockMintStatus(statusId, 'coverArweave', payload);
       res.json({
         statusId,
         arweaveId,
@@ -233,6 +261,7 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'NFTSubscriptionNFTCoverArweaveUpload',
         statusId,
+        iscnId,
         wallet,
         ipfsHash,
         key,
@@ -271,6 +300,8 @@ router.post(
         message,
         isCustomImage,
       } = req.body;
+      const { iscnId: dbIscnId } = await checkAndLockMintStatus(statusId, 'nftClass');
+      if (dbIscnId !== iscnId) throw new ValidationError('ISCN_ID_NOT_MATCH');
       const signingClient = await getLikerNFTSigningClient();
       const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
       const signingInfo = { address, accountNumber };
@@ -308,6 +339,12 @@ router.post(
         gasUsed: royaltyGasUsed,
         gasWanted: royaltyGasWanted,
       } = royaltyResult;
+      await updateAndUnlockMintStatus(statusId, 'nftClass', {
+        transactionHash,
+        totalLIKE: totalLIKE.toFixed(),
+        royaltyTransactionHash,
+        classId,
+      }, { classId });
 
       res.json({
         txHash: transactionHash,
@@ -382,6 +419,10 @@ router.post(
         gasWanted,
         gasUsed,
       } = result;
+      await updateAndUnlockMintStatus(statusId, 'nftMint', {
+        transactionHash,
+        totalLIKE: totalLIKE.toFixed(),
+      });
       res.json({
         txHash: transactionHash,
         classId,
@@ -402,6 +443,38 @@ router.post(
         gasWanted,
         transactionHash,
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/mint/:statusId/done',
+  verifyAuthorizationHeader,
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.query;
+      const { statusId } = req.params;
+      const { classId, iscnId } = await checkAndLockMintStatus(statusId, 'done');
+      try {
+        // TODO: dont route via external
+        await axios.post(
+          `https://${API_EXTERNAL_HOSTNAME}/likernft/mint?iscn_id=${encodeURIComponent(iscnId)}&class_id=${encodeURIComponent(classId)}`,
+        );
+        await updateAndUnlockMintStatus(statusId, 'done');
+        res.sendStatus(200);
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'NFTSubscriptionNFTDone',
+          statusId,
+          wallet,
+          iscnId,
+          classId,
+        });
+      } catch (err) {
+        await unlockMintStatus(statusId);
+        throw err;
+      }
     } catch (err) {
       next(err);
     }
