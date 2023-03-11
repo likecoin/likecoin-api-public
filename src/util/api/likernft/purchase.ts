@@ -136,6 +136,15 @@ export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   };
 }
 
+export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
+  try {
+    const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+    return priceInfo;
+  } catch (error) {
+    return null;
+  }
+}
+
 export function getGasPrice() {
   return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
 }
