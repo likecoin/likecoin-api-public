@@ -65,7 +65,7 @@ export async function processStripeNFTSubscriptionSession(
     customer: customerId,
     customer_email: email,
   } = session;
-  if (!subscriptionId) throw new ValidationError('SUBSCRIPTION_ID_NOT_FOUND');
+  if (!subscriptionId) return false;
   const subscription: Stripe.Subscription = await stripe.subscription.get(subscriptionId);
   const {
     items: { data: items },
@@ -133,7 +133,7 @@ export async function processStripeNFTSubscriptionInvoice(
     customer: customerId,
     subscription: subscriptionId,
   } = invoice;
-  if (!subscriptionId) throw new ValidationError('SUBSCRIPTION_ID_NOT_FOUND');
+  if (!subscriptionId) return false;
   const subscription: Stripe.Subscription = await stripe.subscription.get(subscriptionId);
   const {
     current_period_start: currentPeriodStart,

@@ -1,56 +1,17 @@
 import { Router } from 'express';
-import bodyParser from 'body-parser';
 
 import stripe from '../../../util/stripe';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import { likeNFTSubscriptionUserCollection } from '../../../util/firebase';
-import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 import { ValidationError } from '../../../util/ValidationError';
 import { APP_LIKE_CO_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 
 import {
-  STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_SUBSCRIPTION_PRICE_ID,
 } from '../../../../config/config';
 
 const router = Router();
-
-router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res, next) => {
-  try {
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(JSON.stringify({
-        message: err, stack: (err as Error).stack,
-      }));
-      res.sendStatus(400);
-      return;
-    }
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        await processStripeNFTSubscriptionSession(session, req);
-        break;
-      }
-      case 'invoice.paid': {
-        const invoice = event.data.object;
-        await processStripeNFTSubscriptionInvoice(invoice, req);
-        break;
-      }
-      default: {
-        res.sendStatus(415);
-        return;
-      }
-    }
-    res.sendStatus(200);
-  } catch (err) {
-    next(err);
-  }
-});
 
 router.post(
   '/new',

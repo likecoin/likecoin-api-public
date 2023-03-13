@@ -22,6 +22,7 @@ import {
   STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_FEE_ADDRESS,
 } from '../../../../config/config';
+import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 
 const router = Router();
 
@@ -42,7 +43,24 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        await processStripeFiatNFTPurchase(session, req);
+        const {
+          subscription: subscriptionId,
+        } = session;
+        if (subscriptionId) {
+          await processStripeNFTSubscriptionSession(session, req);
+        } else {
+          await processStripeFiatNFTPurchase(session, req);
+        }
+        break;
+      }
+      case 'invoice.paid': {
+        const invoice = event.data.object;
+        const {
+          subscription: subscriptionId,
+        } = invoice;
+        if (subscriptionId) {
+          await processStripeNFTSubscriptionInvoice(invoice, req);
+        }
         break;
       }
       default: {
