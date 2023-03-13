@@ -34,7 +34,9 @@ router.post(
           wallet,
         },
         subscription_data: {
-          wallet,
+          metadata: {
+            wallet,
+          },
         },
       });
       const { url, id: sessionId } = session;

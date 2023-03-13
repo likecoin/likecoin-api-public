@@ -63,10 +63,12 @@ export async function processStripeNFTSubscriptionSession(
   const {
     subscription: subscriptionId,
     customer: customerId,
-    customer_email: email,
+    customer_email: customerEmail,
+    customer_details: customerDetails,
   } = session;
+  const email = customerEmail || customerDetails?.email || null;
   if (!subscriptionId) return false;
-  const subscription: Stripe.Subscription = await stripe.subscription.get(subscriptionId);
+  const subscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const {
     items: { data: items },
     metadata: { wallet },
@@ -74,7 +76,7 @@ export async function processStripeNFTSubscriptionSession(
     current_period_end: currentPeriodEnd,
   } = subscription;
   const priceIds = items.map((i) => i.price);
-  const priceId = priceIds.find((id) => id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
+  const priceId = priceIds.find((p) => p.id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
   if (!priceId) throw new ValidationError('TARGET_PRICE_ID_NOT_FOUND');
   try {
     await likeNFTSubscriptionUserCollection.doc(wallet).set({
@@ -134,7 +136,7 @@ export async function processStripeNFTSubscriptionInvoice(
     subscription: subscriptionId,
   } = invoice;
   if (!subscriptionId) return false;
-  const subscription: Stripe.Subscription = await stripe.subscription.get(subscriptionId);
+  const subscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const {
     current_period_start: currentPeriodStart,
     current_period_end: currentPeriodEnd,
@@ -142,9 +144,9 @@ export async function processStripeNFTSubscriptionInvoice(
     items: { data: items },
   } = subscription;
   const priceIds = items.map((i) => i.price);
-  const priceId = priceIds.find((id) => id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
+  const priceId = priceIds.find((p) => p.id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
   if (!priceId) throw new ValidationError('TARGET_PRICE_ID_NOT_FOUND');
-  const customer: Stripe.Customer = await stripe.customer.get(customerId);
+  const customer: Stripe.Customer = await stripe.customers.retrieve(customerId);
   const { email } = customer;
   try {
     await likeNFTSubscriptionUserCollection.doc(wallet).update({
