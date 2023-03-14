@@ -33,7 +33,7 @@ import { filterNFTSubscriptionMintStatus } from '../../../util/ValidationHelper'
 const router = Router();
 
 router.post(
-  '/mint/new',
+  '/new',
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
@@ -63,7 +63,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/arweave',
+  '/:statusId/arweave',
   verifyAuthorizationHeader,
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
@@ -137,7 +137,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/iscn',
+  '/:statusId/iscn',
   verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
@@ -212,7 +212,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/nft/cover',
+  '/:statusId/nft/cover',
   verifyAuthorizationHeader,
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
@@ -286,7 +286,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/nft/class',
+  '/:statusId/nft/class',
   verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
@@ -382,7 +382,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/nft/mint',
+  '/:statusId/nft/mint',
   verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
@@ -451,7 +451,7 @@ router.post(
 );
 
 router.post(
-  '/mint/:statusId/done',
+  '/:statusId/done',
   verifyAuthorizationHeader,
   async (req, res, next) => {
     try {
@@ -483,7 +483,7 @@ router.post(
 );
 
 router.get(
-  '/mint/:statusId/status',
+  '/:statusId/status',
   async (req, res, next) => {
     try {
       const { statusId } = req.params;
@@ -501,7 +501,7 @@ router.get(
 );
 
 router.post(
-  '/mint/status/list',
+  '/status/list',
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
