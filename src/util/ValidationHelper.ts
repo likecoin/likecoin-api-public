@@ -513,7 +513,7 @@ export function filterNFTSubscriptionMintStatus({
   wallet,
   arweave,
   iscn,
-  coverArweave,
+  nftCover,
   nftClass,
   nftMint,
 }) {
@@ -524,7 +524,7 @@ export function filterNFTSubscriptionMintStatus({
     wallet,
     arweave,
     iscn,
-    coverArweave,
+    nftCover,
     nftClass,
     nftMint,
   };

@@ -17,7 +17,7 @@ const MINT_STATUS = [
   'new',
   'arweave',
   'iscn',
-  'coverArweave',
+  'nftCover',
   'nftClass',
   'nftMint',
   'done',

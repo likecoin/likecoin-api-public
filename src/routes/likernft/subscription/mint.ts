@@ -223,7 +223,7 @@ router.post(
       const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       if (files && files.length > 1) throw new ValidationError('TOO_MANY_FILES');
-      const { iscnId } = await checkAndLockMintStatus(statusId, 'coverArweave');
+      const { iscnId } = await checkAndLockMintStatus(statusId, 'nftCover');
       const arFiles = convertMulterFiles(files);
       const signingClient = await getLikerNFTSigningClient();
       const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
@@ -253,7 +253,7 @@ router.post(
         ipfsHash,
       };
       if (totalLIKE) payload.totalLIKE = totalLIKE.toFixed();
-      await updateAndUnlockMintStatus(statusId, 'coverArweave', payload);
+      await updateAndUnlockMintStatus(statusId, 'nftCover', payload);
       res.json({
         statusId,
         arweaveId,
