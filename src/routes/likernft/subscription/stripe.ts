@@ -71,8 +71,9 @@ router.get(
         currentPeriodEnd,
         currentPeriodStart,
       } = doc.data();
-      const isActive = currentPeriodStart < Date.now()
-        && currentPeriodEnd > Date.now();
+      const tsNow = (Date.now() / 1000);
+      const isActive = currentPeriodStart < tsNow
+        && currentPeriodEnd > tsNow;
       res.json({ isActive });
     } catch (err) {
       next(err);

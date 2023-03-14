@@ -43,7 +43,7 @@ export async function checkUserIsActiveNFTSubscriber(wallet: string): Promise<bo
   const docData = doc.data();
   if (!docData) return false;
   const { currentPeriodStart, currentPeriodEnd } = docData;
-  const now = Date.now();
+  const now = Date.now() / 1000;
   return currentPeriodStart < now && currentPeriodEnd > now;
 }
 
@@ -56,8 +56,8 @@ export async function createNewMintTransaction(wallet: string)
     status: 'new',
     statusSecret,
     isProcessing: false,
-    lastUpdatedTimestamp: FieldValue.serverTimestamp,
-    timestamp: FieldValue.serverTimestamp,
+    lastUpdatedTimestamp: FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
   });
   return {
     statusId,
@@ -86,7 +86,7 @@ export async function checkAndLockMintStatus(statusId: string, status: string) {
       likeNFTSubscriptionTxCollection.doc(statusId),
       {
         isProcessing: true,
-        lastUpdatedTimestamp: FieldValue.serverTimestamp,
+        lastUpdatedTimestamp: FieldValue.serverTimestamp(),
       },
     );
     return otherDocData;
@@ -103,7 +103,7 @@ export async function updateAndUnlockMintStatus(
   let payload = {
     isProcessing: false,
     status,
-    lastUpdatedTimestamp: FieldValue.serverTimestamp,
+    lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   };
   if (statusData) {
     payload[status] = statusData;
@@ -122,7 +122,7 @@ export async function unlockMintStatus(
 ) {
   const payload = {
     isProcessing: false,
-    lastUpdatedTimestamp: FieldValue.serverTimestamp,
+    lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   };
   await likeNFTSubscriptionTxCollection.doc(statusId).update(payload);
 }
