@@ -56,7 +56,7 @@ router.post(
         iscn_id: iscnId,
         tx_hash: txHash,
         class_id: inputClassId,
-        platform,
+        platform = '',
       } = req.query;
       const { contentUrl } = req.body;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
