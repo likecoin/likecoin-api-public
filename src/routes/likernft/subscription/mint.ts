@@ -68,10 +68,10 @@ router.post(
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
       const { files } = req;
       const { deduplicate = '1', wallet } = req.query;
-      const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       await checkAndLockMintStatus(statusId, 'arweave');
       const arFiles = convertMulterFiles(files);
@@ -131,6 +131,7 @@ router.post(
       });
       next();
     } catch (error) {
+      await unlockMintStatus(statusId);
       next(error);
     }
   },
@@ -140,8 +141,8 @@ router.post(
   '/:statusId/iscn',
   verifyAuthorizationHeader,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
-      const { statusId } = req.params;
       const { metadata } = req.body;
       const { wallet } = req.query;
       await checkAndLockMintStatus(statusId, 'iscn');
@@ -206,6 +207,7 @@ router.post(
       });
       next();
     } catch (error) {
+      await unlockMintStatus(statusId);
       next(error);
     }
   },
@@ -217,10 +219,10 @@ router.post(
   multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
   checkFileValid,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
       const { files } = req;
       const { deduplicate = '1', wallet } = req.query;
-      const { statusId } = req.params;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       if (files && files.length > 1) throw new ValidationError('TOO_MANY_FILES');
       const { iscnId } = await checkAndLockMintStatus(statusId, 'nftCover');
@@ -280,6 +282,7 @@ router.post(
       });
       next();
     } catch (err) {
+      await unlockMintStatus(statusId);
       next(err);
     }
   },
@@ -289,9 +292,9 @@ router.post(
   '/:statusId/nft/class',
   verifyAuthorizationHeader,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
       const { wallet } = req.query;
-      const { statusId } = req.params;
       const {
         iscnId,
         name,
@@ -376,6 +379,7 @@ router.post(
         transactionHash: royaltyTransactionHash,
       });
     } catch (err) {
+      await unlockMintStatus(statusId);
       next(err);
     }
   },
@@ -385,9 +389,9 @@ router.post(
   '/:statusId/nft/mint',
   verifyAuthorizationHeader,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
       const { wallet } = req.query;
-      const { statusId } = req.params;
       const {
         iscnId,
         classId,
@@ -445,6 +449,7 @@ router.post(
         transactionHash,
       });
     } catch (err) {
+      await unlockMintStatus(statusId);
       next(err);
     }
   },
@@ -454,29 +459,25 @@ router.post(
   '/:statusId/done',
   verifyAuthorizationHeader,
   async (req, res, next) => {
+    const { statusId } = req.params;
     try {
       const { wallet } = req.query;
-      const { statusId } = req.params;
       const { classId, iscnId } = await checkAndLockMintStatus(statusId, 'done');
-      try {
-        // TODO: dont route via external
-        await axios.post(
-          `https://${API_EXTERNAL_HOSTNAME}/likernft/mint?iscn_id=${encodeURIComponent(iscnId)}&class_id=${encodeURIComponent(classId)}`,
-        );
-        await updateAndUnlockMintStatus(statusId, 'done');
-        res.sendStatus(200);
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'NFTSubscriptionNFTDone',
-          statusId,
-          wallet,
-          iscnId,
-          classId,
-        });
-      } catch (err) {
-        await unlockMintStatus(statusId);
-        throw err;
-      }
+      // TODO: dont route via external
+      await axios.post(
+        `https://${API_EXTERNAL_HOSTNAME}/likernft/mint?iscn_id=${encodeURIComponent(iscnId)}&class_id=${encodeURIComponent(classId)}`,
+      );
+      await updateAndUnlockMintStatus(statusId, 'done');
+      res.sendStatus(200);
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTSubscriptionNFTDone',
+        statusId,
+        wallet,
+        iscnId,
+        classId,
+      });
     } catch (err) {
+      await unlockMintStatus(statusId);
       next(err);
     }
   },
