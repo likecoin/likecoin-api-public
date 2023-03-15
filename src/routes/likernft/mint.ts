@@ -7,7 +7,11 @@ import { likeNFTCollection } from '../../util/firebase';
 import { parseNFTInformationFromSendTxHash, writeMintedNFTInfo } from '../../util/api/likernft/mint';
 import { getISCNPrefixDocName, getISCNDocByClassId } from '../../util/api/likernft';
 import {
-  getNFTClassDataById, getNFTsByClassId, getNFTClassIdByISCNId, getNFTISCNData,
+  getNFTClassDataById,
+  getNFTsByClassId,
+  getNFTClassIdByISCNId,
+  getNFTISCNData,
+  getLikerNFTFiatSigningClientAndWallet,
 } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { getISCNPrefix } from '../../util/cosmos/iscn';
@@ -169,8 +173,12 @@ router.post(
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const { data, owner } = await getNFTISCNData(iscnId);
+      // TODO: figure out a auth method for fiat signer
+      const { wallet: fiatSignerWallet } = await getLikerNFTFiatSigningClientAndWallet();
       if (!data) throw new ValidationError('ISCN_ID_NOT_FOUND');
-      if (owner !== from) throw new ValidationError('NOT_ISCN_OWNER');
+      if (owner !== fiatSignerWallet.address && owner !== from) {
+        throw new ValidationError('NOT_ISCN_OWNER');
+      }
       const {
         contentMetadata: {
           name = '',
