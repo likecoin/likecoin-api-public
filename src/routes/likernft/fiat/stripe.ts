@@ -79,7 +79,7 @@ router.get(
         return;
       }
 
-      const isListing = !purchaseInfo || firstListing.price <= purchaseInfo.price;
+      const isListing = !purchaseInfo || (firstListing && firstListing.price <= purchaseInfo.price);
       const price = isListing ? firstListing.price : purchaseInfo.price;
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
