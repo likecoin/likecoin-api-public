@@ -2,6 +2,7 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import { formatMsgSend, formatMsgBuyNFT } from '@likecoin/iscn-js/dist/messages/likenft';
+import { estimateMsgsTxGas } from '@likecoin/iscn-js/dist/transactions/gas';
 
 import { getLikerNFTFiatSigningClientAndWallet } from '../../cosmos/nft';
 import { calculateTxGasFee } from '../../cosmos/tx';
@@ -83,7 +84,10 @@ async function handleNFTBuyListingTransaction({
       nftId,
     ),
   ];
-  const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
+  const fee = estimateMsgsTxGas(txMessages, {
+    denom: NFT_COSMOS_DENOM,
+    gasPrice: 10,
+  });
   const res = await client.sendMessages(fiatWallet, txMessages, { fee, memo });
   return res as DeliverTxResponse;
 }

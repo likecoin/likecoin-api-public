@@ -1,7 +1,10 @@
 import { ValidationError } from '../util/ValidationError';
 import { getISCNPrefix } from '../util/cosmos/iscn';
 import {
-  getISCNPrefixByClassId, getCurrentClassIdByISCNId, getISCNPrefixDocName,
+  getISCNPrefixByClassId,
+  getISCNPrefixByClassIdFromChain,
+  getCurrentClassIdByISCNId,
+  getISCNPrefixDocName,
 } from '../util/api/likernft';
 
 export const fetchISCNPrefixAndClassId = async (req, res, next) => {
@@ -21,6 +24,18 @@ export const fetchISCNPrefixAndClassId = async (req, res, next) => {
     res.locals.iscnPrefix = iscnPrefix;
     res.locals.classId = classId;
     res.locals.iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const fetchISCNPrefixFromChain = async (req, res, next) => {
+  try {
+    const { class_id: classId } = req.query;
+    if (!classId) throw new ValidationError('MISSING_CLASS_ID');
+    const iscnPrefix = await getISCNPrefixByClassIdFromChain(classId);
+    res.locals.iscnPrefix = iscnPrefix;
     next();
   } catch (err) {
     next(err);
