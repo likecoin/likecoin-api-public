@@ -11,7 +11,7 @@ import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
-import { DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
+import { checkIsWritingNFT, DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
@@ -148,9 +148,18 @@ router.post(
       let {
         name = '',
         description = '',
-        image,
       } = metadata;
-      image = image ? parseImageURLFromMetadata(image) : `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_SIZE}`;
+      const classMetadata = metadata.data.metadata;
+      let { image } = classMetadata;
+      const { is_custom_image: isCustomImage = false } = classMetadata;
+      if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
+        image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_SIZE}`;
+      } else {
+        image = parseImageURLFromMetadata(image);
+      }
+      if (!image) {
+        image = 'https://static.like.co/primitive-nft.jpg';
+      }
       const gasFee = getGasPrice();
       const totalPrice = price + gasFee;
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
