@@ -67,7 +67,7 @@ router.get(
         purchaseInfo,
         listingInfo,
       ] = await Promise.all([
-        softGetLatestNFTPriceAndInfo(iscnPrefix, classId),
+        iscnPrefix ? softGetLatestNFTPriceAndInfo(iscnPrefix, classId) : null,
         fetchNFTListingInfo(classId),
       ]);
       const firstListing = listingInfo
@@ -128,6 +128,9 @@ router.post(
       const promises = [getNFTClassDataById(classId)];
       const { nftId = '', seller = '', memo } = req.body;
       const isListing = !!(nftId && seller);
+      if (!isListing && !iscnPrefix) {
+        throw new ValidationError('NFT_PRICE_NOT_FOUND');
+      }
       const getPriceInfoPromise = isListing
         ? fetchNFTListingInfoByNFTId(classId, nftId)
           .then((info) => {

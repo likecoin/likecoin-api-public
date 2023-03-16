@@ -37,7 +37,8 @@ export async function getISCNPrefixByClassIdFromChain(classId) {
   if (!data) {
     throw new ValidationError('NFT_CLASS_NOT_FOUND', 404);
   }
-  return data.data.parent.iscnIdPrefix;
+  const { iscnIdPrefix } = data.data.parent;
+  return iscnIdPrefix || null;
 }
 
 export async function getNFTClassByClassId(classId) {
