@@ -2,7 +2,6 @@ import { Router } from 'express';
 
 import stripe from '../../../util/stripe';
 import { isValidLikeAddress } from '../../../util/cosmos';
-import { likeNFTSubscriptionUserCollection } from '../../../util/firebase';
 import { ValidationError } from '../../../util/ValidationError';
 import { APP_LIKE_CO_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
@@ -51,30 +50,6 @@ router.post(
         planId: LIKER_NFT_SUBSCRIPTION_PRICE_ID,
         sessionId,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.get(
-  '/status',
-  async (req, res, next) => {
-    try {
-      const { wallet } = req.query;
-      const doc = await likeNFTSubscriptionUserCollection.doc(wallet).get();
-      if (!doc.data()) {
-        res.status(404).send('PAYMENT_ID_NOT_FOUND');
-        return;
-      }
-      const {
-        currentPeriodEnd,
-        currentPeriodStart,
-      } = doc.data();
-      const tsNow = (Date.now() / 1000);
-      const isActive = currentPeriodStart < tsNow
-        && currentPeriodEnd > tsNow;
-      res.json({ isActive });
     } catch (err) {
       next(err);
     }
