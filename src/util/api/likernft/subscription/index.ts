@@ -55,14 +55,21 @@ export async function createNewMintTransaction(wallet: string)
   : Promise<{ statusId: string; statusSecret: string; }> {
   const statusId = uuidv4();
   const statusSecret = createMintAutheticationToken(statusId);
-  await likeNFTSubscriptionTxCollection.doc(statusId).create({
-    wallet,
-    status: 'new',
-    statusSecret,
-    isProcessing: false,
-    lastUpdatedTimestamp: FieldValue.serverTimestamp(),
-    timestamp: FieldValue.serverTimestamp(),
-  });
+  await Promise.all([
+    likeNFTSubscriptionTxCollection.doc(statusId).create({
+      wallet,
+      status: 'new',
+      statusSecret,
+      isProcessing: false,
+      lastUpdatedTimestamp: FieldValue.serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
+    }),
+    likeNFTSubscriptionUserCollection.doc(wallet).update({
+      currentPeriodMints: FieldValue.increment(1),
+      totalMints: FieldValue.increment(1),
+    }),
+  ]);
+
   return {
     statusId,
     statusSecret,
