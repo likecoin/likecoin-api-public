@@ -38,13 +38,17 @@ export function verifyAuthorizationHeader(req: Request, res: Response, next: Nex
   next();
 }
 
-export async function checkUserIsActiveNFTSubscriber(wallet: string): Promise<boolean> {
+export async function checkUserIsActiveNFTSubscriber(wallet: string)
+  : Promise<{ isActive: boolean; stripe?: any; }> {
   const doc = await likeNFTSubscriptionUserCollection.doc(wallet).get();
   const docData = doc.data();
-  if (!docData) return false;
-  const { currentPeriodStart, currentPeriodEnd } = docData;
+  if (!docData) return { isActive: false };
+  const { currentPeriodStart, currentPeriodEnd, stripe } = docData;
   const now = Date.now() / 1000;
-  return currentPeriodStart < now && currentPeriodEnd > now;
+  return {
+    isActive: currentPeriodStart < now && currentPeriodEnd > now,
+    stripe,
+  };
 }
 
 export async function createNewMintTransaction(wallet: string)

@@ -44,7 +44,7 @@ router.post(
         throw new ValidationError('INVALID_SIGN', 401);
       }
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const isActiveUser = await checkUserIsActiveNFTSubscriber(wallet as string);
+      const { isActive: isActiveUser } = await checkUserIsActiveNFTSubscriber(wallet as string);
       if (!isActiveUser) throw new ValidationError('NOT_SUBSCRIBED');
       const { statusId, statusSecret } = await createNewMintTransaction(wallet as string);
       res.json({

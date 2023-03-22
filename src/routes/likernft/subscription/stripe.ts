@@ -9,6 +9,8 @@ import publisher from '../../../util/gcloudPub';
 import {
   LIKER_NFT_SUBSCRIPTION_PRICE_ID,
 } from '../../../../config/config';
+import { checkUserIsActiveNFTSubscriber } from '../../../util/api/likernft/subscription';
+import { checkCosmosSignPayload } from '../../../util/api/users';
 
 const router = Router();
 
@@ -17,7 +19,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
-      if (!wallet || !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      const { isActive: isActiveUser } = await checkUserIsActiveNFTSubscriber(wallet as string);
+      if (isActiveUser) throw new ValidationError('ALREADY_SUBSCRIBED');
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         success_url: `https://${APP_LIKE_CO_HOSTNAME}/nft/subscription/success`,
@@ -49,6 +53,47 @@ router.post(
         wallet,
         planId: LIKER_NFT_SUBSCRIPTION_PRICE_ID,
         sessionId,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/portal',
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.query;
+      const { signature, publicKey, message } = req.body;
+      if (!checkCosmosSignPayload({
+        signature, publicKey, message, inputWallet: wallet as string, action: 'subscription_portal',
+      })) {
+        throw new ValidationError('INVALID_SIGN', 401);
+      }
+      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      const {
+        isActive: isActiveUser,
+        stripe: stripeData,
+      } = await checkUserIsActiveNFTSubscriber(wallet as string);
+      if (!isActiveUser) throw new ValidationError('NOT_SUBSCRIBED');
+      if (!stripeData?.customerId) throw new ValidationError('NO_STRIPE_CUSTOMER_ID');
+      const { customerId } = stripeData;
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `https://${APP_LIKE_CO_HOSTNAME}/nft/subscription`,
+      });
+      const { url, id: sessionId } = session;
+      res.json({
+        id: sessionId,
+        url,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTSubscriptionPortalSession',
+        type: 'stripe',
+        wallet,
+        sessionId,
+        customerId,
       });
     } catch (err) {
       next(err);
