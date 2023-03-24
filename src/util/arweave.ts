@@ -24,7 +24,7 @@ const arweaveGraphQL = Arweave.init({
   host: 'arweave.net',
   port: 443,
   protocol: 'https',
-  timeout: 10000,
+  timeout: 5000,
 });
 
 const arweave = Arweave.init({
