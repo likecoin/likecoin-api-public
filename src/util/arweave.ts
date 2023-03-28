@@ -166,12 +166,19 @@ export async function estimateARPrices(files, checkDuplicate = true): Promise<{
 }
 
 async function getPriceRatioBigNumber() {
-  const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API);
-  const { likecoin, arweave: arweavePrice } = data;
-  const priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
-  // At least 1 LIKE for 1 AR
-  const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
-  return priceRatioBigNumber;
+  try {
+    const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API, { timeout: 10000 });
+    const { likecoin, arweave: arweavePrice } = data;
+    const priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
+    // At least 1 LIKE for 1 AR
+    const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
+    return priceRatioBigNumber;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(JSON.stringify(err));
+    // TODO: make a less hardcoded fallback price
+    return new BigNumber(5000);
+  }
 }
 
 export function convertARPriceToLIKE(ar, {
@@ -210,7 +217,7 @@ export async function convertARPricesToLIKE(
 }
 
 export async function submitToArweave(data, ipfsHash, { anchorId }: { anchorId?: string } = {}) {
-  const anchor = anchorId || (await arweave.api.get('/tx_anchor')).data;
+const anchor = anchorId || (await arweave.api.get('/a')).data;
   const { mimetype, buffer } = data;
   const transaction = await arweave.createTransaction({
     data: buffer, last_tx: anchor,
