@@ -23,7 +23,7 @@
     "test": "npm run test:stub",
     "test:stub": "node ./test/stub/runner test:api",
     "test:data": "cp ./test/data/* ./dist/test/data",
-    "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true c8 ava --timeout=1m -v"
+    "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true ava --timeout=1m -v"
   },
   "repository": {
     "type": "git",
