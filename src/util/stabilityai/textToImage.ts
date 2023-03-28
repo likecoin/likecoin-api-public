@@ -1,3 +1,5 @@
+/* c8 ignore start */
+
 import { grpc as GRPCWeb } from '@improbable-eng/grpc-web';
 import { NodeHttpTransport } from '@improbable-eng/grpc-web-node-http-transport';
 import { GenerationServiceClient } from './generation/generation_pb_service';

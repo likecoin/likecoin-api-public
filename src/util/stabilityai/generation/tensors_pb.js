@@ -9,6 +9,7 @@
  */
 // GENERATED CODE -- DO NOT EDIT!
 /* eslint-disable */
+/* c8 ignore start */
 // @ts-nocheck
 
 var jspb = require('google-protobuf');

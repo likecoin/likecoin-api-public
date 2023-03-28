@@ -1,4 +1,5 @@
 /* eslint-disable */
+/* c8 ignore start */
 // package: gooseai
 // file: generation.proto
 
