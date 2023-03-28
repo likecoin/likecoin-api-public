@@ -1,6 +1,7 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable no-unused-expressions */
 /* eslint-disable no-console */
+/* c8 ignore start */
 import { grpc as GRPCWeb } from '@improbable-eng/grpc-web';
 import fs from 'fs';
 import * as Generation from './generation/generation_pb';

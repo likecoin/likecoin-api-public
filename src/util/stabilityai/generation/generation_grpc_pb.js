@@ -1,4 +1,5 @@
 /* eslint-disable */
+/* c8 ignore start */
 // GENERATED CODE -- DO NOT EDIT!
 
 'use strict';
