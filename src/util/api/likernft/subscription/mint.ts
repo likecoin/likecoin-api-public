@@ -230,7 +230,7 @@ export async function processMintNFTClass(
   messages = messages.concat(mintMessages).concat(sendMessages);
   if (transferTargetWallet) {
     const iscnMessage = formatMsgChangeIscnRecordOwnership(address, iscnId, transferTargetWallet);
-    messages.concat(iscnMessage);
+    messages = messages.concat(iscnMessage);
   }
 
   const createMintNFTSigningFunction = async ({ sequence }): Promise<TxRaw> => {
