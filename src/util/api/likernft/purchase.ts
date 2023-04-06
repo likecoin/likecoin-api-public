@@ -367,6 +367,8 @@ async function fetchNFTSoldByAPIWalletEvent(classId: string, nftId: string) {
 
 function formatNFTEvent(event: any) {
   const timestamp = new Date(event.timestamp).getTime();
+  // NOTE: event.price includes tx fee (e.g. 8002000000),
+  // while price in DB does not, and  W.NFT is always sold in integer LIKE
   const price = Number(new BigNumber(event.price).shiftedBy(-9).toFixed(0));
   return {
     txHash: event.tx_hash,
