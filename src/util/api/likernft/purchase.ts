@@ -1,3 +1,4 @@
+import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
@@ -14,6 +15,7 @@ import {
   DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH,
 } from '../../cosmos/tx';
 import {
+  COSMOS_LCD_INDEXER_ENDPOINT,
   NFT_COSMOS_DENOM,
   NFT_CHAIN_ID,
   LIKER_NFT_TARGET_ADDRESS,
@@ -201,7 +203,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-export async function handleNFTPurchaseTransaction({
+async function handleNFTPurchaseTransaction({
   iscnPrefix,
   iscnData,
   classId,
@@ -312,11 +314,15 @@ export async function handleNFTPurchaseTransaction({
     console.error(err);
     throw new ValidationError(err);
   }
-  const { transactionHash, code } = res;
+  const { transactionHash, code, rawLog } = res;
   if (code !== 0) {
     // eslint-disable-next-line no-console
     console.error(`Tx ${transactionHash} failed with code ${code}`);
-    throw new ValidationError('TX_NOT_SUCCESS');
+    if (code === 4 && rawLog.includes('is not the owner of nft')) {
+      throw new ValidationError('NFT_NOT_OWNED_BY_API_WALLET');
+    } else {
+      throw new ValidationError('TX_NOT_SUCCESS');
+    }
   }
   const timestamp = Date.now();
   // update price and unlock
@@ -346,6 +352,86 @@ export async function handleNFTPurchaseTransaction({
   };
 }
 
+async function fetchNFTSoldByAPIWalletEvent(classId: string, nftId: string) {
+  const params = {
+    class_id: classId,
+    nft_id: nftId,
+    sender: LIKER_NFT_TARGET_ADDRESS,
+    action_type: '/cosmos.nft.v1beta1.MsgSend',
+    'pagination.limit': 1,
+    'pagination.reverse': true,
+  };
+  const { data: { events } } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/event`, { params });
+  return events.length ? events[0] : null;
+}
+
+function formatNFTEvent(event: any) {
+  const timestamp = new Date(event.timestamp).getTime();
+  // NOTE: event.price includes tx fee (e.g. 8002000000),
+  // while price in DB does not, and  W.NFT is always sold in integer LIKE
+  const price = Number(new BigNumber(event.price).shiftedBy(-9).toFixed(0));
+  return {
+    txHash: event.tx_hash,
+    seller: event.sender,
+    owner: event.receiver,
+    memo: event.memo,
+    timestamp,
+    price,
+  };
+}
+
+async function updateSoldNFT(t, {
+  iscnRef,
+  classRef,
+  classId,
+  nftId,
+  granterWallet,
+  grantTxHash,
+  granterMemo,
+}) {
+  const event = await fetchNFTSoldByAPIWalletEvent(classId, nftId);
+  if (!event) {
+    // eslint-disable-next-line no-console
+    console.log(`API wallet sold event not found for NFT ${classId}/${nftId}`);
+    return;
+  }
+  const {
+    txHash,
+    seller,
+    owner,
+    memo,
+    timestamp,
+    price,
+  } = formatNFTEvent(event);
+  const nftRef = classRef.collection('nft').doc(nftId);
+  // intend to update NFT and transaction docs only, ISCN and class docs remain unchanged
+  t.update(nftRef, {
+    price,
+    lastSoldPrice: price,
+    soldCount: FieldValue.increment(1),
+    isSold: true,
+    isProcessing: false,
+    ownerWallet: owner,
+    lastSoldTimestamp: timestamp,
+    sellerWallet: null,
+  });
+  t.create(iscnRef.collection('transaction')
+    .doc(txHash), {
+    event: 'purchase',
+    txHash,
+    grantTxHash,
+    granterMemo,
+    memo,
+    price,
+    classId,
+    nftId,
+    timestamp,
+    fromWallet: seller,
+    toWallet: owner,
+    granterWallet,
+  });
+}
+
 export async function processNFTPurchase({
   buyerWallet,
   iscnPrefix,
@@ -355,6 +441,7 @@ export async function processNFTPurchase({
   grantedAmount,
   grantTxHash = '',
   granterMemo = '',
+  retryTimes = 0,
 }, req) {
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
@@ -544,7 +631,7 @@ export async function processNFTPurchase({
     // eslint-disable-next-line no-console
     console.error(err);
     // reset lock
-    await db.runTransaction(async (t) => {
+    const shouldRetryPurchase = await db.runTransaction(async (t) => {
       if (!isResell) {
         const doc = await t.get(iscnRef);
         const docData = doc.data();
@@ -553,7 +640,24 @@ export async function processNFTPurchase({
           t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
         }
       }
+      // eslint-disable-next-line no-underscore-dangle
+      const shouldUpdateSoldNFT = (
+        err instanceof ValidationError
+        && err.message === 'NFT_NOT_OWNED_BY_API_WALLET'
+      );
+      if (shouldUpdateSoldNFT) {
+        await updateSoldNFT(t, {
+          iscnRef,
+          classRef,
+          classId,
+          nftId,
+          granterWallet,
+          grantTxHash,
+          granterMemo,
+        });
+      }
       t.update(nftRef, { isProcessing: false });
+      return shouldUpdateSoldNFT && retryTimes < 1;
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTPurchaseError',
@@ -562,6 +666,18 @@ export async function processNFTPurchase({
       nftId,
       buyerWallet,
     });
+    if (shouldRetryPurchase) {
+      return processNFTPurchase({
+        buyerWallet,
+        iscnPrefix,
+        classId,
+        granterWallet,
+        grantedAmount,
+        grantTxHash,
+        granterMemo,
+        retryTimes: retryTimes + 1,
+      }, req);
+    }
     throw err;
   }
 }
