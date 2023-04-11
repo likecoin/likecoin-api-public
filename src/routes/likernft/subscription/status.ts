@@ -1,20 +1,16 @@
 import { Router } from 'express';
 
-import { likeNFTSubscriptionUserCollection } from '../../../util/firebase';
+import { isValidLikeAddress } from '../../../util/cosmos';
+import { ValidationError } from '../../../util/ValidationError';
+import { checkUserIsActiveNFTSubscriber } from '../../../util/api/likernft/subscription';
 
 const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
     const { wallet } = req.query;
-    const doc = await likeNFTSubscriptionUserCollection.doc(wallet).get();
-    if (!doc.data()) {
-      res.status(404).send('PAYMENT_ID_NOT_FOUND');
-      return;
-    }
-    const { currentPeriodEnd, currentPeriodStart } = doc.data();
-    const tsNow = Date.now() / 1000;
-    const isActive = currentPeriodStart < tsNow && currentPeriodEnd > tsNow;
+    if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+    const { isActive } = await checkUserIsActiveNFTSubscriber(wallet as string);
     res.json({ isActive });
   } catch (err) {
     next(err);

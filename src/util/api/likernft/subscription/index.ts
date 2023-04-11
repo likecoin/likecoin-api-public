@@ -23,7 +23,7 @@ const MINT_STATUS = [
   'done',
 ];
 
-export function createMintAutheticationToken(sessionId: string): string {
+export function createMintAuthenticationToken(sessionId: string): string {
   const hmac = createHmac('sha256', LIKER_NFT_SUBSCRIPTION_MINT_SECRET);
   hmac.update(sessionId);
   return hmac.digest('base64');
@@ -32,7 +32,7 @@ export function createMintAutheticationToken(sessionId: string): string {
 export function verifyAuthorizationHeader(req: Request, res: Response, next: NextFunction): void {
   const { statusId } = req.params;
   const { authorization } = req.headers;
-  if (!authorization || !statusId || createMintAutheticationToken(statusId) !== authorization) {
+  if (!authorization || !statusId || createMintAuthenticationToken(statusId) !== authorization) {
     res.sendStatus(401);
   }
   next();
@@ -54,7 +54,7 @@ export async function checkUserIsActiveNFTSubscriber(wallet: string)
 export async function createNewMintTransaction(wallet: string)
   : Promise<{ statusId: string; statusSecret: string; }> {
   const statusId = uuidv4();
-  const statusSecret = createMintAutheticationToken(statusId);
+  const statusSecret = createMintAuthenticationToken(statusId);
   await Promise.all([
     likeNFTSubscriptionTxCollection.doc(statusId).create({
       wallet,

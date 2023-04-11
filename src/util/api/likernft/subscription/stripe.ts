@@ -155,6 +155,7 @@ export async function processStripeNFTSubscriptionInvoice(
       currentPeriodStart,
       currentPeriodEnd,
       currentPeriodMints: 0,
+      totalMints: 0,
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTSubscriptionRenewed',
