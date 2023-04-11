@@ -17,9 +17,11 @@ export async function findPaymentFromStripeSessionId(sessionId) {
 export async function processStripeFiatNFTPurchase(session, req) {
   const {
     id: sessionId,
+    subscription: subscriptionId,
     metadata = {},
     customer_details: customer = {},
   } = session;
+  if (subscriptionId) return false;
   const doc = await findPaymentFromStripeSessionId(sessionId);
   if (!doc) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const docData = doc.data();

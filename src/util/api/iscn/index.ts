@@ -69,10 +69,12 @@ export async function processCreateISCN(
     tryCount += 1;
     /* eslint-enable no-await-in-loop */
   }
+  const totalLIKE = gasLIKE.plus(iscnLIKE);
   return {
     iscnId,
     transactionHash,
     iscnLIKE,
+    totalLIKE,
     gasLIKE,
     gasWanted,
     gasUsed,

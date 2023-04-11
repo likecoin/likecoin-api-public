@@ -505,3 +505,27 @@ export function filterFollow({
     ts,
   };
 }
+
+export function filterNFTSubscriptionMintStatus({
+  id,
+  status,
+  isProcessing,
+  wallet,
+  arweave,
+  iscn,
+  nftCover,
+  nftClass,
+  nftMint,
+}) {
+  return {
+    id,
+    status,
+    isProcessing,
+    wallet,
+    arweave,
+    iscn,
+    nftCover,
+    nftClass,
+    nftMint,
+  };
+}
