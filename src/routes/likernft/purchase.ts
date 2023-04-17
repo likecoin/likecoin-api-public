@@ -58,8 +58,6 @@ router.post(
       const { iscnPrefix, classId } = res.locals;
       const {
         price: nftPrice,
-        isResell,
-        nftId: targetNftId,
       } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
       if (nftPrice <= 0) throw new ValidationError('NFT_SOLD_OUT');
       const gasFee = getGasPrice();
@@ -85,7 +83,6 @@ router.post(
         feeWallet,
         feeLIKE,
       } = await processNFTPurchase({
-        nftId: isResell ? targetNftId : undefined,
         buyerWallet: likeWallet,
         iscnPrefix,
         classId,
