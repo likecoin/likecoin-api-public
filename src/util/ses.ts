@@ -116,3 +116,49 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
   };
   return ses.sendEmail(params).promise();
 }
+
+export function sendPendingClaimEmail(email: string, classId: string, className: string) {
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: 'Writing NFT 領取通知',
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: `
+          <p>親愛的 Liker：</p>
+          <p>感謝購買 《<a
+              href="https://liker.land/nft/class/${classId}">${className}</a>》的 Writing NFT，我們需要你提供 LikeCoin 錢包地址以把 Writing NFT 發送給你。</p>
+          <p><strong>方法一：登入你的 Liker ID</strong></p>
+          <p>你可隨時以 Liker Land 手機應用程式，以社交帳號方式登入後，檢查自己的 LikeCoin 錢包地址。</p>
+          <p><strong>方法二：安裝 Keplr</strong></p>
+          <p>若你想用新的 LikeCoin 地址接收 Writing NFT，可參看以下步驟，在 Chrome 瀏覽器安裝 Keplr 錢包。</p>
+          <p><a href="https://youtu.be/WQGW1P0KgOA">如何安裝 Keplr 及使用 LikeCoin （國語）</a></p>
+          <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
+          <p>完成安裝後，你將可以在 <a href="https://liker.land/">Liker Land 網站</a>查看自己的 Writing NFT 珍藏。</p>
+          <p>＋＋＋＋</p>
+          <p>請回覆這電郵把 LikeCoin 地址發給我們。</p>
+          <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+              Land 客服</a>。</p>
+          <p>感謝支持創作。</p>
+          <p>Liker Land</p>
+          `,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}

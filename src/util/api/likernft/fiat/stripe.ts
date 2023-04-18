@@ -7,6 +7,8 @@ import { processFiatNFTPurchase } from '.';
 import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
+import { sendPendingClaimEmail } from '../../../ses';
+import { getNFTISCNData } from '../../../cosmos/nft';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -189,6 +191,18 @@ export async function processStripeFiatNFTPurchase(session, req) {
 
       await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
     } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
+  if (metadata.isPendingClaim) {
+    try {
+      const iscnData = await getNFTISCNData(iscnPrefix);
+      const className = iscnData.data?.contentMetadata.name;
+      await sendPendingClaimEmail(customer.email, classId, className);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to send pending claim email for ${classId} to ${customer.email}`);
       // eslint-disable-next-line no-console
       console.error(err);
     }
