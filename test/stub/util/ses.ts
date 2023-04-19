@@ -14,3 +14,8 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
 export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
   return Promise.resolve();
 }
+
+/* istanbul ignore next */
+export function sendPendingClaimEmail(email: string, classId: string, className: string) {
+  return Promise.resolve();
+}

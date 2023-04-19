@@ -7,6 +7,8 @@ import { processFiatNFTPurchase } from '.';
 import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
+import { sendPendingClaimEmail } from '../../../ses';
+import { getNFTISCNData } from '../../../cosmos/nft';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -130,13 +132,27 @@ export async function processStripeFiatNFTPurchase(session, req) {
     LIKEPrice,
     sessionId,
   });
+  const { isPendingClaim } = metadata;
+  let isPendingClaimEmailSent = false;
+  if (isPendingClaim) {
+    try {
+      const iscnData = await getNFTISCNData(iscnPrefix);
+      const className = iscnData.data?.contentMetadata.name;
+      await sendPendingClaimEmail(customer.email, classId, className);
+      isPendingClaimEmailSent = true;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to send pending claim email for ${classId} to ${customer.email}`);
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
   if (NFT_MESSAGE_WEBHOOK) {
     try {
       const {
         wallet: metadataWallet,
         // iscnPrefix,
         // paymentId,
-        isPendingClaim,
       } = metadata;
       const { email } = customer;
       const words: string[] = [];
@@ -148,6 +164,9 @@ export async function processStripeFiatNFTPurchase(session, req) {
       }
       words.push(isPendingClaim ? 'An unclaimed' : 'A');
       words.push('NFT is bought');
+      if (isPendingClaim) {
+        words.push(isPendingClaimEmailSent ? 'and email is sent' : 'but email sending failed');
+      }
       const text = words.join(' ');
 
       const blocks = [
