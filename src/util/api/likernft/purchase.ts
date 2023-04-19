@@ -171,8 +171,7 @@ export async function checkTxGrantAndAmount(txHash, totalPrice, target = LIKER_N
   };
 }
 
-async function handleNFTPurchaseTransaction({
-  iscnPrefix,
+async function calculateLIKEAndPopulateTxMsg({
   iscnData,
   classId,
   nftId,
@@ -181,8 +180,7 @@ async function handleNFTPurchaseTransaction({
   buyerWallet,
   granterWallet,
   feeWallet,
-  memo,
-}, req?: Request) {
+}) {
   const STAKEHOLDERS_RATIO = 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
@@ -238,7 +236,6 @@ async function handleNFTPurchaseTransaction({
       },
     );
   });
-  const signingClient = await getLikerNFTSigningClient();
   const txMessages = [
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,
@@ -254,7 +251,24 @@ async function handleNFTPurchaseTransaction({
     ),
     ...transferMessages,
   ];
+  const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
+  const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
+  const stakeholderWallets = [...stakeholderMap.keys()];
+  const stakeholderLIKEs = [...stakeholderMap.values()]
+    .map((a) => new BigNumber(a.amount).shiftedBy(-9).toFixed());
+  return {
+    txMessages,
+    sellerLIKE,
+    feeLIKE,
+    stakeholderWallets,
+    stakeholderLIKEs,
+    gasFee,
+  };
+}
+
+async function handleNFTPurchaseTransaction(txMessages, memo) {
   let res;
+  const signingClient = await getLikerNFTSigningClient();
   const client = signingClient.getSigningStargateClient();
   if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
   const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
@@ -291,32 +305,8 @@ async function handleNFTPurchaseTransaction({
       throw new ValidationError('TX_NOT_SUCCESS');
     }
   }
-  const timestamp = Date.now();
-  // update price and unlock
 
-  publisher.publish(PUBSUB_TOPIC_MISC, req, {
-    logType: 'LikerNFTPurchaseTransaction',
-    txHash: transactionHash,
-    iscnId: iscnPrefix,
-    classId,
-    nftId,
-    buyerWallet,
-  });
-
-  const sellerLIKE = new BigNumber(sellerAmount).shiftedBy(-9).toFixed();
-  const feeLIKE = new BigNumber(feeAmount).shiftedBy(-9).toFixed();
-  const stakeholderWallets = [...stakeholderMap.keys()];
-  const stakeholderLIKEs = [...stakeholderMap.values()]
-    .map((a) => new BigNumber(a.amount).shiftedBy(-9).toFixed());
-  return {
-    transactionHash,
-    timestamp,
-    sellerLIKE,
-    feeLIKE,
-    stakeholderWallets,
-    stakeholderLIKEs,
-    gasFee,
-  };
+  return transactionHash;
 }
 
 async function fetchNFTSoldByAPIWalletEvent(classId: string, nftId: string) {
@@ -466,25 +456,34 @@ export async function processNFTPurchase({
   try {
     const feeWallet = LIKER_NFT_FEE_ADDRESS;
     const {
-      transactionHash,
-      timestamp,
+      txMessages,
       sellerLIKE,
       feeLIKE,
       stakeholderWallets,
       stakeholderLIKEs,
       gasFee,
-    } = await handleNFTPurchaseTransaction({
-      iscnPrefix,
+    } = await calculateLIKEAndPopulateTxMsg({
       iscnData,
-      classId,
-      nftId,
       nftPrice,
       sellerWallet,
-      buyerWallet,
-      granterWallet,
       feeWallet,
-      memo,
+      granterWallet,
+      buyerWallet,
+      classId,
+      nftId,
     });
+    const transactionHash = await handleNFTPurchaseTransaction(txMessages, memo);
+    const timestamp = Date.now();
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTPurchaseTransaction',
+      txHash: transactionHash,
+      iscnId: iscnPrefix,
+      classId,
+      nftId,
+      buyerWallet,
+    });
+
     await db.runTransaction(async (t) => {
       const doc = await t.get(iscnRef);
       const docData = doc.data();
