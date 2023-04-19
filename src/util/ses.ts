@@ -155,6 +155,25 @@ export function sendPendingClaimEmail(email: string, classId: string, className:
               Land 客服</a>。</p>
           <p>感謝支持創作。</p>
           <p>Liker Land</p>
+          <br/>
+          <br/>
+          <p>Dear Liker,</p>
+          <p>Thank you for purchasing the Writing NFT of "<a
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>". We need you to provide us with your
+            LikeCoin wallet address so that we can send the Writing NFT to you.</p>
+          <p><strong>Method 1: Log in to your Liker ID</strong></p>
+          <p>You can always log in to your Liker ID through the Liker Land mobile app and check your LikeCoin wallet address.</p>
+          <p><strong>Method 2: Install Keplr</strong></p>
+          <p>If you want to receive the Writing NFT with a new LikeCoin address, you can refer to the following steps and install the Keplr wallet 
+            on the Chrome browser.</p>
+          <p><a href="https://docs.like.co/general-guides/wallet/keplr">How to install Keplr and use LikeCoin</a></p>
+          <p>After completing the installation, you will be able to view your Writing NFT collection on the <a href="https://liker.land/">Liker Land website</a>.</p>
+          <p>＋＋＋＋</p>
+          <p>Please reply to this email with your LikeCoin wallet address.</p>
+          <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+            Land customer service</a>.</p>
+          <p>Thank you for supporting our creation.</p>
+          <p>Liker Land</p>
           `,
         },
       },
