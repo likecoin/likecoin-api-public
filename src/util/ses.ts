@@ -172,7 +172,7 @@ export function sendPendingClaimEmail(email: string, classId: string, className:
           <p>Please reply to this email with your LikeCoin wallet address.</p>
           <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
             Land customer service</a>.</p>
-          <p>Thank you for supporting our creation.</p>
+          <p>Thank you for supporting creativity.</p>
           <p>Liker Land</p>
           `,
         },
