@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import EmailTemplate from '@likecoin/likecoin-email-templates';
 import aws from 'aws-sdk';
-import { TEST_MODE } from '../constant';
+import { LIKER_LAND_HOSTNAME, TEST_MODE } from '../constant';
 
 if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 
@@ -141,7 +141,7 @@ export function sendPendingClaimEmail(email: string, classId: string, className:
           Data: `
           <p>親愛的 Liker：</p>
           <p>感謝購買 《<a
-              href="https://liker.land/nft/class/${classId}">${className}</a>》的 Writing NFT，我們需要你提供 LikeCoin 錢包地址以把 Writing NFT 發送給你。</p>
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》的 Writing NFT，我們需要你提供 LikeCoin 錢包地址以把 Writing NFT 發送給你。</p>
           <p><strong>方法一：登入你的 Liker ID</strong></p>
           <p>你可隨時以 Liker Land 手機應用程式，以社交帳號方式登入後，檢查自己的 LikeCoin 錢包地址。</p>
           <p><strong>方法二：安裝 Keplr</strong></p>
