@@ -6,14 +6,29 @@ import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
-import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
 import { sendPendingClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
+import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
+import { LIKER_LAND_GET_WALLET_SECRET } from '../../../../../config/secret';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
   const [doc] = query.docs;
   return doc;
+}
+
+async function findWalletWithVerifiedEmail(email) {
+  try {
+    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
+      params: {
+        email,
+        key: LIKER_LAND_GET_WALLET_SECRET,
+      },
+    });
+    return data.wallet;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function processStripeFiatNFTPurchase(session, req) {
@@ -30,7 +45,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
   if (!docData) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const {
     type,
-    wallet,
     classId,
     isListing,
     nftId,
@@ -42,6 +56,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     fiatPriceString,
     status,
   } = docData;
+  let { wallet } = docData;
   const paymentId = doc.id;
   if (type !== 'stripe') throw new ValidationError('PAYMENT_TYPE_NOT_STRIPE');
   if (status !== 'new') return true; // handled or handling
@@ -61,6 +76,11 @@ export async function processStripeFiatNFTPurchase(session, req) {
       error: 'ALREADY_CAPTURED',
     });
     throw new ValidationError('ALREADY_CAPTURED');
+  }
+  const { isPendingClaim } = metadata;
+  if (isPendingClaim) {
+    const verifiedWallet = await findWalletWithVerifiedEmail(customer.email);
+    wallet = verifiedWallet || wallet;
   }
   try {
     await processFiatNFTPurchase({
@@ -132,7 +152,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
     LIKEPrice,
     sessionId,
   });
-  const { isPendingClaim } = metadata;
   let isPendingClaimEmailSent = false;
   if (isPendingClaim) {
     try {
