@@ -309,6 +309,97 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
   return transactionHash;
 }
 
+async function updateDocsForSuccessPurchase(t, {
+  iscnRef,
+  classRef,
+  nftRef,
+  classId,
+  nftId,
+  sellerWallet,
+  buyerWallet,
+  granterWallet,
+  currentBatch,
+  nftPrice,
+  timestamp,
+  txHash,
+  memo,
+  grantTxHash,
+  granterMemo,
+  sellerLIKE,
+  stakeholderWallets,
+  stakeholderLIKEs,
+}) {
+  const doc = await t.get(iscnRef);
+  const docData = doc.data();
+  const {
+    currentPrice: dbCurrentPrice,
+    currentBatch: dbCurrentBatch,
+    batchRemainingCount: dbBatchRemainingCount,
+    processingCount: dbProcessingCount,
+  } = docData;
+  const fromWallet = LIKER_NFT_TARGET_ADDRESS;
+  const toWallet = buyerWallet;
+  let updatedBatch = dbCurrentBatch;
+  let batchRemainingCount = dbBatchRemainingCount;
+  let newPrice = dbCurrentPrice;
+  let processingCount = dbProcessingCount;
+  if (dbCurrentBatch === currentBatch) {
+    processingCount = FieldValue.increment(-1);
+    batchRemainingCount -= 1;
+    const isNewBatch = batchRemainingCount <= 0;
+    if (isNewBatch) {
+      processingCount = 0;
+      updatedBatch = dbCurrentBatch + 1;
+      ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+    }
+  }
+  t.update(iscnRef, {
+    currentPrice: newPrice,
+    currentBatch: updatedBatch,
+    batchRemainingCount,
+    processingCount,
+    soldCount: FieldValue.increment(1),
+    nftRemainingCount: FieldValue.increment(-1),
+    lastSoldPrice: nftPrice,
+    lastSoldTimestamp: timestamp,
+  });
+  t.update(classRef, {
+    lastSoldPrice: nftPrice,
+    lastSoldNftId: nftId,
+    lastSoldTimestamp: timestamp,
+    soldCount: FieldValue.increment(1),
+  });
+  t.update(nftRef, {
+    price: nftPrice,
+    lastSoldPrice: nftPrice,
+    soldCount: FieldValue.increment(1),
+    isSold: true,
+    isProcessing: false,
+    ownerWallet: toWallet,
+    lastSoldTimestamp: timestamp,
+    sellerWallet: null,
+  });
+  t.create(iscnRef.collection('transaction')
+    .doc(txHash), {
+    event: 'purchase',
+    txHash,
+    grantTxHash,
+    granterMemo,
+    memo,
+    price: nftPrice,
+    classId,
+    nftId,
+    timestamp,
+    fromWallet,
+    toWallet,
+    granterWallet,
+    sellerWallet,
+    sellerLIKE,
+    stakeholderWallets,
+    stakeholderLIKEs,
+  });
+}
+
 async function fetchNFTSoldByAPIWalletEvent(classId: string, nftId: string) {
   const params = {
     class_id: classId,
@@ -337,7 +428,7 @@ function formatNFTEvent(event: any) {
   };
 }
 
-async function updateSoldNFT(t, {
+async function updateDocsForMissingSoldNFT(t, {
   iscnRef,
   classRef,
   classId,
@@ -472,12 +563,12 @@ export async function processNFTPurchase({
       classId,
       nftId,
     });
-    const transactionHash = await handleNFTPurchaseTransaction(txMessages, memo);
+    const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
     const timestamp = Date.now();
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'LikerNFTPurchaseTransaction',
-      txHash: transactionHash,
+      txHash,
       iscnId: iscnPrefix,
       classId,
       nftId,
@@ -485,78 +576,29 @@ export async function processNFTPurchase({
     });
 
     await db.runTransaction(async (t) => {
-      const doc = await t.get(iscnRef);
-      const docData = doc.data();
-      const {
-        currentPrice: dbCurrentPrice,
-        currentBatch: dbCurrentBatch,
-        batchRemainingCount: dbBatchRemainingCount,
-        processingCount: dbProcessingCount,
-      } = docData;
-      const fromWallet = LIKER_NFT_TARGET_ADDRESS;
-      const toWallet = buyerWallet;
-      let updatedBatch = dbCurrentBatch;
-      let batchRemainingCount = dbBatchRemainingCount;
-      let newPrice = dbCurrentPrice;
-      let processingCount = dbProcessingCount;
-      if (dbCurrentBatch === currentBatch) {
-        processingCount = FieldValue.increment(-1);
-        batchRemainingCount -= 1;
-        const isNewBatch = batchRemainingCount <= 0;
-        if (isNewBatch) {
-          processingCount = 0;
-          updatedBatch = dbCurrentBatch + 1;
-          ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
-        }
-      }
-      t.update(iscnRef, {
-        currentPrice: newPrice,
-        currentBatch: updatedBatch,
-        batchRemainingCount,
-        processingCount,
-        soldCount: FieldValue.increment(1),
-        nftRemainingCount: FieldValue.increment(-1),
-        lastSoldPrice: nftPrice,
-        lastSoldTimestamp: timestamp,
-      });
-      t.update(classRef, {
-        lastSoldPrice: nftPrice,
-        lastSoldNftId: nftId,
-        lastSoldTimestamp: timestamp,
-        soldCount: FieldValue.increment(1),
-      });
-      t.update(nftRef, {
-        price: nftPrice,
-        lastSoldPrice: nftPrice,
-        soldCount: FieldValue.increment(1),
-        isSold: true,
-        isProcessing: false,
-        ownerWallet: toWallet,
-        lastSoldTimestamp: timestamp,
-        sellerWallet: null,
-      });
-      t.create(iscnRef.collection('transaction')
-        .doc(transactionHash), {
-        event: 'purchase',
-        txHash: transactionHash,
-        grantTxHash,
-        granterMemo,
-        memo,
-        price: nftPrice,
+      await updateDocsForSuccessPurchase(t, {
+        iscnRef,
+        classRef,
+        nftRef,
         classId,
         nftId,
-        timestamp,
-        fromWallet,
-        toWallet,
-        granterWallet,
         sellerWallet,
+        buyerWallet,
+        granterWallet,
+        currentBatch,
+        nftPrice,
+        timestamp,
+        txHash,
+        memo,
+        grantTxHash,
+        granterMemo,
         sellerLIKE,
         stakeholderWallets,
         stakeholderLIKEs,
       });
     });
     return {
-      transactionHash,
+      transactionHash: txHash,
       classId,
       nftId,
       nftPrice,
@@ -585,7 +627,7 @@ export async function processNFTPurchase({
         && err.message === 'NFT_NOT_OWNED_BY_API_WALLET'
       );
       if (shouldUpdateSoldNFT) {
-        await updateSoldNFT(t, {
+        await updateDocsForMissingSoldNFT(t, {
           iscnRef,
           classRef,
           classId,
