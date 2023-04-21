@@ -117,6 +117,59 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
   return ses.sendEmail(params).promise();
 }
 
+export function sendAutoClaimEmail({
+  email,
+  classId,
+  className,
+  wallet,
+}) {
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendAutoClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: '你的 Writing NFT 已送達',
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: `
+          <p>親愛的 Liker：</p>
+          <p>感謝購買 《<a
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》的 Writing NFT。</p>
+          <p>我們發現你的信箱已與地址為 ${wallet} 的錢包完成驗證，已將你所購買的 Writing NFT 發送至該錢包。</p>
+          <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+              Land 客服</a>。</p>
+          <p>感謝支持創作。</p>
+          <p>Liker Land</p>
+          <br/>
+          <br/>
+          <p>Dear Liker,</p>
+          <p>Thank you for purchasing the Writing NFT of "<a
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>".</p>
+          <p>We found that your email has been verified with the wallet address ${wallet}, and the Writing NFT you purchased has been sent to the wallet.</p>
+          <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+            Land customer service</a>.</p>
+          <p>Thank you for supporting creativity.</p>
+          <p>Liker Land</p>
+          `,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendPendingClaimEmail(email: string, classId: string, className: string) {
   const params = {
     Source: '"Liker Land" <team@liker.land>',
