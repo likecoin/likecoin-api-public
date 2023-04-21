@@ -27,6 +27,10 @@ async function findWalletWithVerifiedEmail(email) {
     });
     return data.wallet;
   } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
     return null;
   }
 }
