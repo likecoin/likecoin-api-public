@@ -20,7 +20,7 @@ export async function findPaymentFromStripeSessionId(sessionId) {
 async function findWalletWithVerifiedEmail(email) {
   try {
     const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
-      headers: { 'x-liker-land-secret': LIKER_LAND_GET_WALLET_SECRET },
+      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
       params: { email },
     });
     return data.wallet;
