@@ -133,7 +133,7 @@ export function sendPendingClaimEmail(email: string, classId: string, className:
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: '領取你的 Writing NFT',
+        Data: '領取你的 Writing NFT | Claim your Writing NFT',
       },
       Body: {
         Html: {
