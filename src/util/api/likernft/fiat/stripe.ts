@@ -196,7 +196,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       }
       let claimState = '';
       if (isPendingClaim) {
-        claimState = verifiedWallet ? 'An auto claim' : 'An unclaimed';
+        claimState = verifiedWallet ? 'An auto claimed' : 'An unclaimed';
       } else {
         claimState = 'A';
       }
