@@ -8,8 +8,7 @@ import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../
 import publisher from '../../../gcloudPub';
 import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
-import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
-import { LIKER_LAND_GET_WALLET_SECRET } from '../../../../../config/secret';
+import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER, LIKER_LAND_GET_WALLET_SECRET } from '../../../../../config/config';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();

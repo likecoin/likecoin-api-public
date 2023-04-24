@@ -103,4 +103,6 @@ config.CMC_API_CACHE_S = 300;
 
 config.IS_CHAIN_UPGRADING = false;
 
+config.LIKER_LAND_GET_WALLET_SECRET = '';
+
 module.exports = config;
