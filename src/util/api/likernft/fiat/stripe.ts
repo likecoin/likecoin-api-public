@@ -6,14 +6,30 @@ import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import publisher from '../../../gcloudPub';
-import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER } from '../../../../../config/config';
-import { sendPendingClaimEmail } from '../../../ses';
+import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
+import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER, LIKER_LAND_GET_WALLET_SECRET } from '../../../../../config/config';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
   const [doc] = query.docs;
   return doc;
+}
+
+async function findWalletWithVerifiedEmail(email) {
+  try {
+    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
+      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
+      params: { email },
+    });
+    return data.wallet;
+  } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
+    return null;
+  }
 }
 
 export async function processStripeFiatNFTPurchase(session, req) {
@@ -30,7 +46,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
   if (!docData) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const {
     type,
-    wallet,
     classId,
     isListing,
     nftId,
@@ -42,6 +57,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     fiatPriceString,
     status,
   } = docData;
+  let { wallet } = docData;
   const paymentId = doc.id;
   if (type !== 'stripe') throw new ValidationError('PAYMENT_TYPE_NOT_STRIPE');
   if (status !== 'new') return true; // handled or handling
@@ -61,6 +77,12 @@ export async function processStripeFiatNFTPurchase(session, req) {
       error: 'ALREADY_CAPTURED',
     });
     throw new ValidationError('ALREADY_CAPTURED');
+  }
+  const { isPendingClaim } = metadata;
+  let verifiedWallet = null;
+  if (isPendingClaim) {
+    verifiedWallet = await findWalletWithVerifiedEmail(customer.email);
+    wallet = verifiedWallet || wallet;
   }
   try {
     await processFiatNFTPurchase({
@@ -132,17 +154,26 @@ export async function processStripeFiatNFTPurchase(session, req) {
     LIKEPrice,
     sessionId,
   });
-  const { isPendingClaim } = metadata;
-  let isPendingClaimEmailSent = false;
+  let isEmailSent = false;
   if (isPendingClaim) {
+    const { email } = customer;
     try {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;
-      await sendPendingClaimEmail(customer.email, classId, className);
-      isPendingClaimEmailSent = true;
+      if (verifiedWallet) {
+        await sendAutoClaimEmail({
+          email,
+          classId,
+          className,
+          wallet,
+        });
+      } else {
+        await sendPendingClaimEmail(email, classId, className);
+      }
+      isEmailSent = true;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send pending claim email for ${classId} to ${customer.email}`);
+      console.error(`Failed to send ${verifiedWallet ? 'auto' : 'pending'} claim email for ${classId} to ${email}`);
       // eslint-disable-next-line no-console
       console.error(err);
     }
@@ -162,10 +193,16 @@ export async function processStripeFiatNFTPurchase(session, req) {
       if (IS_TESTNET) {
         words.push('[🚧 TESTNET]');
       }
-      words.push(isPendingClaim ? 'An unclaimed' : 'A');
+      let claimState = '';
+      if (isPendingClaim) {
+        claimState = verifiedWallet ? 'An auto claimed' : 'An unclaimed';
+      } else {
+        claimState = 'A';
+      }
+      words.push(claimState);
       words.push('NFT is bought');
       if (isPendingClaim) {
-        words.push(isPendingClaimEmailSent ? 'and email is sent' : 'but email sending failed');
+        words.push(isEmailSent ? 'and email is sent' : 'but email sending failed');
       }
       const text = words.join(' ');
 

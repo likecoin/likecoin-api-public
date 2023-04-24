@@ -16,6 +16,11 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
 }
 
 /* istanbul ignore next */
+export function sendAutoClaimEmail({ email, classId, className, wallet}) {
+  return Promise.resolve();
+}
+
+/* istanbul ignore next */
 export function sendPendingClaimEmail(email: string, classId: string, className: string) {
   return Promise.resolve();
 }
