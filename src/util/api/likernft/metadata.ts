@@ -111,10 +111,10 @@ export function getDynamicBackgroundColor({ currentBatch }) {
   return NFT_GEM_COLOR[gemLevel];
 }
 
-export function getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscnData) {
+function getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscnData) {
   const { currentBatch } = iscnDocData;
   const { is_custom_image: isCustomImage = false } = classMetadata;
-  const { contentMetadata: { url = '', description = '' } = {} } = iscnData;
+  const { contentMetadata: { url = '', description = '', keywords = '' } = {} } = iscnData;
   const backgroundColor = getDynamicBackgroundColor({ currentBatch });
   const payload: any = {
     backgroundColor,
@@ -122,6 +122,7 @@ export function getLikerNFTDynamicData(classId, iscnDocData, classMetadata, iscn
   if (!isCustomImage) payload.image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_WIDTH}`;
   if (description) payload.description = description;
   if (url) payload.externalUrl = url;
+  if (keywords) payload.keywords = keywords;
   return payload;
 }
 
