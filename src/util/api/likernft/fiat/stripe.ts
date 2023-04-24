@@ -79,9 +79,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
     throw new ValidationError('ALREADY_CAPTURED');
   }
   const { isPendingClaim } = metadata;
+  const { email = '' } = customer;
   let verifiedWallet = null;
-  if (isPendingClaim) {
-    verifiedWallet = await findWalletWithVerifiedEmail(customer.email);
+  if (isPendingClaim && email) {
+    verifiedWallet = await findWalletWithVerifiedEmail(email);
     wallet = verifiedWallet || wallet;
   }
   try {
@@ -96,6 +97,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       LIKEPrice,
       fiatPrice,
       memo,
+      email,
     }, req);
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -156,7 +158,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
   });
   let isEmailSent = false;
   if (isPendingClaim) {
-    const { email } = customer;
     try {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;
@@ -185,7 +186,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
         // iscnPrefix,
         // paymentId,
       } = metadata;
-      const { email } = customer;
       const words: string[] = [];
       if (isPendingClaim && NFT_MESSAGE_SLACK_USER) {
         words.push(`<@${NFT_MESSAGE_SLACK_USER}>`);
