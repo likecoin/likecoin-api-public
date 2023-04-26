@@ -20,7 +20,7 @@ import publisher from '../../../util/gcloudPub';
 
 import {
   STRIPE_WEBHOOK_SECRET,
-  LIKER_NFT_FEE_ADDRESS,
+  LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
 import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 
@@ -144,10 +144,8 @@ router.post(
   async (req, res, next) => {
     try {
       const classId = req.query.class_id as string;
-      let { wallet } = req.query;
-      const dummyWallet = LIKER_NFT_FEE_ADDRESS;
-      if (!(wallet || dummyWallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const isPendingClaim = !wallet;
+      const { wallet } = req.query;
+      if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const { iscnPrefix } = res.locals;
       const promises = [getNFTClassDataById(classId)];
       const { nftId = '', seller = '', memo } = req.body;
@@ -229,13 +227,9 @@ router.post(
           memo,
           iscnPrefix,
           paymentId,
-          isPendingClaim: isPendingClaim ? 'true' : null,
         },
       });
       const { url, id: sessionId } = session;
-      if (isPendingClaim) {
-        wallet = dummyWallet;
-      }
       await likeNFTFiatCollection.doc(paymentId).create({
         type: 'stripe',
         sessionId,
@@ -251,7 +245,6 @@ router.post(
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
-        isPendingClaim,
       });
       const LIKEPrice = totalPrice;
       const fiatPrice = Number(fiatPriceString);
@@ -261,7 +254,6 @@ router.post(
         LIKEPrice,
         fiatPrice,
         fiatPriceString,
-        isPendingClaim,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTFiatPaymentNew',

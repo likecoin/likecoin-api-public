@@ -99,6 +99,7 @@ export async function processFiatNFTPurchase({
   fiatPrice,
   memo,
   email,
+  isPendingClaim,
 }, req) {
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
@@ -201,7 +202,7 @@ export async function processFiatNFTPurchase({
     transactionHash,
     nftId,
     actualNftPrice,
-    status: 'done',
+    status: isPendingClaim ? 'pending' : 'done',
     email,
   });
   return res;
