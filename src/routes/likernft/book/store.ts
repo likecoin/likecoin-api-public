@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getNftBookInfo, newNftBookInfo } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
+import { jwtAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/:classId', async (req, res, next) => {
   }
 });
 
-router.post('/:classId/new', async (req, res, next) => {
+router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const { payload } = req.body;

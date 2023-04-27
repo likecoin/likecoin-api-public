@@ -10,6 +10,7 @@ import { likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
+import { jwtAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
@@ -124,9 +125,16 @@ router.get(
 
 router.get(
   '/:classId/orders',
+  jwtAuth('read:nftbook'),
   async (req, res, next) => {
     try {
       const { classId } = req.params;
+      const result = await getISCNFromNFTClassId(classId);
+      if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
+      const { owner: ownerWallet } = result;
+      if (ownerWallet !== req.user.wallet) {
+        throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+      }
       const query = await likeNFTBookCollection.doc(classId).collection('transactions')
         .where('isPaid', '==', true)
         .get();
