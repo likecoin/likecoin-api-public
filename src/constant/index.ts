@@ -25,6 +25,8 @@ export const API_HOSTNAME = IS_TESTNET ? 'api.rinkeby.like.co' : 'api.like.co';
 
 export const LIKER_LAND_HOSTNAME = IS_TESTNET ? 'rinkeby.liker.land' : 'liker.land';
 
+export const NFT_BOOKSTORE_HOSTNAME = IS_TESTNET ? 'rinkeby.liker.land' : 'liker.land';
+
 export const APP_LIKE_CO_HOSTNAME = IS_TESTNET ? 'app.rinkeby.like.co' : 'app.like.co';
 
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;

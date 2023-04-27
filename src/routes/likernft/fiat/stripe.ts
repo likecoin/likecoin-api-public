@@ -3,6 +3,7 @@ import bodyParser from 'body-parser';
 import BigNumber from 'bignumber.js';
 import uuidv4 from 'uuid/v4';
 
+import Stripe from 'stripe';
 import stripe from '../../../util/stripe';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import { likeNFTFiatCollection } from '../../../util/firebase';
@@ -23,6 +24,7 @@ import {
   LIKER_NFT_FEE_ADDRESS,
 } from '../../../../config/config';
 import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
+import { processNFTBookPurchase } from '../../../util/api/likernft/book';
 
 const router = Router();
 
@@ -48,11 +50,14 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     }
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object;
+        const session: Stripe.Checkout.Session = event.data.object;
         const {
           subscription: subscriptionId,
+          metadata: { store } = {} as any,
         } = session;
-        if (subscriptionId) {
+        if (store === 'book') {
+          await processNFTBookPurchase(session, req);
+        } else if (subscriptionId) {
           await processStripeNFTSubscriptionSession(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
@@ -221,6 +226,7 @@ router.post(
           capture_method: 'manual',
         },
         metadata: {
+          store: 'likerland',
           wallet: wallet as string,
           classId,
           isListing: isListing ? 'true' : null,
