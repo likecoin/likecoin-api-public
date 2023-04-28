@@ -16,6 +16,7 @@ router.get('/list', async (req, res, next) => {
       const {
         priceInDecimal,
         stock,
+        sold,
         id,
       } = b;
       const price = priceInDecimal / 100;
@@ -23,6 +24,7 @@ router.get('/list', async (req, res, next) => {
         classId: id,
         price,
         priceInDecimal,
+        sold,
         stock,
       };
     });
@@ -44,11 +46,13 @@ router.get('/:classId', async (req, res, next) => {
     const {
       priceInDecimal,
       stock,
+      sold,
     } = bookInfo;
     const price = priceInDecimal / 100;
     res.json({
       price,
       priceInDecimal,
+      sold,
       stock,
     });
   } catch (err) {

@@ -420,6 +420,7 @@ export function filterBookPurchaseData({
   priceInDecimal,
   price,
   transactionHash,
+  message,
 }) {
   return {
     id,
@@ -434,6 +435,7 @@ export function filterBookPurchaseData({
     priceInDecimal,
     price,
     transactionHash,
+    message,
   };
 }
 

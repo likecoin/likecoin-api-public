@@ -1,7 +1,9 @@
+import crypto from 'crypto';
 import Stripe from 'stripe';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
+import { sendPendingClaimEmail } from '../../../ses';
 
 export async function newNftBookInfo(classId, data) {
   const {
@@ -55,6 +57,7 @@ export async function processNFTBookPurchase(
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email } = customer;
+  const claimToken = crypto.randomBytes(32).toString('hex');
   try {
     await db.runTransaction(async (t) => {
       const bookRef = likeNFTBookCollection.doc(classId);
@@ -62,18 +65,29 @@ export async function processNFTBookPurchase(
       const docData = doc.data();
       if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
       if (docData.stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+
+      const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
+      const paymentData = paymentDoc.data();
+      if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+      if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
       t.update(bookRef, {
         stock: FieldValue.increment(-1),
+        sold: FieldValue.increment(1),
         lastSaleTimestamp: FieldValue.serverTimestamp(),
       });
       t.update(bookRef.collection('transactions').doc(paymentId), {
         isPaid: true,
         isPendingClaim: true,
         status: 'paid',
+        claimToken,
         email,
       });
     });
     await stripe.paymentIntents.capture(paymentIntent as string);
+    // TODO: modify function for nft book
+    if (email) {
+      await sendPendingClaimEmail(email, classId, claimToken);
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

@@ -6,7 +6,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
-import { FieldValue, likeNFTBookCollection } from '../../../util/firebase';
+import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
@@ -123,6 +123,45 @@ router.get(
       }
       const docData = doc.data();
       res.json(filterBookPurchaseData(docData));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:classId/claim/:paymentId',
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params;
+      const { token } = req.query;
+      const { wallet, message } = req.body;
+      const docRef = await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(docRef);
+        const docData = doc.data();
+        if (!docData) {
+          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+        }
+        const {
+          claimToken,
+          status,
+        } = docData;
+        if (token !== claimToken) {
+          throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+        }
+        if (status !== 'paid') {
+          throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
+        }
+        t.update(docRef, {
+          status: 'pendingNFT',
+          wallet,
+          message: message || '',
+        });
+      });
+
+      res.sendStatus(200);
     } catch (err) {
       next(err);
     }
