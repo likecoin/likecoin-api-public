@@ -23,6 +23,12 @@ export function sendAutoClaimEmail({
 }
 
 /* istanbul ignore next */
-export function sendPendingClaimEmail(email: string, classId: string, className: string) {
+export function sendPendingClaimEmail({
+  email,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+}) {
   return Promise.resolve();
 }

@@ -311,7 +311,7 @@ router.get(
         .where('email', '==', email)
         .where('status', '==', 'pending')
         .get();
-      res.json({ count: snapshot.size });
+      res.json({ count: snapshot.docs.length });
     } catch (err) {
       next(err);
     }
