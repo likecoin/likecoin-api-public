@@ -68,7 +68,7 @@ export async function processStripeNFTSubscriptionSession(
   } = session;
   const email = customerEmail || customerDetails?.email || null;
   if (!subscriptionId) return false;
-  const subscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscription: Stripe.Subscription = typeof subscriptionId === 'string' ? await stripe.subscriptions.retrieve(subscriptionId) : subscriptionId;
   const {
     items: { data: items },
     metadata: { wallet },
@@ -136,7 +136,7 @@ export async function processStripeNFTSubscriptionInvoice(
     subscription: subscriptionId,
   } = invoice;
   if (!subscriptionId) return false;
-  const subscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscription: Stripe.Subscription = typeof subscriptionId === 'string' ? await stripe.subscriptions.retrieve(subscriptionId) : subscriptionId;
   const {
     current_period_start: currentPeriodStart,
     current_period_end: currentPeriodEnd,
@@ -146,7 +146,10 @@ export async function processStripeNFTSubscriptionInvoice(
   const priceIds = items.map((i) => i.price);
   const priceId = priceIds.find((p) => p.id === LIKER_NFT_SUBSCRIPTION_PRICE_ID);
   if (!priceId) throw new ValidationError('TARGET_PRICE_ID_NOT_FOUND');
-  const customer: Stripe.Customer = await stripe.customers.retrieve(customerId);
+  const customer: Stripe.Customer | Stripe.DeletedCustomer = await stripe.customers.retrieve(
+    customerId as string,
+  );
+  if (customer.deleted) throw new ValidationError(`Customer ${customerId} is deleted`);
   const { email } = customer;
   try {
     await likeNFTSubscriptionUserCollection.doc(wallet).update({

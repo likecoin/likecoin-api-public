@@ -29,6 +29,12 @@ const router = Router();
 router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res, next) => {
   try {
     const sig = req.headers['stripe-signature'];
+    if (!sig) {
+      // eslint-disable-next-line no-console
+      console.error('no stripe signature');
+      res.sendStatus(400);
+      return;
+    }
     let event;
     try {
       event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
@@ -215,15 +221,15 @@ router.post(
           capture_method: 'manual',
         },
         metadata: {
-          wallet,
+          wallet: wallet as string,
           classId,
-          isListing,
+          isListing: isListing ? 'true' : null,
           nftId,
           seller,
           memo,
           iscnPrefix,
           paymentId,
-          isPendingClaim: isPendingClaim ? 'true' : undefined,
+          isPendingClaim: isPendingClaim ? 'true' : null,
         },
       });
       const { url, id: sessionId } = session;
