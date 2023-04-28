@@ -34,11 +34,11 @@ router.post(
           },
         ],
         metadata: {
-          wallet,
+          wallet: wallet as string,
         },
         subscription_data: {
           metadata: {
-            wallet,
+            wallet: wallet as string,
           },
         },
       });
