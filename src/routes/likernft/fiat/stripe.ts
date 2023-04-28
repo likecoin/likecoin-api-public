@@ -331,7 +331,7 @@ router.post(
       if (!paymentId) throw new ValidationError('PAYMENT_ID_NEEDED');
       if (!token) throw new ValidationError('TOKEN_NEEDED');
 
-      await db.runTransaction(async (t) => {
+      const result = await db.runTransaction(async (t) => {
         const ref = likeNFTFiatCollection.doc(paymentId);
         const doc = await t.get(ref);
         if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
@@ -362,9 +362,11 @@ router.post(
           claimTransactionHash: _txHash,
           claimTimestamp: Date.now(),
         });
+
+        return { classId, nftId };
       });
 
-      res.sendStatus(200);
+      res.json(result);
     } catch (err) {
       next(err);
     }

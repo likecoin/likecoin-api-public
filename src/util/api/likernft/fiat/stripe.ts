@@ -1,3 +1,4 @@
+import uuidv4 from 'uuid/v4';
 import BigNumber from 'bignumber.js';
 import axios from 'axios';
 import stripe from '../../../stripe';
@@ -89,8 +90,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
     wallet = await findWalletWithVerifiedEmail(email);
   }
   const isPendingClaim = !wallet;
+  let claimToken;
   if (isPendingClaim) {
     wallet = LIKER_NFT_PENDING_CLAIM_ADDRESS;
+    claimToken = uuidv4();
   }
   try {
     await processFiatNFTPurchase({
@@ -105,7 +108,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       fiatPrice,
       memo,
       email,
-      isPendingClaim,
+      claimToken,
     }, req);
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -170,7 +173,13 @@ export async function processStripeFiatNFTPurchase(session, req) {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;
       if (isPendingClaim) {
-        await sendPendingClaimEmail(email, classId, className);
+        await sendPendingClaimEmail({
+          email,
+          classId,
+          className,
+          paymentId,
+          claimToken,
+        });
       } else {
         await sendAutoClaimEmail({
           email,
