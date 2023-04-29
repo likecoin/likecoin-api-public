@@ -5,7 +5,11 @@ import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
-import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import {
+  IS_TESTNET,
+  LIKER_LAND_HOSTNAME,
+  PUBSUB_TOPIC_MISC, TEST_MODE,
+} from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
@@ -168,7 +172,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     sessionId,
   });
   let isEmailSent = false;
-  if (!isWalletProvided) {
+  if (!TEST_MODE && !isWalletProvided) {
     try {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;
