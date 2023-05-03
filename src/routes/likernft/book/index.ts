@@ -5,7 +5,7 @@ import store from './store';
 
 const router = Router();
 
-router.use('/purchase', purchase);
-router.use('/store', store);
+router.use('/book/purchase', purchase);
+router.use('/book/store', store);
 
 export default router;

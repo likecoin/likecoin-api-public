@@ -6,30 +6,6 @@ import { jwtAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
-router.get('/:classId', async (req, res, next) => {
-  try {
-    const { classId } = req.params;
-    const bookInfo = await getNftBookInfo(classId);
-
-    if (!bookInfo) {
-      res.status(404).send('BOOK_NOT_FOUND');
-      return;
-    }
-    const {
-      priceInDecimal,
-      stock,
-    } = bookInfo;
-    const price = priceInDecimal / 100;
-    res.json({
-      price,
-      priceInDecimal,
-      stock,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.get('/list', async (req, res, next) => {
   try {
     const { wallet } = req.query;
@@ -51,6 +27,30 @@ router.get('/list', async (req, res, next) => {
       };
     });
     res.json({ list });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:classId', async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const bookInfo = await getNftBookInfo(classId);
+
+    if (!bookInfo) {
+      res.status(404).send('BOOK_NOT_FOUND');
+      return;
+    }
+    const {
+      priceInDecimal,
+      stock,
+    } = bookInfo;
+    const price = priceInDecimal / 100;
+    res.json({
+      price,
+      priceInDecimal,
+      stock,
+    });
   } catch (err) {
     next(err);
   }
