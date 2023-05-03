@@ -24,6 +24,11 @@ export async function getNftBookInfo(classId) {
   return doc.data();
 }
 
+export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
+  const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
+  return query.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
 export async function handleBookPurchase(classId) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');

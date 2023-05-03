@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getNftBookInfo, newNftBookInfo } from '../../../util/api/likernft/book';
+import { getNftBookInfo, listNftBookInfoByOwnerWallet, newNftBookInfo } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth } from '../../../middleware/jwt';
@@ -25,6 +25,32 @@ router.get('/:classId', async (req, res, next) => {
       priceInDecimal,
       stock,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/list', async (req, res, next) => {
+  try {
+    const { wallet } = req.query;
+    if (!wallet) throw new ValidationError('INVALID_WALLET');
+    const bookInfos = await listNftBookInfoByOwnerWallet(wallet as string);
+
+    const list = bookInfos.map((b) => {
+      const {
+        priceInDecimal,
+        stock,
+        id,
+      } = b;
+      const price = priceInDecimal / 100;
+      return {
+        classId: id,
+        price,
+        priceInDecimal,
+        stock,
+      };
+    });
+    res.json({ list });
   } catch (err) {
     next(err);
   }
