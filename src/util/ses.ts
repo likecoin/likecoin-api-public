@@ -211,7 +211,7 @@ export function sendPendingClaimEmail({
           <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
           <p>完成安裝後，你可以回到步驟1的頁面，點選「驗證」按鈕，再點選浮動視窗的「Keplr」選項，接著點選 Keplr 彈出視窗的「Approve」按鈕健行簽名，即可完成登入。</p>
           <p>3. 信箱設定頁面將自動代入你的信箱地址，請點選「確認」按鈕，系統將寄出驗證信到你的信箱，點選驗證信的連結完成驗證。</p>
-          <p>4. 驗證完成後，請點選<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/claim?claiming_class_name=${encodeURIComponent(className)}&payment_id=${paymentId}&claiming_token=${claimToken}">Writing NFT 領取連結</a>，將 Writing NFT 領取到你的錢包。</p>
+          <p>4. 驗證完成後，會自動跳轉至<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/claim?claiming_class_name=${encodeURIComponent(className)}&payment_id=${paymentId}&claiming_token=${claimToken}">Writing NFT 領取頁面</a>，你可以將 Writing NFT 領取到你的錢包。</p>
           <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
               Land 客服</a>。</p>
           <p>感謝支持創作。</p>
