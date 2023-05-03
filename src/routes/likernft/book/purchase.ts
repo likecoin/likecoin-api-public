@@ -6,7 +6,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
-import { likeNFTBookCollection } from '../../../util/firebase';
+import { FieldValue, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
@@ -93,7 +93,7 @@ router.post('/:classId/new', async (req, res, next) => {
       price: priceInDecimal / 100,
       from,
       status: 'new',
-      timestamp: Date.now(),
+      timestamp: FieldValue.serverTimestamp(),
     });
     res.json({
       id: sessionId,

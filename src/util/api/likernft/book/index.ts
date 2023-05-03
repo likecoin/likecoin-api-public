@@ -62,7 +62,10 @@ export async function processNFTBookPurchase(
       const docData = doc.data();
       if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
       if (docData.stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-      t.update(bookRef, { stock: FieldValue.increment(-1) });
+      t.update(bookRef, {
+        stock: FieldValue.increment(-1),
+        lastSaleTimestamp: FieldValue.serverTimestamp(),
+      });
       t.update(bookRef.collection('transactions').doc(paymentId), {
         isPaid: true,
         isPendingClaim: true,
