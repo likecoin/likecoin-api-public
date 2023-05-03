@@ -331,42 +331,73 @@ router.post(
       if (!paymentId) throw new ValidationError('PAYMENT_ID_NEEDED');
       if (!token) throw new ValidationError('TOKEN_NEEDED');
 
-      const result = await db.runTransaction(async (t) => {
-        const ref = likeNFTFiatCollection.doc(paymentId);
+      const ref = likeNFTFiatCollection.doc(paymentId);
+      let classId;
+      let nftId;
+      await db.runTransaction(async (t) => {
         const doc = await t.get(ref);
         if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        const {
-          classId,
-          nftId,
-          status,
-          claimToken,
-        } = doc.data();
+        const { status, claimToken } = doc.data();
+        ({ classId, nftId } = doc.data());
         if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
-        if (status !== 'pendingClaim') throw new ValidationError('ALREADY_CLAIMED_OR_CLAIM_ERROR', 409);
+        if (status !== 'pendingClaim') {
+          // eslint-disable-next-line no-console
+          console.log(`NFT Claim already handled ${paymentId}`);
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'LikerNFTFiatClaimAlreadyHandled',
+            paymentId,
+            classId,
+            nftId,
+            receiverWallet,
+          });
+          throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
+        }
+        t.update(ref, { status: 'claiming' });
+      });
 
+      let txRes;
+      try {
         const {
           client,
           wallet: senderAccount,
         } = await getLikerNFTPendingClaimSigningClientAndWallet();
-        const txRes = await client.sendNFTs(
+        txRes = await client.sendNFTs(
           senderAccount.address,
           receiverWallet as string,
           classId,
           [nftId],
         );
-        const { transactionHash: _txHash, code } = txRes as DeliverTxResponse;
-        if (code) throw new ValidationError(`TX_${_txHash}_FAILED_WITH_CODE_${code}`);
-        t.update(ref, {
-          status: 'done',
-          wallet: receiverWallet,
-          claimTransactionHash: _txHash,
-          claimTimestamp: Date.now(),
+      } catch (err) {
+        const error = (err as Error).toString();
+        const errorMessage = (err as Error).message;
+        const errorStack = (err as Error).stack;
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'LikerNFTFiatClaimError',
+          paymentId,
+          classId,
+          nftId,
+          error,
+          errorMessage,
+          errorStack,
         });
-
-        return { classId, nftId };
+        await ref.update({
+          status: 'error',
+          error,
+          errorMessage,
+          errorStack,
+        });
+        throw err;
+      }
+      const { transactionHash: txHash, code } = txRes as DeliverTxResponse;
+      if (code) throw new ValidationError(`TX_${txHash}_FAILED_WITH_CODE_${code}`);
+      await ref.update({
+        status: 'done',
+        wallet: receiverWallet,
+        claimTransactionHash: txHash,
+        claimTimestamp: Date.now(),
       });
 
-      res.json(result);
+      res.json({ classId, nftId, txHash });
     } catch (err) {
       next(err);
     }
