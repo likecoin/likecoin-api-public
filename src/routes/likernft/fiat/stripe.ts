@@ -302,14 +302,14 @@ router.get(
 );
 
 router.get(
-  '/pending-count',
+  '/pending/count',
   async (req, res, next) => {
     try {
       const { email } = req.query;
       if (!email) throw new ValidationError('EMAIL_NEEDED');
       const snapshot = await likeNFTFiatCollection
         .where('email', '==', email)
-        .where('status', '==', 'pending')
+        .where('status', '==', 'pendingClaim')
         .get();
       res.json({ count: snapshot.docs.length });
     } catch (err) {
@@ -319,7 +319,7 @@ router.get(
 );
 
 router.post(
-  '/claim',
+  '/pending/claim',
   async (req, res, next) => {
     try {
       const {
@@ -342,7 +342,7 @@ router.post(
           claimToken,
         } = doc.data();
         if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
-        if (status !== 'pending') throw new ValidationError('ALREADY_CLAIMED_OR_CLAIM_ERROR', 409);
+        if (status !== 'pendingClaim') throw new ValidationError('ALREADY_CLAIMED_OR_CLAIM_ERROR', 409);
 
         const {
           client,

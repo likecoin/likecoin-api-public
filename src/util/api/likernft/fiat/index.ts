@@ -204,7 +204,7 @@ export async function processFiatNFTPurchase({
     nftId,
     actualNftPrice,
     claimToken: claimToken || undefined,
-    status: claimToken ? 'pending' : 'done',
+    status: claimToken ? 'pendingClaim' : 'done',
     email,
   });
   return res;
