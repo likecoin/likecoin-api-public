@@ -1,4 +1,4 @@
-import uuidv4 from 'uuid/v4';
+import { randomBytes } from 'crypto';
 import BigNumber from 'bignumber.js';
 import axios from 'axios';
 import stripe from '../../../stripe';
@@ -97,7 +97,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
   let claimToken;
   if (isPendingClaim) {
     wallet = LIKER_NFT_PENDING_CLAIM_ADDRESS;
-    claimToken = uuidv4();
+    claimToken = randomBytes(32).toString('base64url');
   }
   try {
     await processFiatNFTPurchase({
