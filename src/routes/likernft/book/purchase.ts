@@ -14,7 +14,7 @@ import { jwtAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
-router.post('/:classId/new', async (req, res, next) => {
+router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
     const { from = '' } = req.query;
@@ -83,6 +83,7 @@ router.post('/:classId/new', async (req, res, next) => {
       metadata: sessionMetadata,
     });
     const { url, id: sessionId } = session;
+    if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
     await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
       type: 'stripe',
       isPaid: false,
@@ -95,10 +96,7 @@ router.post('/:classId/new', async (req, res, next) => {
       status: 'new',
       timestamp: FieldValue.serverTimestamp(),
     });
-    res.json({
-      id: sessionId,
-      url,
-    });
+    res.redirect(url);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseNew',
       type: 'stripe',
