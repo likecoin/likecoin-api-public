@@ -79,6 +79,7 @@ router.get('/:classId/new', async (req, res, next) => {
       ],
       payment_intent_data: {
         capture_method: 'manual',
+        metadata: sessionMetadata,
       },
       metadata: sessionMetadata,
     });
