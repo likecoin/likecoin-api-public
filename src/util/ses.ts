@@ -201,7 +201,7 @@ export function sendPendingClaimEmail({
           <p>親愛的 Liker：</p>
           <p>感謝購買 《<a
               href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》的 Writing NFT，我們需要你將 LikeCoin 錢包與你的信箱地址進行驗證，以把 Writing NFT 發送給你。</p>
-          <p>1. 前往<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}">Liker Land 網站信箱設定頁面</a>。</p>
+          <p>1. 前往<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&claiming_class_name=${encodeURIComponent(className)}&payment_id=${paymentId}&claiming_token=${claimToken}">Liker Land 網站信箱設定頁面</a>。</p>
           <p>2. 連接你的 LikeCoin 錢包：</p>
           <p><strong>方法一：使用你的 Liker ID登入</strong></p>
           <p>點選「驗證」按鈕，再點選浮動視窗下方的「其他連接方法」，接著點選「Liker ID」選項，產生登入用的二維碼。你可以使用 Liker Land 手機應用程式，以社交帳號方式登入後，掃描二維碼登入。</p>
@@ -211,7 +211,7 @@ export function sendPendingClaimEmail({
           <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
           <p>完成安裝後，你可以回到步驟1的頁面，點選「驗證」按鈕，再點選浮動視窗的「Keplr」選項，接著點選 Keplr 彈出視窗的「Approve」按鈕健行簽名，即可完成登入。</p>
           <p>3. 信箱設定頁面將自動代入你的信箱地址，請點選「確認」按鈕，系統將寄出驗證信到你的信箱，點選驗證信的連結完成驗證。</p>
-          <p>4. 驗證完成後，請點選<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/claim?name=${encodeURIComponent(className)}&id=${paymentId}&token=${claimToken}">Writing NFT 領取連結</a>，將 Writing NFT 領取到你的錢包。</p>
+          <p>4. 驗證完成後，請點選<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/claim?claiming_class_name=${encodeURIComponent(className)}&payment_id=${paymentId}&claiming_token=${claimToken}">Writing NFT 領取連結</a>，將 Writing NFT 領取到你的錢包。</p>
           <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
               Land 客服</a>。</p>
           <p>感謝支持創作。</p>
