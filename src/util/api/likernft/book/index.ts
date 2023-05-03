@@ -8,14 +8,19 @@ export async function newNftBookInfo(classId, data) {
     stock,
     priceInDecimal,
     ownerWallet,
+    successUrl,
+    cancelUrl,
   } = data;
-  await likeNFTBookCollection.doc(classId).create({
+  const payload: any = {
     classId,
     stock,
     priceInDecimal,
     ownerWallet,
     timestamp: FieldValue.serverTimestamp(),
-  });
+  };
+  if (successUrl) payload.successUrl = successUrl;
+  if (cancelUrl) payload.cancelUrl = cancelUrl;
+  await likeNFTBookCollection.doc(classId).create(payload);
 }
 
 export async function getNftBookInfo(classId) {

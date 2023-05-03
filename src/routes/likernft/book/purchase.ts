@@ -26,7 +26,13 @@ router.post('/:classId/new', async (req, res, next) => {
     if (!bookInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
 
     const paymentId = uuidv4();
-    const { priceInDecimal, stock } = bookInfo;
+    const {
+      priceInDecimal,
+      stock,
+      successUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/nft/fiat/stripe`,
+      cancelUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/nft/class/${classId}`,
+      ownerWallet,
+    } = bookInfo;
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
@@ -43,12 +49,13 @@ router.post('/:classId/new', async (req, res, next) => {
       store: 'book',
       classId,
       paymentId,
+      ownerWallet,
     };
     if (from) sessionMetadata.from = from as string;
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      success_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
-      cancel_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft/class/${classId}`,
+      success_url: `${successUrl}?class_id=${classId}&payment_id=${paymentId}`,
+      cancel_url: `${cancelUrl}`,
       line_items: [
         {
           // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
