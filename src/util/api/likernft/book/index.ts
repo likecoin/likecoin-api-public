@@ -6,15 +6,15 @@ import stripe from '../../../stripe';
 export async function newNftBookInfo(classId, data) {
   const {
     stock,
-    decimalPrice,
+    priceInDecimal,
     ownerWallet,
   } = data;
   await likeNFTBookCollection.doc(classId).create({
     classId,
     stock,
-    decimalPrice,
+    priceInDecimal,
     ownerWallet,
-    timestamp: FieldValue.serverTimestamp,
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 

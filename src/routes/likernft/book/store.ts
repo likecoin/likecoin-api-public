@@ -59,13 +59,12 @@ router.get('/:classId', async (req, res, next) => {
 router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const { payload } = req.body;
     const {
       successUrl,
       cancelUrl,
       priceInDecimal,
       stock,
-    } = payload;
+    } = req.body;
     const result = await getISCNFromNFTClassId(classId);
     if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
     const { owner: ownerWallet } = result;
