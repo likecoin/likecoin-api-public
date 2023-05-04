@@ -54,11 +54,12 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-export async function getFirstUnsoldNFT(
-  iscnPrefixDocName,
+async function getFirstUnsoldNFT(
+  iscnPrefix,
   classId,
   { transaction }: { transaction?: Transaction } = {},
 ) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const ref = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
@@ -79,7 +80,7 @@ export async function getFirstUnsoldNFT(
 export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const [newNftData, nftDoc] = await Promise.all([
-    getFirstUnsoldNFT(iscnPrefixDocName, classId),
+    getFirstUnsoldNFT(iscnPrefix, classId),
     likeNFTCollection.doc(iscnPrefixDocName).get(),
   ]);
   const nftDocData = nftDoc.data();
@@ -513,7 +514,7 @@ export async function processNFTPurchase({
     currentBatch,
   } = await db.runTransaction(async (t) => {
     /* eslint-disable no-underscore-dangle */
-    const nftDocData = await getFirstUnsoldNFT(iscnPrefixDocName, classId, { transaction: t });
+    const nftDocData = await getFirstUnsoldNFT(iscnPrefix, classId, { transaction: t });
     const {
       id: _nftId, isProcessing,
     } = nftDocData;
