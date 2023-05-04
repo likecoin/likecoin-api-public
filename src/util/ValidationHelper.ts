@@ -408,6 +408,8 @@ export function filterLikeNFTFiatData({
 }
 
 export function filterBookPurchaseData({
+  id,
+  email,
   status,
   sessionId,
   isPendingClaim,
@@ -420,6 +422,8 @@ export function filterBookPurchaseData({
   transactionHash,
 }) {
   return {
+    id,
+    email,
     status,
     sessionId,
     isPaid,

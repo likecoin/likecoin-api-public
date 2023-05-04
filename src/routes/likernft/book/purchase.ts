@@ -145,7 +145,9 @@ router.get(
         .where('isPaid', '==', true)
         .get();
       const docDatas = query.docs.map((d) => ({ id: d.id, ...d.data() }));
-      res.json(docDatas.map((d) => filterBookPurchaseData(d)));
+      res.json({
+        orders: docDatas.map((d) => filterBookPurchaseData(d)),
+      });
     } catch (err) {
       next(err);
     }
