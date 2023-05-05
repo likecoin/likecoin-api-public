@@ -18,21 +18,26 @@ const router = Router();
 router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const { from = '' } = req.query;
+    const { from = '', price = undefined } = req.query;
+    const priceIndex = Number(price) || 0;
 
     const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
     const [metadata, bookInfo] = (await Promise.all(promises)) as any;
-    if (!bookInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+    if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
 
     const paymentId = uuidv4();
     const claimToken = crypto.randomBytes(32).toString('hex');
     const {
-      priceInDecimal,
-      stock,
+      prices,
       successUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}?payment_id=${paymentId}&token=${claimToken}`,
       cancelUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/canceled`,
       ownerWallet,
     } = bookInfo;
+    if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+    const {
+      priceInDecimal,
+      stock,
+    } = prices[priceIndex];
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
@@ -49,6 +54,7 @@ router.get('/:classId/new', async (req, res, next) => {
       store: 'book',
       classId,
       paymentId,
+      priceIndex,
       ownerWallet,
     };
     if (from) sessionMetadata.from = from as string;
@@ -93,6 +99,7 @@ router.get('/:classId/new', async (req, res, next) => {
       classId,
       priceInDecimal,
       price: priceInDecimal / 100,
+      priceIndex,
       from,
       status: 'new',
       timestamp: FieldValue.serverTimestamp(),
@@ -103,6 +110,7 @@ router.get('/:classId/new', async (req, res, next) => {
       type: 'stripe',
       paymentId,
       classId,
+      priceIndex,
       price: priceInDecimal / 100,
       sessionId,
     });
@@ -117,11 +125,11 @@ router.get(
     try {
       const { classId, paymentId } = req.params;
       const doc = await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get();
+      const docData = doc.data();
       if (!doc.data()) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
       }
-      const docData = doc.data();
       res.json(filterBookPurchaseData(docData));
     } catch (err) {
       next(err);
