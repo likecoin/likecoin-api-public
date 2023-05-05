@@ -313,7 +313,6 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
 async function updateDocsForSuccessPurchase(t, {
   iscnRef,
   classRef,
-  nftRef,
   classId,
   nftId,
   sellerWallet,
@@ -370,6 +369,7 @@ async function updateDocsForSuccessPurchase(t, {
     lastSoldTimestamp: timestamp,
     soldCount: FieldValue.increment(1),
   });
+  const nftRef = classRef.collection('nft').doc(nftId);
   t.update(nftRef, {
     price: nftPrice,
     lastSoldPrice: nftPrice,
@@ -544,7 +544,6 @@ export async function processNFTPurchase({
     };
     /* eslint-enable no-underscore-dangle */
   });
-  const nftRef = classRef.collection('nft').doc(nftId);
   try {
     const feeWallet = LIKER_NFT_FEE_ADDRESS;
     const {
@@ -580,7 +579,6 @@ export async function processNFTPurchase({
       await updateDocsForSuccessPurchase(t, {
         iscnRef,
         classRef,
-        nftRef,
         classId,
         nftId,
         sellerWallet,
@@ -638,6 +636,7 @@ export async function processNFTPurchase({
           granterMemo,
         });
       }
+      const nftRef = classRef.collection('nft').doc(nftId);
       t.update(nftRef, { isProcessing: false });
       return shouldUpdateSoldNFT && retryTimes < 1;
     });
