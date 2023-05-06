@@ -421,6 +421,7 @@ export function filterBookPurchaseData({
   price,
   transactionHash,
   message,
+  from,
 }) {
   return {
     id,
@@ -436,6 +437,7 @@ export function filterBookPurchaseData({
     price,
     transactionHash,
     message,
+    from,
   };
 }
 
