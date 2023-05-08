@@ -73,7 +73,7 @@ async function getISCNDocData(
   { t }: { t?: Transaction } = {},
 ) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const ref = likeNFTCollection.doc(iscnPrefixDocName) as DocumentReference;
+  const ref = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   const res = await (t ? t.get(ref) : ref.get());
   if (!res.exists) throw new ValidationError('ISCN_DOC_NOT_FOUND');
   return res.data()!;
@@ -140,10 +140,11 @@ async function fetchDocDataAndLockDocs(iscnPrefix: string, classId: string, t: T
   if (priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
-  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   t.update(iscnRef, { processingCount: FieldValue.increment(1) });
   const classRef = iscnRef.collection('class').doc(classId);
-  const txNftRef = classRef.collection('nft').doc(priceInfo.nextNewNFTId);
+  const txNftRef = classRef.collection('nft').doc(priceInfo.nextNewNFTId) as DocumentReference;
   t.update(txNftRef, { isProcessing: true });
   return priceInfo;
 }
@@ -469,7 +470,8 @@ async function resetLockedPurchaseDocs({
   currentBatch: number,
   t: Transaction
 }) {
-  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix)) as DocumentReference;
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   const classRef = iscnRef.collection('class').doc(classId);
   const iscnDoc = await t.get(iscnRef);
   const iscnDocData = iscnDoc.data()!;
@@ -518,8 +520,8 @@ async function updateDocsForMissingSoldNFT(t, {
     timestamp,
     price,
   } = formatNFTEvent(event);
-
-  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix)) as DocumentReference;
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   const classRef = iscnRef.collection('class').doc(classId);
   const nftRef = classRef.collection('nft').doc(nftId);
   // intend to update NFT and transaction docs only, ISCN and class docs remain unchanged
