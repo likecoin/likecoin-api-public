@@ -337,8 +337,7 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
 }
 
 async function updateDocsForSuccessPurchase(t, {
-  iscnRef,
-  classRef,
+  iscnPrefix,
   classId,
   nftId,
   sellerWallet,
@@ -355,14 +354,15 @@ async function updateDocsForSuccessPurchase(t, {
   stakeholderWallets,
   stakeholderLIKEs,
 }) {
-  const doc = await t.get(iscnRef);
-  const docData = doc.data();
+  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
+  const iscnDoc = await t.get(iscnRef);
+  const iscnDocData = iscnDoc.data();
   const {
     currentPrice: dbCurrentPrice,
     currentBatch: dbCurrentBatch,
     batchRemainingCount: dbBatchRemainingCount,
     processingCount: dbProcessingCount,
-  } = docData;
+  } = iscnDocData;
   const fromWallet = LIKER_NFT_TARGET_ADDRESS;
   const toWallet = buyerWallet;
   let updatedBatch = dbCurrentBatch;
@@ -389,6 +389,7 @@ async function updateDocsForSuccessPurchase(t, {
     lastSoldPrice: nftPrice,
     lastSoldTimestamp: timestamp,
   });
+  const classRef = iscnRef.collection('class').doc(classId);
   t.update(classRef, {
     lastSoldPrice: nftPrice,
     lastSoldNftId: nftId,
@@ -580,8 +581,7 @@ export async function processNFTPurchase({
 
     await db.runTransaction(async (t) => {
       await updateDocsForSuccessPurchase(t, {
-        iscnRef,
-        classRef,
+        iscnPrefix,
         classId,
         nftId,
         sellerWallet,
