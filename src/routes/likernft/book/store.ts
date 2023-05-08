@@ -17,6 +17,7 @@ router.get('/list', async (req, res, next) => {
         priceInDecimal,
         stock,
         sold,
+        pendingNFTCount,
         id,
       } = b;
       const price = priceInDecimal / 100;
@@ -26,6 +27,7 @@ router.get('/list', async (req, res, next) => {
         priceInDecimal,
         sold,
         stock,
+        pendingNFTCount,
       };
     });
     res.json({ list });
@@ -47,6 +49,7 @@ router.get('/:classId', async (req, res, next) => {
       priceInDecimal,
       stock,
       sold,
+      pendingNFTCount,
     } = bookInfo;
     const price = priceInDecimal / 100;
     res.json({
@@ -54,6 +57,7 @@ router.get('/:classId', async (req, res, next) => {
       priceInDecimal,
       sold,
       stock,
+      pendingNFTCount,
     });
   } catch (err) {
     next(err);

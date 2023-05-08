@@ -15,6 +15,8 @@ export async function newNftBookInfo(classId, data) {
   } = data;
   const payload: any = {
     classId,
+    sold: 0,
+    pendingNFTCount: 0,
     stock,
     priceInDecimal,
     ownerWallet,

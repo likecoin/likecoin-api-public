@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
-import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
+import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
@@ -136,6 +136,7 @@ router.post(
       const { classId, paymentId } = req.params;
       const { token } = req.query;
       const { wallet, message } = req.body;
+      const bookRef = likeNFTBookCollection.doc(classId);
       const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
       await db.runTransaction(async (t) => {
@@ -159,6 +160,9 @@ router.post(
           wallet,
           message: message || '',
         });
+        t.update(bookRef, {
+          pendingNFTCount: FieldValue.increment(1),
+        });
       });
 
       res.sendStatus(200);
@@ -175,7 +179,8 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { txHash } = req.body;
-      const bookDoc = await likeNFTBookCollection.doc(classId).get();
+      const bookRef = likeNFTBookCollection.doc(classId);
+      const bookDoc = await bookRef.get();
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { ownerWallet } = bookDocData;
@@ -198,6 +203,9 @@ router.post(
         t.update(paymentDocRef, {
           status: 'completed',
           txHash,
+        });
+        t.update(bookRef, {
+          pendingNFTCount: FieldValue.increment(-1),
         });
       });
       res.sendStatus(200);
