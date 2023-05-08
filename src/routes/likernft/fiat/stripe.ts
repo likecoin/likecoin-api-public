@@ -392,7 +392,22 @@ router.post(
         throw err;
       }
       const { transactionHash: txHash, code } = txRes as DeliverTxResponse;
-      if (code) throw new ValidationError(`TX_${txHash}_FAILED_WITH_CODE_${code}`);
+      if (code) {
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'LikerNFTFiatClaimError',
+          paymentId,
+          classId,
+          nftId,
+          errorCode: code,
+          errorTransactionHash: txHash,
+        });
+        await ref.update({
+          status: 'error',
+          errorCode: code,
+          errorTransactionHash: txHash,
+        });
+        throw new ValidationError(`TX_${txHash}_FAILED_WITH_CODE_${code}`);
+      }
       await ref.update({
         status: 'done',
         wallet: receiverWallet,
