@@ -172,7 +172,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     sessionId,
   });
   let isEmailSent = false;
-  if (!TEST_MODE && !isWalletProvided) {
+  if (!isWalletProvided) {
     try {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;

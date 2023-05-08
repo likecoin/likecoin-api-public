@@ -8,6 +8,7 @@ if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 const ses = new aws.SES();
 
 export async function sendVerificationEmail(res, user, ref) {
+  if (TEST_MODE) return Promise.resolve();
   const params = {
     Source: '"Liker Land" <noreply@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -44,6 +45,7 @@ export async function sendVerificationEmail(res, user, ref) {
 }
 
 export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
+  if (TEST_MODE) return Promise.resolve();
   const params = {
     Source: '"Liker Land" <noreply@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -81,6 +83,7 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
 }
 
 export async function sendInvitationEmail(res, { email, referrerId, referrer }) {
+  if (TEST_MODE) return Promise.resolve();
   const title = res.__('Email.InvitationEmail.subject', { referrer });
   const params = {
     Source: '"Liker Land" <noreply@liker.land>',
@@ -123,6 +126,7 @@ export function sendAutoClaimEmail({
   className,
   wallet,
 }) {
+  if (TEST_MODE) return Promise.resolve();
   const params = {
     Source: '"Liker Land" <team@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -177,6 +181,7 @@ export function sendPendingClaimEmail({
   paymentId,
   claimToken,
 }) {
+  if (TEST_MODE) return Promise.resolve();
   const params = {
     Source: '"Liker Land" <team@liker.land>',
     ConfigurationSetName: 'likeco_ses',
