@@ -5,8 +5,7 @@ import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { parseAndCalculateStakeholderRewards } from '@likecoin/iscn-js/dist/iscn/parsing';
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { Transaction } from '@google-cloud/firestore';
-import { Request } from 'express';
+import { Transaction, DocumentReference, Query } from '@google-cloud/firestore';
 import { db, likeNFTCollection, FieldValue } from '../../firebase';
 import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
@@ -54,57 +53,84 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
-async function getFirstUnsoldNFT(
-  iscnPrefix,
-  classId,
-  { transaction }: { transaction?: Transaction } = {},
+async function getISCNDocData(
+  iscnPrefix: string,
+  { t }: { t?: Transaction } = {},
 ) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const ref = likeNFTCollection.doc(iscnPrefixDocName)
+  const ref = likeNFTCollection.doc(iscnPrefixDocName) as DocumentReference;
+  const res = await (t ? t.get(ref) : ref.get());
+  if (!res.exists) throw new ValidationError('ISCN_DOC_NOT_FOUND');
+  return res.data()!;
+}
+
+async function getFirstUnsoldNFTDocData(
+  iscnPrefix: string,
+  classId: string,
+  { t }: { t?: Transaction } = {},
+) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const query = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
     .collection('nft')
     .where('isSold', '==', false)
     .where('isProcessing', '==', false)
     .where('price', '==', 0)
-    .limit(1);
-  const res = await (transaction ? transaction.get(ref as any) : ref.get());
-  if (!res.docs.length) return null;
-  const doc = res.docs[0];
-  const payload = {
-    id: doc.id,
-    ...doc.data(),
-  };
-  return payload;
+    .limit(1) as Query;
+  const res = await (t ? t.get(query) : query.get());
+  if (!res.size) return null;
+  return res.docs[0].data()!;
 }
 
-export async function getLatestNFTPriceAndInfo(iscnPrefix, classId) {
-  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const [newNftData, nftDoc] = await Promise.all([
-    getFirstUnsoldNFT(iscnPrefix, classId),
-    likeNFTCollection.doc(iscnPrefixDocName).get(),
+export async function getLatestNFTPriceAndInfo(
+  iscnPrefix: string,
+  classId: string,
+  { t }: { t?: Transaction } = {},
+) {
+  const [newNftDocData, iscnDocData] = await Promise.all([
+    getFirstUnsoldNFTDocData(iscnPrefix, classId, { t }),
+    getISCNDocData(iscnPrefix, { t }),
   ]);
-  const nftDocData = nftDoc.data();
   let price = -1;
   let nextNewNFTId;
+  let isProcessing = false;
   const {
     currentPrice,
     currentBatch,
     lastSoldPrice,
-  } = nftDocData;
-  if (newNftData) {
+  } = iscnDocData;
+  if (newNftDocData) {
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
     // another fresh one might be used on purchase instead
-    nextNewNFTId = newNftData.id;
+    nextNewNFTId = newNftDocData.id;
+    isProcessing = newNftDocData.isProcessing;
   }
   const { price: nextPriceLevel } = getNFTBatchInfo(currentBatch + 1);
   return {
-    ...nftDocData,
+    ...iscnDocData,
     nextNewNFTId,
+    currentBatch,
+    isProcessing,
     lastSoldPrice: lastSoldPrice || currentPrice,
     price,
     nextPriceLevel,
-  };
+  } as any;
+}
+
+async function fetchDocDataAndLockDocs(iscnPrefix: string, classId: string, t: Transaction) {
+  const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
+  if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
+  if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+  if (priceInfo.processingCount >= priceInfo.batchRemainingCount) {
+    throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+  }
+  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
+  t.update(iscnRef, { processingCount: FieldValue.increment(1) });
+  const classRef = iscnRef.collection('class').doc(classId);
+  const txNftRef = classRef.collection('nft').doc(priceInfo.nextNewNFTId);
+  t.update(txNftRef, { isProcessing: true });
+  return priceInfo;
 }
 
 export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
@@ -507,42 +533,20 @@ export async function processNFTPurchase({
   memo = Buffer.byteLength(memo, 'utf8') > MAX_MEMO_LENGTH ? Buffer.from(memo).slice(0, MAX_MEMO_LENGTH).toString() : memo;
 
   // lock iscn nft
-  const {
-    nftId,
-    nftPrice,
-    currentBatch,
-  } = await db.runTransaction(async (t) => {
-    /* eslint-disable no-underscore-dangle */
-    const nftDocData = await getFirstUnsoldNFT(iscnPrefix, classId, { transaction: t });
-    const {
-      id: _nftId, isProcessing,
-    } = nftDocData;
-    if (isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-    const doc = await t.get(iscnRef);
-    const docData = doc.data();
-    if (!docData) throw new ValidationError('ISCN_NFT_NOT_FOUND');
-    const {
-      processingCount = 0,
-      currentPrice,
-      currentBatch: batch,
-      batchRemainingCount,
-    } = docData;
-    if (processingCount >= batchRemainingCount) {
-      throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-    }
-    t.update(iscnRef, { processingCount: FieldValue.increment(1) });
-    if (currentPrice > grantedAmount) {
-      throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
-    }
-    const txNftRef = classRef.collection('nft').doc(_nftId);
-    t.update(txNftRef, { isProcessing: true });
-    return {
-      nftId: _nftId,
-      nftPrice: currentPrice,
-      currentBatch: batch,
-    };
-    /* eslint-enable no-underscore-dangle */
+  const priceInfo = await db.runTransaction(async (t) => {
+    // eslint-disable-next-line no-underscore-dangle
+    const _priceInfo = await fetchDocDataAndLockDocs(iscnPrefix, classId, t);
+    return _priceInfo;
   });
+  const {
+    nextNewNFTId: nftId,
+    price: nftPrice,
+    currentBatch,
+  } = priceInfo;
+  if (nftPrice > grantedAmount) {
+    throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
+  }
+
   try {
     const feeWallet = LIKER_NFT_FEE_ADDRESS;
     const {
