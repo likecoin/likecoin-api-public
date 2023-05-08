@@ -53,6 +53,21 @@ export function getNFTBatchInfo(batchNumber) {
   };
 }
 
+async function generateCustomMemo(iscnPrefix: string, classId: string, buyerWallet: string) {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
+  const classRef = iscnRef.collection('class').doc(classId);
+  const classDoc = await classRef.get();
+  const {
+    metadata: {
+      message = '',
+    } = {},
+  } = classDoc.data();
+  let memo = message.replaceAll('{collector}', buyerWallet) || '';
+  memo = Buffer.byteLength(memo, 'utf8') > MAX_MEMO_LENGTH ? Buffer.from(memo).subarray(0, MAX_MEMO_LENGTH).toString() : memo;
+  return memo;
+}
+
 async function getISCNDocData(
   iscnPrefix: string,
   { t }: { t?: Transaction } = {},
@@ -521,17 +536,8 @@ export async function processNFTPurchase({
   const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
   if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
   const { owner: sellerWallet } = iscnData;
-  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
-  const classRef = iscnRef.collection('class').doc(classId);
-  const classDoc = await classRef.get();
-  const {
-    metadata: {
-      message = '',
-    } = {},
-  } = classDoc.data();
-  let memo = message.replaceAll('{collector}', buyerWallet) || '';
-  memo = Buffer.byteLength(memo, 'utf8') > MAX_MEMO_LENGTH ? Buffer.from(memo).slice(0, MAX_MEMO_LENGTH).toString() : memo;
+
+  const memo = await generateCustomMemo(iscnPrefix, classId, buyerWallet);
 
   // lock iscn nft
   const priceInfo = await db.runTransaction(async (t) => {
@@ -617,9 +623,11 @@ export async function processNFTPurchase({
     console.error(err);
     // reset lock
     const shouldRetryPurchase = await db.runTransaction(async (t) => {
-      const doc = await t.get(iscnRef);
-      const docData = doc.data();
-      const { currentBatch: docCurrentBatch } = docData;
+      const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
+      const classRef = iscnRef.collection('class').doc(classId);
+      const iscnDoc = await t.get(iscnRef);
+      const iscnDocData = iscnDoc.data();
+      const { currentBatch: docCurrentBatch } = iscnDocData;
       if (docCurrentBatch === currentBatch) {
         t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
       }
