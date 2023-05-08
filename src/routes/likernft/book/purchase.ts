@@ -136,7 +136,7 @@ router.post(
       const { classId, paymentId } = req.params;
       const { token } = req.query;
       const { wallet, message } = req.body;
-      const docRef = await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+      const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
       await db.runTransaction(async (t) => {
         const doc = await t.get(docRef);
@@ -152,7 +152,7 @@ router.post(
           throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
         }
         if (status !== 'paid') {
-          throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
+          throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
         }
         t.update(docRef, {
           status: 'pendingNFT',
@@ -168,15 +168,55 @@ router.post(
   },
 );
 
+router.post(
+  '/:classId/sent/:paymentId',
+  jwtAuth('write:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params;
+      const { txHash } = req.body;
+      const bookDoc = await likeNFTBookCollection.doc(classId).get();
+      const bookDocData = bookDoc.data();
+      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet } = bookDocData;
+      if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
+
+      const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(paymentDocRef);
+        const docData = doc.data();
+        if (!docData) {
+          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+        }
+        const {
+          status,
+        } = docData;
+        if (status !== 'pendingNFT') {
+          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+        }
+        t.update(paymentDocRef, {
+          status: 'completed',
+          txHash,
+        });
+      });
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.get(
   '/:classId/orders',
   jwtAuth('read:nftbook'),
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const result = await getISCNFromNFTClassId(classId);
-      if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
-      const { owner: ownerWallet } = result;
+      const bookDoc = await likeNFTBookCollection.doc(classId).get();
+      const bookDocData = bookDoc.data();
+      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet } = bookDocData;
       if (ownerWallet !== req.user.wallet) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }

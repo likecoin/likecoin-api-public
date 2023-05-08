@@ -419,7 +419,7 @@ export function filterBookPurchaseData({
   classId,
   priceInDecimal,
   price,
-  transactionHash,
+  txHash,
   message,
   from,
 }) {
@@ -435,7 +435,7 @@ export function filterBookPurchaseData({
     classId,
     priceInDecimal,
     price,
-    transactionHash,
+    txHash,
     message,
     from,
   };
