@@ -133,7 +133,7 @@ export async function getLatestNFTPriceAndInfo(
   } as any;
 }
 
-async function fetchDocDataAndLockDocs(iscnPrefix: string, classId: string, t: Transaction) {
+async function getPriceInfoAndLockDocs(iscnPrefix: string, classId: string, t: Transaction) {
   const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
@@ -571,7 +571,7 @@ export async function processNFTPurchase({
   // lock iscn nft
   const priceInfo = await db.runTransaction(async (t) => {
     // eslint-disable-next-line no-underscore-dangle
-    const _priceInfo = await fetchDocDataAndLockDocs(iscnPrefix, classId, t);
+    const _priceInfo = await getPriceInfoAndLockDocs(iscnPrefix, classId, t);
     return _priceInfo;
   });
   const {
