@@ -3,9 +3,11 @@ import bodyParser from 'body-parser';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import uuidv4 from 'uuid/v4';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 
 import stripe from '../../../util/stripe';
-import { isValidLikeAddress } from '../../../util/cosmos';
+import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
+import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixFromChain } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
@@ -362,20 +364,35 @@ router.post(
       try {
         const {
           client,
-          wallet: senderAccount,
+          wallet: senderWallet,
+          accountNumber,
         } = await getLikerNFTPendingClaimSigningClientAndWallet();
-        txRes = await client.sendNFTs(
-          senderAccount.address,
-          receiverWallet as string,
-          classId,
-          [nftId],
+        const { address: senderAddress } = senderWallet;
+        const sendNFTSigningFunction = async ({ sequence }): Promise<TxRaw> => {
+          const r = await client.sendNFTs(
+            senderAddress,
+            receiverWallet as string,
+            classId,
+            [nftId],
+            {
+              accountNumber,
+              sequence,
+              chainId: COSMOS_CHAIN_ID,
+              broadcast: false,
+            },
+          );
+          return r as TxRaw;
+        };
+        txRes = await sendTransactionWithSequence(
+          senderAddress,
+          sendNFTSigningFunction,
         );
       } catch (err) {
         const error = (err as Error).toString();
         const errorMessage = (err as Error).message;
         const errorStack = (err as Error).stack;
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'LikerNFTFiatClaimError',
+          logType: 'LikerNFTFiatClaimServerError',
           paymentId,
           classId,
           nftId,
@@ -394,7 +411,7 @@ router.post(
       const { transactionHash: txHash, code } = txRes as DeliverTxResponse;
       if (code) {
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'LikerNFTFiatClaimError',
+          logType: 'LikerNFTFiatClaimTxError',
           paymentId,
           classId,
           nftId,

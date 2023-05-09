@@ -129,7 +129,8 @@ export async function getLikerNFTFiatSigningClientAndWallet() {
 export async function getLikerNFTPendingClaimSigningClientAndWallet() {
   if (!LIKER_NFT_PENDING_CLAIM_PRIVATE_KEY) throw new Error('PRIVATE_KEY_NOT_SET');
   const { client, wallet } = await createNFTSigningClient(LIKER_NFT_PENDING_CLAIM_PRIVATE_KEY);
-  return { client, wallet };
+  const { accountNumber } = await getNFTAccountInfo(wallet.address);
+  return { client, wallet, accountNumber: accountNumber.toNumber() };
 }
 
 export async function getLikerNFTSigningAddressInfo() {
