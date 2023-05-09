@@ -56,7 +56,7 @@ router.get('/:classId/new', async (req, res, next) => {
     if (from) sessionMetadata.from = from as string;
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      success_url: `${successUrl}?class_id=${classId}&payment_id=${paymentId}`,
+      success_url: `${successUrl}`,
       cancel_url: `${cancelUrl}`,
       line_items: [
         {

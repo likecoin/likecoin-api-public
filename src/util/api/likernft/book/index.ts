@@ -1,9 +1,8 @@
-import crypto from 'crypto';
 import Stripe from 'stripe';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
-import { sendPendingClaimEmail } from '../../../ses';
+import { sendNFTBookPendingClaimEmail } from '../../../ses';
 
 export async function newNftBookInfo(classId, data) {
   const {
@@ -86,9 +85,14 @@ export async function processNFTBookPurchase(
     });
     const { claimToken } = bookData;
     await stripe.paymentIntents.capture(paymentIntent as string);
-    // TODO: modify function for nft book
     if (email) {
-      await sendPendingClaimEmail(email, classId, claimToken);
+      await sendNFTBookPendingClaimEmail({
+        email,
+        classId,
+        className: classId,
+        paymentId,
+        claimToken,
+      });
     }
   } catch (err) {
     // eslint-disable-next-line no-console

@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import EmailTemplate from '@likecoin/likecoin-email-templates';
 import aws from 'aws-sdk';
-import { LIKER_LAND_HOSTNAME, TEST_MODE } from '../constant';
+import { LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, TEST_MODE } from '../constant';
 
 if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 
@@ -223,6 +223,76 @@ export function sendPendingClaimEmail(email: string, classId: string, className:
           <p>After completing the installation, you will be able to view your Writing NFT collection on the <a href="https://liker.land/">Liker Land website</a>.</p>
           <p>＋＋＋＋</p>
           <p>Please reply to this email with your LikeCoin wallet address.</p>
+          <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+            Land customer service</a>.</p>
+          <p>Thank you for supporting creativity.</p>
+          <p>Liker Land</p>
+          `,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export function sendNFTBookPendingClaimEmail({
+  email,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: '領取你的 NFT 書 | Claim your NFT Book',
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: `
+          <p>親愛的 Liker：</p>
+          <p>感謝購買 《<a
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》的 NFT 書，我們需要你的 LikeCoin 錢包地址以把 NFT 書發送給你。</p>
+          <p>1. 前往<a href="https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}/?payment_id=${paymentId}&token=${claimToken}">NFT 書錢包認證頁</a></p>
+          <p>2. 輸入你的 LikeCoin 錢包地址</p>
+          <p><strong>安裝 Keplr</strong></p>
+          <p>若你想用新的 LikeCoin 地址接收 NFT 書，可參看以下步驟，在 Chrome 瀏覽器安裝 Keplr 錢包。</p>
+          <p><a href="https://youtu.be/WQGW1P0KgOA">如何安裝 Keplr 及使用 LikeCoin （國語）</a></p>
+          <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
+          <p>完成安裝後，你可以回到步驟1的頁面，點選「connect」按鈕，即可獲取地址。</p>
+          <p>3. 驗證完成後，請等待作者簽署給發送書籍
+          <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
+              Land 客服</a>。</p>
+          <p>感謝支持創作。</p>
+          <p>Liker Land</p>
+          <br/>
+          <br/>
+          <p>Dear Liker,</p>
+          <p>Thank you for purchasing the NFT Book of "<a
+              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>". We need you to provide us with your
+            LikeCoin wallet address so that we can send the NFT Book to you.</p>
+          <p>1. Go to <a href="https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}/?payment_id=${paymentId}&token=${claimToken}">NFT book wallet verification page</a></p>
+          <p>2. Enter your LikeCoin wallet address</p>
+          <p><strong>Install Keplr</strong></p>
+          <p>If you want to receive the NFT Book with a new LikeCoin address, you can refer to the following steps and install the Keplr wallet 
+            on the Chrome browser.</p>
+          <p><a href="https://docs.like.co/general-guides/wallet/keplr">How to install Keplr and use LikeCoin</a></p>
+          <p>After completing the installation, go back to the link in step 1 and click "connect" to retrieve your wallet address.</p>
+          <p>3. Wait for the author to sign and deliver your NFT book.
           <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
             Land customer service</a>.</p>
           <p>Thank you for supporting creativity.</p>

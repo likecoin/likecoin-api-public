@@ -26,3 +26,14 @@ export function sendAutoClaimEmail({
 export function sendPendingClaimEmail(email: string, classId: string, className: string) {
   return Promise.resolve();
 }
+
+/* istanbul ignore next */
+export function sendNFTBookPendingClaimEmail({
+  email,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+}) {
+  return Promise.resolve();
+}
