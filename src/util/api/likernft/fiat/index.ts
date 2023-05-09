@@ -2,7 +2,6 @@ import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import LRU from 'lru-cache';
-import uuidv4 from 'uuid/v4';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';

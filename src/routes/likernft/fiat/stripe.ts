@@ -334,15 +334,19 @@ router.post(
       const ref = likeNFTFiatCollection.doc(paymentId);
       let classId;
       let nftId;
-      await db.runTransaction(async (t) => {
-        const doc = await t.get(ref);
-        if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        const { status, claimToken } = doc.data();
-        ({ classId, nftId } = doc.data());
-        if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
-        if (status !== 'pendingClaim') {
-          // eslint-disable-next-line no-console
-          console.log(`NFT Claim already handled ${paymentId}`);
+      try {
+        await db.runTransaction(async (t) => {
+          const doc = await t.get(ref);
+          if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+          const { status, claimToken } = doc.data();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          ({ classId, nftId } = doc.data());
+          if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
+          if (status !== 'pendingClaim') throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
+          t.update(ref, { status: 'claiming' });
+        });
+      } catch (err) {
+        if (err instanceof ValidationError && err.message === 'NFT_CLAIM_ALREADY_HANDLED') {
           publisher.publish(PUBSUB_TOPIC_MISC, req, {
             logType: 'LikerNFTFiatClaimAlreadyHandled',
             paymentId,
@@ -350,10 +354,9 @@ router.post(
             nftId,
             receiverWallet,
           });
-          throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
         }
-        t.update(ref, { status: 'claiming' });
-      });
+        throw err;
+      }
 
       let txRes;
       try {
