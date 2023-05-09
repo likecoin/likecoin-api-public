@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getNftBookInfo, listNftBookInfoByOwnerWallet, newNftBookInfo } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import { jwtAuth } from '../../../middleware/jwt';
+import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
@@ -36,7 +36,7 @@ router.get('/list', async (req, res, next) => {
   }
 });
 
-router.get('/:classId', async (req, res, next) => {
+router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -50,15 +50,20 @@ router.get('/:classId', async (req, res, next) => {
       stock,
       sold,
       pendingNFTCount,
+      ownerWallet,
     } = bookInfo;
     const price = priceInDecimal / 100;
-    res.json({
+    const payload: any = {
       price,
       priceInDecimal,
-      sold,
-      stock,
-      pendingNFTCount,
-    });
+      isSoldOut: stock <= 0,
+    };
+    if (req.user.wallet === ownerWallet) {
+      payload.sold = sold;
+      payload.stock = stock;
+      payload.pendingNFTCount = pendingNFTCount;
+    }
+    res.json(payload);
   } catch (err) {
     next(err);
   }
