@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
@@ -26,11 +27,12 @@ router.get('/:classId/new', async (req, res, next) => {
     if (!bookInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
 
     const paymentId = uuidv4();
+    const claimToken = crypto.randomBytes(32).toString('hex');
     const {
       priceInDecimal,
       stock,
-      successUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/nft/fiat/stripe`,
-      cancelUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/nft/class/${classId}`,
+      successUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}?payment_id=${paymentId}&token=${claimToken}`,
+      cancelUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/canceled`,
       ownerWallet,
     } = bookInfo;
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
@@ -89,6 +91,7 @@ router.get('/:classId/new', async (req, res, next) => {
       type: 'stripe',
       isPaid: false,
       isPendingClaim: false,
+      claimToken,
       sessionId,
       classId,
       priceInDecimal,
