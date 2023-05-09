@@ -337,16 +337,16 @@ router.post(
       let classId;
       let nftId;
       try {
-        await db.runTransaction(async (t) => {
+        ({ classId, nftId } = await db.runTransaction(async (t) => {
           const doc = await t.get(ref);
           if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
           const { status, claimToken } = doc.data();
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          ({ classId, nftId } = doc.data());
+          const { classId: _classId, nftId: _nftId } = doc.data();
           if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
           if (status !== 'pendingClaim') throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
           t.update(ref, { status: 'claiming' });
-        });
+          return { classId: _classId, nftId: _nftId };
+        }));
       } catch (err) {
         if (err instanceof ValidationError && err.message === 'NFT_CLAIM_ALREADY_HANDLED') {
           publisher.publish(PUBSUB_TOPIC_MISC, req, {
