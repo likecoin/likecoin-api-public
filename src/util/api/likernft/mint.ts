@@ -48,8 +48,9 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     uri = '',
     metadata = {},
     platform = '',
+    initialBatch = 0,
   } = classData;
-  const currentBatch = 0;
+  const currentBatch = initialBatch;
   const { price, count } = getNFTBatchInfo(currentBatch);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const {

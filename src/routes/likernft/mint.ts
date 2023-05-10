@@ -57,6 +57,7 @@ router.post(
         tx_hash: txHash,
         class_id: inputClassId,
         platform = '',
+        initialBatch,
       } = req.query;
       const { contentUrl } = req.body;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
@@ -108,6 +109,7 @@ router.post(
       };
       const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
         ...chainMetadata,
+        initialBatch,
         classId,
         totalCount: nfts.length,
         platform,
