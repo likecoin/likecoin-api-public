@@ -20,9 +20,7 @@ router.get('/:classId/new', async (req, res, next) => {
     const { classId } = req.params;
     const { from = '' } = req.query;
 
-    const promises = [getNFTClassDataById(classId)];
-    const getBookInfoPromise = getNftBookInfo(classId);
-    promises.push(getBookInfoPromise);
+    const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
     const [metadata, bookInfo] = (await Promise.all(promises)) as any;
     if (!bookInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
 
@@ -60,7 +58,6 @@ router.get('/:classId/new', async (req, res, next) => {
       cancel_url: `${cancelUrl}`,
       line_items: [
         {
-          // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
           price_data: {
             currency: 'USD',
             product_data: {

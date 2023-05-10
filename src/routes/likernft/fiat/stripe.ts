@@ -202,7 +202,6 @@ router.post(
         cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`,
         line_items: [
           {
-            // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
             price_data: {
               currency: 'USD',
               product_data: {
