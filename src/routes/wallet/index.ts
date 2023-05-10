@@ -21,7 +21,7 @@ router.post('/authorize', async (req, res, next) => {
     const { token, jwtid } = jwtSign({
       wallet,
       permissions,
-    });
+    }, { expiresIn: '1h' });
     res.json({ jwtid, token });
   } catch (err) {
     next(err);
