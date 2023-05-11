@@ -8,7 +8,7 @@ import { processFiatNFTPurchase } from '.';
 import {
   IS_TESTNET,
   LIKER_LAND_HOSTNAME,
-  PUBSUB_TOPIC_MISC, TEST_MODE,
+  PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
