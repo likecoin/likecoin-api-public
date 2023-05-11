@@ -57,9 +57,11 @@ router.post(
         tx_hash: txHash,
         class_id: inputClassId,
         platform = '',
-        initialBatch,
       } = req.query;
-      const { contentUrl } = req.body;
+      const {
+        contentUrl,
+        initialBatch,
+      } = req.body;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
