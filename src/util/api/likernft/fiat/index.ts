@@ -1,8 +1,8 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import LRU from 'lru-cache';
+
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
@@ -98,6 +98,8 @@ export async function processFiatNFTPurchase({
   LIKEPrice,
   fiatPrice,
   memo,
+  email,
+  claimToken,
 }, req) {
   if (!fiatGranterWallet) {
     const { wallet } = await getLikerNFTFiatSigningClientAndWallet();
@@ -200,7 +202,9 @@ export async function processFiatNFTPurchase({
     transactionHash,
     nftId,
     actualNftPrice,
-    status: 'done',
+    claimToken: claimToken || null,
+    status: claimToken ? 'pendingClaim' : 'done',
+    email,
   });
   return res;
 }
