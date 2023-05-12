@@ -5,6 +5,7 @@ import { DeliverTxResponse } from '@cosmjs/stargate';
 import uuidv4 from 'uuid/v4';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 
+import Stripe from 'stripe';
 import stripe from '../../../util/stripe';
 import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
@@ -26,6 +27,7 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
 import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
+import { processNFTBookPurchase } from '../../../util/api/likernft/book';
 
 const router = Router();
 
@@ -51,11 +53,14 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     }
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object;
+        const session: Stripe.Checkout.Session = event.data.object;
         const {
           subscription: subscriptionId,
+          metadata: { store } = {} as any,
         } = session;
-        if (subscriptionId) {
+        if (store === 'book') {
+          await processNFTBookPurchase(session, req);
+        } else if (subscriptionId) {
           await processStripeNFTSubscriptionSession(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
@@ -198,7 +203,6 @@ router.post(
         cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`,
         line_items: [
           {
-            // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
             price_data: {
               currency: 'USD',
               product_data: {
@@ -222,6 +226,7 @@ router.post(
           capture_method: 'manual',
         },
         metadata: {
+          store: 'likerland',
           wallet: wallet as string,
           classId,
           isListing: isListing ? 'true' : null,

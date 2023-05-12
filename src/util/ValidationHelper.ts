@@ -407,6 +407,40 @@ export function filterLikeNFTFiatData({
   };
 }
 
+export function filterBookPurchaseData({
+  id,
+  email,
+  status,
+  sessionId,
+  isPendingClaim,
+  isPaid,
+  errorMessage,
+  wallet,
+  classId,
+  priceInDecimal,
+  price,
+  txHash,
+  message,
+  from,
+}) {
+  return {
+    id,
+    email,
+    status,
+    sessionId,
+    isPaid,
+    isPendingClaim,
+    errorMessage,
+    wallet,
+    classId,
+    priceInDecimal,
+    price,
+    txHash,
+    message,
+    from,
+  };
+}
+
 export function filterOAuthClientInfo({
   avatar,
   audience,

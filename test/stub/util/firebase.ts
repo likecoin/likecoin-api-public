@@ -217,6 +217,7 @@ export const likeNFTCollection = createCollection(likerNftData);
 export const likeNFTFiatCollection = createCollection([]);
 export const likeNFTSubscriptionUserCollection = createCollection([]);
 export const likeNFTSubscriptionTxCollection = createCollection([]);
+export const likeNFTBookCollection = createCollection([]);
 export const likeButtonUrlCollection = createCollection([]);
 export const iscnInfoCollection = createCollection([]);
 export const iscnMappingCollection = createCollection([]);
