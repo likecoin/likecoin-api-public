@@ -8,8 +8,8 @@ import {
   MATTERS_APP_SECRET,
 } from '../../../config/config';
 
-const MATTER_HOST = `${IS_TESTNET ? 'web-develop.' : ''}matters.news`;
-const MATTER_API_HOST = `${IS_TESTNET ? 'server-develop.' : 'server.'}matters.news`;
+const MATTER_HOST = `${IS_TESTNET ? 'web-develop.' : ''}matters.town`;
+const MATTER_API_HOST = `${IS_TESTNET ? 'server-develop.' : 'server.'}matters.town`;
 const CALLBACK_URI = `https://${EXTERNAL_HOSTNAME}/in/social/oauth/matters`;
 const SCOPE = 'query:viewer:likerId query:viewer:info:email';
 
@@ -17,7 +17,7 @@ export function fetchMattersOAuthInfo(user) {
   if (!MATTERS_APP_ID || !MATTERS_APP_SECRET) throw new ValidationError('matters app not configured');
   /* HACK: for social link, return matters setting url for now */
   if (user !== 'login') {
-    const url = `https://${IS_TESTNET ? 'web-develop.' : ''}matters.news/me/settings/account`;
+    const url = `https://${IS_TESTNET ? 'web-develop.' : ''}matters.town/me/settings/account`;
     return { url, state: '' };
   }
   const state = `${user}:${crypto.randomBytes(20).toString('hex')}`;

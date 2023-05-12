@@ -1,14 +1,24 @@
+import { randomBytes } from 'crypto';
 import BigNumber from 'bignumber.js';
 import axios from 'axios';
 import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
-import { IS_TESTNET, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import {
+  IS_TESTNET,
+  LIKER_LAND_HOSTNAME,
+  PUBSUB_TOPIC_MISC,
+} from '../../../../constant';
 import publisher from '../../../gcloudPub';
 import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
-import { NFT_MESSAGE_WEBHOOK, NFT_MESSAGE_SLACK_USER, LIKER_LAND_GET_WALLET_SECRET } from '../../../../../config/config';
+import {
+  LIKER_NFT_PENDING_CLAIM_ADDRESS,
+  NFT_MESSAGE_WEBHOOK,
+  NFT_MESSAGE_SLACK_USER,
+  LIKER_LAND_GET_WALLET_SECRET,
+} from '../../../../../config/config';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -78,11 +88,16 @@ export async function processStripeFiatNFTPurchase(session, req) {
     });
     throw new ValidationError('ALREADY_CAPTURED');
   }
-  const { isPendingClaim } = metadata;
-  let verifiedWallet = null;
+  const { email } = customer;
+  const isWalletProvided = !!wallet;
+  if (!isWalletProvided && email) {
+    wallet = await findWalletWithVerifiedEmail(email);
+  }
+  const isPendingClaim = !wallet;
+  let claimToken;
   if (isPendingClaim) {
-    verifiedWallet = await findWalletWithVerifiedEmail(customer.email);
-    wallet = verifiedWallet || wallet;
+    wallet = LIKER_NFT_PENDING_CLAIM_ADDRESS;
+    claimToken = randomBytes(32).toString('base64url');
   }
   try {
     await processFiatNFTPurchase({
@@ -96,6 +111,8 @@ export async function processStripeFiatNFTPurchase(session, req) {
       LIKEPrice,
       fiatPrice,
       memo,
+      email,
+      claimToken,
     }, req);
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -155,25 +172,30 @@ export async function processStripeFiatNFTPurchase(session, req) {
     sessionId,
   });
   let isEmailSent = false;
-  if (isPendingClaim) {
-    const { email } = customer;
+  if (!isWalletProvided) {
     try {
       const iscnData = await getNFTISCNData(iscnPrefix);
       const className = iscnData.data?.contentMetadata.name;
-      if (verifiedWallet) {
+      if (isPendingClaim) {
+        await sendPendingClaimEmail({
+          email,
+          classId,
+          className,
+          paymentId,
+          claimToken,
+        });
+      } else {
         await sendAutoClaimEmail({
           email,
           classId,
           className,
           wallet,
         });
-      } else {
-        await sendPendingClaimEmail(email, classId, className);
       }
       isEmailSent = true;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send ${verifiedWallet ? 'auto' : 'pending'} claim email for ${classId} to ${email}`);
+      console.error(`Failed to send ${isPendingClaim ? 'pending' : 'auto'} claim email for ${classId} to ${email}`);
       // eslint-disable-next-line no-console
       console.error(err);
     }
@@ -185,23 +207,22 @@ export async function processStripeFiatNFTPurchase(session, req) {
         // iscnPrefix,
         // paymentId,
       } = metadata;
-      const { email } = customer;
       const words: string[] = [];
-      if (isPendingClaim && NFT_MESSAGE_SLACK_USER) {
+      if (!isWalletProvided && NFT_MESSAGE_SLACK_USER) {
         words.push(`<@${NFT_MESSAGE_SLACK_USER}>`);
       }
       if (IS_TESTNET) {
         words.push('[🚧 TESTNET]');
       }
       let claimState = '';
-      if (isPendingClaim) {
-        claimState = verifiedWallet ? 'An auto claimed' : 'An unclaimed';
-      } else {
+      if (isWalletProvided) {
         claimState = 'A';
+      } else {
+        claimState = isPendingClaim ? 'An unclaimed' : 'An auto claimed';
       }
       words.push(claimState);
       words.push('NFT is bought');
-      if (isPendingClaim) {
+      if (!isWalletProvided) {
         words.push(isEmailSent ? 'and email is sent' : 'but email sending failed');
       }
       const text = words.join(' ');

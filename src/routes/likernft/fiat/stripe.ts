@@ -1,19 +1,22 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import BigNumber from 'bignumber.js';
+import { DeliverTxResponse } from '@cosmjs/stargate';
 import uuidv4 from 'uuid/v4';
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 
 import Stripe from 'stripe';
 import stripe from '../../../util/stripe';
-import { isValidLikeAddress } from '../../../util/cosmos';
-import { likeNFTFiatCollection } from '../../../util/firebase';
+import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
+import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
+import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixFromChain } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getGasPrice, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { checkIsWritingNFT, DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
-import { getNFTClassDataById } from '../../../util/cosmos/nft';
+import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
 import { API_EXTERNAL_HOSTNAME, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -21,7 +24,7 @@ import publisher from '../../../util/gcloudPub';
 
 import {
   STRIPE_WEBHOOK_SECRET,
-  LIKER_NFT_FEE_ADDRESS,
+  LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
 import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 import { processNFTBookPurchase } from '../../../util/api/likernft/book';
@@ -149,10 +152,8 @@ router.post(
   async (req, res, next) => {
     try {
       const classId = req.query.class_id as string;
-      let { wallet } = req.query;
-      const dummyWallet = LIKER_NFT_FEE_ADDRESS;
-      if (!(wallet || dummyWallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const isPendingClaim = !wallet;
+      const { wallet } = req.query;
+      if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const { iscnPrefix } = res.locals;
       const promises = [getNFTClassDataById(classId)];
       const { nftId = '', seller = '', memo } = req.body;
@@ -234,13 +235,9 @@ router.post(
           memo,
           iscnPrefix,
           paymentId,
-          isPendingClaim: isPendingClaim ? 'true' : null,
         },
       });
       const { url, id: sessionId } = session;
-      if (isPendingClaim) {
-        wallet = dummyWallet;
-      }
       await likeNFTFiatCollection.doc(paymentId).create({
         type: 'stripe',
         sessionId,
@@ -256,7 +253,6 @@ router.post(
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
-        isPendingClaim,
       });
       const LIKEPrice = totalPrice;
       const fiatPrice = Number(fiatPriceString);
@@ -266,7 +262,6 @@ router.post(
         LIKEPrice,
         fiatPrice,
         fiatPriceString,
-        isPendingClaim,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTFiatPaymentNew',
@@ -307,6 +302,142 @@ router.get(
       }
       const docData = doc.data();
       res.json(filterLikeNFTFiatData(docData));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/pending/count',
+  async (req, res, next) => {
+    try {
+      const { email } = req.query;
+      if (!email) throw new ValidationError('EMAIL_NEEDED');
+      const snapshot = await likeNFTFiatCollection
+        .where('email', '==', email)
+        .where('status', '==', 'pendingClaim')
+        .get();
+      res.json({ count: snapshot.docs.length });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/pending/claim',
+  async (req, res, next) => {
+    try {
+      const {
+        wallet: receiverWallet,
+        payment_id: paymentId,
+        token,
+      } = req.query;
+      if (!receiverWallet || !isValidLikeAddress(receiverWallet)) throw new ValidationError('INVALID_WALLET_ADDRESS');
+      if (!paymentId) throw new ValidationError('PAYMENT_ID_NEEDED');
+      if (!token) throw new ValidationError('TOKEN_NEEDED');
+
+      const ref = likeNFTFiatCollection.doc(paymentId);
+      let classId;
+      let nftId;
+      try {
+        ({ classId, nftId } = await db.runTransaction(async (t) => {
+          const doc = await t.get(ref);
+          if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+          const { status, claimToken } = doc.data();
+          const { classId: _classId, nftId: _nftId } = doc.data();
+          if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
+          if (status !== 'pendingClaim') throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
+          t.update(ref, { status: 'claiming' });
+          return { classId: _classId, nftId: _nftId };
+        }));
+      } catch (err) {
+        if (err instanceof ValidationError && err.message === 'NFT_CLAIM_ALREADY_HANDLED') {
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'LikerNFTFiatClaimAlreadyHandled',
+            paymentId,
+            classId,
+            nftId,
+            receiverWallet,
+          });
+        }
+        throw err;
+      }
+
+      let txRes;
+      try {
+        const {
+          client,
+          wallet: senderWallet,
+          accountNumber,
+        } = await getLikerNFTPendingClaimSigningClientAndWallet();
+        const { address: senderAddress } = senderWallet;
+        const sendNFTSigningFunction = async ({ sequence }): Promise<TxRaw> => {
+          const r = await client.sendNFTs(
+            senderAddress,
+            receiverWallet as string,
+            classId,
+            [nftId],
+            {
+              accountNumber,
+              sequence,
+              chainId: COSMOS_CHAIN_ID,
+              broadcast: false,
+            },
+          );
+          return r as TxRaw;
+        };
+        txRes = await sendTransactionWithSequence(
+          senderAddress,
+          sendNFTSigningFunction,
+        );
+      } catch (err) {
+        const error = (err as Error).toString();
+        const errorMessage = (err as Error).message;
+        const errorStack = (err as Error).stack;
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'LikerNFTFiatClaimServerError',
+          paymentId,
+          classId,
+          nftId,
+          error,
+          errorMessage,
+          errorStack,
+        });
+        await ref.update({
+          status: 'error',
+          error,
+          errorMessage,
+          errorStack,
+        });
+        throw err;
+      }
+      const { transactionHash: txHash, code } = txRes as DeliverTxResponse;
+      if (code) {
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'LikerNFTFiatClaimTxError',
+          paymentId,
+          classId,
+          nftId,
+          errorCode: code,
+          errorTransactionHash: txHash,
+        });
+        await ref.update({
+          status: 'error',
+          errorCode: code,
+          errorTransactionHash: txHash,
+        });
+        throw new ValidationError(`TX_${txHash}_FAILED_WITH_CODE_${code}`);
+      }
+      await ref.update({
+        status: 'done',
+        wallet: receiverWallet,
+        claimTransactionHash: txHash,
+        claimTimestamp: Date.now(),
+      });
+
+      res.json({ classId, nftId, txHash });
     } catch (err) {
       next(err);
     }
