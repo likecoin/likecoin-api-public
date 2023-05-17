@@ -207,17 +207,17 @@ export function sendPendingClaimEmail({
           <p>感謝購買 《<a
               href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》。</p>
           <p>請完成以下兩個簡單步驟，以領取作品的 Writing NFT：</p>
-          <p>1）連接錢包</p>
-          <p>2）驗證電郵地址</p>
+          <p>1. 連接錢包</p>
+          <p>2. 驗證電郵地址</p>
           <br/>
-          <b>步驟一：連接錢包</b>
+          <p><b>步驟一：連接錢包</b></p>
           <p>先在 Chrome 瀏覽器安裝 Keplr 錢包，請參考以下教學影片：</p>
           <p><a href="https://youtu.be/WQGW1P0KgOA">如何安裝 Keplr 及使用 LikeCoin （國語）</a></p>
           <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
           <p>若你已安裝 Keplr 錢包，可跳過此步驟。</p>
           <br/>
-          <b>步驟二：驗證電郵地址</b>
-          <p>1. 點擊此<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">Liker Land 驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
+          <p><b>步驟二：驗證電郵地址</b></p>
+          <p>1. 點擊此<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
           <p>2. 點擊 Keplr 彈出視窗的「Approve」按鈕，進行簽署，完成連接錢包。</p>
           <p>3. 信箱設定頁面已預設你的信箱地址，請點選「確認」按鈕，系統將寄出驗證電郵到你的信箱。</p>
           <p>4. 點選驗證電郵的連結完成驗證。</p>
@@ -229,29 +229,26 @@ export function sendPendingClaimEmail({
           <p>Liker Land</p>
           <br/>
           <br/>
-          <p>Dear Liker,</p>
-          <p>Thank you for purchasing the Writing NFT of "<a
-              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>".</p>
-          <p>Please complete the following two steps so that we can deliver your Writing NFT to you.</p>
-          <p>1. Connect your LikeCoin wallet</p>
-          <p>2. Verify your email address</p>
+          <p>Dear reader,</p>
+          <p>Thank you for purchasing "<a href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>".</p>
+          <p>Please complete the following two simple steps to receive the Writing NFT:</p>
+          <p>1. Connect your wallet.</p>
+          <p>2. Verify your email address.</p>
           <br/>
-          <p><b>Step 1. Connect your LikeCoin wallet</strong></b></p>
-          <p>To obtain your new LikeCoin address, please refer to the following steps and install the Keplr wallet 
-            on the Chrome browser.</p>
-          <p><a href="https://docs.like.co/general-guides/wallet/keplr">How to install Keplr and use LikeCoin</a></p>
-          <p>You can skip this step if you already have Keplr wallet installed</p>
+          <p><b>Step 1: Connect your wallet</b></p>
+          <p>First, install the Keplr wallet on your Chrome browser. Please refer to <a href="https://docs.like.co/general-guides/wallet/keplr">this tutorial</a>.</p>
+          <p>If you have already installed the Keplr wallet, you can skip this step.</p>
           <br/>
-          <p><b>Step 2. Verify your email adddress</b></p>
-          <p>1. Open the <a href="https://${LIKER_LAND_HOSTNAME}/en/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">Liker Land email verification link</a>. Press "Connect Wallet" on the top right hand corner, then choose Keplr in the popup dialog.</p>
-          <p>2. Click "Approve" in the Keplr popup dialog to sign and connect your LikeCoin wallet</p>
-          <p>3. Your email address should already be prefilled. Press "Confirmed" and a verification email will be sent to you</p>
-          <p>4. Click the link in the verification email to complete email verification.</p>
+          <p><b>Step 2. Verify your email address</b></p>
+          <p>After installing Keplr on your browser:</p>
+          <p>1. Click on this <a href="https://${LIKER_LAND_HOSTNAME}/en/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">email verification link</a>, then click the "Connect Wallet" button and select "Keplr" from the pop-up window.</p>
+          <p>2. Click the "Approve" button on the Keplr pop-up window to sign and complete the wallet connection.</p>
+          <p>3. Your email address has been pre-set in the mailbox settings page. Click the "Confirm" button, and the system will send a verification email to your inbox.</p>
+          <p>4. Click on the verification link in the email to complete the verification process.</p>
           <br/>
-          <p>After completing the above steps. Your Writing NFT will be automatically sent to your provided LikeCoin address。You can see all your collected works in the "My Dashboard" on Liker Land</p>
+          <p>After completing the above two steps, the system will send the Writing NFT you purchased to you. You can check it in "My Dashboard" on Liker Land.</p>
           <br/>
-          <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
-            Land customer service</a>.</p>
+          <p>If you have any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker Land Customer Service</a>.</p>
           <p>Thank you for supporting creativity.</p>
           <p>Liker Land</p>
           `,
