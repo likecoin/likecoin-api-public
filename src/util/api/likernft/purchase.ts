@@ -27,6 +27,7 @@ import {
   LIKER_NFT_DECAY_END_BATCH,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
+import { NFTValidationError } from '../../NFTValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -227,7 +228,6 @@ async function calculateLIKEAndPopulateTxMsg({
   const STAKEHOLDERS_RATIO = 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
-  const { owner, data } = iscnData;
   const totalPrice = nftPrice + gasFee;
   const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
   const feeAmount = new BigNumber(nftPrice)
@@ -259,8 +259,8 @@ async function calculateLIKEAndPopulateTxMsg({
   }
 
   const stakeholderMap = await parseAndCalculateStakeholderRewards(
-    data,
-    owner,
+    iscnData,
+    sellerWallet,
     { totalAmount: stakeholdersAmount, precision: 0 },
   );
   stakeholderMap.forEach(({ amount }, wallet) => {
@@ -343,7 +343,11 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
     // eslint-disable-next-line no-console
     console.error(`Tx ${transactionHash} failed with code ${code}`);
     if (code === 4 && rawLog.includes('is not the owner of nft')) {
-      throw new ValidationError('NFT_NOT_OWNED_BY_API_WALLET');
+      const nftId = rawLog.split(' ').find((s) => s.startsWith('writing-')).split(':')[0];
+      throw new NFTValidationError({
+        message: 'NFT_NOT_OWNED_BY_API_WALLET',
+        nftId,
+      });
     } else {
       throw new ValidationError('TX_NOT_SUCCESS');
     }
@@ -554,121 +558,126 @@ async function updateDocsForMissingSoldNFT(t, {
 
 export async function processNFTPurchase({
   buyerWallet,
-  iscnPrefix,
-  classId,
+  iscnPrefixes,
+  classIds,
   granterWallet = buyerWallet,
   grantedAmount,
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
 }, req) {
-  const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
-  if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
-  const { owner: sellerWallet } = iscnData;
+  const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
+    const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
+    if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
+    return iscnData;
+  }));
 
-  const memo = await generateCustomMemo(iscnPrefix, classId, buyerWallet);
+  const memo = classIds.length === 1
+    ? await generateCustomMemo(iscnPrefixes[0], classIds[0], buyerWallet)
+    : '(multiple purchase)';
 
   // lock iscn nft
-  const priceInfo = await db.runTransaction(async (t) => {
-    // eslint-disable-next-line no-underscore-dangle
-    const _priceInfo = await getPriceInfoAndLockDocs(iscnPrefix, classId, t);
-    return _priceInfo;
-  });
-  const {
-    nextNewNFTId: nftId,
-    price: nftPrice,
-    currentBatch,
-  } = priceInfo;
-  if (nftPrice > grantedAmount) {
+  const priceInfoList = await db.runTransaction((t) => (
+    Promise.all(classIds.map((_, i) => (
+      getPriceInfoAndLockDocs(iscnPrefixes[i], classIds[i], t)
+    )))
+  ));
+
+  const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
+  if (dbNFTTotalPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
   }
 
+  let purchaseInfoList = classIds.map((_, i) => ({
+    iscnPrefix: iscnPrefixes[i],
+    classId: classIds[i],
+    iscnData: iscnDataList[i].data,
+    sellerWallet: iscnDataList[i].owner,
+    nftId: priceInfoList[i].nextNewNFTId,
+    nftPrice: priceInfoList[i].price,
+    currentBatch: priceInfoList[i].currentBatch,
+  }));
+
+  const feeWallet = LIKER_NFT_FEE_ADDRESS;
+
   try {
-    const feeWallet = LIKER_NFT_FEE_ADDRESS;
-    const {
-      txMessages,
-      sellerLIKE,
-      feeLIKE,
-      stakeholderWallets,
-      stakeholderLIKEs,
-      gasFee,
-    } = await calculateLIKEAndPopulateTxMsg({
-      iscnData,
-      nftPrice,
-      sellerWallet,
-      feeWallet,
-      granterWallet,
-      buyerWallet,
-      classId,
-      nftId,
+    const likeDistributionAndTxMsgList = await Promise.all(
+      purchaseInfoList.map(async (info) => (
+        calculateLIKEAndPopulateTxMsg({
+          feeWallet,
+          granterWallet,
+          buyerWallet,
+          ...info,
+        })
+      )),
+    );
+    purchaseInfoList = purchaseInfoList.map((info, i) => {
+      const { txMessages: _, ...distributionInfo } = likeDistributionAndTxMsgList[i];
+      return {
+        ...info,
+        ...distributionInfo,
+      };
     });
+    const txMessages = likeDistributionAndTxMsgList.flatMap((d) => d.txMessages);
     const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
     const timestamp = Date.now();
 
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTPurchaseTransaction',
-      txHash,
-      iscnId: iscnPrefix,
-      classId,
-      nftId,
-      buyerWallet,
+    classIds.forEach((_, i) => {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseTransaction',
+        txHash,
+        iscnId: iscnPrefixes[i],
+        classId: classIds[i],
+        nftId: purchaseInfoList[i].nftId,
+        buyerWallet,
+      });
     });
 
     await db.runTransaction(async (t) => {
-      await updateDocsForSuccessPurchase(t, {
-        iscnPrefix,
-        classId,
-        nftId,
-        sellerWallet,
+      await Promise.all(purchaseInfoList.map((info) => updateDocsForSuccessPurchase(t, {
         buyerWallet,
         granterWallet,
-        currentBatch,
-        nftPrice,
         timestamp,
         txHash,
         memo,
         grantTxHash,
         granterMemo,
-        sellerLIKE,
-        stakeholderWallets,
-        stakeholderLIKEs,
-      });
+        ...info,
+      })));
     });
+
     return {
       transactionHash: txHash,
-      classId,
-      nftId,
-      nftPrice,
-      gasFee,
-      sellerWallet,
-      sellerLIKE,
-      stakeholderWallets,
-      stakeholderLIKEs,
       feeWallet,
-      feeLIKE,
+      purchaseInfoList,
     };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
     // reset lock
     const shouldRetryPurchase = await db.runTransaction(async (t) => {
-      await resetLockedPurchaseDocs({
-        iscnPrefix,
-        classId,
-        nftId,
-        currentBatch,
-        t,
-      });
+      await Promise.all(classIds.map((_, i) => (
+        resetLockedPurchaseDocs({
+          iscnPrefix: iscnPrefixes[i],
+          classId: classIds[i],
+          nftId: priceInfoList[i].nextNewNFTId,
+          currentBatch: priceInfoList[i].currentBatch,
+          t,
+        })
+      )));
 
       // eslint-disable-next-line no-underscore-dangle
       const shouldUpdateSoldNFT = (
-        err instanceof ValidationError
+        err instanceof NFTValidationError
         && err.message === 'NFT_NOT_OWNED_BY_API_WALLET'
+        && err.nftId
       );
       if (shouldUpdateSoldNFT) {
+        const { nftId } = err;
+        const target = purchaseInfoList.find((info) => info.nftId === nftId);
         await updateDocsForMissingSoldNFT(t, {
-          iscnPrefix,
-          classId,
+          iscnPrefix: target.iscnPrefix,
+          classId: target.classId,
           nftId,
           granterWallet,
           grantTxHash,
@@ -677,18 +686,20 @@ export async function processNFTPurchase({
       }
       return shouldUpdateSoldNFT && retryTimes < 1;
     });
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTPurchaseError',
-      iscnId: iscnPrefix,
-      classId,
-      nftId,
-      buyerWallet,
+    classIds.forEach((_, i) => {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseError',
+        iscnId: iscnPrefixes[i],
+        classId: classIds[i],
+        nftId: priceInfoList[i].nextNewNFTId,
+        buyerWallet,
+      });
     });
     if (shouldRetryPurchase) {
       return processNFTPurchase({
         buyerWallet,
-        iscnPrefix,
-        classId,
+        iscnPrefixes,
+        classIds,
         granterWallet,
         grantedAmount,
         grantTxHash,
