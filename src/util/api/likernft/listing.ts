@@ -40,16 +40,32 @@ export function formatListingInfo(info: {
   };
 }
 
+function getNFTOwnershipMap(owners): Record<string, Set<string>> {
+  const map = {};
+  owners.forEach((o) => {
+    map[o.owner] = new Set(o.nfts);
+  });
+  return map;
+}
+
 export async function fetchNFTListingInfo(classId: string) {
-  const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`);
-  const info = data.listings;
+  const [{ data: { listings } }, { data: { owners } }] = await Promise.all([
+    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`),
+    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/owner?class_id=${classId}`),
+  ]);
+  const ownershipMap = getNFTOwnershipMap(owners);
+  const info = listings.filter((l) => ownershipMap[l.seller].has(l.nft_id));
   return info;
 }
 
 export async function fetchNFTListingInfoByNFTId(classId: string, nftId: string) {
-  const { data } = await axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}/${nftId}`);
-  const info = data.listings[0];
-  return info || null;
+  const [{ data: { listings } }, { data: { owners } }] = await Promise.all([
+    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}/${nftId}`),
+    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/owner?class_id=${classId}`),
+  ]);
+  const ownershipMap = getNFTOwnershipMap(owners);
+  const info = listings[0];
+  return info && ownershipMap[info.seller].has(info.nft_id) ? info : null;
 }
 
 async function handleNFTBuyListingTransaction({
