@@ -27,7 +27,6 @@ import {
   LIKER_NFT_DECAY_END_BATCH,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
-import { NFTValidationError } from '../../NFTValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -344,10 +343,11 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
     console.error(`Tx ${transactionHash} failed with code ${code}`);
     if (code === 4 && rawLog.includes('is not the owner of nft')) {
       const nftId = rawLog.split(' ').find((s) => s.startsWith('writing-')).split(':')[0];
-      throw new NFTValidationError({
-        message: 'NFT_NOT_OWNED_BY_API_WALLET',
-        nftId,
-      });
+      throw new ValidationError(
+        'NFT_NOT_OWNED_BY_API_WALLET',
+        409,
+        { nftId },
+      );
     } else {
       throw new ValidationError('TX_NOT_SUCCESS');
     }
@@ -668,12 +668,12 @@ export async function processNFTPurchase({
 
       // eslint-disable-next-line no-underscore-dangle
       const shouldUpdateSoldNFT = (
-        err instanceof NFTValidationError
+        err instanceof ValidationError
         && err.message === 'NFT_NOT_OWNED_BY_API_WALLET'
-        && err.nftId
+        && err.payload?.nftId
       );
       if (shouldUpdateSoldNFT) {
-        const { nftId } = err;
+        const { nftId } = err.payload;
         const target = purchaseInfoList.find((info) => info.nftId === nftId);
         await updateDocsForMissingSoldNFT(t, {
           iscnPrefix: target.iscnPrefix,
