@@ -59,13 +59,12 @@ export async function fetchNFTListingInfo(classId: string) {
 }
 
 export async function fetchNFTListingInfoByNFTId(classId: string, nftId: string) {
-  const [{ data: { listings } }, { data: { owners } }] = await Promise.all([
+  const [{ data: { listings } }, { data: { owner } }] = await Promise.all([
     axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}/${nftId}`),
-    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/owner?class_id=${classId}`),
+    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/nft/v1beta1/owner/${classId}/${nftId}`),
   ]);
-  const ownershipMap = getNFTOwnershipMap(owners);
   const info = listings[0];
-  return info && ownershipMap[info.seller].has(info.nft_id) ? info : null;
+  return info && info.seller === owner ? info : null;
 }
 
 async function handleNFTBuyListingTransaction({
