@@ -92,7 +92,7 @@ router.post(
       }, req);
       res.json({
         txHash,
-        purchaseInfoList: purchaseInfoList.map((info) => ({
+        purchased: purchaseInfoList.map((info) => ({
           iscnId: info.iscnPrefix,
           classId: info.classId,
           nftId: info.nftId,
