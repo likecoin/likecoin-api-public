@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { firestore } from 'firebase-admin';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
@@ -83,9 +84,9 @@ export async function processNFTBookPurchase(
       const paymentData = paymentDoc.data();
       if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
       if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
-      priceInfo.stock = FieldValue.increment(-1);
-      priceInfo.sold = FieldValue.increment(1);
-      priceInfo.lastSaleTimestamp = FieldValue.serverTimestamp();
+      priceInfo.stock -= 1;
+      priceInfo.sold += 1;
+      priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
       t.update(bookRef, {
         prices,
         lastSaleTimestamp: FieldValue.serverTimestamp(),
