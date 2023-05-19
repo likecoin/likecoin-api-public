@@ -35,6 +35,7 @@ export const fetchISCNPrefixes = async (req, res, next) => {
     const { class_id: classId } = req.query;
     if (!classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
     const classIds = Array.isArray(classId) ? classId : [classId];
+    if (classIds.length > 100) throw new ValidationError('CLASS_NUMBER_EXCESS_100', 422);
     const iscnPrefixes = await Promise.all(classIds.map((id) => getISCNPrefixByClassId(id)));
     res.locals.iscnPrefixes = iscnPrefixes;
     res.locals.classIds = classIds;
