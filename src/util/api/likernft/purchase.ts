@@ -660,8 +660,8 @@ export async function processNFTPurchase({
         resetLockedPurchaseDocs({
           iscnPrefix: iscnPrefixes[i],
           classId: classIds[i],
-          nftId: priceInfoList[i].nextNewNFTId,
-          currentBatch: priceInfoList[i].currentBatch,
+          nftId: purchaseInfoList[i].nftId,
+          currentBatch: purchaseInfoList[i].currentBatch,
           t,
         })
       )));
@@ -691,7 +691,7 @@ export async function processNFTPurchase({
         logType: 'LikerNFTPurchaseError',
         iscnId: iscnPrefixes[i],
         classId: classIds[i],
-        nftId: priceInfoList[i].nextNewNFTId,
+        nftId: purchaseInfoList[i].nftId,
         buyerWallet,
       });
     });
