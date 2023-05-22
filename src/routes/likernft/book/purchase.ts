@@ -18,8 +18,8 @@ const router = Router();
 router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const { from = '', price = undefined } = req.query;
-    const priceIndex = Number(price) || 0;
+    const { from = '', price_index: priceIndexString = undefined } = req.query;
+    const priceIndex = Number(priceIndexString) || 0;
 
     const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
     const [metadata, bookInfo] = (await Promise.all(promises)) as any;
@@ -126,7 +126,7 @@ router.get(
       const { classId, paymentId } = req.params;
       const doc = await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get();
       const docData = doc.data();
-      if (!doc.data()) {
+      if (!docData) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
       }
