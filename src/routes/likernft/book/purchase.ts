@@ -37,13 +37,17 @@ router.get('/:classId/new', async (req, res, next) => {
     const {
       priceInDecimal,
       stock,
+      name: priceName,
     } = prices[priceIndex];
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
     let { image } = classMetadata;
     image = parseImageURLFromMetadata(image);
-    name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
+    name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
+    if (priceName) {
+      name = `${name} - ${priceName}`;
+    }
     description = description.length > 200
       ? `${description.substring(0, 199)}…`
       : description;

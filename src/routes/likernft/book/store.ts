@@ -66,12 +66,13 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
     const prices: any[] = [];
     docPrices.forEach((p) => {
       const {
+        name,
         priceInDecimal,
         sold: pSold = 0,
         stock: pStock = 0,
       } = p;
       const price = priceInDecimal / 100;
-      const payload: any = { price, isSoldOut: stock <= 0 };
+      const payload: any = { price, name, isSoldOut: stock <= 0 };
       if (req.user.wallet === ownerWallet) {
         payload.sold = pSold;
         payload.stock = pStock;
@@ -113,12 +114,14 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
     const {
+      name,
       priceInDecimal,
       stock,
       sold,
     } = priceInfo;
     const price = priceInDecimal / 100;
     const payload: any = {
+      name,
       price,
       priceInDecimal,
       isSoldOut: stock <= 0,
@@ -144,10 +147,11 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
     if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
     const invalidPriceIndex = prices.findIndex((p) => {
       const {
+        name,
         priceInDecimal,
         stock,
       } = p;
-      return !(Number(priceInDecimal) > 0 && Number(stock) > 0);
+      return (!(Number(priceInDecimal) > 0 && Number(stock) > 0)) && (!name || typeof name === 'string');
     });
     if (invalidPriceIndex > -1) {
       throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
