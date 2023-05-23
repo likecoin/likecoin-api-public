@@ -11,20 +11,30 @@ router.get('/list', async (req, res, next) => {
     const { wallet } = req.query;
     if (!wallet) throw new ValidationError('INVALID_WALLET');
     const bookInfos = await listNftBookInfoByOwnerWallet(wallet as string);
-
     const list = bookInfos.map((b) => {
       const {
-        priceInDecimal,
-        stock,
-        sold,
+        prices: docPrices = [],
         pendingNFTCount,
         id,
       } = b;
-      const price = priceInDecimal / 100;
+      let sold = 0;
+      let stock = 0;
+      const prices: any[] = [];
+      docPrices.forEach((p) => {
+        const {
+          priceInDecimal,
+          sold: pSold = 0,
+          stock: pStock = 0,
+        } = p;
+        const price = priceInDecimal / 100;
+        prices.push({ price, ...p });
+        sold += pSold;
+        stock += pStock;
+      });
+
       return {
         classId: id,
-        price,
-        priceInDecimal,
+        prices,
         sold,
         stock,
         pendingNFTCount,
@@ -46,16 +56,32 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       return;
     }
     const {
-      priceInDecimal,
-      stock,
-      sold,
+      prices: docPrices = [],
       pendingNFTCount,
       ownerWallet,
     } = bookInfo;
-    const price = priceInDecimal / 100;
+
+    let sold = 0;
+    let stock = 0;
+    const prices: any[] = [];
+    docPrices.forEach((p) => {
+      const {
+        priceInDecimal,
+        sold: pSold = 0,
+        stock: pStock = 0,
+      } = p;
+      const price = priceInDecimal / 100;
+      const payload: any = { price, isSoldOut: stock <= 0 };
+      if (req.user.wallet === ownerWallet) {
+        payload.sold = pSold;
+        payload.stock = pStock;
+      }
+      prices.push(payload);
+      sold += pSold;
+      stock += pStock;
+    });
     const payload: any = {
-      price,
-      priceInDecimal,
+      prices,
       isSoldOut: stock <= 0,
     };
     if (req.user.wallet === ownerWallet) {
@@ -69,15 +95,63 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
   }
 });
 
+router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+  try {
+    const { classId, priceIndex: priceIndexString } = req.params;
+    const priceIndex = Number(priceIndexString);
+    const bookInfo = await getNftBookInfo(classId);
+
+    if (!bookInfo) {
+      res.status(404).send('BOOK_NOT_FOUND');
+      return;
+    }
+    const {
+      prices = [],
+      ownerWallet,
+    } = bookInfo;
+    const priceInfo = prices[priceIndex];
+    if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
+
+    const {
+      priceInDecimal,
+      stock,
+      sold,
+    } = priceInfo;
+    const price = priceInDecimal / 100;
+    const payload: any = {
+      price,
+      priceInDecimal,
+      isSoldOut: stock <= 0,
+    };
+    if (req.user.wallet === ownerWallet) {
+      payload.sold = sold;
+      payload.stock = stock;
+    }
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
       successUrl,
       cancelUrl,
-      priceInDecimal,
-      stock,
+      prices = [],
     } = req.body;
+    if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
+    const invalidPriceIndex = prices.findIndex((p) => {
+      const {
+        priceInDecimal,
+        stock,
+      } = p;
+      return !(Number(priceInDecimal) > 0 && Number(stock) > 0);
+    });
+    if (invalidPriceIndex > -1) {
+      throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
+    }
     const result = await getISCNFromNFTClassId(classId);
     if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
     const { owner: ownerWallet } = result;
@@ -88,8 +162,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       ownerWallet,
       successUrl,
       cancelUrl,
-      priceInDecimal,
-      stock,
+      prices,
     });
     res.json({
       classId,
