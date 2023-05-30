@@ -36,6 +36,7 @@
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "dependencies": {
+    "@bundlr-network/client": "^0.11.2",
     "@cosmjs/stargate": "^0.28.4",
     "@google-cloud/pubsub": "^3.1.1",
     "@improbable-eng/grpc-web": "^0.15.0",
