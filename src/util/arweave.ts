@@ -1,4 +1,5 @@
 import Arweave from 'arweave/node';
+import Bundlr from "@bundlr-network/client";
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import stringify from 'fast-json-stable-stringify';
@@ -27,12 +28,11 @@ const arweaveGraphQL = Arweave.init({
   timeout: 5000,
 });
 
-const arweave = Arweave.init({
-  host: 'arweave.net',
-  port: 443,
-  protocol: 'https',
-  timeout: 60000,
-});
+const bundlr = new Bundlr(
+  IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
+  'arweave',
+  jwk,
+);
 
 export async function getArweaveIdFromHashes(ipfsHash) {
   const cachedInfo = arweaveIdCache.get(ipfsHash);
@@ -130,14 +130,11 @@ export async function estimateARPrice(data, checkDuplicate = true) {
       };
     }
   }
-  const transaction = await arweave.createTransaction({
-    data: buffer,
-    last_tx: 'stub_for_estimate',
-  }, jwk);
-  const { reward } = transaction;
+  const priceAtomic = await bundlr.getPrice(buffer.byteLength);
+  const priceConverted = bundlr.utils.fromAtomic(priceAtomic);
   return {
     key,
-    AR: arweave.ar.winstonToAr(reward),
+    AR: priceConverted.toFixed(),
   };
 }
 
@@ -216,27 +213,23 @@ export async function convertARPricesToLIKE(
   };
 }
 
-export async function submitToArweave(data, ipfsHash, { anchorId }: { anchorId?: string } = {}) {
-  const anchor = anchorId || (await arweave.api.get('/tx_anchor')).data;
+export async function submitToArweave(data, ipfsHash) {
   const { mimetype, buffer } = data;
-  const transaction = await arweave.createTransaction({
-    data: buffer, last_tx: anchor,
-  }, jwk);
-  transaction.addTag('User-Agent', 'api.like.co');
-  transaction.addTag(IPFS_KEY, ipfsHash);
-  transaction.addTag(IPFS_CONSTRAINT_KEY, IPFS_CONSTRAINT);
-  transaction.addTag('Content-Type', mimetype);
-  const { reward } = transaction;
+  const tags = [
+    { name: 'User-Agent', value: 'app.like.co' },
+    { name: IPFS_KEY, value: ipfsHash },
+    { name: IPFS_CONSTRAINT_KEY, value: IPFS_CONSTRAINT },
+    { name: 'Content-Type', value: mimetype },
+  ];
 
   if (!IS_TESTNET) {
-    const balance = await arweave.wallets.getBalance(await arweave.wallets.jwkToAddress(jwk));
-    if (arweave.ar.isLessThan(balance, reward)) throw new Error('INSUFFICIENT_AR_IN_PROXY');
+    const priceAtomic = await bundlr.getPrice(buffer.byteLength);
+    const atomicBalance = await bundlr.getLoadedBalance();
+    if (atomicBalance.isLessThan(priceAtomic)) throw new Error('INSUFFICIENT_AR_IN_PROXY');
   }
 
-  await arweave.transactions.sign(transaction, jwk);
-  await arweave.transactions.post(transaction);
-  arweaveIdCache.set(ipfsHash, transaction.id);
-  return transaction.id;
+  const response = await bundlr.upload(buffer, { tags });
+  return response.id;
 }
 
 export async function uploadFileToArweave(data, checkDuplicate = true) {
@@ -262,14 +255,14 @@ export async function uploadFileToArweave(data, checkDuplicate = true) {
   };
 }
 
-async function uploadManifestFile(filesWithId, { anchorId, checkDuplicate = true }) {
+async function uploadManifestFile(filesWithId, { checkDuplicate = true }) {
   const manifest: any = await generateManifestFile(filesWithId);
   const manifestIPFSHash = await getFileIPFSHash(manifest);
   let arweaveId;
   if (checkDuplicate) arweaveId = await getArweaveIdFromHashes(manifestIPFSHash);
   if (!arweaveId) {
     [arweaveId] = await Promise.all([
-      submitToArweave(manifest, manifestIPFSHash, { anchorId }),
+      submitToArweave(manifest, manifestIPFSHash),
       uploadFileToIPFS(manifest),
     ]);
   }
@@ -297,12 +290,11 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
       arweaveIds = new Array(files.length);
     }
   }
-  const anchorId = (await arweave.api.get('/tx_anchor')).data;
   if (!arweaveIds.some((id) => !id)) {
     const filesWithId = files.map((f, i) => ({ ...f, arweaveId: arweaveIds[i] }));
     const {
       manifest, ipfsHash: manifestIPFSHash,
-    } = await uploadManifestFile(filesWithId, { checkDuplicate, anchorId });
+    } = await uploadManifestFile(filesWithId, { checkDuplicate });
     const list = filesWithId.map((f, index) => ({
       key: f.key,
       arweaveId: arweaveIds[index],
@@ -328,9 +320,7 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
     }
     if (!arweaveId) {
       [arweaveId] = await Promise.all([
-        submitToArweave(f, ipfsHash, {
-          anchorId,
-        }),
+        submitToArweave(f, ipfsHash),
         uploadFileToIPFS(f),
       ]);
     }
@@ -344,7 +334,7 @@ export async function uploadFilesToArweave(files, arweaveIdList, checkDuplicate 
   /* HACK: do not check manifest duplicate, assume new since we uploaded new file to arweave */
   const { manifest, ipfsHash } = await uploadManifestFile(
     filesWithId,
-    { anchorId, checkDuplicate: false },
+    { checkDuplicate: false },
   );
   list.unshift({
     key: manifest.key,
