@@ -163,12 +163,9 @@ export const jwtOptionalAuth = (
   let algorithm = inputAlgorithm;
   try {
     const token = getToken(req);
-    const j = jwt.decode(token, { complete: true });
-    if (!j) {
-      res.status(401).send('LOGIN_NEEDED');
-      return;
-    }
-    const { payload, header } = j;
+    const decoded = jwt.decode(token, { complete: true });
+    if (!decoded) throw new Error('JWT_NOT_FOUND');
+    const { payload, header } = decoded as JwtPayload;
     if (payload && (payload as JwtPayload).azp) {
       const clientSecret = await fetchProviderClientInfo((payload as JwtPayload).azp, req);
       secret = getProviderJWTSecret(clientSecret); // eslint-disable-line no-param-reassign
