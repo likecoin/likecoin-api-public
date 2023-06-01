@@ -6,7 +6,7 @@ import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
-router.get('/list', async (req, res, next) => {
+router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { wallet } = req.query;
     if (!wallet) throw new ValidationError('INVALID_WALLET');
@@ -25,20 +25,33 @@ router.get('/list', async (req, res, next) => {
           priceInDecimal,
           sold: pSold = 0,
           stock: pStock = 0,
+          ...data
         } = p;
         const price = priceInDecimal / 100;
-        prices.push({ price, ...p });
+        const payload = {
+          price,
+          priceInDecimal,
+          ...data,
+        };
+        if (req.user && req.user.wallet === wallet) {
+          payload.sold = pSold;
+          payload.stock = pStock;
+        }
+        prices.push(payload);
         sold += pSold;
         stock += pStock;
       });
 
-      return {
+      const result: any = {
         classId: id,
         prices,
-        sold,
-        stock,
         pendingNFTCount,
       };
+      if (req.user && req.user.wallet === wallet) {
+        result.sold = sold;
+        result.stock = stock;
+      }
+      return result;
     });
     res.json({ list });
   } catch (err) {
