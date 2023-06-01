@@ -31,11 +31,11 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         const payload = {
           price,
           priceInDecimal,
+          stock: pStock,
           ...data,
         };
         if (req.user && req.user.wallet === wallet) {
           payload.sold = pSold;
-          payload.stock = pStock;
         }
         prices.push(payload);
         sold += pSold;
@@ -46,10 +46,10 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         classId: id,
         prices,
         pendingNFTCount,
+        stock,
       };
       if (req.user && req.user.wallet === wallet) {
         result.sold = sold;
-        result.stock = stock;
       }
       return result;
     });
@@ -85,10 +85,14 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
         stock: pStock = 0,
       } = p;
       const price = priceInDecimal / 100;
-      const payload: any = { price, name, isSoldOut: stock <= 0 };
+      const payload: any = {
+        price,
+        name,
+        stock,
+        sSoldOut: stock <= 0,
+      };
       if (req.user && req.user.wallet === ownerWallet) {
         payload.sold = pSold;
-        payload.stock = pStock;
       }
       prices.push(payload);
       sold += pSold;
@@ -97,10 +101,10 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
     const payload: any = {
       prices,
       isSoldOut: stock <= 0,
+      stock,
     };
     if (req.user && req.user.wallet === ownerWallet) {
       payload.sold = sold;
-      payload.stock = stock;
       payload.pendingNFTCount = pendingNFTCount;
     }
     res.json(payload);
@@ -138,10 +142,10 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       price,
       priceInDecimal,
       isSoldOut: stock <= 0,
+      stock,
     };
     if (req.user && req.user.wallet === ownerWallet) {
       payload.sold = sold;
-      payload.stock = stock;
     }
     res.json(payload);
   } catch (err) {
