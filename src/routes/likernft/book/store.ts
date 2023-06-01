@@ -73,7 +73,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       } = p;
       const price = priceInDecimal / 100;
       const payload: any = { price, name, isSoldOut: stock <= 0 };
-      if (req.user.wallet === ownerWallet) {
+      if (req.user && req.user.wallet === ownerWallet) {
         payload.sold = pSold;
         payload.stock = pStock;
       }
@@ -85,7 +85,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       prices,
       isSoldOut: stock <= 0,
     };
-    if (req.user.wallet === ownerWallet) {
+    if (req.user && req.user.wallet === ownerWallet) {
       payload.sold = sold;
       payload.stock = stock;
       payload.pendingNFTCount = pendingNFTCount;
@@ -126,7 +126,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       priceInDecimal,
       isSoldOut: stock <= 0,
     };
-    if (req.user.wallet === ownerWallet) {
+    if (req.user && req.user.wallet === ownerWallet) {
       payload.sold = sold;
       payload.stock = stock;
     }
