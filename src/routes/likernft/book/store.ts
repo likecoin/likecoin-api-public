@@ -88,8 +88,8 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       const payload: any = {
         price,
         name,
-        stock,
-        sSoldOut: stock <= 0,
+        stock: pStock,
+        isSoldOut: pStock <= 0,
       };
       if (req.user && req.user.wallet === ownerWallet) {
         payload.sold = pSold;
