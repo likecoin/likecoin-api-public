@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import BigNumber from 'bignumber.js';
 import axios from 'axios';
 import stripe from '../../../stripe';
@@ -94,10 +93,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
     wallet = await findWalletWithVerifiedEmail(email);
   }
   const isPendingClaim = !wallet;
-  let claimToken;
+  let claimToken: string | undefined;
   if (isPendingClaim) {
     wallet = LIKER_NFT_PENDING_CLAIM_ADDRESS;
-    claimToken = randomBytes(32).toString('base64url');
+    claimToken = metadata.claimToken;
   }
   try {
     await processFiatNFTPurchase({
