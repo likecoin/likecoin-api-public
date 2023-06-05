@@ -2,8 +2,9 @@ import { Router } from 'express';
 import bodyParser from 'body-parser';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
-import uuidv4 from 'uuid/v4';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { randomBytes } from 'crypto';
+import uuidv4 from 'uuid/v4';
 
 import Stripe from 'stripe';
 import stripe from '../../../util/stripe';
@@ -197,9 +198,10 @@ router.post(
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
       if (!description) { description = undefined; } // stripe does not like empty string
+      const claimToken = randomBytes(32).toString('base64url')
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}`,
+        success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}${wallet ? '' : `&claiming_token=${claimToken}`}`,
         cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`,
         line_items: [
           {
@@ -235,6 +237,7 @@ router.post(
           memo,
           iscnPrefix,
           paymentId,
+          claimToken,
         },
       });
       const { url, id: sessionId } = session;

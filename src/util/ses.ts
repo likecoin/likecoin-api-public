@@ -204,8 +204,7 @@ export function sendPendingClaimEmail({
           Charset: 'UTF-8',
           Data: `
           <p>親愛的讀者：</p>
-          <p>感謝購買 《<a
-              href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>》。</p>
+          <p>感謝購買 《<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/class/${classId}">${className}</a>》。</p>
           <p>請完成以下兩個簡單步驟，以領取作品的 Writing NFT：</p>
           <p>1. 連接錢包</p>
           <p>2. 驗證電郵地址</p>
@@ -217,7 +216,7 @@ export function sendPendingClaimEmail({
           <p>若你已安裝 Keplr 錢包，可跳過此步驟。</p>
           <br/>
           <p><b>步驟二：驗證電郵地址</b></p>
-          <p>1. 點擊此<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
+          <p>1. 點擊此<a href="https://${LIKER_LAND_HOSTNAME}/zh-Hant/nft/claim?class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
           <p>2. 點擊 Keplr 彈出視窗的「Approve」按鈕，進行簽署，完成連接錢包。</p>
           <p>3. 信箱設定頁面已預設你的信箱地址，請點選「確認」按鈕，系統將寄出驗證電郵到你的信箱。</p>
           <p>4. 點選驗證電郵的連結完成驗證。</p>
@@ -230,7 +229,7 @@ export function sendPendingClaimEmail({
           <br/>
           <br/>
           <p>Dear reader,</p>
-          <p>Thank you for purchasing "<a href="https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}">${className}</a>".</p>
+          <p>Thank you for purchasing "<a href="https://${LIKER_LAND_HOSTNAME}/en/nft/class/${classId}">${className}</a>".</p>
           <p>Please complete the following two simple steps to receive the Writing NFT:</p>
           <p>1. Connect your wallet.</p>
           <p>2. Verify your email address.</p>
@@ -241,7 +240,7 @@ export function sendPendingClaimEmail({
           <br/>
           <p><b>Step 2. Verify your email address</b></p>
           <p>After installing Keplr on your browser:</p>
-          <p>1. Click on this <a href="https://${LIKER_LAND_HOSTNAME}/en/settings/email?claim_pending_nft=true&email=${encodeURIComponent(email)}&class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">email verification link</a>, then click the "Connect Wallet" button and select "Keplr" from the pop-up window.</p>
+          <p>1. Click on this <a href="https://${LIKER_LAND_HOSTNAME}/en//nft/claim?class_id=${classId}&payment_id=${paymentId}&claiming_token=${claimToken}">email verification link</a>, then click the "Connect Wallet" button and select "Keplr" from the pop-up window.</p>
           <p>2. Click the "Approve" button on the Keplr pop-up window to sign and complete the wallet connection.</p>
           <p>3. Your email address has been pre-set in the mailbox settings page. Click the "Confirm" button, and the system will send a verification email to your inbox.</p>
           <p>4. Click on the verification link in the email to complete the verification process.</p>
@@ -312,7 +311,7 @@ export function sendNFTBookPendingClaimEmail({
           <p>1. Go to <a href="https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}/?payment_id=${paymentId}&token=${claimToken}">NFT book wallet verification page</a></p>
           <p>2. Enter your LikeCoin wallet address</p>
           <p><strong>Install Keplr</strong></p>
-          <p>If you want to receive the NFT Book with a new LikeCoin address, you can refer to the following steps and install the Keplr wallet 
+          <p>If you want to receive the NFT Book with a new LikeCoin address, you can refer to the following steps and install the Keplr wallet
             on the Chrome browser.</p>
           <p><a href="https://docs.like.co/general-guides/wallet/keplr">How to install Keplr and use LikeCoin</a></p>
           <p>After completing the installation, go back to the link in step 1 and click "connect" to retrieve your wallet address.</p>
