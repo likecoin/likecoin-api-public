@@ -577,7 +577,7 @@ export async function processNFTPurchase({
 
   const memo = classIds.length === 1
     ? await generateCustomMemo(iscnPrefixes[0], classIds[0], buyerWallet)
-    : '(multiple purchase)';
+    : '(multiple purchases)';
 
   const priceInfoList = await db.runTransaction(async (t) => {
     // eslint-disable-next-line no-underscore-dangle

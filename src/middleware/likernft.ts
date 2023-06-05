@@ -7,6 +7,8 @@ import {
   getISCNPrefixDocName,
 } from '../util/api/likernft';
 
+import { WNFT_BATCH_PURCHASE_LIMIT } from '../../config/config';
+
 export const fetchISCNPrefixAndClassId = async (req, res, next) => {
   try {
     const { iscn_id: iscnId } = req.query;
@@ -35,7 +37,7 @@ export const fetchISCNPrefixes = async (req, res, next) => {
     const { class_id: classId } = req.query;
     if (!classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
     const classIds = Array.isArray(classId) ? classId : [classId];
-    if (classIds.length > 100) throw new ValidationError('CLASS_NUMBER_EXCESS_100', 422);
+    if (classIds.length > WNFT_BATCH_PURCHASE_LIMIT) throw new ValidationError(`CLASS_NUMBER_EXCESS_${WNFT_BATCH_PURCHASE_LIMIT}`, 422);
     const iscnPrefixes = await Promise.all(classIds.map((id) => getISCNPrefixByClassId(id)));
     res.locals.iscnPrefixes = iscnPrefixes;
     res.locals.classIds = classIds;
