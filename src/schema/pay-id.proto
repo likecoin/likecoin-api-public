@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-message LikePayId {
-    bytes uuid = 1;
-    bytes address = 2;
-    uint64 amount = 3;
-}
