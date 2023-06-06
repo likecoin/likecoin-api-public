@@ -1,11 +1,6 @@
 import BigNumber from 'bignumber.js';
-import * as uuidParse from 'uuid-parse';
-import * as bech32 from 'bech32';
-import Long from 'long';
-import base64url from 'base64url';
 
 import { LIKEToAmount, amountToLIKE } from '../../cosmos';
-import { LikePayId } from '../../../schema/pay-id';
 
 export function filterMultipleTxData(data, filter = {}) {
   const {
@@ -51,19 +46,4 @@ export function filterMultipleTxData(data, filter = {}) {
   return output;
 }
 
-export function decodeLikePayId(payId) {
-  const buffer = base64url.toBuffer(payId);
-  const {
-    uuid: uuidBuffer,
-    address: addressBuffer,
-    amount: amountBuffer,
-  } = LikePayId.decode(buffer, undefined);
-  const uuid = uuidParse.unparse(uuidBuffer);
-  const address = bech32.encode('cosmos', bech32.toWords(addressBuffer));
-  const bigAmount = Long.fromValue(amountBuffer, true).toString(10);
-  return {
-    uuid,
-    address,
-    bigAmount,
-  };
-}
+export default filterMultipleTxData;
