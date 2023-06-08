@@ -28,6 +28,7 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
 import { processNFTBookPurchase } from '../../../util/api/likernft/book';
+import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
 
 const router = Router();
 
@@ -188,8 +189,13 @@ router.post(
       const claimToken = randomBytes(32).toString('base64url')
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        success_url: `https://${LIKER_LAND_HOSTNAME}/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}${wallet ? '' : `&claiming_token=${claimToken}`}`,
-        cancel_url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`,
+        success_url: getLikerLandNFTFiatStripePurchasePageURL({
+          classId,
+          paymentId,
+          token: claimToken,
+          wallet: wallet as string,
+        }),
+        cancel_url: getLikerLandNFTClassPageURL({ classId }),
         line_items: [
           {
             price_data: {
