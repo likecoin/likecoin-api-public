@@ -109,7 +109,7 @@ router.post(
         uri,
         parent,
       };
-      const { sellerWallet } = await writeMintedNFTInfo(iscnPrefix, {
+      const { sellerWallet, basePrice } = await writeMintedNFTInfo(iscnPrefix, {
         ...chainMetadata,
         initialBatch,
         classId,
@@ -134,6 +134,8 @@ router.post(
         uri,
         platform,
         contentUrl,
+        initialBatch,
+        basePrice,
       };
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
