@@ -129,5 +129,6 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
   await batch.commit();
   return {
     sellerWallet,
+    basePrice: price,
   };
 }
