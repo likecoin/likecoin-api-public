@@ -96,7 +96,11 @@ export async function processStripeFiatNFTPurchase(session, req) {
   let claimToken: string | undefined;
   if (isPendingClaim) {
     wallet = LIKER_NFT_PENDING_CLAIM_ADDRESS;
-    claimToken = docData.claimToken;
+    if (docData.claimToken) {
+      claimToken = docData.claimToken;
+    } else {
+      throw new ValidationError('CLAIM_TOKEN_NOT_FOUND');
+    }
   }
   try {
     await processFiatNFTPurchase({
