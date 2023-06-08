@@ -18,6 +18,7 @@ import {
   NFT_MESSAGE_SLACK_USER,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
+import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -262,7 +263,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*NFT Class*\n<https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}|${classId}>`,
+            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId })}|${classId}>`,
           },
         },
       ];

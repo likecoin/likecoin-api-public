@@ -1,0 +1,33 @@
+import { LIKER_LAND_HOSTNAME } from "../constant";
+
+export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
+
+export const getLikerLandNFTClassPageURL = ({ classId, language }: { classId: string, language?: string }) => getLikerLandURL(`/nft/class/${classId}`, { language });
+
+export const getLikerLandNFTClaimPageURL = ({
+  classId,
+  paymentId,
+  token,
+  type = '',
+  language,
+}: {
+  classId: string;
+  paymentId: string;
+  token: string;
+  type?: string;
+  language?: string;
+}) => getLikerLandURL(`/nft/claim?class_id=${classId}&payment_id=${paymentId}&claiming_token=${token}${type ? `&type=${type}` : ''}`, { language });
+
+export const getLikerLandNFTFiatStripePurchasePageURL = ({
+  classId,
+  paymentId,
+  wallet,
+  token,
+  language,
+}: {
+  classId: string;
+  paymentId: string;
+  wallet: string;
+  token: string;
+  language?: string;
+}) => getLikerLandURL(`/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}${wallet ? '' : `&claiming_token=${token}`}`, { language });

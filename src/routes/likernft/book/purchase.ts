@@ -9,10 +9,11 @@ import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
-import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookClaimedEmail } from '../../../util/ses';
+import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 
 const router = Router();
 
@@ -30,8 +31,13 @@ router.get('/:classId/new', async (req, res, next) => {
     const claimToken = crypto.randomBytes(32).toString('hex');
     const {
       prices,
-      successUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/${classId}?payment_id=${paymentId}&token=${claimToken}`,
-      cancelUrl = `https://${NFT_BOOKSTORE_HOSTNAME}/claim-nft-book/canceled`,
+      successUrl = getLikerLandNFTClaimPageURL({
+        classId,
+        paymentId,
+        token: claimToken,
+        type: 'nft_book',
+      }),
+      cancelUrl = getLikerLandNFTClassPageURL({ classId }),
       ownerWallet,
     } = bookInfo;
     if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
