@@ -237,11 +237,10 @@ router.post(
           memo,
           iscnPrefix,
           paymentId,
-          claimToken,
         },
       });
       const { url, id: sessionId } = session;
-      await likeNFTFiatCollection.doc(paymentId).create({
+      const docData: any = {
         type: 'stripe',
         sessionId,
         wallet,
@@ -256,7 +255,11 @@ router.post(
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
-      });
+      };
+      if (!wallet) {
+        docData.claimToken = claimToken;
+      }
+      await likeNFTFiatCollection.doc(paymentId).create(docData);
       const LIKEPrice = totalPrice;
       const fiatPrice = Number(fiatPriceString);
       res.json({
