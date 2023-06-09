@@ -238,8 +238,8 @@ router.get(
       const bookDoc = await likeNFTBookCollection.doc(classId).get();
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet } = bookDocData;
-      if (ownerWallet !== req.user.wallet) {
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }
       const query = await likeNFTBookCollection.doc(classId).collection('transactions')

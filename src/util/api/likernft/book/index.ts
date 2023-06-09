@@ -11,6 +11,8 @@ export async function newNftBookInfo(classId, data) {
     ownerWallet,
     successUrl,
     cancelUrl,
+    notificationEmails,
+    moderatorWallets,
   } = data;
   const newPrices = prices.map((p) => ({
     sold: 0,
@@ -25,7 +27,19 @@ export async function newNftBookInfo(classId, data) {
   };
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
+  if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
+  if (notificationEmails) payload.notificationEmails = notificationEmails;
   await likeNFTBookCollection.doc(classId).create(payload);
+}
+
+export async function updateNftBookSettings(classId, {
+  notificationEmails = [],
+  moderatorWallets = [],
+}) {
+  await likeNFTBookCollection.doc(classId).update({
+    notificationEmails,
+    moderatorWallets,
+  });
 }
 
 export async function getNftBookInfo(classId) {
@@ -36,6 +50,14 @@ export async function getNftBookInfo(classId) {
 
 export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
   const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
+  return query.docs.map((doc) => {
+    const docData = doc.data();
+    return { id: doc.id, ...docData };
+  });
+}
+
+export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) {
+  const query = await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
@@ -121,4 +143,36 @@ export async function processNFTBookPurchase(
     await stripe.paymentIntents.cancel(paymentIntent as string)
       .catch((error) => console.error(error)); // eslint-disable-line no-console
   }
+}
+
+export function parseBookSalesData(priceData, isAuthorized) {
+  let sold = 0;
+  let stock = 0;
+  const prices: any[] = [];
+  priceData.forEach((p) => {
+    const {
+      name,
+      priceInDecimal,
+      sold: pSold = 0,
+      stock: pStock = 0,
+    } = p;
+    const price = priceInDecimal / 100;
+    const payload: any = {
+      price,
+      name,
+      stock: pStock,
+      isSoldOut: pStock <= 0,
+    };
+    if (isAuthorized) {
+      payload.sold = pSold;
+    }
+    prices.push(payload);
+    sold += pSold;
+    stock += pStock;
+  });
+  return {
+    sold,
+    stock,
+    prices,
+  };
 }
