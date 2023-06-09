@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  MIN_BOOK_PRICE_DECIMAL,
   getNftBookInfo,
   listNftBookInfoByModeratorWallet,
   listNftBookInfoByOwnerWallet,
@@ -169,7 +170,12 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
         priceInDecimal,
         stock,
       } = p;
-      return (!(Number(priceInDecimal) > 0 && Number(stock) > 0)) && (!name || typeof name === 'string');
+      return !(priceInDecimal > 0
+        && stock > 0
+        && (typeof priceInDecimal === 'number')
+        && (typeof stock === 'number')
+        && (!name || typeof name === 'string')
+        && priceInDecimal > MIN_BOOK_PRICE_DECIMAL);
     });
     if (invalidPriceIndex > -1) {
       throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);

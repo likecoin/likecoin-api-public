@@ -5,6 +5,8 @@ import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 
+export const MIN_BOOK_PRICE_DECIMAL = 500; // 500 USD
+
 export async function newNftBookInfo(classId, data) {
   const {
     prices,
