@@ -3,7 +3,7 @@ import { firestore } from 'firebase-admin';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
-import { sendNFTBookPendingClaimEmail } from '../../../ses';
+import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 
 export async function newNftBookInfo(classId, data) {
   const {
@@ -82,6 +82,7 @@ export async function processNFTBookPurchase(
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
+    amount_total: amountTotal,
   } = session;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -121,7 +122,7 @@ export async function processNFTBookPurchase(
       });
       return docData;
     });
-    const { claimToken } = bookData;
+    const { claimToken, notificationEmails = [] } = bookData;
     await stripe.paymentIntents.capture(paymentIntent as string);
     if (email) {
       await sendNFTBookPendingClaimEmail({
@@ -130,6 +131,14 @@ export async function processNFTBookPurchase(
         className: classId,
         paymentId,
         claimToken,
+      });
+    }
+    if (notificationEmails.length) {
+      await sendNFTBookSalesEmail({
+        buyerEmail: email,
+        emails: notificationEmails,
+        classId,
+        amount: (amountTotal || 0) / 100,
       });
     }
   } catch (err) {
