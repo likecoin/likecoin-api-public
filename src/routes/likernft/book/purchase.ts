@@ -4,7 +4,7 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import { getNftBookInfo } from '../../../util/api/likernft/book';
+import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
@@ -44,7 +44,7 @@ router.get('/:classId/new', async (req, res, next) => {
     const {
       priceInDecimal,
       stock,
-      name: priceName,
+      name: priceNameObj,
     } = prices[priceIndex];
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
@@ -52,6 +52,7 @@ router.get('/:classId/new', async (req, res, next) => {
     let { image } = classMetadata;
     image = parseImageURLFromMetadata(image);
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
+    const priceName = priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE];
     if (priceName) {
       name = `${name} - ${priceName}`;
     }
