@@ -16,10 +16,19 @@ export async function newNftBookInfo(classId, data) {
     notificationEmails,
     moderatorWallets,
   } = data;
-  const newPrices = prices.map((p) => ({
-    sold: 0,
-    ...p,
-  }));
+  const newPrices = prices.map((p) => {
+    const {
+      name,
+      priceInDecimal,
+      stock,
+    } = p;
+    return {
+      sold: 0,
+      stock,
+      name,
+      priceInDecimal,
+    };
+  });
   const payload: any = {
     classId,
     pendingNFTCount: 0,
