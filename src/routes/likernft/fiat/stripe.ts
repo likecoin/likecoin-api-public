@@ -26,7 +26,6 @@ import {
   STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
-import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 import { processNFTBookPurchase } from '../../../util/api/likernft/book';
 
 const router = Router();
@@ -55,28 +54,16 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'checkout.session.completed': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
-          subscription: subscriptionId,
           metadata: { store } = {} as any,
         } = session;
         if (store === 'book') {
           await processNFTBookPurchase(session, req);
-        } else if (subscriptionId) {
-          await processStripeNFTSubscriptionSession(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }
         break;
       }
-      case 'invoice.paid': {
-        const invoice = event.data.object;
-        const {
-          subscription: subscriptionId,
-        } = invoice;
-        if (subscriptionId) {
-          await processStripeNFTSubscriptionInvoice(invoice, req);
-        }
-        break;
-      }
+      case 'invoice.paid':
       default: {
         res.sendStatus(415);
         return;
