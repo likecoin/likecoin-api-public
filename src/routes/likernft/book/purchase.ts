@@ -6,7 +6,7 @@ import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
-import { parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
+import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -73,7 +73,7 @@ router.get('/:classId/new', async (req, res, next) => {
             product_data: {
               name,
               description,
-              images: [image],
+              images: [encodedURL(image)],
               metadata: {
                 classId: classId as string,
               },
@@ -238,8 +238,8 @@ router.get(
       const bookDoc = await likeNFTBookCollection.doc(classId).get();
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet } = bookDocData;
-      if (ownerWallet !== req.user.wallet) {
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }
       const query = await likeNFTBookCollection.doc(classId).collection('transactions')

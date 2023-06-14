@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { getNftBookInfo, listNftBookInfoByOwnerWallet, newNftBookInfo } from '../../../util/api/likernft/book';
+import {
+  MIN_BOOK_PRICE_DECIMAL,
+  getNftBookInfo,
+  listNftBookInfoByModeratorWallet,
+  listNftBookInfoByOwnerWallet,
+  newNftBookInfo,
+  parseBookSalesData,
+  updateNftBookSettings,
+} from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
@@ -10,47 +18,54 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { wallet } = req.query;
     if (!wallet) throw new ValidationError('INVALID_WALLET');
-    const bookInfos = await listNftBookInfoByOwnerWallet(wallet as string);
-    const list = bookInfos.map((b) => {
+    const ownedBookInfos = await listNftBookInfoByOwnerWallet(wallet as string);
+    const list = ownedBookInfos.map((b) => {
+      const {
+        prices: docPrices = [],
+        pendingNFTCount,
+        moderatorWallets,
+        ownerWallet,
+        id,
+      } = b;
+      const isAuthorized = req.user
+        && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
+      const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
+      const result: any = {
+        classId: id,
+        prices,
+        stock,
+      };
+      if (req.user && req.user.wallet === wallet) {
+        result.pendingNFTCount = pendingNFTCount;
+        result.sold = sold;
+      }
+      return result;
+    });
+    res.json({ list });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {
+  try {
+    const { wallet } = req.query;
+    if (!wallet) throw new ValidationError('INVALID_WALLET');
+    const moderatedBookInfos = await listNftBookInfoByModeratorWallet(req.user.wallet);
+    const list = moderatedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
         pendingNFTCount,
         id,
       } = b;
-      let sold = 0;
-      let stock = 0;
-      const prices: any[] = [];
-      docPrices.forEach((p) => {
-        const {
-          priceInDecimal,
-          sold: pSold = 0,
-          stock: pStock = 0,
-          ...data
-        } = p;
-        const price = priceInDecimal / 100;
-        const payload = {
-          price,
-          priceInDecimal,
-          stock: pStock,
-          ...data,
-        };
-        if (req.user && req.user.wallet === wallet) {
-          payload.sold = pSold;
-        }
-        prices.push(payload);
-        sold += pSold;
-        stock += pStock;
-      });
-
+      const { stock, sold, prices } = parseBookSalesData(docPrices, true);
       const result: any = {
         classId: id,
         prices,
         pendingNFTCount,
         stock,
+        sold,
       };
-      if (req.user && req.user.wallet === wallet) {
-        result.sold = sold;
-      }
       return result;
     });
     res.json({ list });
@@ -72,40 +87,22 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       prices: docPrices = [],
       pendingNFTCount,
       ownerWallet,
+      moderatorWallets = [],
+      notificationEmails,
     } = bookInfo;
-
-    let sold = 0;
-    let stock = 0;
-    const prices: any[] = [];
-    docPrices.forEach((p) => {
-      const {
-        name,
-        priceInDecimal,
-        sold: pSold = 0,
-        stock: pStock = 0,
-      } = p;
-      const price = priceInDecimal / 100;
-      const payload: any = {
-        price,
-        name,
-        stock: pStock,
-        isSoldOut: pStock <= 0,
-      };
-      if (req.user && req.user.wallet === ownerWallet) {
-        payload.sold = pSold;
-      }
-      prices.push(payload);
-      sold += pSold;
-      stock += pStock;
-    });
+    const isAuthorized = req.user
+      && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
+    const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
     const payload: any = {
       prices,
       isSoldOut: stock <= 0,
       stock,
     };
-    if (req.user && req.user.wallet === ownerWallet) {
+    if (isAuthorized) {
       payload.sold = sold;
       payload.pendingNFTCount = pendingNFTCount;
+      payload.moderatorWallets = moderatorWallets;
+      payload.notificationEmails = notificationEmails;
     }
     res.json(payload);
   } catch (err) {
@@ -126,6 +123,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
     const {
       prices = [],
       ownerWallet,
+      moderatorWallets = [],
     } = bookInfo;
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
@@ -144,7 +142,9 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       isSoldOut: stock <= 0,
       stock,
     };
-    if (req.user && req.user.wallet === ownerWallet) {
+    const isAuthorized = req.user
+      && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
+    if (isAuthorized) {
       payload.sold = sold;
     }
     res.json(payload);
@@ -160,6 +160,8 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       successUrl,
       cancelUrl,
       prices = [],
+      notificationEmails = [],
+      moderatorWallets = [],
     } = req.body;
     if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
     const invalidPriceIndex = prices.findIndex((p) => {
@@ -168,7 +170,12 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
         priceInDecimal,
         stock,
       } = p;
-      return (!(Number(priceInDecimal) > 0 && Number(stock) > 0)) && (!name || typeof name === 'string');
+      return !(priceInDecimal > 0
+        && stock > 0
+        && (typeof priceInDecimal === 'number')
+        && (typeof stock === 'number')
+        && (!name || typeof name === 'string')
+        && priceInDecimal > MIN_BOOK_PRICE_DECIMAL);
     });
     if (invalidPriceIndex > -1) {
       throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
@@ -184,6 +191,33 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       successUrl,
       cancelUrl,
       prices,
+      notificationEmails,
+      moderatorWallets,
+    });
+    res.json({
+      classId,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const {
+      notificationEmails = [],
+      moderatorWallets = [],
+    } = req.body;
+    const bookInfo = await getNftBookInfo(classId);
+    if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+    const {
+      ownerWallet,
+    } = bookInfo;
+    if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
+    await updateNftBookSettings(classId, {
+      notificationEmails,
+      moderatorWallets,
     });
     res.json({
       classId,

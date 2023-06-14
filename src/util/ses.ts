@@ -328,3 +328,41 @@ export function sendNFTBookPendingClaimEmail({
   };
   return ses.sendEmail(params).promise();
 }
+
+export function sendNFTBookSalesEmail({
+  emails,
+  buyerEmail,
+  classId,
+  amount,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: emails,
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: `You have sold an nft for $${amount}`,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: `
+          <p>Dear Liker,</p>
+          <p>${buyerEmail} bought your NFT book ${classId} for $${amount}</p>
+          `,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}

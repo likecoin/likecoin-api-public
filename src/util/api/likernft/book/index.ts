@@ -3,7 +3,9 @@ import { firestore } from 'firebase-admin';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
-import { sendNFTBookPendingClaimEmail } from '../../../ses';
+import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+
+export const MIN_BOOK_PRICE_DECIMAL = 500; // 500 USD
 
 export async function newNftBookInfo(classId, data) {
   const {
@@ -11,11 +13,22 @@ export async function newNftBookInfo(classId, data) {
     ownerWallet,
     successUrl,
     cancelUrl,
+    notificationEmails,
+    moderatorWallets,
   } = data;
-  const newPrices = prices.map((p) => ({
-    sold: 0,
-    ...p,
-  }));
+  const newPrices = prices.map((p) => {
+    const {
+      name,
+      priceInDecimal,
+      stock,
+    } = p;
+    return {
+      sold: 0,
+      stock,
+      name,
+      priceInDecimal,
+    };
+  });
   const payload: any = {
     classId,
     pendingNFTCount: 0,
@@ -25,7 +38,19 @@ export async function newNftBookInfo(classId, data) {
   };
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
+  if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
+  if (notificationEmails) payload.notificationEmails = notificationEmails;
   await likeNFTBookCollection.doc(classId).create(payload);
+}
+
+export async function updateNftBookSettings(classId, {
+  notificationEmails = [],
+  moderatorWallets = [],
+}) {
+  await likeNFTBookCollection.doc(classId).update({
+    notificationEmails,
+    moderatorWallets,
+  });
 }
 
 export async function getNftBookInfo(classId) {
@@ -36,6 +61,14 @@ export async function getNftBookInfo(classId) {
 
 export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
   const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
+  return query.docs.map((doc) => {
+    const docData = doc.data();
+    return { id: doc.id, ...docData };
+  });
+}
+
+export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) {
+  const query = await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
@@ -60,6 +93,7 @@ export async function processNFTBookPurchase(
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
+    amount_total: amountTotal,
   } = session;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -99,7 +133,7 @@ export async function processNFTBookPurchase(
       });
       return docData;
     });
-    const { claimToken } = bookData;
+    const { claimToken, notificationEmails = [] } = bookData;
     await stripe.paymentIntents.capture(paymentIntent as string);
     if (email) {
       await sendNFTBookPendingClaimEmail({
@@ -108,6 +142,14 @@ export async function processNFTBookPurchase(
         className: classId,
         paymentId,
         claimToken,
+      });
+    }
+    if (notificationEmails.length) {
+      await sendNFTBookSalesEmail({
+        buyerEmail: email,
+        emails: notificationEmails,
+        classId,
+        amount: (amountTotal || 0) / 100,
       });
     }
   } catch (err) {
@@ -121,4 +163,36 @@ export async function processNFTBookPurchase(
     await stripe.paymentIntents.cancel(paymentIntent as string)
       .catch((error) => console.error(error)); // eslint-disable-line no-console
   }
+}
+
+export function parseBookSalesData(priceData, isAuthorized) {
+  let sold = 0;
+  let stock = 0;
+  const prices: any[] = [];
+  priceData.forEach((p) => {
+    const {
+      name,
+      priceInDecimal,
+      sold: pSold = 0,
+      stock: pStock = 0,
+    } = p;
+    const price = priceInDecimal / 100;
+    const payload: any = {
+      price,
+      name,
+      stock: pStock,
+      isSoldOut: pStock <= 0,
+    };
+    if (isAuthorized) {
+      payload.sold = pSold;
+    }
+    prices.push(payload);
+    sold += pSold;
+    stock += pStock;
+  });
+  return {
+    sold,
+    stock,
+    prices,
+  };
 }

@@ -43,3 +43,13 @@ export function sendNFTBookPendingClaimEmail({
 }) {
   return Promise.resolve();
 }
+
+/* istanbul ignore next */
+export function sendNFTBookSalesEmail({
+  emails,
+  buyerEmail,
+  classId,
+  amount,
+}) {
+  return Promise.resolve();
+}
