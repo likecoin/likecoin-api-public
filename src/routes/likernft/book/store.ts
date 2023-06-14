@@ -186,7 +186,9 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       } = p;
       return !(
         typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
-        && (description[NFT_BOOK_TEXT_DEFAULT_LOCALE] && typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'));
+        && Object.values(name).every((n) => typeof n === 'string')
+        && (description[NFT_BOOK_TEXT_DEFAULT_LOCALE] && typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'))
+        && Object.values(description).every((d) => typeof d === 'string');
     });
     if (invalidNameIndex > -1) {
       throw new ValidationError(`INVALID_NAME_in_${invalidNameIndex}`);
