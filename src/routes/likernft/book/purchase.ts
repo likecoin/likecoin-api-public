@@ -6,7 +6,7 @@ import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { getNftBookInfo } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
-import { parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
+import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -73,7 +73,7 @@ router.get('/:classId/new', async (req, res, next) => {
             product_data: {
               name,
               description,
-              images: [image],
+              images: [encodedURL(image)],
               metadata: {
                 classId: classId as string,
               },

@@ -39,7 +39,7 @@ export async function getImageMask() {
   return maskData;
 }
 
-function encodedURL(url) {
+export function encodedURL(url) {
   if (/^[ -~]+$/.test(url)) {
     return url;
   }
