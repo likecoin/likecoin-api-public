@@ -142,11 +142,14 @@ router.get(
       if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const {
         is_custom_image: isCustomImage,
-        nft_meta_collection_id: collectionId,
+        nft_meta_collection_id: collectionId = '',
+        uri,
         image = '',
       } = chainData.data.metadata;
-      if (collectionId !== WRITING_NFT_COLLECTION_ID) throw new ValidationError('NOT_WRITING_NFT');
-      const imageUrl = isCustomImage ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
+      if (!(collectionId === WRITING_NFT_COLLECTION_ID || collectionId.includes('book'))) {
+        throw new ValidationError('NOT_WRITING_NFT_OR_NFT_BOOK');
+      }
+      const imageUrl = (isCustomImage || !uri) ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
       let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
       model = model.replace(new RegExp(IMAGE_URI_PLACEHOLDER, 'g'), imageUrl);
       res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-if-error=${ONE_DAY_IN_S}`);
