@@ -342,7 +342,7 @@ export function sendNFTBookSalesEmail({
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookPendingClaimEmail',
+        Value: 'sendNFTBookSalesEmail',
       },
     ],
     Destination: {
@@ -351,7 +351,7 @@ export function sendNFTBookSalesEmail({
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: `You have sold an nft for $${amount}`,
+        Data: `You have sold an NFT for $${amount}`,
       },
       Body: {
         Html: {
@@ -359,6 +359,42 @@ export function sendNFTBookSalesEmail({
           Data: `
           <p>Dear Liker,</p>
           <p>${buyerEmail} bought your NFT book ${classId} for $${amount}</p>
+          `,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export function sendNFTBookClaimedEmail({
+  emails, classId, paymentId, wallet, message, buyerEmail,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookClaimedEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: emails,
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: `A user ${buyerEmail} has claim their NFT book ${classId}`,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: `
+          <p>Dear Liker,</p>
+          <p>${buyerEmail}(${wallet}) claim their NFT book ${classId}${message ? ` with message: ${message}` : ''}
+          <p>Please go to <a href="https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}">NFT book management page</a> to deliver your book NFT.</p>
           `,
         },
       },

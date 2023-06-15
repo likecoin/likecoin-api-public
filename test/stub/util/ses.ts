@@ -53,3 +53,9 @@ export function sendNFTBookSalesEmail({
 }) {
   return Promise.resolve();
 }
+
+export function sendNFTBookClaimedEmail({
+  emails, classId, paymentId, wallet, message, buyerEmail,
+}) {
+  return Promise.resolve();
+}

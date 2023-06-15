@@ -12,6 +12,7 @@ import publisher from '../../../util/gcloudPub';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
+import { sendNFTBookClaimedEmail } from '../../../util/ses';
 
 const router = Router();
 
@@ -153,7 +154,7 @@ router.post(
       const bookRef = likeNFTBookCollection.doc(classId);
       const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
-      await db.runTransaction(async (t) => {
+      const { email } = await db.runTransaction(async (t) => {
         const doc = await t.get(docRef);
         const docData = doc.data();
         if (!docData) {
@@ -177,7 +178,21 @@ router.post(
         t.update(bookRef, {
           pendingNFTCount: FieldValue.increment(1),
         });
+        return docData;
       });
+
+      const doc = await bookRef.get();
+      const docData = doc.data();
+      if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { notificationEmails } = docData;
+      await sendNFTBookClaimedEmail({
+        emails: notificationEmails,
+        classId,
+        paymentId,
+        wallet,
+        buyerEmail: email,
+        message,
+      })
 
       res.sendStatus(200);
     } catch (err) {
