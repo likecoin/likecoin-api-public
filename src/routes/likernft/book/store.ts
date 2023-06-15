@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   MIN_BOOK_PRICE_DECIMAL,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
   listNftBookInfoByModeratorWallet,
   listNftBookInfoByOwnerWallet,
@@ -166,7 +167,6 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
     if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
     const invalidPriceIndex = prices.findIndex((p) => {
       const {
-        name,
         priceInDecimal,
         stock,
       } = p;
@@ -174,11 +174,24 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
         && stock > 0
         && (typeof priceInDecimal === 'number')
         && (typeof stock === 'number')
-        && (!name || typeof name === 'string')
-        && priceInDecimal > MIN_BOOK_PRICE_DECIMAL);
+        && priceInDecimal >= MIN_BOOK_PRICE_DECIMAL);
     });
     if (invalidPriceIndex > -1) {
       throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
+    }
+    const invalidNameIndex = prices.findIndex((p) => {
+      const {
+        name = {},
+        description = {},
+      } = p;
+      return !(
+        typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
+        && Object.values(name).every((n) => typeof n === 'string')
+        && (description[NFT_BOOK_TEXT_DEFAULT_LOCALE] && typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'))
+        && Object.values(description).every((d) => typeof d === 'string');
+    });
+    if (invalidNameIndex > -1) {
+      throw new ValidationError(`INVALID_NAME_in_${invalidNameIndex}`);
     }
     const result = await getISCNFromNFTClassId(classId);
     if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');

@@ -6,6 +6,8 @@ import stripe from '../../../stripe';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 
 export const MIN_BOOK_PRICE_DECIMAL = 500; // 500 USD
+export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
+export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export async function newNftBookInfo(classId, data) {
   const {
@@ -18,14 +20,22 @@ export async function newNftBookInfo(classId, data) {
   } = data;
   const newPrices = prices.map((p) => {
     const {
-      name,
+      name: pName,
+      description: pDescription,
       priceInDecimal,
       stock,
     } = p;
+    const name = {};
+    const description = {};
+    NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
+      name[locale] = pName[locale];
+      description[locale] = pDescription[locale];
+    });
     return {
       sold: 0,
       stock,
       name,
+      description,
       priceInDecimal,
     };
   });
@@ -172,6 +182,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
   priceData.forEach((p) => {
     const {
       name,
+      description,
       priceInDecimal,
       sold: pSold = 0,
       stock: pStock = 0,
@@ -180,6 +191,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
     const payload: any = {
       price,
       name,
+      description,
       stock: pStock,
       isSoldOut: pStock <= 0,
     };
