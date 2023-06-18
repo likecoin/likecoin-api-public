@@ -17,7 +17,7 @@ import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '..
 import { getGasPrice, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { checkIsWritingNFT, DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
-import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
+import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
 import { API_EXTERNAL_HOSTNAME, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -87,11 +87,14 @@ router.get(
       const [
         purchaseInfo,
         listingInfo,
+        iscnData,
       ] = await Promise.all([
         iscnPrefix ? softGetLatestNFTPriceAndInfo(iscnPrefix, classId) : null,
         fetchNFTListingInfo(classId),
+        getNFTISCNData(iscnPrefix),
       ]);
       const firstListing = listingInfo
+        .filter((l) => l.seller === iscnData.owner) // only show 1st hand
         .map(formatListingInfo)
         .sort((a, b) => a.price - b.price)[0];
 
