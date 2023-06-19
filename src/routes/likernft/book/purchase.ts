@@ -52,7 +52,7 @@ router.get('/:classId/new', async (req, res, next) => {
     let { image } = classMetadata;
     image = parseImageURLFromMetadata(image);
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
-    const priceName = priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE];
+    const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
     if (priceName) {
       name = `${name} - ${priceName}`;
     }
