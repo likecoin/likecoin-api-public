@@ -110,7 +110,7 @@ export async function processNFTBookPurchase(
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email } = customer;
   try {
-    const bookData = await db.runTransaction(async (t) => {
+    const { listingData, txData } = await db.runTransaction(async (t) => {
       const bookRef = likeNFTBookCollection.doc(classId);
       const doc = await t.get(bookRef);
       const docData = doc.data();
@@ -124,6 +124,7 @@ export async function processNFTBookPurchase(
         stock,
       } = priceInfo;
       if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+
       const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
       const paymentData = paymentDoc.data();
       if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
@@ -141,9 +142,13 @@ export async function processNFTBookPurchase(
         status: 'paid',
         email,
       });
-      return docData;
+      return {
+        listingData: docData,
+        txData: paymentData,
+      };
     });
-    const { claimToken, notificationEmails = [] } = bookData;
+    const { notificationEmails = [] } = listingData;
+    const { claimToken } = txData;
     await stripe.paymentIntents.capture(paymentIntent as string);
     if (email) {
       await sendNFTBookPendingClaimEmail({
