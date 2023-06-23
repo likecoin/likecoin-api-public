@@ -7,7 +7,7 @@ import {
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
-import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
+import { fetchISCNPrefixAndClassId, fetchISCNPrefixes } from '../../middleware/likernft';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
 
@@ -49,20 +49,26 @@ router.get(
 
 router.post(
   '/purchase',
-  fetchISCNPrefixAndClassId,
+  fetchISCNPrefixes,
   async (req, res, next) => {
     try {
-      const { tx_hash: txHash, ts } = req.query;
+      const { tx_hash: grantTxHash, ts } = req.query;
       if (ts && (Date.now() - Number(ts) > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
-      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
-      const { iscnPrefix, classId } = res.locals;
-      const {
-        price: nftPrice,
-      } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
-      if (nftPrice <= 0) throw new ValidationError('NFT_SOLD_OUT');
+      if (!grantTxHash) throw new ValidationError('MISSING_TX_HASH');
+      const { iscnPrefixes, classIds } = res.locals;
+      const nftPriceInfoList = await Promise.all(
+        classIds.map(async (classId, i) => {
+          const {
+            price: nftPrice,
+          } = await getLatestNFTPriceAndInfo(iscnPrefixes[i], classId);
+          if (nftPrice <= 0) throw new ValidationError(`NFT_${classId}_SOLD_OUT`);
+          return nftPrice;
+        }),
+      );
+      const totalNFTPrice = nftPriceInfoList.reduce((acc, nftPrice) => acc + nftPrice, 0);
       const gasFee = getGasPrice();
-      const totalPrice = nftPrice + gasFee;
-      const result = await checkTxGrantAndAmount(txHash, totalPrice);
+      const totalPrice = totalNFTPrice + gasFee;
+      const result = await checkTxGrantAndAmount(grantTxHash, totalPrice);
       if (!result) {
         throw new ValidationError('SEND_GRANT_NOT_FOUND');
       }
@@ -72,61 +78,58 @@ router.post(
         spendLimit: grantedAmount,
       } = result;
       const {
-        transactionHash,
-        nftId,
-        nftPrice: actualNftPrice,
-        gasFee: actualGasFee,
-        sellerWallet,
-        sellerLIKE,
-        stakeholderWallets,
-        stakeholderLIKEs,
+        transactionHash: txHash,
         feeWallet,
-        feeLIKE,
+        purchaseInfoList,
       } = await processNFTPurchase({
         buyerWallet: likeWallet,
-        iscnPrefix,
-        classId,
+        iscnPrefixes,
+        classIds,
         granterWallet: likeWallet,
         grantedAmount,
-        grantTxHash: txHash as string,
+        grantTxHash: grantTxHash as string,
         granterMemo: memo,
       }, req);
       res.json({
-        txHash: transactionHash,
-        iscnId: iscnPrefix,
-        classId,
-        nftId,
-        nftPrice: actualNftPrice,
-        gasFee: actualGasFee,
+        txHash,
+        purchased: purchaseInfoList.map((info) => ({
+          iscnId: info.iscnPrefix,
+          classId: info.classId,
+          nftId: info.nftId,
+          nftPrice: info.nftPrice,
+          gasFee: info.gasFee,
+        })),
       });
 
-      const logPayload = {
-        txHash: transactionHash,
-        iscnId: iscnPrefix,
-        classId,
-        nftId,
-        nftPrice: actualNftPrice,
-        gasFee: actualGasFee,
-        buyerWallet: likeWallet,
-        buyerMemo: memo,
-        grantTxHash: txHash as string,
-        sellerWallet,
-        sellerLIKE,
-        sellerLIKENumber: Number(sellerLIKE),
-        stakeholderWallets,
-        stakeholderLIKEs,
-        stakeholderLIKEsNumber: stakeholderLIKEs.map((l) => Number(l)),
-        feeWallet,
-        feeLIKE,
-        feeLIKENumber: Number(sellerLIKE),
-      };
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTPurchaseSuccess',
-        ...logPayload,
-      });
-      publisher.publish(PUBSUB_TOPIC_WNFT, null, {
-        type: 'purchase',
-        ...logPayload,
+      purchaseInfoList.forEach((info) => {
+        const logPayload = {
+          txHash,
+          iscnId: info.iscnPrefix,
+          classId: info.classId,
+          nftId: info.nftId,
+          nftPrice: info.nftPrice,
+          gasFee: info.gasFee,
+          buyerWallet: likeWallet,
+          buyerMemo: memo,
+          grantTxHash: grantTxHash as string,
+          sellerWallet: info.sellerWallet,
+          sellerLIKE: info.sellerLIKE,
+          sellerLIKENumber: Number(info.sellerLIKE),
+          stakeholderWallets: info.stakeholderWallets,
+          stakeholderLIKEs: info.stakeholderLIKEs,
+          stakeholderLIKEsNumber: info.stakeholderLIKEs.map((l) => Number(l)),
+          feeWallet,
+          feeLIKE: info.feeLIKE,
+          feeLIKENumber: Number(info.sellerLIKE),
+        };
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'LikerNFTPurchaseSuccess',
+          ...logPayload,
+        });
+        publisher.publish(PUBSUB_TOPIC_WNFT, null, {
+          type: 'purchase',
+          ...logPayload,
+        });
       });
     } catch (err) {
       next(err);

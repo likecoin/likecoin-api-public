@@ -146,15 +146,19 @@ export async function processFiatNFTPurchase({
         memo,
       }, req);
     } else {
-      res = await processNFTPurchase({
+      const { transactionHash, purchaseInfoList } = await processNFTPurchase({
         buyerWallet: likeWallet,
-        iscnPrefix,
-        classId,
+        iscnPrefixes: [iscnPrefix],
+        classIds: [classId],
         granterWallet: fiatGranterWallet,
         grantedAmount: LIKEPrice,
         grantTxHash: paymentId,
         granterMemo: memo,
       }, req);
+      res = {
+        transactionHash,
+        ...purchaseInfoList[0],
+      };
     }
   } catch (err) {
     const error = (err as Error).toString();

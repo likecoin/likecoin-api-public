@@ -71,12 +71,13 @@ async function generateCustomMemo(iscnPrefix: string, classId: string, buyerWall
 async function getISCNDocData(
   iscnPrefix: string,
   { t }: { t?: Transaction } = {},
-) {
+): Promise<FirebaseFirestore.DocumentData> {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const ref = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   const res = await (t ? t.get(ref) : ref.get());
-  if (!res.exists) throw new ValidationError('ISCN_DOC_NOT_FOUND');
-  return res.data()!;
+  const data = res.data();
+  if (!data) throw new ValidationError('ISCN_DOC_NOT_FOUND');
+  return data;
 }
 
 async function getFirstUnsoldNFTDocData(
@@ -133,20 +134,23 @@ export async function getLatestNFTPriceAndInfo(
   } as any;
 }
 
-async function getPriceInfoAndLockDocs(iscnPrefix: string, classId: string, t: Transaction) {
+async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction) {
   const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   if (priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
+  return priceInfo;
+}
+
+function lockDocs(iscnPrefix: string, classId: string, nftId: string, t: Transaction) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   t.update(iscnRef, { processingCount: FieldValue.increment(1) });
   const classRef = iscnRef.collection('class').doc(classId);
-  const txNftRef = classRef.collection('nft').doc(priceInfo.nextNewNFTId) as DocumentReference;
+  const txNftRef = classRef.collection('nft').doc(nftId) as DocumentReference;
   t.update(txNftRef, { isProcessing: true });
-  return priceInfo;
 }
 
 export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
@@ -227,7 +231,6 @@ async function calculateLIKEAndPopulateTxMsg({
   const STAKEHOLDERS_RATIO = 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
-  const { owner, data } = iscnData;
   const totalPrice = nftPrice + gasFee;
   const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
   const feeAmount = new BigNumber(nftPrice)
@@ -259,8 +262,8 @@ async function calculateLIKEAndPopulateTxMsg({
   }
 
   const stakeholderMap = await parseAndCalculateStakeholderRewards(
-    data,
-    owner,
+    iscnData,
+    sellerWallet,
     { totalAmount: stakeholdersAmount, precision: 0 },
   );
   stakeholderMap.forEach(({ amount }, wallet) => {
@@ -343,7 +346,12 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
     // eslint-disable-next-line no-console
     console.error(`Tx ${transactionHash} failed with code ${code}`);
     if (code === 4 && rawLog.includes('is not the owner of nft')) {
-      throw new ValidationError('NFT_NOT_OWNED_BY_API_WALLET');
+      const nftId = rawLog.split(' ').find((s) => s.startsWith('writing-')).split(':')[0];
+      throw new ValidationError(
+        'NFT_NOT_OWNED_BY_API_WALLET',
+        409,
+        { nftId },
+      );
     } else {
       throw new ValidationError('TX_NOT_SUCCESS');
     }
@@ -352,7 +360,8 @@ async function handleNFTPurchaseTransaction(txMessages, memo) {
   return transactionHash;
 }
 
-async function updateDocsForSuccessPurchase(t, {
+function updateDocsForSuccessPurchase(t, {
+  iscnDocData,
   iscnPrefix,
   classId,
   nftId,
@@ -370,9 +379,6 @@ async function updateDocsForSuccessPurchase(t, {
   stakeholderWallets,
   stakeholderLIKEs,
 }) {
-  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
-  const iscnDoc = await t.get(iscnRef);
-  const iscnDocData = iscnDoc.data();
   const {
     currentPrice: dbCurrentPrice,
     currentBatch: dbCurrentBatch,
@@ -395,6 +401,7 @@ async function updateDocsForSuccessPurchase(t, {
       ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
     }
   }
+  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
   t.update(iscnRef, {
     currentPrice: newPrice,
     currentBatch: updatedBatch,
@@ -457,24 +464,24 @@ async function fetchNFTSoldByAPIWalletEvent(classId: string, nftId: string) {
   return events.length ? events[0] : null;
 }
 
-async function resetLockedPurchaseDocs({
+function resetLockedPurchaseDocs({
   iscnPrefix,
   classId,
   nftId,
+  iscnDocData,
   currentBatch,
   t,
 }: {
   iscnPrefix: string,
   classId: string,
   nftId: string,
+  iscnDocData: FirebaseFirestore.DocumentData,
   currentBatch: number,
   t: Transaction
 }) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName) as unknown as DocumentReference;
   const classRef = iscnRef.collection('class').doc(classId);
-  const iscnDoc = await t.get(iscnRef);
-  const iscnDocData = iscnDoc.data()!;
   const { currentBatch: docCurrentBatch } = iscnDocData;
   if (docCurrentBatch === currentBatch) {
     t.update(iscnRef, { processingCount: FieldValue.increment(-1) });
@@ -554,121 +561,138 @@ async function updateDocsForMissingSoldNFT(t, {
 
 export async function processNFTPurchase({
   buyerWallet,
-  iscnPrefix,
-  classId,
+  iscnPrefixes,
+  classIds,
   granterWallet = buyerWallet,
   grantedAmount,
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
 }, req) {
-  const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
-  if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
-  const { owner: sellerWallet } = iscnData;
+  const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
+    const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
+    if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
+    return iscnData;
+  }));
 
-  const memo = await generateCustomMemo(iscnPrefix, classId, buyerWallet);
+  const memo = classIds.length === 1
+    ? await generateCustomMemo(iscnPrefixes[0], classIds[0], buyerWallet)
+    : '(multiple purchases)';
 
-  // lock iscn nft
-  const priceInfo = await db.runTransaction(async (t) => {
+  const priceInfoList = await db.runTransaction(async (t) => {
     // eslint-disable-next-line no-underscore-dangle
-    const _priceInfo = await getPriceInfoAndLockDocs(iscnPrefix, classId, t);
-    return _priceInfo;
+    const _priceInfoList = await Promise.all(classIds.map((_, i) => (
+      getPriceInfo(iscnPrefixes[i], classIds[i], t)
+    )));
+    _priceInfoList.forEach((info, i) => {
+      lockDocs(iscnPrefixes[i], classIds[i], info.nextNewNFTId, t);
+    });
+    return _priceInfoList;
   });
-  const {
-    nextNewNFTId: nftId,
-    price: nftPrice,
-    currentBatch,
-  } = priceInfo;
-  if (nftPrice > grantedAmount) {
+
+  const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
+  if (dbNFTTotalPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
   }
 
+  let purchaseInfoList = classIds.map((_, i) => ({
+    iscnPrefix: iscnPrefixes[i],
+    classId: classIds[i],
+    iscnData: iscnDataList[i].data,
+    sellerWallet: iscnDataList[i].owner,
+    nftId: priceInfoList[i].nextNewNFTId,
+    nftPrice: priceInfoList[i].price,
+    currentBatch: priceInfoList[i].currentBatch,
+  }));
+
+  const feeWallet = LIKER_NFT_FEE_ADDRESS;
+
   try {
-    const feeWallet = LIKER_NFT_FEE_ADDRESS;
-    const {
-      txMessages,
-      sellerLIKE,
-      feeLIKE,
-      stakeholderWallets,
-      stakeholderLIKEs,
-      gasFee,
-    } = await calculateLIKEAndPopulateTxMsg({
-      iscnData,
-      nftPrice,
-      sellerWallet,
-      feeWallet,
-      granterWallet,
-      buyerWallet,
-      classId,
-      nftId,
+    const likeDistributionAndTxMsgList = await Promise.all(
+      purchaseInfoList.map(async (info) => (
+        calculateLIKEAndPopulateTxMsg({
+          feeWallet,
+          granterWallet,
+          buyerWallet,
+          ...info,
+        })
+      )),
+    );
+    purchaseInfoList = purchaseInfoList.map((info, i) => {
+      const { txMessages: _, ...distributionInfo } = likeDistributionAndTxMsgList[i];
+      return {
+        ...info,
+        ...distributionInfo,
+      };
     });
+    const txMessages = likeDistributionAndTxMsgList.flatMap((d) => d.txMessages);
     const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
     const timestamp = Date.now();
 
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTPurchaseTransaction',
-      txHash,
-      iscnId: iscnPrefix,
-      classId,
-      nftId,
-      buyerWallet,
+    classIds.forEach((_, i) => {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseTransaction',
+        txHash,
+        iscnId: iscnPrefixes[i],
+        classId: classIds[i],
+        nftId: purchaseInfoList[i].nftId,
+        buyerWallet,
+      });
     });
 
     await db.runTransaction(async (t) => {
-      await updateDocsForSuccessPurchase(t, {
-        iscnPrefix,
-        classId,
-        nftId,
-        sellerWallet,
+      const iscnDocDataList = await Promise.all(iscnPrefixes.map((iscnPrefix) => (
+        getISCNDocData(iscnPrefix, { t })
+      )));
+      purchaseInfoList.forEach((info, i) => updateDocsForSuccessPurchase(t, {
+        iscnDocData: iscnDocDataList[i],
         buyerWallet,
         granterWallet,
-        currentBatch,
-        nftPrice,
         timestamp,
         txHash,
         memo,
         grantTxHash,
         granterMemo,
-        sellerLIKE,
-        stakeholderWallets,
-        stakeholderLIKEs,
-      });
+        ...info,
+      }));
     });
+
     return {
       transactionHash: txHash,
-      classId,
-      nftId,
-      nftPrice,
-      gasFee,
-      sellerWallet,
-      sellerLIKE,
-      stakeholderWallets,
-      stakeholderLIKEs,
       feeWallet,
-      feeLIKE,
+      purchaseInfoList,
     };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
     // reset lock
     const shouldRetryPurchase = await db.runTransaction(async (t) => {
-      await resetLockedPurchaseDocs({
-        iscnPrefix,
-        classId,
-        nftId,
-        currentBatch,
-        t,
-      });
+      const iscnDocDataList = await Promise.all(iscnPrefixes.map((iscnPrefix) => (
+        getISCNDocData(iscnPrefix, { t })
+      )));
+      classIds.forEach((_, i) => (
+        resetLockedPurchaseDocs({
+          iscnPrefix: iscnPrefixes[i],
+          classId: classIds[i],
+          nftId: purchaseInfoList[i].nftId,
+          iscnDocData: iscnDocDataList[i],
+          currentBatch: purchaseInfoList[i].currentBatch,
+          t,
+        })
+      ));
 
       // eslint-disable-next-line no-underscore-dangle
       const shouldUpdateSoldNFT = (
         err instanceof ValidationError
         && err.message === 'NFT_NOT_OWNED_BY_API_WALLET'
+        && err.payload?.nftId
       );
       if (shouldUpdateSoldNFT) {
+        const { nftId } = err.payload;
+        const target = purchaseInfoList.find((info) => info.nftId === nftId);
         await updateDocsForMissingSoldNFT(t, {
-          iscnPrefix,
-          classId,
+          iscnPrefix: target.iscnPrefix,
+          classId: target.classId,
           nftId,
           granterWallet,
           grantTxHash,
@@ -677,18 +701,20 @@ export async function processNFTPurchase({
       }
       return shouldUpdateSoldNFT && retryTimes < 1;
     });
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTPurchaseError',
-      iscnId: iscnPrefix,
-      classId,
-      nftId,
-      buyerWallet,
+    classIds.forEach((_, i) => {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTPurchaseError',
+        iscnId: iscnPrefixes[i],
+        classId: classIds[i],
+        nftId: purchaseInfoList[i].nftId,
+        buyerWallet,
+      });
     });
     if (shouldRetryPurchase) {
       return processNFTPurchase({
         buyerWallet,
-        iscnPrefix,
-        classId,
+        iscnPrefixes,
+        classIds,
         granterWallet,
         grantedAmount,
         grantTxHash,

@@ -107,4 +107,6 @@ config.IS_CHAIN_UPGRADING = false;
 
 config.LIKER_LAND_GET_WALLET_SECRET = '';
 
+config.WNFT_BATCH_PURCHASE_LIMIT = 100;
+
 module.exports = config;
