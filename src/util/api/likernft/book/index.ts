@@ -4,6 +4,7 @@ import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import { getNFTISCNData } from '../../../cosmos/nft';
 
 export const MIN_BOOK_PRICE_DECIMAL = 500; // 500 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -98,6 +99,7 @@ export async function processNFTBookPurchase(
   const {
     metadata: {
       classId,
+      iscnPrefix,
       paymentId,
       priceIndex: priceIndexString = '0',
     } = {} as any,
@@ -151,10 +153,12 @@ export async function processNFTBookPurchase(
     const { claimToken } = txData;
     await stripe.paymentIntents.capture(paymentIntent as string);
     if (email) {
+      const iscnData = await getNFTISCNData(iscnPrefix);
+      const className = iscnData.data?.contentMetadata.name;
       await sendNFTBookPendingClaimEmail({
         email,
         classId,
-        className: classId,
+        className,
         paymentId,
         claimToken,
       });
