@@ -49,6 +49,7 @@ router.get('/:classId/new', async (req, res, next) => {
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
+    const iscnPrefix = metadata.data.parent.iscnIdPrefix;
     let { image } = classMetadata;
     image = parseImageURLFromMetadata(image);
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -65,6 +66,7 @@ router.get('/:classId/new', async (req, res, next) => {
     const sessionMetadata: Stripe.MetadataParam = {
       store: 'book',
       classId,
+      iscnPrefix,
       paymentId,
       priceIndex,
       ownerWallet,
