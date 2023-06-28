@@ -217,13 +217,16 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { txHash } = req.body;
+      // TODO: check tx content contains valid nft info and address
       const bookRef = likeNFTBookCollection.doc(classId);
       const bookDoc = await bookRef.get();
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet } = bookDocData;
-      if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
-
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+        // TODO: check tx is sent by req.user.wallet
+        throw new ValidationError('NOT_OWNER', 403);
+      }
       const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
       await db.runTransaction(async (t) => {
