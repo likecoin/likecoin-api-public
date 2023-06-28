@@ -58,6 +58,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
         prices: docPrices = [],
         pendingNFTCount,
         id,
+        ownerWallet,
       } = b;
       const { stock, sold, prices } = parseBookSalesData(docPrices, true);
       const result: any = {
@@ -66,6 +67,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
         pendingNFTCount,
         stock,
         sold,
+        ownerWallet,
       };
       return result;
     });
@@ -98,6 +100,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       prices,
       isSoldOut: stock <= 0,
       stock,
+      ownerWallet,
     };
     if (isAuthorized) {
       payload.sold = sold;
@@ -142,6 +145,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       priceInDecimal,
       isSoldOut: stock <= 0,
       stock,
+      ownerWallet,
     };
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
