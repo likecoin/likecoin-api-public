@@ -148,7 +148,9 @@ router.post(
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const { iscnPrefix } = res.locals;
       const promises = [getNFTClassDataById(classId)];
-      const { nftId = '', seller = '', memo } = req.body;
+      const {
+        nftId = '', seller = '', memo, email,
+      } = req.body;
       const isListing = !!(nftId && seller);
       if (!isListing && !iscnPrefix) {
         throw new ValidationError('NFT_PRICE_NOT_FOUND');
@@ -189,7 +191,7 @@ router.post(
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
       if (!description) { description = undefined; } // stripe does not like empty string
-      const claimToken = randomBytes(32).toString('base64url')
+      const claimToken = randomBytes(32).toString('base64url');
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: getLikerLandNFTFiatStripePurchasePageURL({
@@ -198,6 +200,8 @@ router.post(
           token: claimToken,
           wallet: wallet as string,
         }),
+        client_reference_id: wallet as string || undefined,
+        customer_email: email,
         cancel_url: getLikerLandNFTClassPageURL({ classId }),
         line_items: [
           {
