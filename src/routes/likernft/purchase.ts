@@ -101,36 +101,51 @@ router.post(
         })),
       });
 
+      const txData = {
+        buyerWallet: likeWallet,
+        buyerMemo: memo,
+        grantTxHash: grantTxHash as string,
+        feeWallet,
+      };
+      const purchasedDataItems: any = [];
       purchaseInfoList.forEach((info) => {
-        const logPayload = {
-          txHash,
+        const purchasedData = {
           iscnId: info.iscnPrefix,
           classId: info.classId,
           nftId: info.nftId,
           nftPrice: info.nftPrice,
           gasFee: info.gasFee,
-          buyerWallet: likeWallet,
-          buyerMemo: memo,
-          grantTxHash: grantTxHash as string,
           sellerWallet: info.sellerWallet,
           sellerLIKE: info.sellerLIKE,
           sellerLIKENumber: Number(info.sellerLIKE),
           stakeholderWallets: info.stakeholderWallets,
           stakeholderLIKEs: info.stakeholderLIKEs,
           stakeholderLIKEsNumber: info.stakeholderLIKEs.map((l) => Number(l)),
-          feeWallet,
           feeLIKE: info.feeLIKE,
           feeLIKENumber: Number(info.sellerLIKE),
         };
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'LikerNFTPurchaseSuccess',
-          ...logPayload,
+          ...txData,
+          ...purchasedData,
         });
+        purchasedDataItems.push(purchasedData);
+      });
+
+      if (purchasedDataItems.length > 1) {
+        // NOTE: Group multiple purchases into one event
+        publisher.publish(PUBSUB_TOPIC_WNFT, null, {
+          type: 'purchase_multiple',
+          ...txData,
+          items: purchasedDataItems,
+        });
+      } else {
         publisher.publish(PUBSUB_TOPIC_WNFT, null, {
           type: 'purchase',
-          ...logPayload,
+          ...txData,
+          ...purchasedDataItems[0],
         });
-      });
+      }
     } catch (err) {
       next(err);
     }
