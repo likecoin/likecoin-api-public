@@ -66,7 +66,6 @@ router.get('/:classId/new', async (req, res, next) => {
     const sessionMetadata: Stripe.MetadataParam = {
       store: 'book',
       classId,
-      iscnPrefix,
       paymentId,
       priceIndex,
       ownerWallet,
@@ -85,6 +84,7 @@ router.get('/:classId/new', async (req, res, next) => {
               description,
               images: [encodedURL(image)],
               metadata: {
+                iscnPrefix,
                 classId: classId as string,
               },
             },
