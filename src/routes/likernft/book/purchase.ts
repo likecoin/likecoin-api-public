@@ -205,6 +205,7 @@ router.post(
           paymentId,
           wallet,
           buyerEmail: email,
+          message,
         });
       }
 

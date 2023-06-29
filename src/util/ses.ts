@@ -389,7 +389,7 @@ export function sendNFTBookSalesEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId, className, paymentId, wallet, buyerEmail,
+  emails, classId, className, paymentId, wallet, message, buyerEmail,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const params = {
@@ -415,7 +415,7 @@ export function sendNFTBookClaimedEmail({
           Data: `
           <p>Dear Creator,</p>
           <br/>
-          <p>Congratulation. A reader has bought your NFT book.</p>
+          <p>Congratulation. A reader has claimed your NFT book${message ? ` with message: "${message}"` : ''}.</p>
           <p>Reader email: ${buyerEmail}</p>
           <p>Reader wallet address: ${wallet}</p>
           <p>Please visit the <a href="https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}">NFT book management page</a> to deliver your book.</p>
