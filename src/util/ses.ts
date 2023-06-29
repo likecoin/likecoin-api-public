@@ -298,50 +298,44 @@ export function sendNFTBookPendingClaimEmail({
         Html: {
           Charset: 'UTF-8',
           Data: `
-          <p>親愛的 Liker：</p>
-          <p>感謝購買 《<a
-              href="${getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' })}">${className}</a>》的 NFT 書，我們需要你的 LikeCoin 錢包地址以把 NFT 書發送給你。</p>
-          <p>1. 前往<a href="${getLikerLandNFTClaimPageURL({
+          <p>親愛的讀者：</p>
+          <br/>
+          <p>感謝支持並購買 <a
+              href="${getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' })}">《${className}》</a>。</p>
+          <p>請根據以下兩步驟領取你的 NFT 書：</p>
+          <p>1. 確認您已有 Keplr 密碼貨幣錢包；如尚未持有，請參考<a href="https://youtu.be/bPaZk-ehWrg">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/RC8PugjnZq8">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</p>
+          <p>2. 前往 Liker Land 的<a href="${getLikerLandNFTClaimPageURL({
             classId,
             paymentId,
             token: claimToken,
             type: 'nft_book',
             language: 'zh-Hant',
-          })}">NFT 書錢包認證頁</a></p>
-          <p>2. 輸入你的 LikeCoin 錢包地址</p>
-          <p><strong>安裝 Keplr</strong></p>
-          <p>若你想用新的 LikeCoin 地址接收 NFT 書，可參看以下步驟，在 Chrome 瀏覽器安裝 Keplr 錢包。</p>
-          <p><a href="https://youtu.be/WQGW1P0KgOA">如何安裝 Keplr 及使用 LikeCoin （國語）</a></p>
-          <p><a href="https://youtu.be/oOC7jjHI5_g">如何安裝 Keplr 及使用 LikeCoin （廣東話）</a></p>
-          <p>完成安裝後，你可以回到步驟1的頁面，點選「connect」按鈕，即可獲取地址。</p>
-          <p>3. 驗證完成後，請等待作者簽署給發送書籍
-          <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
-              Land 客服</a>。</p>
-          <p>感謝支持創作。</p>
+          })}">認領頁面</a>，連結錢包以驗證領取資格。</p>
+          <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發 NFT 書。請往你的 Liker Land 書架查閱。</p>
+          <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
+          <p>感謝珍藏此 NFT 書，願你享受閱讀的樂趣。</p>
+          <br/>
           <p>Liker Land</p>
           <br/>
           <br/>
-          <p>Dear Liker,</p>
-          <p>Thank you for purchasing the NFT Book of "<a
-              href="${getLikerLandNFTClassPageURL({ classId, language: 'en' })}">${className}</a>". We need you to provide us with your
-            LikeCoin wallet address so that we can send the NFT Book to you.</p>
-          <p>1. Go to <a href="${getLikerLandNFTClaimPageURL({
+          <p>Dear reader,</p>
+          <br/>
+          <p>Thank you for your support and purchasing "<a
+              href="${getLikerLandNFTClassPageURL({ classId, language: 'en' })}">${className}</a>".</p>
+          <p>Please follow the two steps below to claim your NFT book:</p>
+          <p>1. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</p>
+          <p>2. Visit the 
+            <a href="${getLikerLandNFTClaimPageURL({
             classId,
             paymentId,
             token: claimToken,
             type: 'nft_book',
             language: 'en',
-          })}">NFT book wallet verification page</a></p>
-          <p>2. Enter your LikeCoin wallet address</p>
-          <p><strong>Install Keplr</strong></p>
-          <p>If you want to receive the NFT Book with a new LikeCoin address, you can refer to the following steps and install the Keplr wallet
-            on the Chrome browser.</p>
-          <p><a href="https://docs.like.co/general-guides/wallet/keplr">How to install Keplr and use LikeCoin</a></p>
-          <p>After completing the installation, go back to the link in step 1 and click "connect" to retrieve your wallet address.</p>
-          <p>3. Wait for the author to sign and deliver your NFT book.
-          <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker
-            Land customer service</a>.</p>
-          <p>Thank you for supporting creativity.</p>
+          })}">claim page</a> on Liker Land and connect your wallet to verify your eligibility.</p>
+          <p>Once these steps are completed, the author will issue the NFT book to you within 1-3 business days. Please check your Liker Land bookshelf for the book.</p>
+          <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
+          <p>Thank you for cherishing this NFT book, and may you enjoy the pleasure of reading.</p>
+          <br/>
           <p>Liker Land</p>
           `,
         },
@@ -354,7 +348,7 @@ export function sendNFTBookPendingClaimEmail({
 export function sendNFTBookSalesEmail({
   emails,
   buyerEmail,
-  classId,
+  className,
   amount,
 }) {
   if (TEST_MODE) return Promise.resolve();
@@ -379,8 +373,13 @@ export function sendNFTBookSalesEmail({
         Html: {
           Charset: 'UTF-8',
           Data: `
-          <p>Dear Liker,</p>
-          <p>${buyerEmail} bought your NFT book ${classId} for $${amount}</p>
+          <p>Dear Creator,</p>
+          <br/>
+          <p>Congratulation!</p>
+          <p>${buyerEmail} has bought your NFT book ${className} for $${amount}.</p>
+          <p>Please deliver the book after the user has verified their wallet address.  You will get another notification when they have done.</p>
+          <br/>
+          <p>Liker Land</p>
           `,
         },
       },
@@ -390,7 +389,7 @@ export function sendNFTBookSalesEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId, paymentId, wallet, message, buyerEmail,
+  emails, classId, className, paymentId, wallet, message, buyerEmail,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const params = {
@@ -408,15 +407,20 @@ export function sendNFTBookClaimedEmail({
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: `A user ${buyerEmail} has claim their NFT book ${classId}`,
+        Data: `A user has claimed an NFT book ${className}`,
       },
       Body: {
         Html: {
           Charset: 'UTF-8',
           Data: `
-          <p>Dear Liker,</p>
-          <p>${buyerEmail}(${wallet}) claim their NFT book ${classId}${message ? ` with message: ${message}` : ''}
-          <p>Please go to <a href="https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}">NFT book management page</a> to deliver your book NFT.</p>
+          <p>Dear Creator,</p>
+          <br/>
+          <p>Congratulation. A reader has claimed your NFT book${message ? ` with message: "${message}"` : ''}.</p>
+          <p>Reader email: ${buyerEmail}</p>
+          <p>Reader wallet address: ${wallet}</p>
+          <p>Please visit the <a href="https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}">NFT book management page</a> to deliver your book.</p>
+          <br>
+          <p>Liker Land</p>
           `,
         },
       },

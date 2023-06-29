@@ -49,6 +49,7 @@ router.get('/:classId/new', async (req, res, next) => {
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
+    const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
     let { image } = classMetadata;
     image = parseImageURLFromMetadata(image);
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -65,6 +66,7 @@ router.get('/:classId/new', async (req, res, next) => {
     const sessionMetadata: Stripe.MetadataParam = {
       store: 'book',
       classId,
+      iscnPrefix,
       paymentId,
       priceIndex,
       ownerWallet,
@@ -83,6 +85,7 @@ router.get('/:classId/new', async (req, res, next) => {
               description,
               images: [encodedURL(image)],
               metadata: {
+                iscnPrefix,
                 classId: classId as string,
               },
             },
@@ -193,14 +196,17 @@ router.post(
       if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { notificationEmails = [] } = docData;
       if (notificationEmails.length) {
+        const classData = await getNFTClassDataById(classId).catch(() => null);
+        const className = classData?.name || classId;
         await sendNFTBookClaimedEmail({
           emails: notificationEmails,
           classId,
+          className,
           paymentId,
           wallet,
           buyerEmail: email,
           message,
-        })
+        });
       }
 
       res.sendStatus(200);
