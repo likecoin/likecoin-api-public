@@ -195,14 +195,16 @@ router.post(
       if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { notificationEmails = [] } = docData;
       if (notificationEmails.length) {
+        const classData = await getNFTClassDataById(classId).catch(() => null);
+        const className = classData?.name || classId;
         await sendNFTBookClaimedEmail({
           emails: notificationEmails,
           classId,
+          className,
           paymentId,
           wallet,
           buyerEmail: email,
-          message,
-        })
+        });
       }
 
       res.sendStatus(200);

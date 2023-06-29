@@ -48,14 +48,14 @@ export function sendNFTBookPendingClaimEmail({
 export function sendNFTBookSalesEmail({
   emails,
   buyerEmail,
-  classId,
+  className,
   amount,
 }) {
   return Promise.resolve();
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId, paymentId, wallet, message, buyerEmail,
+  emails, classId, className, paymentId, wallet, buyerEmail,
 }) {
   return Promise.resolve();
 }

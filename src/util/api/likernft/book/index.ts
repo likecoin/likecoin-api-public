@@ -151,10 +151,12 @@ export async function processNFTBookPurchase(
     });
     const { notificationEmails = [] } = listingData;
     const { claimToken } = txData;
-    await stripe.paymentIntents.capture(paymentIntent as string);
+    const [, classData] = await Promise.all([
+      stripe.paymentIntents.capture(paymentIntent as string),
+      getNFTClassDataById(classId).catch(() => null),
+    ]);
+    const className = classData?.name || classId;
     if (email) {
-      const classData = await getNFTClassDataById(classId);
-      const className = classData?.name || classId;
       await sendNFTBookPendingClaimEmail({
         email,
         classId,
@@ -167,7 +169,7 @@ export async function processNFTBookPurchase(
       await sendNFTBookSalesEmail({
         buyerEmail: email,
         emails: notificationEmails,
-        classId,
+        className,
         amount: (amountTotal || 0) / 100,
       });
     }
