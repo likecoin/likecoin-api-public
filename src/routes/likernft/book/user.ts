@@ -1,27 +1,37 @@
 import { Router } from 'express';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { likeNFTBookUserCollection } from '../../../util/firebase';
+import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import stripe from '../../../util/stripe';
 import { NFT_BOOKSTORE_HOSTNAME } from '../../../constant';
 
 const router = Router();
 
 router.get(
-  '/user/connect/status',
+  '/connect/status',
+  jwtOptionalAuth('read:nftbook'),
   async (req, res, next) => {
     try {
-      const { wallet } = req.user;
+      const { wallet } = req.query;
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
-      const { stripeConnectAccountId, isStripeConnectReady } = userData;
-      res.json({
+      const {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        email,
+      } = userData;
+      const payload: any = {
         hasAccount: !!stripeConnectAccountId,
         isReady: isStripeConnectReady,
-      });
+      };
+      if (req.user && req.user.wallet === wallet) {
+        payload.stripeConnectAccountId = stripeConnectAccountId;
+        payload.email = email;
+      }
+      res.json(payload);
     } catch (err) {
       next(err);
     }
@@ -29,7 +39,7 @@ router.get(
 );
 
 router.post(
-  '/user/connect/login',
+  '/connect/login',
   jwtAuth('read:nftbook'),
   async (req, res, next) => {
     try {
@@ -41,7 +51,7 @@ router.post(
       }
       const { stripeConnectAccountId } = userData;
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
-      res.redirect(loginLink.url);
+      res.json({ url: loginLink.url });
     } catch (err) {
       next(err);
     }
@@ -49,7 +59,7 @@ router.post(
 );
 
 router.post(
-  '/user/connect/new',
+  '/connect/new',
   jwtAuth('write:nftbook'),
   async (req, res, next) => {
     try {
@@ -69,22 +79,20 @@ router.post(
       if (!stripeConnectAccountId) {
         const account = await stripe.accounts.create({
           type: 'express',
-          tos_acceptance: {
-            service_agreement: 'recipient',
-          },
         });
         stripeConnectAccountId = account.id;
       }
       const accountLink = await stripe.accountLinks.create({
         account: stripeConnectAccountId,
-        refresh_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/connect/refresh`,
-        return_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/connect/return`,
+        refresh_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/user/connect/refresh`,
+        return_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/user/connect/return`,
         type: 'account_onboarding',
       });
       await likeNFTBookUserCollection.doc(wallet).set({
         stripeConnectAccountId,
+        timestamp: FieldValue.serverTimestamp(),
       }, { merge: true });
-      res.redirect(accountLink.url);
+      res.json({ url: accountLink.url });
     } catch (err) {
       next(err);
     }
@@ -92,7 +100,7 @@ router.post(
 );
 
 router.post(
-  '/user/connect/refresh',
+  '/connect/refresh',
   jwtAuth('write:nftbook'),
   async (req, res, next) => {
     try {
@@ -113,7 +121,9 @@ router.post(
         stripeConnectAccountId,
         isStripeConnectReady,
         email,
+        lastUpdateTimestamp: FieldValue.serverTimestamp(),
       });
+      res.json({ isReady: isStripeConnectReady });
     } catch (err) {
       next(err);
     }

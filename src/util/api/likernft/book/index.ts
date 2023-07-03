@@ -18,6 +18,7 @@ export async function newNftBookInfo(classId, data) {
     cancelUrl,
     notificationEmails,
     moderatorWallets,
+    connectedWallets,
   } = data;
   const newPrices = prices.map((p) => {
     const {
@@ -51,17 +52,20 @@ export async function newNftBookInfo(classId, data) {
   if (cancelUrl) payload.cancelUrl = cancelUrl;
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
   if (notificationEmails) payload.notificationEmails = notificationEmails;
+  if (connectedWallets) payload.connectedWallets = connectedWallets;
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
 export async function updateNftBookSettings(classId, {
-  notificationEmails = [],
-  moderatorWallets = [],
+  notificationEmails,
+  moderatorWallets,
+  connectedWallets,
 }) {
-  await likeNFTBookCollection.doc(classId).update({
-    notificationEmails,
-    moderatorWallets,
-  });
+  const payload: any = {};
+  if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
+  if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
+  if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
+  await likeNFTBookCollection.doc(classId).update(payload);
 }
 
 export async function getNftBookInfo(classId) {
