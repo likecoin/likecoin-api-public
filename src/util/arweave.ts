@@ -1,5 +1,5 @@
 import Arweave from 'arweave/node';
-import Bundlr from "@bundlr-network/client";
+import Bundlr from '@bundlr-network/client';
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import stringify from 'fast-json-stable-stringify';

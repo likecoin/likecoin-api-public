@@ -218,11 +218,11 @@ export function sendPendingClaimEmail({
           <br/>
           <p><b>步驟二：驗證電郵地址</b></p>
           <p>1. 點擊此<a href="${getLikerLandNFTClaimPageURL({
-            classId,
-            paymentId,
-            token: claimToken,
-            language: 'zh-Hant',
-          })}">驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
+    classId,
+    paymentId,
+    token: claimToken,
+    language: 'zh-Hant',
+  })}">驗證電郵連結</a>，點選「連接錢包」按鈕，再點選彈出視窗的「Keplr」選項。</p>
           <p>2. 點擊 Keplr 彈出視窗的「Approve」按鈕，進行簽署，完成連接錢包。</p>
           <p>3. 信箱設定頁面已預設你的信箱地址，請點選「確認」按鈕，系統將寄出驗證電郵到你的信箱。</p>
           <p>4. 點選驗證電郵的連結完成驗證。</p>
@@ -247,11 +247,11 @@ export function sendPendingClaimEmail({
           <p><b>Step 2. Verify your email address</b></p>
           <p>After installing Keplr on your browser:</p>
           <p>1. Click on this <a href="${getLikerLandNFTClaimPageURL({
-            classId,
-            paymentId,
-            token: claimToken,
-            language: 'en',
-          })}">email verification link</a>, then click the "Connect Wallet" button and select "Keplr" from the pop-up window.</p>
+    classId,
+    paymentId,
+    token: claimToken,
+    language: 'en',
+  })}">email verification link</a>, then click the "Connect Wallet" button and select "Keplr" from the pop-up window.</p>
           <p>2. Click the "Approve" button on the Keplr pop-up window to sign and complete the wallet connection.</p>
           <p>3. Your email address has been pre-set in the mailbox settings page. Click the "Confirm" button, and the system will send a verification email to your inbox.</p>
           <p>4. Click on the verification link in the email to complete the verification process.</p>
@@ -305,12 +305,12 @@ export function sendNFTBookPendingClaimEmail({
           <p>請根據以下兩步驟領取你的 NFT 書：</p>
           <p>1. 確認您已有 Keplr 密碼貨幣錢包；如尚未持有，請參考<a href="https://youtu.be/bPaZk-ehWrg">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/RC8PugjnZq8">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</p>
           <p>2. 前往 Liker Land 的<a href="${getLikerLandNFTClaimPageURL({
-            classId,
-            paymentId,
-            token: claimToken,
-            type: 'nft_book',
-            language: 'zh-Hant',
-          })}">認領頁面</a>，連結錢包以驗證領取資格。</p>
+    classId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'zh-Hant',
+  })}">認領頁面</a>，連結錢包以驗證領取資格。</p>
           <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發 NFT 書。請往你的 Liker Land 書架查閱。</p>
           <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
           <p>感謝珍藏此 NFT 書，願你享受閱讀的樂趣。</p>
@@ -326,12 +326,12 @@ export function sendNFTBookPendingClaimEmail({
           <p>1. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</p>
           <p>2. Visit the 
             <a href="${getLikerLandNFTClaimPageURL({
-            classId,
-            paymentId,
-            token: claimToken,
-            type: 'nft_book',
-            language: 'en',
-          })}">claim page</a> on Liker Land and connect your wallet to verify your eligibility.</p>
+    classId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'en',
+  })}">claim page</a> on Liker Land and connect your wallet to verify your eligibility.</p>
           <p>Once these steps are completed, the author will issue the NFT book to you within 1-3 business days. Please check your Liker Land bookshelf for the book.</p>
           <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
           <p>Thank you for cherishing this NFT book, and may you enjoy the pleasure of reading.</p>

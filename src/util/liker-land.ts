@@ -1,4 +1,4 @@
-import { LIKER_LAND_HOSTNAME } from "../constant";
+import { LIKER_LAND_HOSTNAME } from '../constant';
 
 export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
