@@ -92,6 +92,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       ownerWallet,
       moderatorWallets = [],
       notificationEmails,
+      connectedWallets,
     } = bookInfo;
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -107,6 +108,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       payload.pendingNFTCount = pendingNFTCount;
       payload.moderatorWallets = moderatorWallets;
       payload.notificationEmails = notificationEmails;
+      payload.connectedWallets = connectedWallets;
     }
     res.json(payload);
   } catch (err) {
