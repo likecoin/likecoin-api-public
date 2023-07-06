@@ -36,6 +36,7 @@ router.get('/:classId/new', async (req, res, next) => {
         paymentId,
         token: claimToken,
         type: 'nft_book',
+        redirect: true,
       }),
       cancelUrl = getLikerLandNFTClassPageURL({ classId }),
       ownerWallet,

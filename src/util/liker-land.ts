@@ -10,13 +10,15 @@ export const getLikerLandNFTClaimPageURL = ({
   token,
   type = '',
   language,
+  redirect = false,
 }: {
   classId: string;
   paymentId: string;
   token: string;
   type?: string;
   language?: string;
-}) => getLikerLandURL(`/nft/claim?class_id=${classId}&payment_id=${paymentId}&claiming_token=${token}${type ? `&type=${type}` : ''}`, { language });
+  redirect?: boolean;
+}) => getLikerLandURL(`/nft/claim?class_id=${classId}&payment_id=${paymentId}&claiming_token=${token}${redirect ? '&redirect=1' : ''}${type ? `&type=${type}` : ''}`, { language });
 
 export const getLikerLandNFTFiatStripePurchasePageURL = ({
   classId,
