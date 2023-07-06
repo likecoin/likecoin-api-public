@@ -134,6 +134,7 @@ router.post(
 
       if (purchasedDataItems.length > 1) {
         // NOTE: Group multiple purchases into one event
+        purchasedDataItems.sort((a, b) => b.nftPrice - a.nftPrice);
         publisher.publish(PUBSUB_TOPIC_WNFT, null, {
           type: 'purchase_multiple',
           ...txData,
