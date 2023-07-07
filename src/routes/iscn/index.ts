@@ -17,7 +17,7 @@ import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicI
 import {
   checkFileValid, convertMulterFiles, estimateUploadToArweave, processSigningUploadToArweave,
 } from '../../util/api/arweave';
-import { estimateCreateISCN, processCreateISCN, processTransferISCN } from '../../util/api/iscn';
+import { estimateCreateISCN, processCreateAndTransferISCN } from '../../util/api/iscn';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { IS_CHAIN_UPGRADING } = require('../../../config/config');
@@ -33,8 +33,7 @@ async function handleRegisterISCN(req, res, next) {
       // TODO: remove oauth check when open to personal call
       res.status(403).send('OAUTH_NEEDED');
     }
-    const { claim = 1, estimate } = req.query;
-    const isClaim = claim && claim !== '0';
+    const { estimate } = req.query;
     let metadata = req.body.metadata || req.body || {};
     if (typeof metadata === 'string') {
       try {
@@ -114,26 +113,22 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
+    const wallet = likeWallet || cosmosWallet;
+
     const {
       iscnId,
       iscnLIKE,
+      totalLIKE,
       gasLIKE,
       gasUsed,
       gasWanted,
       transactionHash: iscnTxHash,
-    } = await processCreateISCN(ISCNPayload, signingClient, signingInfo);
-
-    let totalLIKE = gasLIKE.plus(iscnLIKE);
-
-    if (!iscnId) {
-      if (iscnTxHash) {
-        // eslint-disable-next-line no-console
-        console.error(`Cannot find ISCN ID for TX ${iscnTxHash}`);
-      } else {
-        // eslint-disable-next-line no-console
-        console.error('Cannot find ISCN ID and ISCN TX');
-      }
-    }
+    } = await processCreateAndTransferISCN(
+      ISCNPayload,
+      wallet,
+      signingClient,
+      signingInfo,
+    );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'ISCNFreeRegister',
@@ -150,34 +145,12 @@ async function handleRegisterISCN(req, res, next) {
       fromProvider: (req.user || {}).azp || undefined,
     });
 
-    // return early
     res.json({
       txHash: iscnTxHash,
       iscnId,
       arweaveId: res.locals.arweaveId,
       ipfsHash: res.locals.ipfsHash,
     });
-
-    const wallet = likeWallet || cosmosWallet;
-    if (isClaim && iscnId && wallet) {
-      const {
-        gasUsed: transferGasUsed,
-        gasLIKE: transferGasLIKE,
-        transactionHash: iscnTransferTxHash,
-      } = await processTransferISCN(iscnId, wallet, signingClient, signingInfo);
-      totalLIKE = totalLIKE.plus(transferGasLIKE);
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'ISCNFreeRegisterTransfer',
-        txHash: iscnTransferTxHash,
-        iscnId,
-        totalLIKEString: totalLIKE.toFixed(),
-        totalLIKENumber: totalLIKE.toNumber(),
-        gasLIKEString: transferGasLIKE.toFixed(),
-        gasLIKENumber: transferGasLIKE.toNumber(),
-        gasUsed: transferGasUsed,
-        fromProvider: (req.user || {}).azp || undefined,
-      });
-    }
   } catch (err) {
     next(err);
   }
