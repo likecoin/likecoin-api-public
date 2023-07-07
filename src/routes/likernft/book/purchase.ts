@@ -14,6 +14,8 @@ import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookClaimedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
+import { calculateStripeFee } from '../../../util/api/likernft/purchase';
+import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
 
 const router = Router();
 
@@ -40,6 +42,7 @@ router.get('/:classId/new', async (req, res, next) => {
       }),
       cancelUrl = getLikerLandNFTClassPageURL({ classId }),
       ownerWallet,
+      connectedWallets,
     } = bookInfo;
     if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
     const {
@@ -73,6 +76,23 @@ router.get('/:classId/new', async (req, res, next) => {
       ownerWallet,
     };
     if (from) sessionMetadata.from = from as string;
+    const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
+      capture_method: 'manual',
+      metadata: sessionMetadata,
+    };
+    if (connectedWallets && Object.keys(connectedWallets).length) {
+      const wallet = Object.keys(connectedWallets)[0];
+      const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
+      if (stripeConnectAccountId) {
+        const stripeFeeAmount = calculateStripeFee(priceInDecimal);
+        const likerlandFeeAmount = Math.ceil(priceInDecimal * 0.05);
+        // TODO: support connectedWallets +1
+        paymentIntentData.application_fee_amount = stripeFeeAmount + likerlandFeeAmount;
+        paymentIntentData.transfer_data = {
+          destination: stripeConnectAccountId,
+        };
+      }
+    }
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       success_url: `${successUrl}`,
@@ -98,10 +118,7 @@ router.get('/:classId/new', async (req, res, next) => {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        capture_method: 'manual',
-        metadata: sessionMetadata,
-      },
+      payment_intent_data: paymentIntentData,
       metadata: sessionMetadata,
     });
     const { url, id: sessionId } = session;
