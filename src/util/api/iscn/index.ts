@@ -22,7 +22,7 @@ export async function estimateCreateISCN(
 
 export async function processCreateAndTransferISCN(
   ISCNPayload: ISCNSignPayload,
-  wallet: string,
+  wallet: string | null,
   signingClient: ISCNSigningClient,
   signingInfo: {
     address: string,
@@ -38,8 +38,10 @@ export async function processCreateAndTransferISCN(
 
   const messages = [
     formatMsgCreateIscnRecord(address, ISCNPayload),
-    formatMsgChangeIscnRecordOwnership(address, iscnId, wallet),
   ];
+  if (wallet) {
+    messages.push(formatMsgChangeIscnRecordOwnership(address, iscnId, wallet));
+  }
 
   const signingFunction = async ({ sequence }) => {
     const r = await signingClient.sendMessages(

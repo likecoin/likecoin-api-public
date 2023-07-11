@@ -33,7 +33,8 @@ async function handleRegisterISCN(req, res, next) {
       // TODO: remove oauth check when open to personal call
       res.status(403).send('OAUTH_NEEDED');
     }
-    const { estimate } = req.query;
+    const { claim = 1, estimate } = req.query;
+    const isClaim = claim && claim !== '0';
     let metadata = req.body.metadata || req.body || {};
     if (typeof metadata === 'string') {
       try {
@@ -113,7 +114,7 @@ async function handleRegisterISCN(req, res, next) {
       return;
     }
 
-    const wallet = likeWallet || cosmosWallet;
+    const wallet = isClaim ? (likeWallet || cosmosWallet) : null;
 
     const {
       iscnId,
