@@ -80,6 +80,9 @@ router.post(
       if (!stripeConnectAccountId) {
         const account = await stripe.accounts.create({
           type: 'express',
+          metadata: {
+            wallet,
+          },
         });
         stripeConnectAccountId = account.id;
       }
