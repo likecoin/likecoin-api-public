@@ -49,7 +49,8 @@ router.post(
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
-      const { stripeConnectAccountId } = userData;
+      const { stripeConnectAccountId, isStripeConnectReady } = userData;
+      if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
       res.json({ url: loginLink.url });
     } catch (err) {
