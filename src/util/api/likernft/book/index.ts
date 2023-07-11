@@ -11,6 +11,8 @@ export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export async function newNftBookInfo(classId, data) {
+  const doc = await likeNFTBookCollection.doc(classId).get();
+  if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
   const {
     prices,
     ownerWallet,
