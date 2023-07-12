@@ -6,7 +6,7 @@ import stripe from '../../../stripe';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 
-export const MIN_BOOK_PRICE_DECIMAL = 500; // 500 USD
+export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
