@@ -40,7 +40,7 @@ export function amountToLIKE(likecoin) {
 }
 
 export async function getCosmosTotalSupply() {
-  const { data } = await api.get(`/cosmos/bank/v1beta1/supply/${COSMOS_DENOM}`);
+  const { data } = await api.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${encodeURIComponent(COSMOS_DENOM)}`);
   return amountToLIKE(data.amount);
 }
 
