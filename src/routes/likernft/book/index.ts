@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import purchase from './purchase';
 import store from './store';
-import user from './user';
+import user from '../connect';
 
 const router = Router();
 

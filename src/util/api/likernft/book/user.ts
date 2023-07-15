@@ -1,8 +1,8 @@
 import { ValidationError } from '../../../ValidationError';
-import { likeNFTBookUserCollection } from '../../../firebase';
+import { likeNFTConnectedUserCollection } from '../../../firebase';
 
 export async function getStripeConnectAccountId(wallet: string) {
-  const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+  const userDoc = await likeNFTConnectedUserCollection.doc(wallet).get();
   const userData = userDoc.data();
   if (!userData) {
     return null;
@@ -17,7 +17,7 @@ export async function validateConnectedWallets(connectedWallets: {[key: string]:
   }
   const connectedWalletsKeys = Object.keys(connectedWallets);
   const userDocs = await Promise.all(connectedWalletsKeys
-    .map((wallet) => likeNFTBookUserCollection.doc(wallet).get()));
+    .map((wallet) => likeNFTConnectedUserCollection.doc(wallet).get()));
   const userData = userDocs.map((u) => ({ id: u.id, ...(u.data() || {}) }));
   const invalidData = userData.find((u) => !u.isStripeConnectReady);
   if (invalidData) throw new ValidationError(`INVALID_CONNECTED_WALLETS: ${invalidData}`);
