@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { decodeTxRaw } from '@cosmjs/proto-signing';
-import { StargateClient } from '@cosmjs/stargate';
+import { StargateClient, assertIsDeliverTxSuccess } from '@cosmjs/stargate';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import createHash from 'create-hash';
@@ -27,12 +27,12 @@ export const MAX_MEMO_LENGTH = 256;
 let stargateClient: StargateClient | null = null;
 let broadcastClient: StargateClient | null = null;
 
-async function getBroadcastClient() {
+async function getBroadcastClient(): Promise<StargateClient> {
   if (!broadcastClient) broadcastClient = await StargateClient.connect(COSMOS_SIGNING_RPC_ENDPOINT);
   return broadcastClient;
 }
 
-async function getClient() {
+async function getClient(): Promise<StargateClient> {
   if (!stargateClient) stargateClient = await StargateClient.connect(COSMOS_RPC_ENDPOINT);
   return stargateClient;
 }
@@ -87,7 +87,7 @@ async function computeTransactionHash(signedTx) {
   return txHash.toUpperCase();
 }
 
-async function internalSendTransaction(signedTx, c) {
+async function internalSendTransaction(signedTx, c: StargateClient | null = null) {
   const client = c || await getBroadcastClient();
   const txBytes = TxRaw.encode(signedTx).finish();
   try {
@@ -153,6 +153,7 @@ export async function sendTransactionWithSequence(
       }
       return Promise.resolve();
     }));
+    assertIsDeliverTxSuccess(res);
   } catch (err) {
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
       logType: 'eventCosmosError',
