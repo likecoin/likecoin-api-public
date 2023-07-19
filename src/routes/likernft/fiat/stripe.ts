@@ -365,7 +365,7 @@ router.post(
             paymentId,
             classId,
             nftId,
-            receiverWallet,
+            wallet: receiverWallet,
           });
         }
         throw err;
@@ -441,6 +441,15 @@ router.post(
         wallet: receiverWallet,
         claimTransactionHash: txHash,
         claimTimestamp: Date.now(),
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTFiatClaimed',
+        paymentId,
+        classId,
+        nftId,
+        txHash,
+        wallet: receiverWallet,
       });
 
       res.json({ classId, nftId, txHash });
