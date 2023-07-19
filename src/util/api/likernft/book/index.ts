@@ -5,6 +5,8 @@ import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { getNFTClassDataById } from '../../../cosmos/nft';
+import publisher from '../../../gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../../../constant';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -63,7 +65,9 @@ export async function updateNftBookSettings(classId, {
   moderatorWallets,
   connectedWallets,
 }) {
-  const payload: any = {};
+  const payload: any = {
+    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+  };
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
@@ -90,12 +94,6 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
     const docData = doc.data();
     return { id: doc.id, ...docData };
   });
-}
-
-export async function handleBookPurchase(classId) {
-  const doc = await likeNFTBookCollection.doc(classId).get();
-  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
-  return doc.data();
 }
 
 export async function processNFTBookPurchase(
@@ -156,11 +154,27 @@ export async function processNFTBookPurchase(
       };
     });
     const { notificationEmails = [] } = listingData;
-    const { claimToken } = txData;
+    const {
+      claimToken, price, priceName, type, from,
+    } = txData;
     const [, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
       getNFTClassDataById(classId).catch(() => null),
     ]);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseCaptured',
+      type,
+      paymentId,
+      classId,
+      iscnPrefix,
+      price,
+      priceName,
+      priceIndex,
+      fromChannel: from,
+      sessionId: session.id,
+    });
+
     const className = classData?.name || classId;
     if (email) {
       await sendNFTBookPendingClaimEmail({
@@ -182,6 +196,18 @@ export async function processNFTBookPurchase(
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
+    const errorMessage = (err as Error).message;
+    const errorStack = (err as Error).stack;
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseError',
+      type: 'stripe',
+      paymentId,
+      classId,
+      iscnPrefix,
+      error: (err as Error).toString(),
+      errorMessage,
+      errorStack,
+    });
     await likeNFTBookCollection.doc(classId).collection('transactions')
       .doc(paymentId).update({
         status: 'canceled',

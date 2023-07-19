@@ -3,7 +3,8 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import stripe from '../../../util/stripe';
-import { NFT_BOOKSTORE_HOSTNAME } from '../../../constant';
+import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import publisher from '../../../util/gcloudPub';
 
 const router = Router();
 
@@ -52,6 +53,13 @@ router.post(
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
       if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTStripeConnectLogin',
+        wallet,
+        stripeConnectAccountId,
+      });
+
       res.json({ url: loginLink.url });
     } catch (err) {
       next(err);
@@ -96,6 +104,13 @@ router.post(
         stripeConnectAccountId,
         timestamp: FieldValue.serverTimestamp(),
       }, { merge: true });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTStripeConnectCreate',
+        wallet,
+        stripeConnectAccountId,
+      });
+
       res.json({ url: accountLink.url });
     } catch (err) {
       next(err);
@@ -127,6 +142,15 @@ router.post(
         email,
         lastUpdateTimestamp: FieldValue.serverTimestamp(),
       });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'NFTStripeConnectRefresh',
+        wallet,
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        email,
+      });
+
       res.json({ isReady: isStripeConnectReady });
     } catch (err) {
       next(err);

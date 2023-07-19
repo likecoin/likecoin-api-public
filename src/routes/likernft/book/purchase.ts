@@ -209,6 +209,15 @@ router.post(
         return docData;
       });
 
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimed',
+        paymentId,
+        classId,
+        wallet,
+        email,
+        message,
+      });
+
       const doc = await bookRef.get();
       const docData = doc.data();
       if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -273,6 +282,15 @@ router.post(
           pendingNFTCount: FieldValue.increment(-1),
         });
       });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTSentUpdate',
+        paymentId,
+        classId,
+        // TODO: parse nftId and wallet from txHash,
+        txHash,
+      });
+
       res.sendStatus(200);
     } catch (err) {
       next(err);

@@ -13,6 +13,8 @@ import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
+import publisher from '../../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const router = Router();
 
@@ -217,6 +219,13 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       moderatorWallets,
       connectedWallets,
     });
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTListingCreate',
+      wallet: ownerWallet,
+      classId,
+    });
+
     res.json({
       classId,
     });
@@ -245,6 +254,13 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
       moderatorWallets,
       connectedWallets,
     });
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTListingUpdate',
+      wallet: ownerWallet,
+      classId,
+    });
+
     res.json({
       classId,
     });
