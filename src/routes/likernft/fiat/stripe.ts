@@ -29,6 +29,7 @@ import {
 } from '../../../../config/config';
 import { processNFTBookPurchase } from '../../../util/api/likernft/book';
 import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
+import { processStripeNFTSubscriptionInvoice, processStripeNFTSubscriptionSession } from '../../../util/api/likernft/subscription/stripe';
 
 const router = Router();
 
@@ -56,16 +57,28 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'checkout.session.completed': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
+          subscription: subscriptionId,
           metadata: { store } = {} as any,
         } = session;
-        if (store === 'book') {
+        if (subscriptionId) {
+          await processStripeNFTSubscriptionSession(session, req);
+        } else if (store === 'book') {
           await processNFTBookPurchase(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }
         break;
       }
-      case 'invoice.paid':
+      case 'invoice.paid': {
+        const invoice = event.data.object;
+        const {
+          subscription: subscriptionId,
+        } = invoice;
+        if (subscriptionId) {
+          await processStripeNFTSubscriptionInvoice(invoice, req);
+        }
+        break;
+      }
       default: {
         res.sendStatus(415);
         return;
