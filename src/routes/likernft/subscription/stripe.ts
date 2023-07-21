@@ -8,6 +8,7 @@ import publisher from '../../../util/gcloudPub';
 
 import { getLikerLandNFTPortfolioPageURL, getLikerLandNFTSubscriptionSuccessPageURL } from '../../../util/liker-land';
 import { getUserStripeConnectInfo } from '../../../util/api/likernft/connect';
+import { getSubscriptionUserInfo } from '../../../util/api/likernft/subscription/readers';
 
 const router = Router();
 
@@ -16,26 +17,39 @@ router.post(
   async (req, res, next) => {
     try {
       const creatorWallet = req.query.creator_wallet as string;
+      // TODO: use req.user for wallet instead of query string
       const { wallet, plan } = req.query;
 
+      if (!(creatorWallet) && !isValidLikeAddress(creatorWallet)) throw new ValidationError('INVALID_CREATOR_WALLET');
       if (!(wallet) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const {
         email,
       } = req.body;
-      const userData = await getUserStripeConnectInfo(creatorWallet);
-      if (!userData) { throw new ValidationError('CREATOR_NOT_SETUP_ACCOUNT', 409); }
+      const [creatorData, readerData] = await Promise.all([
+        getUserStripeConnectInfo(creatorWallet),
+        getSubscriptionUserInfo(wallet as string),
+      ]);
+      if (!creatorData) { throw new ValidationError('CREATOR_NOT_SETUP_ACCOUNT', 409); }
       const {
         defaultStripePriceId,
         stripePriceIds = [],
         stripeConnectAccountId,
         isStripeConnectReady,
-      } = userData;
+      } = creatorData;
       if (!isStripeConnectReady) { throw new ValidationError('CREATOR_NOT_SETUP_ACCOUNT', 409); }
       if (!defaultStripePriceId || !stripePriceIds.length) { throw new ValidationError('CREATOR_NOT_SETUP_ANY_PLANS', 404); }
       let priceId = plan;
       if (!priceId || !stripePriceIds.includes(priceId)) {
         priceId = defaultStripePriceId;
       }
+
+      let customerId;
+      let customerEmail = email;
+      if (readerData?.customer?.customerId) {
+        customerId = readerData?.customer?.customerId;
+        customerEmail = undefined;
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         line_items: [
@@ -47,7 +61,8 @@ router.post(
         success_url: getLikerLandNFTSubscriptionSuccessPageURL({
           creatorWallet,
         }),
-        customer_email: email,
+        customer: customerId,
+        customer_email: customerEmail,
         cancel_url: getLikerLandNFTPortfolioPageURL({ wallet: creatorWallet }),
         metadata: {
           store: 'likerland',
