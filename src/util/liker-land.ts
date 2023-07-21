@@ -4,6 +4,8 @@ export const getLikerLandURL = (path = '', { language = 'en' }: { language?: str
 
 export const getLikerLandNFTClassPageURL = ({ classId, language }: { classId: string, language?: string }) => getLikerLandURL(`/nft/class/${classId}`, { language });
 
+export const getLikerLandNFTPortfolioPageURL = ({ wallet, language }: { wallet: string, language?: string }) => getLikerLandURL(`/${wallet}`, { language });
+
 export const getLikerLandNFTClaimPageURL = ({
   classId,
   paymentId,
@@ -33,3 +35,11 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   token: string;
   language?: string;
 }) => getLikerLandURL(`/nft/fiat/stripe?class_id=${classId}&payment_id=${paymentId}${wallet ? '' : `&claiming_token=${token}`}`, { language });
+
+export const getLikerLandNFTSubscriptionSuccessPageURL = ({
+  creatorWallet,
+  language,
+}: {
+  creatorWallet: string;
+  language?: string;
+}) => getLikerLandURL(`/${creatorWallet}/subscription/success`, { language });
