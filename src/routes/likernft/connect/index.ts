@@ -5,6 +5,7 @@ import { FieldValue, likeNFTConnectedUserCollection } from '../../../util/fireba
 import stripe from '../../../util/stripe';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
+import { getUserStripeConnectInfo } from '../../../util/api/likernft/connect';
 
 const router = Router();
 
@@ -14,8 +15,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
-      const userDoc = await likeNFTConnectedUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
+      const userData = await getUserStripeConnectInfo(wallet as string);
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
@@ -45,8 +45,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
-      const userDoc = await likeNFTConnectedUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
+      const userData = await getUserStripeConnectInfo(wallet as string);
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
@@ -73,8 +72,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
-      const userDoc = await likeNFTConnectedUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
+      const userData = await getUserStripeConnectInfo(wallet as string);
       const {
         stripeConnectAccountId: existingId,
         isStripeConnectReady,
@@ -124,8 +122,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
-      const userDoc = await likeNFTConnectedUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
+      const userData = await getUserStripeConnectInfo(wallet as string);
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
