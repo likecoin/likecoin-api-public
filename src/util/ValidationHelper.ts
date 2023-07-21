@@ -550,26 +550,23 @@ export function filterFollow({
   };
 }
 
-export function filterNFTSubscriptionMintStatus({
+export function filterNFTSubscriptionPlanInfo({
   id,
-  status,
-  isProcessing,
-  wallet,
-  arweave,
-  iscn,
-  nftCover,
-  nftClass,
-  nftMint,
+  priceInDecimal,
+  name,
+  description,
+  stripePriceId,
+  stripeProductId,
+  canFreeMintWNFT,
 }) {
   return {
     id,
-    status,
-    isProcessing,
-    wallet,
-    arweave,
-    iscn,
-    nftCover,
-    nftClass,
-    nftMint,
+    priceInDecimal,
+    price: priceInDecimal / 100,
+    name,
+    description,
+    stripePriceId,
+    stripeProductId,
+    canFreeMintWNFT,
   };
 }
