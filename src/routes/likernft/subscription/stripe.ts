@@ -6,9 +6,10 @@ import { ValidationError } from '../../../util/ValidationError';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 
-import { getLikerLandNFTPortfolioPageURL, getLikerLandNFTSubscriptionSuccessPageURL } from '../../../util/liker-land';
+import { getLikerLandNFTPortfolioPageURL, getLikerLandNFTSubscriptionSuccessPageURL, getLikerLandURL } from '../../../util/liker-land';
 import { getUserStripeConnectInfo } from '../../../util/api/likernft/connect';
 import { getSubscriptionUserInfo } from '../../../util/api/likernft/subscription/readers';
+import { jwtAuth } from '../../../middleware/jwt';
 
 const router = Router();
 
@@ -92,6 +93,40 @@ router.post(
         buyerWallet: wallet,
         creatorWallet,
         sessionId,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/portal',
+  jwtAuth('write:nft_reader'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const {
+        customer: {
+          customerId = '',
+        } = {},
+      } = await getSubscriptionUserInfo(wallet as string);
+      if (!customerId) throw new ValidationError('NO_STRIPE_CUSTOMER_ID');
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: getLikerLandURL('/dashboard'),
+      });
+      const { url, id: sessionId } = session;
+      res.json({
+        id: sessionId,
+        url,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTSubscriptionPortalSession',
+        type: 'stripe',
+        wallet,
+        sessionId,
+        customerId,
       });
     } catch (err) {
       next(err);
