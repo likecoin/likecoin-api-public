@@ -8,7 +8,8 @@ import {
   getCreatorSubscriptionPlans,
   newCreatorSubscriptionPlan,
 } from '../../../util/api/likernft/subscription/creators';
-import { filterNFTSubscriptionPlanInfo } from '../../../util/ValidationHelper';
+import { filterNFTSubscriberInfo, filterNFTSubscriptionPlanInfo } from '../../../util/ValidationHelper';
+import { getActiveSubscriptionsOfCreator } from '../../../util/api/likernft/subscription/readers';
 
 const router = Router();
 
@@ -20,6 +21,20 @@ router.get(
       const plansInfo = await getCreatorSubscriptionPlans(wallet);
       const plans = plansInfo.map((p) => filterNFTSubscriptionPlanInfo(p));
       res.json({ plans });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/:wallet/subscribers',
+  jwtAuth('read:nft_creator'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.params;
+      const readers = await getActiveSubscriptionsOfCreator(wallet);
+      res.json({ readers: readers.map((r) => filterNFTSubscriberInfo(r)) });
     } catch (err) {
       next(err);
     }

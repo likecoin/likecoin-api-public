@@ -13,7 +13,7 @@ export async function getSubscriptionUserActiveSubscriptionsData(wallet: string)
   const activeSubscriptionsData = wallets.reduce((acc, w) => {
     const { currentPeriodEnd } = userData[w];
     const now = Date.now();
-    if (currentPeriodEnd > now) {
+    if (currentPeriodEnd > now / 1000) {
       acc[w] = {
         ...userData[w],
       };
@@ -21,4 +21,11 @@ export async function getSubscriptionUserActiveSubscriptionsData(wallet: string)
     return acc;
   }, {});
   return activeSubscriptionsData;
+}
+
+export async function getActiveSubscriptionsOfCreator(wallet: string) {
+  const readerQuery = await likeNFTSubscriptionUserCollection
+    .where(`${wallet}.currentPeriodEnd`, '>', Math.round(Date.now() / 1000)).get();
+  const readers = readerQuery.docs.map((doc) => ({ wallet: doc.id, ...doc.data()[wallet] }));
+  return readers;
 }

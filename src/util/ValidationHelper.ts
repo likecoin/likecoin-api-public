@@ -570,3 +570,19 @@ export function filterNFTSubscriptionPlanInfo({
     canFreeMintWNFT,
   };
 }
+
+export function filterNFTSubscriberInfo({
+  wallet,
+  currentPeriodStart,
+  currentPeriodEnd,
+  productId,
+  priceId,
+}) {
+  return {
+    wallet,
+    currentPeriodStart,
+    currentPeriodEnd,
+    productId,
+    priceId,
+  };
+}
