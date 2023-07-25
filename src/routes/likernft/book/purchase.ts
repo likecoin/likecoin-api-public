@@ -49,6 +49,7 @@ router.get('/:classId/new', async (req, res, next) => {
       priceInDecimal,
       stock,
       name: priceNameObj,
+      description: pricDescriptionObj,
     } = prices[priceIndex];
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     let { name = '', description = '' } = metadata;
@@ -58,11 +59,15 @@ router.get('/:classId/new', async (req, res, next) => {
     image = parseImageURLFromMetadata(image);
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
     const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
+    const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
     if (priceName) {
       name = `${name} - ${priceName}`;
     }
-    description = description.length > 200
-      ? `${description.substring(0, 199)}…`
+    if (priceDescription) {
+      description = `${description} - ${priceDescription}`;
+    }
+    description = description.length > 300
+      ? `${description.substring(0, 299)}…`
       : description;
     if (!description) {
       description = undefined;
