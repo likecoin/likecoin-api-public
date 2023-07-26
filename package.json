@@ -42,7 +42,7 @@
     "@improbable-eng/grpc-web": "^0.15.0",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@ipld/car": "^4.1.6",
-    "@likecoin/iscn-js": "^0.6.5",
+    "@likecoin/iscn-js": "^0.6.6",
     "@likecoin/likecoin-email-templates": "^1.2.2",
     "@likecoin/secretd-js": "^0.4.4",
     "@sendgrid/mail": "^6.5.5",
