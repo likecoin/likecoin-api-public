@@ -60,6 +60,7 @@ router.post(
       } = req.query;
       const {
         contentUrl,
+        reservedNftCount,
         initialBatch,
       } = req.body;
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
@@ -128,6 +129,7 @@ router.post(
         classId,
         iscnId: iscnPrefix,
         txHash,
+        reservedNftCount,
         nftCount: nfts.length,
         sellerWallet,
         apiWallet: LIKER_NFT_TARGET_ADDRESS,
