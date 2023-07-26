@@ -61,7 +61,9 @@ router.post(
       const {
         contentUrl,
         initialBatch,
+        isFree,
       } = req.body;
+      if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       const iscnPrefix = getISCNPrefix(iscnId);
       const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
@@ -112,6 +114,7 @@ router.post(
       const { sellerWallet, basePrice } = await writeMintedNFTInfo(iscnPrefix, {
         ...chainMetadata,
         initialBatch,
+        isFree,
         classId,
         totalCount: nfts.length,
         platform,
@@ -135,6 +138,7 @@ router.post(
         platform,
         contentUrl,
         initialBatch,
+        isFree,
         basePrice,
       };
 
