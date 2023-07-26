@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import stripe from '../../../stripe';
-import { likeNFTSubscriptionUserCollection } from '../../../firebase';
+import { FieldValue, likeNFTSubscriptionUserCollection } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
@@ -39,7 +39,7 @@ export async function processStripeNFTSubscriptionSession(
         productId,
         priceId,
       },
-      timesstamp: Date.now(),
+      timestamp: FieldValue.serverTimestamp(),
     }, { merge: true });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
