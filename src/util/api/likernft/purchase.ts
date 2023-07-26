@@ -30,6 +30,7 @@ import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { completeFreeMintTransaction, resetFreeMintTransaction, startFreeMintTransaction } from './free';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
@@ -149,7 +150,8 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
   const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-  if (priceInfo.processingCount >= priceInfo.batchRemainingCount) {
+  if (priceInfo.batchRemainingCount >= 0
+      && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
   return priceInfo;
@@ -242,7 +244,8 @@ async function calculateLIKEAndPopulateTxMsg({
   const STAKEHOLDERS_RATIO = 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
   const gasFee = getGasPrice();
-  const totalPrice = nftPrice + gasFee;
+  const isFree = nftPrice <= 0;
+  const totalPrice = isFree ? 0 : nftPrice + gasFee;
   const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
   const feeAmount = new BigNumber(nftPrice)
     .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
@@ -272,34 +275,42 @@ async function calculateLIKEAndPopulateTxMsg({
     });
   }
 
-  const stakeholderMap = await parseAndCalculateStakeholderRewards(
-    iscnData,
-    sellerWallet,
-    { totalAmount: stakeholdersAmount, precision: 0 },
-  );
-  stakeholderMap.forEach(({ amount }, wallet) => {
-    transferMessages.push(
-      {
-        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-        value: {
-          fromAddress: LIKER_NFT_TARGET_ADDRESS,
-          toAddress: wallet,
-          // TODO: fix iscn-js to use string for amount input and output
-          amount: [{
-            denom: NFT_COSMOS_DENOM,
-            amount,
-          }],
-        },
-      },
+  let stakeholderMap: Map<string, {
+    amount: string;
+  }> = new Map();
+  if (stakeholdersAmount && new BigNumber(stakeholdersAmount).gt(0)) {
+    stakeholderMap = await parseAndCalculateStakeholderRewards(
+      iscnData,
+      sellerWallet,
+      { totalAmount: stakeholdersAmount, precision: 0 },
     );
-  });
-  const txMessages = [
+    stakeholderMap.forEach(({ amount }, wallet) => {
+      transferMessages.push(
+        {
+          typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+          value: {
+            fromAddress: LIKER_NFT_TARGET_ADDRESS,
+            toAddress: wallet,
+            // TODO: fix iscn-js to use string for amount input and output
+            amount: [{
+              denom: NFT_COSMOS_DENOM,
+              amount,
+            }],
+          },
+        },
+      );
+    });
+  }
+  const execMessage = isFree ? [] : [
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,
       granterWallet,
       LIKER_NFT_TARGET_ADDRESS,
       [{ denom: NFT_COSMOS_DENOM, amount: totalAmount }],
     ),
+  ];
+  const txMessages = [
+    ...execMessage,
     formatMsgSend(
       LIKER_NFT_TARGET_ADDRESS,
       buyerWallet,
@@ -602,7 +613,8 @@ export async function processNFTPurchase({
   });
 
   const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
-  if (dbNFTTotalPrice > grantedAmount) {
+
+  if (dbNFTTotalPrice && dbNFTTotalPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
   }
 
@@ -615,6 +627,22 @@ export async function processNFTPurchase({
     nftPrice: priceInfoList[i].price,
     currentBatch: priceInfoList[i].currentBatch,
   }));
+
+  const freeList = purchaseInfoList
+    .filter((p) => p.nftPrice <= 0);
+  let freeMintIds: string[] = [];
+  if (freeList.length) {
+    freeMintIds = await db.runTransaction(async (t) => {
+      const ids = freeList.map((f) => startFreeMintTransaction(t, {
+        wallet: buyerWallet,
+        creatorWallet: f.sellerWallet,
+        classId: f.classId,
+        nftId: f.nftId,
+        type: 'free',
+      }));
+      return ids;
+    });
+  }
 
   const feeWallet = LIKER_NFT_FEE_ADDRESS;
 
@@ -668,6 +696,18 @@ export async function processNFTPurchase({
       }));
     });
 
+    if (freeList.length) {
+      await db.runTransaction(async (t) => {
+        const ids = freeList.map((f, i) => completeFreeMintTransaction(t, {
+          mintId: freeMintIds[i],
+          classId: f.classId,
+          nftId: f.nftId,
+          txHash,
+        }));
+        return ids;
+      });
+    }
+
     return {
       transactionHash: txHash,
       feeWallet,
@@ -691,6 +731,9 @@ export async function processNFTPurchase({
           t,
         })
       ));
+      if (freeMintIds.length) {
+        freeMintIds.forEach((id) => resetFreeMintTransaction(t, { mintId: id }));
+      }
 
       // eslint-disable-next-line no-underscore-dangle
       const shouldUpdateSoldNFT = (

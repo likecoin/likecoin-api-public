@@ -16,7 +16,7 @@ import {
   FIRESTORE_LIKER_NFT_ROOT,
   FIRESTORE_LIKER_NFT_FIAT_ROOT,
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
-  FIRESTORE_NFT_SUBSCRIPTION_TX_ROOT,
+  FIRESTORE_NFT_FREE_MINT_TX_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
   FIRESTORE_LIKE_URL_ROOT,
@@ -57,8 +57,8 @@ export const likeNFTFiatCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_
 export const likeNFTSubscriptionUserCollection = getCollectionIfDefined(
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
 );
-export const likeNFTSubscriptionTxCollection = getCollectionIfDefined(
-  FIRESTORE_NFT_SUBSCRIPTION_TX_ROOT,
+export const likeNFTFreeMintTxCollection = getCollectionIfDefined(
+  FIRESTORE_NFT_FREE_MINT_TX_ROOT,
 );
 export const likeNFTBookCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_BOOK_ROOT);
 export const likeNFTBookUserCollection = getCollectionIfDefined(
