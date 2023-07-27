@@ -1,14 +1,18 @@
+import axios from 'axios';
 import { ValidationError } from '../util/ValidationError';
 
 export default function errorHandler(err, req, res, next) {
   if (err instanceof ValidationError) {
     // eslint-disable-next-line no-console
     if (err.status !== 404) console.error(JSON.stringify((err as Error).message));
-  } else {
+  } else if (axios.isAxiosError(err)) {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify({
       message: err, stack: (err as Error).stack,
     }));
+  } else {
+    // eslint-disable-next-line no-console
+    console.error(err);
   }
   if (res.headersSent) {
     return next(err);
