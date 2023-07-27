@@ -9,7 +9,7 @@ import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookClaimedEmail } from '../../../util/ses';
@@ -63,7 +63,9 @@ router.get('/:classId/new', async (req, res, next) => {
     if (priceName) {
       name = `${name} - ${priceName}`;
     }
-    if (priceDescription) {
+    if (NFT_BOOK_SALE_DESCRIPTION[classId]) {
+      description = NFT_BOOK_SALE_DESCRIPTION[classId];
+    } else if (priceDescription) {
       description = `${description} - ${priceDescription}`;
     }
     description = description.length > 300
