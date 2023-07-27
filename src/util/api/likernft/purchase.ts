@@ -637,7 +637,6 @@ export async function processNFTPurchase({
         wallet: buyerWallet,
         creatorWallet: f.sellerWallet,
         classId: f.classId,
-        nftId: f.nftId,
         type: 'free',
       }));
       return ids;

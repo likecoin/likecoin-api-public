@@ -17,14 +17,12 @@ export async function startFreeMintTransaction(t: Transaction, {
   wallet,
   creatorWallet,
   classId,
-  nftId,
   type,
   count = 1,
 }: {
   wallet: string,
   creatorWallet: string,
   classId: string,
-  nftId: string,
   type: FREE_MINT_TYPE,
   count?: number,
 }) {
@@ -37,7 +35,6 @@ export async function startFreeMintTransaction(t: Transaction, {
   t.create(likeNFTFreeMintTxCollection.doc(docId) as unknown as DocumentReference, {
     wallet,
     classId,
-    nftId,
     creatorWallet,
     type,
     status: 'new',
