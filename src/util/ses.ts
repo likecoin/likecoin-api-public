@@ -288,6 +288,7 @@ export function sendNFTBookPendingClaimEmail({
     ],
     Destination: {
       ToAddresses: [email],
+      BccAddresses: ['operations@liker.land'],
     },
     Message: {
       Subject: {
@@ -324,8 +325,7 @@ export function sendNFTBookPendingClaimEmail({
               href="${getLikerLandNFTClassPageURL({ classId, language: 'en' })}">${className}</a>".</p>
           <p>Please follow the two steps below to claim your NFT book:</p>
           <p>1. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</p>
-          <p>2. Visit the 
-            <a href="${getLikerLandNFTClaimPageURL({
+          <p>2. Visit the <a href="${getLikerLandNFTClaimPageURL({
     classId,
     paymentId,
     token: claimToken,
@@ -363,6 +363,7 @@ export function sendNFTBookSalesEmail({
     ],
     Destination: {
       ToAddresses: emails,
+      BccAddresses: ['operations@liker.land'],
     },
     Message: {
       Subject: {
@@ -403,6 +404,7 @@ export function sendNFTBookClaimedEmail({
     ],
     Destination: {
       ToAddresses: emails,
+      BccAddresses: ['operations@liker.land'],
     },
     Message: {
       Subject: {
