@@ -557,7 +557,7 @@ export function filterNFTSubscriptionPlanInfo({
   description,
   stripePriceId,
   stripeProductId,
-  canFreeMintWNFT,
+  canFreeCollectWNFT,
 }) {
   return {
     id,
@@ -567,7 +567,7 @@ export function filterNFTSubscriptionPlanInfo({
     description,
     stripePriceId,
     stripeProductId,
-    canFreeMintWNFT,
+    canFreeCollectWNFT,
   };
 }
 
