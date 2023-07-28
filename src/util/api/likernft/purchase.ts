@@ -139,7 +139,9 @@ export async function getLatestNFTPriceAndInfo(
     nextNewNFTId = newNftDocData.id;
     isProcessing = newNftDocData.isProcessing;
   }
-  const { price: nextPriceLevel } = getNFTBatchInfo(currentBatch + 1);
+  const { price: nextPriceLevel } = getNFTBatchInfo(
+    currentBatch >= 0 ? currentBatch + 1 : currentBatch,
+  );
   return {
     ...iscnDocData,
     nextNewNFTId,
@@ -155,7 +157,7 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
   const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-  if (priceInfo.batchRemainingCount >= 0
+  if (priceInfo.currentBatch >= 0
       && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
@@ -409,29 +411,36 @@ function updateDocsForSuccessPurchase(t, {
   const {
     currentPrice: dbCurrentPrice,
     currentBatch: dbCurrentBatch,
+    currentBatchCount: dbCurrentBatchCount,
     batchRemainingCount: dbBatchRemainingCount,
     processingCount: dbProcessingCount,
   } = iscnDocData;
   const fromWallet = LIKER_NFT_TARGET_ADDRESS;
   const toWallet = buyerWallet;
   let updatedBatch = dbCurrentBatch;
+  // currentBatchCount might not exists for old classes
+  let currentBatchCount = dbCurrentBatchCount || getNFTBatchInfo(dbCurrentBatch).count;
   let batchRemainingCount = dbBatchRemainingCount;
   let newPrice = dbCurrentPrice;
   let processingCount = dbProcessingCount;
   if (dbCurrentBatch === currentBatch) {
     processingCount = FieldValue.increment(-1);
-    batchRemainingCount -= 1;
-    const isNewBatch = batchRemainingCount <= 0;
-    if (isNewBatch) {
-      processingCount = 0;
-      updatedBatch = dbCurrentBatch + 1;
-      ({ price: newPrice, count: batchRemainingCount } = getNFTBatchInfo(updatedBatch));
+    if (currentBatch >= 0) {
+      batchRemainingCount -= 1;
+      const isNewBatch = batchRemainingCount <= 0;
+      if (isNewBatch) {
+        processingCount = 0;
+        updatedBatch = dbCurrentBatch + 1;
+        ({ price: newPrice, count: currentBatchCount } = getNFTBatchInfo(updatedBatch));
+        batchRemainingCount = currentBatchCount;
+      }
     }
   }
   const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
   t.update(iscnRef, {
     currentPrice: newPrice,
     currentBatch: updatedBatch,
+    currentBatchCount,
     batchRemainingCount,
     processingCount,
     soldCount: FieldValue.increment(1),

@@ -68,6 +68,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     nftRemainingCount: nfts.length,
     currentPrice: price,
     currentBatch,
+    currentBatchCount: count,
     batchRemainingCount: count,
     basePrice: price,
     soldCount: 0,
