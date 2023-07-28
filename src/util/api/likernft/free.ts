@@ -2,6 +2,7 @@ import uuidv4 from 'uuid/v4';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { Transaction, DocumentReference, Query } from '@google-cloud/firestore';
 import { FieldValue, likeNFTFreeMintTxCollection } from '../../firebase';
+import { ValidationError } from '../../ValidationError';
 
 export type FREE_MINT_TYPE = 'free' | 'subscription'
 
@@ -26,7 +27,7 @@ export async function checkFreeMintTransaction(t: Transaction, {
     .where('wallet', '==', wallet)
     .where('classId', '==', classId)
     .limit(count) as Query);
-  if (mintQuery.docs.length >= count) throw new Error('ALREADY_MINTED');
+  if (mintQuery.docs.length >= count) throw new ValidationError('ALREADY_MINTED', 409);
 }
 
 export function startFreeMintTransaction(t: Transaction, {
