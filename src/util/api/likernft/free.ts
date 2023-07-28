@@ -13,17 +13,13 @@ export async function checkFreeMintExists(wallet: string, classId: string, count
   return hasAlreadyMinted;
 }
 
-export async function startFreeMintTransaction(t: Transaction, {
+export async function checkFreeMintTransaction(t: Transaction, {
   wallet,
-  creatorWallet,
   classId,
-  type,
   count = 1,
 }: {
   wallet: string,
-  creatorWallet: string,
   classId: string,
-  type: FREE_MINT_TYPE,
   count?: number,
 }) {
   const mintQuery = await t.get(likeNFTFreeMintTxCollection
@@ -31,6 +27,19 @@ export async function startFreeMintTransaction(t: Transaction, {
     .where('classId', '==', classId)
     .limit(count) as Query);
   if (mintQuery.docs.length >= count) throw new Error('ALREADY_MINTED');
+}
+
+export function startFreeMintTransaction(t: Transaction, {
+  wallet,
+  creatorWallet,
+  classId,
+  type,
+}: {
+  wallet: string,
+  creatorWallet: string,
+  classId: string,
+  type: FREE_MINT_TYPE,
+}) {
   const docId = uuidv4();
   t.create(likeNFTFreeMintTxCollection.doc(docId) as unknown as DocumentReference, {
     wallet,

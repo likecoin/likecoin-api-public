@@ -30,7 +30,12 @@ import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
-import { completeFreeMintTransaction, resetFreeMintTransaction, startFreeMintTransaction } from './free';
+import {
+  checkFreeMintTransaction,
+  completeFreeMintTransaction,
+  resetFreeMintTransaction,
+  startFreeMintTransaction,
+} from './free';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
@@ -633,6 +638,10 @@ export async function processNFTPurchase({
   let freeMintIds: string[] = [];
   if (freeList.length) {
     freeMintIds = await db.runTransaction(async (t) => {
+      await Promise.all(freeList.map((f) => checkFreeMintTransaction(t, {
+        wallet: buyerWallet,
+        classId: f.classId,
+      })));
       const ids = freeList.map((f) => startFreeMintTransaction(t, {
         wallet: buyerWallet,
         creatorWallet: f.sellerWallet,
