@@ -24,7 +24,7 @@ export async function newNftBookInfo(classId, data) {
     moderatorWallets,
     connectedWallets,
   } = data;
-  const newPrices = prices.map((p) => {
+  const newPrices = prices.map((p, order) => {
     const {
       name: pName,
       description: pDescription,
@@ -43,6 +43,7 @@ export async function newNftBookInfo(classId, data) {
       name,
       description,
       priceInDecimal,
+      order,
     };
   });
   const payload: any = {
@@ -222,13 +223,14 @@ export function parseBookSalesData(priceData, isAuthorized) {
   let sold = 0;
   let stock = 0;
   const prices: any[] = [];
-  priceData.forEach((p) => {
+  priceData.forEach((p, index) => {
     const {
       name,
       description,
       priceInDecimal,
       sold: pSold = 0,
       stock: pStock = 0,
+      order = index,
     } = p;
     const price = priceInDecimal / 100;
     const payload: any = {
@@ -237,6 +239,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       description,
       stock: pStock,
       isSoldOut: pStock <= 0,
+      order,
     };
     if (isAuthorized) {
       payload.sold = pSold;
@@ -245,6 +248,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
     sold += pSold;
     stock += pStock;
   });
+  prices.sort((a, b) => a.order - b.order);
   return {
     sold,
     stock,
