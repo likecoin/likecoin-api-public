@@ -163,6 +163,58 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
   }
 });
 
+router.put('/:classId/price/:priceIndex/order', jwtOptionalAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const bookInfo = await getNftBookInfo(classId);
+
+    if (!bookInfo) {
+      res.status(404).send('BOOK_NOT_FOUND');
+      return;
+    }
+
+    const priceIndex = Number(req.params.priceIndex);
+    const {
+      prices = [],
+      ownerWallet,
+    } = bookInfo;
+    const priceInfo = prices[priceIndex];
+    if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
+
+    if (req.user.wallet !== ownerWallet) {
+      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    }
+
+    const { order: newOrderString } = req.body;
+    const newOrder = Number(newOrderString);
+    if (newOrder < 0 || newOrder >= prices.length) {
+      throw new ValidationError('INVALID_NEW_PRICE_ORDER', 400);
+    }
+    const oldOrder = priceInfo.order;
+
+    const reorderedPrices = prices.map(p => {
+      let order = p.order;
+      if (order === oldOrder) {
+        order = newOrder;
+      } else if (order < oldOrder && order >= newOrder) {
+        order += 1;
+      } else if (order > oldOrder && order <= newOrder) {
+        order -= 1;
+      }
+      return {
+        ...p,
+        order,
+      }
+    })
+
+    await updateNftBookSettings(classId, { prices: reorderedPrices });
+
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
