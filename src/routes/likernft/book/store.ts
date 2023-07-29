@@ -146,6 +146,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
     } = priceInfo;
     const price = priceInDecimal / 100;
     const payload: any = {
+      index: priceIndex,
       name,
       price,
       priceInDecimal,

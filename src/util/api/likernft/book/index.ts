@@ -241,6 +241,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
     } = p;
     const price = priceInDecimal / 100;
     const payload: any = {
+      index,
       price,
       name,
       description,
