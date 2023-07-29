@@ -142,6 +142,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       priceInDecimal,
       stock,
       sold,
+      order,
     } = priceInfo;
     const price = priceInDecimal / 100;
     const payload: any = {
@@ -151,6 +152,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       isSoldOut: stock <= 0,
       stock,
       ownerWallet,
+      order,
     };
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
