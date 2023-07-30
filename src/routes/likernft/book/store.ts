@@ -166,7 +166,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
   }
 });
 
-router.put('/:classId/price/:priceIndex/order', jwtOptionalAuth('write:nftbook'), async (req, res, next) => {
+router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
