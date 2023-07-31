@@ -61,14 +61,21 @@ export async function newNftBookInfo(classId, data) {
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
-export async function updateNftBookSettings(classId, {
+export async function updateNftBookSettings(classId: string, {
+  prices,
   notificationEmails,
   moderatorWallets,
   connectedWallets,
-}) {
+}: {
+  prices?: any[];
+  notificationEmails?: string[];
+  moderatorWallets?: string[];
+  connectedWallets?: string[];
+} = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   };
+  if (prices !== undefined) { payload.prices = prices; }
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
@@ -234,6 +241,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
     } = p;
     const price = priceInDecimal / 100;
     const payload: any = {
+      index,
       price,
       name,
       description,
