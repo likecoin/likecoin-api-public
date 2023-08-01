@@ -105,9 +105,10 @@ router.get(
 
       const isListing = !purchaseInfo || (firstListing && firstListing.price <= purchaseInfo.price);
       const price = isListing ? firstListing.price : purchaseInfo.price;
-      const gasFee = getGasPrice();
+      const isFree = price === 0;
+      const gasFee = isFree ? 0 : getGasPrice();
       const totalPrice = price + gasFee;
-      const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
+      const fiatPriceString = isFree ? '0' : await getFiatPriceStringForLIKE(totalPrice);
       const payload: {
         LIKEPrice: number,
         fiatPrice: number,
@@ -169,6 +170,7 @@ router.post(
       const [metadata, priceInfo] = await Promise.all(promises) as any;
       if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const { price } = priceInfo;
+      if (price === 0) throw new ValidationError('NFT_IS_FREE');
       let {
         name = '',
         description = '',
