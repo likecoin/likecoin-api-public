@@ -42,4 +42,4 @@ export const getLikerLandNFTSubscriptionSuccessPageURL = ({
 }: {
   creatorWallet: string;
   language?: string;
-}) => getLikerLandURL(`/${creatorWallet}/subscription/success`, { language });
+}) => getLikerLandURL(`/${creatorWallet}/readership/success`, { language });
