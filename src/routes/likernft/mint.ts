@@ -63,9 +63,13 @@ router.post(
         reservedNftCount,
         initialBatch,
         isFree,
+        collectableBefore,
       } = req.body;
+
       if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
+      if (collectableBefore && collectableBefore < Date.now()) throw new ValidationError('COLLECTABLE_BEFORE_CANNOT_BE_IN_THE_PAST');
+
       const iscnPrefix = getISCNPrefix(iscnId);
       const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
       const likeNFTDoc = await likeNFTCollection.doc(iscnPrefixDocName).get();
@@ -116,6 +120,7 @@ router.post(
         ...chainMetadata,
         initialBatch,
         isFree,
+        collectableBefore,
         classId,
         totalCount: nfts.length,
         platform,
@@ -141,6 +146,7 @@ router.post(
         contentUrl,
         initialBatch,
         isFree,
+        collectableBefore,
         basePrice,
       };
 

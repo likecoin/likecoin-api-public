@@ -97,6 +97,20 @@ async function getISCNDocData(
   return data;
 }
 
+async function getClassDocData(
+  iscnPrefix: string,
+  classId: string,
+  { t }: { t?: Transaction } = {},
+): Promise<FirebaseFirestore.DocumentData> {
+  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
+  const ref = likeNFTCollection.doc(iscnPrefixDocName)
+    .collection('class').doc(classId) as unknown as DocumentReference;
+  const res = await (t ? t.get(ref) : ref.get());
+  const data = res.data();
+  if (!data) throw new ValidationError('CLASS_DOC_NOT_FOUND');
+  return data;
+}
+
 async function getFirstUnsoldNFTDocData(
   iscnPrefix: string,
   classId: string,
@@ -120,9 +134,10 @@ export async function getLatestNFTPriceAndInfo(
   classId: string,
   { t }: { t?: Transaction } = {},
 ) {
-  const [newNftDocData, iscnDocData] = await Promise.all([
-    getFirstUnsoldNFTDocData(iscnPrefix, classId, { t }),
+  const [iscnDocData, classDocData, newNftDocData] = await Promise.all([
     getISCNDocData(iscnPrefix, { t }),
+    getClassDocData(iscnPrefix, classId, { t }),
+    getFirstUnsoldNFTDocData(iscnPrefix, classId, { t }),
   ]);
   let price = -1;
   let nextNewNFTId;
@@ -132,6 +147,7 @@ export async function getLatestNFTPriceAndInfo(
     currentBatch,
     lastSoldPrice,
   } = iscnDocData;
+  const { collectableBefore } = classDocData;
   if (newNftDocData) {
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
@@ -144,6 +160,7 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
+    collectableBefore,
     nextNewNFTId,
     currentBatch,
     isProcessing,
@@ -160,6 +177,9 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
   if (priceInfo.currentBatch >= 0
       && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+  }
+  if (priceInfo.collectableBefore && priceInfo.collectableBefore < Date.now()) {
+    throw new ValidationError('NFT_CLASS_NO_LONGER_COLLECTABLE');
   }
   return priceInfo;
 }

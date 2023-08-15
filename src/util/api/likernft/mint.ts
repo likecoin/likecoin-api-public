@@ -12,6 +12,8 @@ import {
 } from '../../../constant';
 import { sleep } from '../../misc';
 
+const MAX_TIMESTAMP = 8640000000000000;
+
 export async function parseNFTInformationFromSendTxHash(txHash, target = LIKER_NFT_TARGET_ADDRESS) {
   const client = await getNFTQueryClient();
   const q = await client.getStargateClient();
@@ -50,6 +52,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     platform = '',
     initialBatch = 0,
     isFree,
+    collectableBefore = MAX_TIMESTAMP,
   } = classData;
   const currentBatch = isFree ? -1 : initialBatch;
   const { price, count } = getNFTBatchInfo(currentBatch);
@@ -86,6 +89,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     soldCount: 0,
     creatorWallet: sellerWallet,
     timestamp,
+    collectableBefore,
     platform,
     metadata: {
       ...otherData,
