@@ -16,6 +16,7 @@ import { sendNFTBookClaimedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 import { calculateStripeFee } from '../../../util/api/likernft/purchase';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
+import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
 
 const router = Router();
 
@@ -315,7 +316,12 @@ router.get(
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
-      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+      const { wallet } = req.user;
+      if (
+        ownerWallet !== wallet
+        && !moderatorWallets.includes(wallet)
+        && !LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(wallet)
+      ) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }
       const query = await likeNFTBookCollection.doc(classId).collection('transactions')
