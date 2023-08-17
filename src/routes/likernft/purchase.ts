@@ -27,7 +27,7 @@ router.get(
         const {
           price,
           lastSoldPrice,
-          collectableBefore,
+          collectExpiryAt,
           ...info
         } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
         const isFree = price === 0;
@@ -42,7 +42,7 @@ router.get(
           totalPrice: price + gasFee,
           lastSoldPrice,
           canFreeCollect,
-          collectableBefore,
+          collectExpiryAt,
           metadata: filterLikeNFTISCNData({
             ...info,
             iscnId: iscnPrefix,

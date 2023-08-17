@@ -147,7 +147,7 @@ export async function getLatestNFTPriceAndInfo(
     currentBatch,
     lastSoldPrice,
   } = iscnDocData;
-  const { collectableBefore } = classDocData;
+  const { collectExpiryAt } = classDocData;
   if (newNftDocData) {
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
@@ -160,7 +160,7 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
-    collectableBefore,
+    collectExpiryAt,
     nextNewNFTId,
     currentBatch,
     isProcessing,
@@ -178,7 +178,7 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
       && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
-  if (priceInfo.collectableBefore && priceInfo.collectableBefore < Date.now()) {
+  if (priceInfo.collectExpiryAt && priceInfo.collectExpiryAt < Date.now()) {
     throw new ValidationError('NFT_CLASS_NO_LONGER_COLLECTABLE');
   }
   return priceInfo;
