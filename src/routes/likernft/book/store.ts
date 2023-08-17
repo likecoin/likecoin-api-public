@@ -264,10 +264,12 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
   try {
     const { classId } = req.params;
     const {
+      prices = [],
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
     } = req.body;
+    validatePrices(prices);
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
     const {
@@ -276,6 +278,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
     if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await updateNftBookSettings(classId, {
+      prices,
       notificationEmails,
       moderatorWallets,
       connectedWallets,
