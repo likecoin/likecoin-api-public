@@ -131,6 +131,7 @@ export async function getLatestNFTPriceAndInfo(
     currentPrice,
     currentBatch,
     lastSoldPrice,
+    collectExpiryAt,
   } = iscnDocData;
   if (newNftDocData) {
     price = currentPrice;
@@ -144,6 +145,7 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
+    collectExpiryAt,
     nextNewNFTId,
     currentBatch,
     isProcessing,
@@ -160,6 +162,9 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
   if (priceInfo.currentBatch >= 0
       && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
+  }
+  if (priceInfo.collectExpiryAt && priceInfo.collectExpiryAt < Date.now()) {
+    throw new ValidationError('NFT_CLASS_NO_LONGER_COLLECTABLE');
   }
   return priceInfo;
 }
