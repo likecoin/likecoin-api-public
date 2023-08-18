@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import {
+  formatPriceInfo,
   getNftBookInfo,
   listNftBookInfoByModeratorWallet,
   listNftBookInfoByOwnerWallet,
   newNftBookInfo,
   parseBookSalesData,
   updateNftBookInfo,
+  validatePrice,
   validatePrices,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
@@ -160,6 +162,32 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       payload.sold = sold;
     }
     res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId, priceIndex: priceIndexString } = req.params;
+    const { price } = req.body;
+    validatePrice(price);
+
+    const priceIndex = Number(priceIndexString);
+    const bookInfo = await getNftBookInfo(classId);
+    if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
+
+    const { prices = [] } = bookInfo;
+    const oldPriceInfo = prices[priceIndex];
+    if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
+
+    prices[priceIndex] = {
+      ...oldPriceInfo,
+      ...formatPriceInfo(price),
+    };
+
+    await updateNftBookInfo(classId, { prices });
+    res.sendStatus(200);
   } catch (err) {
     next(err);
   }
