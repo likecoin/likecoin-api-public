@@ -81,6 +81,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     processingCount: 0,
     timestamp,
     platform,
+    collectExpiryAt,
   });
   batch.create(iscnRef.collection('class').doc(classId), {
     id: classId,
@@ -89,7 +90,6 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     soldCount: 0,
     creatorWallet: sellerWallet,
     timestamp,
-    collectExpiryAt,
     platform,
     metadata: {
       ...otherData,

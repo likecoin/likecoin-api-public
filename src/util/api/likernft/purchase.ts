@@ -97,20 +97,6 @@ async function getISCNDocData(
   return data;
 }
 
-async function getClassDocData(
-  iscnPrefix: string,
-  classId: string,
-  { t }: { t?: Transaction } = {},
-): Promise<FirebaseFirestore.DocumentData> {
-  const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
-  const ref = likeNFTCollection.doc(iscnPrefixDocName)
-    .collection('class').doc(classId) as unknown as DocumentReference;
-  const res = await (t ? t.get(ref) : ref.get());
-  const data = res.data();
-  if (!data) throw new ValidationError('CLASS_DOC_NOT_FOUND');
-  return data;
-}
-
 async function getFirstUnsoldNFTDocData(
   iscnPrefix: string,
   classId: string,
@@ -134,10 +120,9 @@ export async function getLatestNFTPriceAndInfo(
   classId: string,
   { t }: { t?: Transaction } = {},
 ) {
-  const [iscnDocData, classDocData, newNftDocData] = await Promise.all([
-    getISCNDocData(iscnPrefix, { t }),
-    getClassDocData(iscnPrefix, classId, { t }),
+  const [newNftDocData, iscnDocData] = await Promise.all([
     getFirstUnsoldNFTDocData(iscnPrefix, classId, { t }),
+    getISCNDocData(iscnPrefix, { t }),
   ]);
   let price = -1;
   let nextNewNFTId;
@@ -146,8 +131,8 @@ export async function getLatestNFTPriceAndInfo(
     currentPrice,
     currentBatch,
     lastSoldPrice,
+    collectExpiryAt,
   } = iscnDocData;
-  const { collectExpiryAt } = classDocData;
   if (newNftDocData) {
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
