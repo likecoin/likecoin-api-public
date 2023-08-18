@@ -7,6 +7,7 @@ import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../se
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -97,7 +98,10 @@ export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
 }
 
 export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) {
-  const query = await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).get();
+  const MAX_BOOK_ITEMS_LIMIT = 256;
+  const query = LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)
+    ? await likeNFTBookCollection.limit(MAX_BOOK_ITEMS_LIMIT).get()
+    : await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).limit(MAX_BOOK_ITEMS_LIMIT).get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
