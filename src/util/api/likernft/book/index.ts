@@ -98,9 +98,10 @@ export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
 }
 
 export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) {
+  const MAX_BOOK_ITEMS_LIMIT = 256;
   const query = LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)
-    ? await likeNFTBookCollection.get()
-    : await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).get();
+    ? await likeNFTBookCollection.limit(MAX_BOOK_ITEMS_LIMIT).get()
+    : await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).limit(MAX_BOOK_ITEMS_LIMIT).get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
