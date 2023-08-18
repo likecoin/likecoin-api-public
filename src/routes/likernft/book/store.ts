@@ -1,13 +1,12 @@
 import { Router } from 'express';
 import {
-  MIN_BOOK_PRICE_DECIMAL,
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
   listNftBookInfoByModeratorWallet,
   listNftBookInfoByOwnerWallet,
   newNftBookInfo,
   parseBookSalesData,
   updateNftBookSettings,
+  validatePrices,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -229,35 +228,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       moderatorWallets = [],
       connectedWallets,
     } = req.body;
-    if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
-    const invalidPriceIndex = prices.findIndex((p) => {
-      const {
-        priceInDecimal,
-        stock,
-      } = p;
-      return !(priceInDecimal > 0
-        && stock > 0
-        && (typeof priceInDecimal === 'number')
-        && (typeof stock === 'number')
-        && priceInDecimal >= MIN_BOOK_PRICE_DECIMAL);
-    });
-    if (invalidPriceIndex > -1) {
-      throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
-    }
-    const invalidNameIndex = prices.findIndex((p) => {
-      const {
-        name = {},
-        description = {},
-      } = p;
-      return !(
-        typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
-        && Object.values(name).every((n) => typeof n === 'string')
-        && (description[NFT_BOOK_TEXT_DEFAULT_LOCALE] && typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'))
-        && Object.values(description).every((d) => typeof d === 'string');
-    });
-    if (invalidNameIndex > -1) {
-      throw new ValidationError(`INVALID_NAME_in_${invalidNameIndex}`);
-    }
+    validatePrices(prices);
     const result = await getISCNFromNFTClassId(classId);
     if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
     const { owner: ownerWallet } = result;
@@ -293,10 +264,12 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
   try {
     const { classId } = req.params;
     const {
+      prices,
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
     } = req.body;
+    if (prices) validatePrices(prices);
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
     const {
@@ -305,6 +278,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
     if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await updateNftBookSettings(classId, {
+      prices,
       notificationEmails,
       moderatorWallets,
       connectedWallets,
