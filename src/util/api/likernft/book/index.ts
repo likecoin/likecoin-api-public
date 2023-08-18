@@ -61,7 +61,7 @@ export async function newNftBookInfo(classId, data) {
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
-export async function updateNftBookSettings(classId: string, {
+export async function updateNftBookInfo(classId: string, {
   prices,
   notificationEmails,
   moderatorWallets,

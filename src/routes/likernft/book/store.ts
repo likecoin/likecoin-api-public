@@ -5,7 +5,7 @@ import {
   listNftBookInfoByOwnerWallet,
   newNftBookInfo,
   parseBookSalesData,
-  updateNftBookSettings,
+  updateNftBookInfo,
   validatePrices,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
@@ -209,7 +209,7 @@ router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async 
       };
     });
 
-    await updateNftBookSettings(classId, { prices: reorderedPrices });
+    await updateNftBookInfo(classId, { prices: reorderedPrices });
 
     res.sendStatus(200);
   } catch (err) {
@@ -275,7 +275,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
     } = bookInfo;
     if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
-    await updateNftBookSettings(classId, {
+    await updateNftBookInfo(classId, {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
