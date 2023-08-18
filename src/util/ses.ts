@@ -166,7 +166,7 @@ export function sendAutoClaimEmail({
             <p>Your email is previously linked with the wallet address ${wallet}, the Writing NFT you purchased has been sent to the wallet.</p>
             <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker Land customer service</a>.</p>
             <p>Thank you for supporting creativity.</p>
-            <p>Liker Land</p>`
+            <p>Liker Land</p>`,
           }).body,
         },
       },

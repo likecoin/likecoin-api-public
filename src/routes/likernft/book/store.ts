@@ -194,8 +194,8 @@ router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async 
     }
     const oldOrder = priceInfo.order;
 
-    const reorderedPrices = prices.map(p => {
-      let order = p.order;
+    const reorderedPrices = prices.map((p) => {
+      let { order } = p;
       if (order === oldOrder) {
         order = newOrder;
       } else if (order < oldOrder && order >= newOrder) {
@@ -206,8 +206,8 @@ router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async 
       return {
         ...p,
         order,
-      }
-    })
+      };
+    });
 
     await updateNftBookSettings(classId, { prices: reorderedPrices });
 
