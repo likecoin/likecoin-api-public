@@ -264,12 +264,12 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
   try {
     const { classId } = req.params;
     const {
-      prices = [],
+      prices,
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
     } = req.body;
-    validatePrices(prices);
+    if (prices) validatePrices(prices);
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
     const {
