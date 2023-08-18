@@ -12,6 +12,27 @@ export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
+export function formatPriceInfo(price) {
+  const {
+    name: nameInput,
+    description: descriptionInput,
+    priceInDecimal,
+    stock,
+  } = price;
+  const name = {};
+  const description = {};
+  NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
+    name[locale] = nameInput[locale];
+    description[locale] = descriptionInput[locale];
+  });
+  return {
+    name,
+    description,
+    priceInDecimal,
+    stock,
+  };
+}
+
 export async function newNftBookInfo(classId, data) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
@@ -24,28 +45,11 @@ export async function newNftBookInfo(classId, data) {
     moderatorWallets,
     connectedWallets,
   } = data;
-  const newPrices = prices.map((p, order) => {
-    const {
-      name: pName,
-      description: pDescription,
-      priceInDecimal,
-      stock,
-    } = p;
-    const name = {};
-    const description = {};
-    NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
-      name[locale] = pName[locale];
-      description[locale] = pDescription[locale];
-    });
-    return {
-      sold: 0,
-      stock,
-      name,
-      description,
-      priceInDecimal,
-      order,
-    };
-  });
+  const newPrices = prices.map((p, order) => ({
+    order,
+    sold: 0,
+    ...formatPriceInfo(p),
+  }));
   const payload: any = {
     classId,
     pendingNFTCount: 0,
