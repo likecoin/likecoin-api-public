@@ -79,8 +79,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     processingCount: 0,
     timestamp,
     platform,
-    collectExpiryAt,
-  };
+  } as any;
   if (collectExpiryAt) iscnPayload.collectExpiryAt = collectExpiryAt;
   batch.create(iscnRef, iscnPayload);
   batch.create(iscnRef.collection('class').doc(classId), {
