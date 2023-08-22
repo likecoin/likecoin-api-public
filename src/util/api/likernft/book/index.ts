@@ -13,6 +13,27 @@ export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
+export function formatPriceInfo(price) {
+  const {
+    name: nameInput,
+    description: descriptionInput,
+    priceInDecimal,
+    stock,
+  } = price;
+  const name = {};
+  const description = {};
+  NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
+    name[locale] = nameInput[locale];
+    description[locale] = descriptionInput[locale];
+  });
+  return {
+    name,
+    description,
+    priceInDecimal,
+    stock,
+  };
+}
+
 export async function newNftBookInfo(classId, data) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
@@ -25,28 +46,11 @@ export async function newNftBookInfo(classId, data) {
     moderatorWallets,
     connectedWallets,
   } = data;
-  const newPrices = prices.map((p, order) => {
-    const {
-      name: pName,
-      description: pDescription,
-      priceInDecimal,
-      stock,
-    } = p;
-    const name = {};
-    const description = {};
-    NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
-      name[locale] = pName[locale];
-      description[locale] = pDescription[locale];
-    });
-    return {
-      sold: 0,
-      stock,
-      name,
-      description,
-      priceInDecimal,
-      order,
-    };
-  });
+  const newPrices = prices.map((p, order) => ({
+    order,
+    sold: 0,
+    ...formatPriceInfo(p),
+  }));
   const payload: any = {
     classId,
     pendingNFTCount: 0,
@@ -62,7 +66,7 @@ export async function newNftBookInfo(classId, data) {
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
-export async function updateNftBookSettings(classId: string, {
+export async function updateNftBookInfo(classId: string, {
   prices,
   notificationEmails,
   moderatorWallets,
@@ -268,34 +272,40 @@ export function parseBookSalesData(priceData, isAuthorized) {
   };
 }
 
+export function validatePrice(price: any) {
+  const {
+    priceInDecimal,
+    stock,
+    name = {},
+    description = {},
+  } = price;
+  if (!(priceInDecimal > 0
+    && (typeof priceInDecimal === 'number')
+    && priceInDecimal >= MIN_BOOK_PRICE_DECIMAL)) {
+    throw new ValidationError('INVALID_PRICE');
+  }
+  if (!(typeof stock === 'number' && stock >= 0)) {
+    throw new ValidationError('INVALID_PRICE_STOCK');
+  }
+  if (!(typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
+    && Object.values(name).every((n) => typeof n === 'string'))) {
+    throw new ValidationError('INVALID_PRICE_NAME');
+  }
+  if (!(typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
+    && Object.values(description).every((n) => typeof n === 'string'))) {
+    throw new ValidationError('INVALID_PRICE_DESCRIPTION');
+  }
+}
+
 export function validatePrices(prices: any[]) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
-  const invalidPriceIndex = prices.findIndex((p) => {
-    const {
-      priceInDecimal,
-      stock,
-    } = p;
-    return !(priceInDecimal > 0
-      && stock > 0
-      && (typeof priceInDecimal === 'number')
-      && (typeof stock === 'number')
-      && priceInDecimal >= MIN_BOOK_PRICE_DECIMAL);
-  });
-  if (invalidPriceIndex > -1) {
-    throw new ValidationError(`INVALID_PRICE_in_${invalidPriceIndex}`);
-  }
-  const invalidNameIndex = prices.findIndex((p) => {
-    const {
-      name = {},
-      description = {},
-    } = p;
-    return !(
-      typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
-      && Object.values(name).every((n) => typeof n === 'string')
-      && (description[NFT_BOOK_TEXT_DEFAULT_LOCALE] && typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'))
-      && Object.values(description).every((d) => typeof d === 'string');
-  });
-  if (invalidNameIndex > -1) {
-    throw new ValidationError(`INVALID_NAME_in_${invalidNameIndex}`);
+  let i = 0;
+  try {
+    for (i = 0; i < prices.length; i += 1) {
+      validatePrice(prices[i]);
+    }
+  } catch (err) {
+    const errorMessage = `${(err as Error).message}_in_${i}`;
+    throw new ValidationError(errorMessage);
   }
 }
