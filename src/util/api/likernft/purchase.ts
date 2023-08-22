@@ -133,7 +133,7 @@ export async function getLatestNFTPriceAndInfo(
     lastSoldPrice,
     collectExpiryAt,
   } = iscnDocData;
-  if (newNftDocData) {
+  if (newNftDocData && (!collectExpiryAt || collectExpiryAt > Date.now())) {
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
     // another fresh one might be used on purchase instead
@@ -157,14 +157,14 @@ export async function getLatestNFTPriceAndInfo(
 
 async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction) {
   const priceInfo = await getLatestNFTPriceAndInfo(iscnPrefix, classId, { t });
+  if (priceInfo.collectExpiryAt && priceInfo.collectExpiryAt < Date.now()) {
+    throw new ValidationError('NFT_CLASS_NO_LONGER_COLLECTABLE');
+  }
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   if (priceInfo.currentBatch >= 0
       && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
-  }
-  if (priceInfo.collectExpiryAt && priceInfo.collectExpiryAt < Date.now()) {
-    throw new ValidationError('NFT_CLASS_NO_LONGER_COLLECTABLE');
   }
   return priceInfo;
 }
