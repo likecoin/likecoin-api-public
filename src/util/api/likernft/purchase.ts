@@ -137,7 +137,7 @@ export async function getLatestNFTPriceAndInfo(
     price = currentPrice;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
     // another fresh one might be used on purchase instead
-    nextNewNFTId = newNftDocData.id;
+    if (!collectExpiryAt || collectExpiryAt < Date.now()) nextNewNFTId = newNftDocData.id;
     isProcessing = newNftDocData.isProcessing;
   }
   const { price: nextPriceLevel } = getNFTBatchInfo(
