@@ -18,6 +18,7 @@ export function formatPriceInfo(price) {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
+    hasShipping,
     stock,
   } = price;
   const name = {};
@@ -30,6 +31,7 @@ export function formatPriceInfo(price) {
     name,
     description,
     priceInDecimal,
+    hasShipping,
     stock,
   };
 }
@@ -45,6 +47,7 @@ export async function newNftBookInfo(classId, data) {
     notificationEmails,
     moderatorWallets,
     connectedWallets,
+    shippingRates,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -63,6 +66,7 @@ export async function newNftBookInfo(classId, data) {
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
+  if (shippingRates) payload.shippingRates = shippingRates;
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
@@ -71,11 +75,13 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails,
   moderatorWallets,
   connectedWallets,
+  shippingRates,
 }: {
   prices?: any[];
   notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
+  shippingRates?: any[];
 } = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
@@ -84,6 +90,7 @@ export async function updateNftBookInfo(classId: string, {
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
+  if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
 
@@ -243,6 +250,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       name,
       description,
       priceInDecimal,
+      hasShipping,
       sold: pSold = 0,
       stock: pStock = 0,
       order = index,
@@ -255,6 +263,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       description,
       stock: pStock,
       isSoldOut: pStock <= 0,
+      hasShipping,
       order,
     };
     if (isAuthorized) {

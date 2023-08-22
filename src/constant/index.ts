@@ -188,3 +188,7 @@ export const FIRESTORE_BATCH_SIZE = 200;
 export const NFT_BOOK_SALE_DESCRIPTION = {
   likenft19symzw3xmh42gukzts858wf6rsdkn6e4jtc9wp8jh4kphfmffy5s6acyxg: '「天覆地載，物號數萬。從石器到陶瓷，從日晷到鐘錶，從毛筆到鉛字，從算盤到電腦，從書本到 NFT，人和物自古也是一體。我們都是『人物』，而『人物』都有故事。」\n- 董啟章《天工開物．栩栩如真》再版的話\n\n這是董啟章的第一次NFT出版實驗，也邀請你一起進入可能的世界——回溯舊物承載的香港歷史，在想像的文字工場裡感受創造。本書加入全新章節，新版序言帶你緩緩睜開雙眼，在人工智能、虛擬貨幣、區塊鏈與NFT之間穿梭冒險⋯⋯天工開物，所以迷人。',
 };
+
+export const LIST_OF_BOOK_SHIPPING_COUNTRY = [
+  'AU', 'AT', 'BE', 'CA', 'CN', 'HK', 'MO', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'GL', 'HU', 'IS', 'IT', 'JP', 'KR', 'LU', 'SG', 'NZ', 'NO', 'PH', 'ES', 'SE', 'CH', 'TW', 'TH', 'GB', 'US', 'VN',
+];

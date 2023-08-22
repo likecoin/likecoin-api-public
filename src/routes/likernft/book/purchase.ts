@@ -9,7 +9,7 @@ import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
-import { NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { LIST_OF_BOOK_SHIPPING_COUNTRY, NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookClaimedEmail } from '../../../util/ses';
@@ -44,11 +44,13 @@ router.get('/:classId/new', async (req, res, next) => {
       cancelUrl = getLikerLandNFTClassPageURL({ classId }),
       ownerWallet,
       connectedWallets,
+      shippingRates,
     } = bookInfo;
     if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
     const {
       priceInDecimal,
       stock,
+      hasShipping,
       name: priceNameObj,
       description: pricDescriptionObj,
     } = prices[priceIndex];
@@ -101,7 +103,7 @@ router.get('/:classId/new', async (req, res, next) => {
         };
       }
     }
-    const session = await stripe.checkout.sessions.create({
+    const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',
       success_url: `${successUrl}`,
       cancel_url: `${cancelUrl}`,
@@ -128,7 +130,27 @@ router.get('/:classId/new', async (req, res, next) => {
       ],
       payment_intent_data: paymentIntentData,
       metadata: sessionMetadata,
-    });
+    };
+    if (hasShipping) {
+      checkoutPayload.shipping_address_collection = {
+        // eslint-disable-next-line max-len
+        allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
+      };
+      if (shippingRates) {
+        checkoutPayload.shipping_options = shippingRates.map((s) => {
+          const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
+          return {
+            display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+            type: 'fixed_amount',
+            fixed_amount: {
+              amount: shippingPriceInDecimal,
+              currency: 'USD',
+            },
+          };
+        });
+      }
+    }
+    const session = await stripe.checkout.sessions.create(checkoutPayload);
     const { url, id: sessionId } = session;
     if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
     await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
