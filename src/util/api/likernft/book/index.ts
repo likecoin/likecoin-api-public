@@ -18,7 +18,7 @@ export function formatPriceInfo(price) {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
-    hasShipping,
+    hasShipping = false,
     stock,
   } = price;
   const name = {};
@@ -33,6 +33,21 @@ export function formatPriceInfo(price) {
     priceInDecimal,
     hasShipping,
     stock,
+  };
+}
+
+export function formatShippingRateInfo(shippingRate) {
+  const {
+    name: nameInput,
+    priceInDecimal,
+  } = shippingRate;
+  const name = {};
+  NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
+    name[locale] = nameInput[locale];
+  });
+  return {
+    name,
+    priceInDecimal,
   };
 }
 
@@ -66,7 +81,7 @@ export async function newNftBookInfo(classId, data) {
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
-  if (shippingRates) payload.shippingRates = shippingRates;
+  if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 

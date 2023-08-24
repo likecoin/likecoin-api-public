@@ -140,11 +140,13 @@ router.get('/:classId/new', async (req, res, next) => {
         checkoutPayload.shipping_options = shippingRates.map((s) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
           return {
-            display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-            type: 'fixed_amount',
-            fixed_amount: {
-              amount: shippingPriceInDecimal,
-              currency: 'USD',
+            shipping_rate_data: {
+              display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+              type: 'fixed_amount',
+              fixed_amount: {
+                amount: shippingPriceInDecimal,
+                currency: 'USD',
+              },
             },
           };
         });
