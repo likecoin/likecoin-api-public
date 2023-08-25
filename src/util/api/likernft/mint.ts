@@ -1,6 +1,6 @@
 import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsing';
 import { getISCNPrefixDocName } from '.';
-import { db, likeNFTCollection } from '../../firebase';
+import { db, likeNFTCollection, Timestamp } from '../../firebase';
 import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
 import { LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import { getNFTBatchInfo } from './purchase';
@@ -80,7 +80,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     timestamp,
     platform,
   } as any;
-  if (collectExpiryAt) iscnPayload.collectExpiryAt = collectExpiryAt;
+  if (collectExpiryAt) iscnPayload.collectExpiryAt = Timestamp.fromMillis(collectExpiryAt);
   batch.create(iscnRef, iscnPayload);
   batch.create(iscnRef.collection('class').doc(classId), {
     id: classId,
