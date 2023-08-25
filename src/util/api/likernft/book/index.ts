@@ -148,7 +148,10 @@ export async function processNFTBookPurchase(
     customer_details: customer,
     payment_intent: paymentIntent,
     amount_total: amountTotal,
+    shipping_details: shippingDetails,
+    shipping_cost: shippingCost,
   } = session;
+  const hasShipping = !!shippingDetails;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
@@ -180,12 +183,17 @@ export async function processNFTBookPurchase(
         prices,
         lastSaleTimestamp: FieldValue.serverTimestamp(),
       });
-      t.update(bookRef.collection('transactions').doc(paymentId), {
+      const paymentPayload: any = {
         isPaid: true,
         isPendingClaim: true,
+        hasShipping,
         status: 'paid',
         email,
-      });
+      };
+      if (hasShipping) paymentPayload.shippingStatus = 'pending';
+      if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+      if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+      t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
       return {
         listingData: docData,
         txData: paymentData,

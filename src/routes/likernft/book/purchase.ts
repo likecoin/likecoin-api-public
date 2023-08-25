@@ -12,7 +12,7 @@ import publisher from '../../../util/gcloudPub';
 import { LIST_OF_BOOK_SHIPPING_COUNTRY, NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookClaimedEmail } from '../../../util/ses';
+import { sendNFTBookClaimedEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 import { calculateStripeFee } from '../../../util/api/likernft/purchase';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
@@ -321,6 +321,73 @@ router.post(
         classId,
         // TODO: parse nftId and wallet from txHash,
         txHash,
+      });
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:classId/shipping/sent/:paymentId',
+  jwtAuth('write:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params;
+      const { message } = req.body;
+      // TODO: check tx content contains valid nft info and address
+      const bookRef = likeNFTBookCollection.doc(classId);
+      const bookDoc = await bookRef.get();
+      const bookDocData = bookDoc.data();
+      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+        // TODO: check tx is sent by req.user.wallet
+        throw new ValidationError('NOT_OWNER', 403);
+      }
+      const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+
+      const { email } = await db.runTransaction(async (t) => {
+        const doc = await t.get(paymentDocRef);
+        const docData = doc.data();
+        if (!docData) {
+          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+        }
+        const {
+          shippingStatus,
+          hasShipping,
+        } = docData;
+        if (!hasShipping) {
+          throw new ValidationError('PAYMENT_DOES_NOT_HAS_SHIPPING', 409);
+        }
+        if (shippingStatus !== 'pending') {
+          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+        }
+        t.update(paymentDocRef, {
+          shippingStatus: 'shipped',
+          shippingMessage: message,
+        });
+        return docData;
+      });
+
+      if (email) {
+        const classData = await getNFTClassDataById(classId).catch(() => null);
+        const className = classData?.name || classId;
+        await sendNFTBookShippedEmail({
+          email,
+          classId,
+          className,
+          message,
+        });
+      }
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTShippingUpdate',
+        paymentId,
+        classId,
+        shippingMessage: message,
       });
 
       res.sendStatus(200);

@@ -355,6 +355,67 @@ export function sendNFTBookPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookShippedEmail({
+  email,
+  classId,
+  className,
+  message,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = '你的 NFT 書實體商品已發送 | Your NFT Book physical merch has been shipped';
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
+  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const params = {
+    Source: '"Liker Land" <team@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookShippedEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      BccAddresses: ['operations@liker.land'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicTemplate({
+            title,
+            content: `<p>親愛的讀者：</p>
+            <br/>
+            <p>感謝支持並購買 <a href="${nftClassURLZh}">《${className}》</a>。</p>
+            <p>你的實體商品已發送，以下是作者提供的資訊：</p>
+            <p>${message}</p>
+            <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
+            <p>感謝珍藏此 NFT 書，願你享受閱讀的樂趣。</p>
+            <br/>
+            <p>Liker Land</p>
+            <br/>
+            <br/>
+            <p>Dear reader,</p>
+            <br/>
+            <p>Thank you for your support and purchasing "<a href="${nftClassURLEn}">${className}</a>".</p>
+            <p>The physical merchanise that come with your NFT book has been shipped, following is the message provided by author</p>
+            <p>${message}</p>
+            <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
+            <p>Thank you for cherishing this NFT book, and may you enjoy the pleasure of reading.</p>
+            <br/>
+            <p>Liker Land</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookSalesEmail({
   emails,
   buyerEmail,
