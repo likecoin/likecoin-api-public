@@ -72,4 +72,4 @@ export const iscnMappingCollection = getCollectionIfDefined(
 export const bucket = FIREBASE_STORAGE_BUCKET ? admin.storage().bucket() : null;
 
 export { admin };
-export const { FieldValue } = admin.firestore;
+export const { FieldValue, Timestamp } = admin.firestore;

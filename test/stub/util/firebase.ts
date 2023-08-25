@@ -5,7 +5,7 @@ import * as admin from 'firebase-admin';
 import cloneDeep from 'lodash.clonedeep'; // eslint-disable-line import/no-extraneous-dependencies
 
 export { admin };
-export const { FieldValue } = admin.firestore;
+export const { FieldValue, Timestamp } = admin.firestore;
 
 console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
 
