@@ -609,6 +609,7 @@ export async function processNFTPurchase({
   grantedAmount,
   grantTxHash = '',
   granterMemo = '',
+  isSubscriberFreeCollect = false,
   retryTimes = 0,
 }, req) {
   const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
@@ -632,7 +633,8 @@ export async function processNFTPurchase({
     return _priceInfoList;
   });
 
-  const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
+  const dbNFTTotalPrice = isSubscriberFreeCollect ? 0
+    : priceInfoList.reduce((acc, d) => acc + d.price, 0);
 
   if (dbNFTTotalPrice && dbNFTTotalPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
@@ -644,12 +646,13 @@ export async function processNFTPurchase({
     iscnData: iscnDataList[i].data,
     sellerWallet: iscnDataList[i].owner,
     nftId: priceInfoList[i].nextNewNFTId,
-    nftPrice: priceInfoList[i].price,
+    nftPrice: isSubscriberFreeCollect ? 0 : priceInfoList[i].price,
+    originalNftPrice: priceInfoList[i].price,
     currentBatch: priceInfoList[i].currentBatch,
   }));
 
   const freeList = purchaseInfoList
-    .filter((p) => p.nftPrice <= 0);
+    .filter((p) => isSubscriberFreeCollect || p.nftPrice <= 0);
   let freeMintIds: string[] = [];
   if (freeList.length) {
     freeMintIds = await db.runTransaction(async (t) => {
@@ -661,7 +664,8 @@ export async function processNFTPurchase({
         wallet: buyerWallet,
         creatorWallet: f.sellerWallet,
         classId: f.classId,
-        type: 'free',
+        originalNftPrice: f.originalNftPrice,
+        type: isSubscriberFreeCollect ? 'subscription' : 'free',
       }));
       return ids;
     });
@@ -693,7 +697,7 @@ export async function processNFTPurchase({
 
     classIds.forEach((_, i) => {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'LikerNFTPurchaseTransaction',
+        logType: isSubscriberFreeCollect ? 'LikerNFTSubscriberCollectTransaction' : 'LikerNFTPurchaseTransaction',
         txHash,
         iscnId: iscnPrefixes[i],
         classId: classIds[i],
@@ -796,6 +800,7 @@ export async function processNFTPurchase({
         grantedAmount,
         grantTxHash,
         granterMemo,
+        isSubscriberFreeCollect,
         retryTimes: retryTimes + 1,
       }, req);
     }

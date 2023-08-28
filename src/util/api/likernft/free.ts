@@ -34,11 +34,13 @@ export function startFreeMintTransaction(t: Transaction, {
   wallet,
   creatorWallet,
   classId,
+  originalNftPrice = 0,
   type,
 }: {
   wallet: string,
   creatorWallet: string,
   classId: string,
+  originalNftPrice?: number,
   type: FREE_MINT_TYPE,
 }) {
   const docId = uuidv4();
@@ -48,6 +50,7 @@ export function startFreeMintTransaction(t: Transaction, {
     creatorWallet,
     type,
     status: 'new',
+    originalNftPrice,
     timestamp: FieldValue.serverTimestamp(),
   });
   return docId;
