@@ -27,6 +27,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
     const list = ownedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
+        shippingRates,
         pendingNFTCount,
         moderatorWallets,
         ownerWallet,
@@ -39,6 +40,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         classId: id,
         prices,
         stock,
+        shippingRates,
       };
       if (req.user && req.user.wallet === wallet) {
         result.pendingNFTCount = pendingNFTCount;
@@ -60,6 +62,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
     const list = moderatedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
+        shippingRates,
         pendingNFTCount,
         id,
         ownerWallet,
@@ -68,6 +71,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
       const result: any = {
         classId: id,
         prices,
+        shippingRates,
         pendingNFTCount,
         stock,
         sold,
@@ -92,6 +96,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
     }
     const {
       prices: docPrices = [],
+      shippingRates,
       pendingNFTCount,
       ownerWallet,
       moderatorWallets = [],
@@ -103,6 +108,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
     const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
     const payload: any = {
       prices,
+      shippingRates,
       isSoldOut: stock <= 0,
       stock,
       ownerWallet,
@@ -132,6 +138,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
     }
     const {
       prices = [],
+      shippingRates,
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
@@ -141,6 +148,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
     const {
       name,
       priceInDecimal,
+      hasShipping,
       stock,
       sold,
       order,
@@ -151,9 +159,11 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
       name,
       price,
       priceInDecimal,
+      hasShipping,
       isSoldOut: stock <= 0,
       stock,
       ownerWallet,
+      shippingRates,
       order,
     };
     const isAuthorized = req.user
@@ -255,6 +265,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
+      shippingRates,
     } = req.body;
     validatePrices(prices);
     const result = await getISCNFromNFTClassId(classId);
@@ -272,6 +283,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      shippingRates,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -295,6 +307,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
+      shippingRates,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -307,6 +320,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      shippingRates,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

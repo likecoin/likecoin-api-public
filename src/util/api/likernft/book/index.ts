@@ -18,6 +18,7 @@ export function formatPriceInfo(price) {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
+    hasShipping = false,
     stock,
   } = price;
   const name = {};
@@ -30,7 +31,23 @@ export function formatPriceInfo(price) {
     name,
     description,
     priceInDecimal,
+    hasShipping,
     stock,
+  };
+}
+
+export function formatShippingRateInfo(shippingRate) {
+  const {
+    name: nameInput,
+    priceInDecimal,
+  } = shippingRate;
+  const name = {};
+  NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
+    name[locale] = nameInput[locale];
+  });
+  return {
+    name,
+    priceInDecimal,
   };
 }
 
@@ -45,6 +62,7 @@ export async function newNftBookInfo(classId, data) {
     notificationEmails,
     moderatorWallets,
     connectedWallets,
+    shippingRates,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -63,6 +81,7 @@ export async function newNftBookInfo(classId, data) {
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
+  if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
@@ -71,11 +90,13 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails,
   moderatorWallets,
   connectedWallets,
+  shippingRates,
 }: {
   prices?: any[];
   notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
+  shippingRates?: any[];
 } = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
@@ -84,6 +105,7 @@ export async function updateNftBookInfo(classId: string, {
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
+  if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
 
@@ -126,7 +148,10 @@ export async function processNFTBookPurchase(
     customer_details: customer,
     payment_intent: paymentIntent,
     amount_total: amountTotal,
+    shipping_details: shippingDetails,
+    shipping_cost: shippingCost,
   } = session;
+  const hasShipping = !!shippingDetails;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
@@ -158,12 +183,17 @@ export async function processNFTBookPurchase(
         prices,
         lastSaleTimestamp: FieldValue.serverTimestamp(),
       });
-      t.update(bookRef.collection('transactions').doc(paymentId), {
+      const paymentPayload: any = {
         isPaid: true,
         isPendingClaim: true,
+        hasShipping,
         status: 'paid',
         email,
-      });
+      };
+      if (hasShipping) paymentPayload.shippingStatus = 'pending';
+      if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+      if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+      t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
       return {
         listingData: docData,
         txData: paymentData,
@@ -243,6 +273,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       name,
       description,
       priceInDecimal,
+      hasShipping,
       sold: pSold = 0,
       stock: pStock = 0,
       order = index,
@@ -255,6 +286,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       description,
       stock: pStock,
       isSoldOut: pStock <= 0,
+      hasShipping,
       order,
     };
     if (isAuthorized) {
