@@ -167,14 +167,14 @@ router.post(
         case 'likeWallet':
         case 'cosmosWallet': {
           const {
-            from: inputWallet, signature, publicKey, message,
+            from: inputWallet, signature, publicKey, message, signMethod,
           } = req.body;
           ({ email } = req.body);
           if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
           if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
           if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
           if (!checkCosmosSignPayload({
-            signature, publicKey, message, inputWallet,
+            signature, publicKey, message, inputWallet, signMethod,
           })) {
             throw new ValidationError('INVALID_SIGN');
           }
@@ -470,13 +470,13 @@ router.post('/login', async (req, res, next) => {
       case 'likeWallet':
       case 'cosmosWallet': {
         const {
-          from: inputWallet, signature, publicKey, message,
+          from: inputWallet, signature, publicKey, message, signMethod,
         } = req.body;
         if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
         if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
         if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
         if (!checkCosmosSignPayload({
-          signature, publicKey, message, inputWallet,
+          signature, publicKey, message, inputWallet, signMethod,
         })) {
           throw new ValidationError('INVALID_SIGN');
         }

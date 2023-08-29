@@ -23,6 +23,7 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
       signature: {
         signature = '', publicKey = '', message = '',
       } = {},
+      signMethod,
     } = req.body;
     if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
     const userData = await getUserWithCivicLikerProperties(user);
@@ -42,7 +43,12 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
       if (tokenUserId !== authCoreUserId) throw new ValidationError('INVALID_AUTHCORE_TOKEN');
     }
     if (!checkCosmosSignPayload({
-      signature, publicKey, message, inputWallet: likeWallet, action: 'user_delete',
+      signature,
+      publicKey,
+      message,
+      inputWallet: likeWallet,
+      signMethod,
+      action: 'user_delete',
     })) {
       throw new ValidationError('INVALID_SIGN');
     }

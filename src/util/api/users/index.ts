@@ -134,8 +134,34 @@ export function checkSignPayload(from, payload, sign) {
   return actualPayload;
 }
 
+function parseActualLoginPayload(message, signMethod) {
+  try {
+    const parsedMessage = JSON.parse(message);
+    let payload;
+    switch (signMethod) {
+      case 'ADR-036': {
+        // TODO: verify ADR-036, e.g. msgs length, type, signer
+        // or use { verifyADR36Amino } from @keplr-wallet/cosmos
+        const base64Payload = parsedMessage.msgs[0].value.data;
+        payload = Buffer.from(base64Payload, 'base64').toString('utf8');
+        break;
+      }
+      default:
+        payload = parsedMessage.memo;
+    }
+    return JSON.parse(payload.substr(payload.indexOf('{')));
+  } catch (err) {
+    throw new Error('INVALID_PAYLOAD');
+  }
+}
+
 export function checkCosmosSignPayload({
-  signature, publicKey, message, inputWallet, action = '',
+  signature,
+  publicKey,
+  message,
+  inputWallet,
+  signMethod = 'memo',
+  action = '',
 }) {
   const verified = verifyCosmosSignInPayload({
     signature, publicKey, message, inputWallet,
@@ -143,13 +169,7 @@ export function checkCosmosSignPayload({
   if (!verified) {
     throw new ValidationError('INVALID_SIGNATURE');
   }
-  let actualPayload: any = {};
-  try {
-    const { memo } = JSON.parse(message);
-    actualPayload = JSON.parse(memo.substr(memo.indexOf('{')));
-  } catch (err) {
-    throw new ValidationError('INVALID_PAYLOAD');
-  }
+  const actualPayload = parseActualLoginPayload(message, signMethod);
   const {
     action: payloadAction,
     cosmosWallet: payloadCosmosWallet,
