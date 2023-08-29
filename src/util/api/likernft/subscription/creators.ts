@@ -47,7 +47,6 @@ export async function newCreatorSubscriptionPlan(wallet: string, payload) {
     priceInDecimal,
     name,
     description,
-    canFreeCollectWNFT = true,
   } = payload;
   const product = await stripe.products.create({
     name: `${name[NFT_SUBSCRIPTION_PLAN_TEXT_DEFAULT_LOCALE]} - ${displayName}`,
@@ -75,7 +74,6 @@ export async function newCreatorSubscriptionPlan(wallet: string, payload) {
       name,
       description,
       priceInDecimal,
-      canFreeCollectWNFT,
       stripeProductId,
       stripePriceId,
       timestamp: FieldValue.serverTimestamp(),
@@ -108,7 +106,6 @@ export async function updateCreatorSubscriptionPlan(wallet: string, planId: stri
   const {
     name,
     description,
-    canFreeCollectWNFT,
   } = payload;
   await stripe.products.update(stripeProductId, {
     name: name[NFT_SUBSCRIPTION_PLAN_TEXT_DEFAULT_LOCALE],
@@ -121,12 +118,10 @@ export async function updateCreatorSubscriptionPlan(wallet: string, planId: stri
     .create({
       name,
       description,
-      canFreeCollectWNFT,
       lastUpdateTimestamp: FieldValue.serverTimestamp(),
     });
   return {
     name,
     description,
-    canFreeCollectWNFT,
   };
 }

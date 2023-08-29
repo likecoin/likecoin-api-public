@@ -70,7 +70,6 @@ router.post('/:wallet/plans', jwtAuth('write:nft_creator'), async (req, res, nex
       priceInDecimal,
       description,
       name,
-      canFreeCollectWNFT,
     } = req.body;
     if (!(priceInDecimal > 0
         && (typeof priceInDecimal === 'number')
@@ -88,7 +87,6 @@ router.post('/:wallet/plans', jwtAuth('write:nft_creator'), async (req, res, nex
       priceInDecimal,
       name,
       description,
-      canFreeCollectWNFT,
     });
     res.json({ stripePriceId, stripeProductId });
   } catch (err) {
