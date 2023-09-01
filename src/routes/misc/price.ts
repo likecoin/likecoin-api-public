@@ -12,9 +12,6 @@ import {
 const router = Router();
 
 const CACHE_IN_S = CMC_API_CACHE_S || 300; // Rate limit: 333 per day ~ 1 per 259s
-const USDTWD = 30.51;
-const LOW_THRESHOLD_PRICE_TWD = 0.03;
-const LOW_THRESHOLD_PRICE_USD = LOW_THRESHOLD_PRICE_TWD / USDTWD;
 
 router.get('/price', async (req, res) => {
   const { currency = 'usd' } = req.query;
@@ -37,12 +34,7 @@ router.get('/price', async (req, res) => {
     // eslint-disable-next-line no-console
     console.error(err);
   }
-  if (
-    (price === undefined)
-    // Return error if price is below threshold
-    || (currency === 'usd' && price < LOW_THRESHOLD_PRICE_USD)
-    || (currency === 'twd' && price < LOW_THRESHOLD_PRICE_TWD)
-  ) {
+  if (!price) {
     res.sendStatus(500);
     return;
   }
