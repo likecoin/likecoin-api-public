@@ -55,10 +55,14 @@ router.post(
 
       const {
         isSubscriber,
+        isFreeForSubscribers,
         isExpired,
         canFreeCollect,
         hasFreeCollected,
       } = await getSubscriberCanCollectNFT(wallet, classId);
+      if (!isFreeForSubscribers) {
+        throw new ValidationError('NOT_FREE_FOR_SUBSCRIBER');
+      }
       if (!isSubscriber) {
         throw new ValidationError('NOT_SUBSCRIBED');
       }

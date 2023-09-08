@@ -51,6 +51,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     initialBatch = 0,
     isFree,
     collectExpiryAt,
+    isFreeForSubscribers = true,
   } = classData;
   const currentBatch = isFree ? -1 : initialBatch;
   const { price, count } = getNFTBatchInfo(currentBatch);
@@ -77,6 +78,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     creatorWallet: sellerWallet,
     ownerWallet: sellerWallet,
     processingCount: 0,
+    isFreeForSubscribers,
     timestamp,
     platform,
   } as any;

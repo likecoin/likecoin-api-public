@@ -64,6 +64,7 @@ router.post(
         initialBatch,
         isFree,
         collectExpiryAt,
+        isFreeForSubscribers,
       } = req.body;
 
       if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
@@ -121,6 +122,7 @@ router.post(
         initialBatch,
         isFree,
         collectExpiryAt,
+        isFreeForSubscribers,
         classId,
         totalCount: nfts.length,
         platform,

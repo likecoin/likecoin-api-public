@@ -49,13 +49,14 @@ export async function getSubscriberCanCollectNFT(wallet: string, classId: string
     checkFreeMintExists(wallet, classId),
     getISCNDocByClassId(classId),
   ]);
-  const { timestamp, collectExpiryAt: expiryDate } = iscnDoc.data();
+  const { timestamp, collectExpiryAt: expiryDate, isFreeForSubscribers } = iscnDoc.data();
   const defaultExpireTs = timestamp + 2592000000; // 30days
   const collectExpiryAt = Math.min(expiryDate?.toMillis() || defaultExpireTs, defaultExpireTs);
   const isExpired = Date.now() > collectExpiryAt;
-  const canFreeCollect = isSubscriber && !isExpired && !hasFreeCollected;
+  const canFreeCollect = isFreeForSubscribers && isSubscriber && !isExpired && !hasFreeCollected;
   return {
     isSubscriber,
+    isFreeForSubscribers,
     collectExpiryAt,
     isExpired,
     canFreeCollect,
