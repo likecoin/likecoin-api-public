@@ -97,11 +97,12 @@ async function getISCNDocData(
   return data;
 }
 
-async function getFirstUnsoldNFTDocData(
+async function getUnsoldNFTsDocData(
   iscnPrefix: string,
   classId: string,
+  count: number,
   { t }: { t?: Transaction } = {},
-) {
+): Promise<FirebaseFirestore.DocumentData[]> {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnPrefix);
   const query = likeNFTCollection.doc(iscnPrefixDocName)
     .collection('class').doc(classId)
@@ -109,10 +110,19 @@ async function getFirstUnsoldNFTDocData(
     .where('isSold', '==', false)
     .where('isProcessing', '==', false)
     .where('price', '==', 0)
-    .limit(1) as Query;
+    .limit(count) as Query;
   const res = await (t ? t.get(query) : query.get());
-  if (!res.size) return null;
-  return res.docs[0].data()!;
+  if (!res.docs?.length) return [];
+  return res.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+async function getFirstUnsoldNFTDocData(
+  iscnPrefix: string,
+  classId: string,
+  { t }: { t?: Transaction } = {},
+) {
+  const list = await getUnsoldNFTsDocData(iscnPrefix, classId, 1, { t });
+  return list.length ? list[0] : null;
 }
 
 export async function getLatestNFTPriceAndInfo(
@@ -131,6 +141,7 @@ export async function getLatestNFTPriceAndInfo(
     currentPrice,
     currentBatch,
     lastSoldPrice,
+    isFreeForSubscribers = true,
     collectExpiryAt: collectExpiryAtDateTime,
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
@@ -147,6 +158,7 @@ export async function getLatestNFTPriceAndInfo(
   return {
     ...iscnDocData,
     collectExpiryAt,
+    isFreeForSubscribers,
     nextNewNFTId,
     currentBatch,
     isProcessing,
@@ -347,6 +359,22 @@ async function calculateLIKEAndPopulateTxMsg({
   };
 }
 
+async function populateMultiTargetSendTxMsg({
+  classId,
+  nftIds = [],
+  targetWallets = [],
+}) {
+  const txMessages = nftIds.map((id, i) => formatMsgSend(
+    LIKER_NFT_TARGET_ADDRESS,
+    targetWallets[i],
+    classId,
+    id,
+  ));
+  return {
+    txMessages,
+  };
+}
+
 async function handleNFTPurchaseTransaction(txMessages, memo) {
   let res;
   const signingClient = await getLikerNFTSigningClient();
@@ -490,6 +518,53 @@ function updateDocsForSuccessPurchase(t, {
     sellerLIKE,
     stakeholderWallets,
     stakeholderLIKEs,
+  });
+}
+
+function updateDocsForSuccessBatchSend(t, {
+  iscnPrefix,
+  classId,
+  nftIds = [],
+  sellerWallet,
+  targetWallets = [],
+  timestamp,
+  txHash,
+  memo,
+}) {
+  const fromWallet = LIKER_NFT_TARGET_ADDRESS;
+  const iscnRef = likeNFTCollection.doc(getISCNPrefixDocName(iscnPrefix));
+  t.update(iscnRef, {
+    nftRemainingCount: FieldValue.increment(-1),
+  });
+  const classRef = iscnRef.collection('class').doc(classId);
+  nftIds.forEach((nftId, i) => {
+    const nftRef = classRef.collection('nft').doc(nftId);
+    t.update(nftRef, {
+      price: 0,
+      lastSoldPrice: 0,
+      soldCount: FieldValue.increment(1),
+      isSold: true,
+      isProcessing: false,
+      ownerWallet: targetWallets[i],
+      lastSoldTimestamp: timestamp,
+      sellerWallet: null,
+    });
+  });
+  t.create(iscnRef.collection('transaction')
+    .doc(txHash), {
+    event: 'purchase',
+    txHash,
+    memo,
+    price: 0,
+    classId,
+    nftIds,
+    timestamp,
+    fromWallet,
+    toWallets: targetWallets,
+    sellerWallet,
+    sellerLIKE: 0,
+    stakeholderWallets: [],
+    stakeholderLIKEs: [],
   });
 }
 
@@ -804,6 +879,112 @@ export async function processNFTPurchase({
         retryTimes: retryTimes + 1,
       }, req);
     }
+    throw err;
+  }
+}
+
+export async function batchSendFreeNFT({
+  targetWallets = [],
+  iscnPrefix,
+  classId,
+}, req) {
+  const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
+  if (!iscnData) throw new ValidationError('ISCN_DATA_NOT_FOUND');
+
+  const memo = await generateCustomMemo(iscnPrefix, classId, 'Subscribers');
+
+  const nftInfoList = await db.runTransaction(async (t) => {
+    // eslint-disable-next-line no-underscore-dangle
+    const _nftInfoList = await getUnsoldNFTsDocData(
+      iscnPrefix,
+      classId,
+      targetWallets.length,
+      { t },
+    );
+    _nftInfoList.forEach((info) => {
+      lockDocs(iscnPrefix, classId, info.id, t);
+    });
+    return _nftInfoList;
+  });
+
+  const purchaseInfoList = nftInfoList.map((info, i) => ({
+    iscnPrefix,
+    classId,
+    iscnData,
+    sellerWallet: iscnData.owner,
+    nftId: info.id,
+    nftPrice: 0,
+  }));
+  const nftIds = nftInfoList.map((info) => info.id);
+
+  const freeMintIds = await db.runTransaction(async (t) => {
+    const ids = purchaseInfoList.map((f, i) => startFreeMintTransaction(t, {
+      wallet: targetWallets[i],
+      creatorWallet: f.sellerWallet,
+      classId: f.classId,
+      originalNftPrice: f.originalNftPrice,
+      type: 'subscription',
+    }));
+    return ids;
+  });
+
+  try {
+    const txMessages = populateMultiTargetSendTxMsg({
+      classId,
+      nftIds,
+      targetWallets,
+    });
+    const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
+    const timestamp = Date.now();
+
+    targetWallets.forEach((targetWallet, i) => {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTSubscriberCollectTransaction',
+        txHash,
+        iscnId: iscnPrefix,
+        classId,
+        nftId: purchaseInfoList[i].nftId,
+        buyerWallet: targetWallet,
+      });
+    });
+
+    await db.runTransaction(async (t) => {
+      await updateDocsForSuccessBatchSend(
+        t,
+        {
+          iscnPrefix,
+          classId,
+          nftIds,
+          sellerWallet: iscnData.owner,
+          targetWallets,
+          timestamp,
+          txHash,
+          memo,
+        },
+      );
+    });
+    await db.runTransaction(async (t) => {
+      const ids = purchaseInfoList.map((f, i) => completeFreeMintTransaction(t, {
+        mintId: freeMintIds[i],
+        classId: f.classId,
+        nftId: f.nftId,
+        txHash,
+      }));
+      return ids;
+    });
+
+    return {
+      transactionHash: txHash,
+      purchaseInfoList,
+    };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'LikerNFTBatchSendError',
+      iscnId: iscnPrefix,
+      classId,
+    });
     throw err;
   }
 }

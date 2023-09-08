@@ -25,6 +25,8 @@ import {
   IMAGE_GENERATION_LIMIT_WINDOW,
   IMAGE_GENERATION_LIMIT_COUNT,
 } from '../../../config/config';
+import { getActiveSubscriptionsOfCreator, getSubscriptionUserActiveSubscriptionsData } from '../../util/api/likernft/subscription/readers';
+import { batchSendFreeNFT } from '../../util/api/likernft/purchase';
 
 const router = Router();
 
@@ -65,6 +67,7 @@ router.post(
         isFree,
         collectExpiryAt,
         isFreeForSubscribers,
+        sendToSubscribers,
       } = req.body;
 
       if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
@@ -128,11 +131,29 @@ router.post(
         platform,
       }, nfts);
 
+      let subscriberWalletsSent;
+      if (sendToSubscribers) {
+        const readersInfo = await getActiveSubscriptionsOfCreator(sellerWallet);
+        const readerWallets = readersInfo.map((r) => r.wallet);
+        if (nfts.length >= readerWallets.length) {
+          await batchSendFreeNFT({
+            targetWallets: readerWallets,
+            iscnPrefix,
+            classId,
+          }, req);
+          subscriberWalletsSent = readerWallets;
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('more subscribers than nft minted');
+        }
+      }
+
       res.json({
         classId,
         iscnId: iscnPrefix,
         nftCount: nfts.length,
         sellerWallet,
+        subscriberWalletsSent,
       });
 
       const logPayload = {
