@@ -4,6 +4,7 @@ import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { randomBytes } from 'crypto';
+import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import uuidv4 from 'uuid/v4';
 
 import Stripe from 'stripe';
@@ -276,26 +277,32 @@ router.post(
       if (!token) throw new ValidationError('TOKEN_NEEDED');
 
       const ref = likeNFTFiatCollection.doc(paymentId);
-      let classId;
-      let nftId;
+      let purchaseInfoList;
       try {
-        ({ classId, nftId } = await db.runTransaction(async (t) => {
+        (purchaseInfoList = await db.runTransaction(async (t) => {
           const doc = await t.get(ref);
           if (!doc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-          const { status, claimToken } = doc.data();
-          const { classId: _classId, nftId: _nftId } = doc.data();
+          const {
+            status,
+            claimToken,
+            priceInfoList: _priceInfoList,
+            // TODO: retire this after all legacy pendingClaim has been claimed
+            classId: _classId,
+            nftId: _nftId,
+          } = doc.data();
           if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
           if (status !== 'pendingClaim') throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
           t.update(ref, { status: 'claiming' });
-          return { classId: _classId, nftId: _nftId };
+          return _priceInfoList
+            ? _priceInfoList.map((p) => ({ classId: p.classId, nftId: p.nftId }))
+            : [{ classId: _classId, nftId: _nftId }];
         }));
       } catch (err) {
         if (err instanceof ValidationError && err.message === 'NFT_CLAIM_ALREADY_HANDLED') {
           publisher.publish(PUBSUB_TOPIC_MISC, req, {
             logType: 'LikerNFTFiatClaimAlreadyHandled',
             paymentId,
-            classId,
-            nftId,
+            purchaseInfoList,
             wallet: receiverWallet,
           });
         }
@@ -310,12 +317,16 @@ router.post(
           accountNumber,
         } = await getLikerNFTPendingClaimSigningClientAndWallet();
         const { address: senderAddress } = senderWallet;
+        const messages = purchaseInfoList.map(({ classId, nftId }) => formatMsgSend(
+          senderAddress,
+          receiverWallet as string,
+          classId,
+          nftId,
+        ));
         const sendNFTSigningFunction = async ({ sequence }): Promise<TxRaw> => {
-          const r = await client.sendNFTs(
+          const r = await client.sendMessages(
             senderAddress,
-            receiverWallet as string,
-            classId,
-            [nftId],
+            messages,
             {
               accountNumber,
               sequence,
@@ -336,8 +347,7 @@ router.post(
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'LikerNFTFiatClaimServerError',
           paymentId,
-          classId,
-          nftId,
+          purchaseInfoList,
           error,
           errorMessage,
           errorStack,
@@ -355,8 +365,7 @@ router.post(
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'LikerNFTFiatClaimTxError',
           paymentId,
-          classId,
-          nftId,
+          purchaseInfoList,
           errorCode: code,
           errorTransactionHash: txHash,
         });
@@ -377,13 +386,12 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTFiatClaimed',
         paymentId,
-        classId,
-        nftId,
+        purchaseInfoList,
         txHash,
         wallet: receiverWallet,
       });
 
-      res.json({ classId, nftId, txHash });
+      res.json({ purchaseInfoList, txHash });
     } catch (err) {
       next(err);
     }
