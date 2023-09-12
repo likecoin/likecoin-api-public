@@ -128,7 +128,11 @@ router.post(
 
       const claimToken = randomBytes(32).toString('base64url');
 
-      const priceInfoListString = JSON.stringify(priceInfoList);
+      const iscnAndClassIdLog = {};
+      classIds.forEach((classId, i) => {
+        iscnAndClassIdLog[`iscnPrefix${i + 1}`] = iscnPrefixes[i];
+        iscnAndClassIdLog[`classId${i + 1}`] = classId;
+      });
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -150,7 +154,7 @@ router.post(
                 description,
                 images,
                 metadata: {
-                  priceInfoListString,
+                  ...iscnAndClassIdLog,
                 },
               },
               unit_amount: Number(new BigNumber(fiatPriceString).shiftedBy(2).toFixed(0)),
@@ -168,8 +172,8 @@ router.post(
           store: 'likerland',
           wallet: wallet as string,
           memo,
-          priceInfoListString,
           paymentId,
+          ...iscnAndClassIdLog,
         },
       });
       const { url, id: sessionId } = session;
