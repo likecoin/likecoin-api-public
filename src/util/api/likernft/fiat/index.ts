@@ -50,6 +50,7 @@ export async function getPriceInfoList(iscnPrefixes, classIds) {
     classIds.map(async (classId, i) => {
       const iscnPrefix = iscnPrefixes[i];
       const { price } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      if (price < 0) throw new ValidationError(`NFT_${classId}_SOLD_OUT`);
       return {
         iscnPrefix,
         classId,
@@ -202,10 +203,15 @@ export async function processFiatNFTPurchase({
     LIKEPrice,
     transactionHash,
   });
+  const priceInfoListToUpdate = res.purchaseInfoList.map(({ nftPrice, nftId }, i) => ({
+    ...priceInfoList[i],
+    actualNftPrice: nftPrice,
+    nftId,
+  }));
   const actualNftPrice = res.purchaseInfoList.reduce((acc, { nftPrice }) => acc + nftPrice, 0);
   await docRef.update({
     transactionHash,
-    priceInfoList: res.purchaseInfoList,
+    priceInfoList: priceInfoListToUpdate,
     actualNftPrice,
     claimToken: claimToken || null,
     status: claimToken ? 'pendingClaim' : 'done',
