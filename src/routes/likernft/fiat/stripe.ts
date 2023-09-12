@@ -11,10 +11,10 @@ import stripe from '../../../util/stripe';
 import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
-import { fetchISCNPrefixFromChain } from '../../../middleware/likernft';
+import { fetchISCNPrefixes, fetchISCNPrefixFromChain } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
 import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
-import { getGasPrice, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
+import { getGasPrice, getLatestNFTPriceAndInfo, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
 import { checkIsWritingNFT, DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet, getNFTISCNData } from '../../../util/cosmos/nft';
@@ -79,59 +79,31 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
 
 router.get(
   '/price',
-  fetchISCNPrefixFromChain,
+  fetchISCNPrefixes,
   async (req, res, next) => {
     try {
-      const classId = req.query.class_id as string;
-      const { iscnPrefix } = res.locals;
-      const [
-        purchaseInfo,
-        listingInfo,
-        iscnData,
-      ] = await Promise.all([
-        iscnPrefix ? softGetLatestNFTPriceAndInfo(iscnPrefix, classId) : null,
-        fetchNFTListingInfo(classId),
-        getNFTISCNData(iscnPrefix),
-      ]);
-      const firstListing = listingInfo
-        .filter((l) => l.seller === iscnData.owner) // only show 1st hand
-        .map(formatListingInfo)
-        .sort((a, b) => a.price - b.price)[0];
+      const { iscnPrefixes, classIds } = res.locals;
+      const gasFee = getGasPrice();
+      const priceInfoList = await Promise.all(
+        classIds.map(async (classId, i) => {
+          const { price } = await getLatestNFTPriceAndInfo(iscnPrefixes[i], classId);
+          return {
+            classId,
+            LIKEPrice: price === 0 ? 0 : price + gasFee,
+          };
+        }),
+      );
 
-      if (!purchaseInfo && !firstListing) {
-        res.status(404).send('NFT_PRICE_NOT_FOUND');
-        return;
-      }
+      const totalLIKEPrice = priceInfoList
+        .reduce((acc, { LIKEPrice }) => (LIKEPrice === 0 ? 0 : acc + LIKEPrice), 0);
 
-      const isListing = !purchaseInfo || (firstListing && firstListing.price <= purchaseInfo.price);
-      const price = isListing ? firstListing.price : purchaseInfo.price;
-      const isFree = price === 0;
-      const gasFee = isFree ? 0 : getGasPrice();
-      const totalPrice = price + gasFee;
-      const fiatPriceString = isFree ? '0' : await getFiatPriceStringForLIKE(totalPrice);
-      const payload: {
-        LIKEPrice: number,
-        fiatPrice: number,
-        fiatPriceString: string,
-        isListing: boolean,
-        listingInfo: null | {
-          nftId: string,
-          seller: string,
-        },
-      } = {
-        LIKEPrice: totalPrice,
+      const fiatPriceString = totalLIKEPrice === 0 ? '0' : await getFiatPriceStringForLIKE(totalLIKEPrice);
+      const payload = {
+        LIKEPrice: totalLIKEPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
-        isListing,
-        listingInfo: null,
+        priceInfoList,
       };
-      if (isListing) {
-        const { nftId, seller } = firstListing;
-        payload.listingInfo = {
-          nftId,
-          seller,
-        };
-      }
       res.json(payload);
     } catch (err) {
       next(err);
