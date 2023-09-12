@@ -11,16 +11,14 @@ import stripe from '../../../util/stripe';
 import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
-import { fetchISCNPrefixes, fetchISCNPrefixFromChain } from '../../../middleware/likernft';
+import { fetchISCNPrefixes } from '../../../middleware/likernft';
 import { getFiatPriceStringForLIKE } from '../../../util/api/likernft/fiat';
-import { processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
-import { getGasPrice, getLatestNFTPriceAndInfo, softGetLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
-import { formatListingInfo, fetchNFTListingInfo, fetchNFTListingInfoByNFTId } from '../../../util/api/likernft/listing';
-import { checkIsWritingNFT, DEFAULT_NFT_IMAGE_SIZE, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
+import { getImage, processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
+import { getGasPrice, getLatestNFTPriceAndInfo } from '../../../util/api/likernft/purchase';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
-import { API_EXTERNAL_HOSTNAME, LIKER_LAND_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 
 import {
@@ -113,70 +111,59 @@ router.get(
 
 router.post(
   '/new',
-  fetchISCNPrefixFromChain,
+  fetchISCNPrefixes,
   async (req, res, next) => {
     try {
-      const classId = req.query.class_id as string;
       const { wallet } = req.query;
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const { iscnPrefix } = res.locals;
-      const promises = [getNFTClassDataById(classId)];
-      const {
-        nftId = '', seller = '', memo, email,
-      } = req.body;
-      const isListing = !!(nftId && seller);
-      if (!isListing && !iscnPrefix) {
-        throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      }
-      const getPriceInfoPromise = isListing
-        ? fetchNFTListingInfoByNFTId(classId, nftId)
-          .then((info) => {
-            if (!info) throw new ValidationError('LISTING_NOT_FOUND');
-            const listingInfo = formatListingInfo(info);
-            if (!listingInfo) throw new ValidationError('LISTING_NOT_FOUND');
-            if (listingInfo.seller !== seller) throw new ValidationError('LISTING_SELLER_NOT_MATCH');
-            return listingInfo;
-          })
-        : softGetLatestNFTPriceAndInfo(iscnPrefix, classId);
-      promises.push(getPriceInfoPromise);
-      const [metadata, priceInfo] = await Promise.all(promises) as any;
-      if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      const { price } = priceInfo;
-      if (price === 0) throw new ValidationError('NFT_IS_FREE');
+      const { memo, email } = req.body;
+      const { iscnPrefixes, classIds } = res.locals;
+      const gasFee = getGasPrice();
+      const [LIKEPrices, classMetadataList] = await Promise.all([
+        Promise.all(classIds.map(async (c, i) => {
+          const { price } = await getLatestNFTPriceAndInfo(iscnPrefixes[i], c);
+          return price === 0 ? 0 : price + gasFee;
+        })),
+        Promise.all(classIds.map(getNFTClassDataById)),
+      ]);
       let {
         name = '',
         description = '',
-      } = metadata;
-      const classMetadata = metadata.data.metadata;
-      let { image } = classMetadata;
-      const { is_custom_image: isCustomImage = false } = classMetadata;
-      if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
-        image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_SIZE}`;
-      } else {
-        image = parseImageURLFromMetadata(image);
-      }
-      if (!image) {
-        image = 'https://static.like.co/primitive-nft.jpg';
-      }
-      const gasFee = getGasPrice();
-      const totalPrice = price + gasFee;
+      } = classMetadataList[0] as any;
+      const images = classMetadataList.map(getImage).slice(0, 8);
+
+      const totalPrice = LIKEPrices
+        .reduce((acc, price) => (price === 0 ? 0 : acc + price), 0);
+      if (totalPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const fiatPriceString = await getFiatPriceStringForLIKE(totalPrice);
       const paymentId = uuidv4();
       name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
       description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
       if (!description) { description = undefined; } // stripe does not like empty string
+      if (classMetadataList.length > 1) {
+        name = `${name} + ${classMetadataList.length - 1} more`;
+      }
+
       const claimToken = randomBytes(32).toString('base64url');
+
+      const purchaseInfoList = classIds.map((classId, i) => ({
+        classId,
+        iscnPrefix: iscnPrefixes[i],
+        LIKEPrice: LIKEPrices[i],
+      }));
+      const purchaseInfoListString = JSON.stringify(purchaseInfoList);
+
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: getLikerLandNFTFiatStripePurchasePageURL({
-          classId,
+          classId: classIds[0],
           paymentId,
           token: claimToken,
           wallet: wallet as string,
         }),
         client_reference_id: wallet as string || undefined,
         customer_email: email,
-        cancel_url: getLikerLandNFTClassPageURL({ classId }),
+        cancel_url: getLikerLandNFTClassPageURL({ classId: classIds[0] }),
         line_items: [
           {
             price_data: {
@@ -184,10 +171,9 @@ router.post(
               product_data: {
                 name,
                 description,
-                images: [image],
+                images,
                 metadata: {
-                  iscnPrefix,
-                  classId,
+                  purchaseInfoListString,
                 },
               },
               unit_amount: Number(new BigNumber(fiatPriceString).shiftedBy(2).toFixed(0)),
@@ -204,12 +190,8 @@ router.post(
         metadata: {
           store: 'likerland',
           wallet: wallet as string,
-          classId,
-          isListing: isListing ? 'true' : null,
-          nftId,
-          seller,
           memo,
-          iscnPrefix,
+          purchaseInfoString: purchaseInfoListString,
           paymentId,
         },
       });
@@ -218,12 +200,8 @@ router.post(
         type: 'stripe',
         sessionId,
         wallet,
-        classId,
-        isListing,
-        nftId,
-        seller,
         memo,
-        iscnPrefix,
+        purchaseInfoList,
         LIKEPrice: totalPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
@@ -249,11 +227,7 @@ router.post(
         paymentId,
         buyerWallet: wallet,
         buyerMemo: memo,
-        isListing,
-        sellerWallet: seller,
-        nftId,
-        classId,
-        iscnPrefix,
+        purchaseInfoList,
         fiatPrice,
         LIKEPrice,
         sessionId,

@@ -5,6 +5,7 @@ import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import {
+  API_EXTERNAL_HOSTNAME,
   IS_TESTNET,
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
@@ -19,6 +20,7 @@ import {
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { DEFAULT_NFT_IMAGE_SIZE, checkIsWritingNFT, parseImageURLFromMetadata } from '../metadata';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -275,4 +277,19 @@ export async function processStripeFiatNFTPurchase(session, req) {
     }
   }
   return true;
+}
+
+export function getImage(classMetadata) {
+  let { image } = classMetadata.data.metadata;
+  const { is_custom_image: isCustomImage = false } = classMetadata;
+  if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
+    const classId = classMetadata.id;
+    image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_SIZE}`;
+  } else {
+    image = parseImageURLFromMetadata(image);
+  }
+  if (!image) {
+    image = 'https://static.like.co/primitive-nft.jpg';
+  }
+  return image;
 }
