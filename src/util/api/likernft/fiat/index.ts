@@ -5,7 +5,7 @@ import LRU from 'lru-cache';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
-import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
+import { checkWalletGrantAmount, getGasPrice, getLatestNFTPriceAndInfo, processNFTPurchase } from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import { processNFTBuyListing } from '../listing';
 import publisher from '../../../gcloudPub';
@@ -38,6 +38,22 @@ async function getLIKEPrice() {
       .catch(() => cachedPrice || LIKER_NFT_FIAT_MIN_RATIO);
   }
   return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
+}
+
+export async function getPriceInfoList(iscnPrefixes, classIds) {
+  const gasFee = getGasPrice();
+  const priceInfoList = await Promise.all(
+    classIds.map(async (classId, i) => {
+      const iscnPrefix = iscnPrefixes[i];
+      const { price } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      return {
+        iscnPrefix,
+        classId,
+        LIKEPrice: price === 0 ? 0 : price + gasFee,
+      };
+    }),
+  );
+  return priceInfoList;
 }
 
 export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
