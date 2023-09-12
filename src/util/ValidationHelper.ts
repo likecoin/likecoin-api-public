@@ -385,7 +385,7 @@ export function filterLikeNFTFiatData({
   wallet,
   classId: legacyClassId,
   iscnPrefix: legacyISCNPrefix,
-  priceInfoList: priceInfoListInput,
+  purchaseInfoList: purchaseInfoListInput,
   LIKEPrice,
   fiatPrice,
   fiatPriceString,
@@ -402,15 +402,15 @@ export function filterLikeNFTFiatData({
     fiatPriceString,
     transactionHash,
   } as any;
-  if (priceInfoListInput && priceInfoListInput.length) {
-    payload.priceInfoList = priceInfoListInput.map((p) => ({
+  if (purchaseInfoListInput && purchaseInfoListInput.length) {
+    payload.purchaseInfoList = purchaseInfoListInput.map((p) => ({
       iscnPrefix: p.iscnPrefix,
       classId: p.classId,
       LIKEPrice: p.LIKEPrice,
     }));
   } else {
     // Handle legacy single NFT class purchase
-    payload.priceInfoList = [{
+    payload.purchaseInfoList = [{
       iscnPrefix: legacyISCNPrefix,
       classId: legacyClassId,
       LIKEPrice,

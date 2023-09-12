@@ -13,7 +13,7 @@ import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
-import { getFiatPriceStringForLIKE, getPriceInfoList } from '../../../util/api/likernft/fiat';
+import { getFiatPriceStringForLIKE, getPurchaseInfoList } from '../../../util/api/likernft/fiat';
 import { getImage, processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -81,14 +81,14 @@ router.get(
   async (req, res, next) => {
     try {
       const { iscnPrefixes, classIds } = res.locals;
-      const priceInfoList = await getPriceInfoList(iscnPrefixes, classIds);
-      const totalLIKEPrice = priceInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
+      const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
+      const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
       const fiatPriceString = totalLIKEPrice === 0 ? '0' : await getFiatPriceStringForLIKE(totalLIKEPrice);
       const payload = {
         LIKEPrice: totalLIKEPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
-        priceInfoList,
+        purchaseInfoList,
       };
       res.json(payload);
     } catch (err) {
@@ -106,8 +106,8 @@ router.post(
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const { memo = '', email } = req.body;
       const { iscnPrefixes, classIds } = res.locals;
-      const [priceInfoList, classMetadataList] = await Promise.all([
-        getPriceInfoList(iscnPrefixes, classIds),
+      const [purchaseInfoList, classMetadataList] = await Promise.all([
+        getPurchaseInfoList(iscnPrefixes, classIds),
         Promise.all(classIds.map(getNFTClassDataById)),
       ]);
       let {
@@ -116,7 +116,7 @@ router.post(
       } = classMetadataList[0] as any;
       const images = classMetadataList.map(getImage).slice(0, 8);
 
-      const totalLIKEPrice = priceInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
+      const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
       if (totalLIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const fiatPriceString = await getFiatPriceStringForLIKE(totalLIKEPrice);
       const paymentId = uuidv4();
@@ -182,7 +182,7 @@ router.post(
         type: 'stripe',
         sessionId,
         memo,
-        priceInfoList,
+        purchaseInfoList,
         LIKEPrice: totalLIKEPrice,
         fiatPrice: Number(fiatPriceString),
         fiatPriceString,
@@ -203,7 +203,7 @@ router.post(
         LIKEPrice,
         fiatPrice,
         fiatPriceString,
-        priceInfoList,
+        purchaseInfoList,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'LikerNFTFiatPaymentNew',
@@ -211,7 +211,7 @@ router.post(
         paymentId,
         buyerWallet: wallet,
         buyerMemo: memo,
-        priceInfoList,
+        purchaseInfoList,
         fiatPrice,
         LIKEPrice,
         sessionId,
@@ -285,7 +285,7 @@ router.post(
           const {
             status,
             claimToken,
-            priceInfoList: _priceInfoList,
+            purchaseInfoList: _purchaseInfoList,
             // TODO: retire this after all legacy pendingClaim has been claimed
             classId: _classId,
             nftId: _nftId,
@@ -293,8 +293,8 @@ router.post(
           if (claimToken !== token) throw new ValidationError('INVALID_TOKEN', 403);
           if (status !== 'pendingClaim') throw new ValidationError('NFT_CLAIM_ALREADY_HANDLED', 409);
           t.update(ref, { status: 'claiming' });
-          return _priceInfoList
-            ? _priceInfoList.map((p) => ({ classId: p.classId, nftId: p.nftId }))
+          return _purchaseInfoList
+            ? _purchaseInfoList.map((p) => ({ classId: p.classId, nftId: p.nftId }))
             : [{ classId: _classId, nftId: _nftId }];
         }));
       } catch (err) {

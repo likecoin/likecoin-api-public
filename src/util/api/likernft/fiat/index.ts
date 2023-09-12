@@ -44,9 +44,9 @@ async function getLIKEPrice() {
   return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
-export async function getPriceInfoList(iscnPrefixes, classIds) {
+export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   const gasFee = getGasPrice();
-  const priceInfoList = await Promise.all(
+  const purchaseInfoList = await Promise.all(
     classIds.map(async (classId, i) => {
       const iscnPrefix = iscnPrefixes[i];
       const { price } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
@@ -58,7 +58,7 @@ export async function getPriceInfoList(iscnPrefixes, classIds) {
       };
     }),
   );
-  return priceInfoList;
+  return purchaseInfoList;
 }
 
 export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
@@ -111,7 +111,7 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
 export async function processFiatNFTPurchase({
   paymentId,
   likeWallet,
-  priceInfoList,
+  purchaseInfoList,
   LIKEPrice,
   fiatPrice,
   memo,
@@ -141,7 +141,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      priceInfoList,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
     });
@@ -151,9 +151,9 @@ export async function processFiatNFTPurchase({
   try {
     const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
     if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
-    const iscnPrefixes = priceInfoList.map(({ iscnPrefix }) => iscnPrefix);
-    const classIds = priceInfoList.map(({ classId }) => classId);
-    const { transactionHash, purchaseInfoList } = await processNFTPurchase({
+    const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
+    const classIds = purchaseInfoList.map(({ classId }) => classId);
+    const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefixes,
       classIds,
@@ -164,7 +164,7 @@ export async function processFiatNFTPurchase({
     }, req);
     res = {
       transactionHash,
-      purchaseInfoList,
+      purchaseInfoList: _purchaseInfoList,
     };
   } catch (err) {
     const error = (err as Error).toString();
@@ -175,7 +175,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      priceInfoList,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       error,
@@ -198,20 +198,20 @@ export async function processFiatNFTPurchase({
     paymentId,
     buyerWallet: likeWallet,
     buyerMemo: memo,
-    priceInfoList,
+    purchaseInfoList,
     fiatPrice,
     LIKEPrice,
     transactionHash,
   });
-  const priceInfoListToUpdate = res.purchaseInfoList.map(({ nftPrice, nftId }, i) => ({
-    ...priceInfoList[i],
+  const purchaseInfoListToUpdate = res.purchaseInfoList.map(({ nftPrice, nftId }, i) => ({
+    ...purchaseInfoList[i],
     actualNftPrice: nftPrice,
     nftId,
   }));
   const actualNftPrice = res.purchaseInfoList.reduce((acc, { nftPrice }) => acc + nftPrice, 0);
   await docRef.update({
     transactionHash,
-    priceInfoList: priceInfoListToUpdate,
+    purchaseInfoList: purchaseInfoListToUpdate,
     actualNftPrice,
     claimToken: claimToken || null,
     status: claimToken ? 'pendingClaim' : 'done',

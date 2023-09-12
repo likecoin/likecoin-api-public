@@ -61,7 +61,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     memo,
     LIKEPrice,
     fiatPrice,
-    priceInfoList,
+    purchaseInfoList,
     fiatPriceString,
     status,
   } = docData;
@@ -77,7 +77,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      priceInfoList,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -104,7 +104,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     await processFiatNFTPurchase({
       paymentId,
       likeWallet: wallet,
-      priceInfoList,
+      purchaseInfoList,
       LIKEPrice,
       fiatPrice,
       memo,
@@ -121,7 +121,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      priceInfoList,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -137,7 +137,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
           type: 'stripe',
           paymentId,
           buyerWallet: wallet,
-          priceInfoList,
+          purchaseInfoList,
           fiatPrice,
           LIKEPrice,
           sessionId,
@@ -160,14 +160,14 @@ export async function processStripeFiatNFTPurchase(session, req) {
     type: 'stripe',
     paymentId,
     buyerWallet: wallet,
-    priceInfoList,
+    purchaseInfoList,
     fiatPrice,
     LIKEPrice,
     sessionId,
   });
   let isEmailSent = false;
-  const classIds = priceInfoList.map((info) => info.classId);
-  const iscnPrefixes = priceInfoList.map((info) => info.iscnPrefix);
+  const classIds = purchaseInfoList.map((info) => info.classId);
+  const iscnPrefixes = purchaseInfoList.map((info) => info.iscnPrefix);
   if (!isWalletProvided) {
     try {
       const firstISCNData = await getNFTISCNData(iscnPrefixes[0]);
