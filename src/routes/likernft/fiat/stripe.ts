@@ -103,7 +103,7 @@ router.post(
     try {
       const { wallet } = req.query;
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const { memo, email } = req.body;
+      const { memo = '', email } = req.body;
       const { iscnPrefixes, classIds } = res.locals;
       const [priceInfoList, classMetadataList] = await Promise.all([
         getPriceInfoList(iscnPrefixes, classIds),
@@ -180,7 +180,6 @@ router.post(
       const docData: any = {
         type: 'stripe',
         sessionId,
-        wallet,
         memo,
         priceInfoList,
         LIKEPrice: totalLIKEPrice,
@@ -189,7 +188,9 @@ router.post(
         status: 'new',
         timestamp: Date.now(),
       };
-      if (!wallet) {
+      if (wallet) {
+        docData.wallet = wallet;
+      } else {
         docData.claimToken = claimToken;
       }
       await likeNFTFiatCollection.doc(paymentId).create(docData);
