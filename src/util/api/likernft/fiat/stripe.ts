@@ -58,14 +58,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
   if (!docData) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const {
     type,
-    classId,
-    isListing,
-    nftId,
-    seller,
     memo,
-    iscnPrefix,
     LIKEPrice,
     fiatPrice,
+    priceInfoList,
     fiatPriceString,
     status,
   } = docData;
@@ -81,8 +77,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      classId,
-      iscnPrefix,
+      priceInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -109,11 +104,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     await processFiatNFTPurchase({
       paymentId,
       likeWallet: wallet,
-      iscnPrefix,
-      classId,
-      isListing,
-      nftId,
-      seller,
+      priceInfoList,
       LIKEPrice,
       fiatPrice,
       memo,
@@ -130,8 +121,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      classId,
-      iscnPrefix,
+      priceInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -147,8 +137,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
           type: 'stripe',
           paymentId,
           buyerWallet: wallet,
-          classId,
-          iscnPrefix,
+          priceInfoList,
           fiatPrice,
           LIKEPrice,
           sessionId,
@@ -171,37 +160,39 @@ export async function processStripeFiatNFTPurchase(session, req) {
     type: 'stripe',
     paymentId,
     buyerWallet: wallet,
-    classId,
-    iscnPrefix,
+    priceInfoList,
     fiatPrice,
     LIKEPrice,
     sessionId,
   });
   let isEmailSent = false;
+  const classIds = priceInfoList.map((info) => info.classId);
+  const iscnPrefixes = priceInfoList.map((info) => info.iscnPrefix);
   if (!isWalletProvided) {
     try {
-      const iscnData = await getNFTISCNData(iscnPrefix);
-      const className = iscnData.data?.contentMetadata.name;
+      const firstISCNData = await getNFTISCNData(iscnPrefixes[0]);
+      const firstClassName = firstISCNData.data?.contentMetadata.name;
       if (isPendingClaim) {
         await sendPendingClaimEmail({
           email,
-          classId,
-          className,
+          classIds,
+          firstClassName,
           paymentId,
           claimToken,
         });
       } else {
         await sendAutoClaimEmail({
           email,
-          classId,
-          className,
+          classIds,
+          firstClassName,
           wallet,
         });
       }
       isEmailSent = true;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send ${isPendingClaim ? 'pending' : 'auto'} claim email for ${classId} to ${email}`);
+      console.error(`Failed to send ${isPendingClaim ? 'pending' : 'auto'} claim email for ${classIds.length > 1
+        ? classIds.join(', ') : classIds[0]} to ${email}`);
       // eslint-disable-next-line no-console
       console.error(err);
     }
@@ -261,15 +252,16 @@ export async function processStripeFiatNFTPurchase(session, req) {
             },
           ],
         },
-        {
+      ];
+      classIds.forEach((c) => {
+        blocks.push({
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId })}|${classId}>`,
+            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId: c })}|${c}>`,
           },
-        },
-      ];
-
+        });
+      });
       await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
     } catch (err) {
       // eslint-disable-next-line no-console

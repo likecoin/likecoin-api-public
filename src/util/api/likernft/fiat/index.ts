@@ -5,9 +5,13 @@ import LRU from 'lru-cache';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
-import { checkWalletGrantAmount, getGasPrice, getLatestNFTPriceAndInfo, processNFTPurchase } from '../purchase';
+import {
+  checkWalletGrantAmount,
+  getGasPrice,
+  getLatestNFTPriceAndInfo,
+  processNFTPurchase,
+} from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
-import { processNFTBuyListing } from '../listing';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
@@ -106,11 +110,7 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
 export async function processFiatNFTPurchase({
   paymentId,
   likeWallet,
-  iscnPrefix,
-  classId,
-  isListing,
-  nftId: listingNftId,
-  seller,
+  priceInfoList,
   LIKEPrice,
   fiatPrice,
   memo,
@@ -140,8 +140,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      classId,
-      iscnPrefix,
+      priceInfoList,
       fiatPrice,
       LIKEPrice,
     });
@@ -151,31 +150,21 @@ export async function processFiatNFTPurchase({
   try {
     const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
     if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
-    if (isListing) {
-      res = await processNFTBuyListing({
-        buyerWallet: likeWallet,
-        iscnPrefix,
-        classId,
-        nftId: listingNftId,
-        sellerWallet: seller,
-        priceInLIKE: LIKEPrice,
-        memo,
-      }, req);
-    } else {
-      const { transactionHash, purchaseInfoList } = await processNFTPurchase({
-        buyerWallet: likeWallet,
-        iscnPrefixes: [iscnPrefix],
-        classIds: [classId],
-        granterWallet: fiatGranterWallet,
-        grantedAmount: LIKEPrice,
-        grantTxHash: paymentId,
-        granterMemo: memo,
-      }, req);
-      res = {
-        transactionHash,
-        ...purchaseInfoList[0],
-      };
-    }
+    const iscnPrefixes = priceInfoList.map(({ iscnPrefix }) => iscnPrefix);
+    const classIds = priceInfoList.map(({ classId }) => classId);
+    const { transactionHash, purchaseInfoList } = await processNFTPurchase({
+      buyerWallet: likeWallet,
+      iscnPrefixes,
+      classIds,
+      granterWallet: fiatGranterWallet,
+      grantedAmount: LIKEPrice,
+      grantTxHash: paymentId,
+      granterMemo: memo,
+    }, req);
+    res = {
+      transactionHash,
+      purchaseInfoList,
+    };
   } catch (err) {
     const error = (err as Error).toString();
     const errorMessage = (err as Error).message;
@@ -185,8 +174,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      classId,
-      iscnPrefix,
+      priceInfoList,
       fiatPrice,
       LIKEPrice,
       error,
@@ -203,24 +191,21 @@ export async function processFiatNFTPurchase({
   }
   const {
     transactionHash,
-    nftId,
-    nftPrice: actualNftPrice,
   } = res;
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'LikerNFTFiatPaymentSuccess',
     paymentId,
     buyerWallet: likeWallet,
     buyerMemo: memo,
-    classId,
-    iscnPrefix,
+    priceInfoList,
     fiatPrice,
     LIKEPrice,
     transactionHash,
-    nftId,
   });
+  const actualNftPrice = res.purchaseInfoList.reduce((acc, { nftPrice }) => acc + nftPrice, 0);
   await docRef.update({
     transactionHash,
-    nftId,
+    priceInfoList: res.purchaseInfoList,
     actualNftPrice,
     claimToken: claimToken || null,
     status: claimToken ? 'pendingClaim' : 'done',
