@@ -61,11 +61,23 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   return purchaseInfoList;
 }
 
-export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
+export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
-  const price = new BigNumber(LIKE).multipliedBy(rate).multipliedBy(1 + buffer);
-  const total = price.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2, BigNumber.ROUND_CEIL);
-  return total;
+  const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
+  const fiatPrices = purchaseInfoList.map(
+    ({ LIKEPrice }) => new BigNumber(LIKEPrice)
+      .multipliedBy(rate)
+      .multipliedBy(1 + buffer)
+      .toFixed(2, BigNumber.ROUND_CEIL),
+  );
+  const totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
+  if (totalFiatBigNum.gt(0)) totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
+  const totalFiatPriceString = totalFiatBigNum.toFixed(2);
+  return {
+    totalLIKEPrice,
+    totalFiatPriceString,
+    fiatPrices,
+  };
 }
 
 export async function checkFiatPriceForLIKE(fiat, targetLIKE) {

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
-import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { randomBytes } from 'crypto';
@@ -13,8 +12,13 @@ import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
-import { getFiatPriceStringForLIKE, getPurchaseInfoList } from '../../../util/api/likernft/fiat';
-import { getImage, processStripeFiatNFTPurchase, findPaymentFromStripeSessionId } from '../../../util/api/likernft/fiat/stripe';
+import { getPurchaseInfoList, getFiatPriceInfo } from '../../../util/api/likernft/fiat';
+import {
+  processStripeFiatNFTPurchase,
+  findPaymentFromStripeSessionId,
+  formatLineItem,
+  getTxFeeLineItem,
+} from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { filterLikeNFTFiatData } from '../../../util/ValidationHelper';
@@ -82,12 +86,11 @@ router.get(
     try {
       const { iscnPrefixes, classIds } = res.locals;
       const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
-      const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
-      const fiatPriceString = totalLIKEPrice === 0 ? '0' : await getFiatPriceStringForLIKE(totalLIKEPrice);
+      const { totalLIKEPrice, totalFiatPriceString } = await getFiatPriceInfo(purchaseInfoList);
       const payload = {
         LIKEPrice: totalLIKEPrice,
-        fiatPrice: Number(fiatPriceString),
-        fiatPriceString,
+        fiatPrice: Number(totalFiatPriceString),
+        fiatPriceString: totalFiatPriceString,
         purchaseInfoList,
       };
       res.json(payload);
@@ -110,23 +113,14 @@ router.post(
         getPurchaseInfoList(iscnPrefixes, classIds),
         Promise.all(classIds.map(getNFTClassDataById)),
       ]);
-      let {
-        name = '',
-        description = '',
-      } = classMetadataList[0] as any;
-      const images = classMetadataList.map(getImage).slice(0, 8);
-
-      const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
-      if (totalLIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
-      const fiatPriceString = await getFiatPriceStringForLIKE(totalLIKEPrice);
+      const {
+        totalLIKEPrice: LIKEPrice,
+        totalFiatPriceString: fiatPriceString,
+        fiatPrices,
+      } = await getFiatPriceInfo(purchaseInfoList);
+      const fiatPrice = Number(fiatPriceString);
+      if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();
-      name = name.length > 100 ? `${name.substring(0, 99)}…` : name;
-      description = description.length > 200 ? `${description.substring(0, 199)}…` : description;
-      if (!description) { description = undefined; } // stripe does not like empty string
-      if (classMetadataList.length > 1) {
-        name = `${name} + ${classMetadataList.length - 1} more`;
-      }
-
       const claimToken = randomBytes(32).toString('base64url');
 
       const iscnAndClassIdLog = {};
@@ -134,6 +128,12 @@ router.post(
         iscnAndClassIdLog[`iscnPrefix${i + 1}`] = iscnPrefixes[i];
         iscnAndClassIdLog[`classId${i + 1}`] = classId;
       });
+
+      const lineItems = classMetadataList.map(
+        (classMetadata, i) => formatLineItem(classMetadata, fiatPrices[i]),
+      ) as any[];
+      const txFeeLineItem = getTxFeeLineItem();
+      lineItems.push(txFeeLineItem);
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -146,26 +146,7 @@ router.post(
         client_reference_id: wallet as string || undefined,
         customer_email: email,
         cancel_url: getLikerLandNFTClassPageURL({ classId: classIds[0] }),
-        line_items: [
-          {
-            price_data: {
-              currency: 'USD',
-              product_data: {
-                name,
-                description,
-                images,
-                metadata: {
-                  ...iscnAndClassIdLog,
-                },
-              },
-              unit_amount: Number(new BigNumber(fiatPriceString).shiftedBy(2).toFixed(0)),
-            },
-            adjustable_quantity: {
-              enabled: false,
-            },
-            quantity: 1,
-          },
-        ],
+        line_items: lineItems,
         payment_intent_data: {
           capture_method: 'manual',
         },
@@ -183,8 +164,8 @@ router.post(
         sessionId,
         memo,
         purchaseInfoList,
-        LIKEPrice: totalLIKEPrice,
-        fiatPrice: Number(fiatPriceString),
+        LIKEPrice,
+        fiatPrice,
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
@@ -195,8 +176,6 @@ router.post(
         docData.claimToken = claimToken;
       }
       await likeNFTFiatCollection.doc(paymentId).create(docData);
-      const LIKEPrice = totalLIKEPrice;
-      const fiatPrice = Number(fiatPriceString);
       res.json({
         id: sessionId,
         url,

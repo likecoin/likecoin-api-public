@@ -17,6 +17,7 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
   NFT_MESSAGE_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
+  LIKER_NFT_FIAT_FEE_USD,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
@@ -271,7 +272,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
   return true;
 }
 
-export function getImage(classMetadata) {
+function getImage(classMetadata) {
   let { image } = classMetadata.data.metadata;
   const { is_custom_image: isCustomImage = false } = classMetadata;
   if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
@@ -284,4 +285,48 @@ export function getImage(classMetadata) {
     image = 'https://static.like.co/primitive-nft.jpg';
   }
   return image;
+}
+
+export function formatLineItem(classMetadata, fiatPrice) {
+  const { id: classId, name, description } = classMetadata;
+  const { iscnPrefix } = classMetadata.data.parent;
+  const image = getImage(classMetadata);
+  let formattedDescription = description.length > 200 ? `${description.substring(0, 199)}…` : description;
+  // stripe does not like empty string
+  if (!formattedDescription) { formattedDescription = undefined; }
+  return {
+    price_data: {
+      currency: 'USD',
+      product_data: {
+        name,
+        description: formattedDescription,
+        images: [image],
+        metadata: {
+          iscnPrefix,
+          classId,
+        },
+      },
+      unit_amount: Number(new BigNumber(fiatPrice).shiftedBy(2).toFixed(0)),
+    },
+    adjustable_quantity: {
+      enabled: false,
+    },
+    quantity: 1,
+  };
+}
+
+export function getTxFeeLineItem() {
+  return {
+    price_data: {
+      currency: 'USD',
+      product_data: {
+        name: 'Transaction Fee',
+      },
+      unit_amount: Number(new BigNumber(LIKER_NFT_FIAT_FEE_USD).shiftedBy(2).toFixed(0)),
+    },
+    adjustable_quantity: {
+      enabled: false,
+    },
+    quantity: 1,
+  };
 }
