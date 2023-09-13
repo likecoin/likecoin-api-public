@@ -63,7 +63,8 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
 
 export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
-  const totalLIKEPrice = purchaseInfoList.reduce((acc, { LIKEPrice }) => acc + LIKEPrice, 0);
+  const totalLIKEPrice = Number(purchaseInfoList
+    .reduce((acc, { LIKEPrice }) => acc.plus(LIKEPrice), new BigNumber(0)).toFixed(9));
   const fiatPrices = purchaseInfoList.map(
     ({ LIKEPrice }) => new BigNumber(LIKEPrice)
       .multipliedBy(rate)
