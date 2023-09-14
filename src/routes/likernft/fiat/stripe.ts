@@ -123,10 +123,10 @@ router.post(
       const paymentId = uuidv4();
       const claimToken = randomBytes(32).toString('base64url');
 
-      const iscnAndClassIdLog = {};
-      classIds.forEach((classId, i) => {
-        iscnAndClassIdLog[`iscnPrefix${i + 1}`] = iscnPrefixes[i];
-        iscnAndClassIdLog[`classId${i + 1}`] = classId;
+      const classIdLog = {};
+      // Metadata can have up to 50 keys
+      classIds.slice(0, 45).forEach((classId, i) => {
+        classIdLog[`classId${i + 1}`] = classId;
       });
 
       const lineItems = classMetadataList.map(
@@ -155,7 +155,8 @@ router.post(
           wallet: wallet as string,
           memo,
           paymentId,
-          ...iscnAndClassIdLog,
+          totalNFTClassCount: classIds.length,
+          ...classIdLog,
         },
       });
       const { url, id: sessionId } = session;
