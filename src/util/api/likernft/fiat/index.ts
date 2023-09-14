@@ -71,8 +71,8 @@ export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) 
       .multipliedBy(1 + buffer)
       .toFixed(2, BigNumber.ROUND_CEIL),
   );
-  const totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
-  if (totalFiatBigNum.gt(0)) totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
+  let totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
+  if (totalFiatBigNum.gt(0)) totalFiatBigNum = totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPrice,
