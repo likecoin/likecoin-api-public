@@ -383,28 +383,40 @@ export function filterLikeNFTFiatData({
   isPendingClaim,
   errorMessage,
   wallet,
-  classId,
-  iscnPrefix,
+  classId: legacyClassId,
+  iscnPrefix: legacyISCNPrefix,
+  purchaseInfoList: purchaseInfoListInput,
   LIKEPrice,
   fiatPrice,
   fiatPriceString,
-  nftId,
   transactionHash,
 }) {
-  return {
+  const payload = {
     status,
     sessionId,
     isPendingClaim,
     errorMessage,
     wallet,
-    classId,
-    iscnPrefix,
     LIKEPrice,
     fiatPrice,
     fiatPriceString,
-    nftId,
     transactionHash,
-  };
+  } as any;
+  if (purchaseInfoListInput && purchaseInfoListInput.length) {
+    payload.purchaseInfoList = purchaseInfoListInput.map((p) => ({
+      iscnPrefix: p.iscnPrefix,
+      classId: p.classId,
+      LIKEPrice: p.LIKEPrice,
+    }));
+  } else {
+    // Handle legacy single NFT class purchase
+    payload.purchaseInfoList = [{
+      iscnPrefix: legacyISCNPrefix,
+      classId: legacyClassId,
+      LIKEPrice,
+    }];
+  }
+  return payload;
 }
 
 export function filterBookPurchaseData({

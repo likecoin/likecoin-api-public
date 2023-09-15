@@ -5,9 +5,13 @@ import LRU from 'lru-cache';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
-import { checkWalletGrantAmount, processNFTPurchase } from '../purchase';
+import {
+  checkWalletGrantAmount,
+  getGasPrice,
+  getLatestNFTPriceAndInfo,
+  processNFTPurchase,
+} from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
-import { processNFTBuyListing } from '../listing';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
@@ -40,11 +44,41 @@ async function getLIKEPrice() {
   return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
-export async function getFiatPriceStringForLIKE(LIKE, { buffer = 0.1 } = {}) {
+export async function getPurchaseInfoList(iscnPrefixes, classIds) {
+  const gasFee = getGasPrice();
+  const purchaseInfoList = await Promise.all(
+    classIds.map(async (classId, i) => {
+      const iscnPrefix = iscnPrefixes[i];
+      const { price } = await getLatestNFTPriceAndInfo(iscnPrefix, classId);
+      if (price < 0) throw new ValidationError(`NFT_${classId}_SOLD_OUT`);
+      return {
+        iscnPrefix,
+        classId,
+        LIKEPrice: price === 0 ? 0 : price + gasFee,
+      };
+    }),
+  );
+  return purchaseInfoList;
+}
+
+export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
-  const price = new BigNumber(LIKE).multipliedBy(rate).multipliedBy(1 + buffer);
-  const total = price.plus(LIKER_NFT_FIAT_FEE_USD).toFixed(2, BigNumber.ROUND_CEIL);
-  return total;
+  const totalLIKEPrice = Number(purchaseInfoList
+    .reduce((acc, { LIKEPrice }) => acc.plus(LIKEPrice), new BigNumber(0)).toFixed(9));
+  const fiatPrices = purchaseInfoList.map(
+    ({ LIKEPrice }) => new BigNumber(LIKEPrice)
+      .multipliedBy(rate)
+      .multipliedBy(1 + buffer)
+      .toFixed(2, BigNumber.ROUND_CEIL),
+  );
+  let totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
+  if (totalFiatBigNum.gt(0)) totalFiatBigNum = totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
+  const totalFiatPriceString = totalFiatBigNum.toFixed(2);
+  return {
+    totalLIKEPrice,
+    totalFiatPriceString,
+    fiatPrices,
+  };
 }
 
 export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
@@ -90,11 +124,7 @@ export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 40
 export async function processFiatNFTPurchase({
   paymentId,
   likeWallet,
-  iscnPrefix,
-  classId,
-  isListing,
-  nftId: listingNftId,
-  seller,
+  purchaseInfoList,
   LIKEPrice,
   fiatPrice,
   memo,
@@ -124,8 +154,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      classId,
-      iscnPrefix,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
     });
@@ -135,31 +164,21 @@ export async function processFiatNFTPurchase({
   try {
     const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
     if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
-    if (isListing) {
-      res = await processNFTBuyListing({
-        buyerWallet: likeWallet,
-        iscnPrefix,
-        classId,
-        nftId: listingNftId,
-        sellerWallet: seller,
-        priceInLIKE: LIKEPrice,
-        memo,
-      }, req);
-    } else {
-      const { transactionHash, purchaseInfoList } = await processNFTPurchase({
-        buyerWallet: likeWallet,
-        iscnPrefixes: [iscnPrefix],
-        classIds: [classId],
-        granterWallet: fiatGranterWallet,
-        grantedAmount: LIKEPrice,
-        grantTxHash: paymentId,
-        granterMemo: memo,
-      }, req);
-      res = {
-        transactionHash,
-        ...purchaseInfoList[0],
-      };
-    }
+    const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
+    const classIds = purchaseInfoList.map(({ classId }) => classId);
+    const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
+      buyerWallet: likeWallet,
+      iscnPrefixes,
+      classIds,
+      granterWallet: fiatGranterWallet,
+      grantedAmount: LIKEPrice,
+      grantTxHash: paymentId,
+      granterMemo: memo,
+    }, req);
+    res = {
+      transactionHash,
+      purchaseInfoList: _purchaseInfoList,
+    };
   } catch (err) {
     const error = (err as Error).toString();
     const errorMessage = (err as Error).message;
@@ -169,8 +188,7 @@ export async function processFiatNFTPurchase({
       paymentId,
       buyerWallet: likeWallet,
       buyerMemo: memo,
-      classId,
-      iscnPrefix,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       error,
@@ -187,24 +205,26 @@ export async function processFiatNFTPurchase({
   }
   const {
     transactionHash,
-    nftId,
-    nftPrice: actualNftPrice,
   } = res;
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'LikerNFTFiatPaymentSuccess',
     paymentId,
     buyerWallet: likeWallet,
     buyerMemo: memo,
-    classId,
-    iscnPrefix,
+    purchaseInfoList,
     fiatPrice,
     LIKEPrice,
     transactionHash,
-    nftId,
   });
+  const purchaseInfoListToUpdate = res.purchaseInfoList.map(({ nftPrice, nftId }, i) => ({
+    ...purchaseInfoList[i],
+    actualNftPrice: nftPrice,
+    nftId,
+  }));
+  const actualNftPrice = res.purchaseInfoList.reduce((acc, { nftPrice }) => acc + nftPrice, 0);
   await docRef.update({
     transactionHash,
-    nftId,
+    purchaseInfoList: purchaseInfoListToUpdate,
     actualNftPrice,
     claimToken: claimToken || null,
     status: claimToken ? 'pendingClaim' : 'done',

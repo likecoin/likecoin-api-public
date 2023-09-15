@@ -123,14 +123,17 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
 
 export function sendAutoClaimEmail({
   email,
-  classId,
-  className,
+  classIds,
+  firstClassName,
   wallet,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = '你的 Writing NFT 已送達 | Your Writing NFT has arrived';
-  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
-  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const firstClassId = classIds[0];
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId: firstClassId, language: 'en' });
+  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId: firstClassId, language: 'zh-Hant' });
+  const pluralDescriptionZh = classIds.length > 1 ? `等 ${classIds.length} 個作品` : '';
+  const pluralDescriptionEn = classIds.length > 1 ? ` and ${classIds.length - 1} other work${classIds.length > 2 ? 's' : ''}` : '';
   const params = {
     Source: '"Liker Land" <team@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -154,7 +157,7 @@ export function sendAutoClaimEmail({
           Data: getBasicTemplate({
             title,
             content: `<p>親愛的 Liker：</p>
-            <p>感謝購買 《<a href="${nftClassURLZh}">${className}</a>》的 Writing NFT。</p>
+            <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}的 Writing NFT。</p>
             <p>你的信箱先前已與地址為 ${wallet} 的錢包完成驗證，你所購買的 Writing NFT 已發送至該錢包。</p>
             <p>若遇到任何問題，請聯絡 <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker Land 客服</a>。</p>
             <p>感謝支持創作。</p>
@@ -162,7 +165,7 @@ export function sendAutoClaimEmail({
             <br/>
             <br/>
             <p>Dear Liker,</p>
-            <p>Thank you for purchasing the Writing NFT of "<a href="${nftClassURLEn}">${className}</a>".</p>
+            <p>Thank you for purchasing the Writing NFT of "<a href="${nftClassURLEn}">${firstClassName}</a>"${pluralDescriptionEn}.</p>
             <p>Your email is previously linked with the wallet address ${wallet}, the Writing NFT you purchased has been sent to the wallet.</p>
             <p>If you encounter any problems, please contact <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">Liker Land customer service</a>.</p>
             <p>Thank you for supporting creativity.</p>
@@ -177,27 +180,30 @@ export function sendAutoClaimEmail({
 
 export function sendPendingClaimEmail({
   email,
-  classId,
-  className,
+  classIds,
+  firstClassName,
   paymentId,
   claimToken,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = '領取你的 Writing NFT | Claim your Writing NFT';
-  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
-  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const firstClassId = classIds[0];
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId: firstClassId, language: 'en' });
+  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId: firstClassId, language: 'zh-Hant' });
   const claimURLEn = getLikerLandNFTClaimPageURL({
-    classId,
+    classId: firstClassId,
     paymentId,
     token: claimToken,
     language: 'en',
   });
   const claimURLZh = getLikerLandNFTClaimPageURL({
-    classId,
+    classId: firstClassId,
     paymentId,
     token: claimToken,
     language: 'zh-Hant',
   });
+  const pluralDescriptionZh = classIds.length > 1 ? `等 ${classIds.length} 個作品` : '';
+  const pluralDescriptionEn = classIds.length > 1 ? ` and ${classIds.length - 1} other work${classIds.length > 2 ? 's' : ''}` : '';
   const params = {
     Source: '"Liker Land" <team@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -221,7 +227,7 @@ export function sendPendingClaimEmail({
           Data: getBasicTemplate({
             title,
             content: `<p>親愛的讀者：</p>
-            <p>感謝購買 《<a href="${nftClassURLZh}">${className}</a>》。</p>
+            <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}。</p>
             <p>請完成以下兩個簡單步驟，以領取作品的 Writing NFT：</p>
             <p>1. 連接錢包</p>
             <p>2. 驗證電郵地址</p>
@@ -246,7 +252,7 @@ export function sendPendingClaimEmail({
             <br/>
             <br/>
             <p>Dear reader,</p>
-            <p>Thank you for purchasing "<a href="${nftClassURLEn}">${className}</a>".</p>
+            <p>Thank you for purchasing "<a href="${nftClassURLEn}">${firstClassName}</a>"${pluralDescriptionEn}.</p>
             <p>Please complete the following two simple steps to receive the Writing NFT:</p>
             <p>1. Connect your wallet.</p>
             <p>2. Verify your email address.</p>

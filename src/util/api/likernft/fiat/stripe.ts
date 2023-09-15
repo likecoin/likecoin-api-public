@@ -5,6 +5,7 @@ import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import {
+  API_EXTERNAL_HOSTNAME,
   IS_TESTNET,
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
@@ -16,9 +17,11 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
   NFT_MESSAGE_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
+  LIKER_NFT_FIAT_FEE_USD,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { DEFAULT_NFT_IMAGE_SIZE, checkIsWritingNFT, parseImageURLFromMetadata } from '../metadata';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -56,14 +59,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
   if (!docData) throw new ValidationError('PAYMENT_SESSION_NOT_FOUND');
   const {
     type,
-    classId,
-    isListing,
-    nftId,
-    seller,
     memo,
-    iscnPrefix,
     LIKEPrice,
     fiatPrice,
+    purchaseInfoList,
     fiatPriceString,
     status,
   } = docData;
@@ -79,8 +78,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      classId,
-      iscnPrefix,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -107,11 +105,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     await processFiatNFTPurchase({
       paymentId,
       likeWallet: wallet,
-      iscnPrefix,
-      classId,
-      isListing,
-      nftId,
-      seller,
+      purchaseInfoList,
       LIKEPrice,
       fiatPrice,
       memo,
@@ -128,8 +122,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       type: 'stripe',
       paymentId,
       buyerWallet: wallet,
-      classId,
-      iscnPrefix,
+      purchaseInfoList,
       fiatPrice,
       LIKEPrice,
       sessionId,
@@ -145,8 +138,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
           type: 'stripe',
           paymentId,
           buyerWallet: wallet,
-          classId,
-          iscnPrefix,
+          purchaseInfoList,
           fiatPrice,
           LIKEPrice,
           sessionId,
@@ -169,37 +161,39 @@ export async function processStripeFiatNFTPurchase(session, req) {
     type: 'stripe',
     paymentId,
     buyerWallet: wallet,
-    classId,
-    iscnPrefix,
+    purchaseInfoList,
     fiatPrice,
     LIKEPrice,
     sessionId,
   });
   let isEmailSent = false;
+  const classIds = purchaseInfoList.map((info) => info.classId);
+  const iscnPrefixes = purchaseInfoList.map((info) => info.iscnPrefix);
   if (!isWalletProvided) {
     try {
-      const iscnData = await getNFTISCNData(iscnPrefix);
-      const className = iscnData.data?.contentMetadata.name;
+      const firstISCNData = await getNFTISCNData(iscnPrefixes[0]);
+      const firstClassName = firstISCNData.data?.contentMetadata.name;
       if (isPendingClaim) {
         await sendPendingClaimEmail({
           email,
-          classId,
-          className,
+          classIds,
+          firstClassName,
           paymentId,
           claimToken,
         });
       } else {
         await sendAutoClaimEmail({
           email,
-          classId,
-          className,
+          classIds,
+          firstClassName,
           wallet,
         });
       }
       isEmailSent = true;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to send ${isPendingClaim ? 'pending' : 'auto'} claim email for ${classId} to ${email}`);
+      console.error(`Failed to send ${isPendingClaim ? 'pending' : 'auto'} claim email for ${classIds.length > 1
+        ? classIds.join(', ') : classIds[0]} to ${email}`);
       // eslint-disable-next-line no-console
       console.error(err);
     }
@@ -259,15 +253,16 @@ export async function processStripeFiatNFTPurchase(session, req) {
             },
           ],
         },
-        {
+      ];
+      classIds.forEach((c) => {
+        blocks.push({
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId })}|${classId}>`,
+            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId: c })}|${c}>`,
           },
-        },
-      ];
-
+        });
+      });
       await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -275,4 +270,63 @@ export async function processStripeFiatNFTPurchase(session, req) {
     }
   }
   return true;
+}
+
+function getImage(classMetadata) {
+  let { image } = classMetadata.data.metadata;
+  const { is_custom_image: isCustomImage = false } = classMetadata;
+  if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
+    const classId = classMetadata.id;
+    image = `https://${API_EXTERNAL_HOSTNAME}/likernft/metadata/image/class_${classId}?size=${DEFAULT_NFT_IMAGE_SIZE}`;
+  } else {
+    image = parseImageURLFromMetadata(image);
+  }
+  if (!image) {
+    image = 'https://static.like.co/primitive-nft.jpg';
+  }
+  return image;
+}
+
+export function formatLineItem(classMetadata, fiatPrice) {
+  const { id: classId, name, description } = classMetadata;
+  const { iscnPrefix } = classMetadata.data.parent;
+  const image = getImage(classMetadata);
+  let formattedDescription = description.length > 200 ? `${description.substring(0, 199)}…` : description;
+  // stripe does not like empty string
+  if (!formattedDescription) { formattedDescription = undefined; }
+  return {
+    price_data: {
+      currency: 'USD',
+      product_data: {
+        name,
+        description: formattedDescription,
+        images: [image],
+        metadata: {
+          iscnPrefix,
+          classId,
+        },
+      },
+      unit_amount: Number(new BigNumber(fiatPrice).shiftedBy(2).toFixed(0)),
+    },
+    adjustable_quantity: {
+      enabled: false,
+    },
+    quantity: 1,
+  };
+}
+
+export function getTxFeeLineItem() {
+  return {
+    price_data: {
+      currency: 'USD',
+      product_data: {
+        name: 'Transaction Fee',
+      },
+      unit_amount: Number(new BigNumber(LIKER_NFT_FIAT_FEE_USD).shiftedBy(2).toFixed(0)),
+    },
+    adjustable_quantity: {
+      enabled: false,
+    },
+    quantity: 1,
+  };
 }
