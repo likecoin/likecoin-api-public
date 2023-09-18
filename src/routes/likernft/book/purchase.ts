@@ -9,7 +9,9 @@ import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
-import { LIST_OF_BOOK_SHIPPING_COUNTRY, NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC } from '../../../constant';
+import {
+  LIST_OF_BOOK_SHIPPING_COUNTRY, NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO,
+} from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookClaimedEmail, sendNFTBookShippedEmail } from '../../../util/ses';
@@ -45,6 +47,7 @@ router.get('/:classId/new', async (req, res, next) => {
       ownerWallet,
       connectedWallets,
       shippingRates,
+      defaultPaymentCurrency = 'USD',
     } = bookInfo;
     if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
     const {
@@ -90,12 +93,20 @@ router.get('/:classId/new', async (req, res, next) => {
       capture_method: 'manual',
       metadata: sessionMetadata,
     };
+
+    const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
+    const shouldConvertUSDtoHKD = convertedCurrency === 'HKD';
+    let convertedPriceInDecimal = priceInDecimal;
+    if (shouldConvertUSDtoHKD) {
+      convertedPriceInDecimal = Math.ceil(convertedPriceInDecimal * USD_TO_HKD_RATIO);
+    }
+
     if (connectedWallets && Object.keys(connectedWallets).length) {
       const wallet = Object.keys(connectedWallets)[0];
       const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
       if (stripeConnectAccountId) {
-        const stripeFeeAmount = calculateStripeFee(priceInDecimal);
-        const likerlandFeeAmount = Math.ceil(priceInDecimal * 0.05);
+        const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
+        const likerlandFeeAmount = Math.ceil(convertedPriceInDecimal * 0.05);
         // TODO: support connectedWallets +1
         paymentIntentData.application_fee_amount = stripeFeeAmount + likerlandFeeAmount;
         paymentIntentData.transfer_data = {
@@ -103,6 +114,7 @@ router.get('/:classId/new', async (req, res, next) => {
         };
       }
     }
+
     const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',
       success_url: `${successUrl}`,
@@ -110,7 +122,7 @@ router.get('/:classId/new', async (req, res, next) => {
       line_items: [
         {
           price_data: {
-            currency: 'USD',
+            currency: convertedCurrency,
             product_data: {
               name,
               description,
@@ -120,7 +132,7 @@ router.get('/:classId/new', async (req, res, next) => {
                 classId: classId as string,
               },
             },
-            unit_amount: priceInDecimal,
+            unit_amount: convertedPriceInDecimal,
           },
           adjustable_quantity: {
             enabled: false,
@@ -139,13 +151,17 @@ router.get('/:classId/new', async (req, res, next) => {
       if (shippingRates) {
         checkoutPayload.shipping_options = shippingRates.map((s) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
+          let convertedShippingPriceInDecimal = shippingPriceInDecimal;
+          if (shouldConvertUSDtoHKD) {
+            convertedShippingPriceInDecimal = Math.ceil(shippingPriceInDecimal * USD_TO_HKD_RATIO);
+          }
           return {
             shipping_rate_data: {
               display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
               type: 'fixed_amount',
               fixed_amount: {
-                amount: shippingPriceInDecimal,
-                currency: 'USD',
+                amount: convertedShippingPriceInDecimal,
+                currency: convertedCurrency,
               },
             },
           };
