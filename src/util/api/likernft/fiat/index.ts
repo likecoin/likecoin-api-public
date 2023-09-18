@@ -7,7 +7,6 @@ import { db, likeNFTFiatCollection } from '../../../firebase';
 import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import {
   checkWalletGrantAmount,
-  getGasPrice,
   getLatestNFTPriceAndInfo,
   processNFTPurchase,
 } from '../purchase';
@@ -45,7 +44,6 @@ async function getLIKEPrice() {
 }
 
 export async function getPurchaseInfoList(iscnPrefixes, classIds) {
-  const gasFee = getGasPrice();
   const purchaseInfoList = await Promise.all(
     classIds.map(async (classId, i) => {
       const iscnPrefix = iscnPrefixes[i];
@@ -54,24 +52,20 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
       return {
         iscnPrefix,
         classId,
-        LIKEPrice: price === 0 ? 0 : price + gasFee,
+        price,
       };
     }),
   );
   return purchaseInfoList;
 }
 
-export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) {
+export async function getLIKEPriceInfo(purchaseInfoList) {
   const rate = await getLIKEPrice();
   const totalLIKEPrice = Number(purchaseInfoList
-    .reduce((acc, { LIKEPrice }) => acc.plus(LIKEPrice), new BigNumber(0)).toFixed(9));
-  const fiatPrices = purchaseInfoList.map(
-    ({ LIKEPrice }) => new BigNumber(LIKEPrice)
-      .multipliedBy(rate)
-      .multipliedBy(1 + buffer)
-      .toFixed(2, BigNumber.ROUND_CEIL),
-  );
-  let totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
+    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0)).dividedBy(rate).toFixed(0));
+  const fiatPrices = purchaseInfoList.map(({ price }) => price);
+  let totalFiatBigNum = purchaseInfoList
+    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   if (totalFiatBigNum.gt(0)) totalFiatBigNum = totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {

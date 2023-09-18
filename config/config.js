@@ -112,4 +112,6 @@ config.LIKER_LAND_GET_WALLET_SECRET = '';
 
 config.WNFT_BATCH_PURCHASE_LIMIT = 100;
 
+config.LIKE_TO_USD_TIER_PRICE_RATE = 8;
+
 module.exports = config;

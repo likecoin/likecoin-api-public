@@ -12,7 +12,7 @@ import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
-import { getPurchaseInfoList, getFiatPriceInfo } from '../../../util/api/likernft/fiat';
+import { getPurchaseInfoList, getLIKEPriceInfo } from '../../../util/api/likernft/fiat';
 import {
   processStripeFiatNFTPurchase,
   findPaymentFromStripeSessionId,
@@ -86,7 +86,7 @@ router.get(
     try {
       const { iscnPrefixes, classIds } = res.locals;
       const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
-      const { totalLIKEPrice, totalFiatPriceString } = await getFiatPriceInfo(purchaseInfoList);
+      const { totalLIKEPrice, totalFiatPriceString } = await getLIKEPriceInfo(purchaseInfoList);
       const payload = {
         LIKEPrice: totalLIKEPrice,
         fiatPrice: Number(totalFiatPriceString),
@@ -117,7 +117,7 @@ router.post(
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
         fiatPrices,
-      } = await getFiatPriceInfo(purchaseInfoList);
+      } = await getLIKEPriceInfo(purchaseInfoList);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();

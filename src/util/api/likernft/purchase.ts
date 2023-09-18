@@ -25,6 +25,7 @@ import {
   LIKER_NFT_PRICE_DECAY,
   LIKER_NFT_DECAY_START_BATCH,
   LIKER_NFT_DECAY_END_BATCH,
+  LIKE_TO_USD_TIER_PRICE_RATE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
@@ -130,14 +131,17 @@ export async function getLatestNFTPriceAndInfo(
   let nextNewNFTId;
   let isProcessing = false;
   const {
-    currentPrice,
+    basePrice: basePriceInLIKE,
+    currentPrice: currentPriceInLIKE,
     currentBatch,
     lastSoldPrice,
     collectExpiryAt: collectExpiryAtDateTime,
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
+  const basePriceInUSD = basePriceInLIKE / LIKE_TO_USD_TIER_PRICE_RATE;
+  const currentPriceInUSD = currentPriceInLIKE / LIKE_TO_USD_TIER_PRICE_RATE;
   if (newNftDocData && (!collectExpiryAt || collectExpiryAt > Date.now())) {
-    price = currentPrice;
+    price = currentPriceInUSD;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
     // another fresh one might be used on purchase instead
     nextNewNFTId = newNftDocData.id;
@@ -148,11 +152,13 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
+    basePrice: basePriceInUSD,
+    currentPrice: currentPriceInUSD,
     collectExpiryAt,
     nextNewNFTId,
     currentBatch,
     isProcessing,
-    lastSoldPrice: lastSoldPrice || currentPrice,
+    lastSoldPrice: lastSoldPrice || currentPriceInUSD,
     price,
     nextPriceLevel,
   } as any;
@@ -190,8 +196,12 @@ export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
   }
 }
 
-export function getGasPrice() {
-  return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+function getGasPrice() {
+  return new BigNumber(LIKER_NFT_GAS_FEE)
+    .multipliedBy(DEFAULT_GAS_PRICE)
+    .dividedBy(LIKE_TO_USD_TIER_PRICE_RATE)
+    .shiftedBy(-9)
+    .toNumber();
 }
 
 export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
