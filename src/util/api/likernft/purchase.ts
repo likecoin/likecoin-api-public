@@ -29,7 +29,7 @@ import {
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
 import {
   checkFreeMintTransaction,
   completeFreeMintTransaction,
@@ -40,9 +40,11 @@ import {
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
 
-export function calculateStripeFee(inputAmount) {
+export function calculateStripeFee(inputAmount, currency = 'USD') {
   // 2.9% + 30 cents, 1.5% for international cards
-  return Math.ceil(inputAmount * (0.029 + 0.015) + 30);
+  let flatFee = 30;
+  if (currency === 'HKD') flatFee = Math.ceil(flatFee * USD_TO_HKD_RATIO);
+  return Math.ceil(inputAmount * (0.029 + 0.015) + flatFee);
 }
 
 export function getNFTBatchInfo(batchNumber) {

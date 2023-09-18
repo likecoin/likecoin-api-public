@@ -152,6 +152,8 @@ export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/coins/likec
 export const COINMARKETCAP_PRICE_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 export const LIKE_DEFAULT_PRICE = 0.0082625;
 
+export const USD_TO_HKD_RATIO = 7.8;
+
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
 export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,likecoin&vs_currencies=usd';
