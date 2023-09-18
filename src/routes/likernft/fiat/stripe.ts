@@ -79,27 +79,6 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
   }
 });
 
-router.get(
-  '/price',
-  fetchISCNPrefixes,
-  async (req, res, next) => {
-    try {
-      const { iscnPrefixes, classIds } = res.locals;
-      const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
-      const { totalLIKEPrice, totalFiatPriceString } = await getLIKEPriceInfo(purchaseInfoList);
-      const payload = {
-        LIKEPrice: totalLIKEPrice,
-        fiatPrice: Number(totalFiatPriceString),
-        fiatPriceString: totalFiatPriceString,
-        purchaseInfoList,
-      };
-      res.json(payload);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
 router.post(
   '/new',
   fetchISCNPrefixes,
