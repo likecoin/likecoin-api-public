@@ -5,13 +5,94 @@ import {
   checkFileValid,
   convertMulterFiles,
   estimateUploadToArweave,
+  estimateUploadToArweaveV2,
   processTxUploadToArweave,
+  processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { ARWEAVE_LIKE_TARGET_ADDRESS } from '../../../config/config';
+import { getPublicKey } from '../../util/arweave/signer';
 
 const router = Router();
+
+router.get(
+  '/v2/public_key',
+  async (req, res, next) => {
+    try {
+      const publicKey = await getPublicKey();
+      res.json({ publicKey: publicKey.toString('hex') });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/v2/estimate',
+  async (req, res, next) => {
+    try {
+      const { fileSize, ipfsHash } = req.body;
+      const {
+        LIKE,
+        arweaveId,
+        MATIC,
+        wei,
+      } = await estimateUploadToArweaveV2(fileSize, ipfsHash);
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveEstimateV2',
+        ipfsHash,
+        arweaveId,
+        MATIC,
+        LIKE: Number(LIKE),
+      });
+      res.json({
+        LIKE,
+        arweaveId,
+        MATIC,
+        wei,
+        memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
+        address: ARWEAVE_LIKE_TARGET_ADDRESS,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/v2/sign_payment_data',
+  async (req, res, next) => {
+    try {
+      const {
+        fileSize, ipfsHash, txHash, signatureData,
+      } = req.body;
+      const {
+        arweaveId,
+        MATIC,
+        wei,
+        LIKE,
+        signature,
+      } = await processTxUploadToArweaveV2({
+        fileSize, ipfsHash, txHash, signatureData,
+      });
+      const signatureHex = signature && signature.toString('hex');
+      res.json({ arweaveId, signature: signatureHex });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveSigningV2',
+        ipfsHash,
+        arweaveId,
+        MATIC,
+        wei,
+        LIKE: Number(LIKE),
+        txHash,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post(
   '/estimate',

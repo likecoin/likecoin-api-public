@@ -1,7 +1,14 @@
 import BigNumber from 'bignumber.js';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { ISCNSigningClient } from '@likecoin/iscn-js';
-import { estimateARPrices, convertARPricesToLIKE, uploadFilesToArweave } from '../../arweave';
+import {
+  estimateARPrices,
+  convertARPricesToLIKE,
+  estimateARV2MaticPrice,
+  convertMATICPriceToLIKE,
+  uploadFilesToArweave,
+} from '../../arweave';
+import { signData } from '../../arweave/signer';
 import { ValidationError } from '../../ValidationError';
 import { COSMOS_CHAIN_ID } from '../../cosmos';
 import {
@@ -39,6 +46,19 @@ export function convertMulterFiles(files) {
       buffer,
     };
   });
+}
+
+export async function estimateUploadToArweaveV2(
+  fileSize: number,
+  ipfsHash: string,
+  { margin = 0.05 } = {},
+) {
+  const { MATIC, wei, arweaveId } = await estimateARV2MaticPrice(fileSize, ipfsHash);
+  const { LIKE } = await convertMATICPriceToLIKE(MATIC, { margin });
+  if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
+  return {
+    LIKE, MATIC, wei, arweaveId, isExists: !!arweaveId,
+  };
 }
 
 export async function estimateUploadToArweave(
@@ -172,6 +192,57 @@ export async function processSigningUploadToArweave(
     gasUsed,
     gasWanted,
     transactionHash,
+  };
+}
+
+export async function processTxUploadToArweaveV2(
+  {
+    fileSize, ipfsHash, txHash, signatureData,
+  },
+  { margin = 0.03 } = {},
+) {
+  const estimate = await estimateUploadToArweaveV2(fileSize, ipfsHash, { margin });
+  const {
+    LIKE,
+    MATIC,
+    wei,
+    arweaveId,
+    isExists,
+  } = estimate;
+
+  const tx = await queryLIKETransactionInfo(txHash, ARWEAVE_LIKE_TARGET_ADDRESS);
+  if (!tx || !tx.amount) {
+    throw new ValidationError('TX_NOT_FOUND');
+  }
+  const { memo, amount } = tx;
+  let memoIPFS = '';
+  let memoFileSize = 0;
+  try {
+    ({ ipfs: memoIPFS, fileSize: memoFileSize } = JSON.parse(memo));
+  } catch (err) {
+  // ignore non-JSON memo
+  }
+  if (!memoIPFS || memoIPFS !== ipfsHash) {
+    throw new ValidationError('TX_MEMO_NOT_MATCH');
+  }
+  const txAmount = new BigNumber(amount.amount).shiftedBy(-9);
+  if (txAmount.lt(LIKE)) {
+    throw new ValidationError('TX_AMOUNT_NOT_ENOUGH');
+  }
+  if (memoFileSize < fileSize) {
+    throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
+  }
+
+  // TODO: verify signatureData match filesize if possible
+  const signature = await signData(Buffer.from(signatureData, 'hex'));
+  return {
+    isExists,
+    ipfsHash,
+    arweaveId,
+    MATIC,
+    wei,
+    LIKE,
+    signature,
   };
 }
 
