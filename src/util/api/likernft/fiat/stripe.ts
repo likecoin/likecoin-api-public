@@ -17,7 +17,6 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
   NFT_MESSAGE_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
-  LIKER_NFT_FIAT_FEE_USD,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
@@ -315,14 +314,14 @@ export function formatLineItem(classMetadata, fiatPrice) {
   };
 }
 
-export function getTxFeeLineItem() {
+export function formatTxFeeLineItem(txFee) {
   return {
     price_data: {
       currency: 'USD',
       product_data: {
         name: 'Transaction Fee',
       },
-      unit_amount: Number(new BigNumber(LIKER_NFT_FIAT_FEE_USD).shiftedBy(2).toFixed(0)),
+      unit_amount: Number(new BigNumber(txFee).shiftedBy(2).toFixed(0)),
     },
     adjustable_quantity: {
       enabled: false,

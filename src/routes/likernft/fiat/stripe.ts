@@ -12,12 +12,12 @@ import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
-import { getPurchaseInfoList, getLIKEPriceInfo } from '../../../util/api/likernft/fiat';
+import { getPurchaseInfoList, calculatePayment } from '../../../util/api/likernft/fiat';
 import {
   processStripeFiatNFTPurchase,
   findPaymentFromStripeSessionId,
   formatLineItem,
-  getTxFeeLineItem,
+  formatTxFeeLineItem,
 } from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -95,8 +95,9 @@ router.post(
       const {
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
+        txFee,
         fiatPrices,
-      } = await getLIKEPriceInfo(purchaseInfoList);
+      } = await calculatePayment(purchaseInfoList);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();
@@ -111,8 +112,10 @@ router.post(
       const lineItems = classMetadataList.map(
         (classMetadata, i) => formatLineItem(classMetadata, fiatPrices[i]),
       ) as any[];
-      const txFeeLineItem = getTxFeeLineItem();
-      lineItems.push(txFeeLineItem);
+      if (txFee > 0) {
+        const txFeeLineItem = formatTxFeeLineItem(txFee);
+        lineItems.push(txFeeLineItem);
+      }
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',

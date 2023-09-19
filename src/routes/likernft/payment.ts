@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { fetchISCNPrefixes } from '../../middleware/likernft';
-import { getPurchaseInfoList, getLIKEPriceInfo } from '../../util/api/likernft/fiat';
+import { getPurchaseInfoList, calculatePayment } from '../../util/api/likernft/fiat';
 
 const router = Router();
 
@@ -11,7 +11,7 @@ router.get(
     try {
       const { iscnPrefixes, classIds } = res.locals;
       const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
-      const { totalLIKEPrice, totalFiatPriceString } = await getLIKEPriceInfo(purchaseInfoList);
+      const { totalLIKEPrice, totalFiatPriceString } = await calculatePayment(purchaseInfoList);
       const payload = {
         LIKEPrice: totalLIKEPrice,
         fiatPrice: Number(totalFiatPriceString),

@@ -14,7 +14,8 @@ import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
-  LIKER_NFT_FIAT_FEE_USD,
+  LIKER_NFT_STRIPE_FEE_USD_INTERCEPT,
+  LIKER_NFT_STRIPE_FEE_USD_SLOPE,
   LIKER_NFT_FIAT_MIN_RATIO,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
@@ -59,18 +60,26 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   return purchaseInfoList;
 }
 
-export async function getLIKEPriceInfo(purchaseInfoList) {
+export async function calculatePayment(purchaseInfoList) {
   const rate = await getLIKEPrice();
   const totalLIKEPrice = Number(purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0)).dividedBy(rate).toFixed(0));
   const fiatPrices = purchaseInfoList.map(({ price }) => price);
   let totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
-  if (totalFiatBigNum.gt(0)) totalFiatBigNum = totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
+  let txFee = 0;
+  if (totalFiatBigNum.gt(0)) {
+    txFee = Number(totalFiatBigNum
+      .times(LIKER_NFT_STRIPE_FEE_USD_SLOPE)
+      .plus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
+      .toFixed(2, BigNumber.ROUND_UP));
+    totalFiatBigNum = totalFiatBigNum.plus(txFee);
+  }
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPrice,
     totalFiatPriceString,
+    txFee,
     fiatPrices,
   };
 }
