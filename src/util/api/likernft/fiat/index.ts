@@ -84,13 +84,6 @@ export async function calculatePayment(purchaseInfoList) {
   };
 }
 
-export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
-  const rate = await getLIKEPrice();
-  const targetPrice = new BigNumber(targetLIKE).multipliedBy(rate);
-  const targetTotal = targetPrice.plus(LIKER_NFT_FIAT_FEE_USD);
-  return targetTotal.lte(fiat);
-}
-
 export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 400000) {
   if (!fiatGranterWallet) {
     const res = await getLikerNFTFiatSigningClientAndWallet();
@@ -165,8 +158,6 @@ export async function processFiatNFTPurchase({
   }
   let res;
   try {
-    const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
-    if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
     const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
     const classIds = purchaseInfoList.map(({ classId }) => classId);
     const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
