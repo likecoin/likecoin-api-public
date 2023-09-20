@@ -53,6 +53,9 @@ export async function estimateUploadToArweaveV2(
   ipfsHash: string,
   { margin = 0.05 } = {},
 ) {
+  if (fileSize < ARWEAVE_MAX_SIZE) {
+    throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
+  }
   const { MATIC, wei, arweaveId } = await estimateARV2MaticPrice(fileSize, ipfsHash);
   const { LIKE } = await convertMATICPriceToLIKE(MATIC, { margin });
   if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
@@ -231,6 +234,9 @@ export async function processTxUploadToArweaveV2(
   }
   if (memoFileSize < fileSize) {
     throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
+  }
+  if (fileSize < ARWEAVE_MAX_SIZE) {
+    throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
 
   // TODO: verify signatureData match filesize if possible
