@@ -21,7 +21,7 @@ router.get(
   async (req, res, next) => {
     try {
       const publicKey = await getPublicKey();
-      res.json({ publicKey: publicKey.toString('hex') });
+      res.json({ publicKey: publicKey.toString('base64') });
     } catch (error) {
       next(error);
     }
@@ -77,7 +77,7 @@ router.post(
       } = await processTxUploadToArweaveV2({
         fileSize, ipfsHash, txHash, signatureData,
       });
-      const signatureHex = signature && signature.toString('hex');
+      const signatureHex = signature && signature.toString('base64');
       res.json({ arweaveId, signature: signatureHex });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveSigningV2',
