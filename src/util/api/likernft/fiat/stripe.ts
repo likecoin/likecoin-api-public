@@ -321,7 +321,7 @@ export function formatTxFeeLineItem(txFee) {
       product_data: {
         name: 'Transaction Fee',
       },
-      unit_amount: Number(new BigNumber(txFee).shiftedBy(2).toFixed(0)),
+      unit_amount: Number(new BigNumber(txFee).shiftedBy(2).toFixed(0, BigNumber.ROUND_UP)),
     },
     adjustable_quantity: {
       enabled: false,
