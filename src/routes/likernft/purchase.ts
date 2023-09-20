@@ -34,10 +34,8 @@ router.get(
         if (isFree && wallet) {
           canFreeCollect = !(await checkFreeMintExists(wallet as string, classId));
         }
-        const gasFee = 0;
         res.json({
           price,
-          totalPrice: price + gasFee,
           lastSoldPrice,
           canFreeCollect,
           collectExpiryAt,
