@@ -25,7 +25,8 @@ import {
   LIKER_NFT_PRICE_DECAY,
   LIKER_NFT_DECAY_START_BATCH,
   LIKER_NFT_DECAY_END_BATCH,
-  LIKE_TO_USD_TIER_PRICE_RATE,
+  LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
+  LIKER_NFT_MIN_USD_PRICE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
@@ -138,8 +139,14 @@ export async function getLatestNFTPriceAndInfo(
     collectExpiryAt: collectExpiryAtDateTime,
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
-  const basePriceInUSD = basePriceInLIKE / LIKE_TO_USD_TIER_PRICE_RATE;
-  const currentPriceInUSD = currentPriceInLIKE / LIKE_TO_USD_TIER_PRICE_RATE;
+  const basePriceInUSD = Math.max(
+    basePriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
+    LIKER_NFT_MIN_USD_PRICE,
+  );
+  const currentPriceInUSD = Math.max(
+    currentPriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
+    LIKER_NFT_MIN_USD_PRICE,
+  );
   if (newNftDocData && (!collectExpiryAt || collectExpiryAt > Date.now())) {
     price = currentPriceInUSD;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
@@ -199,7 +206,7 @@ export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
 function getGasPrice() {
   return new BigNumber(LIKER_NFT_GAS_FEE)
     .multipliedBy(DEFAULT_GAS_PRICE)
-    .dividedBy(LIKE_TO_USD_TIER_PRICE_RATE)
+    .dividedBy(LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO)
     .shiftedBy(-9)
     .toNumber();
 }

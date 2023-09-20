@@ -2,7 +2,7 @@ import { parseTxInfoFromIndexedTx } from '@likecoin/iscn-js/dist/messages/parsin
 import { getISCNPrefixDocName } from '.';
 import { db, likeNFTCollection, Timestamp } from '../../firebase';
 import { getNFTQueryClient, getNFTISCNData } from '../../cosmos/nft';
-import { LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
+import { LIKER_NFT_MINT_MIN_BATCH, LIKER_NFT_TARGET_ADDRESS } from '../../../../config/config';
 import { getNFTBatchInfo } from './purchase';
 import {
   WNFT_DEFAULT_PATH,
@@ -48,7 +48,7 @@ export async function writeMintedNFTInfo(iscnPrefix, classData, nfts) {
     uri = '',
     metadata = {},
     platform = '',
-    initialBatch = 0,
+    initialBatch = LIKER_NFT_MINT_MIN_BATCH,
     isFree,
     collectExpiryAt,
   } = classData;
