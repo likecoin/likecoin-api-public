@@ -59,6 +59,7 @@ export async function newNftBookInfo(classId, data) {
     ownerWallet,
     successUrl,
     cancelUrl,
+    defaultPaymentCurrency = 'USD',
     notificationEmails,
     moderatorWallets,
     connectedWallets,
@@ -90,12 +91,14 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails,
   moderatorWallets,
   connectedWallets,
+  defaultPaymentCurrency,
   shippingRates,
 }: {
   prices?: any[];
   notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
+  defaultPaymentCurrency?: string;
   shippingRates?: any[];
 } = {}) {
   const payload: any = {
@@ -105,6 +108,9 @@ export async function updateNftBookInfo(classId: string, {
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
+  if (defaultPaymentCurrency !== undefined) {
+    payload.defaultPaymentCurrency = defaultPaymentCurrency;
+  }
   if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
