@@ -673,9 +673,9 @@ export async function processNFTPurchase({
 
   const LIKEPrices = priceInfoList.map((info) => Number(new BigNumber(info.price)
     .dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP)));
-  const dbNFTTotalPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
+  const totalLIKEPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
 
-  if (dbNFTTotalPrice && dbNFTTotalPrice > grantedAmount) {
+  if (totalLIKEPrice && totalLIKEPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
   }
 
