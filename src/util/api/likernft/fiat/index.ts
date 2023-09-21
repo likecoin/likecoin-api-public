@@ -37,11 +37,12 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   return purchaseInfoList;
 }
 
-export async function calculatePayment(purchaseInfoList) {
+export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
   const totalLIKEPrice = Number(purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0))
     .dividedBy(rate)
+    .multipliedBy(1 + buffer)
     .toFixed(0, BigNumber.ROUND_UP));
   let totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
