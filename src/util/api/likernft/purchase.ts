@@ -155,17 +155,13 @@ export async function getLatestNFTPriceAndInfo(
   let nextNewNFTId;
   let isProcessing = false;
   const {
-    basePrice: basePriceInLIKE,
     currentPrice: currentPriceInLIKE,
     currentBatch,
     lastSoldPrice,
     collectExpiryAt: collectExpiryAtDateTime,
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
-  const basePriceInUSD = Math.max(
-    basePriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
-    LIKER_NFT_MIN_USD_PRICE,
-  );
+  // NOTE: should not modify basePrice in iscnDocData, since supply table UI relies on it
   const currentPriceInUSD = Math.max(
     currentPriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
     LIKER_NFT_MIN_USD_PRICE,
@@ -182,7 +178,6 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
-    basePrice: basePriceInUSD,
     currentPrice: currentPriceInUSD,
     collectExpiryAt,
     nextNewNFTId,
