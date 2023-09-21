@@ -1,11 +1,10 @@
-import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
-import LRU from 'lru-cache';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
-import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { PUBSUB_TOPIC_MISC } from '../../../../constant';
 import {
+  getLIKEPrice,
   checkWalletGrantAmount,
   getLatestNFTPriceAndInfo,
   processNFTPurchase,
@@ -16,33 +15,11 @@ import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_STRIPE_FEE_USD_INTERCEPT,
   LIKER_NFT_STRIPE_FEE_USD_SLOPE,
-  LIKER_NFT_FIAT_MIN_RATIO,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
-const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
-const CURRENCY = 'usd';
-
 let fiatGranterWallet;
-
-async function getLIKEPrice() {
-  const hasCache = priceCache.has(CURRENCY);
-  const cachedPrice = priceCache.get(CURRENCY, { allowStale: true });
-  let price;
-  if (hasCache) {
-    price = cachedPrice;
-  } else {
-    price = await axios.get(COINGECKO_PRICE_URL)
-      .then((r) => {
-        const p = r.data.market_data.current_price[CURRENCY];
-        priceCache.set(CURRENCY, p);
-        return p;
-      })
-      .catch(() => cachedPrice || LIKER_NFT_FIAT_MIN_RATIO);
-  }
-  return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
-}
 
 export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   const purchaseInfoList = await Promise.all(
