@@ -663,6 +663,8 @@ export async function processNFTPurchase({
     ? await generateCustomMemo(iscnPrefixes[0], classIds[0], buyerWallet)
     : '(multiple purchases)';
 
+  const LIKEPriceInUSD = await getLIKEPrice();
+
   const priceInfoList = await db.runTransaction(async (t) => {
     // eslint-disable-next-line no-underscore-dangle
     const _priceInfoList = await Promise.all(classIds.map((_, i) => (
@@ -674,7 +676,9 @@ export async function processNFTPurchase({
     return _priceInfoList;
   });
 
-  const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
+  const LIKEPrices = priceInfoList.map((info) => Number(new BigNumber(info.price)
+    .dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP)));
+  const dbNFTTotalPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
 
   if (dbNFTTotalPrice && dbNFTTotalPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
@@ -686,7 +690,7 @@ export async function processNFTPurchase({
     iscnData: iscnDataList[i].data,
     sellerWallet: iscnDataList[i].owner,
     nftId: priceInfoList[i].nextNewNFTId,
-    nftPrice: priceInfoList[i].price,
+    nftPrice: LIKEPrices[i],
     currentBatch: priceInfoList[i].currentBatch,
   }));
 
