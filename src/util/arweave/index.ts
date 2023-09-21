@@ -8,8 +8,9 @@ import {
   getFileIPFSHash,
   getFolderIPFSHash,
   uploadFileToIPFS,
-} from './ipfs';
-import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../constant';
+} from '../ipfs';
+import { maticBundlr } from './signer';
+import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../../constant';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
@@ -19,7 +20,7 @@ const IPFS_CONSTRAINT_KEY = 'standard';
 const IPFS_CONSTRAINT = 'v0.1';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const jwk = require('../../config/arweave-key.json');
+const jwk = require('../../../config/arweave-key.json');
 
 const arweaveGraphQL = Arweave.init({
   host: 'arweave.net',
@@ -117,6 +118,25 @@ async function generateManifestFile(files, { stub = false } = {}) {
   };
 }
 
+export async function estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicate = true } = {}) {
+  if (checkDuplicate) {
+    const id = await getArweaveIdFromHashes(ipfsHash);
+    if (id) {
+      return {
+        arweaveId: id,
+        MATIC: '0',
+        wei: '0',
+      };
+    }
+  }
+  const priceAtomic = await maticBundlr.getPrice(fileSize);
+  const priceConverted = maticBundlr.utils.fromAtomic(priceAtomic);
+  return {
+    MATIC: priceConverted.toFixed(),
+    wei: priceAtomic.toFixed(),
+  };
+}
+
 export async function estimateARPrice(data, checkDuplicate = true) {
   const { buffer, key } = data;
   const ipfsHash = await getFileIPFSHash(data);
@@ -162,11 +182,27 @@ export async function estimateARPrices(files, checkDuplicate = true): Promise<{
   };
 }
 
-async function getPriceRatioBigNumber() {
+async function getARPriceRatioBigNumber() {
   try {
     const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API, { timeout: 10000 });
     const { likecoin, arweave: arweavePrice } = data;
     const priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
+    // At least 1 LIKE for 1 AR
+    const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
+    return priceRatioBigNumber;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(JSON.stringify(err));
+    // TODO: make a less hardcoded fallback price
+    return new BigNumber(5000);
+  }
+}
+
+async function getMATICPriceRatioBigNumber() {
+  try {
+    const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API, { timeout: 10000 });
+    const { likecoin, 'matic-network': maticPrice } = data;
+    const priceRatio = new BigNumber(maticPrice.usd).dividedBy(likecoin.usd).toFixed();
     // At least 1 LIKE for 1 AR
     const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
     return priceRatioBigNumber;
@@ -194,11 +230,24 @@ export function convertARPriceToLIKE(ar, {
   };
 }
 
+export async function convertMATICPriceToLIKE(matic, {
+  margin = 0.05, decimal = 0,
+} = {}) {
+  const priceRatioBigNumber = await getMATICPriceRatioBigNumber();
+  const res = new BigNumber(matic)
+    .multipliedBy(priceRatioBigNumber)
+    .multipliedBy(1 + margin)
+    .toFixed(decimal, BigNumber.ROUND_UP);
+  return {
+    LIKE: res,
+  };
+}
+
 export async function convertARPricesToLIKE(
   ar,
   { margin = 0.05, decimal = 0 } = {},
 ) {
-  const priceRatioBigNumber = await getPriceRatioBigNumber();
+  const priceRatioBigNumber = await getARPriceRatioBigNumber();
   if (!(ar.list && ar.list.length)) {
     return convertARPriceToLIKE(ar, { priceRatioBigNumber, margin, decimal });
   }

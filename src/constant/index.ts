@@ -156,7 +156,7 @@ export const USD_TO_HKD_RATIO = 7.8;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
-export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,likecoin&vs_currencies=usd';
+export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,matic-network,likecoin&vs_currencies=usd';
 
 export const LIKECOIN_DARK_GREEN_THEME_COLOR = '#28646E';
 
