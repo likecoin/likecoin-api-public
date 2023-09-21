@@ -6,6 +6,7 @@ import {
   convertMulterFiles,
   estimateUploadToArweave,
   estimateUploadToArweaveV2,
+  processArweaveIdRegisterV2,
   processTxUploadToArweave,
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
@@ -86,6 +87,35 @@ router.post(
         MATIC,
         wei,
         LIKE: Number(LIKE),
+        txHash,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/v2/register',
+  async (req, res, next) => {
+    try {
+      res.sendStatus(200);
+      const {
+        fileSize, ipfsHash, txHash, arweaveId,
+      } = req.body;
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveIdRegisterStartV2',
+        ipfsHash,
+        arweaveId,
+        txHash,
+      });
+      await processArweaveIdRegisterV2({
+        fileSize, ipfsHash, txHash, arweaveId,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveIdRegisterCompleteV2',
+        ipfsHash,
+        arweaveId,
         txHash,
       });
     } catch (error) {
