@@ -66,23 +66,21 @@ export async function calculatePayment(purchaseInfoList) {
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0))
     .dividedBy(rate)
     .toFixed(0, BigNumber.ROUND_UP));
-  const fiatPrices = purchaseInfoList.map(({ price }) => price);
   let totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
-  let txFee = 0;
+  let fiatTxFee = 0;
   if (totalFiatBigNum.gt(0)) {
-    txFee = Number(totalFiatBigNum
+    fiatTxFee = Number(totalFiatBigNum
       .times(LIKER_NFT_STRIPE_FEE_USD_SLOPE)
       .plus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
       .toFixed(2, BigNumber.ROUND_UP));
-    totalFiatBigNum = totalFiatBigNum.plus(txFee);
+    totalFiatBigNum = totalFiatBigNum.plus(fiatTxFee);
   }
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPrice,
     totalFiatPriceString,
-    txFee,
-    fiatPrices,
+    fiatTxFee,
   };
 }
 

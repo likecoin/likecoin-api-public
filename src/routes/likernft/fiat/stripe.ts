@@ -95,8 +95,7 @@ router.post(
       const {
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
-        txFee,
-        fiatPrices,
+        fiatTxFee,
       } = await calculatePayment(purchaseInfoList);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
@@ -110,10 +109,10 @@ router.post(
       });
 
       const lineItems = classMetadataList.map(
-        (classMetadata, i) => formatLineItem(classMetadata, fiatPrices[i]),
+        (classMetadata, i) => formatLineItem(classMetadata, purchaseInfoList[i].price),
       ) as any[];
-      if (txFee > 0) {
-        const txFeeLineItem = formatTxFeeLineItem(txFee);
+      if (fiatTxFee > 0) {
+        const txFeeLineItem = formatTxFeeLineItem(fiatTxFee);
         lineItems.push(txFeeLineItem);
       }
 
@@ -149,6 +148,7 @@ router.post(
         purchaseInfoList,
         LIKEPrice,
         fiatPrice,
+        fiatTxFee,
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),
