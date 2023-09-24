@@ -332,9 +332,10 @@ export function sendNFTBookPendingClaimEmail({
             content: `<p>親愛的讀者：</p>
             <br/>
             <p>感謝支持並購買 <a href="${nftClassURLZh}">《${className}》</a>。</p>
-            <p>請根據以下兩步驟領取你的 NFT 書：</p>
-            <p>1. 確認您已有 Keplr 密碼貨幣錢包；如尚未持有，請參考<a href="https://youtu.be/bPaZk-ehWrg">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/RC8PugjnZq8">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</p>
-            <p>2. 前往 Liker Land 的<a href="${claimPageURLZh}">認領頁面</a>，連結錢包以驗證領取資格。</p>
+            <p>請根據以下三步驟領取你的 NFT 書：</p>
+            <p>1. 前往 Liker Land <a href="${claimPageURLZh}">認領頁面</a>，下載電子書檔案（EPUB/PDF 檔）</p>
+            <p>2. 確認您已有 Keplr 密碼貨幣錢包；如尚未持有，請參考<a href="https://youtu.be/bPaZk-ehWrg">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/RC8PugjnZq8">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</p>
+            <p>3. 在<a href="${claimPageURLZh}">認領頁面</a>，連結錢包以驗證領取 NFT 正版證明資格。</p>
             <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發 NFT 書。請往你的 Liker Land 書架查閱。</p>
             <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
             <p>感謝珍藏此 NFT 書，願你享受閱讀的樂趣。</p>
@@ -345,9 +346,10 @@ export function sendNFTBookPendingClaimEmail({
             <p>Dear reader,</p>
             <br/>
             <p>Thank you for your support and purchasing "<a href="${nftClassURLEn}">${className}</a>".</p>
-            <p>Please follow the two steps below to claim your NFT book:</p>
-            <p>1. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</p>
-            <p>2. Visit the <a href="${claimPageURLEn}">claim page</a> on Liker Land and connect your wallet to verify your eligibility.</p>
+            <p>Please follow the three steps below to claim your NFT book:</p>
+            <p>1. Visit the <a href="${claimPageURLEn}">claim page</a> on Liker Land to download the ebook file (EPUB/PDF)</p>
+            <p>2. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</p>
+            <p>3. Visit the <a href="${claimPageURLEn}">claim page</a> again, connect your wallet to claim the NFT for proof of ownership.</p>
             <p>Once these steps are completed, the author will issue the NFT book to you within 1-3 business days. Please check your Liker Land bookshelf for the book.</p>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this NFT book, and may you enjoy the pleasure of reading.</p>
