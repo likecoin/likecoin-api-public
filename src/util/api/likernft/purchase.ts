@@ -54,13 +54,14 @@ export async function getLIKEPrice() {
   if (hasCache) {
     price = cachedPrice;
   } else {
-    price = await axios.get(COINGECKO_PRICE_URL)
-      .then((r) => {
-        const p = r.data.market_data.current_price[CURRENCY];
-        priceCache.set(CURRENCY, p);
-        return p;
-      })
-      .catch(() => cachedPrice || LIKER_NFT_FIAT_MIN_RATIO);
+    try {
+      const { data } = await axios.get(COINGECKO_PRICE_URL);
+      const p = data.market_data.current_price[CURRENCY];
+      priceCache.set(CURRENCY, p);
+      price = p;
+    } catch (error) {
+      price = cachedPrice || LIKER_NFT_FIAT_MIN_RATIO;
+    }
   }
   return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
