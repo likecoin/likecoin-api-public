@@ -648,6 +648,7 @@ export async function processNFTPurchase({
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
+  priceModifier = (p: BigNumber) => p,
 }, req) {
   const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
     const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
@@ -672,8 +673,13 @@ export async function processNFTPurchase({
     return _priceInfoList;
   });
 
-  const LIKEPrices = priceInfoList.map((info) => Number(new BigNumber(info.price)
-    .dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP)));
+  const LIKEPrices = priceInfoList.map((info) => {
+    let bigNum = new BigNumber(info.price);
+    if (priceModifier && typeof priceModifier === 'function') {
+      bigNum = priceModifier(bigNum);
+    }
+    return Number(bigNum.dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP));
+  });
   const totalLIKEPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
 
   if (totalLIKEPrice && totalLIKEPrice > grantedAmount) {
@@ -839,6 +845,7 @@ export async function processNFTPurchase({
         grantTxHash,
         granterMemo,
         retryTimes: retryTimes + 1,
+        priceModifier,
       }, req);
     }
     throw err;

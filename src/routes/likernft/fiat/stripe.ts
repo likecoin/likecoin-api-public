@@ -17,7 +17,6 @@ import {
   processStripeFiatNFTPurchase,
   findPaymentFromStripeSessionId,
   formatLineItem,
-  formatTxFeeLineItem,
 } from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -95,7 +94,6 @@ router.post(
       const {
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
-        fiatTxFee,
       } = await calculatePayment(purchaseInfoList);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
@@ -111,10 +109,6 @@ router.post(
       const lineItems = classMetadataList.map(
         (classMetadata, i) => formatLineItem(classMetadata, purchaseInfoList[i].price),
       ) as any[];
-      if (fiatTxFee > 0) {
-        const txFeeLineItem = formatTxFeeLineItem(fiatTxFee);
-        lineItems.push(txFeeLineItem);
-      }
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -148,7 +142,6 @@ router.post(
         purchaseInfoList,
         LIKEPrice,
         fiatPrice,
-        fiatTxFee,
         fiatPriceString,
         status: 'new',
         timestamp: Date.now(),

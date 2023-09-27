@@ -13,8 +13,6 @@ import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
-  LIKER_NFT_STRIPE_FEE_USD_INTERCEPT,
-  LIKER_NFT_STRIPE_FEE_USD_SLOPE,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
@@ -44,21 +42,12 @@ export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) 
     .dividedBy(rate)
     .multipliedBy(1 + buffer)
     .toFixed(0, BigNumber.ROUND_UP));
-  let totalFiatBigNum = purchaseInfoList
+  const totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
-  let fiatTxFee = 0;
-  if (totalFiatBigNum.gt(0)) {
-    fiatTxFee = Number(totalFiatBigNum
-      .times(LIKER_NFT_STRIPE_FEE_USD_SLOPE)
-      .plus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
-      .toFixed(2, BigNumber.ROUND_UP));
-    totalFiatBigNum = totalFiatBigNum.plus(fiatTxFee);
-  }
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPrice,
     totalFiatPriceString,
-    fiatTxFee,
   };
 }
 
@@ -138,6 +127,13 @@ export async function processFiatNFTPurchase({
   try {
     const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
     const classIds = purchaseInfoList.map(({ classId }) => classId);
+    // NOTE: Stripe fee per order is 5.4% + 30 cents
+    const priceModifier = (p: BigNumber) => {
+      const flatFeePerNFT = new BigNumber(0.3)
+        .dividedBy(purchaseInfoList.length).toFixed(2, BigNumber.ROUND_UP);
+      const variableFee = new BigNumber(0.054).multipliedBy(p).toFixed(2, BigNumber.ROUND_UP);
+      return p.minus(flatFeePerNFT).minus(variableFee);
+    };
     const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefixes,
@@ -146,6 +142,7 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
       grantTxHash: paymentId,
       granterMemo: memo,
+      priceModifier,
     }, req);
     res = {
       transactionHash,
