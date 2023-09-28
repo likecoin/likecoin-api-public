@@ -272,7 +272,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
 }
 
 function getImage(classMetadata) {
-  let { image } = classMetadata.data.metadata;
+  let { image = '' } = classMetadata.data.metadata;
   const { is_custom_image: isCustomImage = false } = classMetadata;
   if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
     const classId = classMetadata.id;
