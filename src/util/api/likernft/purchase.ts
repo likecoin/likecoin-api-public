@@ -1,5 +1,6 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
+import LRU from 'lru-cache';
 import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
@@ -25,11 +26,14 @@ import {
   LIKER_NFT_PRICE_DECAY,
   LIKER_NFT_DECAY_START_BATCH,
   LIKER_NFT_DECAY_END_BATCH,
+  LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
+  LIKER_NFT_MIN_USD_PRICE,
+  LIKER_NFT_FIAT_MIN_RATIO,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
-import { PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
+import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
 import {
   checkFreeMintTransaction,
   completeFreeMintTransaction,
@@ -39,6 +43,28 @@ import {
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
+
+const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
+const CURRENCY = 'usd';
+
+export async function getLIKEPrice() {
+  const hasCache = priceCache.has(CURRENCY);
+  const cachedPrice = priceCache.get(CURRENCY, { allowStale: true });
+  let price;
+  if (hasCache) {
+    price = cachedPrice;
+  } else {
+    try {
+      const { data } = await axios.get(COINGECKO_PRICE_URL);
+      const p = data.market_data.current_price[CURRENCY];
+      priceCache.set(CURRENCY, p);
+      price = p;
+    } catch (error) {
+      price = cachedPrice || LIKER_NFT_FIAT_MIN_RATIO;
+    }
+  }
+  return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
+}
 
 export function calculateStripeFee(inputAmount, currency = 'USD') {
   // 2.9% + 30 cents, 1.5% for international cards
@@ -130,14 +156,19 @@ export async function getLatestNFTPriceAndInfo(
   let nextNewNFTId;
   let isProcessing = false;
   const {
-    currentPrice,
+    currentPrice: currentPriceInLIKE,
     currentBatch,
     lastSoldPrice,
     collectExpiryAt: collectExpiryAtDateTime,
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
+  // NOTE: should not modify basePrice in iscnDocData, since supply table UI relies on it
+  const currentPriceInUSD = Math.max(
+    currentPriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
+    LIKER_NFT_MIN_USD_PRICE,
+  );
   if (newNftDocData && (!collectExpiryAt || collectExpiryAt > Date.now())) {
-    price = currentPrice;
+    price = currentPriceInUSD;
     // This NFT ID represents a possible NFT of that NFT Class for purchasing only,
     // another fresh one might be used on purchase instead
     nextNewNFTId = newNftDocData.id;
@@ -148,11 +179,12 @@ export async function getLatestNFTPriceAndInfo(
   );
   return {
     ...iscnDocData,
+    currentPrice: currentPriceInUSD,
     collectExpiryAt,
     nextNewNFTId,
     currentBatch,
     isProcessing,
-    lastSoldPrice: lastSoldPrice || currentPrice,
+    lastSoldPrice: lastSoldPrice || currentPriceInUSD,
     price,
     nextPriceLevel,
   } as any;
@@ -190,8 +222,12 @@ export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
   }
 }
 
-export function getGasPrice() {
-  return new BigNumber(LIKER_NFT_GAS_FEE).multipliedBy(DEFAULT_GAS_PRICE).shiftedBy(-9).toNumber();
+function getGasPrice() {
+  return new BigNumber(LIKER_NFT_GAS_FEE)
+    .multipliedBy(DEFAULT_GAS_PRICE)
+    .dividedBy(LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO)
+    .shiftedBy(-9)
+    .toNumber();
 }
 
 export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
@@ -612,6 +648,7 @@ export async function processNFTPurchase({
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
+  priceModifier = (p: BigNumber) => p,
 }, req) {
   const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
     const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
@@ -622,6 +659,8 @@ export async function processNFTPurchase({
   const memo = classIds.length === 1
     ? await generateCustomMemo(iscnPrefixes[0], classIds[0], buyerWallet)
     : '(multiple purchases)';
+
+  const LIKEPriceInUSD = await getLIKEPrice();
 
   const priceInfoList = await db.runTransaction(async (t) => {
     // eslint-disable-next-line no-underscore-dangle
@@ -634,9 +673,16 @@ export async function processNFTPurchase({
     return _priceInfoList;
   });
 
-  const dbNFTTotalPrice = priceInfoList.reduce((acc, d) => acc + d.price, 0);
+  const LIKEPrices = priceInfoList.map((info) => {
+    let bigNum = new BigNumber(info.price);
+    if (priceModifier && typeof priceModifier === 'function') {
+      bigNum = priceModifier(bigNum);
+    }
+    return Number(bigNum.dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP));
+  });
+  const totalLIKEPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
 
-  if (dbNFTTotalPrice && dbNFTTotalPrice > grantedAmount) {
+  if (totalLIKEPrice && totalLIKEPrice > grantedAmount) {
     throw new ValidationError('GRANT_NOT_MATCH_UPDATED_PRICE');
   }
 
@@ -646,7 +692,7 @@ export async function processNFTPurchase({
     iscnData: iscnDataList[i].data,
     sellerWallet: iscnDataList[i].owner,
     nftId: priceInfoList[i].nextNewNFTId,
-    nftPrice: priceInfoList[i].price,
+    nftPrice: LIKEPrices[i],
     currentBatch: priceInfoList[i].currentBatch,
   }));
 
@@ -799,6 +845,7 @@ export async function processNFTPurchase({
         grantTxHash,
         granterMemo,
         retryTimes: retryTimes + 1,
+        priceModifier,
       }, req);
     }
     throw err;

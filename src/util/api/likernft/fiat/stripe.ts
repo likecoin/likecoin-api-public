@@ -17,7 +17,6 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
   NFT_MESSAGE_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
-  LIKER_NFT_FIAT_FEE_USD,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
@@ -273,7 +272,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
 }
 
 function getImage(classMetadata) {
-  let { image } = classMetadata.data.metadata;
+  let { image = '' } = classMetadata.data.metadata;
   const { is_custom_image: isCustomImage = false } = classMetadata;
   if (checkIsWritingNFT(classMetadata) && !isCustomImage) {
     const classId = classMetadata.id;
@@ -307,22 +306,6 @@ export function formatLineItem(classMetadata, fiatPrice) {
         },
       },
       unit_amount: Number(new BigNumber(fiatPrice).shiftedBy(2).toFixed(0)),
-    },
-    adjustable_quantity: {
-      enabled: false,
-    },
-    quantity: 1,
-  };
-}
-
-export function getTxFeeLineItem() {
-  return {
-    price_data: {
-      currency: 'USD',
-      product_data: {
-        name: 'Transaction Fee',
-      },
-      unit_amount: Number(new BigNumber(LIKER_NFT_FIAT_FEE_USD).shiftedBy(2).toFixed(0)),
     },
     adjustable_quantity: {
       enabled: false,

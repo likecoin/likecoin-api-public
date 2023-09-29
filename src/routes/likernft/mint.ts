@@ -24,6 +24,7 @@ import {
   IMAGE_GENERATION_PROMPT_SUFFIX,
   IMAGE_GENERATION_LIMIT_WINDOW,
   IMAGE_GENERATION_LIMIT_COUNT,
+  LIKER_NFT_MINT_MIN_BATCH,
 } from '../../../config/config';
 
 const router = Router();
@@ -67,6 +68,8 @@ router.post(
       } = req.body;
 
       if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
+      // guard for USD base
+      if (initialBatch < LIKER_NFT_MINT_MIN_BATCH) throw new ValidationError(`INITIAL_BATCH_CANNOT_BE_LESS_THAN_${LIKER_NFT_MINT_MIN_BATCH}`);
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       if (collectExpiryAt && collectExpiryAt < Date.now()) throw new ValidationError('COLLECT_EXPIRY_AT_CANNOT_BE_IN_THE_PAST');
 

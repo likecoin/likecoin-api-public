@@ -3,7 +3,6 @@ import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import {
   getLatestNFTPriceAndInfo,
-  getGasPrice,
   checkTxGrantAndAmount,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
@@ -35,11 +34,8 @@ router.get(
         if (isFree && wallet) {
           canFreeCollect = !(await checkFreeMintExists(wallet as string, classId));
         }
-        const gasFee = isFree ? 0 : getGasPrice();
         res.json({
           price,
-          gasFee,
-          totalPrice: price + gasFee,
           lastSoldPrice,
           canFreeCollect,
           collectExpiryAt,
@@ -76,8 +72,6 @@ router.post(
       );
       const totalNFTPrice = nftPriceInfoList.reduce((acc, nftPrice) => acc + nftPrice, 0);
       const isFreeMint = totalNFTPrice === 0;
-      const gasFee = isFreeMint ? 0 : getGasPrice();
-      const totalPrice = totalNFTPrice + gasFee;
 
       let memo;
       let likeWallet;
@@ -85,7 +79,7 @@ router.post(
       if (!isFreeMint) {
         if (ts && (Date.now() - Number(ts) > API_EXPIRATION_BUFFER_TIME)) throw new ValidationError('USER_TIME_OUT_SYNC');
         if (!grantTxHash) throw new ValidationError('MISSING_TX_HASH');
-        const result = await checkTxGrantAndAmount(grantTxHash, totalPrice);
+        const result = await checkTxGrantAndAmount(grantTxHash, totalNFTPrice);
         if (!result) {
           throw new ValidationError('SEND_GRANT_NOT_FOUND');
         }

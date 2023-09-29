@@ -1,13 +1,11 @@
-import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import { DeliverTxResponse } from '@cosmjs/stargate';
-import LRU from 'lru-cache';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
-import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { PUBSUB_TOPIC_MISC } from '../../../../constant';
 import {
+  getLIKEPrice,
   checkWalletGrantAmount,
-  getGasPrice,
   getLatestNFTPriceAndInfo,
   processNFTPurchase,
 } from '../purchase';
@@ -15,37 +13,13 @@ import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
-  LIKER_NFT_FIAT_FEE_USD,
-  LIKER_NFT_FIAT_MIN_RATIO,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
-const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
-const CURRENCY = 'usd';
-
 let fiatGranterWallet;
 
-async function getLIKEPrice() {
-  const hasCache = priceCache.has(CURRENCY);
-  const cachedPrice = priceCache.get(CURRENCY, { allowStale: true });
-  let price;
-  if (hasCache) {
-    price = cachedPrice;
-  } else {
-    price = await axios.get(COINGECKO_PRICE_URL)
-      .then((r) => {
-        const p = r.data.market_data.current_price[CURRENCY];
-        priceCache.set(CURRENCY, p);
-        return p;
-      })
-      .catch(() => cachedPrice || LIKER_NFT_FIAT_MIN_RATIO);
-  }
-  return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
-}
-
 export async function getPurchaseInfoList(iscnPrefixes, classIds) {
-  const gasFee = getGasPrice();
   const purchaseInfoList = await Promise.all(
     classIds.map(async (classId, i) => {
       const iscnPrefix = iscnPrefixes[i];
@@ -54,38 +28,27 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
       return {
         iscnPrefix,
         classId,
-        LIKEPrice: price === 0 ? 0 : price + gasFee,
+        price,
       };
     }),
   );
   return purchaseInfoList;
 }
 
-export async function getFiatPriceInfo(purchaseInfoList, { buffer = 0.1 } = {}) {
+export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
   const totalLIKEPrice = Number(purchaseInfoList
-    .reduce((acc, { LIKEPrice }) => acc.plus(LIKEPrice), new BigNumber(0)).toFixed(9));
-  const fiatPrices = purchaseInfoList.map(
-    ({ LIKEPrice }) => new BigNumber(LIKEPrice)
-      .multipliedBy(rate)
-      .multipliedBy(1 + buffer)
-      .toFixed(2, BigNumber.ROUND_CEIL),
-  );
-  let totalFiatBigNum = fiatPrices.reduce((acc, p) => acc.plus(p), new BigNumber(0));
-  if (totalFiatBigNum.gt(0)) totalFiatBigNum = totalFiatBigNum.plus(LIKER_NFT_FIAT_FEE_USD);
+    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0))
+    .dividedBy(rate)
+    .multipliedBy(1 + buffer)
+    .toFixed(0, BigNumber.ROUND_UP));
+  const totalFiatBigNum = purchaseInfoList
+    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPrice,
     totalFiatPriceString,
-    fiatPrices,
   };
-}
-
-export async function checkFiatPriceForLIKE(fiat, targetLIKE) {
-  const rate = await getLIKEPrice();
-  const targetPrice = new BigNumber(targetLIKE).multipliedBy(rate);
-  const targetTotal = targetPrice.plus(LIKER_NFT_FIAT_FEE_USD);
-  return targetTotal.lte(fiat);
 }
 
 export async function checkGranterFiatWalletGrant(targetAmount, grantAmount = 400000) {
@@ -162,10 +125,15 @@ export async function processFiatNFTPurchase({
   }
   let res;
   try {
-    const isFiatEnough = await checkFiatPriceForLIKE(fiatPrice, LIKEPrice);
-    if (!isFiatEnough) throw new ValidationError('FIAT_AMOUNT_NOT_ENOUGH');
     const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
     const classIds = purchaseInfoList.map(({ classId }) => classId);
+    // NOTE: Stripe fee per order is 5.4% + 30 cents
+    const priceModifier = (p: BigNumber) => {
+      const flatFeePerNFT = new BigNumber(0.3)
+        .dividedBy(purchaseInfoList.length).toFixed(2, BigNumber.ROUND_UP);
+      const variableFee = new BigNumber(0.054).multipliedBy(p).toFixed(2, BigNumber.ROUND_UP);
+      return p.minus(flatFeePerNFT).minus(variableFee);
+    };
     const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefixes,
@@ -174,6 +142,7 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
       grantTxHash: paymentId,
       granterMemo: memo,
+      priceModifier,
     }, req);
     res = {
       transactionHash,

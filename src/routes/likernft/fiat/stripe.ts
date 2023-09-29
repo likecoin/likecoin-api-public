@@ -12,12 +12,11 @@ import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
 import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
-import { getPurchaseInfoList, getFiatPriceInfo } from '../../../util/api/likernft/fiat';
+import { getPurchaseInfoList, calculatePayment } from '../../../util/api/likernft/fiat';
 import {
   processStripeFiatNFTPurchase,
   findPaymentFromStripeSessionId,
   formatLineItem,
-  getTxFeeLineItem,
 } from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -79,27 +78,6 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
   }
 });
 
-router.get(
-  '/price',
-  fetchISCNPrefixes,
-  async (req, res, next) => {
-    try {
-      const { iscnPrefixes, classIds } = res.locals;
-      const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
-      const { totalLIKEPrice, totalFiatPriceString } = await getFiatPriceInfo(purchaseInfoList);
-      const payload = {
-        LIKEPrice: totalLIKEPrice,
-        fiatPrice: Number(totalFiatPriceString),
-        fiatPriceString: totalFiatPriceString,
-        purchaseInfoList,
-      };
-      res.json(payload);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
 router.post(
   '/new',
   fetchISCNPrefixes,
@@ -116,8 +94,7 @@ router.post(
       const {
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
-        fiatPrices,
-      } = await getFiatPriceInfo(purchaseInfoList);
+      } = await calculatePayment(purchaseInfoList);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();
@@ -130,10 +107,8 @@ router.post(
       });
 
       const lineItems = classMetadataList.map(
-        (classMetadata, i) => formatLineItem(classMetadata, fiatPrices[i]),
+        (classMetadata, i) => formatLineItem(classMetadata, purchaseInfoList[i].price),
       ) as any[];
-      const txFeeLineItem = getTxFeeLineItem();
-      lineItems.push(txFeeLineItem);
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
