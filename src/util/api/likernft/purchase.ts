@@ -163,7 +163,7 @@ export async function getLatestNFTPriceAndInfo(
   } = iscnDocData;
   const collectExpiryAt = collectExpiryAtDateTime?.toMillis();
   // NOTE: should not modify basePrice in iscnDocData, since supply table UI relies on it
-  const currentPriceInUSD = Math.max(
+  const currentPriceInUSD = currentPriceInLIKE === 0 ? 0 : Math.max(
     currentPriceInLIKE / LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
     LIKER_NFT_MIN_USD_PRICE,
   );
@@ -198,7 +198,7 @@ async function getPriceInfo(iscnPrefix: string, classId: string, t: Transaction)
   if (!priceInfo.nextNewNFTId) throw new ValidationError('SELLING_NFT_DOC_NOT_FOUND');
   if (priceInfo.isProcessing) throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   if (priceInfo.currentBatch >= 0
-      && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
+    && priceInfo.processingCount >= priceInfo.batchRemainingCount) {
     throw new ValidationError('ANOTHER_PURCHASE_IN_PROGRESS');
   }
   return priceInfo;
