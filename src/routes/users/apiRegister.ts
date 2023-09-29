@@ -150,6 +150,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
         sourceURL: sourceURL || (req.auth.domain ? `https://${req.auth.domain}/` : undefined),
       },
       req,
+      res,
       isPlatformDelegated: autoLinkOAuth,
     });
 
