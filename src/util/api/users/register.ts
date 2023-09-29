@@ -1,4 +1,6 @@
-// import { sendVerificationEmail } from '../../sendgrid';
+import uuidv4 from 'uuid/v4';
+
+import { sendVerificationEmail } from '../../sendgrid';
 import {
   PUBSUB_TOPIC_MISC,
   MIN_USER_ID_LENGTH,
@@ -33,7 +35,6 @@ import {
   NEW_USER_BONUS_COOLDOWN,
 } from '../../../../config/config';
 
-// const uuidv4 = require('uuid/v4');
 
 function getBool(value = false) {
   if (typeof value === 'string') {
@@ -76,7 +77,7 @@ export async function suggestAvailableUserName(username = '') {
 export async function handleUserRegistration({
   payload,
   req,
-  // res,
+  res,
   isPlatformDelegated = false,
 }) {
   const {
@@ -206,23 +207,23 @@ export async function handleUserRegistration({
     }
 
     // TODO: trigger verify email via authcore?
-    // TODO: reactivate after spam investigation
-    // if (!(isEmailVerified || isEmailBlacklisted || isEmailInvalid)) {
-    //   // Send verify email
-    //   createObj.lastVerifyTs = Date.now();
-    //   createObj.verificationUUID = uuidv4();
+    if (!(isEmailVerified || isEmailBlacklisted || isEmailInvalid)) {
+      // Send verify email
+      createObj.lastVerifyTs = Date.now();
+      createObj.verificationUUID = uuidv4();
 
-    //   try {
-    //     await sendVerificationEmail(res, {
-    //       email,
-    //       displayName,
-    //       verificationUUID: createObj.verificationUUID,
-    //     }, createObj.referrer);
-    //   } catch (err) {
-    //     console.error(err);
-    //     // Do nothing
-    //   }
-    // }
+      try {
+        await sendVerificationEmail(res, {
+          email,
+          displayName,
+          verificationUUID: createObj.verificationUUID,
+        }, createObj.referrer);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        // Do nothing
+      }
+    }
   }
 
   if (phone) {

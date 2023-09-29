@@ -200,6 +200,7 @@ router.post(
           platformUserId,
         },
         req,
+        res,
       });
 
       if (platform === 'authcore' && !TEST_MODE) {
