@@ -11,6 +11,7 @@ import {
 } from '../ipfs';
 import { maticBundlr } from './signer';
 import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../../constant';
+import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
@@ -236,6 +237,7 @@ export async function convertMATICPriceToLIKE(matic, {
   const priceRatioBigNumber = await getMATICPriceRatioBigNumber();
   const res = new BigNumber(matic)
     .multipliedBy(priceRatioBigNumber)
+    .multipliedBy(LIKE_PRICE_MULTIPLIER || 1)
     .multipliedBy(1 + margin)
     .toFixed(decimal, BigNumber.ROUND_UP);
   return {
