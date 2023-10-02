@@ -69,7 +69,11 @@ router.post(
 
       if (isFree && initialBatch && initialBatch > -1) throw new ValidationError('CANNOT_SET_BOTH_FREE_AND_INITIAL_BATCH');
       // guard for USD base
-      if (initialBatch < LIKER_NFT_MINT_MIN_BATCH) throw new ValidationError(`INITIAL_BATCH_CANNOT_BE_LESS_THAN_${LIKER_NFT_MINT_MIN_BATCH}`);
+      if (
+        // free mint
+        initialBatch !== -1
+        && initialBatch < LIKER_NFT_MINT_MIN_BATCH
+      ) throw new ValidationError(`INITIAL_BATCH_CANNOT_BE_LESS_THAN_${LIKER_NFT_MINT_MIN_BATCH}_IF_NOT_FREE`);
       if (!iscnId) throw new ValidationError('MISSING_ISCN_ID');
       if (collectExpiryAt && collectExpiryAt < Date.now()) throw new ValidationError('COLLECT_EXPIRY_AT_CANNOT_BE_IN_THE_PAST');
 
