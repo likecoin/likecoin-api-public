@@ -14,6 +14,8 @@ import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_TX_FEE_DISCOUNT_IN_USD,
+  LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
@@ -37,8 +39,20 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
 
 export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
-  const totalLIKEPrice = Number(purchaseInfoList
+  const totalLIKEPriceNoDiscount = Number(purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0))
+    .dividedBy(rate)
+    .multipliedBy(1 + buffer)
+    .toFixed(0, BigNumber.ROUND_UP));
+  const totalLIKEPrice = Number(purchaseInfoList
+    .reduce((acc, { price }) => {
+      const discountedPrice = new BigNumber(price)
+        .minus(LIKER_NFT_TX_FEE_DISCOUNT_IN_USD)
+        .multipliedBy(1 - LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO);
+      return discountedPrice.isLessThanOrEqualTo(0)
+        ? acc
+        : acc.plus(discountedPrice);
+    }, new BigNumber(0))
     .dividedBy(rate)
     .multipliedBy(1 + buffer)
     .toFixed(0, BigNumber.ROUND_UP));
@@ -46,6 +60,7 @@ export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) 
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
+    totalLIKEPriceNoDiscount,
     totalLIKEPrice,
     totalFiatPriceString,
   };

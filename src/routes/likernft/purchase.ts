@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { Router } from 'express';
 import { ValidationError } from '../../util/ValidationError';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
@@ -9,6 +10,10 @@ import {
 import { fetchISCNPrefixAndClassId, fetchISCNPrefixes } from '../../middleware/likernft';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC, PUBSUB_TOPIC_WNFT } from '../../constant';
+import {
+  LIKER_NFT_TX_FEE_DISCOUNT_IN_USD,
+  LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO,
+} from '../../../config/config';
 import { checkFreeMintExists } from '../../util/api/likernft/free';
 
 const API_EXPIRATION_BUFFER_TIME = 5000;
@@ -93,6 +98,9 @@ router.post(
         likeWallet = wallet as string;
         grantedAmount = 0;
       }
+      const priceModifier = (p: BigNumber) => p
+        .minus(LIKER_NFT_TX_FEE_DISCOUNT_IN_USD)
+        .multipliedBy(1 - LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO);
       const {
         transactionHash: txHash,
         feeWallet,
@@ -105,6 +113,7 @@ router.post(
         grantedAmount,
         grantTxHash: grantTxHash as string,
         granterMemo: memo,
+        priceModifier,
       }, req);
       res.json({
         txHash,
