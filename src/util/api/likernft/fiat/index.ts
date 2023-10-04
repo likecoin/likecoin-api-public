@@ -7,9 +7,8 @@ import {
   getLIKEPrice,
   checkWalletGrantAmount,
   getLatestNFTPriceAndInfo,
-  rewardModifierForCheckoutWithLIKE,
+  rewardModifier,
   processNFTPurchase,
-  rewardModifierForCheckoutWithUSD,
 } from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
@@ -54,10 +53,10 @@ export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) 
       .multipliedBy(1 + buffer)
       .toFixed(0, BigNumber.ROUND_UP),
   );
-  const rewardModifierPrediscount = (price: BigNumber) => price;
+  const unchanged = (price: BigNumber) => price;
 
-  const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifierForCheckoutWithLIKE);
-  const totalLIKEPricePrediscount = calculateTotalLIKEPrice(rewardModifierPrediscount);
+  const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifier);
+  const totalLIKEPricePrediscount = calculateTotalLIKEPrice(unchanged);
   const totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
@@ -144,8 +143,6 @@ export async function processFiatNFTPurchase({
   try {
     const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
     const classIds = purchaseInfoList.map(({ classId }) => classId);
-    const rewardModifier = (
-      (p: BigNumber) => rewardModifierForCheckoutWithUSD(p, purchaseInfoList.length));
     const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefixes,
@@ -154,7 +151,6 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
       grantTxHash: paymentId,
       granterMemo: memo,
-      rewardModifier,
     }, req);
     res = {
       transactionHash,

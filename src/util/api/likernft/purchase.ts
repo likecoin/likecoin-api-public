@@ -642,14 +642,7 @@ async function updateDocsForMissingSoldNFT(t, {
 }
 
 // NOTE: Stripe fee per order is 5.4% + 30 cents
-export function rewardModifierForCheckoutWithUSD(priceInUSD: BigNumber, nftCountOfOrder: number) {
-  return priceInUSD
-    // all NFT share flat fee
-    .minus(new BigNumber(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT).dividedBy(nftCountOfOrder))
-    .multipliedBy(1 - LIKER_NFT_STRIPE_FEE_USD_SLOPE);
-}
-
-export function rewardModifierForCheckoutWithLIKE(priceInUSD: BigNumber) {
+export function rewardModifier(priceInUSD: BigNumber) {
   return priceInUSD
     // deduct flat fee for each NFT
     .minus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
@@ -665,7 +658,6 @@ export async function processNFTPurchase({
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
-  rewardModifier = (p: BigNumber) => p,
 }, req) {
   const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
     const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
@@ -691,10 +683,7 @@ export async function processNFTPurchase({
   });
 
   const LIKEPrices = priceInfoList.map((info) => {
-    let reward = new BigNumber(info.price);
-    if (rewardModifier && typeof rewardModifier === 'function') {
-      reward = rewardModifier(reward);
-    }
+    const reward = rewardModifier(new BigNumber(info.price));
     return Number(reward.dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP));
   });
   const totalLIKEPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
@@ -862,7 +851,6 @@ export async function processNFTPurchase({
         grantTxHash,
         granterMemo,
         retryTimes: retryTimes + 1,
-        rewardModifier,
       }, req);
     }
     throw err;

@@ -4,7 +4,6 @@ import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import {
   getLatestNFTPriceAndInfo,
   checkTxGrantAndAmount,
-  rewardModifierForCheckoutWithLIKE,
   processNFTPurchase,
 } from '../../util/api/likernft/purchase';
 import { fetchISCNPrefixAndClassId, fetchISCNPrefixes } from '../../middleware/likernft';
@@ -106,7 +105,6 @@ router.post(
         grantedAmount,
         grantTxHash: grantTxHash as string,
         granterMemo: memo,
-        rewardModifier: rewardModifierForCheckoutWithLIKE,
       }, req);
       res.json({
         txHash,
