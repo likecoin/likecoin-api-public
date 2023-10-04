@@ -7,15 +7,15 @@ import {
   getLIKEPrice,
   checkWalletGrantAmount,
   getLatestNFTPriceAndInfo,
+  rewardModifierForCheckoutWithLIKE,
   processNFTPurchase,
+  rewardModifierForCheckoutWithUSD,
 } from '../purchase';
 import { getLikerNFTFiatSigningClientAndWallet } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
-  LIKER_NFT_TX_FEE_DISCOUNT_IN_USD,
-  LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO,
 } from '../../../../../config/config';
 import { ValidationError } from '../../../ValidationError';
 
@@ -39,23 +39,25 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
 
 export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) {
   const rate = await getLIKEPrice();
-  const totalLIKEPriceNoDiscount = Number(purchaseInfoList
-    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0))
-    .dividedBy(rate)
-    .multipliedBy(1 + buffer)
-    .toFixed(0, BigNumber.ROUND_UP));
-  const totalLIKEPrice = Number(purchaseInfoList
-    .reduce((acc, { price }) => {
-      const discountedPrice = new BigNumber(price)
-        .minus(LIKER_NFT_TX_FEE_DISCOUNT_IN_USD)
-        .multipliedBy(1 - LIKER_NFT_LIKE_PRICE_DISCOUNT_RATIO);
-      return discountedPrice.isLessThanOrEqualTo(0)
-        ? acc
-        : acc.plus(discountedPrice);
-    }, new BigNumber(0))
-    .dividedBy(rate)
-    .multipliedBy(1 + buffer)
-    .toFixed(0, BigNumber.ROUND_UP));
+  const priceReducer = (acc: BigNumber, price: BigNumber) => (
+    price.isLessThan(0) ? acc : acc.plus(price)
+  );
+
+  const calculateTotalLIKEPrice = (
+    modifier: (price: BigNumber) => BigNumber,
+  ) => Number(
+    purchaseInfoList
+      .map(({ price }) => new BigNumber(price))
+      .map(modifier)
+      .reduce(priceReducer, new BigNumber(0))
+      .dividedBy(rate)
+      .multipliedBy(1 + buffer)
+      .toFixed(0, BigNumber.ROUND_UP),
+  );
+  const rewardModifierWithoutDiscount = (price: BigNumber) => price;
+
+  const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifierForCheckoutWithLIKE);
+  const totalLIKEPriceNoDiscount = calculateTotalLIKEPrice(rewardModifierWithoutDiscount);
   const totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
@@ -142,13 +144,8 @@ export async function processFiatNFTPurchase({
   try {
     const iscnPrefixes = purchaseInfoList.map(({ iscnPrefix }) => iscnPrefix);
     const classIds = purchaseInfoList.map(({ classId }) => classId);
-    // NOTE: Stripe fee per order is 5.4% + 30 cents
-    const priceModifier = (p: BigNumber) => {
-      const flatFeePerNFT = new BigNumber(0.3)
-        .dividedBy(purchaseInfoList.length).toFixed(2, BigNumber.ROUND_UP);
-      const variableFee = new BigNumber(0.054).multipliedBy(p).toFixed(2, BigNumber.ROUND_UP);
-      return p.minus(flatFeePerNFT).minus(variableFee);
-    };
+    const rewardModifier = (
+      (p: BigNumber) => rewardModifierForCheckoutWithUSD(p, purchaseInfoList.length));
     const { transactionHash, purchaseInfoList: _purchaseInfoList } = await processNFTPurchase({
       buyerWallet: likeWallet,
       iscnPrefixes,
@@ -157,7 +154,7 @@ export async function processFiatNFTPurchase({
       grantedAmount: LIKEPrice,
       grantTxHash: paymentId,
       granterMemo: memo,
-      priceModifier,
+      rewardModifier,
     }, req);
     res = {
       transactionHash,
