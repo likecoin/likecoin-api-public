@@ -140,7 +140,89 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
   });
 }
 
-export async function processNFTBookPurchase(
+export async function processNFTBookPurchase({
+  classId,
+  email,
+  priceIndex,
+  paymentId,
+  shippingDetails,
+  shippingCost,
+}) {
+  const hasShipping = !!shippingDetails;
+  const { listingData, txData } = await db.runTransaction(async (t) => {
+    const bookRef = likeNFTBookCollection.doc(classId);
+    const doc = await t.get(bookRef);
+    const docData = doc.data();
+    if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+    const {
+      prices,
+    } = docData;
+    const priceInfo = prices[priceIndex];
+    if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+    const {
+      stock,
+    } = priceInfo;
+    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+
+    const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
+    const paymentData = paymentDoc.data();
+    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+    if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+    priceInfo.stock -= 1;
+    priceInfo.sold += 1;
+    priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
+    t.update(bookRef, {
+      prices,
+      lastSaleTimestamp: FieldValue.serverTimestamp(),
+    });
+    const paymentPayload: any = {
+      isPaid: true,
+      isPendingClaim: true,
+      hasShipping,
+      status: 'paid',
+      email,
+    };
+    if (hasShipping) paymentPayload.shippingStatus = 'pending';
+    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+    if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+    t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
+    return {
+      listingData: docData,
+      txData: paymentData,
+    };
+  });
+  return { listingData, txData };
+}
+
+export async function sendNFTBookPurchaseEmail({
+  email,
+  notificationEmails,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+  amountTotal,
+}) {
+  if (email) {
+    await sendNFTBookPendingClaimEmail({
+      email,
+      classId,
+      className,
+      paymentId,
+      claimToken,
+    });
+  }
+  if (notificationEmails.length) {
+    await sendNFTBookSalesEmail({
+      buyerEmail: email,
+      emails: notificationEmails,
+      className,
+      amount: (amountTotal || 0) / 100,
+    });
+  }
+}
+
+export async function processNFTBookStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
 ) {
@@ -157,53 +239,18 @@ export async function processNFTBookPurchase(
     shipping_details: shippingDetails,
     shipping_cost: shippingCost,
   } = session;
-  const hasShipping = !!shippingDetails;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email } = customer;
   try {
-    const { listingData, txData } = await db.runTransaction(async (t) => {
-      const bookRef = likeNFTBookCollection.doc(classId);
-      const doc = await t.get(bookRef);
-      const docData = doc.data();
-      if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
-      const {
-        prices,
-      } = docData;
-      const priceInfo = prices[priceIndex];
-      if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      const {
-        stock,
-      } = priceInfo;
-      if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-
-      const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
-      const paymentData = paymentDoc.data();
-      if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-      if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
-      priceInfo.stock -= 1;
-      priceInfo.sold += 1;
-      priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
-      t.update(bookRef, {
-        prices,
-        lastSaleTimestamp: FieldValue.serverTimestamp(),
-      });
-      const paymentPayload: any = {
-        isPaid: true,
-        isPendingClaim: true,
-        hasShipping,
-        status: 'paid',
-        email,
-      };
-      if (hasShipping) paymentPayload.shippingStatus = 'pending';
-      if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-      if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
-      t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
-      return {
-        listingData: docData,
-        txData: paymentData,
-      };
+    const { txData, listingData } = await processNFTBookPurchase({
+      classId,
+      email,
+      paymentId,
+      priceIndex,
+      shippingDetails,
+      shippingCost,
     });
     const { notificationEmails = [] } = listingData;
     const {
@@ -228,23 +275,15 @@ export async function processNFTBookPurchase(
     });
 
     const className = classData?.name || classId;
-    if (email) {
-      await sendNFTBookPendingClaimEmail({
-        email,
-        classId,
-        className,
-        paymentId,
-        claimToken,
-      });
-    }
-    if (notificationEmails.length) {
-      await sendNFTBookSalesEmail({
-        buyerEmail: email,
-        emails: notificationEmails,
-        className,
-        amount: (amountTotal || 0) / 100,
-      });
-    }
+    await sendNFTBookPurchaseEmail({
+      email,
+      notificationEmails,
+      classId,
+      className,
+      paymentId,
+      claimToken,
+      amountTotal,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

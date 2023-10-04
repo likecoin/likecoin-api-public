@@ -4,7 +4,7 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '../../../util/api/likernft/book';
+import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo, processNFTBookPurchase, sendNFTBookPurchaseEmail } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
@@ -58,6 +58,18 @@ router.get('/:classId/new', async (req, res, next) => {
       description: pricDescriptionObj,
     } = prices[priceIndex];
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+    if (priceInDecimal === 0) {
+      const freePurchaseUrl = getLikerLandNFTClaimPageURL({
+        classId,
+        paymentId: '',
+        token: '',
+        type: 'nft_book',
+        free: true,
+        redirect: false,
+      });
+      res.redirect(freePurchaseUrl);
+      return;
+    }
     let { name = '', description = '' } = metadata;
     const classMetadata = metadata.data.metadata;
     const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
@@ -201,6 +213,85 @@ router.get('/:classId/new', async (req, res, next) => {
     next(err);
   }
 });
+
+router.post(
+  '/:classId/new/free',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const { from = '', price_index: priceIndexString = undefined } = req.query;
+      const { email } = req.body;
+      const priceIndex = Number(priceIndexString) || 0;
+
+      const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
+      const [metadata, bookInfo] = (await Promise.all(promises)) as any;
+      if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
+
+      const paymentId = uuidv4();
+      const claimToken = crypto.randomBytes(32).toString('hex');
+      const {
+        prices,
+        notificationEmails,
+      } = bookInfo;
+      if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+      const {
+        priceInDecimal,
+        stock,
+        name: priceNameObj,
+      } = prices[priceIndex];
+      const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
+      if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+      if (priceInDecimal > 0) throw new ValidationError('NOT_FREE_PRICE');
+      const bookRef = likeNFTBookCollection.doc(classId);
+      await bookRef.collection('transactions').doc(paymentId).create({
+        type: 'free',
+        email,
+        isPaid: false,
+        isPendingClaim: false,
+        claimToken,
+        classId,
+        priceInDecimal,
+        price: priceInDecimal / 100,
+        priceName,
+        priceIndex,
+        from,
+        status: 'new',
+        timestamp: FieldValue.serverTimestamp(),
+      });
+
+      await processNFTBookPurchase({
+        classId,
+        email,
+        paymentId,
+        priceIndex,
+        shippingDetails: null,
+        shippingCost: null,
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTFreePurchaseNew',
+        paymentId,
+        classId,
+        email,
+      });
+
+      const className = metadata?.name || classId;
+      await sendNFTBookPurchaseEmail({
+        email,
+        notificationEmails,
+        classId,
+        className,
+        paymentId,
+        claimToken,
+        amountTotal: 0,
+      });
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get(
   '/:classId/status/:paymentId',

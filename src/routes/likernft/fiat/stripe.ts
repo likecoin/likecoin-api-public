@@ -28,7 +28,7 @@ import {
   STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
-import { processNFTBookPurchase } from '../../../util/api/likernft/book';
+import { processNFTBookStripePurchase } from '../../../util/api/likernft/book';
 import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
 
 const router = Router();
@@ -60,7 +60,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
           metadata: { store } = {} as any,
         } = session;
         if (store === 'book') {
-          await processNFTBookPurchase(session, req);
+          await processNFTBookStripePurchase(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }
