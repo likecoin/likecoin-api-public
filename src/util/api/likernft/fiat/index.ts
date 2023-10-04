@@ -54,15 +54,15 @@ export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) 
       .multipliedBy(1 + buffer)
       .toFixed(0, BigNumber.ROUND_UP),
   );
-  const rewardModifierWithoutDiscount = (price: BigNumber) => price;
+  const rewardModifierPrediscount = (price: BigNumber) => price;
 
   const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifierForCheckoutWithLIKE);
-  const totalLIKEPriceNoDiscount = calculateTotalLIKEPrice(rewardModifierWithoutDiscount);
+  const totalLIKEPricePrediscount = calculateTotalLIKEPrice(rewardModifierPrediscount);
   const totalFiatBigNum = purchaseInfoList
     .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
-    totalLIKEPriceNoDiscount,
+    totalLIKEPricePrediscount,
     totalLIKEPrice,
     totalFiatPriceString,
   };
