@@ -10,7 +10,11 @@ import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernf
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
-  LIST_OF_BOOK_SHIPPING_COUNTRY, NFT_BOOK_SALE_DESCRIPTION, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO,
+  LIST_OF_BOOK_SHIPPING_COUNTRY,
+  NFT_BOOK_SALE_DESCRIPTION,
+  PUBSUB_TOPIC_MISC,
+  USD_TO_HKD_RATIO,
+  W3C_EMAIL_REGEX,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
@@ -221,14 +225,15 @@ router.post(
       const { classId } = req.params;
       const { from = '', price_index: priceIndexString = undefined } = req.query;
       const { email } = req.body;
+
+      const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
+      if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
+
       const priceIndex = Number(priceIndexString) || 0;
 
       const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
       const [metadata, bookInfo] = (await Promise.all(promises)) as any;
       if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
-
-      const paymentId = uuidv4();
-      const claimToken = crypto.randomBytes(32).toString('hex');
       const {
         prices,
         notificationEmails,
@@ -242,7 +247,18 @@ router.post(
       const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
       if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
       if (priceInDecimal > 0) throw new ValidationError('NOT_FREE_PRICE');
+
       const bookRef = likeNFTBookCollection.doc(classId);
+      const query = await bookRef.collection('transactions')
+        .where('email', '==', email)
+        .where('type', '==', 'free')
+        .limit(1)
+        .get();
+      if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
+
+      const paymentId = uuidv4();
+      const claimToken = crypto.randomBytes(32).toString('hex');
+
       await bookRef.collection('transactions').doc(paymentId).create({
         type: 'free',
         email,
