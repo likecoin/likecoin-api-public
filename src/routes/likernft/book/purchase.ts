@@ -70,6 +70,7 @@ router.get('/:classId/new', async (req, res, next) => {
         type: 'nft_book',
         free: true,
         redirect: false,
+        priceIndex,
       });
       res.redirect(freePurchaseUrl);
       return;
