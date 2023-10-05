@@ -29,6 +29,8 @@ import {
   LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
   LIKER_NFT_MIN_USD_PRICE,
   LIKER_NFT_FIAT_MIN_RATIO,
+  LIKER_NFT_STRIPE_FEE_USD_INTERCEPT,
+  LIKER_NFT_STRIPE_FEE_USD_SLOPE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
@@ -639,6 +641,14 @@ async function updateDocsForMissingSoldNFT(t, {
   });
 }
 
+// NOTE: Stripe fee per order is 5.4% + 30 cents
+export function rewardModifier(priceInUSD: BigNumber) {
+  return priceInUSD
+    // deduct flat fee for each NFT
+    .minus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
+    .multipliedBy(1 - LIKER_NFT_STRIPE_FEE_USD_SLOPE);
+}
+
 export async function processNFTPurchase({
   buyerWallet,
   iscnPrefixes,
@@ -648,7 +658,6 @@ export async function processNFTPurchase({
   grantTxHash = '',
   granterMemo = '',
   retryTimes = 0,
-  priceModifier = (p: BigNumber) => p,
 }, req) {
   const iscnDataList = await Promise.all(iscnPrefixes.map(async (iscnPrefix) => {
     const iscnData = await getNFTISCNData(iscnPrefix); // always fetch from prefix
@@ -674,11 +683,8 @@ export async function processNFTPurchase({
   });
 
   const LIKEPrices = priceInfoList.map((info) => {
-    let bigNum = new BigNumber(info.price);
-    if (priceModifier && typeof priceModifier === 'function') {
-      bigNum = priceModifier(bigNum);
-    }
-    return Number(bigNum.dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP));
+    const reward = rewardModifier(new BigNumber(info.price));
+    return Number(reward.dividedBy(LIKEPriceInUSD).toFixed(0, BigNumber.ROUND_UP));
   });
   const totalLIKEPrice = LIKEPrices.reduce((acc, p) => acc + p, 0);
 
@@ -845,7 +851,6 @@ export async function processNFTPurchase({
         grantTxHash,
         granterMemo,
         retryTimes: retryTimes + 1,
-        priceModifier,
       }, req);
     }
     throw err;
