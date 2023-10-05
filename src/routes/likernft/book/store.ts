@@ -107,6 +107,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       moderatorWallets = [],
       notificationEmails,
       connectedWallets,
+      mustClaimToView = false,
     } = bookInfo;
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -118,6 +119,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       isSoldOut: stock <= 0,
       stock,
       ownerWallet,
+      mustClaimToView,
     };
     if (isAuthorized) {
       payload.sold = sold;
