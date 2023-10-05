@@ -13,7 +13,10 @@ router.get(
         .orderBy('timestamp', 'desc')
         .limit(20)
         .get();
-      list = query.docs.map((d) => d.data().classId);
+      list = query.docs
+        .map((d) => d.data())
+        .filter((d) => !d.collectExpiryAt || d.collectExpiryAt > Date.now())
+        .map((d) => d.classId);
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list,
