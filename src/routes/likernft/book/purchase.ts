@@ -5,7 +5,11 @@ import Stripe from 'stripe';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
-  NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo, processNFTBookPurchase, sendNFTBookPurchaseEmail,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  createNewNFTBookPayment,
+  getNftBookInfo,
+  processNFTBookPurchase,
+  sendNFTBookPurchaseEmail,
 } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
@@ -190,22 +194,19 @@ router.get('/:classId/new', async (req, res, next) => {
     const session = await stripe.checkout.sessions.create(checkoutPayload);
     const { url, id: sessionId } = session;
     if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
-    await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
+
+    await createNewNFTBookPayment(classId, paymentId, {
       type: 'stripe',
-      isPaid: false,
-      isPendingClaim: false,
       claimToken,
       sessionId,
-      classId,
       priceInDecimal,
-      price: priceInDecimal / 100,
       priceName,
       priceIndex,
-      from,
-      status: 'new',
-      timestamp: FieldValue.serverTimestamp(),
+      from: from as string,
     });
+
     res.redirect(url);
+
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseNew',
       type: 'stripe',
@@ -262,20 +263,14 @@ router.post(
       const paymentId = uuidv4();
       const claimToken = crypto.randomBytes(32).toString('hex');
 
-      await bookRef.collection('transactions').doc(paymentId).create({
+      await createNewNFTBookPayment(classId, paymentId, {
         type: 'free',
         email,
-        isPaid: false,
-        isPendingClaim: false,
         claimToken,
-        classId,
         priceInDecimal,
-        price: priceInDecimal / 100,
         priceName,
         priceIndex,
-        from,
-        status: 'new',
-        timestamp: FieldValue.serverTimestamp(),
+        from: from as string,
       });
 
       await processNFTBookPurchase({
