@@ -356,9 +356,11 @@ export function validatePrice(price: any) {
     name = {},
     description = {},
   } = price;
-  if (!(priceInDecimal >= 0
-    && (typeof priceInDecimal === 'number')
-    && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL))) {
+  if (!(
+    priceInDecimal >= 0
+    && typeof priceInDecimal === 'number'
+    && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL)
+  )) {
     throw new ValidationError('INVALID_PRICE');
   }
   if (!(typeof stock === 'number' && stock >= 0)) {

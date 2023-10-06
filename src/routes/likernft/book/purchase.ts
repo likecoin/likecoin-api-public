@@ -4,7 +4,9 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo, processNFTBookPurchase, sendNFTBookPurchaseEmail } from '../../../util/api/likernft/book';
+import {
+  NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo, processNFTBookPurchase, sendNFTBookPurchaseEmail,
+} from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
 import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';

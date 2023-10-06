@@ -35,7 +35,6 @@ import {
   NEW_USER_BONUS_COOLDOWN,
 } from '../../../../config/config';
 
-
 function getBool(value = false) {
   if (typeof value === 'string') {
     return value !== 'false';
