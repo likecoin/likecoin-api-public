@@ -643,10 +643,11 @@ async function updateDocsForMissingSoldNFT(t, {
 
 // NOTE: Stripe fee per order is 5.4% + 30 cents
 export function rewardModifier(priceInUSD: BigNumber) {
-  return priceInUSD
+  const modified = priceInUSD
     // deduct flat fee for each NFT
     .minus(LIKER_NFT_STRIPE_FEE_USD_INTERCEPT)
     .multipliedBy(1 - LIKER_NFT_STRIPE_FEE_USD_SLOPE);
+  return modified.isLessThan(0) ? new BigNumber(0) : modified;
 }
 
 export async function processNFTPurchase({
