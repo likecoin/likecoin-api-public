@@ -117,6 +117,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
       throw new Error('limit should be integer.');
     },
     get: () => global.Promise.resolve({
+      size: docs.length,
       docs,
       forEach: (f) => docs.forEach(f),
     }),
@@ -184,6 +185,7 @@ function createCollection(data) {
     get: () => {
       const docs = querySnapshotDocs(data, data);
       return global.Promise.resolve({
+        size: docs.length,
         docs,
         forEach: (f) => docs.forEach(f),
       });
