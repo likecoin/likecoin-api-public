@@ -10,6 +10,7 @@ function setStub() {
   execSync('cp ./src/util/ses.ts ./src/util/ses.ts.bak || true');
   execSync('cp ./src/util/sendgrid.ts ./src/util/sendgrid.ts.bak || true');
   execSync('cp ./src/util/cosmos/api.ts ./src/util/cosmos/api.ts.bak || true');
+  execSync('cp ./src/util/api/likernft/likePrice.ts ./src/util/api/likernft/likePrice.ts.bak || true');
   execSync('rsync -a ./test/stub/util/ ./src/util/');
   execSync('cp ./config/accounts.js ./config/accounts.js.bak || true');
   execSync('cp ./config/config.js ./config/config.js.bak || true');
@@ -24,6 +25,7 @@ function unsetStub() {
   execSync('mv ./src/util/ses.ts.bak ./src/util/ses.ts');
   execSync('mv ./src/util/sendgrid.ts.bak ./src/util/sendgrid.ts');
   execSync('mv ./src/util/cosmos/api.ts.bak ./src/util/cosmos/api.ts');
+  execSync('mv ./src/util/api/likernft/likePrice.ts.bak ./src/util/api/likernft/likePrice.ts');
   execSync('mv ./config/accounts.js.bak ./config/accounts.js');
   execSync('mv ./config/config.js.bak ./config/config.js');
   execSync('mv ./config/secret.js.bak ./config/secret.js');
