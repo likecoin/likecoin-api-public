@@ -3,8 +3,8 @@ import { DeliverTxResponse } from '@cosmjs/stargate';
 
 import { db, likeNFTFiatCollection } from '../../../firebase';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { getLIKEPrice } from '../likePrice';
 import {
-  getLIKEPrice,
   checkWalletGrantAmount,
   getLatestNFTPriceAndInfo,
   rewardModifier,

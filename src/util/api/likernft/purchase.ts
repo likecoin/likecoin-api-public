@@ -1,6 +1,5 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import LRU from 'lru-cache';
 import { parseTxInfoFromIndexedTx, parseAuthzGrant } from '@likecoin/iscn-js/dist/messages/parsing';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
@@ -28,45 +27,23 @@ import {
   LIKER_NFT_DECAY_END_BATCH,
   LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO,
   LIKER_NFT_MIN_USD_PRICE,
-  LIKER_NFT_FIAT_MIN_RATIO,
   LIKER_NFT_STRIPE_FEE_USD_INTERCEPT,
   LIKER_NFT_STRIPE_FEE_USD_SLOPE,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
-import { COINGECKO_PRICE_URL, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
+import { PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
 import {
   checkFreeMintTransaction,
   completeFreeMintTransaction,
   resetFreeMintTransaction,
   startFreeMintTransaction,
 } from './free';
+import { getLIKEPrice } from './likePrice';
 
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
-
-const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
-const CURRENCY = 'usd';
-
-export async function getLIKEPrice() {
-  const hasCache = priceCache.has(CURRENCY);
-  const cachedPrice = priceCache.get(CURRENCY, { allowStale: true });
-  let price;
-  if (hasCache) {
-    price = cachedPrice;
-  } else {
-    try {
-      const { data } = await axios.get(COINGECKO_PRICE_URL);
-      const p = data.market_data.current_price[CURRENCY];
-      priceCache.set(CURRENCY, p);
-      price = p;
-    } catch (error) {
-      price = cachedPrice || LIKER_NFT_FIAT_MIN_RATIO;
-    }
-  }
-  return Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
-}
 
 export function calculateStripeFee(inputAmount, currency = 'USD') {
   // 2.9% + 30 cents, 1.5% for international cards
