@@ -140,6 +140,34 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
   });
 }
 
+export async function createNewNFTBookPayment(classId, paymentId, {
+  type,
+  email = '',
+  claimToken,
+  sessionId = '',
+  priceInDecimal,
+  priceName,
+  priceIndex,
+  from = '',
+}) {
+  await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
+    type,
+    email,
+    isPaid: false,
+    isPendingClaim: false,
+    claimToken,
+    sessionId,
+    classId,
+    priceInDecimal,
+    price: priceInDecimal / 100,
+    priceName,
+    priceIndex,
+    from,
+    status: 'new',
+    timestamp: FieldValue.serverTimestamp(),
+  });
+}
+
 export async function processNFTBookPurchase({
   classId,
   email,
@@ -356,9 +384,11 @@ export function validatePrice(price: any) {
     name = {},
     description = {},
   } = price;
-  if (!(priceInDecimal >= 0
-    && (typeof priceInDecimal === 'number')
-    && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL))) {
+  if (!(
+    typeof priceInDecimal === 'number'
+    && priceInDecimal >= 0
+    && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL)
+  )) {
     throw new ValidationError('INVALID_PRICE');
   }
   if (!(typeof stock === 'number' && stock >= 0)) {
