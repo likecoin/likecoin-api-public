@@ -121,6 +121,14 @@ export async function getNftBookInfo(classId) {
   return doc.data();
 }
 
+export async function listLatestNFTBookInfo(count = 100) {
+  const query = await likeNFTBookCollection.orderBy('timestamp', 'desc').limit(count).get();
+  return query.docs.map((doc) => {
+    const docData = doc.data();
+    return { id: doc.id, ...docData };
+  });
+}
+
 export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
   const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
   return query.docs.map((doc) => {
