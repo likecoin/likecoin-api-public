@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   formatPriceInfo,
   getNftBookInfo,
+  listLatestNFTBookInfo,
   listNftBookInfoByModeratorWallet,
   listNftBookInfoByOwnerWallet,
   newNftBookInfo,
@@ -22,8 +23,9 @@ const router = Router();
 router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { wallet } = req.query;
-    if (!wallet) throw new ValidationError('INVALID_WALLET');
-    const ownedBookInfos = await listNftBookInfoByOwnerWallet(wallet as string);
+    const ownedBookInfos = wallet
+      ? await listNftBookInfoByOwnerWallet(wallet as string)
+      : await listLatestNFTBookInfo();
     const list = ownedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
