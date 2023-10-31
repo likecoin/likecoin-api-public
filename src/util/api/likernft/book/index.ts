@@ -238,6 +238,7 @@ export async function sendNFTBookPurchaseEmail({
   paymentId,
   claimToken,
   amountTotal,
+  mustClaimToView = false,
 }) {
   if (email) {
     await sendNFTBookPendingClaimEmail({
@@ -246,6 +247,7 @@ export async function sendNFTBookPurchaseEmail({
       className,
       paymentId,
       claimToken,
+      mustClaimToView,
     });
   }
   if (notificationEmails.length) {
@@ -288,7 +290,7 @@ export async function processNFTBookStripePurchase(
       shippingDetails,
       shippingCost,
     });
-    const { notificationEmails = [] } = listingData;
+    const { notificationEmails = [], mustClaimToView = false } = listingData;
     const {
       claimToken, price, priceName, type, from,
     } = txData;
@@ -319,6 +321,7 @@ export async function processNFTBookStripePurchase(
       paymentId,
       claimToken,
       amountTotal,
+      mustClaimToView,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

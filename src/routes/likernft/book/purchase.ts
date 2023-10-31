@@ -241,6 +241,7 @@ router.post(
       const {
         prices,
         notificationEmails,
+        mustClaimToView = false,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const {
@@ -298,6 +299,7 @@ router.post(
         paymentId,
         claimToken,
         amountTotal: 0,
+        mustClaimToView,
       });
 
       res.sendStatus(200);
