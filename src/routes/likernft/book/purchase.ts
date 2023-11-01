@@ -6,9 +6,11 @@ import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  claimNFTBook,
   createNewNFTBookPayment,
   getNftBookInfo,
   processNFTBookPurchase,
+  sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
 } from '../../../util/api/likernft/book';
 import stripe from '../../../util/stripe';
@@ -24,7 +26,7 @@ import {
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookClaimedEmail, sendNFTBookShippedEmail } from '../../../util/ses';
+import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 import { calculateStripeFee } from '../../../util/api/likernft/purchase';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
@@ -77,6 +79,7 @@ router.get('/:classId/new', async (req, res, next) => {
         free: true,
         redirect: false,
         priceIndex,
+        from: from as string,
       });
       res.redirect(freePurchaseUrl);
       return;
@@ -228,10 +231,17 @@ router.post(
     try {
       const { classId } = req.params;
       const { from = '', price_index: priceIndexString = undefined } = req.query;
-      const { email } = req.body;
+      const {
+        email = '',
+        wallet,
+        message,
+      } = req.body;
 
-      const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
-      if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
+      if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
+      if (email) {
+        const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
+        if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
+      }
 
       const priceIndex = Number(priceIndexString) || 0;
 
@@ -254,12 +264,22 @@ router.post(
       if (priceInDecimal > 0) throw new ValidationError('NOT_FREE_PRICE');
 
       const bookRef = likeNFTBookCollection.doc(classId);
-      const query = await bookRef.collection('transactions')
-        .where('email', '==', email)
-        .where('type', '==', 'free')
-        .limit(1)
-        .get();
-      if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
+      if (email) {
+        const query = await bookRef.collection('transactions')
+          .where('email', '==', email)
+          .where('type', '==', 'free')
+          .limit(1)
+          .get();
+        if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
+      }
+      if (wallet) {
+        const query = await bookRef.collection('transactions')
+          .where('wallet', '==', wallet)
+          .where('type', '==', 'free')
+          .limit(1)
+          .get();
+        if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
+      }
 
       const paymentId = uuidv4();
       const claimToken = crypto.randomBytes(32).toString('hex');
@@ -302,7 +322,38 @@ router.post(
         mustClaimToView,
       });
 
-      res.sendStatus(200);
+      if (wallet) {
+        await claimNFTBook(
+          classId,
+          paymentId,
+          {
+            message,
+            wallet,
+            token: claimToken as string,
+          },
+        );
+
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'BookNFTClaimed',
+          paymentId,
+          classId,
+          wallet,
+          email,
+          message,
+        });
+
+        await sendNFTBookClaimedEmailNotification(
+          classId,
+          paymentId,
+          {
+            message,
+            wallet,
+            email,
+          },
+        );
+      }
+
+      res.json({ claimed: !!wallet });
     } catch (err) {
       next(err);
     }
@@ -334,35 +385,16 @@ router.post(
       const { classId, paymentId } = req.params;
       const { token } = req.query;
       const { wallet, message } = req.body;
-      const bookRef = likeNFTBookCollection.doc(classId);
-      const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
-      const { email } = await db.runTransaction(async (t) => {
-        const doc = await t.get(docRef);
-        const docData = doc.data();
-        if (!docData) {
-          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        }
-        const {
-          claimToken,
-          status,
-        } = docData;
-        if (token !== claimToken) {
-          throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
-        }
-        if (status !== 'paid') {
-          throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
-        }
-        t.update(docRef, {
-          status: 'pendingNFT',
+      const email = await claimNFTBook(
+        classId,
+        paymentId,
+        {
+          message,
           wallet,
-          message: message || '',
-        });
-        t.update(bookRef, {
-          pendingNFTCount: FieldValue.increment(1),
-        });
-        return docData;
-      });
+          token: token as string,
+        },
+      );
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTClaimed',
@@ -372,24 +404,15 @@ router.post(
         email,
         message,
       });
-
-      const doc = await bookRef.get();
-      const docData = doc.data();
-      if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { notificationEmails = [] } = docData;
-      if (notificationEmails.length) {
-        const classData = await getNFTClassDataById(classId).catch(() => null);
-        const className = classData?.name || classId;
-        await sendNFTBookClaimedEmail({
-          emails: notificationEmails,
-          classId,
-          className,
-          paymentId,
-          wallet,
-          buyerEmail: email,
+      await sendNFTBookClaimedEmailNotification(
+        classId,
+        paymentId,
+        {
           message,
-        });
-      }
+          wallet,
+          email,
+        },
+      );
 
       res.sendStatus(200);
     } catch (err) {

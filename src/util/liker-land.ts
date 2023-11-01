@@ -13,6 +13,7 @@ export const getLikerLandNFTClaimPageURL = ({
   language,
   redirect = false,
   priceIndex,
+  from,
 }: {
   classId: string;
   paymentId: string;
@@ -22,6 +23,7 @@ export const getLikerLandNFTClaimPageURL = ({
   language?: string;
   redirect?: boolean;
   priceIndex?: number;
+  from?: string;
 }) => {
   const qsPayload: any = {
     class_id: classId,
@@ -39,6 +41,9 @@ export const getLikerLandNFTClaimPageURL = ({
   }
   if (priceIndex !== undefined) {
     qsPayload.price_index = priceIndex;
+  }
+  if (from) {
+    qsPayload.from = from;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/claim?${qs}`, { language });

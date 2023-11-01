@@ -3,7 +3,7 @@ import { firestore } from 'firebase-admin';
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
-import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import { sendNFTBookClaimedEmail, sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
@@ -345,6 +345,67 @@ export async function processNFTBookStripePurchase(
       });
     await stripe.paymentIntents.cancel(paymentIntent as string)
       .catch((error) => console.error(error)); // eslint-disable-line no-console
+  }
+}
+
+export async function claimNFTBook(
+  classId: string,
+  paymentId: string,
+  { message, wallet, token }: { message: string, wallet: string, token: string },
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+  const { email } = await db.runTransaction(async (t) => {
+    const doc = await t.get(docRef);
+    const docData = doc.data();
+    if (!docData) {
+      throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    }
+    const {
+      claimToken,
+      status,
+    } = docData;
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+    if (status !== 'paid') {
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
+    }
+    t.update(docRef, {
+      status: 'pendingNFT',
+      wallet,
+      message: message || '',
+    });
+    t.update(bookRef, {
+      pendingNFTCount: FieldValue.increment(1),
+    });
+    return docData;
+  });
+  return email;
+}
+
+export async function sendNFTBookClaimedEmailNotification(
+  classId: string,
+  paymentId: string,
+  { message, wallet, email }: { message: string, wallet: string, email: string },
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const doc = await bookRef.get();
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  const { notificationEmails = [] } = docData;
+  if (notificationEmails.length) {
+    const classData = await getNFTClassDataById(classId).catch(() => null);
+    const className = classData?.name || classId;
+    await sendNFTBookClaimedEmail({
+      emails: notificationEmails,
+      classId,
+      className,
+      paymentId,
+      wallet,
+      buyerEmail: email,
+      message,
+    });
   }
 }
 
