@@ -37,7 +37,7 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
 }
 
 export async function calculatePayment(
-  purchaseInfoList: { price: number }[],
+  prices: number[],
   { buffer = 0.1 } = {},
 ) {
   const rate = await getLIKEPrice();
@@ -48,8 +48,8 @@ export async function calculatePayment(
   const calculateTotalLIKEPrice = (
     modifier: (price: BigNumber) => BigNumber,
   ) => Number(
-    purchaseInfoList
-      .map(({ price }) => new BigNumber(price))
+    prices
+      .map((price) => new BigNumber(price))
       .map(modifier)
       .reduce(priceReducer, new BigNumber(0))
       .dividedBy(rate)
@@ -60,8 +60,8 @@ export async function calculatePayment(
 
   const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifier);
   const totalLIKEPricePrediscount = calculateTotalLIKEPrice(unchanged);
-  const totalFiatBigNum = purchaseInfoList
-    .reduce((acc, { price }) => acc.plus(price), new BigNumber(0));
+  const totalFiatBigNum = prices
+    .reduce((acc, price) => acc.plus(price), new BigNumber(0));
   const totalFiatPriceString = totalFiatBigNum.toFixed(2);
   return {
     totalLIKEPricePrediscount,

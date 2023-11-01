@@ -19,15 +19,13 @@ router.get(
       }
 
       const { priceInDecimal } = prices[priceIndex];
-      const purchaseInfoList = [{
-        price: priceInDecimal / 100,
-      }];
+      const price = priceInDecimal / 100;
 
       const {
         totalLIKEPricePrediscount,
         totalLIKEPrice,
         totalFiatPriceString,
-      } = await calculatePayment(purchaseInfoList);
+      } = await calculatePayment([price]);
       const payload = {
         LIKEPricePrediscount: totalLIKEPricePrediscount,
         LIKEPrice: totalLIKEPrice,
