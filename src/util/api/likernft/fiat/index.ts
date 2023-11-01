@@ -36,7 +36,10 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
   return purchaseInfoList;
 }
 
-export async function calculatePayment(purchaseInfoList, { buffer = 0.1 } = {}) {
+export async function calculatePayment(
+  purchaseInfoList: { price: number }[],
+  { buffer = 0.1 } = {},
+) {
   const rate = await getLIKEPrice();
   const priceReducer = (acc: BigNumber, price: BigNumber) => (
     price.isLessThan(0) ? acc : acc.plus(price)
