@@ -9,6 +9,7 @@ import {
   claimNFTBook,
   createNewNFTBookPayment,
   getNftBookInfo,
+  execAuthz,
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
@@ -29,7 +30,8 @@ import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
-import { calculateStripeFee } from '../../../util/api/likernft/purchase';
+import { calculateStripeFee, checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
+import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
 
@@ -373,6 +375,79 @@ router.post(
       }
 
       res.json({ claimed: !!wallet });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:classId/new/like',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const { price_index: priceIndexString, tx_hash: grantTxHash } = req.query;
+      const priceIndex = Number(priceIndexString);
+      if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
+
+      const bookInfo = await getNftBookInfo(classId);
+
+      const { ownerWallet, prices } = bookInfo;
+      if (prices.length <= priceIndex) {
+        throw new ValidationError('PRICE_NOT_FOUND', 404);
+      }
+      const {
+        priceInDecimal,
+        name: { en: priceName },
+      } = prices[priceIndex];
+      const price = priceInDecimal / 100;
+
+      const { totalLIKEPrice: LIKEPrice } = await calculatePayment([price]);
+
+      const checkResult = await checkTxGrantAndAmount(grantTxHash, LIKEPrice);
+      if (!checkResult) throw new ValidationError('SEND_GRANT_NOT_FOUND');
+      const {
+        granter: granterWallet,
+        memo: message,
+      } = checkResult;
+
+      const execTxHash = await execAuthz(granterWallet, ownerWallet, LIKEPrice);
+      const paymentId = execTxHash;
+      await createNewNFTBookPayment(classId, paymentId, {
+        type: 'LIKE',
+        claimToken: '',
+        priceInDecimal,
+        priceName,
+        priceIndex,
+      });
+      await processNFTBookPurchase({
+        classId,
+        email: '',
+        paymentId,
+        priceIndex,
+        shippingDetails: null,
+        shippingCost: null,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTLIKEPurchaseNew',
+        paymentId,
+        classId,
+        wallet: granterWallet,
+      });
+
+      await claimNFTBook(classId, paymentId, {
+        message,
+        wallet: granterWallet,
+        token: '',
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimed',
+        paymentId,
+        classId,
+        wallet: granterWallet,
+        message,
+      });
+      res.json({ claimed: true });
     } catch (err) {
       next(err);
     }

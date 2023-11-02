@@ -1,5 +1,8 @@
+import BigNumber from 'bignumber.js';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
+import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
+
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
@@ -7,7 +10,12 @@ import { sendNFTBookClaimedEmail, sendNFTBookPendingClaimEmail, sendNFTBookSales
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import {
+  NFT_COSMOS_DENOM,
+  LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+} from '../../../../../config/config';
+import { handleNFTPurchaseTransaction } from '../purchase';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -157,6 +165,25 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
     const docData = doc.data();
     return { id: doc.id, ...docData };
   });
+}
+
+export async function execAuthz(
+  granterWallet: string,
+  toWallet: string,
+  LIKEAmount: number,
+) {
+  const amount = new BigNumber(LIKEAmount).shiftedBy(9).toFixed();
+  const txMessages = [
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      toWallet,
+      [{ denom: NFT_COSMOS_DENOM, amount }],
+    ),
+  ];
+  const memo = '';
+  const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
+  return txHash;
 }
 
 export async function createNewNFTBookPayment(classId, paymentId, {
@@ -375,11 +402,12 @@ export async function claimNFTBook(
     const {
       claimToken,
       status,
+      type,
     } = docData;
     if (token !== claimToken) {
       throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
-    if (status !== 'paid') {
+    if (status !== 'paid' && type !== 'LIKE') {
       throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
     }
     t.update(docRef, {

@@ -363,7 +363,7 @@ async function calculateLIKEAndPopulateTxMsg({
   };
 }
 
-async function handleNFTPurchaseTransaction(txMessages, memo) {
+export async function handleNFTPurchaseTransaction(txMessages, memo) {
   let res;
   const signingClient = await getLikerNFTSigningClient();
   const client = signingClient.getSigningStargateClient();
