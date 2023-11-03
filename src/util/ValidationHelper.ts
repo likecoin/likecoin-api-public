@@ -6,6 +6,7 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
+import { Timestamp } from './firebase';
 
 export function checkAddressValid(addr) {
   return addr.length === 42 && addr.substr(0, 2) === '0x';
@@ -439,6 +440,7 @@ export function filterBookPurchaseData({
   txHash,
   message,
   from,
+  timestamp,
 }) {
   return {
     id,
@@ -460,6 +462,7 @@ export function filterBookPurchaseData({
     txHash,
     message,
     from,
+    timestamp: timestamp.toMillis(),
   };
 }
 
