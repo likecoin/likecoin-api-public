@@ -189,10 +189,11 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
   }
 });
 
-router.post('/:classId/price', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
-    const { classId } = req.params;
-    const { price, priceIndex } = req.body;
+    const { classId, priceIndex: priceIndexString } = req.params;
+    const priceIndex = Number(priceIndexString);
+    const { price } = req.body;
     validatePrices(price);
 
     const bookInfo = await getNftBookInfo(classId);
