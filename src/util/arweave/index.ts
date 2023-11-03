@@ -31,7 +31,7 @@ const arweaveGraphQL = Arweave.init({
 });
 
 const bundlr = new Bundlr(
-  IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
+  IS_TESTNET ? 'https://node2.irys.xyz' : 'https://node1.irys.xyz',
   'arweave',
   jwk,
 );
@@ -267,6 +267,8 @@ export async function convertARPricesToLIKE(
 export async function submitToArweave(data, ipfsHash) {
   const { mimetype, buffer } = data;
   const tags = [
+    { name: 'App-Name', value: 'app.like.co' },
+    { name: 'App-Version', value: '1.0' },
     { name: 'User-Agent', value: 'app.like.co' },
     { name: IPFS_KEY, value: ipfsHash },
     { name: IPFS_CONSTRAINT_KEY, value: IPFS_CONSTRAINT },
