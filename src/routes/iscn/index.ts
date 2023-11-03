@@ -15,14 +15,13 @@ import {
 } from '../../util/cosmos/tx';
 import { getUserWithCivicLikerProperties } from '../../util/api/users/getPublicInfo';
 import {
+  ARWEAVE_MAX_SIZE_V1,
   checkFileValid, convertMulterFiles, estimateUploadToArweave, processSigningUploadToArweave,
 } from '../../util/api/arweave';
 import { estimateCreateISCN, processCreateAndTransferISCN } from '../../util/api/iscn';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { IS_CHAIN_UPGRADING } = require('../../../config/config');
-
-const maxSize = 100 * 1024 * 1024; // 100 MB
 
 const router = Router();
 
@@ -166,7 +165,7 @@ router.post(
   '/upload',
   jwtAuth('write:like'),
   bodyParser.urlencoded({ extended: false }),
-  multer({ limits: { fileSize: maxSize } }).any(),
+  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE_V1 } }).any(),
   checkFileValid,
   async (req, res, next) => {
     try {
