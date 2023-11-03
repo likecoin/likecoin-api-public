@@ -189,6 +189,36 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
   }
 });
 
+router.post('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId, priceIndex: priceIndexString } = req.params;
+    const priceIndex = Number(priceIndexString);
+    const { price } = req.body;
+    validatePrices(price);
+
+    const bookInfo = await getNftBookInfo(classId);
+    if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
+
+    const { prices = [] } = bookInfo;
+    if (priceIndex !== prices.length) {
+      throw new ValidationError('INVALID_PRICE_INDEX', 400);
+    }
+    const newPrice = {
+      order: prices.length,
+      sold: 0,
+      ...formatPriceInfo(price),
+    };
+    prices.push(newPrice);
+
+    await updateNftBookInfo(classId, { prices });
+    res.json({
+      index: prices.length - 1,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.put('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
