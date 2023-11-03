@@ -23,7 +23,8 @@ import { getIPFSHash, uploadFileToIPFS, uploadFilesToIPFS } from '../../ipfs';
 
 import { ARWEAVE_LIKE_TARGET_ADDRESS } from '../../../../config/config';
 
-export const ARWEAVE_MAX_SIZE = 100 * 1024 * 1024; // 100 MB
+export const ARWEAVE_MAX_SIZE_V1 = 100 * 1024 * 1024; // 100 MB
+export const ARWEAVE_MAX_SIZE_V2 = 200 * 1024 * 1024; // 200 MB
 
 export function checkFileValid(req, res, next) {
   if (!(req.files && req.files.length)) {
@@ -54,7 +55,7 @@ export async function estimateUploadToArweaveV2(
   ipfsHash: string,
   { margin = 0.05 } = {},
 ) {
-  if (fileSize > ARWEAVE_MAX_SIZE) {
+  if (fileSize > ARWEAVE_MAX_SIZE_V2) {
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
   const { MATIC, wei, arweaveId } = await estimateARV2MaticPrice(fileSize, ipfsHash);
@@ -224,7 +225,7 @@ async function checkTxV2({
   if (memoFileSize < fileSize) {
     throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
   }
-  if (fileSize > ARWEAVE_MAX_SIZE) {
+  if (fileSize > ARWEAVE_MAX_SIZE_V2) {
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
 }

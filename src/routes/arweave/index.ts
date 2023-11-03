@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import {
-  ARWEAVE_MAX_SIZE,
+  ARWEAVE_MAX_SIZE_V1,
   checkFileValid,
   convertMulterFiles,
   estimateUploadToArweave,
@@ -126,7 +126,7 @@ router.post(
 
 router.post(
   '/estimate',
-  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
+  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE_V1 } }).any(),
   checkFileValid,
   async (req, res, next) => {
     try {
@@ -170,7 +170,7 @@ router.post(
 
 router.post(
   '/upload',
-  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE } }).any(),
+  multer({ limits: { fileSize: ARWEAVE_MAX_SIZE_V1 } }).any(),
   checkFileValid,
   async (req, res, next) => {
     try {
