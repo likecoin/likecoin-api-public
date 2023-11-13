@@ -574,4 +574,37 @@ router.get(
   },
 );
 
+router.get(
+  '/:classId/messages',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const bookDoc = await likeNFTBookCollection.doc(classId).get();
+      if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const query = await likeNFTBookCollection.doc(classId).collection('transactions')
+        .where('status', '==', 'completed')
+        .get();
+      const data = query.docs.map((d) => {
+        const {
+          wallet,
+          txHash,
+          timestamp,
+          message,
+        } = d.data();
+        return {
+          wallet,
+          txHash,
+          timestamp: timestamp?.toMillis(),
+          message,
+        };
+      });
+      res.json({
+        messages: data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 export default router;
