@@ -19,7 +19,7 @@ const {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 } = require('../../../config/config');
 
-export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10;
+export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10000;
 export const DEFAULT_TRANSFER_GAS = 100000;
 export const DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS = 80000;
 export const MAX_MEMO_LENGTH = 256;
