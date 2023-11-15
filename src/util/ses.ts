@@ -135,7 +135,7 @@ export function sendAutoClaimEmail({
   const pluralDescriptionZh = classIds.length > 1 ? `等 ${classIds.length} 個作品` : '';
   const pluralDescriptionEn = classIds.length > 1 ? ` and ${classIds.length - 1} other work${classIds.length > 2 ? 's' : ''}` : '';
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -205,7 +205,7 @@ export function sendPendingClaimEmail({
   const pluralDescriptionZh = classIds.length > 1 ? `等 ${classIds.length} 個作品` : '';
   const pluralDescriptionEn = classIds.length > 1 ? ` and ${classIds.length - 1} other work${classIds.length > 2 ? 's' : ''}` : '';
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -308,7 +308,7 @@ export function sendNFTBookPendingClaimEmail({
     language: 'zh-Hant',
   });
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -318,7 +318,7 @@ export function sendNFTBookPendingClaimEmail({
     ],
     Destination: {
       ToAddresses: [email],
-      BccAddresses: ['operations@liker.land'],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
@@ -374,7 +374,7 @@ export function sendNFTBookShippedEmail({
   const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
   const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -384,7 +384,7 @@ export function sendNFTBookShippedEmail({
     ],
     Destination: {
       ToAddresses: [email],
-      BccAddresses: ['operations@liker.land'],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
@@ -433,7 +433,7 @@ export function sendNFTBookSalesEmail({
   if (TEST_MODE) return Promise.resolve();
   const title = `You have sold an NFT for $${amount}`;
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -443,7 +443,7 @@ export function sendNFTBookSalesEmail({
     ],
     Destination: {
       ToAddresses: emails,
-      BccAddresses: ['operations@liker.land'],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
@@ -476,7 +476,7 @@ export function sendNFTBookClaimedEmail({
   if (TEST_MODE) return Promise.resolve();
   const title = `A user has claimed an ebook ${className}`;
   const params = {
-    Source: '"Liker Land" <team@liker.land>',
+    Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -486,7 +486,7 @@ export function sendNFTBookClaimedEmail({
     ],
     Destination: {
       ToAddresses: emails,
-      BccAddresses: ['operations@liker.land'],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
