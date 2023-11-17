@@ -85,7 +85,7 @@ router.post(
     try {
       const { wallet } = req.query;
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const { memo = '', email } = req.body;
+      const { gaClientId = '', memo = '', email } = req.body;
       const { iscnPrefixes, classIds } = res.locals;
       const [purchaseInfoList, classMetadataList] = await Promise.all([
         getPurchaseInfoList(iscnPrefixes, classIds),
@@ -129,6 +129,7 @@ router.post(
           store: 'likerland',
           wallet: wallet as string,
           memo,
+          gaClientId,
           paymentId,
           totalNFTClassCount: classIds.length,
           ...classIdLog,
