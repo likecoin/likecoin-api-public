@@ -402,12 +402,11 @@ export async function claimNFTBook(
     const {
       claimToken,
       status,
-      type,
     } = docData;
     if (token !== claimToken) {
       throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
-    if (status !== 'paid' && type !== 'LIKE') {
+    if (status !== 'paid') {
       throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
     }
     t.update(docRef, {
