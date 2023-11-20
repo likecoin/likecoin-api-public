@@ -420,7 +420,17 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const { price_index: priceIndexString, tx_hash: grantTxHash } = req.query;
+      const { price_index: priceIndexString } = req.query;
+      const {
+        email = '',
+        txHash: grantTxHash,
+      } = req.body;
+
+      if (email) {
+        const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
+        if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
+      }
+
       const priceIndex = Number(priceIndexString);
       if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
 
@@ -449,6 +459,7 @@ router.post(
       const paymentId = execTxHash;
       await createNewNFTBookPayment(classId, paymentId, {
         type: 'LIKE',
+        email,
         claimToken: '',
         priceInDecimal,
         priceName,
@@ -456,7 +467,7 @@ router.post(
       });
       await processNFTBookPurchase({
         classId,
-        email: '',
+        email,
         paymentId,
         priceIndex,
         shippingDetails: null,
@@ -467,6 +478,7 @@ router.post(
         paymentId,
         classId,
         wallet: granterWallet,
+        email,
       });
 
       await claimNFTBook(classId, paymentId, {
@@ -479,6 +491,7 @@ router.post(
         paymentId,
         classId,
         wallet: granterWallet,
+        email,
         message,
       });
       res.json({ claimed: true });
