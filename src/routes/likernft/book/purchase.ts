@@ -19,6 +19,7 @@ import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   LIST_OF_BOOK_SHIPPING_COUNTRY,
+  NFT_BOOK_DEFAULT_FROM_CHANNEL,
   NFT_BOOK_SALE_DESCRIPTION,
   PUBSUB_TOPIC_MISC,
   USD_TO_HKD_RATIO,
@@ -37,7 +38,7 @@ const router = Router();
 router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const { from = 'liker_land', price_index: priceIndexString = undefined } = req.query;
+    const { from: inputFrom, price_index: priceIndexString = undefined } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
     const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
@@ -60,8 +61,13 @@ router.get('/:classId/new', async (req, res, next) => {
       connectedWallets,
       shippingRates,
       defaultPaymentCurrency = 'USD',
+      defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     } = bookInfo;
     if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+    let from: string = inputFrom as string || '';
+    if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
+      from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
+    }
     const {
       priceInDecimal,
       stock,
