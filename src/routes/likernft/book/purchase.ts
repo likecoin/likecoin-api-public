@@ -246,6 +246,40 @@ router.get('/:classId/new', async (req, res, next) => {
   }
 });
 
+router.get(
+  '/:classId/price',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const { price_index: priceIndexString } = req.query;
+      const bookInfo = await getNftBookInfo(classId);
+
+      const priceIndex = Number(priceIndexString);
+      const { prices } = bookInfo;
+      if (prices.length <= priceIndex) {
+        throw new ValidationError('PRICE_NOT_FOUND', 404);
+      }
+
+      const { priceInDecimal } = prices[priceIndex];
+      const price = priceInDecimal / 100;
+
+      const {
+        totalLIKEPricePrediscount,
+        totalLIKEPrice,
+        totalFiatPriceString,
+      } = await calculatePayment([price]);
+      const payload = {
+        LIKEPricePrediscount: totalLIKEPricePrediscount,
+        LIKEPrice: totalLIKEPrice,
+        fiatPrice: Number(totalFiatPriceString),
+      };
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.post(
   '/:classId/new/free',
   async (req, res, next) => {
