@@ -16,6 +16,7 @@ import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
 } from '../../../../../config/config';
 import { handleNFTPurchaseTransaction } from '../purchase';
+import { calculateTxGasFee } from '../../../cosmos/tx';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -172,13 +173,22 @@ export async function execAuthz(
   toWallet: string,
   LIKEAmount: number,
 ) {
-  const amount = new BigNumber(LIKEAmount).shiftedBy(9).toFixed();
+  const gasFeeAmount = calculateTxGasFee(2).amount[0].amount;
+  const profitAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
+  if (profitAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
+  const profitAmount = profitAmountBigNum.toFixed();
   const txMessages = [
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,
       granterWallet,
+      LIKER_NFT_TARGET_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
       toWallet,
-      [{ denom: NFT_COSMOS_DENOM, amount }],
+      [{ denom: NFT_COSMOS_DENOM, amount: profitAmount }],
     ),
   ];
   const memo = '';
