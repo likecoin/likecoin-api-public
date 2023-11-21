@@ -11,7 +11,7 @@ import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
 import {
-  DEFAULT_GAS_PRICE, calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH,
+  calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH,
 } from '../../cosmos/tx';
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -19,7 +19,6 @@ import {
   NFT_CHAIN_ID,
   LIKER_NFT_TARGET_ADDRESS,
   LIKER_NFT_FEE_ADDRESS,
-  LIKER_NFT_GAS_FEE,
   LIKER_NFT_STARTING_PRICE,
   LIKER_NFT_PRICE_MULTIPLY,
   LIKER_NFT_PRICE_DECAY,
@@ -201,14 +200,6 @@ export async function softGetLatestNFTPriceAndInfo(iscnPrefix, classId) {
   }
 }
 
-function getGasPrice() {
-  return new BigNumber(LIKER_NFT_GAS_FEE)
-    .multipliedBy(DEFAULT_GAS_PRICE)
-    .dividedBy(LIKER_NFT_LIKE_TO_USD_CONVERT_RATIO)
-    .shiftedBy(-9)
-    .toNumber();
-}
-
 export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
   const client = await getNFTQueryClient();
   const qs = await client.getQueryClient();
@@ -273,15 +264,23 @@ async function calculateLIKEAndPopulateTxMsg({
 }) {
   const STAKEHOLDERS_RATIO = 1 - FEE_RATIO;
   const SELLER_RATIO = 1 - FEE_RATIO - STAKEHOLDERS_RATIO;
-  const gasFee = getGasPrice();
   const isFree = nftPrice <= 0;
-  const totalPrice = isFree ? 0 : nftPrice + gasFee;
-  const totalAmount = new BigNumber(totalPrice).shiftedBy(9).toFixed(0);
-  const feeAmount = new BigNumber(nftPrice)
+
+  const execMsgCount = 1;
+  const sendNFTMsgCount = 1;
+  const ownerCount = 1;
+  const stakeholderCount = (await parseAndCalculateStakeholderRewards(iscnData, sellerWallet)).size;
+  const totalMsgCount = execMsgCount + sendNFTMsgCount + ownerCount + stakeholderCount;
+  const gasFee = new BigNumber(
+    calculateTxGasFee(totalMsgCount).amount[0].amount,
+  ).shiftedBy(-9).toNumber();
+  const profit = isFree ? 0 : Math.max(nftPrice - gasFee, 0);
+  const totalAmount = new BigNumber(profit).shiftedBy(9).toFixed(0);
+  const feeAmount = new BigNumber(profit)
     .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
-  const sellerAmount = new BigNumber(nftPrice)
+  const sellerAmount = new BigNumber(profit)
     .multipliedBy(SELLER_RATIO).shiftedBy(9).toFixed(0);
-  const stakeholdersAmount = new BigNumber(nftPrice)
+  const stakeholdersAmount = new BigNumber(profit)
     .multipliedBy(STAKEHOLDERS_RATIO).shiftedBy(9).toFixed(0);
   const transferMessages: any = [];
   if (sellerAmount && new BigNumber(sellerAmount).gt(0)) {
