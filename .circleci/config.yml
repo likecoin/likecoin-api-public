@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: ~/likecoin-api-public
     docker:
-      - image: node:16
+      - image: node:18
     resource_class: medium+
     steps:
       - checkout
