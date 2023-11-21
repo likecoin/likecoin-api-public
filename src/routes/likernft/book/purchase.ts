@@ -38,7 +38,11 @@ const router = Router();
 router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const { from: inputFrom, price_index: priceIndexString = undefined } = req.query;
+    const {
+      from: inputFrom,
+      ga_client_id: gaClientId = '',
+      price_index: priceIndexString = undefined,
+    } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
     const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
@@ -120,6 +124,7 @@ router.get('/:classId/new', async (req, res, next) => {
       priceIndex,
       ownerWallet,
     };
+    if (gaClientId) sessionMetadata.gaClientId = gaClientId as string;
     if (from) sessionMetadata.from = from as string;
     const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
       capture_method: 'manual',
