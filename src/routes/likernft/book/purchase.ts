@@ -422,14 +422,12 @@ router.post(
       const { classId } = req.params;
       const { price_index: priceIndexString } = req.query;
       const {
-        email = '',
+        email,
         txHash: grantTxHash,
       } = req.body;
 
-      if (email) {
-        const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
-        if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
-      }
+      const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
+      if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
 
       const priceIndex = Number(priceIndexString);
       if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
