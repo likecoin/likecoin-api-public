@@ -85,6 +85,7 @@ export async function newNftBookInfo(classId, data) {
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
   if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
+  if (defaultPaymentCurrency) payload.defaultPaymentCurrency = defaultPaymentCurrency;
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   await likeNFTBookCollection.doc(classId).create(payload);
