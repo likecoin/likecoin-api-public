@@ -64,6 +64,8 @@ export async function newNftBookInfo(classId, data) {
     moderatorWallets,
     connectedWallets,
     shippingRates,
+    mustClaimToView,
+    hideDownload,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -84,6 +86,8 @@ export async function newNftBookInfo(classId, data) {
   if (connectedWallets) payload.connectedWallets = connectedWallets;
   if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   if (defaultPaymentCurrency) payload.defaultPaymentCurrency = defaultPaymentCurrency;
+  if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
+  if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
@@ -94,6 +98,8 @@ export async function updateNftBookInfo(classId: string, {
   connectedWallets,
   defaultPaymentCurrency,
   shippingRates,
+  mustClaimToView,
+  hideDownload,
 }: {
   prices?: any[];
   notificationEmails?: string[];
@@ -101,6 +107,8 @@ export async function updateNftBookInfo(classId: string, {
   connectedWallets?: string[];
   defaultPaymentCurrency?: string;
   shippingRates?: any[];
+  mustClaimToView?: boolean;
+  hideDownload?: boolean;
 } = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
@@ -113,6 +121,8 @@ export async function updateNftBookInfo(classId: string, {
     payload.defaultPaymentCurrency = defaultPaymentCurrency;
   }
   if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
+  if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
+  if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
 
