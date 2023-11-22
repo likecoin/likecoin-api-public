@@ -76,7 +76,7 @@
     "ipfs-http-client": "^56.0.3",
     "ipfs-only-hash": "^4.0.0",
     "js-sha256": "^0.9.0",
-    "jsonwebtoken": "^8.4.0",
+    "jsonwebtoken": "^9.0.0",
     "long": "^4.0.0",
     "lru-cache": "^7.14.0",
     "md5-hex": "^2.0.0",
