@@ -196,7 +196,7 @@ router.post('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req,
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
     const { price } = req.body;
-    validatePrices(price);
+    validatePrice(price);
 
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
