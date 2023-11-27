@@ -9,7 +9,7 @@ import {
   claimNFTBook,
   createNewNFTBookPayment,
   getNftBookInfo,
-  execAuthz,
+  execGrant,
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
@@ -453,16 +453,18 @@ router.post(
         memo: message,
       } = checkResult;
 
-      const execTxHash = await execAuthz(granterWallet, ownerWallet, LIKEPrice);
-      const paymentId = execTxHash;
+      const paymentId = uuidv4();
+      const claimToken = crypto.randomBytes(32).toString('hex');
+
       await createNewNFTBookPayment(classId, paymentId, {
         type: 'LIKE',
         email,
-        claimToken: '',
+        claimToken,
         priceInDecimal,
         priceName,
         priceIndex,
       });
+      const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice);
       await processNFTBookPurchase({
         classId,
         email,
@@ -470,6 +472,7 @@ router.post(
         priceIndex,
         shippingDetails: null,
         shippingCost: null,
+        execGrantTxHash,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTLIKEPurchaseNew',
@@ -482,7 +485,7 @@ router.post(
       await claimNFTBook(classId, paymentId, {
         message,
         wallet: granterWallet,
-        token: '',
+        token: claimToken,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTClaimed',

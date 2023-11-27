@@ -168,7 +168,7 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
   });
 }
 
-export async function execAuthz(
+export async function execGrant(
   granterWallet: string,
   toWallet: string,
   LIKEAmount: number,
@@ -231,6 +231,7 @@ export async function processNFTBookPurchase({
   paymentId,
   shippingDetails,
   shippingCost,
+  execGrantTxHash = '',
 }) {
   const hasShipping = !!shippingDetails;
   const { listingData, txData } = await db.runTransaction(async (t) => {
@@ -269,6 +270,7 @@ export async function processNFTBookPurchase({
     if (hasShipping) paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
     if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
     t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
     return {
       listingData: docData,
