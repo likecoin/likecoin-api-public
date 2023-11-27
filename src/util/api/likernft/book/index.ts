@@ -14,8 +14,10 @@ import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
 } from '../../../../../config/config';
-import { handleNFTPurchaseTransaction } from '../purchase';
+import { handleNFTPurchaseTransaction, checkIsFromLikerLand } from '../purchase';
 import { calculateTxGasFee } from '../../../cosmos/tx';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
@@ -172,17 +174,35 @@ export async function execGrant(
   granterWallet: string,
   toWallet: string,
   LIKEAmount: number,
+  from: string,
 ) {
-  const gasFeeAmount = calculateTxGasFee(2).amount[0].amount;
-  const profitAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
-  if (profitAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
-  const profitAmount = profitAmountBigNum.toFixed();
+  const isFromLikerLand = checkIsFromLikerLand(from);
+  const msgCount = 2;
+  const gasFeeAmount = calculateTxGasFee(msgCount).amount[0].amount;
+  const distributedAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
+  if (distributedAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
+  const likerLandFeeAmount = distributedAmountBigNum
+    .times(NFT_BOOK_LIKER_LAND_FEE_RATIO)
+    .toFixed(0, BigNumber.ROUND_CEIL);
+  const likerLandCommission = isFromLikerLand
+    ? distributedAmountBigNum
+      .times(NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      .toFixed(0, BigNumber.ROUND_CEIL)
+    : '0';
+  const totalFeeAmount = new BigNumber(gasFeeAmount)
+    .plus(likerLandFeeAmount)
+    .plus(likerLandCommission)
+    .toFixed();
+  const profitAmount = distributedAmountBigNum
+    .minus(likerLandFeeAmount)
+    .minus(likerLandCommission)
+    .toFixed();
   const txMessages = [
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,
       granterWallet,
       LIKER_NFT_TARGET_ADDRESS,
-      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
+      [{ denom: NFT_COSMOS_DENOM, amount: totalFeeAmount }],
     ),
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,

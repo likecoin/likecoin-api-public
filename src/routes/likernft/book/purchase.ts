@@ -30,10 +30,14 @@ import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
-import { calculateStripeFee, checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
+import { calculateStripeFee, checkTxGrantAndAmount, checkIsFromLikerLand } from '../../../util/api/likernft/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
+import {
+  NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+} from '../../../../config/config';
 
 const router = Router();
 
@@ -143,16 +147,20 @@ router.get('/:classId/new', async (req, res, next) => {
     }
 
     if (connectedWallets && Object.keys(connectedWallets).length) {
-      const isFromLikerLand = from === 'liker_land';
+      const isFromLikerLand = checkIsFromLikerLand(from);
       const wallet = Object.keys(connectedWallets)[0];
       const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
       if (stripeConnectAccountId) {
         const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-        const likerlandFeeAmount = Math.ceil(convertedPriceInDecimal * 0.05);
-        const likerlandCommission = isFromLikerLand ? Math.ceil(convertedPriceInDecimal * 0.3) : 0;
+        const likerLandFeeAmount = Math.ceil(
+          convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+        );
+        const likerLandCommission = isFromLikerLand
+          ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+          : 0;
         // TODO: support connectedWallets +1
         paymentIntentData.application_fee_amount = (
-          stripeFeeAmount + likerlandFeeAmount + likerlandCommission
+          stripeFeeAmount + likerLandFeeAmount + likerLandCommission
         );
         paymentIntentData.transfer_data = {
           destination: stripeConnectAccountId,
@@ -420,7 +428,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const { price_index: priceIndexString } = req.query;
+      const { from: inputFrom = '', price_index: priceIndexString } = req.query;
       const {
         email,
         txHash: grantTxHash,
@@ -434,9 +442,17 @@ router.post(
 
       const bookInfo = await getNftBookInfo(classId);
 
-      const { ownerWallet, prices } = bookInfo;
+      const {
+        ownerWallet,
+        prices,
+        defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
+      } = bookInfo;
       if (prices.length <= priceIndex) {
         throw new ValidationError('PRICE_NOT_FOUND', 404);
+      }
+      let from: string = inputFrom as string || '';
+      if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
+        from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
       }
       const {
         priceInDecimal,
@@ -463,8 +479,9 @@ router.post(
         priceInDecimal,
         priceName,
         priceIndex,
+        from,
       });
-      const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice);
+      const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice, from);
       await processNFTBookPurchase({
         classId,
         email,

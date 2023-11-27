@@ -32,7 +32,7 @@ import {
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
-import { PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
+import { NFT_BOOK_DEFAULT_FROM_CHANNEL, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
 import {
   checkFreeMintTransaction,
   completeFreeMintTransaction,
@@ -832,4 +832,8 @@ export async function processNFTPurchase({
     }
     throw err;
   }
+}
+
+export function checkIsFromLikerLand(from) {
+  return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 }
