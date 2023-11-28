@@ -135,7 +135,7 @@ router.get('/:classId/new', async (req, res, next) => {
     const shouldConvertUSDtoHKD = convertedCurrency === 'HKD';
     let convertedPriceInDecimal = priceInDecimal;
     if (shouldConvertUSDtoHKD) {
-      convertedPriceInDecimal = Math.ceil(convertedPriceInDecimal * USD_TO_HKD_RATIO);
+      convertedPriceInDecimal = Math.round((convertedPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
     }
 
     if (connectedWallets && Object.keys(connectedWallets).length) {
@@ -194,7 +194,9 @@ router.get('/:classId/new', async (req, res, next) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
           let convertedShippingPriceInDecimal = shippingPriceInDecimal;
           if (shouldConvertUSDtoHKD) {
-            convertedShippingPriceInDecimal = Math.ceil(shippingPriceInDecimal * USD_TO_HKD_RATIO);
+            convertedShippingPriceInDecimal = Math.round(
+              (shippingPriceInDecimal * USD_TO_HKD_RATIO) / 10,
+            ) * 10;
           }
           return {
             shipping_rate_data: {
