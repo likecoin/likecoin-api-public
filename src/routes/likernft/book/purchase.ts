@@ -263,7 +263,7 @@ router.get(
       const bookInfo = await getNftBookInfo(classId);
 
       const priceIndex = Number(priceIndexString);
-      const { prices } = bookInfo;
+      const { prices, canPayByLIKE } = bookInfo;
       if (prices.length <= priceIndex) {
         throw new ValidationError('PRICE_NOT_FOUND', 404);
       }
@@ -277,8 +277,8 @@ router.get(
         totalFiatPriceString,
       } = await calculatePayment([price]);
       const payload = {
-        LIKEPricePrediscount: totalLIKEPricePrediscount,
-        LIKEPrice: totalLIKEPrice,
+        LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
+        LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
       };
       res.json(payload);

@@ -77,6 +77,7 @@ export async function newNftBookInfo(classId, data) {
     shippingRates,
     mustClaimToView,
     hideDownload,
+    canPayByLIKE,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -99,6 +100,7 @@ export async function newNftBookInfo(classId, data) {
   if (defaultPaymentCurrency) payload.defaultPaymentCurrency = defaultPaymentCurrency;
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
+  if (canPayByLIKE !== undefined) payload.canPayByLIKE = canPayByLIKE;
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
@@ -111,6 +113,7 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates,
   mustClaimToView,
   hideDownload,
+  canPayByLIKE,
 }: {
   prices?: any[];
   notificationEmails?: string[];
@@ -120,6 +123,7 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates?: any[];
   mustClaimToView?: boolean;
   hideDownload?: boolean;
+  canPayByLIKE?: boolean;
 } = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
@@ -134,6 +138,7 @@ export async function updateNftBookInfo(classId: string, {
   if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
+  if (canPayByLIKE !== undefined) { payload.canPayByLIKE = canPayByLIKE; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
 
