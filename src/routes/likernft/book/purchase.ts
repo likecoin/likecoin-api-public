@@ -110,6 +110,8 @@ router.get('/:classId/new', async (req, res, next) => {
     } else if (priceDescription) {
       description = `${description} - ${priceDescription}`;
     }
+
+    if (from) description = `(${from}) ${description}`;
     description = description.length > 300
       ? `${description.substring(0, 299)}…`
       : description;
