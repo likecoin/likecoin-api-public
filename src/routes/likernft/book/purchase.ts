@@ -5,17 +5,12 @@ import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
-  claimNFTBook,
-  createNewNFTBookPayment,
   getNftBookInfo,
-  execGrant,
-  processNFTBookPurchase,
-  sendNFTBookClaimedEmailNotification,
-  sendNFTBookPurchaseEmail,
 } from '../../../util/api/likernft/book';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
+  NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
 } from '../../../constant';
@@ -23,7 +18,17 @@ import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
-import { handleNewStripeCheckout } from '../../../util/api/likernft/book/purchase';
+import {
+  handleNewStripeCheckout,
+  claimNFTBook,
+  execGrant,
+  createNewNFTBookPayment,
+  processNFTBookPurchase,
+  sendNFTBookClaimedEmailNotification,
+  sendNFTBookPurchaseEmail,
+} from '../../../util/api/likernft/book/purchase';
+import { calculatePayment } from '../../../util/api/likernft/fiat';
+import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 
 const router = Router();
 
