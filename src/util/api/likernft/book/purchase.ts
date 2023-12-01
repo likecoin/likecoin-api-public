@@ -1,8 +1,11 @@
 import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
+import { firestore } from 'firebase-admin';
 
-import { NFT_BOOK_TEXT_DEFAULT_LOCALE, createNewNFTBookPayment, getNftBookInfo } from '.';
+import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
+import BigNumber from 'bignumber.js';
+import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../liker-land';
@@ -11,16 +14,107 @@ import {
   NFT_BOOK_SALE_DESCRIPTION,
   USD_TO_HKD_RATIO,
   LIST_OF_BOOK_SHIPPING_COUNTRY,
+  PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
 import { parseImageURLFromMetadata, encodedURL } from '../metadata';
-import { calculateStripeFee, checkIsFromLikerLand } from '../purchase';
+import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
 import { getStripeConnectAccountId } from './user';
 import stripe from '../../../stripe';
+import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
+import publisher from '../../../gcloudPub';
+import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail, sendNFTBookClaimedEmail } from '../../../ses';
+import { calculateTxGasFee } from '../../../cosmos/tx';
 import {
+  NFT_COSMOS_DENOM,
+  LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_FEE_ADDRESS,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
 } from '../../../../../config/config';
 
+export async function createNewNFTBookPayment(classId, paymentId, {
+  type,
+  email = '',
+  claimToken,
+  sessionId = '',
+  priceInDecimal,
+  priceName,
+  priceIndex,
+  from = '',
+}) {
+  await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
+    type,
+    email,
+    isPaid: false,
+    isPendingClaim: false,
+    claimToken,
+    sessionId,
+    classId,
+    priceInDecimal,
+    price: priceInDecimal / 100,
+    priceName,
+    priceIndex,
+    from,
+    status: 'new',
+    timestamp: FieldValue.serverTimestamp(),
+  });
+}
+
+export async function processNFTBookPurchase({
+  classId,
+  email,
+  priceIndex,
+  paymentId,
+  shippingDetails,
+  shippingCost,
+  execGrantTxHash = '',
+}) {
+  const hasShipping = !!shippingDetails;
+  const { listingData, txData } = await db.runTransaction(async (t) => {
+    const bookRef = likeNFTBookCollection.doc(classId);
+    const doc = await t.get(bookRef);
+    const docData = doc.data();
+    if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+    const {
+      prices,
+    } = docData;
+    const priceInfo = prices[priceIndex];
+    if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+    const {
+      stock,
+    } = priceInfo;
+    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+
+    const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
+    const paymentData = paymentDoc.data();
+    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+    if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+    priceInfo.stock -= 1;
+    priceInfo.sold += 1;
+    priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
+    t.update(bookRef, {
+      prices,
+      lastSaleTimestamp: FieldValue.serverTimestamp(),
+    });
+    const paymentPayload: any = {
+      isPaid: true,
+      isPendingClaim: true,
+      hasShipping,
+      status: 'paid',
+      email,
+    };
+    if (hasShipping) paymentPayload.shippingStatus = 'pending';
+    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+    if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
+    t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
+    return {
+      listingData: docData,
+      txData: paymentData,
+    };
+  });
+  return { listingData, txData };
+}
 
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
@@ -224,4 +318,232 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   };
 }
 
-export default handleNewStripeCheckout;
+export async function sendNFTBookPurchaseEmail({
+  email,
+  notificationEmails,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+  amountTotal,
+  mustClaimToView = false,
+}) {
+  if (email) {
+    await sendNFTBookPendingClaimEmail({
+      email,
+      classId,
+      className,
+      paymentId,
+      claimToken,
+      mustClaimToView,
+    });
+  }
+  if (notificationEmails.length) {
+    await sendNFTBookSalesEmail({
+      buyerEmail: email,
+      emails: notificationEmails,
+      className,
+      amount: (amountTotal || 0) / 100,
+    });
+  }
+}
+
+export async function processNFTBookStripePurchase(
+  session: Stripe.Checkout.Session,
+  req: Express.Request,
+) {
+  const {
+    metadata: {
+      classId,
+      iscnPrefix,
+      paymentId,
+      priceIndex: priceIndexString = '0',
+    } = {} as any,
+    customer_details: customer,
+    payment_intent: paymentIntent,
+    amount_total: amountTotal,
+    shipping_details: shippingDetails,
+    shipping_cost: shippingCost,
+  } = session;
+  const priceIndex = Number(priceIndexString);
+  if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
+  if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+  const { email } = customer;
+  try {
+    const { txData, listingData } = await processNFTBookPurchase({
+      classId,
+      email,
+      paymentId,
+      priceIndex,
+      shippingDetails,
+      shippingCost,
+    });
+    const { notificationEmails = [], mustClaimToView = false } = listingData;
+    const {
+      claimToken, price, priceName, type, from,
+    } = txData;
+    const [, classData] = await Promise.all([
+      stripe.paymentIntents.capture(paymentIntent as string),
+      getNFTClassDataById(classId).catch(() => null),
+    ]);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseCaptured',
+      type,
+      paymentId,
+      classId,
+      iscnPrefix,
+      price,
+      priceName,
+      priceIndex,
+      fromChannel: from,
+      sessionId: session.id,
+    });
+
+    const className = classData?.name || classId;
+    await sendNFTBookPurchaseEmail({
+      email,
+      notificationEmails,
+      classId,
+      className,
+      paymentId,
+      claimToken,
+      amountTotal,
+      mustClaimToView,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    const errorMessage = (err as Error).message;
+    const errorStack = (err as Error).stack;
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseError',
+      type: 'stripe',
+      paymentId,
+      classId,
+      iscnPrefix,
+      error: (err as Error).toString(),
+      errorMessage,
+      errorStack,
+    });
+    await likeNFTBookCollection.doc(classId).collection('transactions')
+      .doc(paymentId).update({
+        status: 'canceled',
+        email,
+      });
+    await stripe.paymentIntents.cancel(paymentIntent as string)
+      .catch((error) => console.error(error)); // eslint-disable-line no-console
+  }
+}
+
+export async function claimNFTBook(
+  classId: string,
+  paymentId: string,
+  { message, wallet, token }: { message: string, wallet: string, token: string },
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+  const { email } = await db.runTransaction(async (t) => {
+    const doc = await t.get(docRef);
+    const docData = doc.data();
+    if (!docData) {
+      throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    }
+    const {
+      claimToken,
+      status,
+    } = docData;
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+    if (status !== 'paid') {
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
+    }
+    t.update(docRef, {
+      status: 'pendingNFT',
+      wallet,
+      message: message || '',
+    });
+    t.update(bookRef, {
+      pendingNFTCount: FieldValue.increment(1),
+    });
+    return docData;
+  });
+  return email;
+}
+
+export async function sendNFTBookClaimedEmailNotification(
+  classId: string,
+  paymentId: string,
+  { message, wallet, email }: { message: string, wallet: string, email: string },
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const doc = await bookRef.get();
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  const { notificationEmails = [] } = docData;
+  if (notificationEmails.length) {
+    const classData = await getNFTClassDataById(classId).catch(() => null);
+    const className = classData?.name || classId;
+    await sendNFTBookClaimedEmail({
+      emails: notificationEmails,
+      classId,
+      className,
+      paymentId,
+      wallet,
+      buyerEmail: email,
+      message,
+    });
+  }
+}
+
+export async function execGrant(
+  granterWallet: string,
+  toWallet: string,
+  LIKEAmount: number,
+  from: string,
+) {
+  const isFromLikerLand = checkIsFromLikerLand(from);
+  const msgCount = 3;
+  const gasFeeAmount = calculateTxGasFee(msgCount).amount[0].amount;
+  const distributedAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
+  if (distributedAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
+  const likerLandFeeAmount = distributedAmountBigNum
+    .times(NFT_BOOK_LIKER_LAND_FEE_RATIO)
+    .toFixed(0, BigNumber.ROUND_CEIL);
+  const likerLandCommission = isFromLikerLand
+    ? distributedAmountBigNum
+      .times(NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      .toFixed(0, BigNumber.ROUND_CEIL)
+    : '0';
+  const commissionAndFeeAmount = new BigNumber(likerLandFeeAmount)
+    .plus(likerLandCommission)
+    .toFixed();
+  const profitAmount = distributedAmountBigNum
+    .minus(likerLandFeeAmount)
+    .minus(likerLandCommission)
+    .toFixed();
+  const txMessages = [
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_TARGET_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_FEE_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: commissionAndFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      toWallet,
+      [{ denom: NFT_COSMOS_DENOM, amount: profitAmount }],
+    ),
+  ];
+  const memo = '';
+  const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
+  return txHash;
+}

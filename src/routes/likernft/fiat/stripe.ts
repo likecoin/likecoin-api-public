@@ -28,8 +28,8 @@ import {
   STRIPE_WEBHOOK_SECRET,
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
-import { processNFTBookStripePurchase } from '../../../util/api/likernft/book';
 import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
+import { processNFTBookStripePurchase } from '../../../util/api/likernft/book/purchase';
 
 const router = Router();
 
