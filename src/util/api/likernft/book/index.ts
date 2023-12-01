@@ -13,6 +13,7 @@ import { PUBSUB_TOPIC_MISC } from '../../../../constant';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_FEE_ADDRESS,
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
@@ -182,7 +183,7 @@ export async function execGrant(
   from: string,
 ) {
   const isFromLikerLand = checkIsFromLikerLand(from);
-  const msgCount = 2;
+  const msgCount = 3;
   const gasFeeAmount = calculateTxGasFee(msgCount).amount[0].amount;
   const distributedAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
   if (distributedAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
@@ -194,8 +195,7 @@ export async function execGrant(
       .times(NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
       .toFixed(0, BigNumber.ROUND_CEIL)
     : '0';
-  const totalFeeAmount = new BigNumber(gasFeeAmount)
-    .plus(likerLandFeeAmount)
+  const commissionAndFeeAmount = new BigNumber(likerLandFeeAmount)
     .plus(likerLandCommission)
     .toFixed();
   const profitAmount = distributedAmountBigNum
@@ -207,7 +207,13 @@ export async function execGrant(
       LIKER_NFT_TARGET_ADDRESS,
       granterWallet,
       LIKER_NFT_TARGET_ADDRESS,
-      [{ denom: NFT_COSMOS_DENOM, amount: totalFeeAmount }],
+      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_FEE_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: commissionAndFeeAmount }],
     ),
     formatMsgExecSendAuthorization(
       LIKER_NFT_TARGET_ADDRESS,
