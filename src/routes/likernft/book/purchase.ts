@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
-import Stripe from 'stripe';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
@@ -14,30 +13,17 @@ import {
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
 } from '../../../util/api/likernft/book';
-import stripe from '../../../util/stripe';
-import { encodedURL, parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
-  LIST_OF_BOOK_SHIPPING_COUNTRY,
-  NFT_BOOK_DEFAULT_FROM_CHANNEL,
-  NFT_BOOK_SALE_DESCRIPTION,
   PUBSUB_TOPIC_MISC,
-  USD_TO_HKD_RATIO,
   W3C_EMAIL_REGEX,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookShippedEmail } from '../../../util/ses';
-import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
-import { calculateStripeFee, checkTxGrantAndAmount, checkIsFromLikerLand } from '../../../util/api/likernft/purchase';
-import { calculatePayment } from '../../../util/api/likernft/fiat';
-import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
-import {
-  NFT_BOOK_LIKER_LAND_FEE_RATIO,
-  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
-  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
-} from '../../../../config/config';
+import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
+import { handleNewStripeCheckout } from '../../../util/api/likernft/book/purchase';
 
 const router = Router();
 
@@ -45,210 +31,75 @@ router.get('/:classId/new', async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
-      from: inputFrom,
+      from,
       ga_client_id: gaClientId = '',
       price_index: priceIndexString = undefined,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
-    const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
-    const [metadata, bookInfo] = (await Promise.all(promises)) as any;
-    if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
-
-    const paymentId = uuidv4();
-    const claimToken = crypto.randomBytes(32).toString('hex');
     const {
-      prices,
-      successUrl = getLikerLandNFTClaimPageURL({
-        classId,
-        paymentId,
-        token: claimToken,
-        type: 'nft_book',
-        redirect: true,
-      }),
-      cancelUrl = getLikerLandNFTClassPageURL({ classId }),
-      ownerWallet,
-      connectedWallets,
-      shippingRates,
-      defaultPaymentCurrency = 'USD',
-      defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
-    } = bookInfo;
-    if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-    let from: string = inputFrom as string || '';
-    if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
-      from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
-    }
-    const {
-      priceInDecimal,
-      stock,
-      hasShipping,
-      name: priceNameObj,
-      description: pricDescriptionObj,
-    } = prices[priceIndex];
-    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-    if (priceInDecimal === 0) {
-      const freePurchaseUrl = getLikerLandNFTClaimPageURL({
-        classId,
-        paymentId: '',
-        token: '',
-        type: 'nft_book',
-        free: true,
-        redirect: false,
-        priceIndex,
-        from: from as string,
-      });
-      res.redirect(freePurchaseUrl);
-      return;
-    }
-    let { name = '', description = '' } = metadata;
-    const classMetadata = metadata.data.metadata;
-    const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
-    let { image } = classMetadata;
-    image = parseImageURLFromMetadata(image);
-    name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
-    const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
-    const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
-    if (priceName) {
-      name = `${name} - ${priceName}`;
-    }
-    if (NFT_BOOK_SALE_DESCRIPTION[classId]) {
-      description = NFT_BOOK_SALE_DESCRIPTION[classId];
-    } else if (priceDescription) {
-      description = `${description} - ${priceDescription}`;
-    }
-
-    if (from) description = `[${from}] ${description}`;
-    description = description.length > 300
-      ? `${description.substring(0, 299)}…`
-      : description;
-    if (!description) {
-      description = undefined;
-    } // stripe does not like empty string
-    const sessionMetadata: Stripe.MetadataParam = {
-      store: 'book',
-      classId,
-      iscnPrefix,
+      url,
       paymentId,
-      priceIndex,
-      ownerWallet,
-    };
-    if (gaClientId) sessionMetadata.gaClientId = gaClientId as string;
-    if (from) sessionMetadata.from = from as string;
-    const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
-      capture_method: 'manual',
-      metadata: sessionMetadata,
-    };
-
-    const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-    const shouldConvertUSDtoHKD = convertedCurrency === 'HKD';
-    let convertedPriceInDecimal = priceInDecimal;
-    if (shouldConvertUSDtoHKD) {
-      convertedPriceInDecimal = Math.round((convertedPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-    }
-
-    if (connectedWallets && Object.keys(connectedWallets).length) {
-      const isFromLikerLand = checkIsFromLikerLand(from);
-      const wallet = Object.keys(connectedWallets)[0];
-      const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
-      if (stripeConnectAccountId) {
-        const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-        const likerLandFeeAmount = Math.ceil(
-          convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
-        );
-        const likerLandCommission = isFromLikerLand
-          ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-          : 0;
-        // TODO: support connectedWallets +1
-        paymentIntentData.application_fee_amount = (
-          stripeFeeAmount + likerLandFeeAmount + likerLandCommission
-        );
-        paymentIntentData.transfer_data = {
-          destination: stripeConnectAccountId,
-        };
-      }
-    }
-
-    const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
-      mode: 'payment',
-      success_url: `${successUrl}`,
-      cancel_url: `${cancelUrl}`,
-      line_items: [
-        {
-          price_data: {
-            currency: convertedCurrency,
-            product_data: {
-              name,
-              description,
-              images: [encodedURL(image)],
-              metadata: {
-                iscnPrefix,
-                classId: classId as string,
-              },
-            },
-            unit_amount: convertedPriceInDecimal,
-          },
-          adjustable_quantity: {
-            enabled: false,
-          },
-          quantity: 1,
-        },
-      ],
-      payment_intent_data: paymentIntentData,
-      metadata: sessionMetadata,
-    };
-    if (hasShipping) {
-      checkoutPayload.shipping_address_collection = {
-        // eslint-disable-next-line max-len
-        allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
-      };
-      if (shippingRates) {
-        checkoutPayload.shipping_options = shippingRates.map((s) => {
-          const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-          let convertedShippingPriceInDecimal = shippingPriceInDecimal;
-          if (shouldConvertUSDtoHKD) {
-            convertedShippingPriceInDecimal = Math.round(
-              (shippingPriceInDecimal * USD_TO_HKD_RATIO) / 10,
-            ) * 10;
-          }
-          return {
-            shipping_rate_data: {
-              display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-              type: 'fixed_amount',
-              fixed_amount: {
-                amount: convertedShippingPriceInDecimal,
-                currency: convertedCurrency,
-              },
-            },
-          };
-        });
-      }
-    }
-    const session = await stripe.checkout.sessions.create(checkoutPayload);
-    const { url, id: sessionId } = session;
-    if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
-
-    await createNewNFTBookPayment(classId, paymentId, {
-      type: 'stripe',
-      claimToken,
-      sessionId,
-      priceInDecimal,
       priceName,
-      priceIndex,
+      priceInDecimal,
+      sessionId,
+    } = await handleNewStripeCheckout(classId, priceIndex, {
+      gaClientId: gaClientId as string,
       from: from as string,
     });
-
     res.redirect(url);
 
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'BookNFTPurchaseNew',
-      type: 'stripe',
+    if (priceInDecimal) {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTPurchaseNew',
+        type: 'stripe',
+        paymentId,
+        classId,
+        priceName,
+        priceIndex,
+        price: priceInDecimal / 100,
+        sessionId,
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:classId/new', async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const {
+      from,
+      price_index: priceIndexString = undefined,
+    } = req.query;
+    const priceIndex = Number(priceIndexString) || 0;
+    const { gaClientId } = req.body;
+
+    const {
+      url,
       paymentId,
-      classId,
       priceName,
-      priceIndex,
-      price: priceInDecimal / 100,
+      priceInDecimal,
       sessionId,
+    } = await handleNewStripeCheckout(classId, priceIndex, {
+      gaClientId: gaClientId as string,
+      from: from as string,
     });
+    res.json({ url });
+
+    if (priceInDecimal) {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTPurchaseNew',
+        type: 'stripe',
+        paymentId,
+        classId,
+        priceName,
+        priceIndex,
+        price: priceInDecimal / 100,
+        sessionId,
+      });
+    }
   } catch (err) {
     next(err);
   }
