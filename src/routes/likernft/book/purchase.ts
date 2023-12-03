@@ -16,7 +16,7 @@ import {
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookShippedEmail } from '../../../util/ses';
+import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -65,6 +65,7 @@ router.get('/:classId/new', async (req, res, next) => {
         priceIndex,
         price: priceInDecimal / 100,
         sessionId,
+        isGift: false,
       });
     }
   } catch (err) {
@@ -80,7 +81,14 @@ router.post('/:classId/new', async (req, res, next) => {
       price_index: priceIndexString = undefined,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
-    const { gaClientId } = req.body;
+    const {
+      gaClientId,
+      giftInfo,
+    } = req.body;
+
+    if (giftInfo && !giftInfo.toEmail) {
+      throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+    }
 
     const {
       url,
@@ -91,6 +99,7 @@ router.post('/:classId/new', async (req, res, next) => {
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       from: from as string,
+      giftInfo,
     });
     res.json({ url });
 
@@ -104,6 +113,7 @@ router.post('/:classId/new', async (req, res, next) => {
         priceIndex,
         price: priceInDecimal / 100,
         sessionId,
+        isGift: !!giftInfo,
       });
     }
   } catch (err) {
@@ -481,7 +491,7 @@ router.post(
       }
       const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
-      await db.runTransaction(async (t) => {
+      const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
         const doc = await t.get(paymentDocRef);
         const docData = doc.data();
         if (!docData) {
@@ -500,7 +510,24 @@ router.post(
         t.update(bookRef, {
           pendingNFTCount: FieldValue.increment(-1),
         });
+        return docData;
       });
+
+      if (isGift && giftInfo) {
+        const {
+          fromName,
+          toName,
+        } = giftInfo;
+        const classData = await getNFTClassDataById(classId).catch(() => null);
+        const className = classData?.name || classId;
+        await sendNFTBookGiftSentEmail({
+          fromEmail: email,
+          fromName,
+          toName,
+          className,
+          txHash,
+        });
+      }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTSentUpdate',
@@ -508,6 +535,7 @@ router.post(
         classId,
         // TODO: parse nftId and wallet from txHash,
         txHash,
+        isGift,
       });
 
       res.sendStatus(200);
