@@ -1,5 +1,8 @@
+import BigNumber from 'bignumber.js';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
+import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
+
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, db, likeNFTBookCollection } from '../../../firebase';
 import stripe from '../../../stripe';
@@ -7,7 +10,16 @@ import { sendNFTBookClaimedEmail, sendNFTBookPendingClaimEmail, sendNFTBookSales
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../../../constant';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import {
+  NFT_COSMOS_DENOM,
+  LIKER_NFT_TARGET_ADDRESS,
+  LIKER_NFT_FEE_ADDRESS,
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
+} from '../../../../../config/config';
+import { handleNFTPurchaseTransaction, checkIsFromLikerLand } from '../purchase';
+import { calculateTxGasFee } from '../../../cosmos/tx';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -66,6 +78,7 @@ export async function newNftBookInfo(classId, data) {
     shippingRates,
     mustClaimToView,
     hideDownload,
+    canPayByLIKE,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -88,6 +101,7 @@ export async function newNftBookInfo(classId, data) {
   if (defaultPaymentCurrency) payload.defaultPaymentCurrency = defaultPaymentCurrency;
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
+  if (canPayByLIKE !== undefined) payload.canPayByLIKE = canPayByLIKE;
   await likeNFTBookCollection.doc(classId).create(payload);
 }
 
@@ -100,6 +114,7 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates,
   mustClaimToView,
   hideDownload,
+  canPayByLIKE,
 }: {
   prices?: any[];
   notificationEmails?: string[];
@@ -109,6 +124,7 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates?: any[];
   mustClaimToView?: boolean;
   hideDownload?: boolean;
+  canPayByLIKE?: boolean;
 } = {}) {
   const payload: any = {
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
@@ -123,6 +139,7 @@ export async function updateNftBookInfo(classId: string, {
   if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
+  if (canPayByLIKE !== undefined) { payload.canPayByLIKE = canPayByLIKE; }
   await likeNFTBookCollection.doc(classId).update(payload);
 }
 
@@ -157,6 +174,57 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
     const docData = doc.data();
     return { id: doc.id, ...docData };
   });
+}
+
+export async function execGrant(
+  granterWallet: string,
+  toWallet: string,
+  LIKEAmount: number,
+  from: string,
+) {
+  const isFromLikerLand = checkIsFromLikerLand(from);
+  const msgCount = 3;
+  const gasFeeAmount = calculateTxGasFee(msgCount).amount[0].amount;
+  const distributedAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
+  if (distributedAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
+  const likerLandFeeAmount = distributedAmountBigNum
+    .times(NFT_BOOK_LIKER_LAND_FEE_RATIO)
+    .toFixed(0, BigNumber.ROUND_CEIL);
+  const likerLandCommission = isFromLikerLand
+    ? distributedAmountBigNum
+      .times(NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      .toFixed(0, BigNumber.ROUND_CEIL)
+    : '0';
+  const commissionAndFeeAmount = new BigNumber(likerLandFeeAmount)
+    .plus(likerLandCommission)
+    .toFixed();
+  const profitAmount = distributedAmountBigNum
+    .minus(likerLandFeeAmount)
+    .minus(likerLandCommission)
+    .toFixed();
+  const txMessages = [
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_TARGET_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      LIKER_NFT_FEE_ADDRESS,
+      [{ denom: NFT_COSMOS_DENOM, amount: commissionAndFeeAmount }],
+    ),
+    formatMsgExecSendAuthorization(
+      LIKER_NFT_TARGET_ADDRESS,
+      granterWallet,
+      toWallet,
+      [{ denom: NFT_COSMOS_DENOM, amount: profitAmount }],
+    ),
+  ];
+  const memo = '';
+  const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
+  return txHash;
 }
 
 export async function createNewNFTBookPayment(classId, paymentId, {
@@ -194,6 +262,7 @@ export async function processNFTBookPurchase({
   paymentId,
   shippingDetails,
   shippingCost,
+  execGrantTxHash = '',
 }) {
   const hasShipping = !!shippingDetails;
   const { listingData, txData } = await db.runTransaction(async (t) => {
@@ -232,6 +301,7 @@ export async function processNFTBookPurchase({
     if (hasShipping) paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
     if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
     t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
     return {
       listingData: docData,

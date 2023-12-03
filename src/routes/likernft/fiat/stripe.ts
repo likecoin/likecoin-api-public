@@ -91,10 +91,11 @@ router.post(
         getPurchaseInfoList(iscnPrefixes, classIds),
         Promise.all(classIds.map(getNFTClassDataById)),
       ]);
+      const prices = purchaseInfoList.map((p) => p.price);
       const {
         totalLIKEPrice: LIKEPrice,
         totalFiatPriceString: fiatPriceString,
-      } = await calculatePayment(purchaseInfoList);
+      } = await calculatePayment(prices);
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();

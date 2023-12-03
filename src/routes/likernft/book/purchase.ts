@@ -9,6 +9,7 @@ import {
   claimNFTBook,
   createNewNFTBookPayment,
   getNftBookInfo,
+  execGrant,
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
@@ -29,9 +30,14 @@ import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
-import { calculateStripeFee } from '../../../util/api/likernft/purchase';
+import { calculateStripeFee, checkTxGrantAndAmount, checkIsFromLikerLand } from '../../../util/api/likernft/purchase';
+import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { getStripeConnectAccountId } from '../../../util/api/likernft/book/user';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
+import {
+  NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+} from '../../../../config/config';
 
 const router = Router();
 
@@ -141,16 +147,20 @@ router.get('/:classId/new', async (req, res, next) => {
     }
 
     if (connectedWallets && Object.keys(connectedWallets).length) {
-      const isFromLikerLand = from === 'liker_land';
+      const isFromLikerLand = checkIsFromLikerLand(from);
       const wallet = Object.keys(connectedWallets)[0];
       const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
       if (stripeConnectAccountId) {
         const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-        const likerlandFeeAmount = Math.ceil(convertedPriceInDecimal * 0.05);
-        const likerlandCommission = isFromLikerLand ? Math.ceil(convertedPriceInDecimal * 0.3) : 0;
+        const likerLandFeeAmount = Math.ceil(
+          convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+        );
+        const likerLandCommission = isFromLikerLand
+          ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+          : 0;
         // TODO: support connectedWallets +1
         paymentIntentData.application_fee_amount = (
-          stripeFeeAmount + likerlandFeeAmount + likerlandCommission
+          stripeFeeAmount + likerLandFeeAmount + likerLandCommission
         );
         paymentIntentData.transfer_data = {
           destination: stripeConnectAccountId,
@@ -243,6 +253,40 @@ router.get('/:classId/new', async (req, res, next) => {
     next(err);
   }
 });
+
+router.get(
+  '/:classId/price',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const { price_index: priceIndexString } = req.query;
+      const bookInfo = await getNftBookInfo(classId);
+
+      const priceIndex = Number(priceIndexString);
+      const { prices, canPayByLIKE } = bookInfo;
+      if (prices.length <= priceIndex) {
+        throw new ValidationError('PRICE_NOT_FOUND', 404);
+      }
+
+      const { priceInDecimal } = prices[priceIndex];
+      const price = priceInDecimal / 100;
+
+      const {
+        totalLIKEPricePrediscount,
+        totalLIKEPrice,
+        totalFiatPriceString,
+      } = await calculatePayment([price]);
+      const payload = {
+        LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
+        LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
+        fiatPrice: Number(totalFiatPriceString),
+      };
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.post(
   '/:classId/new/free',
@@ -373,6 +417,102 @@ router.post(
       }
 
       res.json({ claimed: !!wallet });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:classId/new/like',
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const { from: inputFrom = '', price_index: priceIndexString } = req.query;
+      const {
+        email,
+        txHash: grantTxHash,
+      } = req.body;
+
+      const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
+      if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
+
+      const priceIndex = Number(priceIndexString);
+      if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
+
+      const bookInfo = await getNftBookInfo(classId);
+
+      const {
+        ownerWallet,
+        prices,
+        defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
+      } = bookInfo;
+      if (prices.length <= priceIndex) {
+        throw new ValidationError('PRICE_NOT_FOUND', 404);
+      }
+      let from: string = inputFrom as string || '';
+      if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
+        from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
+      }
+      const {
+        priceInDecimal,
+        name: { en: priceName },
+      } = prices[priceIndex];
+      const price = priceInDecimal / 100;
+
+      const { totalLIKEPrice: LIKEPrice } = await calculatePayment([price]);
+
+      const checkResult = await checkTxGrantAndAmount(grantTxHash, LIKEPrice);
+      if (!checkResult) throw new ValidationError('SEND_GRANT_NOT_FOUND');
+      const {
+        granter: granterWallet,
+        memo: message,
+      } = checkResult;
+
+      const paymentId = uuidv4();
+      const claimToken = crypto.randomBytes(32).toString('hex');
+
+      await createNewNFTBookPayment(classId, paymentId, {
+        type: 'LIKE',
+        email,
+        claimToken,
+        priceInDecimal,
+        priceName,
+        priceIndex,
+        from,
+      });
+      const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice, from);
+      await processNFTBookPurchase({
+        classId,
+        email,
+        paymentId,
+        priceIndex,
+        shippingDetails: null,
+        shippingCost: null,
+        execGrantTxHash,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTLIKEPurchaseNew',
+        paymentId,
+        classId,
+        wallet: granterWallet,
+        email,
+      });
+
+      await claimNFTBook(classId, paymentId, {
+        message,
+        wallet: granterWallet,
+        token: claimToken,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimed',
+        paymentId,
+        classId,
+        wallet: granterWallet,
+        email,
+        message,
+      });
+      res.json({ claimed: true });
     } catch (err) {
       next(err);
     }

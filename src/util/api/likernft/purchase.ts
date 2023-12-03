@@ -32,7 +32,7 @@ import {
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 import publisher from '../../gcloudPub';
-import { PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
+import { NFT_BOOK_DEFAULT_FROM_CHANNEL, PUBSUB_TOPIC_MISC, USD_TO_HKD_RATIO } from '../../../constant';
 import {
   checkFreeMintTransaction,
   completeFreeMintTransaction,
@@ -209,7 +209,7 @@ export async function checkWalletGrantAmount(granter, grantee, targetAmount) {
     if (!c) throw new ValidationError('GRANT_NOT_FOUND');
     ([grant] = c.grants.map(parseAuthzGrant));
   } catch (err) {
-    if ((err as Error).message.includes('no authorization found')) {
+    if ((err as Error).message.includes('authorization not found')) {
       throw new ValidationError('GRANT_NOT_FOUND');
     }
     throw err;
@@ -363,7 +363,7 @@ async function calculateLIKEAndPopulateTxMsg({
   };
 }
 
-async function handleNFTPurchaseTransaction(txMessages, memo) {
+export async function handleNFTPurchaseTransaction(txMessages, memo) {
   let res;
   const signingClient = await getLikerNFTSigningClient();
   const client = signingClient.getSigningStargateClient();
@@ -832,4 +832,8 @@ export async function processNFTPurchase({
     }
     throw err;
   }
+}
+
+export function checkIsFromLikerLand(from) {
+  return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 }

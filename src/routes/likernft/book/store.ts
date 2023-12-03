@@ -111,6 +111,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       connectedWallets,
       mustClaimToView = false,
       hideDownload = false,
+      canPayByLIKE = false,
     } = bookInfo;
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -124,6 +125,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
       ownerWallet,
       mustClaimToView,
       hideDownload,
+      canPayByLIKE,
     };
     if (isAuthorized) {
       payload.sold = sold;
@@ -313,6 +315,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       shippingRates,
       mustClaimToView = false,
       hideDownload = false,
+      canPayByLIKE = false,
     } = req.body;
     validatePrices(prices);
     const result = await getISCNFromNFTClassId(classId);
@@ -334,6 +337,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       shippingRates,
       mustClaimToView,
       hideDownload,
+      canPayByLIKE,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -342,6 +346,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       classId,
       mustClaimToView,
       hideDownload,
+      canPayByLIKE,
     });
 
     res.json({
@@ -363,6 +368,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
       shippingRates,
       mustClaimToView,
       hideDownload,
+      canPayByLIKE,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -379,6 +385,7 @@ router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, nex
       shippingRates,
       mustClaimToView,
       hideDownload,
+      canPayByLIKE,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

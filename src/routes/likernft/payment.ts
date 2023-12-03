@@ -11,11 +11,12 @@ router.get(
     try {
       const { iscnPrefixes, classIds } = res.locals;
       const purchaseInfoList = await getPurchaseInfoList(iscnPrefixes, classIds);
+      const prices = purchaseInfoList.map((p) => p.price);
       const {
         totalLIKEPricePrediscount,
         totalLIKEPrice,
         totalFiatPriceString,
-      } = await calculatePayment(purchaseInfoList);
+      } = await calculatePayment(prices);
       const payload = {
         LIKEPricePrediscount: totalLIKEPricePrediscount,
         LIKEPrice: totalLIKEPrice,
