@@ -598,9 +598,9 @@ export async function sendNFTBookClaimedEmailNotification(
   const docData = doc.data();
   if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
   const { notificationEmails = [] } = docData;
+  const classData = await getNFTClassDataById(classId).catch(() => null);
+  const className = classData?.name || classId;
   if (notificationEmails.length) {
-    const classData = await getNFTClassDataById(classId).catch(() => null);
-    const className = classData?.name || classId;
     await sendNFTBookClaimedEmail({
       emails: notificationEmails,
       classId,
@@ -610,18 +610,18 @@ export async function sendNFTBookClaimedEmailNotification(
       buyerEmail: email,
       message,
     });
-    if (isGift && giftInfo) {
-      const {
-        fromName,
-        toName,
-      } = giftInfo;
-      await sendNFTBookGiftClaimedEmail({
-        className,
-        fromEmail: email,
-        fromName,
-        toName,
-      });
-    }
+  }
+  if (isGift && giftInfo) {
+    const {
+      fromName,
+      toName,
+    } = giftInfo;
+    await sendNFTBookGiftClaimedEmail({
+      className,
+      fromEmail: email,
+      fromName,
+      toName,
+    });
   }
 }
 
