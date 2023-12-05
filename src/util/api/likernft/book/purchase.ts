@@ -8,7 +8,7 @@ import BigNumber from 'bignumber.js';
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
-import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   NFT_BOOK_SALE_DESCRIPTION,
@@ -180,7 +180,12 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   const claimToken = crypto.randomBytes(32).toString('hex');
   const {
     prices,
-    successUrl = getLikerLandNFTClaimPageURL({
+    successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
+      classId,
+      paymentId,
+      type: 'nft_book',
+      redirect: true,
+    }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
       token: claimToken,

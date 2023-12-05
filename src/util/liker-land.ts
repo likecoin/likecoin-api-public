@@ -49,6 +49,43 @@ export const getLikerLandNFTClaimPageURL = ({
   return getLikerLandURL(`/nft/claim?${qs}`, { language });
 };
 
+export const getLikerLandNFTGiftPageURL = ({
+  classId,
+  paymentId,
+  type = '',
+  language,
+  redirect = false,
+  priceIndex,
+  from,
+}: {
+  classId: string;
+  paymentId: string;
+  type?: string;
+  language?: string;
+  redirect?: boolean;
+  priceIndex?: number;
+  from?: string;
+}) => {
+  const qsPayload: any = {
+    class_id: classId,
+    payment_id: paymentId,
+  };
+  if (redirect) {
+    qsPayload.redirect = '1';
+  }
+  if (type) {
+    qsPayload.type = type;
+  }
+  if (priceIndex !== undefined) {
+    qsPayload.price_index = priceIndex;
+  }
+  if (from) {
+    qsPayload.from = from;
+  }
+  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  return getLikerLandURL(`/nft/gift?${qs}`, { language });
+};
+
 export const getLikerLandNFTFiatStripePurchasePageURL = ({
   classId,
   paymentId,
