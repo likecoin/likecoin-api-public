@@ -6,7 +6,6 @@ import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import {
   API_EXTERNAL_HOSTNAME,
-  IS_TESTNET,
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
@@ -15,11 +14,9 @@ import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
 import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
-  NFT_MESSAGE_WEBHOOK,
-  NFT_MESSAGE_SLACK_USER,
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
-import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { sendStripeFiatPurchaseSlackNotification } from '../../../slack';
 import { DEFAULT_NFT_IMAGE_SIZE, checkIsWritingNFT, parseImageURLFromMetadata } from '../metadata';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
@@ -197,77 +194,17 @@ export async function processStripeFiatNFTPurchase(session, req) {
       console.error(err);
     }
   }
-  if (NFT_MESSAGE_WEBHOOK) {
-    try {
-      const {
-        wallet: metadataWallet,
-        // iscnPrefix,
-        // paymentId,
-      } = metadata;
-      const words: string[] = [];
-      if (!isWalletProvided && NFT_MESSAGE_SLACK_USER) {
-        words.push(`<@${NFT_MESSAGE_SLACK_USER}>`);
-      }
-      if (IS_TESTNET) {
-        words.push('[🚧 TESTNET]');
-      }
-      let claimState = '';
-      if (isWalletProvided) {
-        claimState = 'A';
-      } else {
-        claimState = isPendingClaim ? 'An unclaimed' : 'An auto claimed';
-      }
-      words.push(claimState);
-      words.push('NFT is bought');
-      if (!isWalletProvided) {
-        words.push(isEmailSent ? 'and email is sent' : 'but email sending failed');
-      }
-      const text = words.join(' ');
-
-      const blocks = [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text,
-          },
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: metadataWallet ? `*Wallet*\n<https://${LIKER_LAND_HOSTNAME}/${wallet}|${wallet}>` : `*Email*\n${email}`,
-          },
-        },
-        {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Price*\nUSD ${fiatPriceString} (${LIKEPrice} LIKE)`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Payment ID*\n${paymentId}`,
-            },
-          ],
-        },
-      ];
-      classIds.forEach((c) => {
-        blocks.push({
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `*NFT Class*\n<${getLikerLandNFTClassPageURL({ classId: c })}|${c}>`,
-          },
-        });
-      });
-      await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-    }
-  }
+  await sendStripeFiatPurchaseSlackNotification({
+    isPendingClaim,
+    isEmailSent,
+    metadataWallet: metadata.wallet,
+    wallet,
+    email,
+    fiatPriceString,
+    LIKEPrice,
+    paymentId,
+    classIds,
+  });
   return true;
 }
 
