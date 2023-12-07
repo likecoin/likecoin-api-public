@@ -7,10 +7,11 @@ import {
 } from '../constant';
 import {
   NFT_MESSAGE_WEBHOOK,
+  NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
+  NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
 } from '../../config/config';
 
-// eslint-disable-next-line import/prefer-default-export
 export async function sendStripeFiatPurchaseSlackNotification({
   metadataWallet,
   isPendingClaim,
@@ -21,7 +22,7 @@ export async function sendStripeFiatPurchaseSlackNotification({
   LIKEPrice,
   paymentId,
   classIds,
-} :{
+}: {
   isPendingClaim: boolean;
   isEmailSent: boolean;
   metadataWallet: string;
@@ -93,6 +94,51 @@ export async function sendStripeFiatPurchaseSlackNotification({
       });
     });
     await axios.post(NFT_MESSAGE_WEBHOOK, { text, blocks });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendNFTBookNewListingSlackNotification({
+  wallet,
+  classId,
+  className,
+  prices,
+  canPayByLIKE,
+}) {
+  if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
+  try {
+    const editions = prices.map(
+      (p) => `Name: ${Object.values(p.name).join(', ')}; Price: USD ${p.priceInDecimal / 100}; Stock: ${p.stock}`,
+    ).join('\n');
+    await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
+      wallet,
+      classId,
+      className,
+      editions,
+      canPayByLIKE,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendNFTBookSalesSlackNotification({
+  classId,
+  className,
+  paymentId,
+  method,
+}) {
+  if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
+  try {
+    await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
+      classId,
+      className,
+      paymentId,
+      method,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

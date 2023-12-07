@@ -24,6 +24,7 @@ import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail, sendNFTBookClaimedEmail } from '../../../ses';
 import { calculateTxGasFee } from '../../../cosmos/tx';
+import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
@@ -401,16 +402,24 @@ export async function processNFTBookStripePurchase(
     });
 
     const className = classData?.name || classId;
-    await sendNFTBookPurchaseEmail({
-      email,
-      notificationEmails,
-      classId,
-      className,
-      paymentId,
-      claimToken,
-      amountTotal,
-      mustClaimToView,
-    });
+    await Promise.all([
+      sendNFTBookPurchaseEmail({
+        email,
+        notificationEmails,
+        classId,
+        className,
+        paymentId,
+        claimToken,
+        amountTotal,
+        mustClaimToView,
+      }),
+      sendNFTBookSalesSlackNotification({
+        classId,
+        className,
+        paymentId,
+        method: 'LIKE',
+      }),
+    ]);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

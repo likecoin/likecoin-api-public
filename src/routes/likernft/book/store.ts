@@ -17,6 +17,7 @@ import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
+import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const router = Router();
@@ -344,7 +345,17 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       canPayByLIKE,
     });
 
-    await sendNFTBookListingEmail({ classId, className: metadata?.name });
+    const className = metadata?.name;
+    await Promise.all([
+      sendNFTBookListingEmail({ classId, className }),
+      sendNFTBookNewListingSlackNotification({
+        wallet: ownerWallet,
+        classId,
+        className,
+        prices,
+        canPayByLIKE,
+      }),
+    ]);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTListingCreate',
