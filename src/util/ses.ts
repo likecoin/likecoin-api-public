@@ -281,6 +281,44 @@ export function sendPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookListingEmail({
+  classId,
+  className,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = `New NFT Book listing: ${className}`;
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId });
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookListingEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicV2Template({
+            title,
+            content: `<p>A new NFT Book <a href="${nftClassURLEn}">${className}</a> has been listed.</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookPendingClaimEmail({
   email,
   classId,

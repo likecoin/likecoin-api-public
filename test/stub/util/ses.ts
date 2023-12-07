@@ -33,6 +33,13 @@ export function sendPendingClaimEmail({
   return Promise.resolve();
 }
 
+export function sendNFTBookListingEmail({
+  classId,
+  className,
+}) {
+  return Promise.resolve();
+}
+
 /* istanbul ignore next */
 export function sendNFTBookShippedEmail({
   email,
