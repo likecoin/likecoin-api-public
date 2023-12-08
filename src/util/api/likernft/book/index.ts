@@ -1,5 +1,5 @@
 import { ValidationError } from '../../../ValidationError';
-import { FieldValue, likeNFTBookCollection } from '../../../firebase';
+import { FieldValue, Timestamp, likeNFTBookCollection } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import { NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
 
@@ -131,16 +131,27 @@ export async function getNftBookInfo(classId) {
   return doc.data();
 }
 
-export async function listLatestNFTBookInfo(count = 100) {
-  const query = await likeNFTBookCollection.orderBy('timestamp', 'desc').limit(count).get();
-  return query.docs.map((doc) => {
-    const docData = doc.data();
-    return { id: doc.id, ...docData };
-  });
-}
-
-export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
-  const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
+export async function listLatestNFTBookInfo({
+  ownerWallet,
+  before,
+  limit,
+  key,
+}: {
+  ownerWallet?: string;
+  before?: number;
+  limit?: number;
+  key?: number;
+} = {}) {
+  let snapshot = likeNFTBookCollection.orderBy('timestamp', 'desc');
+  if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
+  const tsNumber = before || key;
+  if (tsNumber) {
+    // HACK: bypass startAfter() type check
+    const timestamp = Timestamp.fromMillis(tsNumber) as unknown as number;
+    snapshot = snapshot.startAfter(timestamp);
+  }
+  snapshot = snapshot.limit(limit);
+  const query = await snapshot.get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };

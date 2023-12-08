@@ -4,7 +4,6 @@ import {
   getNftBookInfo,
   listLatestNFTBookInfo,
   listNftBookInfoByModeratorWallet,
-  listNftBookInfoByOwnerWallet,
   newNftBookInfo,
   parseBookSalesData,
   updateNftBookInfo,
@@ -24,10 +23,21 @@ const router = Router();
 
 router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
-    const { wallet } = req.query;
-    const ownedBookInfos = wallet
-      ? await listNftBookInfoByOwnerWallet(wallet as string)
-      : await listLatestNFTBookInfo();
+    const {
+      wallet,
+      before: beforeString,
+      limit: limitString,
+      key: keyString,
+    } = req.query;
+    const conditions = {
+      ownerWallet: wallet as string,
+      before: beforeString ? Number(beforeString) : undefined,
+      limit: limitString ? Number(limitString) : 10,
+      key: keyString ? Number(keyString) : undefined,
+    };
+    if (conditions.limit > 100) throw new ValidationError('LIMIT_TOO_LARGE', 400);
+
+    const ownedBookInfos = await listLatestNFTBookInfo(conditions);
     const list = ownedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
@@ -37,6 +47,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         moderatorWallets,
         ownerWallet,
         id,
+        timestamp,
       } = b;
       const isAuthorized = req.user
         && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -47,6 +58,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         stock,
         shippingRates,
         defaultPaymentCurrency,
+        timestamp: timestamp.toMillis(),
       };
       if (req.user && req.user.wallet === wallet) {
         result.pendingNFTCount = pendingNFTCount;
@@ -54,7 +66,13 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       }
       return result;
     });
-    res.json({ list });
+    const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
+    if (req.user) {
+      res.set('Cache-Control', 'no-store');
+    } else {
+      res.set('Cache-Control', 'public, max-age=60, s-maxage=60, stale-if-error=600');
+    }
+    res.json({ list, nextKey });
   } catch (err) {
     next(err);
   }
