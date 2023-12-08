@@ -110,6 +110,7 @@ export async function sendNFTBookNewListingSlackNotification({
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
+    const link = getLikerLandNFTClassPageURL({ classId });
     const editions = prices.map(
       (p) => {
         const price = p.priceInDecimal === 0 ? 'FREE' : `${currency} ${p.priceInDecimal / 100}`;
@@ -120,6 +121,7 @@ export async function sendNFTBookNewListingSlackNotification({
       wallet,
       classId,
       className,
+      link,
       editions,
       canPayByLIKE,
     });
