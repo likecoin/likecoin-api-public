@@ -352,6 +352,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
         wallet: ownerWallet,
         classId,
         className,
+        currency: defaultPaymentCurrency,
         prices,
         canPayByLIKE,
       }),

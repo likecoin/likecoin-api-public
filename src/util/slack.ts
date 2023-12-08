@@ -104,13 +104,17 @@ export async function sendNFTBookNewListingSlackNotification({
   wallet,
   classId,
   className,
+  currency,
   prices,
   canPayByLIKE,
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
     const editions = prices.map(
-      (p) => `Name: ${Object.values(p.name).join(', ')}; Price: USD ${p.priceInDecimal / 100}; Stock: ${p.stock}`,
+      (p) => {
+        const price = p.priceInDecimal === 0 ? 'FREE' : `${currency} ${p.priceInDecimal / 100}`;
+        return `Name: ${Object.values(p.name).join(', ')}; Price: ${price}; Stock: ${p.stock}`;
+      },
     ).join('\n');
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
       wallet,
