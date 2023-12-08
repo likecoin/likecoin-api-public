@@ -1,6 +1,7 @@
 import { ValidationError } from '../../../ValidationError';
 import { FieldValue, likeNFTBookCollection } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import { NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -235,4 +236,8 @@ export function validatePrices(prices: any[]) {
     const errorMessage = `${(err as Error).message}_in_${i}`;
     throw new ValidationError(errorMessage);
   }
+}
+
+export function getNFTBookStoreSendPageURL(classId: string, paymentId: string) {
+  return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}`;
 }
