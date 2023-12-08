@@ -421,6 +421,7 @@ export async function processNFTBookStripePurchase(
         classId,
         className,
         paymentId,
+        email,
         priceName,
         priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
         method: 'LIKE',
