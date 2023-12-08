@@ -4,7 +4,6 @@ import {
   getNftBookInfo,
   listLatestNFTBookInfo,
   listNftBookInfoByModeratorWallet,
-  listNftBookInfoByOwnerWallet,
   newNftBookInfo,
   parseBookSalesData,
   updateNftBookInfo,
@@ -24,18 +23,19 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const {
       wallet,
-      before,
-      limit,
-      key,
+      before: beforeString,
+      limit: limitString,
+      key: keyString,
     } = req.query;
-    const pagination = {
-      before: before ? Number(before) : Date.now(),
-      limit: limit ? Number(limit) : 10,
-      key: key ? Number(key) : null,
+    const conditions = {
+      ownerWallet: wallet as string,
+      before: beforeString ? Number(beforeString) : undefined,
+      limit: limitString ? Number(limitString) : 10,
+      key: keyString ? Number(keyString) : undefined,
     };
-    const ownedBookInfos = wallet
-      ? await listNftBookInfoByOwnerWallet(wallet as string, pagination)
-      : await listLatestNFTBookInfo(pagination);
+    if (conditions.limit > 100) throw new ValidationError('LIMIT_TOO_LARGE', 400);
+
+    const ownedBookInfos = await listLatestNFTBookInfo(conditions);
     const list = ownedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
@@ -64,7 +64,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       }
       return result;
     });
-    const nextKey = list.length < pagination.limit ? null : list[list.length - 1].timestamp;
+    const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
     res.json({ list, nextKey });
   } catch (err) {
     next(err);

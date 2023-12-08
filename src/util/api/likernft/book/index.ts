@@ -131,46 +131,26 @@ export async function getNftBookInfo(classId) {
 }
 
 export async function listLatestNFTBookInfo({
-  before = Date.now(),
-  limit = 10,
-  key = null,
+  ownerWallet,
+  before,
+  limit,
+  key,
 }: {
+  ownerWallet?: string;
   before?: number;
   limit?: number;
-  key?: number | null;
+  key?: number;
 } = {}) {
-  if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
-  // HACK: bypass startAfter() type check
-  const timestamp = Timestamp.fromMillis(key || before) as unknown as number;
-  const query = await likeNFTBookCollection
-    .orderBy('timestamp', 'desc')
-    .startAfter(timestamp)
-    .limit(limit)
-    .get();
-  return query.docs.map((doc) => {
-    const docData = doc.data();
-    return { id: doc.id, ...docData };
-  });
-}
-
-export async function listNftBookInfoByOwnerWallet(ownerWallet: string, {
-  before = Date.now(),
-  limit = 10,
-  key = null,
-}: {
-  before?: number;
-  limit?: number;
-  key?: number | null;
-} = {}) {
-  if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
-  // HACK: bypass startAfter() type check
-  const timestamp = Timestamp.fromMillis(key || before) as unknown as number;
-  const query = await likeNFTBookCollection
-    .where('ownerWallet', '==', ownerWallet)
-    .orderBy('timestamp', 'desc')
-    .startAfter(timestamp)
-    .limit(limit)
-    .get();
+  let snapshot = likeNFTBookCollection.orderBy('timestamp', 'desc');
+  if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
+  const tsNumber = before || key;
+  if (tsNumber) {
+    // HACK: bypass startAfter() type check
+    const timestamp = Timestamp.fromMillis(tsNumber) as unknown as number;
+    snapshot = snapshot.startAfter(timestamp);
+  }
+  snapshot = snapshot.limit(limit);
+  const query = await snapshot.get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
