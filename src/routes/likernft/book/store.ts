@@ -11,11 +11,13 @@ import {
   validatePrice,
   validatePrices,
 } from '../../../util/api/likernft/book';
-import { getISCNFromNFTClassId } from '../../../util/cosmos/nft';
+import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
+import { sendNFTBookListingEmail } from '../../../util/ses';
+import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
 
 const router = Router();
@@ -318,9 +320,12 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       canPayByLIKE = false,
     } = req.body;
     validatePrices(prices);
-    const result = await getISCNFromNFTClassId(classId);
-    if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const { owner: ownerWallet } = result;
+    const [iscnInfo, metadata] = await Promise.all([
+      getISCNFromNFTClassId(classId),
+      getNFTClassDataById(classId),
+    ]);
+    if (!iscnInfo) throw new ValidationError('CLASS_ID_NOT_FOUND');
+    const { owner: ownerWallet } = iscnInfo;
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
@@ -339,6 +344,19 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       hideDownload,
       canPayByLIKE,
     });
+
+    const className = metadata?.name || classId;
+    await Promise.all([
+      sendNFTBookListingEmail({ classId, className }),
+      sendNFTBookNewListingSlackNotification({
+        wallet: ownerWallet,
+        classId,
+        className,
+        currency: defaultPaymentCurrency,
+        prices,
+        canPayByLIKE,
+      }),
+    ]);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTListingCreate',

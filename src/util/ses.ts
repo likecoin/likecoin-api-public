@@ -1,8 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 import { getBasicTemplate, getBasicV2Template } from '@likecoin/edm';
 import aws from 'aws-sdk';
-import { NFT_BOOKSTORE_HOSTNAME, TEST_MODE } from '../constant';
+import { TEST_MODE } from '../constant';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from './liker-land';
+import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 
 if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 
@@ -281,6 +282,44 @@ export function sendPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookListingEmail({
+  classId,
+  className,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = `New NFT Book listing: ${className}`;
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId });
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookListingEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicV2Template({
+            title,
+            content: `<p>A new NFT Book <a href="${nftClassURLEn}">${className}</a> has been listed.</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookPendingClaimEmail({
   email,
   classId,
@@ -475,6 +514,7 @@ export function sendNFTBookClaimedEmail({
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `A user has claimed an ebook ${className}`;
+  const url = getNFTBookStoreSendPageURL(classId, paymentId);
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -503,7 +543,7 @@ export function sendNFTBookClaimedEmail({
             <p>Congratulation. A reader has claimed your ebook${message ? ` with message: "${message}"` : ''}.</p>
             <p>Reader email: ${buyerEmail}</p>
             <p>Reader wallet address: ${wallet}</p>
-            <p>Please visit the <a href="https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}">NFT book management page</a> to deliver your book.</p>
+            <p>Please visit the <a href="${url}">NFT book management page</a> to deliver your book.</p>
             <br>
             <p>Liker Land</p>`,
           }).body,

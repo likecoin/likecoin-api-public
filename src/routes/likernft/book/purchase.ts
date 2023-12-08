@@ -29,6 +29,7 @@ import {
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
+import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 
 const router = Router();
 
@@ -230,16 +231,27 @@ router.post(
       });
 
       const className = metadata?.name || classId;
-      await sendNFTBookPurchaseEmail({
-        email,
-        notificationEmails,
-        classId,
-        className,
-        paymentId,
-        claimToken,
-        amountTotal: 0,
-        mustClaimToView,
-      });
+      await Promise.all([
+        sendNFTBookPurchaseEmail({
+          email,
+          notificationEmails,
+          classId,
+          className,
+          paymentId,
+          claimToken,
+          amountTotal: 0,
+          mustClaimToView,
+        }),
+        sendNFTBookSalesSlackNotification({
+          classId,
+          className,
+          paymentId,
+          email,
+          priceName,
+          priceWithCurrency: 'FREE',
+          method: 'free',
+        }),
+      ]);
 
       if (wallet) {
         await claimNFTBook(
@@ -296,11 +308,15 @@ router.post(
       const priceIndex = Number(priceIndexString);
       if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
 
-      const bookInfo = await getNftBookInfo(classId);
+      const [metadata, bookInfo] = await Promise.all([
+        getNFTClassDataById(classId).catch(() => null),
+        getNftBookInfo(classId),
+      ]);
 
       const {
         ownerWallet,
         prices,
+        defaultPaymentCurrency,
         defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
       } = bookInfo;
       if (prices.length <= priceIndex) {
@@ -353,6 +369,16 @@ router.post(
         classId,
         wallet: granterWallet,
         email,
+      });
+      const className = metadata?.name || classId;
+      await sendNFTBookSalesSlackNotification({
+        classId,
+        className,
+        paymentId,
+        email,
+        priceName,
+        priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency || 'USD'})`,
+        method: 'LIKE',
       });
 
       await claimNFTBook(classId, paymentId, {
