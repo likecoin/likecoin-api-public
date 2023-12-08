@@ -140,7 +140,8 @@ export async function listLatestNFTBookInfo({
   key?: number | null;
 } = {}) {
   if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
-  const timestamp = Timestamp.fromMillis(key || before);
+  // HACK: bypass startAfter() type check
+  const timestamp = Timestamp.fromMillis(key || before) as unknown as number;
   const query = await likeNFTBookCollection
     .orderBy('timestamp', 'desc')
     .startAfter(timestamp)
@@ -162,7 +163,8 @@ export async function listNftBookInfoByOwnerWallet(ownerWallet: string, {
   key?: number | null;
 } = {}) {
   if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
-  const timestamp = Timestamp.fromMillis(key || before);
+  // HACK: bypass startAfter() type check
+  const timestamp = Timestamp.fromMillis(key || before) as unknown as number;
   const query = await likeNFTBookCollection
     .where('ownerWallet', '==', ownerWallet)
     .orderBy('timestamp', 'desc')
