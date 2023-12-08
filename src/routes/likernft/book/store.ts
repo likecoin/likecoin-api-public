@@ -22,10 +22,20 @@ const router = Router();
 
 router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
-    const { wallet } = req.query;
+    const {
+      wallet,
+      before,
+      limit,
+      key,
+    } = req.query;
+    const pagination = {
+      before: before ? Number(before) : Date.now(),
+      limit: limit ? Number(limit) : 10,
+      key: key ? Number(key) : null,
+    };
     const ownedBookInfos = wallet
-      ? await listNftBookInfoByOwnerWallet(wallet as string)
-      : await listLatestNFTBookInfo();
+      ? await listNftBookInfoByOwnerWallet(wallet as string, pagination)
+      : await listLatestNFTBookInfo(pagination);
     const list = ownedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
@@ -35,6 +45,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         moderatorWallets,
         ownerWallet,
         id,
+        timestamp,
       } = b;
       const isAuthorized = req.user
         && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -45,6 +56,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         stock,
         shippingRates,
         defaultPaymentCurrency,
+        timestamp: timestamp.toMillis(),
       };
       if (req.user && req.user.wallet === wallet) {
         result.pendingNFTCount = pendingNFTCount;
@@ -52,7 +64,8 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       }
       return result;
     });
-    res.json({ list });
+    const nextKey = list.length < pagination.limit ? null : list[list.length - 1].timestamp;
+    res.json({ list, nextKey });
   } catch (err) {
     next(err);
   }

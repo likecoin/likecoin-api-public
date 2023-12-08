@@ -1,5 +1,5 @@
 import { ValidationError } from '../../../ValidationError';
-import { FieldValue, likeNFTBookCollection } from '../../../firebase';
+import { FieldValue, Timestamp, likeNFTBookCollection } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
@@ -130,16 +130,45 @@ export async function getNftBookInfo(classId) {
   return doc.data();
 }
 
-export async function listLatestNFTBookInfo(count = 100) {
-  const query = await likeNFTBookCollection.orderBy('timestamp', 'desc').limit(count).get();
+export async function listLatestNFTBookInfo({
+  before = Date.now(),
+  limit = 10,
+  key = null,
+}: {
+  before?: number;
+  limit?: number;
+  key?: number | null;
+} = {}) {
+  if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
+  const timestamp = Timestamp.fromMillis(key || before);
+  const query = await likeNFTBookCollection
+    .orderBy('timestamp', 'desc')
+    .startAfter(timestamp)
+    .limit(limit)
+    .get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
   });
 }
 
-export async function listNftBookInfoByOwnerWallet(ownerWallet: string) {
-  const query = await likeNFTBookCollection.where('ownerWallet', '==', ownerWallet).get();
+export async function listNftBookInfoByOwnerWallet(ownerWallet: string, {
+  before = Date.now(),
+  limit = 10,
+  key = null,
+}: {
+  before?: number;
+  limit?: number;
+  key?: number | null;
+} = {}) {
+  if (limit > 100) throw new ValidationError('LIMIT_TOO_LARGE');
+  const timestamp = Timestamp.fromMillis(key || before);
+  const query = await likeNFTBookCollection
+    .where('ownerWallet', '==', ownerWallet)
+    .orderBy('timestamp', 'desc')
+    .startAfter(timestamp)
+    .limit(limit)
+    .get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
