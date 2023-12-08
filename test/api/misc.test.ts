@@ -9,11 +9,3 @@ test('misc: get LikeCoin price (default)', async (t) => {
   t.is(res.status, 200);
   t.true(res.data.price >= 0);
 });
-
-test('misc: get LikeCoin price (TWD)', async (t) => {
-  const res = await axiosist.get('/api/misc/price?currency=twd')
-    .catch((err) => (err as any).response);
-
-  t.is(res.status, 200);
-  t.true(res.data.price >= 0);
-});

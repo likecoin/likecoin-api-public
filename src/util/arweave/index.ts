@@ -1,6 +1,5 @@
 import Arweave from 'arweave/node';
 import Bundlr from '@bundlr-network/client';
-import axios from 'axios';
 import BigNumber from 'bignumber.js';
 import stringify from 'fast-json-stable-stringify';
 import LRU from 'lru-cache';
@@ -10,7 +9,8 @@ import {
   uploadFileToIPFS,
 } from '../ipfs';
 import { maticBundlr } from './signer';
-import { COINGECKO_AR_LIKE_PRICE_API, IS_TESTNET } from '../../constant';
+import { IS_TESTNET } from '../../constant';
+import { getMaticPriceInLIKE, getArweavePriceInLIKE } from '../api/likernft/likePrice';
 import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
@@ -185,9 +185,7 @@ export async function estimateARPrices(files, checkDuplicate = true): Promise<{
 
 async function getARPriceRatioBigNumber() {
   try {
-    const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API, { timeout: 10000 });
-    const { likecoin, arweave: arweavePrice } = data;
-    const priceRatio = new BigNumber(arweavePrice.usd).dividedBy(likecoin.usd).toFixed();
+    const priceRatio = await getArweavePriceInLIKE();
     // At least 1 LIKE for 1 AR
     const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
     return priceRatioBigNumber;
@@ -201,9 +199,7 @@ async function getARPriceRatioBigNumber() {
 
 async function getMATICPriceRatioBigNumber() {
   try {
-    const { data } = await axios.get(COINGECKO_AR_LIKE_PRICE_API, { timeout: 10000 });
-    const { likecoin, 'matic-network': maticPrice } = data;
-    const priceRatio = new BigNumber(maticPrice.usd).dividedBy(likecoin.usd).toFixed();
+    const priceRatio = await getMaticPriceInLIKE();
     // At least 1 LIKE for 1 AR
     const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
     return priceRatioBigNumber;
