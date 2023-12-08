@@ -65,6 +65,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       return result;
     });
     const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
+    res.set('Cache-Control', 'public, max-age=6, s-maxage=6, stale-if-error=60');
     res.json({ list, nextKey });
   } catch (err) {
     next(err);
