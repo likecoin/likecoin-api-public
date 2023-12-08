@@ -246,6 +246,8 @@ router.post(
           classId,
           className,
           paymentId,
+          priceName,
+          priceWithCurrency: 'FREE',
           method: 'free',
         }),
       ]);
@@ -313,6 +315,7 @@ router.post(
       const {
         ownerWallet,
         prices,
+        defaultPaymentCurrency,
         defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
       } = bookInfo;
       if (prices.length <= priceIndex) {
@@ -371,6 +374,8 @@ router.post(
         classId,
         className,
         paymentId,
+        priceName,
+        priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency})`,
         method: 'LIKE',
       });
 

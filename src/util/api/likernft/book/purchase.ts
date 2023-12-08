@@ -379,7 +379,11 @@ export async function processNFTBookStripePurchase(
       shippingDetails,
       shippingCost,
     });
-    const { notificationEmails = [], mustClaimToView = false } = listingData;
+    const {
+      notificationEmails = [],
+      mustClaimToView = false,
+      defaultPaymentCurrency,
+    } = listingData;
     const {
       claimToken, price, priceName, type, from,
     } = txData;
@@ -417,6 +421,8 @@ export async function processNFTBookStripePurchase(
         classId,
         className,
         paymentId,
+        priceName,
+        priceWithCurrency: `${price} ${defaultPaymentCurrency}`,
         method: 'LIKE',
       }),
     ]);

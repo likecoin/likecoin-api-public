@@ -345,7 +345,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       canPayByLIKE,
     });
 
-    const className = metadata?.name;
+    const className = metadata?.name || classId;
     await Promise.all([
       sendNFTBookListingEmail({ classId, className }),
       sendNFTBookNewListingSlackNotification({

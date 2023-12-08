@@ -107,14 +107,25 @@ export async function sendNFTBookNewListingSlackNotification({
   currency,
   prices,
   canPayByLIKE,
+}: {
+  wallet: string;
+  classId: string;
+  className: string;
+  currency: string;
+  prices: {
+    name: Record<string, string>;
+    priceInDecimal: number;
+    stock: number;
+  }[];
+  canPayByLIKE: boolean;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
     const link = getLikerLandNFTClassPageURL({ classId });
     const editions = prices.map(
       (p) => {
-        const price = p.priceInDecimal === 0 ? 'FREE' : `${currency} ${p.priceInDecimal / 100}`;
-        return `Name: ${Object.values(p.name).join(', ')}; Price: ${price}; Stock: ${p.stock}`;
+        const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} ${currency}`;
+        return `Name: ${Object.values(p.name).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
       },
     ).join('\n');
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
@@ -135,14 +146,27 @@ export async function sendNFTBookSalesSlackNotification({
   classId,
   className,
   paymentId,
+  priceName,
+  priceWithCurrency,
   method,
+} : {
+  classId: string;
+  className: string;
+  paymentId: string;
+  priceName: string;
+  priceWithCurrency: string;
+  method: string;
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
+    const link = getLikerLandNFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
       classId,
       className,
+      link,
       paymentId,
+      priceName,
+      priceWithCurrency,
       method,
     });
   } catch (err) {
