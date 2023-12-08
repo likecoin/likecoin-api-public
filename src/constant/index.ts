@@ -148,9 +148,6 @@ export const TWITTER_STATUS_ID_STR = '1126374337575972864';
 
 export const OICE_API_HOST = IS_TESTNET ? 'https://oice.com/api' : 'https://oicetest.lakoo.com/api';
 
-export const COINMARKETCAP_PRICE_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
-export const LIKE_DEFAULT_PRICE = 0.0082625;
-
 export const USD_TO_HKD_RATIO = 7.8;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
