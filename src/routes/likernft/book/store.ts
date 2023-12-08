@@ -111,7 +111,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
   }
 });
 
-router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -160,7 +160,7 @@ router.get('/:classId', jwtOptionalAuth('read:nftbook'), async (req, res, next) 
   }
 });
 
-router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
@@ -213,7 +213,7 @@ router.get('/:classId/price/:priceIndex', jwtOptionalAuth('read:nftbook'), async
   }
 });
 
-router.post('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
@@ -243,7 +243,7 @@ router.post('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req,
   }
 });
 
-router.put('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const { price } = req.body;
@@ -269,7 +269,7 @@ router.put('/:classId/price/:priceIndex', jwtAuth('write:nftbook'), async (req, 
   }
 });
 
-router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -321,7 +321,7 @@ router.put('/:classId/price/:priceIndex/order', jwtAuth('write:nftbook'), async 
   }
 });
 
-router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -393,7 +393,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
   }
 });
 
-router.post('/:classId/settings', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
