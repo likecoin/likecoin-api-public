@@ -375,7 +375,7 @@ router.post(
         className,
         paymentId,
         priceName,
-        priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency})`,
+        priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency || 'USD'})`,
         method: 'LIKE',
       });
 
