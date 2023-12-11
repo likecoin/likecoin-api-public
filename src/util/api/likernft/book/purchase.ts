@@ -31,6 +31,7 @@ import {
   LIKER_NFT_FEE_ADDRESS,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
+  NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
 } from '../../../../../config/config';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
@@ -145,6 +146,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     shippingRates,
     defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
+    isLikerLandArt,
   } = bookInfo;
   if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
   let from: string = inputFrom as string || '';
@@ -230,13 +232,22 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       const likerLandCommission = isFromLikerLand
         ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
         : 0;
-
+      const likerlandArtFee = isLikerLandArt
+        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+        : 0;
       // TODO: support connectedWallets +1
       paymentIntentData.application_fee_amount = (
-        stripeFeeAmount + likerLandFeeAmount + likerLandCommission
+        stripeFeeAmount + likerLandFeeAmount + likerLandCommission + likerlandArtFee
       );
       paymentIntentData.transfer_data = {
         destination: stripeConnectAccountId,
+      };
+      paymentIntentData.metadata = {
+        ...paymentIntentData.metadata,
+        stripeFeeAmount,
+        likerLandFeeAmount,
+        likerLandCommission,
+        likerlandArtFee,
       };
     }
   }
