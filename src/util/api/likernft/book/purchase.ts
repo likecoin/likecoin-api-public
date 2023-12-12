@@ -435,7 +435,7 @@ export async function processNFTBookStripePurchase(
         email,
         priceName,
         priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
-        method: 'LIKE',
+        method: 'USD',
       }),
     ]);
   } catch (err) {
