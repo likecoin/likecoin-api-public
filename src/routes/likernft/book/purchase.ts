@@ -310,6 +310,7 @@ router.post(
       const {
         email,
         txHash: grantTxHash,
+        giftInfo,
       } = req.body;
 
       const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
@@ -317,6 +318,10 @@ router.post(
 
       const priceIndex = Number(priceIndexString);
       if (Number.isNaN(priceIndex)) throw new ValidationError('INVALID_PRICE_INDEX');
+
+      if (giftInfo && !giftInfo.toEmail) {
+        throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+      }
 
       const [metadata, bookInfo] = await Promise.all([
         getNFTClassDataById(classId).catch(() => null),
@@ -361,10 +366,11 @@ router.post(
         priceInDecimal,
         priceName,
         priceIndex,
+        giftInfo,
         from,
       });
       const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice, from);
-      await processNFTBookPurchase({
+      const { listingData } = await processNFTBookPurchase({
         classId,
         email,
         paymentId,
@@ -391,20 +397,41 @@ router.post(
         method: 'LIKE',
       });
 
-      await claimNFTBook(classId, paymentId, {
-        message,
-        wallet: granterWallet,
-        token: claimToken,
-      });
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTClaimed',
-        paymentId,
-        classId,
-        wallet: granterWallet,
-        email,
-        message,
-      });
-      res.json({ claimed: true });
+      let claimed = false;
+      if (!giftInfo) {
+        await claimNFTBook(classId, paymentId, {
+          message,
+          wallet: granterWallet,
+          token: claimToken,
+        });
+        claimed = true;
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'BookNFTClaimed',
+          paymentId,
+          classId,
+          wallet: granterWallet,
+          email,
+          message,
+        });
+      } else {
+        const {
+          notificationEmails = [],
+          mustClaimToView = false,
+        } = listingData;
+        await sendNFTBookPurchaseEmail({
+          email,
+          isGift: !!giftInfo,
+          giftInfo,
+          notificationEmails,
+          classId,
+          className,
+          paymentId,
+          claimToken,
+          amountTotal: price,
+          mustClaimToView,
+        });
+      }
+      res.json({ claimed });
     } catch (err) {
       next(err);
     }
