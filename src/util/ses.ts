@@ -456,7 +456,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             title,
             content: `<p>親愛的${toName}：</p>
             <p>${fromName} 贈送了一本 <a href="${nftClassURLZh}">《${className}》</a> 電子書給你作為禮物。</p>
-            <p>以下是 ${fromName}的留言：</p>
+            <p>以下是 ${fromName} 的留言：</p>
             <p>${message}</p>
             <br/>
             <p>${mustClaimToView ? '' : `請前往 Liker Land 的<a href="${claimPageURLZh}">下載頁面</a>，下載電子書檔案（EPUB/PDF 檔）。`}</p>
