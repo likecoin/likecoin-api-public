@@ -440,6 +440,7 @@ export function filterBookPurchaseData({
   txHash,
   message,
   from,
+  giftInfo,
   timestamp,
 }) {
   return {
@@ -462,6 +463,7 @@ export function filterBookPurchaseData({
     txHash,
     message,
     from,
+    giftInfo,
     timestamp: timestamp.toMillis(),
   };
 }

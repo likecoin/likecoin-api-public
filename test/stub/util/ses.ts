@@ -41,11 +41,47 @@ export function sendNFTBookListingEmail({
 }
 
 /* istanbul ignore next */
+export function sendNFTBookGiftPendingClaimEmail({
+  fromName,
+  toName,
+  toEmail,
+  message,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+  mustClaimToView,
+}) {
+  return Promise.resolve();
+}
+
+/* istanbul ignore next */
 export function sendNFTBookShippedEmail({
   email,
   classId,
   className,
   message,
+}) {
+  return Promise.resolve();
+}
+
+/* istanbul ignore next */
+export function sendNFTBookGiftClaimedEmail({
+  className,
+  fromEmail,
+  fromName,
+  toName,
+}) {
+  return Promise.resolve();
+}
+
+/* istanbul ignore next */
+export function sendNFTBookGiftSentEmail({
+  fromEmail,
+  fromName,
+  toName,
+  className,
+  txHash,
 }) {
   return Promise.resolve();
 }
@@ -65,6 +101,9 @@ export function sendNFTBookPendingClaimEmail({
 /* istanbul ignore next */
 export function sendNFTBookSalesEmail({
   emails,
+  isGift,
+  giftToName,
+  giftToEmail,
   buyerEmail,
   className,
   amount,

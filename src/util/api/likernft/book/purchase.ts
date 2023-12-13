@@ -8,7 +8,7 @@ import BigNumber from 'bignumber.js';
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
-import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   NFT_BOOK_SALE_DESCRIPTION,
@@ -22,7 +22,6 @@ import { getStripeConnectAccountId } from './user';
 import stripe from '../../../stripe';
 import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
 import publisher from '../../../gcloudPub';
-import { sendNFTBookPendingClaimEmail, sendNFTBookSalesEmail, sendNFTBookClaimedEmail } from '../../../ses';
 import { calculateTxGasFee } from '../../../cosmos/tx';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import {
@@ -33,6 +32,13 @@ import {
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
 } from '../../../../../config/config';
+import {
+  sendNFTBookPendingClaimEmail,
+  sendNFTBookSalesEmail,
+  sendNFTBookClaimedEmail,
+  sendNFTBookGiftPendingClaimEmail,
+  sendNFTBookGiftClaimedEmail,
+} from '../../../ses';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
@@ -42,9 +48,25 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceInDecimal,
   priceName,
   priceIndex,
+  giftInfo,
   from = '',
+}: {
+  type: string;
+  email?: string;
+  claimToken: string;
+  sessionId?: string;
+  priceInDecimal: number,
+  priceName: string;
+  priceIndex: number;
+  from?: string;
+  giftInfo?: {
+    toName: string,
+    toEmail: string,
+    fromName: string,
+    message?: string,
+  };
 }) {
-  await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create({
+  const payload: any = {
     type,
     email,
     isPaid: false,
@@ -59,7 +81,25 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     from,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
-  });
+  };
+  const isGift = !!giftInfo;
+
+  if (isGift) {
+    const {
+      toEmail = '',
+      toName = '',
+      fromName = '',
+      message = '',
+    } = giftInfo;
+    payload.isGift = true;
+    payload.giftInfo = {
+      toEmail,
+      toName,
+      fromName,
+      message,
+    };
+  }
+  await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
 
 export async function processNFTBookPurchase({
@@ -121,9 +161,16 @@ export async function processNFTBookPurchase({
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   from: inputFrom,
+  giftInfo,
 }: {
   gaClientId?: string,
   from?: string,
+  giftInfo?: {
+    toEmail: string,
+    toName: string,
+    fromName: string,
+    message?: string,
+  },
 } = {}) {
   const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
   const [metadata, bookInfo] = (await Promise.all(promises)) as any;
@@ -133,7 +180,12 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   const claimToken = crypto.randomBytes(32).toString('hex');
   const {
     prices,
-    successUrl = getLikerLandNFTClaimPageURL({
+    successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
+      classId,
+      paymentId,
+      type: 'nft_book',
+      redirect: true,
+    }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
       token: claimToken,
@@ -318,6 +370,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceInDecimal,
     priceName,
     priceIndex,
+    giftInfo,
     from: from as string,
   });
 
@@ -338,9 +391,29 @@ export async function sendNFTBookPurchaseEmail({
   paymentId,
   claimToken,
   amountTotal,
+  isGift = false,
+  giftInfo = null,
   mustClaimToView = false,
 }) {
-  if (email) {
+  if (isGift && giftInfo) {
+    const {
+      fromName,
+      toName,
+      toEmail,
+      message,
+    } = giftInfo;
+    await sendNFTBookGiftPendingClaimEmail({
+      fromName,
+      toName,
+      toEmail,
+      message,
+      classId,
+      className,
+      paymentId,
+      claimToken,
+      mustClaimToView,
+    });
+  } else if (email) {
     await sendNFTBookPendingClaimEmail({
       email,
       classId,
@@ -353,6 +426,9 @@ export async function sendNFTBookPurchaseEmail({
   if (notificationEmails.length) {
     await sendNFTBookSalesEmail({
       buyerEmail: email,
+      isGift,
+      giftToEmail: (giftInfo as any)?.toEmail,
+      giftToName: (giftInfo as any)?.toName,
       emails: notificationEmails,
       className,
       amount: (amountTotal || 0) / 100,
@@ -396,7 +472,7 @@ export async function processNFTBookStripePurchase(
       defaultPaymentCurrency,
     } = listingData;
     const {
-      claimToken, price, priceName, type, from,
+      claimToken, price, priceName, type, from, isGift, giftInfo,
     } = txData;
     const [, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
@@ -414,12 +490,15 @@ export async function processNFTBookStripePurchase(
       priceIndex,
       fromChannel: from,
       sessionId: session.id,
+      isGift,
     });
 
     const className = classData?.name || classId;
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
+        isGift,
+        giftInfo,
         notificationEmails,
         classId,
         className,
@@ -502,16 +581,26 @@ export async function claimNFTBook(
 export async function sendNFTBookClaimedEmailNotification(
   classId: string,
   paymentId: string,
-  { message, wallet, email }: { message: string, wallet: string, email: string },
+  {
+    message, wallet, email, isGift, giftInfo,
+  }
+  : {
+      message: string, wallet: string, email: string, isGift?: boolean, giftInfo?: {
+      fromName: string,
+      toName: string,
+      toEmail: string,
+      message?: string,
+    }
+  },
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const doc = await bookRef.get();
   const docData = doc.data();
   if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
   const { notificationEmails = [] } = docData;
+  const classData = await getNFTClassDataById(classId).catch(() => null);
+  const className = classData?.name || classId;
   if (notificationEmails.length) {
-    const classData = await getNFTClassDataById(classId).catch(() => null);
-    const className = classData?.name || classId;
     await sendNFTBookClaimedEmail({
       emails: notificationEmails,
       classId,
@@ -520,6 +609,18 @@ export async function sendNFTBookClaimedEmailNotification(
       wallet,
       buyerEmail: email,
       message,
+    });
+  }
+  if (isGift && giftInfo) {
+    const {
+      fromName,
+      toName,
+    } = giftInfo;
+    await sendNFTBookGiftClaimedEmail({
+      className,
+      fromEmail: email,
+      fromName,
+      toName,
     });
   }
 }

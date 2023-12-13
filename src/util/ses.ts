@@ -402,6 +402,99 @@ export function sendNFTBookPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookGiftPendingClaimEmail({
+  fromName,
+  toName,
+  toEmail,
+  message,
+  classId,
+  className,
+  paymentId,
+  claimToken,
+  mustClaimToView,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = `${fromName} 送了一本電子書禮物給你 | ${fromName} has sent you a eBook gift from Liker Land'`;
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
+  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+    classId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'en',
+  });
+  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+    classId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'zh-Hant',
+  });
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookGiftPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [toEmail],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicV2Template({
+            title,
+            content: `<p>親愛的${toName}：</p>
+            <p>${fromName} 贈送了一本 <a href="${nftClassURLZh}">《${className}》</a> 電子書給你作為禮物。</p>
+            <p>以下是 ${fromName} 的留言：</p>
+            <p>${message}</p>
+            <br/>
+            <p>${mustClaimToView ? '' : `請前往 Liker Land 的<a href="${claimPageURLZh}">下載頁面</a>，下載電子書檔案（EPUB/PDF 檔）。`}</p>
+            ${mustClaimToView ? '' : `<p><a href="${claimPageURLZh}">前往下載頁面</a></p>`}
+            <p>${mustClaimToView ? '請根據以下步驟領取你的 NFT 書：' : '另，別忘記進一步領取此電子書的 NFT 正版證明。步驟如下：'}</p>
+            <ul>
+              <li>1. 確認您已有 Keplr 密碼貨幣錢包；如尚未持有，請參考<a href="https://youtu.be/bPaZk-ehWrg">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/RC8PugjnZq8">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</li>
+              <li>2. 在<a href="${claimPageURLZh}">認領頁面</a>，連結錢包以驗證領取 NFT 正版證明資格。</li>
+            </ul>
+            <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發 NFT 書。請往你的 <a href="https://liker.land/zh-Hant/feed?view=collectibles&tab=collected">Liker Land 個人主頁</a>查閱。</p>
+            <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
+            <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <p>Liker Land</p>
+            <hr />
+            <p>Dear ${toName},</p>
+            <p>${fromName} has send an eBook "<a href="${nftClassURLEn}">${className}</a>" to you as a gift</p>
+            <p>Here is ${fromName}'s message</p>
+            <p>${message}</p>
+            <br/>
+            <p>${mustClaimToView ? '' : ` Please visit the <a href="${claimPageURLEn}">Download Page</a> on Liker Land to download the ebook file (EPUB/PDF).`}</p>
+            ${mustClaimToView ? '' : `<p><a href="${claimPageURLEn}">Visit the Download Page</a></p>`}
+            <p>${mustClaimToView ? 'Please follow the steps below to claim your ebook:' : 'Moreover, please follow the steps below to claim your NFT genuine proof:'}</p>
+            <ul>
+              <li>1. Ensure that you have the Keplr wallet installed. If you don't have one yet, please refer to this tutorial video (<a href="https://youtu.be/bPaZk-ehWrg">Mandarin version</a>, <a href="https://youtu.be/RC8PugjnZq8">Cantonese version</a>), or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</li>
+              <li>2. Visit the <a href="${claimPageURLEn}">claim page</a>${mustClaimToView ? '' : ' again'}, connect your wallet to claim the NFT for proof of ownership.</li>
+            </ul>
+            <p>Once these steps are completed, the author will issue the NFT book to you within 1-3 business days. Please check your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a> for the book.</p>
+            <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
+            <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
+            <p>Liker Land</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookShippedEmail({
   email,
   classId,
@@ -463,8 +556,122 @@ export function sendNFTBookShippedEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookGiftClaimedEmail({
+  className,
+  fromEmail,
+  fromName,
+  toName,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = `${toName} 已接受你的禮物電子書 ${className} | ${toName} has accepted your eBook gift ${className}`;
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookClaimedEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: fromEmail,
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicTemplate({
+            title,
+            content: `<p>親愛的${fromName}：</p>
+            <br/>
+            <p>你送給 ${toName} 的 ${className} 已被接受</p>
+            <p>作者將會在稍後簽署給發送電子書給 ${toName} </p>
+            <p>感謝你分享閱讀的樂趣</p>
+            <br/>
+            <p>Liker Land</p>
+            <br/>
+            <br/>
+            <p>Dear ${fromName},</p>
+            <br/>
+            <p>Your eBook gift of ${className} has been accepted by ${toName}</p>
+            <p>Author will soon sign and send the eBook copy to ${toName}</p>
+            <p>Thank you for sharing the joy of reading.</p>
+            <br>
+            <p>Liker Land</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export function sendNFTBookGiftSentEmail({
+  fromEmail,
+  fromName,
+  toName,
+  className,
+  txHash,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = `你給 ${toName} 的禮物電子書 ${className} 已經發送 | Your eBook gift to ${toName} has been delivered`;
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookGiftSentEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: fromEmail,
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicTemplate({
+            title,
+            content: `<p>親愛的${fromName}：</p>
+            <br/>
+            <p>你購買的 ${className} 已成功發送給 ${toName}</p>
+            <p>如需瀏覽技術細節，請按<a href="https://mintscan.com/likecoin/txs/${txHash}">此連結</a></p>
+            <p>感謝你分享閱讀的樂趣</p>
+            <br/>
+            <p>Liker Land</p>
+            <br/>
+            <br/>
+            <p>Dear ${fromName},</p>
+            <br/>
+            <p>Your gift ${className} has been delivered to ${toName}</p>
+            <p>For technical details, visit <a href="https://mintscan.com/likecoin/txs/${txHash}">transaction detail page</a></p>
+            <p>Thank you for sharing the joy of reading</p>
+            <br>
+            <p>Liker Land</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookSalesEmail({
   emails,
+  isGift,
+  giftToName,
+  giftToEmail,
   buyerEmail,
   className,
   amount,
@@ -497,8 +704,8 @@ export function sendNFTBookSalesEmail({
             content: `<p>Dear Creator,</p>
             <br/>
             <p>Congratulation!</p>
-            <p>${buyerEmail} has bought your NFT book ${className} for $${amount}.</p>
-            <p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done.</p>
+            <p>${buyerEmail} has bought your NFT book ${className} for $${amount}${isGift ? ` as a gift to ${giftToName}<${giftToEmail}>` : ''}.</p>
+            <p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
             <br/>
             <p>Liker Land</p>`,
           }).body,
