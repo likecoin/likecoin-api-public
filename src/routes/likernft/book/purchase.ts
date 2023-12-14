@@ -246,7 +246,7 @@ router.post(
           email,
           notificationEmails,
           classId,
-          className,
+          bookName: className,
           paymentId,
           claimToken,
           amountTotal: 0,
@@ -254,7 +254,7 @@ router.post(
         }),
         sendNFTBookSalesSlackNotification({
           classId,
-          className,
+          bookName: className,
           paymentId,
           email,
           priceName,
@@ -389,7 +389,7 @@ router.post(
       const className = metadata?.name || classId;
       await sendNFTBookSalesSlackNotification({
         classId,
-        className,
+        bookName: className,
         paymentId,
         email,
         priceName,
@@ -424,7 +424,7 @@ router.post(
           giftInfo,
           notificationEmails,
           classId,
-          className,
+          bookName: className,
           paymentId,
           claimToken,
           amountTotal: price,
@@ -551,7 +551,7 @@ router.post(
           fromEmail: email,
           fromName,
           toName,
-          className,
+          bookName: className,
           txHash,
         });
       }
@@ -620,7 +620,7 @@ router.post(
         await sendNFTBookShippedEmail({
           email,
           classId,
-          className,
+          bookName: className,
           message,
         });
       }

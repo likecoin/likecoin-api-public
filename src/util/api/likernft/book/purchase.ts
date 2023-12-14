@@ -389,8 +389,9 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
 export async function sendNFTBookPurchaseEmail({
   email,
   notificationEmails,
-  classId,
-  className,
+  classId = '',
+  collectionId = '',
+  bookName,
   paymentId,
   claimToken,
   amountTotal,
@@ -411,7 +412,8 @@ export async function sendNFTBookPurchaseEmail({
       toEmail,
       message,
       classId,
-      className,
+      collectionId,
+      bookName,
       paymentId,
       claimToken,
       mustClaimToView,
@@ -420,7 +422,8 @@ export async function sendNFTBookPurchaseEmail({
     await sendNFTBookPendingClaimEmail({
       email,
       classId,
-      className,
+      collectionId,
+      bookName,
       paymentId,
       claimToken,
       mustClaimToView,
@@ -433,7 +436,7 @@ export async function sendNFTBookPurchaseEmail({
       giftToEmail: (giftInfo as any)?.toEmail,
       giftToName: (giftInfo as any)?.toName,
       emails: notificationEmails,
-      className,
+      bookName,
       amount: (amountTotal || 0) / 100,
     });
   }
@@ -506,7 +509,7 @@ export async function processNFTBookStripePurchase(
         giftInfo,
         notificationEmails,
         classId,
-        className,
+        bookName: className,
         paymentId,
         claimToken,
         amountTotal,
@@ -514,7 +517,7 @@ export async function processNFTBookStripePurchase(
       }),
       sendNFTBookSalesSlackNotification({
         classId,
-        className,
+        bookName: className,
         paymentId,
         email,
         priceName,
@@ -609,7 +612,7 @@ export async function sendNFTBookClaimedEmailNotification(
     await sendNFTBookClaimedEmail({
       emails: notificationEmails,
       classId,
-      className,
+      bookName: className,
       paymentId,
       wallet,
       buyerEmail: email,
@@ -622,7 +625,7 @@ export async function sendNFTBookClaimedEmailNotification(
       toName,
     } = giftInfo;
     await sendNFTBookGiftClaimedEmail({
-      className,
+      bookName: className,
       fromEmail: email,
       fromName,
       toName,
