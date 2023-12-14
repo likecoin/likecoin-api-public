@@ -16,7 +16,7 @@ import {
   LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
-import { parseImageURLFromMetadata, encodedURL } from '../metadata';
+import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
 import { getStripeConnectAccountId } from './user';
 import stripe from '../../../stripe';
@@ -169,6 +169,159 @@ function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
   }
 }
 
+export async function formatStripeCheckoutSession({
+  classId,
+  iscnPrefix,
+  collectionId,
+  paymentId,
+  ownerWallet,
+  from,
+  gaClientId,
+}: {
+  classId?: string,
+  iscnPrefix?: string,
+  collectionId?: string,
+  paymentId: string,
+  ownerWallet: string,
+  from?: string,
+  gaClientId?: string,
+}, {
+  name,
+  description,
+  images,
+}: {
+  name: string,
+  description: string,
+  images: string[],
+}, {
+  hasShipping,
+  shippingRates,
+  defaultPaymentCurrency,
+  priceInDecimal,
+  connectedWallets,
+  isLikerLandArt,
+  successUrl,
+  cancelUrl,
+}: {
+  hasShipping: boolean,
+  shippingRates: any[],
+  defaultPaymentCurrency: string,
+  priceInDecimal: number,
+  connectedWallets: string[],
+  isLikerLandArt: boolean,
+  successUrl: string,
+  cancelUrl: string,
+}) {
+  const sessionMetadata: Stripe.MetadataParam = {
+    store: 'book',
+    paymentId,
+    ownerWallet,
+  };
+  if (classId) sessionMetadata.classId = classId;
+  if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
+  if (collectionId) sessionMetadata.collectionId = collectionId;
+  if (gaClientId) sessionMetadata.gaClientId = gaClientId;
+  if (from) sessionMetadata.from = from;
+  const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
+    capture_method: 'manual',
+    metadata: sessionMetadata,
+  };
+
+  const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
+  const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
+
+  if (connectedWallets && Object.keys(connectedWallets).length) {
+    const isFromLikerLand = checkIsFromLikerLand(from);
+    const wallet = Object.keys(connectedWallets)[0];
+    const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
+    if (stripeConnectAccountId) {
+      const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
+      const likerLandFeeAmount = Math.ceil(
+        convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+      );
+      const likerLandCommission = isFromLikerLand
+        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        : 0;
+      const likerlandArtFee = isLikerLandArt
+        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+        : 0;
+      // TODO: support connectedWallets +1
+      paymentIntentData.application_fee_amount = (
+        stripeFeeAmount + likerLandFeeAmount + likerLandCommission + likerlandArtFee
+      );
+      paymentIntentData.transfer_data = {
+        destination: stripeConnectAccountId,
+      };
+      paymentIntentData.metadata = {
+        ...paymentIntentData.metadata,
+        stripeFeeAmount,
+        likerLandFeeAmount,
+        likerLandCommission,
+        likerlandArtFee,
+      };
+    }
+  }
+
+  const productMetadata: Stripe.MetadataParam = {};
+  if (classId) productMetadata.classId = classId;
+  if (iscnPrefix) productMetadata.iscnPrefix = iscnPrefix;
+  if (collectionId) productMetadata.collectionId = collectionId;
+
+  const productData = {
+    name,
+    description,
+    images,
+    metadata: productMetadata,
+  };
+
+  const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
+    mode: 'payment',
+    success_url: `${successUrl}`,
+    cancel_url: `${cancelUrl}`,
+    line_items: [
+      {
+        price_data: {
+          currency: convertedCurrency,
+          product_data: productData,
+          unit_amount: convertedPriceInDecimal,
+        },
+        adjustable_quantity: {
+          enabled: false,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: paymentIntentData,
+    metadata: sessionMetadata,
+  };
+  if (hasShipping) {
+    checkoutPayload.shipping_address_collection = {
+    // eslint-disable-next-line max-len
+      allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
+    };
+    if (shippingRates) {
+      checkoutPayload.shipping_options = shippingRates.map((s) => {
+        const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
+        const convertedShippingPriceInDecimal = (
+          convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
+        );
+        return {
+          shipping_rate_data: {
+            display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+            type: 'fixed_amount',
+            fixed_amount: {
+              amount: convertedShippingPriceInDecimal,
+              currency: convertedCurrency,
+            },
+          },
+        };
+      });
+    }
+  }
+  const session = await stripe.checkout.sessions.create(checkoutPayload);
+  return session;
+}
+
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   from: inputFrom,
@@ -261,108 +414,29 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   if (!description) {
     description = undefined;
   } // stripe does not like empty string
-  const sessionMetadata: Stripe.MetadataParam = {
-    store: 'book',
+
+  const session = await formatStripeCheckoutSession({
     classId,
     iscnPrefix,
     paymentId,
-    priceIndex,
     ownerWallet,
-  };
-  if (gaClientId) sessionMetadata.gaClientId = gaClientId as string;
-  if (from) sessionMetadata.from = from as string;
-  const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
-    capture_method: 'manual',
-    metadata: sessionMetadata,
-  };
+    from,
+    gaClientId,
+  }, {
+    name,
+    description,
+    images: image ? [image] : [],
+  }, {
+    hasShipping,
+    shippingRates,
+    defaultPaymentCurrency,
+    priceInDecimal,
+    connectedWallets,
+    isLikerLandArt,
+    successUrl,
+    cancelUrl,
+  });
 
-  const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-  const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
-  if (connectedWallets && Object.keys(connectedWallets).length) {
-    const isFromLikerLand = checkIsFromLikerLand(from);
-    const wallet = Object.keys(connectedWallets)[0];
-    const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
-    if (stripeConnectAccountId) {
-      const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-      const likerLandFeeAmount = Math.ceil(
-        convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
-      );
-      const likerLandCommission = isFromLikerLand
-        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-        : 0;
-      const likerlandArtFee = isLikerLandArt
-        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
-        : 0;
-      // TODO: support connectedWallets +1
-      paymentIntentData.application_fee_amount = (
-        stripeFeeAmount + likerLandFeeAmount + likerLandCommission + likerlandArtFee
-      );
-      paymentIntentData.transfer_data = {
-        destination: stripeConnectAccountId,
-      };
-      paymentIntentData.metadata = {
-        ...paymentIntentData.metadata,
-        stripeFeeAmount,
-        likerLandFeeAmount,
-        likerLandCommission,
-        likerlandArtFee,
-      };
-    }
-  }
-
-  const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
-    mode: 'payment',
-    success_url: `${successUrl}`,
-    cancel_url: `${cancelUrl}`,
-    line_items: [
-      {
-        price_data: {
-          currency: convertedCurrency,
-          product_data: {
-            name,
-            description,
-            images: [encodedURL(image)],
-            metadata: {
-              iscnPrefix,
-              classId: classId as string,
-            },
-          },
-          unit_amount: convertedPriceInDecimal,
-        },
-        adjustable_quantity: {
-          enabled: false,
-        },
-        quantity: 1,
-      },
-    ],
-    payment_intent_data: paymentIntentData,
-    metadata: sessionMetadata,
-  };
-  if (hasShipping) {
-    checkoutPayload.shipping_address_collection = {
-      // eslint-disable-next-line max-len
-      allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
-    };
-    if (shippingRates) {
-      checkoutPayload.shipping_options = shippingRates.map((s) => {
-        const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-        const convertedShippingPriceInDecimal = (
-          convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
-        );
-        return {
-          shipping_rate_data: {
-            display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-            type: 'fixed_amount',
-            fixed_amount: {
-              amount: convertedShippingPriceInDecimal,
-              currency: convertedCurrency,
-            },
-          },
-        };
-      });
-    }
-  }
-  const session = await stripe.checkout.sessions.create(checkoutPayload);
   const { url, id: sessionId } = session;
   if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
 
