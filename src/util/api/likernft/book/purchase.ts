@@ -423,7 +423,7 @@ export async function sendNFTBookPurchaseEmail({
       mustClaimToView,
     });
   }
-  if (notificationEmails.length) {
+  if (notificationEmails && notificationEmails.length) {
     await sendNFTBookSalesEmail({
       buyerEmail: email,
       isGift,
@@ -600,7 +600,7 @@ export async function sendNFTBookClaimedEmailNotification(
   const { notificationEmails = [] } = docData;
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
-  if (notificationEmails.length) {
+  if (notificationEmails && notificationEmails.length) {
     await sendNFTBookClaimedEmail({
       emails: notificationEmails,
       classId,
