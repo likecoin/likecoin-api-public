@@ -91,10 +91,10 @@ async function validateCollectionTypeData(
       classIds.map(async (classId) => {
         const result = await getISCNFromNFTClassId(classId);
         if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
-        const { owner: ownerWallet } = result;
-        if (ownerWallet !== wallet) {
-          throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
-        }
+        // const { owner: ownerWallet } = result;
+        // if (ownerWallet !== wallet) {
+        //   throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
+        // }
       }),
     );
     typePayload = JSON.parse(
