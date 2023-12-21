@@ -493,6 +493,10 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
+    let priceInCurrency = price;
+    if (defaultPaymentCurrency === 'HKD') {
+      priceInCurrency = Math.round((price * USD_TO_HKD_RATIO) / 10) * 10;
+    }
     const className = classData?.name || classId;
     await Promise.all([
       sendNFTBookPurchaseEmail({
@@ -513,8 +517,8 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
-        method: 'USD',
+        priceWithCurrency: `${priceInCurrency} ${defaultPaymentCurrency || 'USD'}`,
+        method: 'Fiat',
       }),
     ]);
   } catch (err) {
