@@ -34,6 +34,8 @@ let _bundlr;
 
 async function getBundlr() {
   if (!_bundlr) {
+    // eslint-disable-next-line global-require
+    global.crypto = require('crypto'); // hack for bundlr
     const { NodeBundlr } = await (import('@bundlr-network/client'));
     _bundlr = new NodeBundlr(
       IS_TESTNET ? 'https://node2.irys.xyz' : 'https://node1.irys.xyz',
