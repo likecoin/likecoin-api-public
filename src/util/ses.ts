@@ -382,6 +382,8 @@ export function sendNFTBookPendingClaimEmail({
             <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>
             <hr />
+            <p>由即日起，凡購買任何 Liker Land 電子書將可獲得文石閱讀器 95 折限時優惠，並附送精美閱讀器書套乙個。請使用文石專屬優惠連結 <a href="https://www.boox.com.hk/?sl-ref=likerland">https://www.boox.com.hk/?sl-ref=likerland</a> 或在結帳時輸入 “likerland” 。</p>
+            <hr />
             <p>Dear reader,</p>
             <p>Thank you for your support and purchasing "<a href="${nftClassURLEn}">${className}</a>".${mustClaimToView ? '' : ` Please visit the <a href="${claimPageURLEn}">Download Page</a> on Liker Land to download the ebook file (EPUB/PDF).`}</p>
             ${mustClaimToView ? '' : `<p><a href="${claimPageURLEn}">Visit the Download Page</a></p>`}
@@ -393,7 +395,9 @@ export function sendNFTBookPendingClaimEmail({
             <p>Once these steps are completed, the author will sign and issue the ebook to your account within 1-3 business days. Please check your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a> for the ebook.</p>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land</p>
+            <hr />
+            <p>Any purchase of Liker Land ebooks will be eligible for a limited-time 5% discount on the Boox e-reader and comes with an exquisite e-reader cover. Please use the exclusive Boox discount link <a href="https://www.boox.com.hk/?sl-ref=likerland">https://www.boox.com.hk/?sl-ref=likerland</a> or enter 'likerland' at checkout.</p>`,
           }).body,
         },
       },
@@ -471,6 +475,8 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>
             <hr />
+            <p>由即日起，凡購買任何 Liker Land 電子書將可獲得文石閱讀器 95 折限時優惠，並附送精美閱讀器書套乙個。請使用文石專屬優惠連結 <a href="https://www.boox.com.hk/?sl-ref=likerland">https://www.boox.com.hk/?sl-ref=likerland</a> 或在結帳時輸入 “likerland”。</p>
+            <hr />
             <p>Dear ${toName},</p>
             <p>${fromName} has send an eBook "<a href="${nftClassURLEn}">${className}</a>" to you as a gift</p>
             <p>Here is ${fromName}'s message</p>
@@ -486,7 +492,9 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>Once these steps are completed, the author will issue the NFT book to you within 1-3 business days. Please check your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a> for the book.</p>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land</p>
+            <hr />
+            <p>Any purchase of Liker Land ebooks will be eligible for a limited-time 5% discount on the Boox e-reader and comes with an exquisite e-reader cover. Please use the exclusive Boox discount link <a href="https://www.boox.com.hk/?sl-ref=likerland">https://www.boox.com.hk/?sl-ref=likerland</a> or enter 'likerland' at checkout.</p>`,
           }).body,
         },
       },
