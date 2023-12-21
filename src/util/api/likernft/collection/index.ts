@@ -174,14 +174,14 @@ export async function patchNFTCollectionById(
     ...newTypePayload,
   };
   const updatePayload: any = {
-    updateTypePayload,
+    typePayload: updateTypePayload,
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   };
   if (classIds !== undefined) updatePayload.classIds = classIds;
   if (name !== undefined) updatePayload.name = name;
   if (description !== undefined) updatePayload.description = description;
   if (image !== undefined) updatePayload.image = image;
-  await likeNFTCollectionCollection.doc(collectionId).update(payload);
+  await likeNFTCollectionCollection.doc(collectionId).update(updatePayload);
 }
 
 export async function removeNFTCollectionById(
