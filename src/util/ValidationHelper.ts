@@ -606,6 +606,7 @@ export function filterNFTCollection({
   classIds,
   name,
   description,
+  image,
   type,
   typePayload,
 }, isOwner = false) {
@@ -614,6 +615,7 @@ export function filterNFTCollection({
     classIds,
     name,
     description,
+    image,
     type,
     typePayload: {
       ...filterNFTCollectionTypePayload(type, typePayload, isOwner),
