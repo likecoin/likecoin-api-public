@@ -158,6 +158,17 @@ export async function processNFTBookPurchase({
   return { listingData, txData };
 }
 
+function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
+  switch (currency) {
+    case 'USD':
+      return usdPriceInDecimal;
+    case 'HKD':
+      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
+    default:
+      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
+  }
+}
+
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   from: inputFrom,
@@ -266,12 +277,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   };
 
   const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-  const shouldConvertUSDtoHKD = convertedCurrency === 'HKD';
-  let convertedPriceInDecimal = priceInDecimal;
-  if (shouldConvertUSDtoHKD) {
-    convertedPriceInDecimal = Math.round((convertedPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-  }
-
+  const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
   if (connectedWallets && Object.keys(connectedWallets).length) {
     const isFromLikerLand = checkIsFromLikerLand(from);
     const wallet = Object.keys(connectedWallets)[0];
@@ -334,18 +340,15 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   };
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
-    // eslint-disable-next-line max-len
+      // eslint-disable-next-line max-len
       allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
     };
     if (shippingRates) {
       checkoutPayload.shipping_options = shippingRates.map((s) => {
         const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-        let convertedShippingPriceInDecimal = shippingPriceInDecimal;
-        if (shouldConvertUSDtoHKD) {
-          convertedShippingPriceInDecimal = Math.round(
-            (shippingPriceInDecimal * USD_TO_HKD_RATIO) / 10,
-          ) * 10;
-        }
+        const convertedShippingPriceInDecimal = (
+          convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
+        );
         return {
           shipping_rate_data: {
             display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
@@ -493,6 +496,8 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
+    const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
+    const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
     const className = classData?.name || classId;
     await Promise.all([
       sendNFTBookPurchaseEmail({
@@ -513,8 +518,8 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
-        method: 'USD',
+        priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
+        method: 'Fiat',
       }),
     ]);
   } catch (err) {
