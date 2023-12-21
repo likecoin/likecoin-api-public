@@ -496,7 +496,8 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
-    const priceInCurrency = convertUSDToCurrency(price, defaultPaymentCurrency || 'USD');
+    const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
+    const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
     const className = classData?.name || classId;
     await Promise.all([
       sendNFTBookPurchaseEmail({
@@ -517,7 +518,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${priceInCurrency} ${defaultPaymentCurrency || 'USD'}`,
+        priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
         method: 'Fiat',
       }),
     ]);
