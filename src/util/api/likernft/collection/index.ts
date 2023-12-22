@@ -137,7 +137,10 @@ export async function createNFTCollectionByType(
     description,
     image,
     type,
-    typePayload,
+    typePayload: {
+      sold: 0,
+      ...typePayload,
+    },
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
