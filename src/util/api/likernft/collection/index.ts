@@ -3,7 +3,7 @@ import { FieldValue, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import { validatePrice } from '../book';
-import { getISCNFromNFTClassId } from '../../../cosmos/nft';
+import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -91,10 +91,15 @@ async function validateCollectionTypeData(
       classIds.map(async (classId) => {
         const result = await getISCNFromNFTClassId(classId);
         if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
+        // Skip ISCN owner check
         // const { owner: ownerWallet } = result;
         // if (ownerWallet !== wallet) {
         //   throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
         // }
+        const { nfts } = await getNFTsByClassId(classId, wallet);
+        if (nfts.length < stock) {
+          throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
+        }
       }),
     );
     typePayload = JSON.parse(
