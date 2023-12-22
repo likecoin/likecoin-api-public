@@ -9,7 +9,7 @@ let _maticBundlr;
 export async function getMaticBundlr() {
   if (!_maticBundlr) {
     // eslint-disable-next-line global-require
-    global.crypto = require('crypto'); // hack for bundlr
+    if (!global.crypto) global.crypto = require('crypto'); // hack for bundlr
     const { NodeBundlr } = await (import('@bundlr-network/client'));
     _maticBundlr = new NodeBundlr(
       IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
