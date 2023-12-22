@@ -337,7 +337,6 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
       hideDownload = false,
       canPayByLIKE = false,
     } = req.body;
-    validatePrices(prices);
     const [iscnInfo, metadata] = await Promise.all([
       getISCNFromNFTClassId(classId),
       getNFTClassDataById(classId),
@@ -347,6 +346,7 @@ router.post('/:classId/new', jwtAuth('write:nftbook'), async (req, res, next) =>
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
+    await validatePrices(prices, classId, req.user.wallet);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await newNftBookInfo(classId, {
       ownerWallet,

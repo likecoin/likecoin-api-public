@@ -2,6 +2,7 @@ import { ValidationError } from '../../../ValidationError';
 import { FieldValue, Timestamp, likeNFTBookCollection } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import { NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
+import { getNFTsByClassId } from '../../../cosmos/nft';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -236,16 +237,22 @@ export function validatePrice(price: any) {
   }
 }
 
-export function validatePrices(prices: any[]) {
+export async function validatePrices(prices: any[], classId: string, wallet: string) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
   let i = 0;
+  let totalStock = 0;
   try {
     for (i = 0; i < prices.length; i += 1) {
       validatePrice(prices[i]);
+      totalStock += prices[i].stock;
     }
   } catch (err) {
     const errorMessage = `${(err as Error).message}_in_${i}`;
     throw new ValidationError(errorMessage);
+  }
+  const { nfts } = await getNFTsByClassId(classId, wallet);
+  if (nfts.length < totalStock) {
+    throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
   }
 }
 
