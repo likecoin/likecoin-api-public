@@ -1,14 +1,24 @@
 import { TypedEthereumSigner } from 'arbundles';
-import Bundlr from '@bundlr-network/client';
 
 import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
 import { IS_TESTNET } from '../../constant';
 
-export const maticBundlr = new Bundlr(
-  IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
-  'matic',
-  BUNDLR_MATIC_WALLET_PRIVATE_KEY,
-);
+// eslint-disable-next-line no-underscore-dangle
+let _maticBundlr;
+
+export async function getMaticBundlr() {
+  if (!_maticBundlr) {
+    // eslint-disable-next-line global-require
+    if (!global.crypto) global.crypto = require('crypto'); // hack for bundlr
+    const { NodeBundlr } = await (import('@bundlr-network/client'));
+    _maticBundlr = new NodeBundlr(
+      IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
+      'matic',
+      BUNDLR_MATIC_WALLET_PRIVATE_KEY,
+    );
+  }
+  return _maticBundlr;
+}
 
 let signer: TypedEthereumSigner | null = null;
 export async function initWallet(): Promise<TypedEthereumSigner> {
