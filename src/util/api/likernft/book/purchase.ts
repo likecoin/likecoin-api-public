@@ -271,6 +271,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   };
   if (gaClientId) sessionMetadata.gaClientId = gaClientId as string;
   if (from) sessionMetadata.from = from as string;
+  if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
+
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
     metadata: sessionMetadata,
