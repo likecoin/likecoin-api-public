@@ -14,6 +14,7 @@ export function formatPriceInfo(price) {
     description: descriptionInput,
     priceInDecimal,
     hasShipping = false,
+    isPhysicalOnly = false,
     stock,
   } = price;
   const name = {};
@@ -27,6 +28,7 @@ export function formatPriceInfo(price) {
     description,
     priceInDecimal,
     hasShipping,
+    isPhysicalOnly,
     stock,
   };
 }
@@ -180,6 +182,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       description,
       priceInDecimal,
       hasShipping,
+      isPhysicalOnly,
       sold: pSold = 0,
       stock: pStock = 0,
       order = index,
@@ -193,6 +196,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       stock: pStock,
       isSoldOut: pStock <= 0,
       hasShipping,
+      isPhysicalOnly,
       order,
     };
     if (isAuthorized) {
@@ -216,6 +220,8 @@ export function validatePrice(price: any) {
     stock,
     name = {},
     description = {},
+    isPhysicalOnly,
+    hasShipping,
   } = price;
   if (!(
     typeof priceInDecimal === 'number'
@@ -234,6 +240,9 @@ export function validatePrice(price: any) {
   if (!(typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
     && Object.values(description).every((n) => typeof n === 'string'))) {
     throw new ValidationError('INVALID_PRICE_DESCRIPTION');
+  }
+  if (!hasShipping && isPhysicalOnly) {
+    throw new ValidationError('PHYSICAL_ONLY_BUT_NO_SHIPPING');
   }
 }
 
