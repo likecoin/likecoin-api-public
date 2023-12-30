@@ -188,6 +188,7 @@ router.post(
         priceInDecimal,
         stock,
         name: priceNameObj,
+        isPhysicalOnly = false,
       } = prices[priceIndex];
       const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
       if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
@@ -221,6 +222,7 @@ router.post(
         priceInDecimal,
         priceName,
         priceIndex,
+        isPhysicalOnly,
         from: from as string,
       });
 
@@ -247,10 +249,12 @@ router.post(
           notificationEmails,
           classId,
           className,
+          priceName,
           paymentId,
           claimToken,
           amountTotal: 0,
           mustClaimToView,
+          isPhysicalOnly,
         }),
         sendNFTBookSalesSlackNotification({
           classId,
@@ -343,7 +347,8 @@ router.post(
       }
       const {
         priceInDecimal,
-        name: { en: priceName },
+        isPhysicalOnly = false,
+        name: { en: priceNameEn },
       } = prices[priceIndex];
       const price = priceInDecimal / 100;
 
@@ -364,10 +369,11 @@ router.post(
         email,
         claimToken,
         priceInDecimal,
-        priceName,
+        priceName: priceNameEn,
         priceIndex,
         giftInfo,
         from,
+        isPhysicalOnly,
       });
       const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice, from);
       const { listingData } = await processNFTBookPurchase({
@@ -392,7 +398,7 @@ router.post(
         className,
         paymentId,
         email,
-        priceName,
+        priceName: priceNameEn,
         priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency || 'USD'})`,
         method: 'LIKE',
       });
@@ -425,10 +431,12 @@ router.post(
           notificationEmails,
           classId,
           className,
+          priceName: priceNameEn,
           paymentId,
           claimToken,
           amountTotal: price,
           mustClaimToView,
+          isPhysicalOnly,
         });
       }
       res.json({ claimed });
@@ -526,9 +534,13 @@ router.post(
         }
         const {
           status,
+          isPhysicalOnly,
         } = docData;
         if (status !== 'pendingNFT') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+        }
+        if (isPhysicalOnly) {
+          throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
         }
         t.update(paymentDocRef, {
           status: 'completed',
@@ -599,6 +611,7 @@ router.post(
         }
         const {
           shippingStatus,
+          isPhysicalOnly,
           hasShipping,
         } = docData;
         if (!hasShipping) {
@@ -607,10 +620,12 @@ router.post(
         if (shippingStatus !== 'pending') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
         }
-        t.update(paymentDocRef, {
+        const updatePayload: any = {
           shippingStatus: 'shipped',
           shippingMessage: message,
-        });
+        };
+        if (isPhysicalOnly) updatePayload.status = 'completed';
+        t.update(paymentDocRef, updatePayload);
         return docData;
       });
 
