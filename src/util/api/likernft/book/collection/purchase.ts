@@ -208,6 +208,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     ownerWallet,
     from,
     gaClientId,
+    giftInfo,
   }, {
     name,
     description,

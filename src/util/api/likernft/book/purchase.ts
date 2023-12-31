@@ -177,6 +177,7 @@ export async function formatStripeCheckoutSession({
   ownerWallet,
   from,
   gaClientId,
+  giftInfo,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -185,6 +186,12 @@ export async function formatStripeCheckoutSession({
   ownerWallet: string,
   from?: string,
   gaClientId?: string,
+  giftInfo?: {
+    fromName: string,
+    toName: string,
+    toEmail: string,
+    message?: string,
+  },
 }, {
   name,
   description,
@@ -222,6 +229,7 @@ export async function formatStripeCheckoutSession({
   if (collectionId) sessionMetadata.collectionId = collectionId;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (from) sessionMetadata.from = from;
+  if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
     metadata: sessionMetadata,
@@ -422,6 +430,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     ownerWallet,
     from,
     gaClientId,
+    giftInfo,
   }, {
     name,
     description,

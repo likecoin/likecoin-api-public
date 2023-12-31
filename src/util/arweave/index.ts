@@ -1,5 +1,4 @@
 import Arweave from 'arweave/node';
-import Bundlr from '@bundlr-network/client';
 import BigNumber from 'bignumber.js';
 import stringify from 'fast-json-stable-stringify';
 import LRU from 'lru-cache';
@@ -8,7 +7,7 @@ import {
   getFolderIPFSHash,
   uploadFileToIPFS,
 } from '../ipfs';
-import { maticBundlr } from './signer';
+import { getMaticBundlr } from './signer';
 import { IS_TESTNET } from '../../constant';
 import { getMaticPriceInLIKE, getArweavePriceInLIKE } from '../api/likernft/likePrice';
 import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
@@ -30,11 +29,22 @@ const arweaveGraphQL = Arweave.init({
   timeout: 5000,
 });
 
-const bundlr = new Bundlr(
-  IS_TESTNET ? 'https://node2.irys.xyz' : 'https://node1.irys.xyz',
-  'arweave',
-  jwk,
-);
+// eslint-disable-next-line no-underscore-dangle
+let _bundlr;
+
+async function getBundlr() {
+  if (!_bundlr) {
+    // eslint-disable-next-line global-require
+    if (!global.crypto) global.crypto = require('crypto'); // hack for bundlr
+    const { NodeBundlr } = await (import('@bundlr-network/client'));
+    _bundlr = new NodeBundlr(
+      IS_TESTNET ? 'https://node2.irys.xyz' : 'https://node1.irys.xyz',
+      'arweave',
+      jwk,
+    );
+  }
+  return _bundlr;
+}
 
 export async function getArweaveIdFromHashes(ipfsHash) {
   const cachedInfo = arweaveIdCache.get(ipfsHash);
@@ -130,6 +140,7 @@ export async function estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicat
       };
     }
   }
+  const maticBundlr = await getMaticBundlr();
   const priceAtomic = await maticBundlr.getPrice(fileSize);
   const priceConverted = maticBundlr.utils.fromAtomic(priceAtomic);
   return {
@@ -151,6 +162,7 @@ export async function estimateARPrice(data, checkDuplicate = true) {
       };
     }
   }
+  const bundlr = await getBundlr();
   const priceAtomic = await bundlr.getPrice(buffer.byteLength);
   const priceConverted = bundlr.utils.fromAtomic(priceAtomic);
   return {
@@ -271,6 +283,7 @@ export async function submitToArweave(data, ipfsHash) {
     { name: 'Content-Type', value: mimetype },
   ];
 
+  const bundlr = await getBundlr();
   if (!IS_TESTNET) {
     const priceAtomic = await bundlr.getPrice(buffer.byteLength);
     const atomicBalance = await bundlr.getLoadedBalance();
