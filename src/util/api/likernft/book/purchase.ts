@@ -174,6 +174,7 @@ export async function formatStripeCheckoutSession({
   iscnPrefix,
   collectionId,
   paymentId,
+  priceIndex,
   ownerWallet,
   from,
   gaClientId,
@@ -182,6 +183,7 @@ export async function formatStripeCheckoutSession({
   classId?: string,
   iscnPrefix?: string,
   collectionId?: string,
+  priceIndex?: number,
   paymentId: string,
   ownerWallet: string,
   from?: string,
@@ -226,6 +228,7 @@ export async function formatStripeCheckoutSession({
   };
   if (classId) sessionMetadata.classId = classId;
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
+  if (priceIndex) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (from) sessionMetadata.from = from;
@@ -427,6 +430,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     classId,
     iscnPrefix,
     paymentId,
+    priceIndex,
     ownerWallet,
     from,
     gaClientId,
