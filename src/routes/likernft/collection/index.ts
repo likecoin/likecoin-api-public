@@ -11,8 +11,8 @@ import {
   createNFTCollectionByType,
   patchNFTCollectionById,
   removeNFTCollectionById,
+  getNFTCollectionById,
 } from '../../../util/api/likernft/collection';
-import { likeNFTCollectionCollection } from '../../../util/firebase';
 import { filterNFTCollection } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 
@@ -55,11 +55,7 @@ router.get('/collection/:collectionId', jwtOptionalAuth('read:nftcollection'), a
   try {
     const wallet = req.user?.wallet;
     const { collectionId } = req.params;
-    const doc = await likeNFTCollectionCollection.doc(collectionId).get();
-    const docData = doc.data();
-    if (!docData) {
-      throw new ValidationError('COLLECTION_NOT_FOUND', 404);
-    }
+    const docData = await getNFTCollectionById(collectionId);
     const { ownerWallet } = docData;
     const isOwner = wallet === ownerWallet;
     res.json(filterNFTCollection(docData, isOwner));
