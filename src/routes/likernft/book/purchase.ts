@@ -228,7 +228,6 @@ router.post(
         classId,
         email,
         paymentId,
-        priceIndex,
         shippingDetails: null,
         shippingCost: null,
       });
@@ -374,7 +373,6 @@ router.post(
         classId,
         email,
         paymentId,
-        priceIndex,
         shippingDetails: null,
         shippingCost: null,
         execGrantTxHash,
