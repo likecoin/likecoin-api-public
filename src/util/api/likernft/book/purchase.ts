@@ -109,7 +109,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 export async function processNFTBookPurchase({
   classId,
   email,
-  priceIndex,
   paymentId,
   shippingDetails,
   shippingCost,
@@ -121,6 +120,11 @@ export async function processNFTBookPurchase({
     const doc = await t.get(bookRef);
     const docData = doc.data();
     if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+    const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
+    const paymentData = paymentDoc.data();
+    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+    const { status, priceIndex } = paymentData;
+    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
     const {
       prices,
     } = docData;
@@ -130,11 +134,6 @@ export async function processNFTBookPurchase({
       stock,
     } = priceInfo;
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-
-    const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
-    const paymentData = paymentDoc.data();
-    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
     priceInfo.stock -= 1;
     priceInfo.sold += 1;
     priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
@@ -485,7 +484,6 @@ export async function processNFTBookStripePurchase(
       classId,
       email,
       paymentId,
-      priceIndex,
       shippingDetails,
       shippingCost,
     });
