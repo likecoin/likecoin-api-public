@@ -33,7 +33,7 @@ import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 
 const router = Router();
 
-router.get('/:classId/new', async (req, res, next) => {
+router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -73,7 +73,7 @@ router.get('/:classId/new', async (req, res, next) => {
   }
 });
 
-router.post('/:classId/new', async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -122,7 +122,7 @@ router.post('/:classId/new', async (req, res, next) => {
 });
 
 router.get(
-  '/:classId/price',
+  ['/:classId/price', '/class/:classId/price'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -156,7 +156,7 @@ router.get(
 );
 
 router.post(
-  '/:classId/new/free',
+  ['/:classId/new/free', '/class/:classId/new/free'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -305,7 +305,7 @@ router.post(
 );
 
 router.post(
-  '/:classId/new/like',
+  ['/:classId/new/like', '/class/:classId/new/like'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -445,7 +445,7 @@ router.post(
 );
 
 router.get(
-  '/:classId/status/:paymentId',
+  ['/:classId/status/:paymentId', '/class/:classId/status/:paymentId'],
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -463,7 +463,7 @@ router.get(
 );
 
 router.post(
-  '/:classId/claim/:paymentId',
+  ['/:classId/claim/:paymentId', '/class/:classId/claim/:paymentId'],
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -506,7 +506,7 @@ router.post(
 );
 
 router.post(
-  '/:classId/sent/:paymentId',
+  ['/:classId/sent/:paymentId', '/class/:classId/sent/:paymentId'],
   jwtAuth('write:nftbook'),
   async (req, res, next) => {
     try {
@@ -583,7 +583,7 @@ router.post(
 );
 
 router.post(
-  '/:classId/shipping/sent/:paymentId',
+  ['/:classId/shipping/sent/:paymentId', '/class/:classId/shipping/sent/:paymentId'],
   jwtAuth('write:nftbook'),
   async (req, res, next) => {
     try {
@@ -653,7 +653,7 @@ router.post(
 );
 
 router.get(
-  '/:classId/orders',
+  ['/:classId/orders', '/class/:classId/orders'],
   jwtAuth('read:nftbook'),
   async (req, res, next) => {
     try {
@@ -684,7 +684,7 @@ router.get(
 );
 
 router.get(
-  '/:classId/messages',
+  ['/:classId/messages', '/class/:classId/messages'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;

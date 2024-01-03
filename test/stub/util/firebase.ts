@@ -222,6 +222,7 @@ export const likeNFTSubscriptionTxCollection = createCollection([]);
 export const likeNFTFreeMintTxCollection = createCollection([]);
 export const likeNFTBookCollection = createCollection([]);
 export const likeNFTBookUserCollection = createCollection([]);
+export const likeNFTCollectionCollection = createCollection([]);
 export const likeButtonUrlCollection = createCollection([]);
 export const iscnInfoCollection = createCollection([]);
 export const iscnMappingCollection = createCollection([]);

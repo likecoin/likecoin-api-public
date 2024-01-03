@@ -569,6 +569,62 @@ export function filterFollow({
   };
 }
 
+export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
+  if (type === 'book') {
+    const {
+      successUrl,
+      cancelUrl,
+      priceInDecimal,
+      stock,
+      defaultPaymentCurrency,
+      notificationEmails,
+      moderatorWallets,
+      connectedWallets,
+    } = payload;
+    if (!isOwner) {
+      return {
+        priceInDecimal,
+        stock,
+        defaultPaymentCurrency,
+      };
+    }
+    return {
+      successUrl,
+      cancelUrl,
+      priceInDecimal,
+      stock,
+      defaultPaymentCurrency,
+      notificationEmails,
+      moderatorWallets,
+      connectedWallets,
+    };
+  }
+  return {
+  };
+}
+
+export function filterNFTCollection({
+  ownerWallet,
+  classIds,
+  name,
+  description,
+  image,
+  type,
+  typePayload,
+}, isOwner = false) {
+  return {
+    ownerWallet,
+    classIds,
+    name,
+    description,
+    image,
+    type,
+    typePayload: {
+      ...filterNFTCollectionTypePayload(type, typePayload, isOwner),
+    },
+  };
+}
+
 export function filterNFTSubscriptionMintStatus({
   id,
   status,
