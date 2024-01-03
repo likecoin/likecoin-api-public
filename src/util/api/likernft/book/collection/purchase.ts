@@ -351,11 +351,12 @@ export async function processNFTBookCollectionStripePurchase(
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
+        notificationEmails,
         isGift,
         giftInfo,
-        notificationEmails,
         collectionId,
         bookName: collectionName,
+        priceName: collectionName,
         paymentId,
         claimToken,
         amountTotal,

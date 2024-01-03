@@ -418,6 +418,67 @@ export function sendNFTBookPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookPhysicalOnlyEmail({
+  email,
+  classId,
+  bookName,
+  priceName,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const title = '購買成功｜Thank you for your purchase!';
+  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
+  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicV2Template({
+            title,
+            content: `<p>親愛的讀者：</p>
+            <p>感謝支持並購買 <a href="${nftClassURLZh}">《${bookName}》- ${priceName}</a>。</p>
+            <p>我們會安排寄送，所需大約 3-5 天時間。感謝支持！</p>
+            <br />
+            <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
+            <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <p>Liker Land</p>
+            <hr />
+            <p>由即日起，凡購買任何 Liker Land 電子書將可獲得文石閱讀器 95 折限時優惠，並附送精美閱讀器書套乙個。請使用文石專屬優惠連結 <a href="https://www.boox.com.hk/?sl-ref=likerland" style="color: #f53450">https://www.boox.com.hk/?sl-ref=likerland</a> 或在結帳時輸入 <span style="font-family: 'Menlo', 'Consolas', monospace; background: #f53450; color: white; display: inline-block; padding: 0 4px; border-radius: 4px">likerland</span> 。</p>
+            <img src="https://static.like.co/edm/banners/boox-christmas.png" style="margin-top: 8px; width:100%">
+            <hr />
+            <p>Dear reader,</p>
+            <p>Thank you for your support and purchasing "<a href="${nftClassURLEn}">${bookName}- ${priceName}</a></p>
+            <p>We will arrange delivery, which will take about 3-5 days. Thank you for your support!</p>
+            <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
+            <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
+            <p>Liker Land</p>
+            <hr />
+            <p>Any purchase of Liker Land ebooks will be eligible for a limited-time 5% discount on the Boox e-reader and comes with an exquisite e-reader cover. Please use the exclusive Boox discount link <a href="https://www.boox.com.hk/?sl-ref=likerland" style="color: #f53450">https://www.boox.com.hk/?sl-ref=likerland</a> or enter <span style="font-family: 'Menlo', 'Consolas', monospace; background: #f53450; color: white; display: inline-block; padding: 0 4px; border-radius: 4px">likerland</span> at checkout.</p>
+            <img src="https://static.like.co/edm/banners/boox-christmas.png" style="margin-top: 8px; width:100%">`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookGiftPendingClaimEmail({
   fromName,
   toName,
