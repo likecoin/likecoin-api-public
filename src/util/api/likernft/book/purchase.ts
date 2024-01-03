@@ -352,22 +352,24 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
     };
     if (shippingRates) {
-      checkoutPayload.shipping_options = shippingRates.map((s) => {
-        const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-        const convertedShippingPriceInDecimal = (
-          convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
-        );
-        return {
-          shipping_rate_data: {
-            display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-            type: 'fixed_amount',
-            fixed_amount: {
-              amount: convertedShippingPriceInDecimal,
-              currency: convertedCurrency,
+      checkoutPayload.shipping_options = shippingRates
+        .filter((s) => s?.name && s?.priceInDecimal >= 0)
+        .map((s) => {
+          const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
+          const convertedShippingPriceInDecimal = (
+            convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
+          );
+          return {
+            shipping_rate_data: {
+              display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+              type: 'fixed_amount',
+              fixed_amount: {
+                amount: convertedShippingPriceInDecimal,
+                currency: convertedCurrency,
+              },
             },
-          },
-        };
-      });
+          };
+        });
     }
   }
   const session = await stripe.checkout.sessions.create(checkoutPayload);
