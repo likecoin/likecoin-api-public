@@ -121,7 +121,9 @@ export async function updateNftBookInfo(classId: string, {
   if (defaultPaymentCurrency !== undefined) {
     payload.defaultPaymentCurrency = defaultPaymentCurrency;
   }
-  if (shippingRates !== undefined) { payload.shippingRates = shippingRates; }
+  if (shippingRates !== undefined) {
+    payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
+  }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
   if (canPayByLIKE !== undefined) { payload.canPayByLIKE = canPayByLIKE; }
