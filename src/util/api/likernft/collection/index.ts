@@ -3,7 +3,7 @@ import { FieldValue, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import { validatePrice } from '../book';
-import { getISCNFromNFTClassId } from '../../../cosmos/nft';
+import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -91,9 +91,14 @@ async function validateCollectionTypeData(
       classIds.map(async (classId) => {
         const result = await getISCNFromNFTClassId(classId);
         if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
-        const { owner: ownerWallet } = result;
-        if (ownerWallet !== wallet) {
-          throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
+        // Skip ISCN owner check
+        // const { owner: ownerWallet } = result;
+        // if (ownerWallet !== wallet) {
+        //   throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
+        // }
+        const { nfts } = await getNFTsByClassId(classId, wallet);
+        if (nfts.length < stock) {
+          throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
         }
       }),
     );
@@ -137,7 +142,10 @@ export async function createNFTCollectionByType(
     description,
     image,
     type,
-    typePayload,
+    typePayload: {
+      sold: 0,
+      ...typePayload,
+    },
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
@@ -174,14 +182,14 @@ export async function patchNFTCollectionById(
     ...newTypePayload,
   };
   const updatePayload: any = {
-    updateTypePayload,
+    typePayload: updateTypePayload,
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   };
   if (classIds !== undefined) updatePayload.classIds = classIds;
   if (name !== undefined) updatePayload.name = name;
   if (description !== undefined) updatePayload.description = description;
   if (image !== undefined) updatePayload.image = image;
-  await likeNFTCollectionCollection.doc(collectionId).update(payload);
+  await likeNFTCollectionCollection.doc(collectionId).update(updatePayload);
 }
 
 export async function removeNFTCollectionById(

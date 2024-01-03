@@ -3,9 +3,11 @@ import { LIKER_LAND_HOSTNAME } from '../constant';
 export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
 export const getLikerLandNFTClassPageURL = ({ classId, language }: { classId: string, language?: string }) => getLikerLandURL(`/nft/class/${classId}`, { language });
+export const getLikerLandNFTCollectionPageURL = ({ collectionId, language }: { collectionId: string, language?: string }) => getLikerLandURL(`/nft/collection/${collectionId}`, { language });
 
 export const getLikerLandNFTClaimPageURL = ({
   classId,
+  collectionId,
   paymentId,
   free = false,
   token,
@@ -15,7 +17,8 @@ export const getLikerLandNFTClaimPageURL = ({
   priceIndex,
   from,
 }: {
-  classId: string;
+  classId?: string;
+  collectionId?: string;
   paymentId: string;
   free?: boolean,
   token: string;
@@ -26,10 +29,18 @@ export const getLikerLandNFTClaimPageURL = ({
   from?: string;
 }) => {
   const qsPayload: any = {
-    class_id: classId,
     payment_id: paymentId,
     claiming_token: token,
   };
+
+  if (classId) {
+    qsPayload.class_id = classId;
+  }
+
+  if (collectionId) {
+    qsPayload.collection_id = collectionId;
+  }
+
   if (redirect) {
     qsPayload.redirect = '1';
   }
@@ -51,6 +62,7 @@ export const getLikerLandNFTClaimPageURL = ({
 
 export const getLikerLandNFTGiftPageURL = ({
   classId,
+  collectionId,
   paymentId,
   type = '',
   language,
@@ -58,7 +70,8 @@ export const getLikerLandNFTGiftPageURL = ({
   priceIndex,
   from,
 }: {
-  classId: string;
+  classId?: string;
+  collectionId?: string;
   paymentId: string;
   type?: string;
   language?: string;
@@ -67,9 +80,17 @@ export const getLikerLandNFTGiftPageURL = ({
   from?: string;
 }) => {
   const qsPayload: any = {
-    class_id: classId,
     payment_id: paymentId,
   };
+
+  if (classId) {
+    qsPayload.class_id = classId;
+  }
+
+  if (collectionId) {
+    qsPayload.collection_id = collectionId;
+  }
+
   if (redirect) {
     qsPayload.redirect = '1';
   }

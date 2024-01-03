@@ -270,3 +270,7 @@ export async function validatePrices(prices: any[], classId: string, wallet: str
 export function getNFTBookStoreSendPageURL(classId: string, paymentId: string) {
   return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}`;
 }
+
+export function getNFTBookStoreCollectionSendPageURL(collectionId: string, paymentId: string) {
+  return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/collection/send/${collectionId}/?payment_id=${paymentId}`;
+}

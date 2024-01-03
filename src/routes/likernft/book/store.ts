@@ -367,7 +367,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
     const className = metadata?.name || classId;
     await Promise.all([
-      sendNFTBookListingEmail({ classId, className }),
+      sendNFTBookListingEmail({ classId, bookName: className }),
       sendNFTBookNewListingSlackNotification({
         wallet: ownerWallet,
         classId,

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-import { getLikerLandNFTClassPageURL } from './liker-land';
-import { getNFTBookStoreSendPageURL } from './api/likernft/book';
+import { getLikerLandNFTClassPageURL, getLikerLandNFTCollectionPageURL } from './liker-land';
+import { getNFTBookStoreCollectionSendPageURL, getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   IS_TESTNET,
   LIKER_LAND_HOSTNAME,
@@ -143,16 +143,18 @@ export async function sendNFTBookNewListingSlackNotification({
 }
 
 export async function sendNFTBookSalesSlackNotification({
-  classId,
-  className,
+  classId = '',
+  collectionId,
+  bookName,
   paymentId,
   email,
   priceName,
   priceWithCurrency,
   method,
 } : {
-  classId: string;
-  className: string;
+  classId?: string;
+  collectionId?: string;
+  bookName: string;
   paymentId: string;
   email: string | null;
   priceName: string;
@@ -161,10 +163,14 @@ export async function sendNFTBookSalesSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
-    const paymentLink = getNFTBookStoreSendPageURL(classId, paymentId);
+    const classLink = collectionId
+      ? getLikerLandNFTCollectionPageURL({ collectionId })
+      : getLikerLandNFTClassPageURL({ classId });
+    const paymentLink = collectionId
+      ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
+      : getNFTBookStoreSendPageURL(classId, paymentId);
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
-      className,
+      className: bookName,
       classLink,
       email: email || 'N/A',
       paymentLink,

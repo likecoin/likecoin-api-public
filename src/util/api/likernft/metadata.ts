@@ -47,6 +47,7 @@ export function encodedURL(url) {
 }
 
 export function parseImageURLFromMetadata(image: string): string {
+  if (!image) return image;
   return image.replace('ar://', 'https://arweave.net/').replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
 

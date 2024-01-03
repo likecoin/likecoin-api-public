@@ -34,8 +34,9 @@ export function sendPendingClaimEmail({
 }
 
 export function sendNFTBookListingEmail({
-  classId,
-  className,
+  classId = '',
+  collectionId = '',
+  bookName,
 }) {
   return Promise.resolve();
 }
@@ -46,8 +47,9 @@ export function sendNFTBookGiftPendingClaimEmail({
   toName,
   toEmail,
   message,
-  classId,
-  className,
+  classId = '',
+  collectionId = '',
+  bookName,
   paymentId,
   claimToken,
   mustClaimToView,
@@ -59,7 +61,7 @@ export function sendNFTBookGiftPendingClaimEmail({
 export function sendNFTBookPhysicalOnlyEmail({
   email,
   classId,
-  className,
+  bookName,
   priceName,
 }) {
   return Promise.resolve();
@@ -68,8 +70,9 @@ export function sendNFTBookPhysicalOnlyEmail({
 /* istanbul ignore next */
 export function sendNFTBookShippedEmail({
   email,
-  classId,
-  className,
+  classId = '',
+  collectionId = '',
+  bookName,
   message,
 }) {
   return Promise.resolve();
@@ -77,7 +80,7 @@ export function sendNFTBookShippedEmail({
 
 /* istanbul ignore next */
 export function sendNFTBookGiftClaimedEmail({
-  className,
+  bookName,
   fromEmail,
   fromName,
   toName,
@@ -90,7 +93,7 @@ export function sendNFTBookGiftSentEmail({
   fromEmail,
   fromName,
   toName,
-  className,
+  bookName,
   txHash,
 }) {
   return Promise.resolve();
@@ -99,8 +102,9 @@ export function sendNFTBookGiftSentEmail({
 /* istanbul ignore next */
 export function sendNFTBookPendingClaimEmail({
   email,
-  classId,
-  className,
+  classId = '',
+  collectionId = '',
+  bookName,
   paymentId,
   claimToken,
   mustClaimToView = false,
@@ -115,14 +119,14 @@ export function sendNFTBookSalesEmail({
   giftToName,
   giftToEmail,
   buyerEmail,
-  className,
+  bookName,
   amount,
 }) {
   return Promise.resolve();
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId, className, paymentId, wallet, message, buyerEmail,
+  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, buyerEmail,
 }) {
   return Promise.resolve();
 }
