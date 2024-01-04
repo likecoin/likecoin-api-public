@@ -23,6 +23,7 @@ export function formatPriceInfo(price) {
     isPhysicalOnly = false,
     stock,
     isAutoDeliver = false,
+    autoMemo,
   } = price;
   const name = {};
   const description = {};
@@ -38,6 +39,7 @@ export function formatPriceInfo(price) {
     isPhysicalOnly,
     stock,
     isAutoDeliver,
+    autoMemo,
   };
 }
 
@@ -253,6 +255,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       sold: pSold = 0,
       stock: pStock = 0,
       isAutoDeliver,
+      autoMemo,
       order = index,
     } = p;
     const price = priceInDecimal / 100;
@@ -264,6 +267,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       stock: pStock,
       isSoldOut: pStock <= 0,
       isAutoDeliver,
+      autoMemo,
       hasShipping,
       isPhysicalOnly,
       order,
