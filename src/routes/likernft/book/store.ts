@@ -186,6 +186,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       hasShipping,
       isPhysicalOnly,
       stock,
+      isAutoDeliver,
       sold,
       order,
     } = priceInfo;
@@ -200,6 +201,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       isPhysicalOnly,
       isSoldOut: stock <= 0,
       stock,
+      isAutoDeliver,
       ownerWallet,
       shippingRates,
       order,
@@ -220,7 +222,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
     const { price } = req.body;
-    validatePrice(price);
 
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
@@ -236,7 +237,9 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     };
     prices.push(newPrice);
 
-    await updateNftBookInfo(classId, { prices });
+    const { apiWalletOwnedNFTs } = await validatePrices(prices, classId, req.user.wallet);
+    const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
+    await updateNftBookInfo(classId, { prices }, apiWalletOwnedNFTIds);
     res.json({
       index: prices.length - 1,
     });
@@ -258,6 +261,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const { prices = [] } = bookInfo;
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
+
+    if (Boolean(oldPriceInfo.isAutoDeliver) !== Boolean(price.isAutoDeliver)) {
+      throw new ValidationError('CANNOT_CHANGE_AUTO_DELIVER', 403);
+    }
 
     prices[priceIndex] = {
       ...oldPriceInfo,
@@ -348,7 +355,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
-    await validatePrices(prices, classId, req.user.wallet);
+    const { apiWalletOwnedNFTs } = await validatePrices(prices, classId, req.user.wallet);
+    const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await newNftBookInfo(classId, {
       ownerWallet,
@@ -363,7 +371,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView,
       hideDownload,
       canPayByLIKE,
-    });
+    }, apiWalletOwnedNFTIds);
 
     const className = metadata?.name || classId;
     await Promise.all([
