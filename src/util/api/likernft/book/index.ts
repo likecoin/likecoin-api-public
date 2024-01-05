@@ -166,7 +166,12 @@ export async function updateNftBookInfo(classId: string, {
   const classIdRef = likeNFTBookCollection.doc(classId);
   let newNFTIds: string[] = [];
   if (apiWalletOwnedNFTIds.length) {
-    const existingNFTIds = (await classIdRef.collection('nft').get()).docs.map((d) => d.id);
+    const existingNFTIds = (
+      await classIdRef.collection('nft')
+        .where('isSold', '==', false)
+        .limit(apiWalletOwnedNFTIds.length)
+        .get()
+    ).docs.map((d) => d.id);
     const existingNFTIdsSet = new Set(existingNFTIds);
     newNFTIds = apiWalletOwnedNFTIds.filter((id) => !existingNFTIdsSet.has(id));
   }
