@@ -275,7 +275,7 @@ async function calculateLIKEAndPopulateTxMsg({
     calculateTxGasFee(totalMsgCount).amount[0].amount,
   ).shiftedBy(-9).toNumber();
   const profit = isFree ? 0 : Math.max(nftPrice - gasFee, 0);
-  const totalAmount = new BigNumber(profit).shiftedBy(9).toFixed(0);
+  const totalAmount = new BigNumber(nftPrice).shiftedBy(9).toFixed(0);
   const feeAmount = new BigNumber(profit)
     .multipliedBy(FEE_RATIO).shiftedBy(9).toFixed(0);
   const sellerAmount = new BigNumber(profit)
