@@ -367,7 +367,7 @@ export async function validateStocks(
   };
 }
 
-export async function validateSendNFTsToAPIWalletTxHash(
+export async function validateAutoDeliverNFTsTxHash(
   txHash: string,
   classId: string,
   sender: string,

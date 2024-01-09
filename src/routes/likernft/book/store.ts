@@ -10,7 +10,7 @@ import {
   updateNftBookInfo,
   validatePrice,
   validatePrices,
-  validateSendNFTsToAPIWalletTxHash,
+  validateAutoDeliverNFTsTxHash,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -225,7 +225,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price, sendNFTsToAPIWalletTxHash } = req.body;
+    const { price, autoDeliverNFTsTxHash } = req.body;
     validatePrice(price);
 
     const bookInfo = await getNftBookInfo(classId);
@@ -244,8 +244,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 
     let newNFTIds: string[] = [];
     if (price.isAutoDeliver && price.stock > 0) {
-      newNFTIds = await validateSendNFTsToAPIWalletTxHash(
-        sendNFTsToAPIWalletTxHash,
+      newNFTIds = await validateAutoDeliverNFTsTxHash(
+        autoDeliverNFTsTxHash,
         classId,
         req.user.wallet,
         price.stock,
@@ -361,7 +361,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView = false,
       hideDownload = false,
       canPayByLIKE = false,
-      sendNFTsToAPIWalletTxHash,
+      autoDeliverNFTsTxHash,
     } = req.body;
     const [iscnInfo, metadata] = await Promise.all([
       getISCNFromNFTClassId(classId),
@@ -377,8 +377,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       manualDeliverTotalStock,
     } = validatePrices(prices, classId, req.user.wallet);
     if (autoDeliverTotalStock > 0) {
-      await validateSendNFTsToAPIWalletTxHash(
-        sendNFTsToAPIWalletTxHash,
+      await validateAutoDeliverNFTsTxHash(
+        autoDeliverNFTsTxHash,
         classId,
         req.user.wallet,
         autoDeliverTotalStock,
