@@ -32,7 +32,7 @@ async function getBroadcastClient(): Promise<StargateClient> {
   return broadcastClient;
 }
 
-async function getClient(): Promise<StargateClient> {
+export async function getClient(): Promise<StargateClient> {
   if (!stargateClient) stargateClient = await StargateClient.connect(COSMOS_RPC_ENDPOINT);
   return stargateClient;
 }

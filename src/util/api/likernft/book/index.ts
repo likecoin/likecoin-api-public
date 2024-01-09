@@ -1,8 +1,18 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { decodeTxRaw } from '@cosmjs/proto-signing';
+import { MsgSend } from 'cosmjs-types/cosmos/nft/v1beta1/tx';
 import { ValidationError } from '../../../ValidationError';
-import { FieldValue, Timestamp, likeNFTBookCollection } from '../../../firebase';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
-import { NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
+import {
+  db,
+  FieldValue,
+  Timestamp,
+  likeNFTBookCollection,
+} from '../../../firebase';
+import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
 import { getNFTsByClassId } from '../../../cosmos/nft';
+import { getClient } from '../../../cosmos/tx';
+import { sleep } from '../../../misc';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -16,6 +26,8 @@ export function formatPriceInfo(price) {
     hasShipping = false,
     isPhysicalOnly = false,
     stock,
+    isAutoDeliver = false,
+    autoMemo,
   } = price;
   const name = {};
   const description = {};
@@ -30,6 +42,8 @@ export function formatPriceInfo(price) {
     hasShipping,
     isPhysicalOnly,
     stock,
+    isAutoDeliver,
+    autoMemo,
   };
 }
 
@@ -48,7 +62,7 @@ export function formatShippingRateInfo(shippingRate) {
   };
 }
 
-export async function newNftBookInfo(classId, data) {
+export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string[] = []) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
   const {
@@ -70,12 +84,13 @@ export async function newNftBookInfo(classId, data) {
     sold: 0,
     ...formatPriceInfo(p),
   }));
+  const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     classId,
     pendingNFTCount: 0,
     prices: newPrices,
     ownerWallet,
-    timestamp: FieldValue.serverTimestamp(),
+    timestamp,
   };
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
@@ -87,7 +102,31 @@ export async function newNftBookInfo(classId, data) {
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   if (canPayByLIKE !== undefined) payload.canPayByLIKE = canPayByLIKE;
-  await likeNFTBookCollection.doc(classId).create(payload);
+  let batch = db.batch();
+  batch.create(likeNFTBookCollection.doc(classId), payload);
+  if (apiWalletOwnedNFTIds.length) {
+    for (let i = 0; i < apiWalletOwnedNFTIds.length; i += 1) {
+      if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+        // TODO: remove this after solving API CPU hang error
+        await sleep(10);
+        batch = db.batch();
+      }
+      batch.create(
+        likeNFTBookCollection
+          .doc(classId)
+          .collection('nft')
+          .doc(apiWalletOwnedNFTIds[i]),
+        {
+          isSold: false,
+          isProcessing: false,
+          timestamp,
+        },
+      );
+    }
+  }
+  await batch.commit();
 }
 
 export async function updateNftBookInfo(classId: string, {
@@ -110,9 +149,10 @@ export async function updateNftBookInfo(classId: string, {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   canPayByLIKE?: boolean;
-} = {}) {
+} = {}, newAPIWalletOwnedNFTIds: string[] = []) {
+  const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
-    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+    lastUpdateTimestamp: timestamp,
   };
   if (prices !== undefined) { payload.prices = prices; }
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
@@ -127,7 +167,32 @@ export async function updateNftBookInfo(classId: string, {
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
   if (canPayByLIKE !== undefined) { payload.canPayByLIKE = canPayByLIKE; }
-  await likeNFTBookCollection.doc(classId).update(payload);
+  const classIdRef = likeNFTBookCollection.doc(classId);
+  let batch = db.batch();
+  batch.update(classIdRef, payload);
+  if (newAPIWalletOwnedNFTIds.length) {
+    for (let i = 0; i < newAPIWalletOwnedNFTIds.length; i += 1) {
+      if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+        // TODO: remove this after solving API CPU hang error
+        await sleep(10);
+        batch = db.batch();
+      }
+      batch.create(
+        likeNFTBookCollection
+          .doc(classId)
+          .collection('nft')
+          .doc(newAPIWalletOwnedNFTIds[i]),
+        {
+          isSold: false,
+          isProcessing: false,
+          timestamp,
+        },
+      );
+    }
+  }
+  await batch.commit();
 }
 
 export async function getNftBookInfo(classId) {
@@ -187,6 +252,8 @@ export function parseBookSalesData(priceData, isAuthorized) {
       isPhysicalOnly,
       sold: pSold = 0,
       stock: pStock = 0,
+      isAutoDeliver,
+      autoMemo,
       order = index,
     } = p;
     const price = priceInDecimal / 100;
@@ -197,6 +264,8 @@ export function parseBookSalesData(priceData, isAuthorized) {
       description,
       stock: pStock,
       isSoldOut: pStock <= 0,
+      isAutoDeliver,
+      autoMemo,
       hasShipping,
       isPhysicalOnly,
       order,
@@ -248,23 +317,80 @@ export function validatePrice(price: any) {
   }
 }
 
-export async function validatePrices(prices: any[], classId: string, wallet: string) {
+export function validatePrices(prices: any[], classId: string, wallet: string) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
   let i = 0;
-  let totalStock = 0;
+  let autoDeliverTotalStock = 0;
+  let manualDeliverTotalStock = 0;
   try {
     for (i = 0; i < prices.length; i += 1) {
-      validatePrice(prices[i]);
-      totalStock += prices[i].stock;
+      const price = prices[i];
+      validatePrice(price);
+      if (price.isAutoDeliver) {
+        autoDeliverTotalStock += price.stock;
+      } else {
+        manualDeliverTotalStock += price.stock;
+      }
     }
   } catch (err) {
     const errorMessage = `${(err as Error).message}_in_${i}`;
     throw new ValidationError(errorMessage);
   }
-  const { nfts } = await getNFTsByClassId(classId, wallet);
-  if (nfts.length < totalStock) {
-    throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
+  return {
+    autoDeliverTotalStock,
+    manualDeliverTotalStock,
+  };
+}
+
+export async function validateStocks(
+  classId: string,
+  wallet: string,
+  manualDeliverTotalStock: number,
+  autoDeliverTotalStock: number,
+) {
+  const [
+    { nfts: userWalletOwnedNFTs },
+    { nfts: apiWalletOwnedNFTs },
+  ] = await Promise.all([
+    getNFTsByClassId(classId, wallet),
+    getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS),
+  ]);
+  if (userWalletOwnedNFTs.length < manualDeliverTotalStock) {
+    throw new ValidationError(`NOT_ENOUGH_MANUAL_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${manualDeliverTotalStock}, ACTUAL: ${userWalletOwnedNFTs.length}`, 403);
   }
+  if (apiWalletOwnedNFTs.length < autoDeliverTotalStock) {
+    throw new ValidationError(`NOT_ENOUGH_AUTO_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${autoDeliverTotalStock}, ACTUAL: ${apiWalletOwnedNFTs.length}`, 403);
+  }
+  return {
+    userWalletOwnedNFTs,
+    apiWalletOwnedNFTs,
+  };
+}
+
+export async function validateAutoDeliverNFTsTxHash(
+  txHash: string,
+  classId: string,
+  sender: string,
+  expectedNFTCount: number,
+) {
+  if (!txHash) throw new ValidationError('TX_HASH_IS_EMPTY');
+  const client = await getClient();
+  const tx = await client.getTx(txHash);
+  if (!tx) throw new ValidationError('TX_NOT_FOUND');
+  const { code, tx: rawTx } = tx;
+  if (code) throw new ValidationError('TX_FAILED');
+  const { body } = decodeTxRaw(rawTx);
+  const nftIds = body.messages
+    .filter((m) => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
+    .map(((m) => MsgSend.decode(m.value)))
+    .filter((m) => m.classId === classId
+      && m.sender === sender
+      && m.receiver === LIKER_NFT_TARGET_ADDRESS)
+    .map((m) => m.id);
+  if (nftIds.length < expectedNFTCount) {
+    throw new ValidationError(`TX_SEND_NFT_COUNT_NOT_ENOUGH: EXPECTED: ${expectedNFTCount}, ACTUAL: ${nftIds.length}`);
+  }
+  return nftIds;
 }
 
 export function getNFTBookStoreSendPageURL(classId: string, paymentId: string) {

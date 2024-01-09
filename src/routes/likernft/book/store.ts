@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  validateStocks,
   formatPriceInfo,
   getNftBookInfo,
   listLatestNFTBookInfo,
@@ -9,6 +10,7 @@ import {
   updateNftBookInfo,
   validatePrice,
   validatePrices,
+  validateAutoDeliverNFTsTxHash,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -186,6 +188,8 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       hasShipping,
       isPhysicalOnly,
       stock,
+      isAutoDeliver,
+      autoMemo,
       sold,
       order,
     } = priceInfo;
@@ -200,6 +204,8 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       isPhysicalOnly,
       isSoldOut: stock <= 0,
       stock,
+      isAutoDeliver,
+      autoMemo,
       ownerWallet,
       shippingRates,
       order,
@@ -219,7 +225,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price } = req.body;
+    const { price, autoDeliverNFTsTxHash } = req.body;
     validatePrice(price);
 
     const bookInfo = await getNftBookInfo(classId);
@@ -236,7 +242,16 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     };
     prices.push(newPrice);
 
-    await updateNftBookInfo(classId, { prices });
+    let newNFTIds: string[] = [];
+    if (price.isAutoDeliver && price.stock > 0) {
+      newNFTIds = await validateAutoDeliverNFTsTxHash(
+        autoDeliverNFTsTxHash,
+        classId,
+        req.user.wallet,
+        price.stock,
+      );
+    }
+    await updateNftBookInfo(classId, { prices }, newNFTIds);
     res.json({
       index: prices.length - 1,
     });
@@ -258,6 +273,14 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const { prices = [] } = bookInfo;
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
+
+    if (Boolean(oldPriceInfo.isAutoDeliver) !== Boolean(price.isAutoDeliver)) {
+      throw new ValidationError('CANNOT_CHANGE_DELIVER_METHOD', 403);
+    }
+
+    if (oldPriceInfo.isAutoDeliver && oldPriceInfo.stock !== price.stock) {
+      throw new ValidationError('CANNOT_CHANGE_STOCK_OF_AUTO_DELIVERING_FOR_NOW', 403);
+    }
 
     prices[priceIndex] = {
       ...oldPriceInfo,
@@ -338,6 +361,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView = false,
       hideDownload = false,
       canPayByLIKE = false,
+      autoDeliverNFTsTxHash,
     } = req.body;
     const [iscnInfo, metadata] = await Promise.all([
       getISCNFromNFTClassId(classId),
@@ -348,7 +372,25 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
-    await validatePrices(prices, classId, req.user.wallet);
+    const {
+      autoDeliverTotalStock,
+      manualDeliverTotalStock,
+    } = validatePrices(prices, classId, req.user.wallet);
+    if (autoDeliverTotalStock > 0) {
+      await validateAutoDeliverNFTsTxHash(
+        autoDeliverNFTsTxHash,
+        classId,
+        req.user.wallet,
+        autoDeliverTotalStock,
+      );
+    }
+    const { apiWalletOwnedNFTs } = await validateStocks(
+      classId,
+      req.user.wallet,
+      autoDeliverTotalStock,
+      manualDeliverTotalStock,
+    );
+    const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await newNftBookInfo(classId, {
       ownerWallet,
@@ -363,7 +405,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView,
       hideDownload,
       canPayByLIKE,
-    });
+    }, apiWalletOwnedNFTIds);
 
     const className = metadata?.name || classId;
     await Promise.all([
