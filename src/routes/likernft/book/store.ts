@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  validateStocks,
   formatPriceInfo,
   getNftBookInfo,
   listLatestNFTBookInfo,
@@ -9,6 +10,7 @@ import {
   updateNftBookInfo,
   validatePrice,
   validatePrices,
+  validateSendNFTsToAPIWalletTxHash,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -223,7 +225,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price } = req.body;
+    const { price, sendNFTsToAPIWalletTxHash } = req.body;
+    validatePrice(price);
 
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
@@ -239,9 +242,16 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     };
     prices.push(newPrice);
 
-    const { apiWalletOwnedNFTs } = await validatePrices(prices, classId, req.user.wallet);
-    const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
-    await updateNftBookInfo(classId, { prices }, apiWalletOwnedNFTIds);
+    let newNFTIds: string[] = [];
+    if (price.isAutoDeliver && price.stock > 0) {
+      newNFTIds = await validateSendNFTsToAPIWalletTxHash(
+        sendNFTsToAPIWalletTxHash,
+        classId,
+        req.user.wallet,
+        price.stock,
+      );
+    }
+    await updateNftBookInfo(classId, { prices }, newNFTIds);
     res.json({
       index: prices.length - 1,
     });
@@ -265,7 +275,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
     if (Boolean(oldPriceInfo.isAutoDeliver) !== Boolean(price.isAutoDeliver)) {
-      throw new ValidationError('CANNOT_CHANGE_AUTO_DELIVER', 403);
+      throw new ValidationError('CANNOT_CHANGE_DELIVER_METHOD', 403);
     }
 
     prices[priceIndex] = {
@@ -347,6 +357,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView = false,
       hideDownload = false,
       canPayByLIKE = false,
+      sendNFTsToAPIWalletTxHash,
     } = req.body;
     const [iscnInfo, metadata] = await Promise.all([
       getISCNFromNFTClassId(classId),
@@ -357,7 +368,24 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
-    const { apiWalletOwnedNFTs } = await validatePrices(prices, classId, req.user.wallet);
+    const {
+      autoDeliverTotalStock,
+      manualDeliverTotalStock,
+    } = validatePrices(prices, classId, req.user.wallet);
+    if (autoDeliverTotalStock > 0) {
+      await validateSendNFTsToAPIWalletTxHash(
+        sendNFTsToAPIWalletTxHash,
+        classId,
+        req.user.wallet,
+        autoDeliverTotalStock,
+      );
+    }
+    const { apiWalletOwnedNFTs } = await validateStocks(
+      classId,
+      req.user.wallet,
+      autoDeliverTotalStock,
+      manualDeliverTotalStock,
+    );
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await newNftBookInfo(classId, {
