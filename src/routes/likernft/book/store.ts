@@ -278,6 +278,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       throw new ValidationError('CANNOT_CHANGE_DELIVER_METHOD', 403);
     }
 
+    if (oldPriceInfo.isAutoDeliver && oldPriceInfo.stock !== price.stock) {
+      throw new ValidationError('CANNOT_CHANGE_STOCK_OF_AUTO_DELIVERING_FOR_NOW', 403);
+    }
+
     prices[priceIndex] = {
       ...oldPriceInfo,
       ...formatPriceInfo(price),
