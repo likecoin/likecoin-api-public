@@ -61,7 +61,8 @@ jobs:
             gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
             gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
-      - setup_docker_engine
+      - setup_docker_engine:
+          docker_layer_caching: true
       - run:
           name: Build image
           command: |
@@ -97,7 +98,8 @@ jobs:
             gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
             gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
-      - setup_docker_engine
+      - setup_docker_engine:
+          docker_layer_caching: true
       - run:
           name: Build image
           command: |
@@ -133,7 +135,8 @@ jobs:
             gcloud --quiet config set container/cluster ${PROD_CLUSTER_NAME}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
             gcloud --quiet container clusters get-credentials ${PROD_CLUSTER_NAME}
-      - setup_docker_engine
+      - setup_docker_engine:
+          docker_layer_caching: true
       - run:
           name: Build image
           command: |
