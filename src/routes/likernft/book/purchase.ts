@@ -40,6 +40,9 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       from,
       ga_client_id: gaClientId = '',
       price_index: priceIndexString = undefined,
+      utm_campaign: utmCampaign,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
@@ -52,6 +55,11 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       from: from as string,
+      utm: {
+        campaign: utmCampaign as string,
+        source: utmSource as string,
+        medium: utmMedium as string,
+      },
     });
     res.redirect(url);
 
@@ -84,6 +92,9 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const {
       gaClientId,
       giftInfo,
+      utmCampaign,
+      utmSource,
+      utmMedium,
     } = req.body;
 
     if (giftInfo && !giftInfo.toEmail) {
@@ -100,6 +111,11 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       gaClientId: gaClientId as string,
       from: from as string,
       giftInfo,
+      utm: {
+        campaign: utmCampaign,
+        source: utmSource,
+        medium: utmMedium,
+      },
     });
     res.json({ url });
 

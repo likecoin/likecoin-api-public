@@ -90,7 +90,14 @@ router.post(
     try {
       const { wallet } = req.query;
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
-      const { gaClientId = '', memo = '', email } = req.body;
+      const {
+        gaClientId = '',
+        memo = '',
+        email,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+      } = req.body;
       const { iscnPrefixes, classIds } = res.locals;
       const [purchaseInfoList, classMetadataList] = await Promise.all([
         getPurchaseInfoList(iscnPrefixes, classIds),
@@ -116,6 +123,20 @@ router.post(
         (classMetadata, i) => formatLineItem(classMetadata, purchaseInfoList[i].price),
       ) as any[];
 
+      const sessionMetadata: any = {
+        store: 'likerland',
+        wallet: wallet as string,
+        memo,
+        gaClientId,
+        paymentId,
+        totalNFTClassCount: classIds.length,
+        ...classIdLog,
+      };
+
+      if (utmCampaign) sessionMetadata.utmCampaign = utmCampaign;
+      if (utmSource) sessionMetadata.utmSource = utmSource;
+      if (utmMedium) sessionMetadata.utmMedium = utmMedium;
+
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         success_url: getLikerLandNFTFiatStripePurchasePageURL({
@@ -131,15 +152,7 @@ router.post(
         payment_intent_data: {
           capture_method: 'manual',
         },
-        metadata: {
-          store: 'likerland',
-          wallet: wallet as string,
-          memo,
-          gaClientId,
-          paymentId,
-          totalNFTClassCount: classIds.length,
-          ...classIdLog,
-        },
+        metadata: sessionMetadata,
       });
       const { url, id: sessionId } = session;
       const docData: any = {

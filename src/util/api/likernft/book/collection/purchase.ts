@@ -129,6 +129,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaClientId,
   from: inputFrom,
   giftInfo,
+  utm,
 }: {
   gaClientId?: string,
   from?: string,
@@ -137,6 +138,11 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     toName: string,
     fromName: string,
     message?: string,
+  },
+  utm?: {
+    campaign?: string,
+    source?: string,
+    medium?: string,
   },
 } = {}) {
   const collectionData = await getBookCollectionInfoById(collectionId);
@@ -209,6 +215,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     from,
     gaClientId,
     giftInfo,
+    utm,
   }, {
     name,
     description,

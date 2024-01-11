@@ -24,6 +24,9 @@ router.get('/:collectionId/new', async (req, res, next) => {
     const {
       from,
       ga_client_id: gaClientId = '',
+      utm_campaign: utmCampaign,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
     } = req.query;
 
     const {
@@ -34,6 +37,11 @@ router.get('/:collectionId/new', async (req, res, next) => {
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
       from: from as string,
+      utm: {
+        campaign: utmCampaign as string,
+        source: utmSource as string,
+        medium: utmMedium as string,
+      },
     });
     res.redirect(url);
 
@@ -62,6 +70,9 @@ router.post('/:collectionId/new', async (req, res, next) => {
     const {
       gaClientId,
       giftInfo,
+      utmCampaign,
+      utmSource,
+      utmMedium,
     } = req.body;
 
     if (giftInfo && !giftInfo.toEmail) {
@@ -77,6 +88,11 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gaClientId: gaClientId as string,
       from: from as string,
       giftInfo,
+      utm: {
+        campaign: utmCampaign,
+        source: utmSource,
+        medium: utmMedium,
+      },
     });
     res.json({ url });
 
