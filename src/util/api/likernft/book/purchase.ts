@@ -183,6 +183,7 @@ export async function formatStripeCheckoutSession({
   from,
   gaClientId,
   giftInfo,
+  utm,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -197,6 +198,11 @@ export async function formatStripeCheckoutSession({
     toName: string,
     toEmail: string,
     message?: string,
+  },
+  utm?: {
+    campaign?: string,
+    source?: string,
+    medium?: string,
   },
 }, {
   name,
@@ -237,6 +243,10 @@ export async function formatStripeCheckoutSession({
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (from) sessionMetadata.from = from;
   if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
+  if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
+  if (utm?.source) sessionMetadata.utmSource = utm.source;
+  if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
+
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
     metadata: sessionMetadata,
@@ -343,6 +353,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gaClientId,
   from: inputFrom,
   giftInfo,
+  utm,
 }: {
   gaClientId?: string,
   from?: string,
@@ -351,6 +362,11 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     toName: string,
     fromName: string,
     message?: string,
+  },
+  utm?: {
+    campaign?: string,
+    source?: string,
+    medium?: string,
   },
 } = {}) {
   const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
@@ -442,6 +458,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     from,
     gaClientId,
     giftInfo,
+    utm,
   }, {
     name,
     description,
