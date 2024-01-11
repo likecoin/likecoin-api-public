@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { decodeTxRaw, EncodeObject } from '@cosmjs/proto-signing';
-import { StargateClient, assertIsDeliverTxSuccess } from '@cosmjs/stargate';
+import { SigningStargateClient, StargateClient, StdFee, assertIsDeliverTxSuccess } from '@cosmjs/stargate';
 import { ISCNSigningClient } from '@likecoin/iscn-js';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
@@ -102,6 +102,33 @@ async function internalSendTransaction(signedTx, c: StargateClient | null = null
     }
     throw err;
   }
+}
+export function getSigningFunction({
+  signingStargateClient,
+  address,
+  messages,
+  fee,
+  memo,
+  accountNumber,
+}: {
+  signingStargateClient: SigningStargateClient,
+  address: string,
+  messages: EncodeObject[],
+  fee: StdFee,
+  memo: string,
+  accountNumber: number,
+}) {
+  return ({ sequence }: { sequence: number; }) => signingStargateClient.sign(
+    address,
+    messages,
+    fee,
+    memo,
+    {
+      accountNumber,
+      sequence,
+      chainId: COSMOS_CHAIN_ID,
+    },
+  ) as Promise<TxRaw>;
 }
 
 export function getSendMessagesSigningFunction({
