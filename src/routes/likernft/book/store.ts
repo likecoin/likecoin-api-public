@@ -387,8 +387,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     const { apiWalletOwnedNFTs } = await validateStocks(
       classId,
       req.user.wallet,
-      autoDeliverTotalStock,
       manualDeliverTotalStock,
+      autoDeliverTotalStock,
     );
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
