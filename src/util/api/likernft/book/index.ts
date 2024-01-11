@@ -27,7 +27,7 @@ export function formatPriceInfo(price) {
     isPhysicalOnly = false,
     stock,
     isAutoDeliver = false,
-    autoMemo,
+    autoMemo = '',
   } = price;
   const name = {};
   const description = {};
