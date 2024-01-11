@@ -1,11 +1,12 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { decodeTxRaw } from '@cosmjs/proto-signing';
+import { decodeTxRaw, EncodeObject } from '@cosmjs/proto-signing';
 import { StargateClient, assertIsDeliverTxSuccess } from '@cosmjs/stargate';
+import { ISCNSigningClient } from '@likecoin/iscn-js';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import createHash from 'create-hash';
 import BigNumber from 'bignumber.js';
-import { getAccountInfo } from './index';
+import { COSMOS_CHAIN_ID, getAccountInfo } from './index';
 import { db, txCollection as txLogRef } from '../firebase';
 import { sleep } from '../misc';
 import publisher from '../gcloudPub';
@@ -16,7 +17,7 @@ const {
   COSMOS_RPC_ENDPOINT,
   COSMOS_SIGNING_RPC_ENDPOINT,
   COSMOS_GAS_PRICE,
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
 } = require('../../../config/config');
 
 export const DEFAULT_GAS_PRICE = COSMOS_GAS_PRICE || 10000;
@@ -101,6 +102,29 @@ async function internalSendTransaction(signedTx, c: StargateClient | null = null
     }
     throw err;
   }
+}
+
+export function getSendMessagesSigningFunction({
+  iscnSigningClient,
+  address,
+  messages,
+  accountNumber,
+}: {
+  iscnSigningClient: ISCNSigningClient,
+  address: string,
+  messages: EncodeObject[],
+  accountNumber: number,
+}) {
+  return ({ sequence }: { sequence: number }) => iscnSigningClient.sendMessages(
+    address,
+    messages,
+    {
+      accountNumber,
+      sequence,
+      chainId: COSMOS_CHAIN_ID,
+      broadcast: false,
+    },
+  ) as Promise<TxRaw>;
 }
 
 export async function sendTransactionWithSequence(
