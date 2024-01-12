@@ -841,12 +841,12 @@ export async function sentNFTBook({
   wallet: string,
   paymentId: string,
   txHash: string,
-  t: Transaction,
+  t: any,
 }) {
   // TODO: check tx content contains valid nft info and address
   const bookDocRef = likeNFTBookCollection.doc(classId);
   const bookDoc = await t.get(bookDocRef);
-  const bookDocData = (bookDoc as any).data();
+  const bookDocData = bookDoc.data();
   if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
   const { ownerWallet, moderatorWallets = [] } = bookDocData;
   if (ownerWallet !== wallet && !moderatorWallets.includes(wallet)) {
@@ -855,7 +855,7 @@ export async function sentNFTBook({
   }
   const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
   const paymentDoc = await t.get(paymentDocRef);
-  const paymentDocData = (paymentDoc as any).data();
+  const paymentDocData = paymentDoc.data();
   if (!paymentDocData) {
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
