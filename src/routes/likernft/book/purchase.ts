@@ -7,7 +7,7 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
-import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
+import { db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
@@ -16,7 +16,7 @@ import {
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
+import { sendNFTBookShippedEmail } from '../../../util/ses';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -26,6 +26,7 @@ import {
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
+  sentNFTBook,
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
@@ -528,59 +529,14 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { txHash } = req.body;
-      // TODO: check tx content contains valid nft info and address
-      const bookRef = likeNFTBookCollection.doc(classId);
-      const bookDoc = await bookRef.get();
-      const bookDocData = bookDoc.data();
-      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet, moderatorWallets = [] } = bookDocData;
-      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-        // TODO: check tx is sent by req.user.wallet
-        throw new ValidationError('NOT_OWNER', 403);
-      }
-      const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+      const { wallet } = req.user;
 
-      const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
-        const doc = await t.get(paymentDocRef);
-        const docData = doc.data();
-        if (!docData) {
-          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        }
-        const {
-          status,
-          isPhysicalOnly,
-        } = docData;
-        if (status !== 'pendingNFT') {
-          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
-        }
-        if (isPhysicalOnly) {
-          throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
-        }
-        t.update(paymentDocRef, {
-          status: 'completed',
-          txHash,
-        });
-        t.update(bookRef, {
-          pendingNFTCount: FieldValue.increment(-1),
-        });
-        return docData;
+      const { isGift } = await sentNFTBook({
+        classId,
+        wallet,
+        paymentId,
+        txHash,
       });
-
-      if (isGift && giftInfo) {
-        const {
-          fromName,
-          toName,
-        } = giftInfo;
-        const classData = await getNFTClassDataById(classId).catch(() => null);
-        const className = classData?.name || classId;
-        await sendNFTBookGiftSentEmail({
-          fromEmail: email,
-          fromName,
-          toName,
-          bookName: className,
-          txHash,
-        });
-      }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTSentUpdate',

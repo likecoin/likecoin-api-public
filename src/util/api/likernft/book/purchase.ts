@@ -39,6 +39,7 @@ import {
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftClaimedEmail,
+  sendNFTBookGiftSentEmail,
 } from '../../../ses';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
@@ -759,6 +760,71 @@ export async function sendNFTBookClaimedEmailNotification(
   }
 }
 
+function handleSentNFTBook(classId: string, paymentId: string, txHash: string) {
+  return db.runTransaction(async (t) => {
+    const bookDocRef = likeNFTBookCollection.doc(classId);
+    const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
+    const paymentDoc = await t.get(paymentDocRef);
+    const paymentDocData = paymentDoc.data();
+    if (!paymentDocData) {
+      throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    }
+    const {
+      status, isPhysicalOnly,
+    } = paymentDocData;
+    if (status !== 'pendingNFT') {
+      throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+    }
+    if (isPhysicalOnly) {
+      throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
+    }
+    t.update(paymentDocRef, {
+      status: 'completed',
+      txHash,
+    });
+    t.update(bookDocRef, {
+      pendingNFTCount: FieldValue.increment(-1),
+    });
+    return paymentDocData;
+  });
+}
+
+export async function sentNFTBook({
+  classId,
+  wallet,
+  paymentId,
+  txHash,
+}) {
+  // TODO: check tx content contains valid nft info and address
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const bookDoc = await bookRef.get();
+  const bookDocData = bookDoc.data();
+  if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  const { ownerWallet, moderatorWallets = [] } = bookDocData;
+  if (ownerWallet !== wallet && !moderatorWallets.includes(wallet)) {
+    // TODO: check tx is sent by req.user.wallet
+    throw new ValidationError('NOT_OWNER', 403);
+  }
+
+  const { email, isGift, giftInfo } = await handleSentNFTBook(classId, paymentId, txHash);
+
+  if (isGift && giftInfo) {
+    const {
+      fromName,
+      toName,
+    } = giftInfo;
+    const classData = await getNFTClassDataById(classId).catch(() => null);
+    const className = classData?.name || classId;
+    await sendNFTBookGiftSentEmail({
+      fromEmail: email,
+      fromName,
+      toName,
+      bookName: className,
+      txHash,
+    });
+  }
+  return { isGift };
+}
 export async function execGrant(
   granterWallet: string,
   toWallet: string,
