@@ -191,6 +191,7 @@ export async function patchNFTCollectionById(
     name: newName || docName,
     description: newDescription || docDescription,
     classIds: newClassIds || docClassIds,
+    ...typePayload,
     ...payload,
   });
   const updateTypePayload = {
