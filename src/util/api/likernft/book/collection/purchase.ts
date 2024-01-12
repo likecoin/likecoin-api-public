@@ -118,7 +118,7 @@ export async function processNFTBookCollectionPurchase({
     if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
     t.update(collectionRef.collection('transactions').doc(paymentId), paymentPayload);
     return {
-      listingData: docData,
+      listingData: { ...docData, ...typePayload },
       txData: paymentData,
     };
   });
@@ -332,7 +332,6 @@ export async function processNFTBookCollectionStripePurchase(
     });
     const {
       notificationEmails = [],
-      mustClaimToView = false,
       defaultPaymentCurrency,
     } = listingData;
     const {
@@ -356,18 +355,16 @@ export async function processNFTBookCollectionStripePurchase(
 
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
     await Promise.all([
-      sendNFTBookPurchaseEmail({
+      sendNFTBookCollectionPurchaseEmail({
         email,
         notificationEmails,
         isGift,
         giftInfo,
         collectionId,
-        bookName: collectionName,
-        priceName: collectionName,
+        collectionName,
         paymentId,
         claimToken,
         amountTotal,
-        mustClaimToView,
       }),
       sendNFTBookSalesSlackNotification({
         collectionId,
