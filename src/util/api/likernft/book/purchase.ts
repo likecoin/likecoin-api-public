@@ -57,6 +57,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   from = '',
   isPhysicalOnly = false,
   isAutoDeliver = false,
+  autoMemo = '',
 }: {
   type: string;
   email?: string;
@@ -68,6 +69,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   from?: string;
   isPhysicalOnly?: boolean,
   isAutoDeliver?: boolean,
+  autoMemo?: string,
   giftInfo?: {
     toName: string,
     toEmail: string,
@@ -82,6 +84,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     isPendingClaim: false,
     isPhysicalOnly,
     isAutoDeliver,
+    autoMemo,
     claimToken,
     sessionId,
     classId,
@@ -415,6 +418,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     hasShipping,
     isPhysicalOnly,
     isAutoDeliver,
+    autoMemo,
     name: priceNameObj,
     description: pricDescriptionObj,
   } = prices[priceIndex];
@@ -495,6 +499,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     giftInfo,
     isPhysicalOnly,
     isAutoDeliver,
+    autoMemo,
     from: from as string,
   });
 
@@ -705,7 +710,7 @@ export async function claimNFTBook(
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
-  const { email, isAutoDeliver } = await db.runTransaction(async (t) => {
+  const { email, isAutoDeliver, autoMemo = '' } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) {
@@ -742,7 +747,7 @@ export async function claimNFTBook(
     const { isGift, giftInfo } = await db.runTransaction(async (t) => {
       ({ id: nftId } = await getFirstUnsoldNFTBookDocData(classId, { t }));
       const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
-      txHash = await handleNFTPurchaseTransaction(txMessages, '');
+      txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
       // eslint-disable-next-line no-use-before-define
       const paymentDocData = await sentNFTBook({
         classId,
