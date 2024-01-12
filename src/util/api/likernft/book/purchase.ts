@@ -2,8 +2,11 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { Transaction, Query } from '@google-cloud/firestore';
 
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
+import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
@@ -678,14 +681,31 @@ export async function processNFTBookStripePurchase(
   }
 }
 
+async function getFirstUnsoldNFTBookDocData(
+  classId: string,
+  { t }: { t?: Transaction } = {},
+) {
+  const query = likeNFTBookCollection.doc(classId)
+    .collection('nft')
+    .where('isSold', '==', false)
+    .where('isProcessing', '==', false)
+    .limit(1) as Query;
+  const res = await (t ? t.get(query) : query.get());
+  if (!res.size) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+  const { id } = res.docs[0];
+  const data = res.docs[0].data();
+  return { id, ...data };
+}
+
 export async function claimNFTBook(
   classId: string,
   paymentId: string,
-  { message, wallet, token }: { message: string, wallet: string, token: string },
+  { message, wallet, token }: { message: string, wallet: string, token: string }, 
+  req,
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
-  const { email } = await db.runTransaction(async (t) => {
+  const { email, isAutoDeliver } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) {
@@ -715,6 +735,51 @@ export async function claimNFTBook(
     });
     return docData;
   });
+
+  if (isAutoDeliver) {
+    let txHash = '';
+    let nftId = '';
+    const { isGift, giftInfo } = await db.runTransaction(async (t) => {
+      ({ id: nftId } = await getFirstUnsoldNFTBookDocData(classId, { t }));
+      const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
+      txHash = await handleNFTPurchaseTransaction(txMessages, '');
+      // eslint-disable-next-line no-use-before-define
+      const paymentDocData = await sentNFTBook({
+        classId,
+        wallet,
+        paymentId,
+        txHash,
+        t,
+      });
+      return paymentDocData;
+    });
+
+    if (isGift && giftInfo) {
+      const {
+        fromName,
+        toName,
+      } = giftInfo;
+      const classData = await getNFTClassDataById(classId).catch(() => null);
+      const className = classData?.name || classId;
+      await sendNFTBookGiftSentEmail({
+        fromEmail: email,
+        fromName,
+        toName,
+        bookName: className,
+        txHash,
+      });
+    }
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTSentUpdate',
+      paymentId,
+      classId,
+      nftId,
+      txHash,
+      isGift,
+    });
+  }
+
   return email;
 }
 
@@ -724,14 +789,14 @@ export async function sendNFTBookClaimedEmailNotification(
   {
     message, wallet, email, isGift, giftInfo,
   }
-  : {
+    : {
       message: string, wallet: string, email: string, isGift?: boolean, giftInfo?: {
-      fromName: string,
-      toName: string,
-      toEmail: string,
-      message?: string,
-    }
-  },
+        fromName: string,
+        toName: string,
+        toEmail: string,
+        message?: string,
+      }
+    },
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const doc = await bookRef.get();
@@ -765,71 +830,52 @@ export async function sendNFTBookClaimedEmailNotification(
   }
 }
 
-function handleSentNFTBook(classId: string, paymentId: string, txHash: string) {
-  return db.runTransaction(async (t) => {
-    const bookDocRef = likeNFTBookCollection.doc(classId);
-    const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
-    const paymentDoc = await t.get(paymentDocRef);
-    const paymentDocData = paymentDoc.data();
-    if (!paymentDocData) {
-      throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-    }
-    const {
-      status, isPhysicalOnly,
-    } = paymentDocData;
-    if (status !== 'pendingNFT') {
-      throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
-    }
-    if (isPhysicalOnly) {
-      throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
-    }
-    t.update(paymentDocRef, {
-      status: 'completed',
-      txHash,
-    });
-    t.update(bookDocRef, {
-      pendingNFTCount: FieldValue.increment(-1),
-    });
-    return paymentDocData;
-  });
-}
-
 export async function sentNFTBook({
   classId,
   wallet,
   paymentId,
   txHash,
+  t,
+}: {
+  classId: string,
+  wallet: string,
+  paymentId: string,
+  txHash: string,
+  t: Transaction,
 }) {
   // TODO: check tx content contains valid nft info and address
-  const bookRef = likeNFTBookCollection.doc(classId);
-  const bookDoc = await bookRef.get();
-  const bookDocData = bookDoc.data();
+  const bookDocRef = likeNFTBookCollection.doc(classId);
+  const bookDoc = await t.get(bookDocRef);
+  const bookDocData = (bookDoc as any).data();
   if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
   const { ownerWallet, moderatorWallets = [] } = bookDocData;
   if (ownerWallet !== wallet && !moderatorWallets.includes(wallet)) {
     // TODO: check tx is sent by req.user.wallet
     throw new ValidationError('NOT_OWNER', 403);
   }
-
-  const { email, isGift, giftInfo } = await handleSentNFTBook(classId, paymentId, txHash);
-
-  if (isGift && giftInfo) {
-    const {
-      fromName,
-      toName,
-    } = giftInfo;
-    const classData = await getNFTClassDataById(classId).catch(() => null);
-    const className = classData?.name || classId;
-    await sendNFTBookGiftSentEmail({
-      fromEmail: email,
-      fromName,
-      toName,
-      bookName: className,
-      txHash,
-    });
+  const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
+  const paymentDoc = await t.get(paymentDocRef);
+  const paymentDocData = (paymentDoc as any).data();
+  if (!paymentDocData) {
+    throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
-  return { isGift };
+  const { status, isPhysicalOnly } = paymentDocData;
+  if (status !== 'pendingNFT') {
+    throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+  }
+  if (isPhysicalOnly) {
+    throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
+  }
+  t.update(paymentDocRef, {
+    status: 'completed',
+    txHash,
+  });
+  t.update(bookDocRef, {
+    pendingNFTCount: FieldValue.increment(-1),
+  });
+  return paymentDocData;
 }
+
 export async function execGrant(
   granterWallet: string,
   toWallet: string,

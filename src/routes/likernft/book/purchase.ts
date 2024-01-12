@@ -16,7 +16,7 @@ import {
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookShippedEmail } from '../../../util/ses';
+import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -294,6 +294,7 @@ router.post(
             wallet,
             token: claimToken as string,
           },
+          req,
         );
 
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -428,7 +429,7 @@ router.post(
           message,
           wallet: granterWallet,
           token: claimToken,
-        });
+        }, req);
         claimed = true;
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTClaimed',
@@ -499,6 +500,7 @@ router.post(
           wallet,
           token: token as string,
         },
+        req,
       );
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -535,12 +537,31 @@ router.post(
       const { txHash } = req.body;
       const { wallet } = req.user;
 
-      const { isGift } = await sentNFTBook({
-        classId,
-        wallet,
-        paymentId,
-        txHash,
+      const { email, isGift, giftInfo } = await db.runTransaction((t) => {
+        sentNFTBook({
+          classId,
+          wallet,
+          paymentId,
+          txHash,
+          t,
+        });
       });
+
+      if (isGift && giftInfo) {
+        const {
+          fromName,
+          toName,
+        } = giftInfo;
+        const classData = await getNFTClassDataById(classId).catch(() => null);
+        const className = classData?.name || classId;
+        await sendNFTBookGiftSentEmail({
+          fromEmail: email,
+          fromName,
+          toName,
+          bookName: className,
+          txHash,
+        });
+      }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTSentUpdate',
