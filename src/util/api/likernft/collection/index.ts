@@ -171,12 +171,28 @@ export async function patchNFTCollectionById(
   if (!docData) {
     throw new ValidationError('COLLECTION_NOT_FOUND', 404);
   }
-  const { ownerWallet, type, typePayload } = docData;
-  if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
-  const newTypePayload = await validateCollectionTypeData(wallet, type, payload);
   const {
-    classIds, name, description, image,
+    ownerWallet,
+    type,
+    typePayload,
+    name: docName,
+    description: docDescription,
+    classIds: docClassIds,
+  } = docData;
+  if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
+  const {
+    classIds: newClassIds,
+    name: newName,
+    description: newDescription,
+    image,
   } = payload;
+
+  const newTypePayload = await validateCollectionTypeData(wallet, type, {
+    name: newName || docName,
+    description: newDescription || docDescription,
+    classIds: newClassIds || docClassIds,
+    ...payload,
+  });
   const updateTypePayload = {
     ...typePayload,
     ...newTypePayload,
@@ -185,9 +201,9 @@ export async function patchNFTCollectionById(
     typePayload: updateTypePayload,
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   };
-  if (classIds !== undefined) updatePayload.classIds = classIds;
-  if (name !== undefined) updatePayload.name = name;
-  if (description !== undefined) updatePayload.description = description;
+  if (newClassIds !== undefined) updatePayload.classIds = newClassIds;
+  if (newName !== undefined) updatePayload.name = newName;
+  if (newDescription !== undefined) updatePayload.description = newDescription;
   if (image !== undefined) updatePayload.image = image;
   await likeNFTCollectionCollection.doc(collectionId).update(updatePayload);
 }
