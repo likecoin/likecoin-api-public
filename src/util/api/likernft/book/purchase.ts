@@ -53,6 +53,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   giftInfo,
   from = '',
   isPhysicalOnly = false,
+  isAutoDeliver = false,
 }: {
   type: string;
   email?: string;
@@ -63,6 +64,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceIndex: number;
   from?: string;
   isPhysicalOnly?: boolean,
+  isAutoDeliver?: boolean,
   giftInfo?: {
     toName: string,
     toEmail: string,
@@ -76,6 +78,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     isPaid: false,
     isPendingClaim: false,
     isPhysicalOnly,
+    isAutoDeliver,
     claimToken,
     sessionId,
     classId,
@@ -408,6 +411,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     stock,
     hasShipping,
     isPhysicalOnly,
+    isAutoDeliver,
     name: priceNameObj,
     description: pricDescriptionObj,
   } = prices[priceIndex];
@@ -487,6 +491,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceIndex,
     giftInfo,
     isPhysicalOnly,
+    isAutoDeliver,
     from: from as string,
   });
 
