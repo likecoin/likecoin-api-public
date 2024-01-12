@@ -7,8 +7,8 @@ jobs:
     resource_class: medium+
     steps:
       - checkout
-      # - restore_cache:
-      #     key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+      - restore_cache:
+          key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
       - run:
           name: Dependencies
           command: npm install && npm install codecov -g
@@ -38,10 +38,10 @@ jobs:
       - run:
           name: Upload coverage
           command: codecov
-      # - save_cache:
-      #     key: likecoin-api-public-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
-      #     paths:
-      #       - ./node_modules
+      - save_cache:
+          key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+          paths:
+            - ./node_modules
   deploy_rinkeby_api:
     working_directory: ~/like-api-public
     docker:
