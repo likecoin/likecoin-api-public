@@ -756,6 +756,9 @@ export async function claimNFTBook(
         txHash,
         t,
       });
+      t.update(bookRef.collection('nft').doc(nftId), {
+        isSold: true,
+      });
       return paymentDocData;
     });
 
