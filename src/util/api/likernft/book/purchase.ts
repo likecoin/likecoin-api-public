@@ -184,6 +184,7 @@ export async function formatStripeCheckoutSession({
   gaClientId,
   giftInfo,
   utm,
+  httpMethod,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -204,6 +205,7 @@ export async function formatStripeCheckoutSession({
     source?: string,
     medium?: string,
   },
+  httpMethod?: 'GET' | 'POST',
 }, {
   name,
   description,
@@ -246,6 +248,7 @@ export async function formatStripeCheckoutSession({
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
+  if (httpMethod) sessionMetadata.httpMethod = httpMethod;
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
@@ -354,7 +357,9 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   from: inputFrom,
   giftInfo,
   utm,
+  httpMethod,
 }: {
+  httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
   from?: string,
   giftInfo?: {
@@ -459,6 +464,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     gaClientId,
     giftInfo,
     utm,
+    httpMethod,
   }, {
     name,
     description,

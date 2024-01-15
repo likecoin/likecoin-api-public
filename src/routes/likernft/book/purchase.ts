@@ -46,6 +46,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
+    const httpMethod = 'GET';
     const {
       url,
       paymentId,
@@ -60,6 +61,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         source: utmSource as string,
         medium: utmMedium as string,
       },
+      httpMethod,
     });
     res.redirect(url);
 
@@ -74,6 +76,10 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         price: priceInDecimal / 100,
         sessionId,
         isGift: false,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        httpMethod,
       });
     }
   } catch (err) {
@@ -101,6 +107,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
     }
 
+    const httpMethod = 'POST';
     const {
       url,
       paymentId,
@@ -116,6 +123,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         source: utmSource,
         medium: utmMedium,
       },
+      httpMethod,
     });
     res.json({ url });
 
@@ -130,6 +138,10 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         price: priceInDecimal / 100,
         sessionId,
         isGift: !!giftInfo,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        httpMethod,
       });
     }
   } catch (err) {
