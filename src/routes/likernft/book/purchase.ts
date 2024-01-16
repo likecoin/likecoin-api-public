@@ -544,7 +544,7 @@ router.post(
       const { email, isGift, giftInfo } = await db.runTransaction((t) => {
         updateNFTBookPostDeliveryData({
           classId,
-          wallet,
+          callerWallet: wallet,
           paymentId,
           txHash,
         }, t);
