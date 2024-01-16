@@ -387,12 +387,18 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       paymentId,
       type: 'nft_book',
       redirect: true,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
     }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
       token: claimToken,
       type: 'nft_book',
       redirect: true,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
     }),
     cancelUrl = getLikerLandNFTClassPageURL({ classId }),
     ownerWallet,
@@ -426,6 +432,9 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       redirect: false,
       priceIndex,
       from: from as string,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
     });
     return { url: freePurchaseUrl };
   }
