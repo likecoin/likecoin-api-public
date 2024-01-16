@@ -749,13 +749,12 @@ export async function claimNFTBook(
       const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
       // eslint-disable-next-line no-use-before-define
-      const paymentDocData = await sentNFTBook({
+      const paymentDocData = await updateNFTBookPostDeliveryData({
         classId,
         wallet,
         paymentId,
         txHash,
-        t,
-      });
+      }, t);
       t.update(bookRef.collection('nft').doc(nftId), {
         isSold: true,
       });
@@ -838,19 +837,17 @@ export async function sendNFTBookClaimedEmailNotification(
   }
 }
 
-export async function sentNFTBook({
+export async function updateNFTBookPostDeliveryData({
   classId,
   wallet,
   paymentId,
   txHash,
-  t,
 }: {
   classId: string,
   wallet: string,
   paymentId: string,
   txHash: string,
-  t: any,
-}) {
+}, t: any) {
   // TODO: check tx content contains valid nft info and address
   const bookDocRef = likeNFTBookCollection.doc(classId);
   const bookDoc = await t.get(bookDocRef);

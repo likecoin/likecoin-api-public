@@ -26,7 +26,7 @@ import {
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
-  sentNFTBook,
+  updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
@@ -542,13 +542,12 @@ router.post(
       const { wallet } = req.user;
 
       const { email, isGift, giftInfo } = await db.runTransaction((t) => {
-        sentNFTBook({
+        updateNFTBookPostDeliveryData({
           classId,
           wallet,
           paymentId,
           txHash,
-          t,
-        });
+        }, t);
       });
 
       if (isGift && giftInfo) {
