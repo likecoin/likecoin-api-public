@@ -180,6 +180,7 @@ export async function formatStripeCheckoutSession({
   paymentId,
   priceIndex,
   ownerWallet,
+  email,
   from,
   gaClientId,
   giftInfo,
@@ -192,6 +193,7 @@ export async function formatStripeCheckoutSession({
   priceIndex?: number,
   paymentId: string,
   ownerWallet: string,
+  email?: string,
   from?: string,
   gaClientId?: string,
   giftInfo?: {
@@ -306,6 +308,7 @@ export async function formatStripeCheckoutSession({
     mode: 'payment',
     success_url: `${successUrl}`,
     cancel_url: `${cancelUrl}`,
+    customer_email: email,
     line_items: [
       {
         price_data: {
@@ -355,12 +358,14 @@ export async function formatStripeCheckoutSession({
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   from: inputFrom,
+  email,
   giftInfo,
   utm,
   httpMethod,
 }: {
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
+  email?: string,
   from?: string,
   giftInfo?: {
     toEmail: string,
@@ -471,6 +476,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     ownerWallet,
     from,
     gaClientId,
+    email,
     giftInfo,
     utm,
     httpMethod,
