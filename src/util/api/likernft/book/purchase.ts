@@ -3,13 +3,13 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { Transaction, Query } from '@google-cloud/firestore';
+import { Query } from '@google-cloud/firestore';
 
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
-import { getNFTClassDataById } from '../../../cosmos/nft';
+import { getNFTClassDataById, getNFTOwner } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
@@ -44,6 +44,7 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../ses';
+import { sleep } from '../../../misc';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
@@ -756,10 +757,14 @@ export async function claimNFTBook(
         const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
         txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
       } catch (sendNFTErr) {
-        await likeNFTBookCollection.doc(classId).collection('nft').doc(nftId).update({
-          isProcessing: false,
-        });
-        throw sendNFTErr;
+        await sleep(6000);
+        const owner = await getNFTOwner(classId, nftId).catch(() => null);
+        if (owner !== wallet) {
+          await likeNFTBookCollection.doc(classId).collection('nft').doc(nftId).update({
+            isProcessing: false,
+          });
+          throw sendNFTErr;
+        }
       }
     } catch (autoDeliverErr) {
       await db.runTransaction(async (t) => {
