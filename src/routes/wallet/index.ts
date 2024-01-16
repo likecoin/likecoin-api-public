@@ -10,6 +10,10 @@ router.post('/authorize', async (req, res, next) => {
     const {
       wallet, from, signature, publicKey, message, signMethod,
     } = req.body;
+    let { expiresIn } = req.body;
+    if (!expiresIn || !['1h', '1d'].includes(expiresIn)) {
+      expiresIn = '1h';
+    }
     const inputWallet = wallet || from;
     if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
     const signed = checkCosmosSignPayload({
@@ -22,7 +26,7 @@ router.post('/authorize', async (req, res, next) => {
     const { token, jwtid } = jwtSign({
       wallet: inputWallet,
       permissions,
-    }, { expiresIn: '1h' });
+    }, { expiresIn });
     res.json({ jwtid, token });
   } catch (err) {
     next(err);
