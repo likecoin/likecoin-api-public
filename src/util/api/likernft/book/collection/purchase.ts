@@ -129,10 +129,12 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaClientId,
   from: inputFrom,
   giftInfo,
+  email,
   utm,
 }: {
   gaClientId?: string,
   from?: string,
+  email?: string,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -214,6 +216,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     ownerWallet,
     from,
     gaClientId,
+    email,
     giftInfo,
     utm,
   }, {

@@ -98,6 +98,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const priceIndex = Number(priceIndexString) || 0;
     const {
       gaClientId,
+      email,
       giftInfo,
       utmCampaign,
       utmSource,
@@ -119,6 +120,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       gaClientId: gaClientId as string,
       from: from as string,
       giftInfo,
+      email,
       utm: {
         campaign: utmCampaign,
         source: utmSource,
