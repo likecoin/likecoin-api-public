@@ -53,7 +53,11 @@ router.get('/:collectionId/new', async (req, res, next) => {
         collectionId,
         price: priceInDecimal / 100,
         sessionId,
+        channel: from,
         isGift: false,
+        utmCampaign,
+        utmSource,
+        utmMedium,
       });
     }
   } catch (err) {
@@ -104,7 +108,11 @@ router.post('/:collectionId/new', async (req, res, next) => {
         collectionId,
         price: priceInDecimal / 100,
         sessionId,
+        channel: from,
         isGift: !!giftInfo,
+        utmCampaign,
+        utmSource,
+        utmMedium,
       });
     }
   } catch (err) {

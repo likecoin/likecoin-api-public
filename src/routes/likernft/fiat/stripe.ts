@@ -130,6 +130,7 @@ router.post(
         gaClientId,
         paymentId,
         totalNFTClassCount: classIds.length,
+        httpMethod: 'POST',
         ...classIdLog,
       };
 
@@ -190,6 +191,9 @@ router.post(
         fiatPrice,
         LIKEPrice,
         sessionId,
+        utmCampaign,
+        utmSource,
+        utmMedium,
       });
     } catch (err) {
       next(err);

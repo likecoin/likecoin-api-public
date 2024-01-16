@@ -46,6 +46,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
+    const httpMethod = 'GET';
     const {
       url,
       paymentId,
@@ -60,6 +61,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         source: utmSource as string,
         medium: utmMedium as string,
       },
+      httpMethod,
     });
     res.redirect(url);
 
@@ -74,6 +76,11 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         price: priceInDecimal / 100,
         sessionId,
         isGift: false,
+        channel: from,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        httpMethod,
       });
     }
   } catch (err) {
@@ -101,6 +108,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
     }
 
+    const httpMethod = 'POST';
     const {
       url,
       paymentId,
@@ -116,6 +124,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         source: utmSource,
         medium: utmMedium,
       },
+      httpMethod,
     });
     res.json({ url });
 
@@ -130,6 +139,11 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         price: priceInDecimal / 100,
         sessionId,
         isGift: !!giftInfo,
+        channel: from,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        httpMethod,
       });
     }
   } catch (err) {
@@ -252,6 +266,7 @@ router.post(
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTFreePurchaseNew',
+        channel: from,
         paymentId,
         classId,
         email,
@@ -330,6 +345,9 @@ router.post(
         email,
         txHash: grantTxHash,
         giftInfo,
+        utmCampaign,
+        utmSource,
+        utmMedium,
       } = req.body;
 
       const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
@@ -400,11 +418,16 @@ router.post(
         execGrantTxHash,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTLIKEPurchaseNew',
+        logType: 'BookNFTPurchaseNew',
+        type: 'like',
         paymentId,
         classId,
         wallet: granterWallet,
         email,
+        channel: from,
+        utmCampaign,
+        utmSource,
+        utmMedium,
       });
       const className = metadata?.name || classId;
       await sendNFTBookSalesSlackNotification({
