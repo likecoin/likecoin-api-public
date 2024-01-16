@@ -258,34 +258,36 @@ export async function formatStripeCheckoutSession({
   const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
   const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
 
+  const isFromLikerLand = checkIsFromLikerLand(from);
+  const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
+  const likerLandFeeAmount = Math.ceil(
+    convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  );
+  const likerLandCommission = isFromLikerLand
+    ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+    : 0;
+  const likerlandArtFee = isLikerLandArt
+    ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+    : 0;
+
+  paymentIntentData.metadata = {
+    ...paymentIntentData.metadata,
+    stripeFeeAmount,
+    likerLandFeeAmount,
+    likerLandCommission,
+    likerlandArtFee,
+  };
+
   if (connectedWallets && Object.keys(connectedWallets).length) {
-    const isFromLikerLand = checkIsFromLikerLand(from);
     const wallet = Object.keys(connectedWallets)[0];
     const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
     if (stripeConnectAccountId) {
-      const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-      const likerLandFeeAmount = Math.ceil(
-        convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
-      );
-      const likerLandCommission = isFromLikerLand
-        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-        : 0;
-      const likerlandArtFee = isLikerLandArt
-        ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
-        : 0;
       // TODO: support connectedWallets +1
       paymentIntentData.application_fee_amount = (
         stripeFeeAmount + likerLandFeeAmount + likerLandCommission + likerlandArtFee
       );
       paymentIntentData.transfer_data = {
         destination: stripeConnectAccountId,
-      };
-      paymentIntentData.metadata = {
-        ...paymentIntentData.metadata,
-        stripeFeeAmount,
-        likerLandFeeAmount,
-        likerLandCommission,
-        likerlandArtFee,
       };
     }
   }
