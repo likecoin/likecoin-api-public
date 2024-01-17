@@ -754,8 +754,8 @@ export async function claimNFTBook(
     return docData;
   });
 
+  let txHash = '';
   if (isAutoDeliver) {
-    let txHash = '';
     try {
       const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
@@ -819,7 +819,7 @@ export async function claimNFTBook(
     });
   }
 
-  return email;
+  return { email, autoDeliverTxHash: txHash };
 }
 
 export async function sendNFTBookClaimedEmailNotification(
