@@ -41,7 +41,6 @@ config.ARWEAVE_LIKE_TARGET_ADDRESS = '';
 config.LIKE_PRICE_MULTIPLIER = 1;
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
 config.REPLICA_IPFS_ENDPOINTS = [];
-config.WEB3_STORAGE_API_TOKEN = '';
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
 config.LIKER_NFT_PENDING_CLAIM_ADDRESS = '';
