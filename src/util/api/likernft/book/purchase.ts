@@ -310,7 +310,6 @@ export async function formatStripeCheckoutSession({
     mode: 'payment',
     success_url: `${successUrl}`,
     cancel_url: `${cancelUrl}`,
-    customer_email: email,
     line_items: [
       {
         price_data: {
@@ -327,6 +326,7 @@ export async function formatStripeCheckoutSession({
     payment_intent_data: paymentIntentData,
     metadata: sessionMetadata,
   };
+  if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
       // eslint-disable-next-line max-len
