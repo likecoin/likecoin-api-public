@@ -75,7 +75,7 @@ jobs:
           command: |
             gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
             gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - deploy:
+      - run:
           name: Deploy
           command: |
             kubectl patch deployment like-api-public-rinkeby -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
@@ -112,7 +112,7 @@ jobs:
           command: |
             gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
             gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - deploy:
+      - run:
           name: Deploy
           command: |
             kubectl patch deployment like-api-public-testnet -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
@@ -149,7 +149,7 @@ jobs:
           command: |
             gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:latest
             gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - deploy:
+      - run:
           name: Deploy
           command: |
             kubectl patch deployment like-api-public-main -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
