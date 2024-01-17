@@ -219,7 +219,7 @@ router.post(
       const collectionDoc = await collectionRef.get();
       const collectionDocData = collectionDoc.data();
       if (!collectionDocData) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
-      const { ownerWallet, moderatorWallets = [] } = collectionDocData;
+      const { name, ownerWallet, moderatorWallets = [] } = collectionDocData;
       if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
         // TODO: check tx is sent by req.user.wallet
         throw new ValidationError('NOT_OWNER', 403);
@@ -227,7 +227,7 @@ router.post(
       const paymentDocRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
 
       const {
-        name, email, isGift, giftInfo,
+        email, isGift, giftInfo,
       } = await db.runTransaction(async (t) => {
         const doc = await t.get(paymentDocRef);
         const docData = doc.data();
