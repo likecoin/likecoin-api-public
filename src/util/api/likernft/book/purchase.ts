@@ -9,7 +9,7 @@ import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
-import { getNFTClassDataById, getNFTOwner } from '../../../cosmos/nft';
+import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
@@ -44,7 +44,6 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../ses';
-import { sleep } from '../../../misc';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
@@ -113,6 +112,11 @@ export async function createNewNFTBookPayment(classId, paymentId, {
       fromName,
       message,
     };
+  }
+  if (isAutoDeliver) {
+    // eslint-disable-next-line no-use-before-define
+    const { id: nftId } = await getAndLockNFTBookDoc(classId);
+    payload.nftId = nftId;
   }
   await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
@@ -687,7 +691,7 @@ export async function processNFTBookStripePurchase(
   }
 }
 
-async function getAndLockNFTBookDoc(classId: string, paymentId: string) {
+async function getAndLockNFTBookDoc(classId: string) {
   return db.runTransaction(async (t) => {
     const query = likeNFTBookCollection.doc(classId)
       .collection('nft')
@@ -699,9 +703,6 @@ async function getAndLockNFTBookDoc(classId: string, paymentId: string) {
     const { id } = res.docs[0];
     t.update(likeNFTBookCollection.doc(classId).collection('nft').doc(id), {
       isProcessing: true,
-    });
-    t.update(likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId), {
-      status: 'sendingNFT',
     });
     const doc = res.docs[0];
     const docData = doc.data();
@@ -717,7 +718,12 @@ export async function claimNFTBook(
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
-  const { email, isAutoDeliver, autoMemo = '' } = await db.runTransaction(async (t) => {
+  const {
+    email,
+    isAutoDeliver,
+    nftId,
+    autoMemo = '',
+  } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) {
@@ -750,22 +756,9 @@ export async function claimNFTBook(
 
   if (isAutoDeliver) {
     let txHash = '';
-    let nftId = '';
     try {
-      ({ id: nftId } = await getAndLockNFTBookDoc(classId, paymentId));
-      try {
-        const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
-        txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
-      } catch (sendNFTErr) {
-        await sleep(6000);
-        const owner = await getNFTOwner(classId, nftId).catch(() => null);
-        if (owner !== wallet) {
-          await likeNFTBookCollection.doc(classId).collection('nft').doc(nftId).update({
-            isProcessing: false,
-          });
-          throw sendNFTErr;
-        }
-      }
+      const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
+      txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
     } catch (autoDeliverErr) {
       await db.runTransaction(async (t) => {
         const doc = await t.get(docRef);
@@ -904,7 +897,7 @@ export async function updateNFTBookPostDeliveryData({
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
   const { status, isPhysicalOnly } = paymentDocData;
-  if (!['pendingNFT', 'sendingNFT'].includes(status)) {
+  if (status !== 'pendingNFT') {
     throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
   }
   if (isPhysicalOnly) {
