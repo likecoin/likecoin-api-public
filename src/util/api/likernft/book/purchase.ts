@@ -240,7 +240,7 @@ export async function formatStripeCheckoutSession({
   };
   if (classId) sessionMetadata.classId = classId;
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
-  if (priceIndex) sessionMetadata.priceIndex = priceIndex.toString();
+  if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (from) sessionMetadata.from = from;
