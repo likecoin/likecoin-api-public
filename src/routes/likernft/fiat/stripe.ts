@@ -137,8 +137,7 @@ router.post(
       if (utmCampaign) sessionMetadata.utmCampaign = utmCampaign;
       if (utmSource) sessionMetadata.utmSource = utmSource;
       if (utmMedium) sessionMetadata.utmMedium = utmMedium;
-
-      const session = await stripe.checkout.sessions.create({
+      const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
         mode: 'payment',
         success_url: getLikerLandNFTFiatStripePurchasePageURL({
           classId: classIds[0],
@@ -156,7 +155,9 @@ router.post(
           capture_method: 'manual',
         },
         metadata: sessionMetadata,
-      });
+      };
+      if (email) checkoutPayload.customer_email = email;
+      const session = await stripe.checkout.sessions.create(checkoutPayload);
       const { url, id: sessionId } = session;
       const docData: any = {
         type: 'stripe',
