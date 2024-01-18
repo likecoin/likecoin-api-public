@@ -263,7 +263,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const { price } = req.body;
+    const { price, autoDeliverNFTsTxHash } = req.body;
     validatePrice(price);
 
     const priceIndex = Number(priceIndexString);
@@ -274,12 +274,29 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
-    if (Boolean(oldPriceInfo.isAutoDeliver) !== Boolean(price.isAutoDeliver)) {
-      throw new ValidationError('CANNOT_CHANGE_DELIVER_METHOD', 403);
+    if (oldPriceInfo.isAutoDeliver && !price.isAutoDeliver) {
+      throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_PRICE', 403);
     }
 
-    if (oldPriceInfo.isAutoDeliver && oldPriceInfo.stock !== price.stock) {
-      throw new ValidationError('CANNOT_CHANGE_STOCK_OF_AUTO_DELIVERING_FOR_NOW', 403);
+    if (oldPriceInfo.isAutoDeliver && price.stock < oldPriceInfo.stock) {
+      throw new ValidationError('CANNOT_DECREASE_STOCK_OF_AUTO_DELIVERY_PRICE', 403);
+    }
+
+    let expectedNFTCount = 0;
+    if (price.isAutoDeliver) {
+      expectedNFTCount = oldPriceInfo.isAutoDeliver
+        ? price.stock - oldPriceInfo.stock
+        : price.stock;
+    }
+
+    let newNFTIds: string[] = [];
+    if (expectedNFTCount > 0) {
+      newNFTIds = await validateAutoDeliverNFTsTxHash(
+        autoDeliverNFTsTxHash,
+        classId,
+        req.user.wallet,
+        expectedNFTCount,
+      );
     }
 
     prices[priceIndex] = {
@@ -287,7 +304,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ...formatPriceInfo(price),
     };
 
-    await updateNftBookInfo(classId, { prices });
+    await updateNftBookInfo(classId, { prices }, newNFTIds);
     res.sendStatus(200);
   } catch (err) {
     next(err);
