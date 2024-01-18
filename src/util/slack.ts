@@ -130,6 +130,7 @@ export async function sendNFTBookNewListingSlackNotification({
       },
     ).join('\n');
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
       wallet,
       className,
       classLink,
@@ -170,6 +171,7 @@ export async function sendNFTBookSalesSlackNotification({
       ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
       : getNFTBookStoreSendPageURL(classId, paymentId);
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
       className: bookName,
       classLink,
       email: email || 'N/A',
