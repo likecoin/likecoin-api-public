@@ -729,9 +729,11 @@ export async function claimNFTBook(
       wallet,
       message: message || '',
     });
-    t.update(bookRef, {
-      pendingNFTCount: FieldValue.increment(1),
-    });
+    if (!docData.isAutoDeliver) {
+      t.update(bookRef, {
+        pendingNFTCount: FieldValue.increment(1),
+      });
+    }
     return docData;
   });
 
@@ -741,19 +743,10 @@ export async function claimNFTBook(
       const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
     } catch (autoDeliverErr) {
-      await db.runTransaction(async (t) => {
-        const doc = await t.get(docRef);
-        const { status } = doc.data();
-        if (status === 'sendingNFT') {
-          t.update(docRef, {
-            status: 'paid',
-            wallet: '',
-            message: '',
-          });
-          t.update(bookRef, {
-            pendingNFTCount: FieldValue.increment(-1),
-          });
-        }
+      await docRef.update({
+        status: 'paid',
+        wallet: '',
+        message: '',
       });
       throw autoDeliverErr;
     }
@@ -792,6 +785,7 @@ export async function claimNFTBook(
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTSentUpdate',
+      isAutoDeliver,
       paymentId,
       classId,
       nftId,
