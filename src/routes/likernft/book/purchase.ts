@@ -206,8 +206,6 @@ router.post(
         stock,
         name: priceNameObj,
         isPhysicalOnly = false,
-        isAutoDeliver = false,
-        autoMemo,
       } = prices[priceIndex];
       const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
       if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
@@ -242,8 +240,6 @@ router.post(
         priceName,
         priceIndex,
         isPhysicalOnly,
-        isAutoDeliver,
-        autoMemo,
         from: from as string,
       });
 
@@ -370,8 +366,6 @@ router.post(
       const {
         priceInDecimal,
         isPhysicalOnly = false,
-        isAutoDeliver = false,
-        autoMemo,
         name: { en: priceNameEn },
       } = prices[priceIndex];
       const price = priceInDecimal / 100;
@@ -398,8 +392,6 @@ router.post(
         giftInfo,
         from,
         isPhysicalOnly,
-        isAutoDeliver,
-        autoMemo,
       });
       const execGrantTxHash = await execGrant(granterWallet, ownerWallet, LIKEPrice, from);
       const { listingData } = await processNFTBookPurchase({

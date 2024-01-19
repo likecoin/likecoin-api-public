@@ -56,8 +56,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   giftInfo,
   from = '',
   isPhysicalOnly = false,
-  isAutoDeliver = false,
-  autoMemo = '',
 }: {
   type: string;
   email?: string;
@@ -68,8 +66,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceIndex: number;
   from?: string;
   isPhysicalOnly?: boolean,
-  isAutoDeliver?: boolean,
-  autoMemo?: string,
   giftInfo?: {
     toName: string,
     toEmail: string,
@@ -83,8 +79,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     isPaid: false,
     isPendingClaim: false,
     isPhysicalOnly,
-    isAutoDeliver,
-    autoMemo,
     claimToken,
     sessionId,
     classId,
@@ -112,11 +106,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
       fromName,
       message,
     };
-  }
-  if (isAutoDeliver) {
-    // eslint-disable-next-line no-use-before-define
-    const { id: nftId } = await getAndLockNFTBookDoc(classId);
-    payload.nftId = nftId;
   }
   await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
@@ -147,15 +136,13 @@ export async function processNFTBookPurchase({
     if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
     const {
       stock,
+      isAutoDeliver,
+      autoMemo = '',
     } = priceInfo;
     if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
     priceInfo.stock -= 1;
     priceInfo.sold += 1;
     priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
-    t.update(bookRef, {
-      prices,
-      lastSaleTimestamp: FieldValue.serverTimestamp(),
-    });
     const paymentPayload: any = {
       isPaid: true,
       isPendingClaim: true,
@@ -163,11 +150,28 @@ export async function processNFTBookPurchase({
       status: 'paid',
       email,
     };
+    if (isAutoDeliver) {
+      const nftRes = await t.get(bookRef
+        .collection('nft')
+        .where('isSold', '==', false)
+        .where('isProcessing', '==', false)
+        .limit(1));
+      if (!nftRes.size) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+      const { id: nftId } = nftRes.docs[0];
+      t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+      paymentPayload.isAutoDeliver = true;
+      paymentPayload.autoMemo = autoMemo;
+      paymentPayload.nftId = nftId;
+    }
     if (hasShipping) paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
     if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
     if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
     t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
+    t.update(bookRef, {
+      prices,
+      lastSaleTimestamp: FieldValue.serverTimestamp(),
+    });
     const updatedPaymentData = { ...paymentData, ...paymentPayload };
     return {
       listingData: docData,
@@ -422,8 +426,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     stock,
     hasShipping,
     isPhysicalOnly,
-    isAutoDeliver,
-    autoMemo,
     name: priceNameObj,
     description: pricDescriptionObj,
   } = prices[priceIndex];
@@ -503,8 +505,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceIndex,
     giftInfo,
     isPhysicalOnly,
-    isAutoDeliver,
-    autoMemo,
     from: from as string,
   });
 
@@ -689,25 +689,6 @@ export async function processNFTBookStripePurchase(
     await stripe.paymentIntents.cancel(paymentIntent as string)
       .catch((error) => console.error(error)); // eslint-disable-line no-console
   }
-}
-
-async function getAndLockNFTBookDoc(classId: string) {
-  return db.runTransaction(async (t) => {
-    const query = likeNFTBookCollection.doc(classId)
-      .collection('nft')
-      .where('isSold', '==', false)
-      .where('isProcessing', '==', false)
-      .limit(1) as Query;
-    const res = await t.get(query);
-    if (!res.size) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-    const { id } = res.docs[0];
-    t.update(likeNFTBookCollection.doc(classId).collection('nft').doc(id), {
-      isProcessing: true,
-    });
-    const doc = res.docs[0];
-    const docData = doc.data();
-    return { id, ...docData };
-  });
 }
 
 export async function claimNFTBook(
