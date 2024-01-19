@@ -283,9 +283,9 @@ router.post(
         }),
       ]);
 
-      let autoDeliverTxHash = '';
+      let nftId;
       if (wallet) {
-        ({ autoDeliverTxHash } = await claimNFTBook(
+        ({ nftId } = await claimNFTBook(
           classId,
           paymentId,
           {
@@ -316,7 +316,7 @@ router.post(
         );
       }
 
-      res.json({ claimed: !!wallet, autoDeliverTxHash });
+      res.json({ claimed: !!wallet, nftId });
     } catch (err) {
       next(err);
     }
@@ -421,9 +421,9 @@ router.post(
       });
 
       let claimed = false;
-      let autoDeliverTxHash = '';
+      let nftId;
       if (!giftInfo) {
-        ({ autoDeliverTxHash } = await claimNFTBook(classId, paymentId, {
+        ({ nftId } = await claimNFTBook(classId, paymentId, {
           message,
           wallet: granterWallet,
           token: claimToken,
@@ -457,7 +457,7 @@ router.post(
           isPhysicalOnly,
         });
       }
-      res.json({ claimed, autoDeliverTxHash });
+      res.json({ claimed, nftId });
     } catch (err) {
       next(err);
     }
@@ -490,7 +490,7 @@ router.post(
       const { token } = req.query;
       const { wallet, message } = req.body;
 
-      const { email, autoDeliverTxHash } = await claimNFTBook(
+      const { email, nftId } = await claimNFTBook(
         classId,
         paymentId,
         {
@@ -519,7 +519,7 @@ router.post(
         },
       );
 
-      res.json({ autoDeliverTxHash });
+      res.json({ nftId });
     } catch (err) {
       next(err);
     }
