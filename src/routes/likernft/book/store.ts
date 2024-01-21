@@ -56,6 +56,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
       const result: any = {
         classId: id,
+        ownerWallet,
         prices,
         stock,
         shippingRates,
