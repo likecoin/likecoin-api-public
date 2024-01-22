@@ -561,12 +561,13 @@ router.post(
       const { wallet } = req.user;
 
       const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
-        await updateNFTBookPostDeliveryData({
+        const result = await updateNFTBookPostDeliveryData({
           classId,
           callerWallet: wallet,
           paymentId,
           txHash,
         }, t);
+        return result;
       });
 
       if (isGift && giftInfo) {
