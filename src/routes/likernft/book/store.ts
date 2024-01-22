@@ -20,6 +20,7 @@ import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { handleGiftBook } from '../../../util/api/likernft/book/store';
 
 const router = Router();
 
@@ -359,6 +360,37 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     await updateNftBookInfo(classId, { prices: reorderedPrices });
 
     res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIndex/gift'], jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const priceIndex = Number(req.params.priceIndex);
+    const {
+      receivers,
+      giftInfo: {
+        toName: defaultToName,
+        fromName: defaultFromName,
+        message: defaultMessage,
+      },
+    } = req.body;
+    const result = await handleGiftBook(
+      classId,
+      priceIndex,
+      receivers,
+      {
+        defaultToName,
+        defaultFromName,
+        defaultMessage,
+      },
+      req,
+    );
+    res.json({
+      result,
+    });
   } catch (err) {
     next(err);
   }
