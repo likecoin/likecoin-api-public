@@ -560,8 +560,8 @@ router.post(
       const { txHash } = req.body;
       const { wallet } = req.user;
 
-      const { email, isGift, giftInfo } = await db.runTransaction((t) => {
-        updateNFTBookPostDeliveryData({
+      const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
+        await updateNFTBookPostDeliveryData({
           classId,
           callerWallet: wallet,
           paymentId,
