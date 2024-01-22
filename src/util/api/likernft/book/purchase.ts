@@ -781,6 +781,7 @@ export async function claimNFTBook(
         callerWallet: LIKER_NFT_TARGET_ADDRESS,
         paymentId,
         txHash,
+        isAutoDeliver,
       }, t);
       t.update(bookRef.collection('nft').doc(nftId), {
         ownerWallet: wallet,
@@ -872,11 +873,13 @@ export async function updateNFTBookPostDeliveryData({
   callerWallet,
   paymentId,
   txHash,
+  isAutoDeliver = false,
 }: {
   classId: string,
   callerWallet: string,
   paymentId: string,
   txHash: string,
+  isAutoDeliver?: boolean,
 }, t: any) {
   // TODO: check tx content contains valid nft info and address
   const bookDocRef = likeNFTBookCollection.doc(classId);
@@ -905,9 +908,11 @@ export async function updateNFTBookPostDeliveryData({
     status: 'completed',
     txHash,
   });
-  t.update(bookDocRef, {
-    pendingNFTCount: FieldValue.increment(-1),
-  });
+  if (!isAutoDeliver) {
+    t.update(bookDocRef, {
+      pendingNFTCount: FieldValue.increment(-1),
+    });
+  }
   return paymentDocData;
 }
 
