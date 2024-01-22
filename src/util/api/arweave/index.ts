@@ -1,6 +1,5 @@
 import axios from 'axios';
 import BigNumber from 'bignumber.js';
-import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { ISCNSigningClient } from '@likecoin/iscn-js';
 import {
   estimateARPrices,
@@ -11,12 +10,12 @@ import {
 } from '../../arweave';
 import { signData } from '../../arweave/signer';
 import { ValidationError } from '../../ValidationError';
-import { COSMOS_CHAIN_ID } from '../../cosmos';
 import {
   queryLIKETransactionInfo,
   DEFAULT_TRANSFER_GAS,
   DEFAULT_GAS_PRICE,
   generateSendTxData,
+  getSigningFunction,
   sendTransactionWithSequence,
 } from '../../cosmos/tx';
 import { getIPFSHash, uploadFileToIPFS, uploadFilesToIPFS } from '../../ipfs';
@@ -156,20 +155,14 @@ export async function processSigningUploadToArweave(
   const memo = JSON.stringify({ ipfs: ipfsHash });
   const client = signingClient.getSigningStargateClient();
   if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
-  const transferTxSigningFunction = async ({ sequence }: { sequence: number }) => {
-    const r = await client.sign(
-      address,
-      messages,
-      fee,
-      memo,
-      {
-        accountNumber,
-        sequence,
-        chainId: COSMOS_CHAIN_ID,
-      },
-    );
-    return r as TxRaw;
-  };
+  const transferTxSigningFunction = getSigningFunction({
+    signingStargateClient: client,
+    address,
+    messages,
+    fee,
+    memo,
+    accountNumber,
+  });
   const arweaveIdList = existingPriceList ? existingPriceList.map(
     (l) => l.arweaveId,
   ) : undefined;
@@ -213,7 +206,7 @@ async function checkTxV2({
   try {
     ({ ipfs: memoIPFS, fileSize: memoFileSize } = JSON.parse(memo));
   } catch (err) {
-  // ignore non-JSON memo
+    // ignore non-JSON memo
   }
   if (!memoIPFS || memoIPFS !== ipfsHash) {
     throw new ValidationError('TX_MEMO_NOT_MATCH');
@@ -313,7 +306,7 @@ export async function processTxUploadToArweave(
   try {
     ({ ipfs: memoIPFS } = JSON.parse(memo));
   } catch (err) {
-  // ignore non-JSON memo
+    // ignore non-JSON memo
   }
   if (!memoIPFS || memoIPFS !== ipfsHash) {
     throw new ValidationError('TX_MEMO_NOT_MATCH');

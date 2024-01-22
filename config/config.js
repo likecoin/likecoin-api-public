@@ -34,7 +34,6 @@ config.ISCN_DEV_CHAIN_ID = 'iscn-dev-chain';
 config.COSMOS_DENOM = 'nanoekil';
 config.NFT_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.NFT_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
-config.NFT_CHAIN_ID = 'likecoin-public-testnet-5';
 config.NFT_COSMOS_DENOM = 'nanoekil';
 
 config.ARWEAVE_LIKE_TARGET_ADDRESS = '';

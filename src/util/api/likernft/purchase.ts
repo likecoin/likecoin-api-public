@@ -11,12 +11,14 @@ import {
   getNFTQueryClient, getNFTISCNData, getLikerNFTSigningClient, getLikerNFTSigningAddressInfo,
 } from '../../cosmos/nft';
 import {
-  calculateTxGasFee, sendTransactionWithSequence, MAX_MEMO_LENGTH,
+  calculateTxGasFee,
+  getSigningFunction,
+  sendTransactionWithSequence,
+  MAX_MEMO_LENGTH,
 } from '../../cosmos/tx';
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
   NFT_COSMOS_DENOM,
-  NFT_CHAIN_ID,
   LIKER_NFT_TARGET_ADDRESS,
   LIKER_NFT_FEE_ADDRESS,
   LIKER_NFT_STARTING_PRICE,
@@ -370,17 +372,14 @@ export async function handleNFTPurchaseTransaction(txMessages, memo) {
   if (!client) throw new Error('CANNOT_GET_SIGNING_CLIENT');
   const fee = calculateTxGasFee(txMessages.length, NFT_COSMOS_DENOM);
   const { address, accountNumber } = await getLikerNFTSigningAddressInfo();
-  const txSigningFunction = ({ sequence }) => client.sign(
+  const txSigningFunction = getSigningFunction({
+    signingStargateClient: client,
     address,
-    txMessages,
+    messages: txMessages,
     fee,
     memo,
-    {
-      accountNumber,
-      sequence,
-      chainId: NFT_CHAIN_ID,
-    },
-  );
+    accountNumber,
+  });
   try {
     res = await sendTransactionWithSequence(
       address,

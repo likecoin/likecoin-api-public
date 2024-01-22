@@ -7,7 +7,7 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
-import { FieldValue, db, likeNFTBookCollection } from '../../../util/firebase';
+import { db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
@@ -26,6 +26,7 @@ import {
   processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
+  updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
@@ -299,8 +300,9 @@ router.post(
         }),
       ]);
 
+      let nftId;
       if (wallet) {
-        await claimNFTBook(
+        ({ nftId } = await claimNFTBook(
           classId,
           paymentId,
           {
@@ -308,7 +310,8 @@ router.post(
             wallet,
             token: claimToken as string,
           },
-        );
+          req,
+        ));
 
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTClaimed',
@@ -330,7 +333,7 @@ router.post(
         );
       }
 
-      res.json({ claimed: !!wallet });
+      res.json({ claimed: !!wallet, nftId });
     } catch (err) {
       next(err);
     }
@@ -443,12 +446,13 @@ router.post(
       });
 
       let claimed = false;
+      let nftId;
       if (!giftInfo) {
-        await claimNFTBook(classId, paymentId, {
+        ({ nftId } = await claimNFTBook(classId, paymentId, {
           message,
           wallet: granterWallet,
           token: claimToken,
-        });
+        }, req));
         claimed = true;
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTClaimed',
@@ -478,7 +482,7 @@ router.post(
           isPhysicalOnly,
         });
       }
-      res.json({ claimed });
+      res.json({ claimed, nftId });
     } catch (err) {
       next(err);
     }
@@ -511,7 +515,7 @@ router.post(
       const { token } = req.query;
       const { wallet, message } = req.body;
 
-      const email = await claimNFTBook(
+      const { email, nftId } = await claimNFTBook(
         classId,
         paymentId,
         {
@@ -519,6 +523,7 @@ router.post(
           wallet,
           token: token as string,
         },
+        req,
       );
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -539,7 +544,7 @@ router.post(
         },
       );
 
-      res.sendStatus(200);
+      res.json({ nftId });
     } catch (err) {
       next(err);
     }
@@ -553,42 +558,15 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { txHash } = req.body;
-      // TODO: check tx content contains valid nft info and address
-      const bookRef = likeNFTBookCollection.doc(classId);
-      const bookDoc = await bookRef.get();
-      const bookDocData = bookDoc.data();
-      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet, moderatorWallets = [] } = bookDocData;
-      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-        // TODO: check tx is sent by req.user.wallet
-        throw new ValidationError('NOT_OWNER', 403);
-      }
-      const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+      const { wallet } = req.user;
 
-      const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
-        const doc = await t.get(paymentDocRef);
-        const docData = doc.data();
-        if (!docData) {
-          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        }
-        const {
-          status,
-          isPhysicalOnly,
-        } = docData;
-        if (status !== 'pendingNFT') {
-          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
-        }
-        if (isPhysicalOnly) {
-          throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
-        }
-        t.update(paymentDocRef, {
-          status: 'completed',
+      const { email, isGift, giftInfo } = await db.runTransaction((t) => {
+        updateNFTBookPostDeliveryData({
+          classId,
+          callerWallet: wallet,
+          paymentId,
           txHash,
-        });
-        t.update(bookRef, {
-          pendingNFTCount: FieldValue.increment(-1),
-        });
-        return docData;
+        }, t);
       });
 
       if (isGift && giftInfo) {

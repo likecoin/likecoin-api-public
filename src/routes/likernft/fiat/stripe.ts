@@ -1,15 +1,14 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import { DeliverTxResponse } from '@cosmjs/stargate';
-import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { randomBytes } from 'crypto';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import uuidv4 from 'uuid/v4';
 
 import Stripe from 'stripe';
 import stripe from '../../../util/stripe';
-import { COSMOS_CHAIN_ID, isValidLikeAddress } from '../../../util/cosmos';
-import { sendTransactionWithSequence } from '../../../util/cosmos/tx';
+import { isValidLikeAddress } from '../../../util/cosmos';
+import { getSendMessagesSigningFunction, sendTransactionWithSequence } from '../../../util/cosmos/tx';
 import { db, likeNFTFiatCollection } from '../../../util/firebase';
 import { fetchISCNPrefixes } from '../../../middleware/likernft';
 import { getPurchaseInfoList, calculatePayment } from '../../../util/api/likernft/fiat';
@@ -305,19 +304,12 @@ router.post(
           classId,
           nftId,
         ));
-        const sendNFTSigningFunction = async ({ sequence }): Promise<TxRaw> => {
-          const r = await client.sendMessages(
-            senderAddress,
-            messages,
-            {
-              accountNumber,
-              sequence,
-              chainId: COSMOS_CHAIN_ID,
-              broadcast: false,
-            },
-          );
-          return r as TxRaw;
-        };
+        const sendNFTSigningFunction = getSendMessagesSigningFunction({
+          iscnSigningClient: client,
+          address: senderAddress,
+          messages,
+          accountNumber,
+        });
         txRes = await sendTransactionWithSequence(
           senderAddress,
           sendNFTSigningFunction,

@@ -1,10 +1,14 @@
 import BigNumber from 'bignumber.js';
-import { ISCNSigningClient, ISCNSignPayload, ISCNRecordData } from '@likecoin/iscn-js';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { ISCNSigningClient, ISCNSignPayload } from '@likecoin/iscn-js';
 import { formatMsgCreateIscnRecord, formatMsgChangeIscnRecordOwnership } from '@likecoin/iscn-js/dist/messages/iscn';
 import { getISCNIdPrefix } from '@likecoin/iscn-js/dist/iscn/iscnId';
-import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
-import { DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS, DEFAULT_GAS_PRICE, sendTransactionWithSequence } from '../../cosmos/tx';
-import { COSMOS_CHAIN_ID } from '../../cosmos';
+import {
+  DEFAULT_CHANGE_ISCN_OWNERSHIP_GAS,
+  DEFAULT_GAS_PRICE,
+  getSendMessagesSigningFunction,
+  sendTransactionWithSequence,
+} from '../../cosmos/tx';
 
 export async function estimateCreateISCN(
   ISCNPayload: ISCNSignPayload,
@@ -41,19 +45,12 @@ export async function processCreateAndTransferISCN(
     formatMsgChangeIscnRecordOwnership(address, iscnId, wallet),
   ];
 
-  const signingFunction = async ({ sequence }) => {
-    const r = await signingClient.sendMessages(
-      address,
-      messages,
-      {
-        accountNumber,
-        sequence,
-        chainId: COSMOS_CHAIN_ID,
-        broadcast: false,
-      },
-    );
-    return r as TxRaw;
-  };
+  const signingFunction = getSendMessagesSigningFunction({
+    iscnSigningClient: signingClient,
+    address,
+    messages,
+    accountNumber,
+  });
 
   const [iscnGasFee, iscnRes] = await Promise.all([
     signingClient.esimateISCNTxGasAndFee(ISCNPayload),
