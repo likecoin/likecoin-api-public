@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { decodeTxRaw, EncodeObject } from '@cosmjs/proto-signing';
-import { SigningStargateClient, StargateClient, StdFee, assertIsDeliverTxSuccess } from '@cosmjs/stargate';
+import {
+  SigningStargateClient, StargateClient, StdFee, assertIsDeliverTxSuccess,
+} from '@cosmjs/stargate';
 import { ISCNSigningClient } from '@likecoin/iscn-js';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
