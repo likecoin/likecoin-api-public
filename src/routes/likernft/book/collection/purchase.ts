@@ -15,6 +15,7 @@ import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../
 import { calculatePayment } from '../../../../util/api/likernft/fiat';
 import { claimNFTBookCollection, handleNewNFTBookCollectionStripeCheckout, sendNFTBookCollectionClaimedEmailNotification } from '../../../../util/api/likernft/book/collection/purchase';
 import { getBookCollectionInfoById } from '../../../../util/api/likernft/collection/book';
+import { getCouponDiscountRate } from '../../../../util/api/likernft/book/purchase';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
     const { collectionId } = req.params;
     const {
       from,
+      coupon,
       ga_client_id: gaClientId = '',
       utm_campaign: utmCampaign,
       utm_source: utmSource,
@@ -33,10 +35,12 @@ router.get('/:collectionId/new', async (req, res, next) => {
       url,
       paymentId,
       priceInDecimal,
+      originalPriceInDecimal,
       sessionId,
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
       from: from as string,
+      coupon: coupon as string,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
@@ -52,6 +56,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
         paymentId,
         collectionId,
         price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
         sessionId,
         channel: from,
         isGift: false,
@@ -74,6 +79,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
     const {
       gaClientId,
       giftInfo,
+      coupon,
       utmCampaign,
       utmSource,
       utmMedium,
@@ -87,11 +93,13 @@ router.post('/:collectionId/new', async (req, res, next) => {
       url,
       paymentId,
       priceInDecimal,
+      originalPriceInDecimal,
       sessionId,
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
       from: from as string,
       giftInfo,
+      coupon,
       utm: {
         campaign: utmCampaign,
         source: utmSource,
@@ -107,6 +115,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
         paymentId,
         collectionId,
         price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
         sessionId,
         channel: from,
         isGift: !!giftInfo,
@@ -125,9 +134,16 @@ router.get(
   async (req, res, next) => {
     try {
       const { collectionId } = req.params;
+      const { coupon } = req.query;
 
       const collectionData = await getBookCollectionInfoById(collectionId);
-      const { priceInDecimal, canPayByLIKE } = collectionData;
+      const { priceInDecimal: originalPriceInDecimal, canPayByLIKE, coupons } = collectionData;
+
+      let discount = 1;
+      if (coupon) {
+        discount = getCouponDiscountRate(coupons, coupon as string);
+      }
+      const priceInDecimal = Math.round(originalPriceInDecimal * discount) / 100;
 
       const {
         totalLIKEPricePrediscount,

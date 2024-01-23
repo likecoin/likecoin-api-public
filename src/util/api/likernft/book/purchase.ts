@@ -51,6 +51,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   claimToken,
   sessionId = '',
   priceInDecimal,
+  originalPriceInDecimal,
+  coupon,
   priceName,
   priceIndex,
   giftInfo,
@@ -62,6 +64,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   claimToken: string;
   sessionId?: string;
   priceInDecimal: number,
+  originalPriceInDecimal: number,
+  coupon?: string,
   priceName: string;
   priceIndex: number;
   from?: string;
@@ -83,6 +87,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     sessionId,
     classId,
     priceInDecimal,
+    originalPriceInDecimal,
     price: priceInDecimal / 100,
     priceName,
     priceIndex,
@@ -90,6 +95,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
   };
+  if (coupon) payload.coupon = coupon;
+
   const isGift = !!giftInfo;
 
   if (isGift) {
@@ -190,6 +197,18 @@ function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
     default:
       throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
   }
+}
+
+export function getCouponDiscountRate(coupons, couponCode: string) {
+  let discount = 1;
+  if (coupons?.[couponCode]) {
+    const activeCoupon = coupons?.[couponCode];
+    const { discount: couponDiscount, expireTs } = activeCoupon;
+    if (!expireTs || Date.now() <= expireTs) {
+      discount = couponDiscount;
+    }
+  }
+  return discount;
 }
 
 export async function formatStripeCheckoutSession({
@@ -379,6 +398,7 @@ export async function formatStripeCheckoutSession({
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   from: inputFrom,
+  coupon,
   email,
   giftInfo,
   utm,
@@ -388,6 +408,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gaClientId?: string,
   email?: string,
   from?: string,
+  coupon?: string,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -433,6 +454,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
+    coupons,
   } = bookInfo;
   if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
   let from: string = inputFrom as string || '';
@@ -440,7 +462,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
   }
   const {
-    priceInDecimal,
+    priceInDecimal: originalPriceInDecimal,
     stock,
     hasShipping,
     isPhysicalOnly,
@@ -448,7 +470,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     description: pricDescriptionObj,
   } = prices[priceIndex];
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (priceInDecimal === 0) {
+  if (originalPriceInDecimal === 0) {
     const freePurchaseUrl = getLikerLandNFTClaimPageURL({
       classId,
       paymentId: '',
@@ -489,6 +511,12 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     description = undefined;
   } // stripe does not like empty string
 
+  let discount = 1;
+  if (coupon) {
+    discount = getCouponDiscountRate(coupons, coupon as string);
+  }
+  const priceInDecimal = Math.round(originalPriceInDecimal * discount);
+
   const session = await formatStripeCheckoutSession({
     classId,
     iscnPrefix,
@@ -524,6 +552,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     claimToken,
     sessionId,
     priceInDecimal,
+    originalPriceInDecimal,
+    coupon,
     priceName,
     priceIndex,
     giftInfo,
@@ -536,6 +566,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     paymentId,
     priceName,
     priceInDecimal,
+    originalPriceInDecimal,
     sessionId,
   };
 }
