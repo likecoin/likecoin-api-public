@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { FieldValue, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
-import { validatePrice } from '../book';
+import { validateCoupons, validatePrice } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
@@ -80,6 +80,7 @@ async function validateCollectionTypeData(
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      coupons,
     } = data;
     validatePrice({
       priceInDecimal,
@@ -87,6 +88,7 @@ async function validateCollectionTypeData(
       name,
       description,
     });
+    if (coupons?.length) validateCoupons(coupons);
     await Promise.all(
       classIds.map(async (classId) => {
         const result = await getISCNFromNFTClassId(classId);
@@ -113,6 +115,7 @@ async function validateCollectionTypeData(
         notificationEmails,
         moderatorWallets,
         connectedWallets,
+        coupons,
       }),
     );
   } else if (type === 'reader') {
