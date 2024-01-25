@@ -791,7 +791,7 @@ export async function claimNFTBook(
       return paymentDocData;
     });
 
-    if (isGift && giftInfo) {
+    if (isGift && giftInfo && email) {
       const {
         fromName,
         toName,
