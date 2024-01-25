@@ -278,6 +278,8 @@ router.post(
       const className = metadata?.name || classId;
       await Promise.all([
         sendNFTBookPurchaseEmail({
+          isGift: false,
+          giftInfo: null,
           email,
           notificationEmails,
           classId,

@@ -551,7 +551,7 @@ export async function sendNFTBookPurchaseEmail({
   claimToken,
   amountTotal,
   isGift = false,
-  giftInfo = null,
+  giftInfo,
   mustClaimToView = false,
   isPhysicalOnly = false,
 }) {
