@@ -377,6 +377,12 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
         message: defaultMessage,
       },
     } = req.body;
+    if (!receivers || !Array.isArray(receivers) || receivers.length === 0) {
+      throw new ValidationError('INVALID_RECEIVERS', 400);
+    }
+    if (!defaultFromName || !defaultToName || !defaultMessage) {
+      throw new ValidationError('INVALID_GIFT_MESSAGE_INFO', 400);
+    }
     const result = await handleGiftBook(
       classId,
       priceIndex,

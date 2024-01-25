@@ -144,6 +144,7 @@ export async function handleGiftBook(
           fromName,
           message,
         },
+        isGift: true,
         amountTotal: 0,
         mustClaimToView,
         isPhysicalOnly,
