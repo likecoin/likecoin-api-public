@@ -669,7 +669,7 @@ export function sendNFTBookGiftClaimedEmail({
       },
     ],
     Destination: {
-      ToAddresses: fromEmail,
+      ToAddresses: [fromEmail],
       BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
@@ -725,7 +725,7 @@ export function sendNFTBookGiftSentEmail({
       },
     ],
     Destination: {
-      ToAddresses: fromEmail,
+      ToAddresses: [fromEmail],
       BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
