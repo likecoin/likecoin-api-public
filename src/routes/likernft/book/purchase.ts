@@ -40,6 +40,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     const {
       from,
       ga_client_id: gaClientId = '',
+      ga_session_id: gaSessionId = '',
       price_index: priceIndexString = undefined,
       utm_campaign: utmCampaign,
       utm_source: utmSource,
@@ -56,6 +57,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
       from: from as string,
       utm: {
         campaign: utmCampaign as string,
@@ -99,6 +101,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const priceIndex = Number(priceIndexString) || 0;
     const {
       gaClientId,
+      gaSessionId,
       email,
       giftInfo,
       utmCampaign,
@@ -119,6 +122,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
       from: from as string,
       giftInfo,
       email,
