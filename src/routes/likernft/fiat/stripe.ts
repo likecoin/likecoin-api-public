@@ -91,6 +91,7 @@ router.post(
       if (!(wallet || LIKER_NFT_PENDING_CLAIM_ADDRESS) && !isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const {
         gaClientId = '',
+        gaSessionId = '',
         memo = '',
         email,
         utmCampaign,
@@ -127,6 +128,7 @@ router.post(
         wallet: wallet as string,
         memo,
         gaClientId,
+        gaSessionId,
         paymentId,
         totalNFTClassCount: classIds.length,
         httpMethod: 'POST',
@@ -136,6 +138,8 @@ router.post(
       if (utmCampaign) sessionMetadata.utmCampaign = utmCampaign;
       if (utmSource) sessionMetadata.utmSource = utmSource;
       if (utmMedium) sessionMetadata.utmMedium = utmMedium;
+      if (gaClientId) sessionMetadata.gaClientId = gaClientId;
+      if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
       const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
         mode: 'payment',
         success_url: getLikerLandNFTFiatStripePurchasePageURL({
@@ -145,10 +149,19 @@ router.post(
           utmCampaign,
           utmSource,
           utmMedium,
+          gaClientId,
+          gaSessionId,
         }),
         client_reference_id: wallet as string || undefined,
         customer_email: email,
-        cancel_url: getLikerLandNFTClassPageURL({ classId: classIds[0] }),
+        cancel_url: getLikerLandNFTClassPageURL({
+          classId: classIds[0],
+          utmCampaign,
+          utmSource,
+          utmMedium,
+          gaClientId,
+          gaSessionId,
+        }),
         line_items: lineItems,
         payment_intent_data: {
           capture_method: 'manual',
