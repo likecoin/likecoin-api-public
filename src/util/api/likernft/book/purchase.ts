@@ -221,6 +221,7 @@ export async function formatStripeCheckoutSession({
   email,
   from,
   gaClientId,
+  gaSessionId,
   giftInfo,
   utm,
   httpMethod,
@@ -234,6 +235,7 @@ export async function formatStripeCheckoutSession({
   email?: string,
   from?: string,
   gaClientId?: string,
+  gaSessionId?: string,
   giftInfo?: {
     fromName: string,
     toName: string,
@@ -283,6 +285,7 @@ export async function formatStripeCheckoutSession({
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
+  if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
   if (from) sessionMetadata.from = from;
   if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
@@ -397,6 +400,7 @@ export async function formatStripeCheckoutSession({
 
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
+  gaSessionId,
   from: inputFrom,
   coupon,
   email,
@@ -406,6 +410,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
 }: {
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
+  gaSessionId?: string,
   email?: string,
   from?: string,
   coupon?: string,
@@ -437,6 +442,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmCampaign: utm?.campaign,
       utmSource: utm?.source,
       utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
     }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
@@ -446,8 +453,17 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmCampaign: utm?.campaign,
       utmSource: utm?.source,
       utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
     }),
-    cancelUrl = getLikerLandNFTClassPageURL({ classId }),
+    cancelUrl = getLikerLandNFTClassPageURL({
+      classId,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+    }),
     ownerWallet,
     connectedWallets,
     shippingRates,
@@ -483,6 +499,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmCampaign: utm?.campaign,
       utmSource: utm?.source,
       utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
     });
     return { url: freePurchaseUrl };
   }
@@ -525,6 +543,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     ownerWallet,
     from,
     gaClientId,
+    gaSessionId,
     email,
     giftInfo,
     utm,
@@ -582,7 +601,7 @@ export async function sendNFTBookPurchaseEmail({
   claimToken,
   amountTotal,
   isGift = false,
-  giftInfo = null,
+  giftInfo,
   mustClaimToView = false,
   isPhysicalOnly = false,
 }) {
@@ -822,7 +841,7 @@ export async function claimNFTBook(
       return paymentDocData;
     });
 
-    if (isGift && giftInfo) {
+    if (isGift && giftInfo && email) {
       const {
         fromName,
         toName,

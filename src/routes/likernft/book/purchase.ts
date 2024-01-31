@@ -41,6 +41,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     const {
       from,
       ga_client_id: gaClientId = '',
+      ga_session_id: gaSessionId = '',
       price_index: priceIndexString = undefined,
       utm_campaign: utmCampaign,
       utm_source: utmSource,
@@ -59,6 +60,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
       coupon: coupon as string,
       from: from as string,
       utm: {
@@ -105,6 +107,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const priceIndex = Number(priceIndexString) || 0;
     const {
       gaClientId,
+      gaSessionId,
       coupon,
       email,
       giftInfo,
@@ -127,6 +130,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
       coupon,
       from: from as string,
       giftInfo,
@@ -296,6 +300,8 @@ router.post(
       const className = metadata?.name || classId;
       await Promise.all([
         sendNFTBookPurchaseEmail({
+          isGift: false,
+          giftInfo: null,
           email,
           notificationEmails,
           classId,
