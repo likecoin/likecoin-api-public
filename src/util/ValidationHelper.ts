@@ -582,6 +582,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      isAutoDeliver,
     } = payload;
     if (!isOwner) {
       return {
@@ -601,6 +602,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      isAutoDeliver,
     };
   }
   return {
