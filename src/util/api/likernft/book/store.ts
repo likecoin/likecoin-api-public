@@ -102,6 +102,7 @@ export async function handleGiftBook(
       email,
       claimToken,
       priceInDecimal,
+      originalPriceInDecimal: priceInDecimal,
       priceName,
       priceIndex,
       giftInfo: {
