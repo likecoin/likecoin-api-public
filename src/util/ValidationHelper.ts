@@ -438,6 +438,7 @@ export function filterBookPurchaseData({
   price,
   priceIndex,
   priceName,
+  coupon,
   txHash,
   message,
   from,
@@ -462,6 +463,7 @@ export function filterBookPurchaseData({
     price,
     priceIndex,
     priceName,
+    coupon,
     txHash,
     message,
     from,
@@ -572,6 +574,7 @@ export function filterFollow({
 export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
   if (type === 'book') {
     const {
+      coupons,
       successUrl,
       cancelUrl,
       priceInDecimal,
@@ -591,6 +594,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       };
     }
     return {
+      coupons,
       successUrl,
       cancelUrl,
       priceInDecimal,

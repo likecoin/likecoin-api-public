@@ -27,6 +27,7 @@ import {
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
   updateNFTBookPostDeliveryData,
+  getCouponDiscountRate,
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
@@ -45,6 +46,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       utm_campaign: utmCampaign,
       utm_source: utmSource,
       utm_medium: utmMedium,
+      coupon,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
@@ -54,10 +56,12 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       paymentId,
       priceName,
       priceInDecimal,
+      originalPriceInDecimal,
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      coupon: coupon as string,
       from: from as string,
       utm: {
         campaign: utmCampaign as string,
@@ -77,6 +81,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         priceName,
         priceIndex,
         price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
+        coupon,
         sessionId,
         isGift: false,
         channel: from,
@@ -102,6 +108,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const {
       gaClientId,
       gaSessionId,
+      coupon,
       email,
       giftInfo,
       utmCampaign,
@@ -119,10 +126,12 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       paymentId,
       priceName,
       priceInDecimal,
+      originalPriceInDecimal,
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      coupon,
       from: from as string,
       giftInfo,
       email,
@@ -144,6 +153,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         priceName,
         priceIndex,
         price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
+        coupon,
         sessionId,
         isGift: !!giftInfo,
         channel: from,
@@ -163,17 +174,22 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const { price_index: priceIndexString } = req.query;
+      const { price_index: priceIndexString, coupon } = req.query;
       const bookInfo = await getNftBookInfo(classId);
 
       const priceIndex = Number(priceIndexString);
-      const { prices, canPayByLIKE } = bookInfo;
+      const { prices, canPayByLIKE, coupons } = bookInfo;
       if (prices.length <= priceIndex) {
         throw new ValidationError('PRICE_NOT_FOUND', 404);
       }
 
+      let discount = 1;
+      if (coupon) {
+        discount = getCouponDiscountRate(coupons, coupon as string);
+      }
+
       const { priceInDecimal } = prices[priceIndex];
-      const price = priceInDecimal / 100;
+      const price = Math.round(priceInDecimal * discount) / 100;
 
       const {
         totalLIKEPricePrediscount,
@@ -184,6 +200,7 @@ router.get(
         LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
         LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
+        fiatDiscount: discount,
       };
       res.json(payload);
     } catch (err) {
@@ -257,6 +274,7 @@ router.post(
         email,
         claimToken,
         priceInDecimal,
+        originalPriceInDecimal: priceInDecimal,
         priceName,
         priceIndex,
         isPhysicalOnly,
@@ -351,7 +369,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const { from: inputFrom = '', price_index: priceIndexString } = req.query;
+      const { from: inputFrom = '', price_index: priceIndexString, coupon } = req.query;
       const {
         email,
         txHash: grantTxHash,
@@ -381,6 +399,7 @@ router.post(
         prices,
         defaultPaymentCurrency,
         defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
+        coupons,
       } = bookInfo;
       if (prices.length <= priceIndex) {
         throw new ValidationError('PRICE_NOT_FOUND', 404);
@@ -389,11 +408,17 @@ router.post(
       if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
         from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
       }
+
+      let discount = 1;
+      if (coupon) {
+        discount = getCouponDiscountRate(coupons, coupon as string);
+      }
       const {
-        priceInDecimal,
+        priceInDecimal: originalPriceInDecimal,
         isPhysicalOnly = false,
         name: { en: priceNameEn },
       } = prices[priceIndex];
+      const priceInDecimal = Math.round(originalPriceInDecimal * discount);
       const price = priceInDecimal / 100;
 
       const { totalLIKEPrice: LIKEPrice } = await calculatePayment([price]);
@@ -412,7 +437,9 @@ router.post(
         type: 'LIKE',
         email,
         claimToken,
+        coupon: coupon as string,
         priceInDecimal,
+        originalPriceInDecimal,
         priceName: priceNameEn,
         priceIndex,
         giftInfo,

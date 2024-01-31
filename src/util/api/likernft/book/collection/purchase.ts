@@ -17,7 +17,7 @@ import {
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
-  formatStripeCheckoutSession, sendNFTBookPurchaseEmail,
+  formatStripeCheckoutSession, getCouponDiscountRate, sendNFTBookPurchaseEmail,
 } from '../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
@@ -34,6 +34,9 @@ import { getBookCollectionInfoById } from '../../collection/book';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
+  priceInDecimal,
+  originalPriceInDecimal,
+  coupon,
   email = '',
   claimToken,
   sessionId = '',
@@ -41,7 +44,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   giftInfo,
 }) {
   const docData = await getBookCollectionInfoById(collectionId);
-  const { priceInDecimal, classIds } = docData;
+  const { classIds } = docData;
   const payload: any = {
     type,
     email,
@@ -52,11 +55,14 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     collectionId,
     classIds,
     priceInDecimal,
+    originalPriceInDecimal,
     price: priceInDecimal / 100,
     from,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
   };
+  if (coupon) payload.coupon = coupon;
+
   const isGift = !!giftInfo;
 
   if (isGift) {
@@ -130,6 +136,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaSessionId,
   from: inputFrom,
   giftInfo,
+  coupon,
   email,
   utm,
 }: {
@@ -137,6 +144,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaSessionId?: string,
   from?: string,
   email?: string,
+  coupon?: string,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -195,7 +203,8 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
-    priceInDecimal,
+    priceInDecimal: originalPriceInDecimal,
+    coupons,
     stock,
     hasShipping,
     name: collectionNameObj,
@@ -206,7 +215,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (priceInDecimal === 0) throw new ValidationError('FREE');
+  if (originalPriceInDecimal === 0) throw new ValidationError('FREE');
   image = parseImageURLFromMetadata(image);
   let name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
   let description = typeof collectionDescriptionObj === 'object' ? collectionDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionDescriptionObj || '';
@@ -228,6 +237,12 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       images.push(parseImageURLFromMetadata(data.data.metadata.image));
     }
   });
+
+  let discount = 1;
+  if (coupon) {
+    discount = getCouponDiscountRate(coupons, coupon as string);
+  }
+  const priceInDecimal = Math.round(originalPriceInDecimal * discount);
 
   const session = await formatStripeCheckoutSession({
     collectionId,
@@ -259,6 +274,9 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
 
   await createNewNFTBookCollectionPayment(collectionId, paymentId, {
     type: 'stripe',
+    priceInDecimal,
+    originalPriceInDecimal,
+    coupon,
     claimToken,
     sessionId,
     from: from as string,
@@ -270,6 +288,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     paymentId,
     name,
     priceInDecimal,
+    originalPriceInDecimal,
     sessionId,
   };
 }
