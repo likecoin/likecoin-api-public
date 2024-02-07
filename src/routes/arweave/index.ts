@@ -34,6 +34,8 @@ router.post(
   async (req, res, next) => {
     try {
       const { fileSize, ipfsHash } = req.body;
+      if (!fileSize) throw new Error('MISSING_FILE_SIZE');
+      if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       const {
         LIKE,
         arweaveId,
@@ -69,6 +71,10 @@ router.post(
       const {
         fileSize, ipfsHash, txHash, signatureData,
       } = req.body;
+      if (!txHash) throw new Error('MISSING_TX_HASH');
+      if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
+      if (!fileSize) throw new Error('MISSING_FILE_SIZE');
+      if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
       const {
         arweaveId,
         MATIC,
