@@ -416,6 +416,7 @@ export async function processNFTBookCollectionStripePurchase(
         priceName: collectionName,
         priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
         method: 'USD',
+        from,
       }),
     ]);
   } catch (err) {
