@@ -152,6 +152,7 @@ export async function sendNFTBookSalesSlackNotification({
   priceName,
   priceWithCurrency,
   method,
+  from = '',
 } : {
   classId?: string;
   collectionId?: string;
@@ -161,6 +162,7 @@ export async function sendNFTBookSalesSlackNotification({
   priceName: string;
   priceWithCurrency: string;
   method: string;
+  from?: string;
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
@@ -179,6 +181,7 @@ export async function sendNFTBookSalesSlackNotification({
       priceName,
       priceWithCurrency,
       method,
+      from,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

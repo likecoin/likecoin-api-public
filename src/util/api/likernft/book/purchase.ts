@@ -737,6 +737,7 @@ export async function processNFTBookStripePurchase(
         priceName,
         priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
         method: 'Fiat',
+        from,
       }),
     ]);
   } catch (err) {

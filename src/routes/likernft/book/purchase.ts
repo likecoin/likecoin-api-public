@@ -476,6 +476,7 @@ router.post(
         priceName: priceNameEn,
         priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency || 'USD'})`,
         method: 'LIKE',
+        from,
       });
 
       let claimed = false;
