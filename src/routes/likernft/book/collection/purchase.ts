@@ -6,6 +6,7 @@ import {
 import { FieldValue, db, likeNFTCollectionCollection } from '../../../../util/firebase';
 import publisher from '../../../../util/gcloudPub';
 import {
+  LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
 import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
@@ -20,8 +21,8 @@ import { getCouponDiscountRate } from '../../../../util/api/likernft/book/purcha
 const router = Router();
 
 router.get('/:collectionId/new', async (req, res, next) => {
+  const { collectionId } = req.params;
   try {
-    const { collectionId } = req.params;
     const {
       from,
       coupon,
@@ -68,7 +69,13 @@ router.get('/:collectionId/new', async (req, res, next) => {
       });
     }
   } catch (err) {
-    next(err);
+    if ((err as Error).message === 'OUT_OF_STOCK') {
+      // eslint-disable-next-line no-console
+      console.error(`OUT_OF_STOCK: ${collectionId}`);
+      res.redirect(`https://${LIKER_LAND_HOSTNAME}/nft/collection/${collectionId}`);
+    } else {
+      next(err);
+    }
   }
 });
 
