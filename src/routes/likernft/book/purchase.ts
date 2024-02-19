@@ -10,6 +10,7 @@ import {
 import { db, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
+  LIKER_LAND_HOSTNAME,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
@@ -36,8 +37,8 @@ import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 const router = Router();
 
 router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
+  const { classId } = req.params;
   try {
-    const { classId } = req.params;
     const {
       from,
       ga_client_id: gaClientId = '',
@@ -93,7 +94,13 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       });
     }
   } catch (err) {
-    next(err);
+    if ((err as Error).message === 'OUT_OF_STOCK') {
+      // eslint-disable-next-line no-console
+      console.error(`OUT_OF_STOCK: ${classId}`);
+      res.redirect(`https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`);
+    } else {
+      next(err);
+    }
   }
 });
 
