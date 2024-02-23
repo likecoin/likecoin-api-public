@@ -292,12 +292,16 @@ export function parseBookSalesData(priceData, isAuthorized) {
 
 export function validatePrice(price: any) {
   const {
-    priceInDecimal,
+    autoMemo,
+    order,
     stock,
     name = {},
     description = {},
-    isPhysicalOnly,
     hasShipping,
+    isPhysicalOnly,
+    isAllowCustomPrice,
+    isAutoDeliver,
+    priceInDecimal,
   } = price;
   if (!(
     typeof priceInDecimal === 'number'
@@ -320,6 +324,18 @@ export function validatePrice(price: any) {
   if (!hasShipping && isPhysicalOnly) {
     throw new ValidationError('PHYSICAL_ONLY_BUT_NO_SHIPPING');
   }
+  return {
+    autoMemo,
+    order,
+    priceInDecimal,
+    stock,
+    name,
+    description,
+    isPhysicalOnly,
+    isAutoDeliver,
+    hasShipping,
+    isAllowCustomPrice,
+  };
 }
 
 export function validatePrices(prices: any[], classId: string, wallet: string) {
@@ -327,10 +343,12 @@ export function validatePrices(prices: any[], classId: string, wallet: string) {
   let i = 0;
   let autoDeliverTotalStock = 0;
   let manualDeliverTotalStock = 0;
+  const outputPrices: any = [];
   try {
     for (i = 0; i < prices.length; i += 1) {
-      const price = prices[i];
-      validatePrice(price);
+      const inputPrice = prices[i];
+      const price = validatePrice(inputPrice);
+      outputPrices.push(price);
       if (price.isAutoDeliver) {
         autoDeliverTotalStock += price.stock;
       } else {
@@ -342,6 +360,7 @@ export function validatePrices(prices: any[], classId: string, wallet: string) {
     throw new ValidationError(errorMessage);
   }
   return {
+    prices: outputPrices,
     autoDeliverTotalStock,
     manualDeliverTotalStock,
   };
