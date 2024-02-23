@@ -230,8 +230,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price, autoDeliverNFTsTxHash } = req.body;
-    validatePrice(price);
+    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const price = validatePrice(inputPrice);
 
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
@@ -268,8 +268,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const { price, autoDeliverNFTsTxHash } = req.body;
-    validatePrice(price);
+    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const price = validatePrice(inputPrice);
 
     const priceIndex = Number(priceIndexString);
     const bookInfo = await getNftBookInfo(classId);
@@ -411,7 +411,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     const {
       successUrl,
       cancelUrl,
-      prices = [],
+      prices: inputPrices = [],
       defaultPaymentCurrency,
       notificationEmails = [],
       moderatorWallets = [],
@@ -433,9 +433,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
     const {
+      prices,
       autoDeliverTotalStock,
       manualDeliverTotalStock,
-    } = validatePrices(prices, classId, req.user.wallet);
+    } = validatePrices(inputPrices, classId, req.user.wallet);
     if (autoDeliverTotalStock > 0) {
       await validateAutoDeliverNFTsTxHash(
         autoDeliverNFTsTxHash,
