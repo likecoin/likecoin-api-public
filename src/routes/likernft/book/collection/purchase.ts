@@ -31,8 +31,10 @@ router.get('/:collectionId/new', async (req, res, next) => {
       utm_campaign: utmCampaign,
       utm_source: utmSource,
       utm_medium: utmMedium,
+      custom_price: inputCustomPriceInDecimal,
     } = req.query;
 
+    const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
       paymentId,
@@ -44,6 +46,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       from: from as string,
       coupon: coupon as string,
+      customPriceInDecimal,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
@@ -90,6 +93,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gaSessionId,
       giftInfo,
       coupon,
+      customPriceInDecimal,
       utmCampaign,
       utmSource,
       utmMedium,
@@ -111,6 +115,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       from: from as string,
       giftInfo,
       coupon,
+      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       utm: {
         campaign: utmCampaign,
         source: utmSource,

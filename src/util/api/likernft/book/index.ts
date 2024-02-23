@@ -25,6 +25,7 @@ export function formatPriceInfo(price) {
     priceInDecimal,
     hasShipping = false,
     isPhysicalOnly = false,
+    isAllowCustomPrice = false,
     stock,
     isAutoDeliver = false,
     autoMemo = '',
@@ -41,6 +42,7 @@ export function formatPriceInfo(price) {
     priceInDecimal,
     hasShipping,
     isPhysicalOnly,
+    isAllowCustomPrice,
     stock,
     isAutoDeliver,
     autoMemo,
@@ -255,6 +257,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       priceInDecimal,
       hasShipping,
       isPhysicalOnly,
+      isAllowCustomPrice,
       sold: pSold = 0,
       stock: pStock = 0,
       isAutoDeliver,
@@ -273,6 +276,7 @@ export function parseBookSalesData(priceData, isAuthorized) {
       autoMemo,
       hasShipping,
       isPhysicalOnly,
+      isAllowCustomPrice,
       order,
     };
     if (isAuthorized) {

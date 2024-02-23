@@ -137,6 +137,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   from: inputFrom,
   giftInfo,
   coupon,
+  customPriceInDecimal,
   email,
   utm,
 }: {
@@ -145,6 +146,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   from?: string,
   email?: string,
   coupon?: string,
+  customPriceInDecimal?: number,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -205,6 +207,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     isLikerLandArt,
     priceInDecimal: originalPriceInDecimal,
     coupons,
+    isAllowCustomPrice,
     stock,
     hasShipping,
     name: collectionNameObj,
@@ -214,8 +217,12 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
     from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
   }
+  let priceInDecimal = originalPriceInDecimal;
+  if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
+    priceInDecimal = customPriceInDecimal;
+  }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (originalPriceInDecimal === 0) throw new ValidationError('FREE');
+  if (priceInDecimal <= 0) throw new ValidationError('FREE');
   image = parseImageURLFromMetadata(image);
   let name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
   let description = typeof collectionDescriptionObj === 'object' ? collectionDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionDescriptionObj || '';
@@ -242,7 +249,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   if (coupon) {
     discount = getCouponDiscountRate(coupons, coupon as string);
   }
-  const priceInDecimal = Math.round(originalPriceInDecimal * discount);
+  priceInDecimal = Math.round(priceInDecimal * discount);
 
   const session = await formatStripeCheckoutSession({
     collectionId,
