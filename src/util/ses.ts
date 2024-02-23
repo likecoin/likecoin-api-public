@@ -146,6 +146,7 @@ export function sendAutoClaimEmail({
     ],
     Destination: {
       ToAddresses: [email],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
@@ -216,6 +217,7 @@ export function sendPendingClaimEmail({
     ],
     Destination: {
       ToAddresses: [email],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
       Subject: {
@@ -647,7 +649,7 @@ export function sendNFTBookGiftClaimedEmail({
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookClaimedEmail',
+        Value: 'sendNFTBookGiftClaimedEmail',
       },
     ],
     Destination: {
