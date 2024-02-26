@@ -416,14 +416,19 @@ export function sendNFTBookPendingClaimEmail({
 
 export function sendNFTBookPhysicalOnlyEmail({
   email,
-  classId,
+  classId = '',
+  collectionId = '',
   bookName,
-  priceName,
+  priceName = '',
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = '購買成功｜Thank you for your purchase!';
-  const nftClassURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
-  const nftClassURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
+  const nftPageURLEn = collectionId
+    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
+    : getLikerLandNFTClassPageURL({ classId, language: 'en' });
+  const nftPageURLZh = collectionId
+    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
+    : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -448,7 +453,7 @@ export function sendNFTBookPhysicalOnlyEmail({
           Data: getBasicV2Template({
             title,
             content: `<p>親愛的讀者：</p>
-            <p>感謝支持並購買 <a href="${nftClassURLZh}">《${bookName}》- ${priceName}</a>。</p>
+            <p>感謝支持並購買 <a href="${nftPageURLZh}">《${bookName}》- ${priceName}</a>。</p>
             <p>我們會安排寄送，所需大約 3-5 天時間。感謝支持！</p>
             <br />
             <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
@@ -456,7 +461,7 @@ export function sendNFTBookPhysicalOnlyEmail({
             <p>Liker Land</p>
             <hr />
             <p>Dear reader,</p>
-            <p>Thank you for your support and purchasing "<a href="${nftClassURLEn}">${bookName}- ${priceName}</a></p>
+            <p>Thank you for your support and purchasing "<a href="${nftPageURLEn}">${bookName} - ${priceName}</a></p>
             <p>We will arrange delivery, which will take about 3-5 days. Thank you for your support!</p>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>

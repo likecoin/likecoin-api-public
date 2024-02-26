@@ -60,9 +60,10 @@ export function sendNFTBookGiftPendingClaimEmail({
 /* istanbul ignore next */
 export function sendNFTBookPhysicalOnlyEmail({
   email,
-  classId,
+  classId = '',
+  collectionId = '',
   bookName,
-  priceName,
+  priceName = '',
 }) {
   return Promise.resolve();
 }
