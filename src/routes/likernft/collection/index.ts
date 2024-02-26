@@ -13,7 +13,6 @@ import {
   removeNFTCollectionById,
   getNFTCollectionById,
 } from '../../../util/api/likernft/collection';
-import { likeNFTCollectionCollection } from '../../../util/firebase';
 import { filterNFTCollection } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 

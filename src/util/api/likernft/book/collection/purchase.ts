@@ -17,7 +17,7 @@ import {
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
-  formatStripeCheckoutSession, getCouponDiscountRate, sendNFTBookPurchaseEmail,
+  formatStripeCheckoutSession, getCouponDiscountRate,
 } from '../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
@@ -28,6 +28,7 @@ import {
   sendNFTBookClaimedEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftPendingClaimEmail,
+  sendNFTBookPhysicalOnlyEmail,
 } from '../../../../ses';
 import { sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
@@ -41,6 +42,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   claimToken,
   sessionId = '',
   from = '',
+  isPhysicalOnly = false,
   giftInfo,
 }) {
   const docData = await getBookCollectionInfoById(collectionId);
@@ -50,6 +52,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     email,
     isPaid: false,
     isPendingClaim: false,
+    isPhysicalOnly,
     claimToken,
     sessionId,
     collectionId,
@@ -200,6 +203,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     ownerWallet,
     connectedWallets,
     shippingRates,
+    isPhysicalOnly,
     defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
@@ -280,6 +284,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     claimToken,
     sessionId,
     from: from as string,
+    isPhysicalOnly,
     giftInfo,
   });
 
@@ -304,8 +309,15 @@ export async function sendNFTBookCollectionPurchaseEmail({
   mustClaimToView = false,
   isGift = false,
   giftInfo = null,
+  isPhysicalOnly = false,
 }) {
-  if (isGift && giftInfo) {
+  if (isPhysicalOnly) {
+    await sendNFTBookPhysicalOnlyEmail({
+      email,
+      collectionId,
+      bookName: collectionName,
+    });
+  } else if (isGift && giftInfo) {
     const {
       fromName,
       toName,
@@ -377,7 +389,7 @@ export async function processNFTBookCollectionStripePurchase(
       defaultPaymentCurrency,
     } = listingData;
     const {
-      claimToken, price, type, from, isGift, giftInfo,
+      claimToken, price, type, from, isGift, giftInfo, isPhysicalOnly,
     } = txData;
     const [, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
@@ -407,6 +419,7 @@ export async function processNFTBookCollectionStripePurchase(
         paymentId,
         claimToken,
         amountTotal,
+        isPhysicalOnly,
       }),
       sendNFTBookSalesSlackNotification({
         collectionId,

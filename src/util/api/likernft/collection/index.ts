@@ -81,12 +81,14 @@ async function validateCollectionTypeData(
       moderatorWallets,
       connectedWallets,
       coupons,
+      isPhysicalOnly,
     } = data;
     validatePrice({
       priceInDecimal,
       stock,
       name,
       description,
+      isPhysicalOnly,
     });
     if (coupons?.length) validateCoupons(coupons);
     await Promise.all(
@@ -116,6 +118,7 @@ async function validateCollectionTypeData(
         moderatorWallets,
         connectedWallets,
         coupons,
+        isPhysicalOnly,
       }),
     );
   } else if (type === 'reader') {
