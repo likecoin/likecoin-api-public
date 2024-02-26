@@ -164,6 +164,7 @@ router.post(
         }),
         line_items: lineItems,
         payment_intent_data: {
+          metadata: sessionMetadata,
           capture_method: 'manual',
         },
         metadata: sessionMetadata,
