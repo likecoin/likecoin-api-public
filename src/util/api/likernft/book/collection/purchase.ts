@@ -218,6 +218,12 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
   }
   let priceInDecimal = originalPriceInDecimal;
+
+  let discount = 1;
+  if (coupon) {
+    discount = getCouponDiscountRate(coupons, coupon as string);
+  }
+  priceInDecimal = Math.round(priceInDecimal * discount);
   if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
     priceInDecimal = customPriceInDecimal;
   }
@@ -244,12 +250,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       images.push(parseImageURLFromMetadata(data.data.metadata.image));
     }
   });
-
-  let discount = 1;
-  if (coupon) {
-    discount = getCouponDiscountRate(coupons, coupon as string);
-  }
-  priceInDecimal = Math.round(priceInDecimal * discount);
 
   const session = await formatStripeCheckoutSession({
     collectionId,

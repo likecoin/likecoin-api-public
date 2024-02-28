@@ -488,7 +488,14 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     name: priceNameObj,
     description: pricDescriptionObj,
   } = prices[priceIndex];
+
   let priceInDecimal = originalPriceInDecimal;
+  let discount = 1;
+  if (coupon) {
+    discount = getCouponDiscountRate(coupons, coupon as string);
+  }
+  priceInDecimal = Math.round(priceInDecimal * discount);
+
   if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
     priceInDecimal = customPriceInDecimal;
   }
@@ -535,12 +542,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   if (!description) {
     description = undefined;
   } // stripe does not like empty string
-
-  let discount = 1;
-  if (coupon) {
-    discount = getCouponDiscountRate(coupons, coupon as string);
-  }
-  priceInDecimal = Math.round(priceInDecimal * discount);
 
   const session = await formatStripeCheckoutSession({
     classId,
