@@ -47,11 +47,13 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       utm_campaign: utmCampaign,
       utm_source: utmSource,
       utm_medium: utmMedium,
+      custom_price: inputCustomPriceInDecimal,
       coupon,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
 
     const httpMethod = 'GET';
+    const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
       paymentId,
@@ -63,6 +65,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       coupon: coupon as string,
+      customPriceInDecimal,
       from: from as string,
       utm: {
         campaign: utmCampaign as string,
@@ -121,6 +124,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       utmCampaign,
       utmSource,
       utmMedium,
+      customPriceInDecimal,
     } = req.body;
 
     if (giftInfo && !giftInfo.toEmail) {
@@ -139,6 +143,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       coupon,
+      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,
       giftInfo,
       email,

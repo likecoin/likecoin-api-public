@@ -403,6 +403,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gaSessionId,
   from: inputFrom,
   coupon,
+  customPriceInDecimal,
   email,
   giftInfo,
   utm,
@@ -414,6 +415,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   email?: string,
   from?: string,
   coupon?: string,
+  customPriceInDecimal?: number,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -482,11 +484,23 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     stock,
     hasShipping,
     isPhysicalOnly,
+    isAllowCustomPrice,
     name: priceNameObj,
     description: pricDescriptionObj,
   } = prices[priceIndex];
+
+  let priceInDecimal = originalPriceInDecimal;
+  let discount = 1;
+  if (coupon) {
+    discount = getCouponDiscountRate(coupons, coupon as string);
+  }
+  priceInDecimal = Math.round(priceInDecimal * discount);
+
+  if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
+    priceInDecimal = customPriceInDecimal;
+  }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (originalPriceInDecimal === 0) {
+  if (priceInDecimal === 0) {
     const freePurchaseUrl = getLikerLandNFTClaimPageURL({
       classId,
       paymentId: '',
@@ -528,12 +542,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   if (!description) {
     description = undefined;
   } // stripe does not like empty string
-
-  let discount = 1;
-  if (coupon) {
-    discount = getCouponDiscountRate(coupons, coupon as string);
-  }
-  const priceInDecimal = Math.round(originalPriceInDecimal * discount);
 
   const session = await formatStripeCheckoutSession({
     classId,
