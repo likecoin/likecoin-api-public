@@ -81,7 +81,6 @@ async function validateCollectionTypeData(
       moderatorWallets,
       connectedWallets,
       coupons,
-      hasShipping,
       isPhysicalOnly,
     } = data;
     validatePrice({
@@ -89,7 +88,6 @@ async function validateCollectionTypeData(
       stock,
       name,
       description,
-      hasShipping,
       isPhysicalOnly,
     });
     if (coupons?.length) validateCoupons(coupons);
