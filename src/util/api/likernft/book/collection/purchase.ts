@@ -12,6 +12,7 @@ import {
   getLikerLandNFTGiftPageURL,
 } from '../../../../liker-land';
 import {
+  MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
 } from '../../../../../constant';
@@ -228,7 +229,10 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     discount = getCouponDiscountRate(coupons, coupon as string);
   }
   priceInDecimal = Math.round(priceInDecimal * discount);
-  if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
+  if (isAllowCustomPrice
+    && customPriceInDecimal
+    && customPriceInDecimal > priceInDecimal
+    && customPriceInDecimal <= MAXIMUM_CUSTOM_PRICE_IN_DECIMAL) {
     priceInDecimal = customPriceInDecimal;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');

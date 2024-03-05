@@ -18,6 +18,7 @@ import {
   USD_TO_HKD_RATIO,
   LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
+  MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
@@ -496,7 +497,10 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   }
   priceInDecimal = Math.round(priceInDecimal * discount);
 
-  if (isAllowCustomPrice && customPriceInDecimal && customPriceInDecimal > priceInDecimal) {
+  if (isAllowCustomPrice
+      && customPriceInDecimal
+      && customPriceInDecimal > priceInDecimal
+      && customPriceInDecimal <= MAXIMUM_CUSTOM_PRICE_IN_DECIMAL) {
     priceInDecimal = customPriceInDecimal;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');

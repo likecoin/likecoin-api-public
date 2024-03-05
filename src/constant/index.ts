@@ -192,3 +192,5 @@ export const NFT_BOOK_DEFAULT_FROM_CHANNEL = 'liker_land';
 export const LIST_OF_BOOK_SHIPPING_COUNTRY = [
   'AU', 'AT', 'BE', 'CA', 'CN', 'HK', 'MO', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'GL', 'HU', 'IS', 'IT', 'JP', 'KR', 'LU', 'SG', 'MY', 'NZ', 'NO', 'PH', 'ES', 'SE', 'CH', 'TW', 'TH', 'GB', 'US', 'VN',
 ];
+
+export const MAXIMUM_CUSTOM_PRICE_IN_DECIMAL = 99999999;
