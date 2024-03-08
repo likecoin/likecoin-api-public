@@ -60,23 +60,38 @@ export async function handleStripeConnectedAccount(paymentId, {
   likerlandArtFee = 0,
 }, { connectedWallets }) {
   if (connectedWallets && Object.keys(connectedWallets).length) {
-    const wallet = Object.keys(connectedWallets)[0];
-    const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
-    if (stripeConnectAccountId) {
-      const amount = amountTotal
-        - (stripeFeeAmount
-          + likerLandFeeAmount
-          + likerLandCommission
-          + likerlandArtFee
-          + likerLandTipFeeAmount);
-      await stripe.transfers.create({
-        amount,
+    const amountToSplit = amountTotal
+      - (stripeFeeAmount
+        + likerLandFeeAmount
+        + likerLandCommission
+        + likerlandArtFee
+        + likerLandTipFeeAmount);
+    if (amountToSplit <= 0) return;
+    const wallets = Object.keys(connectedWallets);
+    const stripeConnectAccountIds: string[] = await Promise.all(
+      wallets.map((wallet) => getStripeConnectAccountId(wallet)
+        // eslint-disable-next-line no-console
+        .catch((e) => { console.error(e); })),
+    );
+    let totalSplit = 0;
+    const walletToIdMap: Record<string, string> = {};
+    wallets.forEach((wallet, i) => {
+      const stripeConnectAccountId = stripeConnectAccountIds[i];
+      if (stripeConnectAccountId) {
+        walletToIdMap[wallet] = stripeConnectAccountId;
+        totalSplit += connectedWallets[wallet];
+      }
+    });
+    await Promise.all(Object.entries(walletToIdMap).map(([wallet, stripeConnectAccountId]) => {
+      const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+      return stripe.transfers.create({
+        amount: amountSplit,
         currency,
         destination: stripeConnectAccountId,
         transfer_group: paymentId,
         source_transaction: chargeId,
       });
-    }
+    }));
   }
 }
 
