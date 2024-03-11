@@ -262,6 +262,7 @@ export async function formatStripeCheckoutSession({
   shippingRates,
   defaultPaymentCurrency,
   priceInDecimal,
+  customPriceDiffInDecimal,
   connectedWallets,
   isLikerLandArt,
   successUrl,
@@ -271,6 +272,7 @@ export async function formatStripeCheckoutSession({
   shippingRates: any[],
   defaultPaymentCurrency: string,
   priceInDecimal: number,
+  customPriceDiffInDecimal?: number,
   connectedWallets: string[],
   isLikerLandArt: boolean,
   successUrl: string,
@@ -321,6 +323,10 @@ export async function formatStripeCheckoutSession({
     likerLandCommission,
     likerlandArtFee,
   };
+
+  if (customPriceDiffInDecimal) {
+    paymentIntentData.metadata.customPriceDiff = customPriceDiffInDecimal;
+  }
 
   if (connectedWallets && Object.keys(connectedWallets).length) {
     const wallet = Object.keys(connectedWallets)[0];
@@ -497,10 +503,12 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   }
   priceInDecimal = Math.round(priceInDecimal * discount);
 
+  let customPriceDiffInDecimal = 0;
   if (isAllowCustomPrice
       && customPriceInDecimal
       && customPriceInDecimal > priceInDecimal
       && customPriceInDecimal <= MAXIMUM_CUSTOM_PRICE_IN_DECIMAL) {
+    customPriceDiffInDecimal = customPriceInDecimal - priceInDecimal;
     priceInDecimal = customPriceInDecimal;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
@@ -569,6 +577,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     shippingRates,
     defaultPaymentCurrency,
     priceInDecimal,
+    customPriceDiffInDecimal,
     connectedWallets,
     isLikerLandArt,
     successUrl,
@@ -597,6 +606,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     paymentId,
     priceName,
     priceInDecimal,
+    customPriceDiffInDecimal,
     originalPriceInDecimal,
     sessionId,
   };
