@@ -303,6 +303,8 @@ export async function formatStripeCheckoutSession({
 
   const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
   const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
+  const convertedCustomPriceDiffInDecimal = customPriceDiffInDecimal
+    ? convertUSDToCurrency(customPriceDiffInDecimal, convertedCurrency) : 0;
 
   const isFromLikerLand = checkIsFromLikerLand(from);
   const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
@@ -363,7 +365,7 @@ export async function formatStripeCheckoutSession({
         price_data: {
           currency: convertedCurrency,
           product_data: productData,
-          unit_amount: convertedPriceInDecimal,
+          unit_amount: convertedPriceInDecimal - convertedCustomPriceDiffInDecimal,
         },
         adjustable_quantity: {
           enabled: false,
@@ -374,6 +376,19 @@ export async function formatStripeCheckoutSession({
     payment_intent_data: paymentIntentData,
     metadata: sessionMetadata,
   };
+  if (convertedCustomPriceDiffInDecimal) {
+    checkoutPayload.line_items?.push({
+      price_data: {
+        currency: convertedCurrency,
+        product_data: {
+          name: 'Extra Tip',
+          description: 'Fund will be distributed to stakeholders and creators',
+        },
+        unit_amount: convertedCustomPriceDiffInDecimal,
+      },
+      quantity: 1,
+    });
+  }
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
