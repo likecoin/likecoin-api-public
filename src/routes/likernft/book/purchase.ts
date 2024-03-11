@@ -60,6 +60,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       priceName,
       priceInDecimal,
       originalPriceInDecimal,
+      customPriceDiffInDecimal,
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
@@ -86,6 +87,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         priceIndex,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
         coupon,
         sessionId,
         isGift: false,
@@ -138,6 +140,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       priceName,
       priceInDecimal,
       originalPriceInDecimal,
+      customPriceDiffInDecimal,
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
@@ -166,6 +169,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         priceIndex,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
         coupon,
         sessionId,
         isGift: !!giftInfo,

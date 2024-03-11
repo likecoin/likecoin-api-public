@@ -229,12 +229,16 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     discount = getCouponDiscountRate(coupons, coupon as string);
   }
   priceInDecimal = Math.round(priceInDecimal * discount);
+
+  let customPriceDiffInDecimal = 0;
   if (isAllowCustomPrice
     && customPriceInDecimal
     && customPriceInDecimal > priceInDecimal
     && customPriceInDecimal <= MAXIMUM_CUSTOM_PRICE_IN_DECIMAL) {
+    customPriceDiffInDecimal = customPriceInDecimal - priceInDecimal;
     priceInDecimal = customPriceInDecimal;
   }
+
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
   if (priceInDecimal <= 0) throw new ValidationError('FREE');
   image = parseImageURLFromMetadata(image);
@@ -278,6 +282,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     shippingRates,
     defaultPaymentCurrency,
     priceInDecimal,
+    customPriceDiffInDecimal,
     connectedWallets,
     isLikerLandArt,
     successUrl,
@@ -305,6 +310,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     name,
     priceInDecimal,
     originalPriceInDecimal,
+    customPriceDiffInDecimal,
     sessionId,
   };
 }

@@ -40,6 +40,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       paymentId,
       priceInDecimal,
       originalPriceInDecimal,
+      customPriceDiffInDecimal,
       sessionId,
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
@@ -63,6 +64,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
         collectionId,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal / 100,
         sessionId,
         channel: from,
         isGift: false,
@@ -108,6 +110,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       paymentId,
       priceInDecimal,
       originalPriceInDecimal,
+      customPriceDiffInDecimal,
       sessionId,
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
@@ -132,6 +135,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
         collectionId,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal / 100,
         sessionId,
         channel: from,
         isGift: !!giftInfo,
