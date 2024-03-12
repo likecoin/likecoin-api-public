@@ -511,7 +511,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   mustClaimToView,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const title = `${fromName} 送了一本電子書禮物給你 | ${fromName} has sent you a eBook gift from Liker Land'`;
+  const title = `${fromName} 送了一本電子書禮物給你 | ${fromName} has sent you a eBook gift from Liker Land`;
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
     : getLikerLandNFTClassPageURL({ classId, language: 'en' });
