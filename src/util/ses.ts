@@ -385,7 +385,7 @@ export function sendNFTBookPendingClaimEmail({
             <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：</p>
             <ol>
               <li>
-                <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
+                <p>選以下任一方法<a href="https://liker.land/zh-Hant">登入/註冊 Liker Land 帳號</a></p>
                 <p>
                 a. 電郵地址/密碼<br>
                 b. Google 帳號登入<br>
@@ -411,7 +411,7 @@ export function sendNFTBookPendingClaimEmail({
             <p>Thanks for purchasing <a href="${nftPageURLEn}">“${bookName}”</a>. Please follow the steps below to claim your ebook:</p>
             <ol>
               <li>
-                <p>Choose any of the following methods to log in/register a Liker Land account:</p>
+                <p>Choose any of the following methods to <a href="https://liker.land/en">log in/register a Liker Land account</a>:</p>
                 <p>
                 a. Email address/password<br>
                 b. Google account login<br>
@@ -565,7 +565,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：</p>
             <ol>
               <li>
-                <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
+                <p>選以下任一方法<a href="https://liker.land/zh-Hant">登入/註冊 Liker Land 帳號</a></p>
                 <p>
                 a. 電郵地址/密碼<br>
                 b. Google 帳號登入<br>
@@ -595,7 +595,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>Thanks for purchasing <a href="${nftPageURLEn}">“${bookName}”</a>. Please follow the steps below to claim your ebook:</p>
             <ol>
               <li>
-                <p>Choose any of the following methods to log in/register a Liker Land account:</p>
+                <p>Choose any of the following methods to <a href="https://liker.land/en">log in/register a Liker Land account</a>:</p>
                 <p>
                 a. Email address/password<br>
                 b. Google account login<br>
