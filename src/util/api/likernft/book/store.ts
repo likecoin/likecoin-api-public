@@ -53,8 +53,6 @@ export async function handleGiftBook(
   const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
   if (stock <= 0 || stock < receivers.length) throw new ValidationError('OUT_OF_STOCK');
 
-  const bookRef = likeNFTBookCollection.doc(classId);
-
   const result: any = [];
   for (let i = 0; i < receivers.length; i += 1) {
     const { email, wallet } = receivers[i];
@@ -62,23 +60,6 @@ export async function handleGiftBook(
     if (email) {
       const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
       if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
-    }
-
-    if (email) {
-      const query = await bookRef.collection('transactions')
-        .where('email', '==', email)
-        .where('type', '==', 'gift')
-        .limit(1)
-        .get();
-      if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
-    }
-    if (wallet) {
-      const query = await bookRef.collection('transactions')
-        .where('wallet', '==', wallet)
-        .where('type', '==', 'gift')
-        .limit(1)
-        .get();
-      if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
     }
   }
 
@@ -97,9 +78,11 @@ export async function handleGiftBook(
     const toName = customToName || defaultToName || '';
     const message = customMessage || defaultMessage || '';
 
+    // TODO: set as gifter's email
+    const gifterEmail = '';
     await createNewNFTBookPayment(classId, paymentId, {
       type: 'gift',
-      email: '', // TODO: set as gifter's email
+      email: gifterEmail,
       claimToken,
       priceInDecimal,
       originalPriceInDecimal: priceInDecimal,
@@ -116,7 +99,7 @@ export async function handleGiftBook(
 
     await processNFTBookPurchase({
       classId,
-      email,
+      email: gifterEmail,
       paymentId,
       shippingDetails: null,
       shippingCost: null,
@@ -132,7 +115,7 @@ export async function handleGiftBook(
     const className = metadata?.name || classId;
     await Promise.all([
       sendNFTBookPurchaseEmail({
-        email,
+        email: gifterEmail,
         notificationEmails,
         classId,
         bookName: className,
@@ -154,7 +137,7 @@ export async function handleGiftBook(
         classId,
         bookName: className,
         paymentId,
-        email: email || '',
+        email: gifterEmail,
         priceName,
         priceWithCurrency: 'FREE',
         method: 'gift',
