@@ -382,27 +382,51 @@ export function sendNFTBookPendingClaimEmail({
           Data: getBasicV2Template({
             title,
             content: `<p>親愛的讀者：</p>
-            <p>感謝支持並購買 <a href="${nftPageURLZh}">《${bookName}》</a>。${mustClaimToView ? '' : `請前往 Liker Land 的<a href="${claimPageURLZh}">下載頁面</a>，下載電子書檔案（EPUB/PDF 檔）。`}</p>
-            ${mustClaimToView ? '' : `<p><a href="${claimPageURLZh}">前往下載頁面</a></p>`}
-            <p>${mustClaimToView ? '請根據以下步驟領取你的電子書：' : '另，別忘記進一步儲存此電子書到你的個人書架：'}</p>
-            <ul>
-              <li>1. 確認您已有 Keplr 以錢包作為登入帳號；如尚未持有，請參考<a href="https://youtu.be/zUIvj18hEXY">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/8sdDNkwzknE">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</li>
-              <li>2. 在<a href="${claimPageURLZh}">下載頁面</a>，連接 Keplr 帳號領取電子書，儲存並展示在你的個人書架，以便日後可以整理、轉送和翻查紀錄。</li>
-            </ul>
-            <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發你的電子書。請往你的 <a href="https://liker.land/zh-Hant/feed?view=collectibles&tab=collected">Liker Land 個人主頁</a>查閱。</p>
+            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：/p>
+            <ol>
+              <li>
+                <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
+                <p>
+                a. 電郵地址/密碼<br>
+                b. Google 帳號登入<br>
+                c. Apple ID 登入
+                </p>
+                <p>或；</p>
+                d. 以 Keplr 錢包登入（安裝方法請參考此<a href="https://youtu.be/zUIvj18hEXY">國語教學影片</a>或<a href="https://youtu.be/8sdDNkwzknE">廣東話版教學影片</a>，或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>）
+              </li>
+              <li>
+                <p>在<a href="${claimPageURLZh}">下載頁面</a>領取電子書。</p>
+              </li>
+              <li>
+                <p>若你購買的電子書需要作者親自簽發，請在完成以上兩個步驟後，耐心等待作者發貨，一般 3 天內會發出。你可前往 <a href="https://liker.land/zh-Hant/feed?view=collectibles&tab=collected">Liker Land 個人主頁</a>查看電子書的狀態。</p>
+              </li>
+            </ol>
             <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
             <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>
+            <br>
             <hr />
+            <br>
             <p>Dear reader,</p>
-            <p>Thank you for your support and purchasing "<a href="${nftPageURLEn}">${bookName}</a>".${mustClaimToView ? '' : ` Please visit the <a href="${claimPageURLEn}">Download Page</a> on Liker Land to download the ebook file (EPUB/PDF).`}</p>
-            ${mustClaimToView ? '' : `<p><a href="${claimPageURLEn}">Visit the Download Page</a></p>`}
-            <p>${mustClaimToView ? 'Please follow the steps below to claim your ebook:' : 'Moreover, please follow the steps below to save the ebook to your bookshelf:'}</p>
-            <ul>
-              <li>1. Ensure that you have the Keplr wallet installed for login. If you don't have one yet, please refer to this <a href="https://youtu.be/T2Ik9HJJSM8">tutorial video</a>, or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</li>
-              <li>2. Visit the <a href="${claimPageURLEn}">claim page</a>${mustClaimToView ? '' : ' again'}, login to your account to receive the ebook. You can save and display it on your bookshelf for future organization, transfer, and review.</li>
-            </ul>
-            <p>Once these steps are completed, the author will sign and issue the ebook to your account within 1-3 business days. Please check your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a> for the ebook.</p>
+            <p>Thanks for purchasing <a href="${nftPageURLEn}">“${bookName}”</a>. Please follow the steps below to claim your ebook:</p>
+            <ol>
+              <li>
+                <p>Choose any of the following methods to log in/register a Liker Land account:</p>
+                <p>
+                a. Email address/password<br>
+                b. Google account login<br>
+                c. Apple ID login<br>
+                </p>
+                <p>Or;</p>
+                <p>d. Log in with a Keplr wallet (For installation methods, please refer to this <a href="https://youtu.be/T2Ik9HJJSM8">tutorial video</a>, or refer to the <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">illustrated guide</a>)</p>
+              </li>
+              <li>
+                <p>Claim the e-book on the <a href="${claimPageURLEn}">download page</a>.</p>
+              </li>
+              <li>
+                <p>If the e-book you purchased requires a personal signature from the author, please wait patiently for the author to dispatch it after completing the above two steps, typically within 3 days. You can check the status of the e-book on your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a>.</p>
+              </li>
+            </ol>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>Liker Land</p>`,
@@ -538,31 +562,55 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>以下是 ${fromName} 的留言：</p>
             <p>${message}</p>
             <br/>
-            <p>${mustClaimToView ? '' : `請前往 Liker Land 的<a href="${claimPageURLZh}">下載頁面</a>，下載電子書檔案（EPUB/PDF 檔）。`}</p>
-            ${mustClaimToView ? '' : `<p><a href="${claimPageURLZh}">前往下載頁面</a></p>`}
-            <p>${mustClaimToView ? '請根據以下步驟領取你的電子書：' : '另，別忘記進一步儲存此電子書到你的個人書架：'}</p>
-            <ul>
-              <li>1. 確認您已有 Keplr 以錢包作為登入帳號；如尚未持有，請參考<a href="https://youtu.be/zUIvj18hEXY">此教學影片</a>（廣東話版教學影片<a href="https://youtu.be/8sdDNkwzknE">另見此連結</a>），或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>。</li>
-              <li>2. 在<a href="${claimPageURLZh}">下載頁面</a>，連接 Keplr 帳號領取電子書，儲存並展示在你的個人書架，以便日後可以整理、轉送和翻查紀錄。</li>
-            </ul>
-            <p>完成以上步驟後，作者會在 1-3 個工作天內親手簽發你的電子書。請往你的 <a href="https://liker.land/zh-Hant/feed?view=collectibles&tab=collected">Liker Land 個人主頁</a>查閱。</p>
+            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：/p>
+            <ol>
+              <li>
+                <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
+                <p>
+                a. 電郵地址/密碼<br>
+                b. Google 帳號登入<br>
+                c. Apple ID 登入
+                </p>
+                <p>或；</p>
+                d. 以 Keplr 錢包登入（安裝方法請參考此<a href="https://youtu.be/zUIvj18hEXY">國語教學影片</a>或<a href="https://youtu.be/8sdDNkwzknE">廣東話版教學影片</a>，或參考<a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">圖文教學</a>）
+              </li>
+              <li>
+                <p>在<a href="${claimPageURLZh}">下載頁面</a>領取電子書。</p>
+              </li>
+              <li>
+                <p>若你購買的電子書需要作者親自簽發，請在完成以上兩個步驟後，耐心等待作者發貨，一般 3 天內會發出。你可前往 <a href="https://liker.land/zh-Hant/feed?view=collectibles&tab=collected">Liker Land 個人主頁</a>查看電子書的狀態。</p>
+              </li>
+            </ol>
             <p>如有任何疑問，歡迎<a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">聯絡客服</a>查詢。</p>
             <p>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>
+            <br>
             <hr />
+            <br>
             <p>Dear ${toName},</p>
-            <p>${fromName} has send an eBook "<a href="${nftPageURLEn}">${bookName}</a>" to you as a gift</p>
+            <p>${fromName} has send an eBook <a href="${nftPageURLEn}">“${bookName}“</a>” to you as a gift</p>
             <p>Here is ${fromName}'s message</p>
             <p>${message}</p>
             <br/>
-            <p>${mustClaimToView ? '' : ` Please visit the <a href="${claimPageURLEn}">Download Page</a> on Liker Land to download the ebook file (EPUB/PDF).`}</p>
-            ${mustClaimToView ? '' : `<p><a href="${claimPageURLEn}">Visit the Download Page</a></p>`}
-            <p>${mustClaimToView ? 'Please follow the steps below to claim your ebook:' : 'Moreover, please follow the steps below to save the ebook to your bookshelf:'}</p>
-            <ul>
-              <li>1. Ensure that you have the Keplr wallet installed for login. If you don't have one yet, please refer to this <a href="https://youtu.be/T2Ik9HJJSM8">tutorial video</a>, or refer to <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">this step-by-step guide</a> with illustrations.</li>
-              <li>2. Visit the <a href="${claimPageURLEn}">claim page</a>${mustClaimToView ? '' : ' again'}, login to your account to receive the ebook. You can save and display it on your bookshelf for future organization, transfer, and review.</li>
-            </ul>
-            <p>Once these steps are completed, the author will sign and issue the ebook to your account within 1-3 business days. Please check your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a> for the ebook.</p>
+            <p>Thanks for purchasing <a href="${nftPageURLEn}">“${bookName}”</a>. Please follow the steps below to claim your ebook:</p>
+            <ol>
+              <li>
+                <p>Choose any of the following methods to log in/register a Liker Land account:</p>
+                <p>
+                a. Email address/password<br>
+                b. Google account login<br>
+                c. Apple ID login<br>
+                </p>
+                <p>Or;</p>
+                <p>d. Log in with a Keplr wallet (For installation methods, please refer to this <a href="https://youtu.be/T2Ik9HJJSM8">tutorial video</a>, or refer to the <a href="https://docs.like.co/v/zh/general-guides/wallet/keplr/how-to-install-keplr-extension">illustrated guide</a>)</p>
+              </li>
+              <li>
+                <p>Claim the e-book on the <a href="${claimPageURLEn}">download page</a>.</p>
+              </li>
+              <li>
+                <p>If the e-book you purchased requires a personal signature from the author, please wait patiently for the author to dispatch it after completing the above two steps, typically within 3 days. You can check the status of the e-book on your <a href="https://liker.land/en/feed?view=collectibles&tab=collected">Liker Land dashboard</a>.</p>
+              </li>
+            </ol>
             <p>If you have any questions, please feel free to contact our <a href="https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7">customer service</a> for assistance.</p>
             <p>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>Liker Land</p>`,
