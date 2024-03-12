@@ -382,7 +382,7 @@ export function sendNFTBookPendingClaimEmail({
           Data: getBasicV2Template({
             title,
             content: `<p>親愛的讀者：</p>
-            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：/p>
+            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：</p>
             <ol>
               <li>
                 <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
@@ -562,7 +562,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>以下是 ${fromName} 的留言：</p>
             <p>${message}</p>
             <br/>
-            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：/p>
+            <p>感謝支持並購買<a href="${nftPageURLZh}">《${bookName}》</a>。請根據以下步驟領取你的電子書：</p>
             <ol>
               <li>
                 <p>選以下任一方法登入/註冊 Liker Land 帳號</p>
