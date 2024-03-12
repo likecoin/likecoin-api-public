@@ -99,7 +99,7 @@ export async function handleGiftBook(
 
     await createNewNFTBookPayment(classId, paymentId, {
       type: 'gift',
-      email,
+      email: '', // TODO: set as gifter's email
       claimToken,
       priceInDecimal,
       originalPriceInDecimal: priceInDecimal,
