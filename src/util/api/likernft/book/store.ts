@@ -53,7 +53,6 @@ export async function handleGiftBook(
   const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
   if (stock <= 0 || stock < receivers.length) throw new ValidationError('OUT_OF_STOCK');
 
-  const result: any = [];
   for (let i = 0; i < receivers.length; i += 1) {
     const { email, wallet } = receivers[i];
     if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
@@ -62,6 +61,8 @@ export async function handleGiftBook(
       if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
     }
   }
+
+  const autoClaimPromises: Promise<{ wallet: string; nftId: string; }>[] = [];
 
   for (let i = 0; i < receivers.length; i += 1) {
     const {
@@ -145,7 +146,7 @@ export async function handleGiftBook(
     ]);
 
     if (wallet) {
-      const { nftId } = await claimNFTBook(
+      autoClaimPromises.push(claimNFTBook(
         classId,
         paymentId,
         {
@@ -154,19 +155,20 @@ export async function handleGiftBook(
           token: claimToken as string,
         },
         req,
-      );
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTClaimed',
-        paymentId,
-        classId,
-        wallet,
-        email,
-        message: '',
-      });
-      if (nftId) result.push({ wallet, nftId });
+      ).then(({ nftId }) => {
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'BookNFTClaimed',
+          paymentId,
+          classId,
+          wallet,
+          email,
+          message: '',
+        });
+        return { wallet, nftId: nftId as string };
+      }));
     }
   }
+  const result = (await Promise.all(autoClaimPromises)).filter((x) => x.nftId);
   return result;
 }
 
