@@ -913,7 +913,7 @@ export async function sendNFTBookClaimedEmailNotification(
       bookName: className,
       paymentId,
       wallet,
-      buyerEmail: email,
+      claimerEmail: giftInfo?.toEmail || email,
       message,
     });
   }
@@ -922,12 +922,14 @@ export async function sendNFTBookClaimedEmailNotification(
       fromName,
       toName,
     } = giftInfo;
-    await sendNFTBookGiftClaimedEmail({
-      bookName: className,
-      fromEmail: email,
-      fromName,
-      toName,
-    });
+    if (email) {
+      await sendNFTBookGiftClaimedEmail({
+        bookName: className,
+        fromEmail: email,
+        fromName,
+        toName,
+      });
+    }
   }
 }
 

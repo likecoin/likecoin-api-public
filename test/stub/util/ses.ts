@@ -127,7 +127,7 @@ export function sendNFTBookSalesEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, buyerEmail,
+  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
   return Promise.resolve();
 }

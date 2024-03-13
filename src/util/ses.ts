@@ -849,7 +849,7 @@ export function sendNFTBookSalesEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, buyerEmail,
+  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `A user has claimed an ebook ${bookName}`;
@@ -882,7 +882,7 @@ export function sendNFTBookClaimedEmail({
             content: `<p>Dear Creator,</p>
             <br/>
             <p>Congratulation. A reader has claimed your ebook${message ? ` with message: "${message}"` : ''}.</p>
-            <p>Reader email: ${buyerEmail}</p>
+            <p>Reader email: ${claimerEmail}</p>
             <p>Reader wallet address: ${wallet}</p>
             <p>Please visit the <a href="${url}">NFT book management page</a> to deliver your book.</p>
             <br>

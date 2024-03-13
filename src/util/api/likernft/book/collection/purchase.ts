@@ -528,7 +528,7 @@ export async function sendNFTBookCollectionClaimedEmailNotification(
       bookName: name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
       paymentId,
       wallet,
-      buyerEmail: email,
+      claimerEmail: email,
       message,
     });
   }
