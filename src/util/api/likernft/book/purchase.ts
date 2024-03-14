@@ -23,7 +23,7 @@ import {
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
-import { getStripeConnectAccountId } from './user';
+import { getStripeConnectAccountId, getStripeConnectAccountIdFromLegacyString, getStripeConnectAccountIdFromLikerId } from './user';
 import stripe from '../../../stripe';
 import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
 import publisher from '../../../gcloudPub';
@@ -58,40 +58,64 @@ export async function handleStripeConnectedAccount(paymentId, {
   likerLandTipFeeAmount = 0,
   likerLandCommission = 0,
   likerlandArtFee = 0,
-}, { connectedWallets }) {
+  channelCommission = 0,
+}, { connectedWallets, from }) {
+  if (channelCommission) {
+    let fromStripeConnectAccountId = '';
+    if (from && !checkIsFromLikerLand(from)) {
+      if (from.startsWith('@')) {
+        fromStripeConnectAccountId = await getStripeConnectAccountIdFromLikerId(
+          from.substring(1, from.length),
+        );
+      } else {
+        fromStripeConnectAccountId = await getStripeConnectAccountIdFromLegacyString(from);
+      }
+    }
+    if (fromStripeConnectAccountId) {
+      await stripe.transfers.create({
+        amount: channelCommission,
+        currency,
+        destination: fromStripeConnectAccountId,
+        transfer_group: paymentId,
+        source_transaction: chargeId,
+      });
+    }
+  }
   if (connectedWallets && Object.keys(connectedWallets).length) {
     const amountToSplit = amountTotal
+      - channelCommission
       - (stripeFeeAmount
         + likerLandFeeAmount
         + likerLandCommission
         + likerlandArtFee
         + likerLandTipFeeAmount);
-    if (amountToSplit <= 0) return;
-    const wallets = Object.keys(connectedWallets);
-    const stripeConnectAccountIds: string[] = await Promise.all(
-      wallets.map((wallet) => getStripeConnectAccountId(wallet)
-        // eslint-disable-next-line no-console
-        .catch((e) => { console.error(e); })),
-    );
-    let totalSplit = 0;
-    const walletToIdMap: Record<string, string> = {};
-    wallets.forEach((wallet, i) => {
-      const stripeConnectAccountId = stripeConnectAccountIds[i];
-      if (stripeConnectAccountId) {
-        walletToIdMap[wallet] = stripeConnectAccountId;
-        totalSplit += connectedWallets[wallet];
-      }
-    });
-    await Promise.all(Object.entries(walletToIdMap).map(([wallet, stripeConnectAccountId]) => {
-      const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
-      return stripe.transfers.create({
-        amount: amountSplit,
-        currency,
-        destination: stripeConnectAccountId,
-        transfer_group: paymentId,
-        source_transaction: chargeId,
+    if (amountToSplit > 0) {
+      const wallets = Object.keys(connectedWallets);
+      const stripeConnectAccountIds: string[] = await Promise.all(
+        wallets.map((wallet) => getStripeConnectAccountId(wallet)
+          // eslint-disable-next-line no-console
+          .catch((e) => { console.error(e); })),
+      );
+      let totalSplit = 0;
+      const walletToIdMap: Record<string, string> = {};
+      wallets.forEach((wallet, i) => {
+        const stripeConnectAccountId = stripeConnectAccountIds[i];
+        if (stripeConnectAccountId) {
+          walletToIdMap[wallet] = stripeConnectAccountId;
+          totalSplit += connectedWallets[wallet];
+        }
       });
-    }));
+      await Promise.all(Object.entries(walletToIdMap).map(([wallet, stripeConnectAccountId]) => {
+        const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+        return stripe.transfers.create({
+          amount: amountSplit,
+          currency,
+          destination: stripeConnectAccountId,
+          transfer_group: paymentId,
+          source_transaction: chargeId,
+        });
+      }));
+    }
   }
 }
 
@@ -365,6 +389,9 @@ export async function formatStripeCheckoutSession({
   const likerLandTipFeeAmount = Math.ceil(
     convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   );
+  const channelCommission = (from && !isFromLikerLand)
+    ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+    : 0;
   const likerLandCommission = isFromLikerLand
     ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
     : 0;
@@ -379,6 +406,7 @@ export async function formatStripeCheckoutSession({
     likerLandTipFeeAmount,
     likerLandFeeAmount,
     likerLandCommission,
+    channelCommission,
     likerlandArtFee,
   };
 
@@ -755,6 +783,7 @@ export async function processNFTBookStripePurchase(
       likerLandFeeAmount = '0',
       likerLandTipFeeAmount = '0',
       likerLandCommission = '0',
+      channelCommission = '0',
       likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
@@ -810,9 +839,10 @@ export async function processNFTBookStripePurchase(
         likerLandFeeAmount: Number(likerLandFeeAmount),
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
         likerLandCommission: Number(likerLandCommission),
+        channelCommission: Number(channelCommission),
         likerlandArtFee: Number(likerlandArtFee),
       },
-      { connectedWallets },
+      { connectedWallets, from },
     );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
