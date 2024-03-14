@@ -28,7 +28,7 @@ router.get(
       else if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
       const query = await queryObj.orderBy('timestamp', 'desc').get();
       list = query.docs.map((d) => ({ txHash: d.id, ...(d.data() || {}) }));
-      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list,
       });

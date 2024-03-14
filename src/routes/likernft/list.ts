@@ -17,7 +17,7 @@ router.get(
         .map((d) => d.data())
         .filter((d) => !d.collectExpiryAt || d.collectExpiryAt > Date.now())
         .map((d) => d.classId);
-      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list,
       });

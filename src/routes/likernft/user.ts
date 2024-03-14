@@ -36,7 +36,7 @@ router.get(
       sellingNftsQuery.docs.forEach((doc) => {
         classIdSet.add(doc.data().classId);
       });
-      res.set('Cache-Control', `public, max-age=60 s-maxage=60 stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json({
         list: Array.from(classIdSet),
       });
@@ -54,7 +54,7 @@ router.get(
       if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
 
       const userStat = await getUserStat(wallet);
-      res.set('Cache-Control', `public, max-age=60 s-maxage=60 stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(userStat);
     } catch (err) {
       next(err);

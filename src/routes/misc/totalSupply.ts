@@ -36,7 +36,7 @@ router.get('/totalsupply/erc20', async (req, res) => {
   }
   const apiValue = rawSupply.toFixed();
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue);
 });
 
@@ -54,7 +54,7 @@ router.get('/circulating/erc20', async (req, res) => {
   }
   const apiValue = actualValue.toFixed();
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue);
 });
 
@@ -64,7 +64,7 @@ router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
     rawSupply = rawSupply.times(new BigNumber(10).pow(9));
   }
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(rawSupply.toFixed());
 });
 
@@ -81,7 +81,7 @@ router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
     apiValue = apiValue.times(new BigNumber(10).pow(9));
   }
   res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
   res.send(apiValue.toFixed());
 });
 
