@@ -417,6 +417,7 @@ export async function processNFTBookCollectionStripePurchase(
       likerLandFeeAmount = '0',
       likerLandTipFeeAmount = '0',
       likerLandCommission = '0',
+      channelCommission = '0',
       likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
@@ -459,9 +460,10 @@ export async function processNFTBookCollectionStripePurchase(
         likerLandFeeAmount: Number(likerLandFeeAmount),
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
         likerLandCommission: Number(likerLandCommission),
+        channelCommission: Number(channelCommission),
         likerlandArtFee: Number(likerlandArtFee),
       },
-      { connectedWallets },
+      { connectedWallets, from },
     );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
