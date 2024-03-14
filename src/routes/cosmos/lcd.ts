@@ -269,7 +269,7 @@ if (COSMOS_LCD_ENDPOINT) {
       /* eslint-disable no-param-reassign */
       if (userReq.method === 'GET') {
         if (proxyRes.statusCode >= 200 && proxyRes.statusCode <= 299) {
-          headers['cache-control'] = 'public, max-age=1';
+          headers['cache-control'] = 'public, max-age=1, stale-while-revalidate=12';
         } else {
           headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
           headers.pragma = 'no-cache';

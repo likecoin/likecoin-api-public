@@ -33,7 +33,7 @@ router.get(
         iscnData,
         metadata,
       } = await getClassMetadata({ classId, iscnPrefix });
-      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(filterLikeNFTMetadata({
         iscnId: iscnPrefix,
         iscnOwner,
@@ -68,7 +68,7 @@ router.get(
         ownerMap[owner] = ownerMap[owner] || [];
         ownerMap[owner].push(nftIds[index]);
       });
-      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.json(ownerMap);
     } catch (err) {
       next(err);
@@ -120,7 +120,7 @@ router.get(
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();
       const cacheTime = isImageMissing ? 60 : 3600;
-      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.type(contentType);
       basicImage
         .pipe(resizedImage)
@@ -152,7 +152,7 @@ router.get(
       const imageUrl = (isCustomImage || !uri) ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
       let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
       model = model.replace(new RegExp(IMAGE_URI_PLACEHOLDER, 'g'), imageUrl);
-      res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.type('model/gltf+json');
       res.status(200).send(model);
       return;

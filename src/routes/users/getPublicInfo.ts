@@ -27,7 +27,7 @@ router.get('/id/:id/min', async (req, res, next) => {
       res.sendStatus(404);
       return;
     }
-    res.set('Cache-Control', 'public, max-age=30');
+    res.set('Cache-Control', `public, max-age=30, stale-while-revalidate=${ONE_DAY_IN_S}`);
     res.json(filterUserDataMin(payload, types));
   } catch (err) {
     next(err);
@@ -58,7 +58,7 @@ router.get('/id/:id/avatar', async (req, res, next) => {
         responseType: 'stream',
       });
       const cacheTime = 3600;
-      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.type(headers['content-type'] || 'image/jpeg');
       data.pipe(resizer).pipe(res);
     } catch (error) {
@@ -96,7 +96,7 @@ router.get('/addr/:addr/min', async (req, res, next) => {
       res.sendStatus(404);
       return;
     }
-    res.set('Cache-Control', 'public, max-age=30');
+    res.set('Cache-Control', `public, max-age=30, stale-while-revalidate=${ONE_DAY_IN_S}`);
     res.json(filterUserDataMin(payload, types));
   } catch (err) {
     next(err);

@@ -20,7 +20,7 @@ import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
-import { PUBSUB_TOPIC_MISC } from '../../../constant';
+import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
 
 const router = Router();
@@ -75,7 +75,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
     if (req.user) {
       res.set('Cache-Control', 'no-store');
     } else {
-      res.set('Cache-Control', 'public, max-age=60, s-maxage=60, stale-if-error=600');
+      res.set(`Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
     }
     res.json({ list, nextKey });
   } catch (err) {
