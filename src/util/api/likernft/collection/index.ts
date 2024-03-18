@@ -82,6 +82,7 @@ async function validateCollectionTypeData(
       connectedWallets,
       coupons,
       isPhysicalOnly,
+      shippingRates,
     } = data;
     validatePrice({
       priceInDecimal,
@@ -119,6 +120,7 @@ async function validateCollectionTypeData(
         connectedWallets,
         coupons,
         isPhysicalOnly,
+        shippingRates,
       }),
     );
   } else if (type === 'reader') {
