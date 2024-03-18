@@ -119,8 +119,12 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
 router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
-    const bookInfo = await getNftBookInfo(classId);
-
+    let bookInfo;
+    try {
+      bookInfo = await getNftBookInfo(classId);
+    } catch (err) {
+      if ((err as Error).message !== 'CLASS_ID_NOT_FOUND') throw err;
+    }
     if (!bookInfo) {
       res.status(404).send('BOOK_NOT_FOUND');
       return;
