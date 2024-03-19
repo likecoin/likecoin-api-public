@@ -45,6 +45,22 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   from = '',
   isPhysicalOnly = false,
   giftInfo,
+}: {
+  type: string;
+  email?: string;
+  claimToken: string;
+  sessionId?: string;
+  priceInDecimal: number,
+  originalPriceInDecimal: number,
+  coupon?: string,
+  from?: string;
+  isPhysicalOnly?: boolean,
+  giftInfo?: {
+    toName: string,
+    toEmail: string,
+    fromName: string,
+    message?: string,
+  };
 }) {
   const docData = await getBookCollectionInfoById(collectionId);
   const { classIds } = docData;
@@ -240,7 +256,23 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   }
 
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (priceInDecimal <= 0) throw new ValidationError('FREE');
+  if (priceInDecimal === 0) {
+    const freePurchaseUrl = getLikerLandNFTClaimPageURL({
+      collectionId,
+      paymentId: '',
+      token: '',
+      type: 'nft_book',
+      free: true,
+      redirect: false,
+      from: from as string,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+    });
+    return { url: freePurchaseUrl };
+  }
   image = parseImageURLFromMetadata(image);
   let name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
   let description = typeof collectionDescriptionObj === 'object' ? collectionDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionDescriptionObj || '';
