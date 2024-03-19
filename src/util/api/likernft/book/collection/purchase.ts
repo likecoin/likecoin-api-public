@@ -451,11 +451,14 @@ export async function processNFTBookCollectionStripePurchase(
       getBookCollectionInfoById(collectionId),
     ]);
 
+    const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
+
     await handleStripeConnectedAccount(
       {
         collectionId,
         paymentId,
         ownerWallet,
+        bookName: collectionName,
       },
       {
         amountTotal,
@@ -482,7 +485,6 @@ export async function processNFTBookCollectionStripePurchase(
       isGift,
     });
 
-    const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
     await Promise.all([
       sendNFTBookCollectionPurchaseEmail({
         email,

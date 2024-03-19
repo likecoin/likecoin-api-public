@@ -10,6 +10,55 @@ import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 const router = Router();
 
 router.get(
+  '/profile',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+      const userData = userDoc.data();
+      if (!userData) {
+        throw new ValidationError('USER_NOT_FOUND', 404);
+      }
+      const {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        email,
+        notificationEmail,
+      } = userData;
+      const payload = {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        email,
+        notificationEmail,
+      };
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/profile',
+  jwtAuth('write:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const {
+        notificationEmail,
+      } = req.body;
+      await likeNFTBookUserCollection.doc(wallet).update({
+        notificationEmail,
+      });
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
   '/connect/status',
   jwtOptionalAuth('read:nftbook'),
   async (req, res, next) => {
