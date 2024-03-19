@@ -33,6 +33,7 @@ import {
   LIKER_NFT_TARGET_ADDRESS,
   LIKER_NFT_FEE_ADDRESS,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
 } from '../../../../../config/config';
@@ -305,22 +306,28 @@ export async function formatStripeCheckoutSession({
   const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
   const convertedCustomPriceDiffInDecimal = customPriceDiffInDecimal
     ? convertUSDToCurrency(customPriceDiffInDecimal, convertedCurrency) : 0;
+  const convertedOriginalPriceInDecimal = convertedPriceInDecimal
+    - convertedCustomPriceDiffInDecimal;
 
   const isFromLikerLand = checkIsFromLikerLand(from);
   const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
   const likerLandFeeAmount = Math.ceil(
-    convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+    convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  );
+  const likerLandTipFeeAmount = Math.ceil(
+    convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   );
   const likerLandCommission = isFromLikerLand
-    ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
     : 0;
   const likerlandArtFee = isLikerLandArt
-    ? Math.ceil(convertedPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
     : 0;
 
   paymentIntentData.metadata = {
     ...paymentIntentData.metadata,
     stripeFeeAmount,
+    likerLandTipFeeAmount,
     likerLandFeeAmount,
     likerLandCommission,
     likerlandArtFee,
@@ -336,7 +343,11 @@ export async function formatStripeCheckoutSession({
     if (stripeConnectAccountId) {
       // TODO: support connectedWallets +1
       paymentIntentData.application_fee_amount = (
-        stripeFeeAmount + likerLandFeeAmount + likerLandCommission + likerlandArtFee
+        stripeFeeAmount
+          + likerLandFeeAmount
+          + likerLandCommission
+          + likerlandArtFee
+          + likerLandTipFeeAmount
       );
       paymentIntentData.transfer_data = {
         destination: stripeConnectAccountId,
