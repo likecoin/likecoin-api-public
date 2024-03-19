@@ -471,7 +471,10 @@ export async function processNFTBookCollectionStripePurchase(
     ]);
 
     await handleStripeConnectedAccount(
-      paymentId,
+      {
+        collectionId,
+        paymentId,
+      },
       {
         amountTotal,
         chargeId: capturedPaymentIntent.latest_charge,

@@ -23,9 +23,11 @@ import {
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
-import { getStripeConnectAccountId, getStripeConnectAccountIdFromLegacyString, getStripeConnectAccountIdFromLikerId } from './user';
+import { getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId, getStripeConnectAccountId } from './user';
 import stripe from '../../../stripe';
-import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
+import {
+  likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
+} from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
@@ -49,7 +51,19 @@ import {
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 
-export async function handleStripeConnectedAccount(paymentId, {
+export async function handleStripeConnectedAccount({
+  classId = '',
+  collectionId = '',
+  priceIndex = -1,
+  paymentId,
+  ownerWallet,
+}: {
+  classId?: string,
+  collectionId?: string,
+  priceIndex?: number,
+  paymentId: string,
+  ownerWallet: string,
+}, {
   chargeId,
   amountTotal,
   currency,
@@ -60,29 +74,57 @@ export async function handleStripeConnectedAccount(paymentId, {
   likerlandArtFee = 0,
   channelCommission = 0,
 }, { connectedWallets, from }) {
+  const metadata: Record<string, string> = {
+    ownerWallet,
+  };
+  if (classId) metadata.classId = classId;
+  if (collectionId) metadata.collectionId = collectionId;
+  if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
   if (channelCommission) {
-    let fromStripeConnectAccountId = '';
+    let fromUser: any = null;
     if (from && !checkIsFromLikerLand(from)) {
       if (from.startsWith('@')) {
-        fromStripeConnectAccountId = await getStripeConnectAccountIdFromLikerId(
+        fromUser = await getBookUserInfoFromLikerId(
           from.substring(1, from.length),
         );
       } else {
-        fromStripeConnectAccountId = await getStripeConnectAccountIdFromLegacyString(from);
+        fromUser = await getBookUserInfoFromLegacyString(from);
       }
     }
-    if (fromStripeConnectAccountId) {
-      await stripe.transfers.create({
-        amount: channelCommission,
-        currency,
-        destination: fromStripeConnectAccountId,
-        transfer_group: paymentId,
-        source_transaction: chargeId,
-        metadata: {
+    let fromStripeConnectAccountId;
+    if (fromUser) {
+      const { stripeConnectAccountId, isStripeConnectReady } = fromUser;
+      if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
+      if (fromStripeConnectAccountId) {
+        const fromLikeWallet = fromUser.likeWallet;
+        const transfer = await stripe.transfers.create({
+          amount: channelCommission,
+          currency,
+          destination: fromStripeConnectAccountId,
+          transfer_group: paymentId,
+          source_transaction: chargeId,
+          metadata: {
+            type: 'channelCommission',
+            channel: from,
+            ...metadata,
+          },
+        });
+        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(paymentId).create({
           type: 'channelCommission',
-          channel: from,
-        },
-      });
+          ownerWallet,
+          classId,
+          priceIndex,
+          collectionId,
+          transferId: transfer.id,
+          chargeId,
+          stripeConnectAccountId,
+          paymentId,
+          amountTotal,
+          amount: channelCommission,
+          currency,
+          timestamp: FieldValue.serverTimestamp(),
+        });
+      }
     }
   }
   if (connectedWallets && Object.keys(connectedWallets).length) {
@@ -109,19 +151,38 @@ export async function handleStripeConnectedAccount(paymentId, {
           totalSplit += connectedWallets[wallet];
         }
       });
-      await Promise.all(Object.entries(walletToIdMap).map(([wallet, stripeConnectAccountId]) => {
-        const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
-        return stripe.transfers.create({
-          amount: amountSplit,
-          currency,
-          destination: stripeConnectAccountId,
-          transfer_group: paymentId,
-          source_transaction: chargeId,
-          metadata: {
-            type: 'connectedWallet',
-          },
-        });
-      }));
+      await Promise.all(
+        Object.entries(walletToIdMap)
+          .map(async ([wallet, stripeConnectAccountId]) => {
+            const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+            const transfer = await stripe.transfers.create({
+              amount: amountSplit,
+              currency,
+              destination: stripeConnectAccountId,
+              transfer_group: paymentId,
+              source_transaction: chargeId,
+              metadata: {
+                type: 'connectedWallet',
+                ...metadata,
+              },
+            });
+            await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(paymentId).create({
+              type: 'connectedWallet',
+              ownerWallet,
+              classId,
+              priceIndex,
+              collectionId,
+              transferId: transfer.id,
+              chargeId,
+              stripeConnectAccountId,
+              paymentId,
+              amountTotal,
+              amount: amountSplit,
+              currency,
+              timestamp: FieldValue.serverTimestamp(),
+            });
+          }),
+      );
     }
   }
 }
@@ -817,6 +878,7 @@ export async function processNFTBookStripePurchase(
       mustClaimToView = false,
       defaultPaymentCurrency,
       connectedWallets,
+      ownerWallet,
     } = listingData;
     const {
       claimToken,
@@ -837,7 +899,12 @@ export async function processNFTBookStripePurchase(
     ]);
 
     await handleStripeConnectedAccount(
-      paymentId,
+      {
+        classId,
+        priceIndex,
+        paymentId,
+        ownerWallet,
+      },
       {
         amountTotal,
         chargeId: capturedPaymentIntent.latest_charge,
