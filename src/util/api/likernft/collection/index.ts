@@ -81,6 +81,7 @@ async function validateCollectionTypeData(
       moderatorWallets,
       connectedWallets,
       coupons,
+      isAllowCustomPrice,
       isPhysicalOnly,
       shippingRates,
     } = data;
@@ -89,6 +90,7 @@ async function validateCollectionTypeData(
       stock,
       name,
       description,
+      isAllowCustomPrice,
       isPhysicalOnly,
     });
     if (coupons?.length) validateCoupons(coupons);
@@ -119,6 +121,7 @@ async function validateCollectionTypeData(
         moderatorWallets,
         connectedWallets,
         coupons,
+        isAllowCustomPrice,
         isPhysicalOnly,
         shippingRates,
       }),
