@@ -452,6 +452,7 @@ export async function processNFTBookCollectionStripePurchase(
       notificationEmails = [],
       defaultPaymentCurrency,
       connectedWallets,
+      ownerWallet,
     } = listingData;
     const {
       claimToken,
@@ -474,6 +475,7 @@ export async function processNFTBookCollectionStripePurchase(
       {
         collectionId,
         paymentId,
+        ownerWallet,
       },
       {
         amountTotal,

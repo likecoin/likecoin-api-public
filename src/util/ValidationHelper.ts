@@ -478,6 +478,36 @@ export function filterBookPurchaseData({
   };
 }
 
+export function filterBookPurchaseCommission({
+  type,
+  ownerWallet,
+  classId,
+  priceIndex,
+  collectionId,
+  transferId,
+  stripeConnectAccountId,
+  paymentId,
+  amountTotal,
+  amount,
+  currency,
+  timestamp,
+}) {
+  return {
+    type,
+    ownerWallet,
+    classId,
+    priceIndex,
+    collectionId,
+    transferId,
+    stripeConnectAccountId,
+    paymentId,
+    amountTotal,
+    amount,
+    currency,
+    timestamp: timestamp.toMillis(),
+  };
+}
+
 export function filterOAuthClientInfo({
   avatar,
   audience,
