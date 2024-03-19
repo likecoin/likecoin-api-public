@@ -868,6 +868,57 @@ export function sendNFTBookSalesEmail({
   return ses.sendEmail(params).promise();
 }
 
+export function sendNFTBookSaleCommissionEmail({
+  classId = '',
+  collectionId = '',
+  email,
+  bookName,
+  amount,
+  type,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const nftPageURLEn = collectionId
+    ? getLikerLandNFTCollectionPageURL({ collectionId })
+    : getLikerLandNFTClassPageURL({ classId });
+  const title = `You have earn $${amount} for helping selling ${bookName}`;
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookSaleCommissionEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicTemplate({
+            title,
+            content: `<p>Dear Book lover,</p>
+            <br/>
+            <p>Congratulation!</p>
+            <p>Someone has bought the NFT book <a href="${nftPageURLEn}">${bookName}</a></p>
+            <p>As a result you have earn $${amount} due to commission type "${type}"</p>
+            <br/>
+            <p>Liker Land</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
 export function sendNFTBookClaimedEmail({
   emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
