@@ -83,6 +83,7 @@ async function validateCollectionTypeData(
       coupons,
       isAllowCustomPrice,
       isPhysicalOnly,
+      hasShipping,
       shippingRates,
     } = data;
     validatePrice({
@@ -92,6 +93,7 @@ async function validateCollectionTypeData(
       description,
       isAllowCustomPrice,
       isPhysicalOnly,
+      hasShipping,
     });
     if (coupons?.length) validateCoupons(coupons);
     await Promise.all(
@@ -123,6 +125,7 @@ async function validateCollectionTypeData(
         coupons,
         isAllowCustomPrice,
         isPhysicalOnly,
+        hasShipping,
         shippingRates,
       }),
     );
