@@ -76,6 +76,10 @@ export async function handleStripeConnectedAccount(paymentId, {
         destination: fromStripeConnectAccountId,
         transfer_group: paymentId,
         source_transaction: chargeId,
+        metadata: {
+          type: 'channelCommission',
+          channel: from,
+        },
       });
     }
   }
@@ -111,6 +115,9 @@ export async function handleStripeConnectedAccount(paymentId, {
           destination: stripeConnectAccountId,
           transfer_group: paymentId,
           source_transaction: chargeId,
+          metadata: {
+            type: 'connectedWallet',
+          },
         });
       }));
     }
