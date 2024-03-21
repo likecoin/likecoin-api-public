@@ -18,7 +18,7 @@ import {
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
-  formatStripeCheckoutSession, getCouponDiscountRate,
+  formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
 } from '../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
@@ -220,7 +220,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       gaSessionId,
     }),
     ownerWallet,
-    connectedWallets,
     shippingRates,
     isPhysicalOnly,
     defaultPaymentCurrency = 'USD',
@@ -315,7 +314,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     defaultPaymentCurrency,
     priceInDecimal,
     customPriceDiffInDecimal,
-    connectedWallets,
     isLikerLandArt,
     successUrl,
     cancelUrl,
@@ -415,6 +413,12 @@ export async function processNFTBookCollectionStripePurchase(
     metadata: {
       collectionId,
       paymentId,
+      stripeFeeAmount = '0',
+      likerLandFeeAmount = '0',
+      likerLandTipFeeAmount = '0',
+      likerLandCommission = '0',
+      channelCommission = '0',
+      likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -436,14 +440,36 @@ export async function processNFTBookCollectionStripePurchase(
     const {
       notificationEmails = [],
       defaultPaymentCurrency,
+      connectedWallets,
+      ownerWallet,
     } = listingData;
     const {
       claimToken, price, type, from, isGift, giftInfo, isPhysicalOnly,
     } = txData;
-    const [, collectionData] = await Promise.all([
+    const [paymentIntentData, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
       getBookCollectionInfoById(collectionId),
     ]);
+
+    await handleStripeConnectedAccount(
+      {
+        collectionId,
+        paymentId,
+        ownerWallet,
+      },
+      {
+        amountTotal,
+        chargeId: paymentIntentData.latest_charge,
+        currency: defaultPaymentCurrency,
+        stripeFeeAmount: Number(stripeFeeAmount),
+        likerLandFeeAmount: Number(likerLandFeeAmount),
+        likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
+        likerLandCommission: Number(likerLandCommission),
+        channelCommission: Number(channelCommission),
+        likerlandArtFee: Number(likerlandArtFee),
+      },
+      { connectedWallets, from },
+    );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',

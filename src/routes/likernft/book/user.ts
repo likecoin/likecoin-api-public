@@ -5,6 +5,7 @@ import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import stripe from '../../../util/stripe';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
+import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 
 const router = Router();
 
@@ -152,6 +153,30 @@ router.post(
       });
 
       res.json({ isReady: isStripeConnectReady });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/commissions/list',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const commissionQuery = await likeNFTBookUserCollection
+        .doc(wallet)
+        .collection('commissions')
+        .orderBy('timestamp', 'desc')
+        .limit(250)
+        .get();
+      const list = commissionQuery.docs.map((doc) => {
+        const data = doc.data();
+        data.id = doc.id;
+        return data;
+      }).map((data) => filterBookPurchaseCommission(data));
+      res.json({ commissions: list });
     } catch (err) {
       next(err);
     }
