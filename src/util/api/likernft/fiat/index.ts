@@ -38,17 +38,21 @@ export async function getPurchaseInfoList(iscnPrefixes, classIds) {
 
 export async function calculatePayment(
   prices: number[],
-  { buffer = 0.1 } = {},
+  { discount = 1, buffer = 0.1 } = {},
 ) {
   const rate = await getLIKEPrice();
   const priceReducer = (acc: BigNumber, price: BigNumber) => (
     price.isLessThan(0) ? acc : acc.plus(price)
   );
 
+  const discountedPrices = prices
+    .map((price) => Math.round(price * 100 * discount) / 100);
+
   const calculateTotalLIKEPrice = (
+    base,
     modifier: (price: BigNumber) => BigNumber,
   ) => Number(
-    prices
+    base
       .map((price) => new BigNumber(price))
       .map(modifier)
       .reduce(priceReducer, new BigNumber(0))
@@ -58,14 +62,18 @@ export async function calculatePayment(
   );
   const unchanged = (price: BigNumber) => price;
 
-  const totalLIKEPrice = calculateTotalLIKEPrice(rewardModifier);
-  const totalLIKEPricePrediscount = calculateTotalLIKEPrice(unchanged);
-  const totalFiatBigNum = prices
+  const totalLIKEPrice = calculateTotalLIKEPrice(discountedPrices, rewardModifier);
+  const totalLIKEPricePrediscount = calculateTotalLIKEPrice(prices, unchanged);
+  const totalFiatPricePrediscountBigNum = prices
     .reduce((acc, price) => acc.plus(price), new BigNumber(0));
-  const totalFiatPriceString = totalFiatBigNum.toFixed(2);
+  const totalFiatPriceBigNum = discountedPrices
+    .reduce((acc, price) => acc.plus(price), new BigNumber(0));
+  const totalFiatPricePrediscountString = totalFiatPricePrediscountBigNum.toFixed(2);
+  const totalFiatPriceString = totalFiatPriceBigNum.toFixed(2);
   return {
     totalLIKEPricePrediscount,
     totalLIKEPrice,
+    totalFiatPricePrediscountString,
     totalFiatPriceString,
   };
 }
