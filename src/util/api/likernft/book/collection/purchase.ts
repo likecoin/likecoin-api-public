@@ -441,6 +441,7 @@ export async function processNFTBookCollectionStripePurchase(
       notificationEmails = [],
       defaultPaymentCurrency,
       connectedWallets,
+      ownerWallet,
     } = listingData;
     const {
       claimToken, price, type, from, isGift, giftInfo, isPhysicalOnly,
@@ -450,8 +451,15 @@ export async function processNFTBookCollectionStripePurchase(
       getBookCollectionInfoById(collectionId),
     ]);
 
+    const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
+
     await handleStripeConnectedAccount(
-      paymentId,
+      {
+        collectionId,
+        paymentId,
+        ownerWallet,
+        bookName: collectionName,
+      },
       {
         amountTotal,
         chargeId: paymentIntentData.latest_charge,
@@ -477,7 +485,6 @@ export async function processNFTBookCollectionStripePurchase(
       isGift,
     });
 
-    const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
     await Promise.all([
       sendNFTBookCollectionPurchaseEmail({
         email,
