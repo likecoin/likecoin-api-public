@@ -168,6 +168,8 @@ router.get(
       const commissionQuery = await likeNFTBookUserCollection
         .doc(wallet)
         .collection('commissions')
+        .orderBy('timestamp', 'desc')
+        .limit(250)
         .get();
       const list = commissionQuery.docs.map((doc) => {
         const data = doc.data();
