@@ -317,17 +317,20 @@ router.get(
       if (coupon) {
         discount = getCouponDiscountRate(coupons, coupon as string);
       }
-      const priceInDecimal = Math.round(originalPriceInDecimal * discount) / 100;
+      const price = originalPriceInDecimal / 100;
 
       const {
         totalLIKEPricePrediscount,
         totalLIKEPrice,
         totalFiatPriceString,
-      } = await calculatePayment([priceInDecimal]);
+        totalFiatPricePrediscountString,
+      } = await calculatePayment([price], { discount });
       const payload = {
         LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
         LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
+        fiatPricePrediscount: Number(totalFiatPricePrediscountString),
+        fiatDiscount: discount,
       };
       res.json(payload);
     } catch (err) {

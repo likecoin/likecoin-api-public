@@ -15,11 +15,14 @@ router.get(
       const {
         totalLIKEPricePrediscount,
         totalLIKEPrice,
+        totalFiatPricePrediscountString,
         totalFiatPriceString,
       } = await calculatePayment(prices);
       const payload = {
         LIKEPricePrediscount: totalLIKEPricePrediscount,
         LIKEPrice: totalLIKEPrice,
+        fiatPricePrediscount: Number(totalFiatPricePrediscountString),
+        fiatPricePrediscountString: totalFiatPricePrediscountString,
         fiatPrice: Number(totalFiatPriceString),
         fiatPriceString: totalFiatPriceString,
         purchaseInfoList,

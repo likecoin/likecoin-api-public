@@ -205,17 +205,19 @@ router.get(
       }
 
       const { priceInDecimal } = prices[priceIndex];
-      const price = Math.round(priceInDecimal * discount) / 100;
+      const price = priceInDecimal / 100;
 
       const {
         totalLIKEPricePrediscount,
         totalLIKEPrice,
         totalFiatPriceString,
-      } = await calculatePayment([price]);
+        totalFiatPricePrediscountString,
+      } = await calculatePayment([price], { discount });
       const payload = {
         LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
         LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
+        fiatPricePrediscount: Number(totalFiatPricePrediscountString),
         fiatDiscount: discount,
       };
       res.json(payload);
