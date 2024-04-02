@@ -690,7 +690,7 @@ export async function sendNFTBookPurchaseEmail({
       mustClaimToView,
     });
   }
-  if (notificationEmails && notificationEmails.length) {
+  if (notificationEmails) {
     await sendNFTBookSalesEmail({
       buyerEmail: email,
       isGift,
