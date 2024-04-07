@@ -149,7 +149,8 @@ export async function createNFTCollectionByType(
   const {
     classIds = [], name, description, image,
   } = payload;
-  await likeNFTCollectionCollection.doc(collectionId).create({
+  const docRef = likeNFTCollectionCollection.doc(collectionId);
+  await docRef.create({
     ownerWallet: wallet,
     classIds,
     name,
@@ -163,6 +164,7 @@ export async function createNFTCollectionByType(
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
+  const createdDoc = await docRef.get();
   return {
     id: collectionId,
     ownerWallet: wallet,
@@ -172,6 +174,7 @@ export async function createNFTCollectionByType(
     image,
     type,
     typePayload,
+    timestamp: createdDoc.data().timestamp,
   };
 }
 
