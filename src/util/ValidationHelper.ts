@@ -631,6 +631,7 @@ export function filterNFTCollection({
   image,
   type,
   typePayload,
+  timestamp,
 }, isOwner = false) {
   return {
     ownerWallet,
@@ -642,6 +643,7 @@ export function filterNFTCollection({
     typePayload: {
       ...filterNFTCollectionTypePayload(type, typePayload, isOwner),
     },
+    timestamp: timestamp.toMillis(),
   };
 }
 
