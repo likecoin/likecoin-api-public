@@ -101,6 +101,7 @@ export async function handleGiftBook(
     await processNFTBookPurchase({
       classId,
       email: gifterEmail,
+      phone: null,
       paymentId,
       shippingDetails: null,
       shippingCost: null,

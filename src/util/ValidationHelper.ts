@@ -423,6 +423,7 @@ export function filterLikeNFTFiatData({
 export function filterBookPurchaseData({
   id,
   email,
+  phone,
   status,
   shippingStatus,
   shippingDetails,
@@ -450,6 +451,7 @@ export function filterBookPurchaseData({
   return {
     id,
     email,
+    phone,
     status,
     shippingStatus,
     shippingDetails,

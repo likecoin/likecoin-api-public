@@ -122,6 +122,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 export async function processNFTBookPurchase({
   classId,
   email,
+  phone,
   paymentId,
   shippingDetails,
   shippingCost,
@@ -159,6 +160,7 @@ export async function processNFTBookPurchase({
       status: 'paid',
       email,
     };
+    if (phone) paymentPayload.phone = phone;
     if (isAutoDeliver) {
       const nftRes = await t.get(bookRef
         .collection('nft')
@@ -406,6 +408,7 @@ export async function formatStripeCheckoutSession({
       // eslint-disable-next-line max-len
       allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
     };
+    checkoutPayload.phone_number_collection = { enabled: true };
     if (shippingRates) {
       checkoutPayload.shipping_options = shippingRates
         .filter((s) => s?.name && s?.priceInDecimal >= 0)
@@ -723,11 +726,12 @@ export async function processNFTBookStripePurchase(
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
-  const { email } = customer;
+  const { email, phone } = customer;
   try {
     const { txData, listingData } = await processNFTBookPurchase({
       classId,
       email,
+      phone,
       paymentId,
       shippingDetails,
       shippingCost,
