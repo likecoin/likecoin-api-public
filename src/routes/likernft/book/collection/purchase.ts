@@ -227,6 +227,7 @@ router.post(
       await processNFTBookCollectionPurchase({
         collectionId,
         email,
+        phone: null,
         paymentId,
         shippingDetails: null,
         shippingCost: null,

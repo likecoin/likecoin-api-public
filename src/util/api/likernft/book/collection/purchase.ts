@@ -106,6 +106,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
 export async function processNFTBookCollectionPurchase({
   collectionId,
   email,
+  phone,
   paymentId,
   shippingDetails,
   shippingCost,
@@ -138,6 +139,7 @@ export async function processNFTBookCollectionPurchase({
       status: 'paid',
       email,
     };
+    if (phone) paymentPayload.phone = phone;
     if (hasShipping) paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
     if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
@@ -424,11 +426,12 @@ export async function processNFTBookCollectionStripePurchase(
   } = session;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
-  const { email } = customer;
+  const { email, phone } = customer;
   try {
     const { txData, listingData } = await processNFTBookCollectionPurchase({
       collectionId,
       email,
+      phone,
       paymentId,
       shippingDetails,
       shippingCost,

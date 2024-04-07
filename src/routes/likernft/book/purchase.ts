@@ -302,6 +302,7 @@ router.post(
       await processNFTBookPurchase({
         classId,
         email,
+        phone: null,
         paymentId,
         shippingDetails: null,
         shippingCost: null,
@@ -468,6 +469,7 @@ router.post(
       const { listingData } = await processNFTBookPurchase({
         classId,
         email,
+        phone: null,
         paymentId,
         shippingDetails: null,
         shippingCost: null,
