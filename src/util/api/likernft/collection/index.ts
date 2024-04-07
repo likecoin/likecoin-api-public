@@ -165,6 +165,7 @@ export async function createNFTCollectionByType(
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
   const createdDoc = await docRef.get();
+  const createdDocData = createdDoc.data();
   return {
     id: collectionId,
     ownerWallet: wallet,
@@ -174,7 +175,7 @@ export async function createNFTCollectionByType(
     image,
     type,
     typePayload,
-    timestamp: createdDoc.data().timestamp,
+    timestamp: createdDocData.timestamp,
   };
 }
 
