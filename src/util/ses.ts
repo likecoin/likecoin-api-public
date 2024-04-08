@@ -820,7 +820,6 @@ export function sendNFTBookSalesEmail({
       },
     ],
     Destination: {
-      ToAddresses: emails,
       BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
     },
     Message: {
@@ -845,6 +844,9 @@ export function sendNFTBookSalesEmail({
       },
     },
   };
+  if (emails && emails.length > 0) {
+    (params.Destination as any).ToAddresses = emails;
+  }
   return ses.sendEmail(params).promise();
 }
 
