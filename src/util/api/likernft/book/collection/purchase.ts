@@ -394,17 +394,15 @@ export async function sendNFTBookCollectionPurchaseEmail({
       mustClaimToView,
     });
   }
-  if (notificationEmails.length) {
-    await sendNFTBookSalesEmail({
-      buyerEmail: email,
-      emails: notificationEmails,
-      bookName: collectionName,
-      isGift,
-      giftToEmail: (giftInfo as any)?.toEmail,
-      giftToName: (giftInfo as any)?.toName,
-      amount: (amountTotal || 0) / 100,
-    });
-  }
+  await sendNFTBookSalesEmail({
+    buyerEmail: email,
+    emails: notificationEmails,
+    bookName: collectionName,
+    isGift,
+    giftToEmail: (giftInfo as any)?.toEmail,
+    giftToName: (giftInfo as any)?.toName,
+    amount: (amountTotal || 0) / 100,
+  });
 }
 
 export async function processNFTBookCollectionStripePurchase(
