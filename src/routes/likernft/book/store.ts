@@ -22,6 +22,7 @@ import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
+import { createAirtablePublicationRecord } from '../../../util/airtable';
 
 const router = Router();
 
@@ -488,6 +489,19 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         currency: defaultPaymentCurrency,
         prices,
         canPayByLIKE,
+      }),
+      createAirtablePublicationRecord({
+        id: classId,
+        timestamp: new Date(),
+        name: className,
+        description: metadata?.description || '',
+        iscnIdPrefix: metadata?.data?.parent?.iscn_id_prefix,
+        iscnVersionAtMint: metadata?.data?.parent?.iscn_version_at_mint,
+        ownerWallet,
+        type: metadata?.data?.metadata?.nft_meta_collection_id,
+        minPrice: prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity),
+        maxPrice: prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0),
+        imageURL: metadata?.data?.metadata?.image,
       }),
     ]);
 
