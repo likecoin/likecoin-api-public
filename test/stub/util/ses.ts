@@ -122,6 +122,10 @@ export function sendNFTBookSalesEmail({
   buyerEmail,
   bookName,
   amount,
+  originalPrice,
+  phone,
+  shippingDetails,
+  shippingCost,
 }) {
   return Promise.resolve();
 }

@@ -655,6 +655,10 @@ export async function sendNFTBookPurchaseEmail({
   giftInfo,
   mustClaimToView = false,
   isPhysicalOnly = false,
+  shippingDetails,
+  phone = '',
+  shippingCost = 0,
+  originalPrice = amountTotal,
 }) {
   if (isPhysicalOnly) {
     await sendNFTBookPhysicalOnlyEmail({
@@ -699,8 +703,12 @@ export async function sendNFTBookPurchaseEmail({
     giftToEmail: (giftInfo as any)?.toEmail,
     giftToName: (giftInfo as any)?.toName,
     emails: notificationEmails,
+    phone,
+    shippingDetails,
+    shippingCost,
+    originalPrice,
     bookName,
-    amount: (amountTotal || 0) / 100,
+    amount: amountTotal,
   });
 }
 
@@ -740,7 +748,15 @@ export async function processNFTBookStripePurchase(
       defaultPaymentCurrency,
     } = listingData;
     const {
-      claimToken, price, priceName, type, from, isGift, giftInfo, isPhysicalOnly,
+      claimToken,
+      price,
+      priceName,
+      type,
+      from,
+      isGift,
+      giftInfo,
+      isPhysicalOnly,
+      originalPriceInDecimal,
     } = txData;
     const [, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
@@ -767,6 +783,10 @@ export async function processNFTBookStripePurchase(
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
+        phone: phone || '',
+        shippingDetails,
+        shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
+        originalPrice: originalPriceInDecimal,
         isGift,
         giftInfo,
         notificationEmails,
@@ -775,7 +795,7 @@ export async function processNFTBookStripePurchase(
         priceName,
         paymentId,
         claimToken,
-        amountTotal,
+        amountTotal: (amountTotal || 0) / 100,
         mustClaimToView,
         isPhysicalOnly,
       }),
