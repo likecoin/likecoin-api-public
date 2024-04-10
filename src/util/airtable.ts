@@ -114,6 +114,7 @@ export async function queryAirtableForPublication({ query }) {
         'Owner Wallet',
         'Timestamp',
         'Type',
+        'Liker Land URL',
       ],
       filterByFormula: formula,
       view: 'All',
@@ -133,6 +134,7 @@ export async function queryAirtableForPublication({ query }) {
         'Max Price': maxPrice,
         Description: description,
         'ISCN Id Prefix': iscnId,
+        'Liker Land URL': url,
       }) => ({
         timestamp,
         ownerWallet,
@@ -141,6 +143,7 @@ export async function queryAirtableForPublication({ query }) {
         type,
         id,
         name,
+        url,
         imageUrl,
         minPrice,
         maxPrice,
