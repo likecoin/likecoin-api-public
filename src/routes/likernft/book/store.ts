@@ -22,9 +22,22 @@ import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
-import { createAirtablePublicationRecord } from '../../../util/airtable';
+import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 
 const router = Router();
+
+router.get('/search', async (req, res, next) => {
+  try {
+    const {
+      q,
+    } = req.query;
+    if (!q) throw new ValidationError('INVALID_SEARCH_QUERY');
+    const list = await queryAirtableForPublication({ query: q });
+    res.json({ list });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
