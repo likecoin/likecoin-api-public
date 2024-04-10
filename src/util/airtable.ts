@@ -5,6 +5,7 @@ import { AIRTABLE_API_KEY, AIRTABLE_BASE_ID } from '../../config/config';
 import { TEST_MODE } from '../constant';
 
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
+import { parseImageURLFromMetadata } from './api/likernft/metadata';
 
 let airtable: Airtable;
 let base: Airtable.Base;
@@ -20,7 +21,6 @@ export async function createAirtablePublicationRecord({
   name,
   description,
   iscnIdPrefix,
-  iscnVersionAtMint,
   ownerWallet,
   type,
   minPrice,
@@ -37,9 +37,10 @@ export async function createAirtablePublicationRecord({
   maxPrice: number;
   imageURL: string;
   iscnIdPrefix?: string;
-  iscnVersionAtMint?: number;
 }): Promise<void> {
-  if (TEST_MODE) return Promise.resolve();
+  if (TEST_MODE) return;
+
+  const normalizedImageURL = parseImageURLFromMetadata(imageURL);
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,17 +51,14 @@ export async function createAirtablePublicationRecord({
       ID: id,
       Name: name,
       Description: description,
-      Image: [{ url: imageURL }],
-      'Image URL': imageURL,
+      Image: [{ url: normalizedImageURL }],
+      'Image URL': normalizedImageURL,
       'Min Price': minPrice,
       'Max Price': maxPrice,
     };
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
-    }
-    if (iscnVersionAtMint) {
-      fields['ISCN Version At Mint'] = iscnVersionAtMint;
     }
 
     const ownerData = await getUserWithCivicLikerPropertiesByWallet(ownerWallet);
@@ -74,8 +72,6 @@ export async function createAirtablePublicationRecord({
     // eslint-disable-next-line no-console
     console.error(err);
   }
-
-  return Promise.resolve();
 }
 
 export default createAirtablePublicationRecord;
