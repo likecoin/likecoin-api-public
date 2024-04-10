@@ -361,6 +361,10 @@ export async function sendNFTBookCollectionPurchaseEmail({
   isGift = false,
   giftInfo = null,
   isPhysicalOnly = false,
+  phone = '',
+  shippingDetails,
+  shippingCost = 0,
+  originalPrice = amountTotal,
 }) {
   if (isPhysicalOnly) {
     await sendNFTBookPhysicalOnlyEmail({
@@ -403,7 +407,11 @@ export async function sendNFTBookCollectionPurchaseEmail({
     isGift,
     giftToEmail: (giftInfo as any)?.toEmail,
     giftToName: (giftInfo as any)?.toName,
-    amount: (amountTotal || 0) / 100,
+    amount: amountTotal,
+    phone,
+    shippingDetails,
+    shippingCost,
+    originalPrice,
   });
 }
 
@@ -439,7 +447,14 @@ export async function processNFTBookCollectionStripePurchase(
       defaultPaymentCurrency,
     } = listingData;
     const {
-      claimToken, price, type, from, isGift, giftInfo, isPhysicalOnly,
+      claimToken,
+      price,
+      type,
+      from,
+      isGift,
+      giftInfo,
+      isPhysicalOnly,
+      originalPriceInDecimal,
     } = txData;
     const [, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
@@ -468,8 +483,12 @@ export async function processNFTBookCollectionStripePurchase(
         collectionName,
         paymentId,
         claimToken,
-        amountTotal,
+        amountTotal: (amountTotal || 0) / 100,
         isPhysicalOnly,
+        phone: phone || '',
+        shippingDetails,
+        shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
+        originalPrice: originalPriceInDecimal / 100,
       }),
       sendNFTBookSalesSlackNotification({
         collectionId,

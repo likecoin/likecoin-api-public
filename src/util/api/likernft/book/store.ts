@@ -4,7 +4,6 @@ import { getNftBookInfo, NFT_BOOK_TEXT_DEFAULT_LOCALE } from '.';
 import { W3C_EMAIL_REGEX, PUBSUB_TOPIC_MISC } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getNFTClassDataById } from '../../../cosmos/nft';
-import { likeNFTBookCollection } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import {
@@ -134,6 +133,7 @@ export async function handleGiftBook(
         amountTotal: 0,
         mustClaimToView,
         isPhysicalOnly,
+        shippingDetails: null,
       }),
       sendNFTBookSalesSlackNotification({
         classId,

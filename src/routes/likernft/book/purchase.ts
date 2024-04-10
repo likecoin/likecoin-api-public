@@ -331,6 +331,7 @@ router.post(
           amountTotal: 0,
           mustClaimToView,
           isPhysicalOnly,
+          shippingDetails: null,
         }),
         sendNFTBookSalesSlackNotification({
           classId,
@@ -534,6 +535,7 @@ router.post(
           amountTotal: price,
           mustClaimToView,
           isPhysicalOnly,
+          shippingDetails: null,
         });
       }
       res.json({ claimed, nftId });
