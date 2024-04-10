@@ -813,11 +813,11 @@ export function sendNFTBookSalesEmail({
   shippingCost,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const title = `You have sold an NFT for $${amount}`;
+  const title = `You have sold an Book for $${amount}`;
   let content = `<p>Dear Creator,</p>
   <br/>
   <p>Congratulation!</p>
-  <p>${buyerEmail} has bought your NFT book ${bookName} for $${amount}${isGift ? ` as a gift to ${giftToName}<${giftToEmail}>` : ''}.</p>`;
+  <p>${buyerEmail} has bought your book ${bookName} for $${amount}${isGift ? ` as a gift to ${giftToName}<${giftToEmail}>` : ''}.</p>`;
   if (amount > originalPrice || shippingCost) {
     content += `<p>Price: $${originalPrice}</p>`;
     if (amount > originalPrice) {
