@@ -51,6 +51,28 @@ import {
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 
+function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
+  switch (currency) {
+    case 'USD':
+      return usdPriceInDecimal;
+    case 'HKD':
+      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
+    default:
+      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
+  }
+}
+
+function convertCurrencyToUSD(priceInDecimal: number, currency: string) {
+  switch (currency) {
+    case 'USD':
+      return priceInDecimal;
+    case 'HKD':
+      return Math.round((priceInDecimal / USD_TO_HKD_RATIO) * 10) / 10;
+    default:
+      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
+  }
+}
+
 export async function handleStripeConnectedAccount({
   classId = '',
   collectionId = '',
@@ -98,8 +120,8 @@ export async function handleStripeConnectedAccount({
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
         const transfer = await stripe.transfers.create({
-          amount: channelCommission,
-          currency,
+          amount: convertCurrencyToUSD(channelCommission, currency),
+          currency: 'usd', // stripe balance are setteled in USD in source tx
           destination: fromStripeConnectAccountId,
           transfer_group: paymentId,
           source_transaction: chargeId,
@@ -330,17 +352,6 @@ export async function processNFTBookPurchase({
     };
   });
   return { listingData, txData };
-}
-
-function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
-  switch (currency) {
-    case 'USD':
-      return usdPriceInDecimal;
-    case 'HKD':
-      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-    default:
-      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
-  }
 }
 
 export function getCouponDiscountRate(coupons, couponCode: string) {
