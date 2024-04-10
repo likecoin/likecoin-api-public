@@ -2,8 +2,6 @@ import Airtable from 'airtable';
 
 import { AIRTABLE_API_KEY, AIRTABLE_BASE_ID } from '../../config/config';
 
-import { TEST_MODE } from '../constant';
-
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 import { parseImageURLFromMetadata } from './api/likernft/metadata';
 
@@ -42,7 +40,7 @@ export async function createAirtablePublicationRecord({
   iscnObject?: any;
   metadata?: any;
 }): Promise<void> {
-  if (TEST_MODE) return;
+  if (!base) return;
 
   const normalizedImageURL = parseImageURLFromMetadata(imageURL);
 
