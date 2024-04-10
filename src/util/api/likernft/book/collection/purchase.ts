@@ -454,7 +454,7 @@ export async function processNFTBookCollectionStripePurchase(
       isGift,
       giftInfo,
       isPhysicalOnly,
-      originalPrice,
+      originalPriceInDecimal,
     } = txData;
     const [, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string),
@@ -488,7 +488,7 @@ export async function processNFTBookCollectionStripePurchase(
         phone: phone || '',
         shippingDetails,
         shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
-        originalPrice,
+        originalPrice: originalPriceInDecimal / 100,
       }),
       sendNFTBookSalesSlackNotification({
         collectionId,

@@ -786,7 +786,7 @@ export async function processNFTBookStripePurchase(
         phone: phone || '',
         shippingDetails,
         shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
-        originalPrice: originalPriceInDecimal,
+        originalPrice: originalPriceInDecimal / 100,
         isGift,
         giftInfo,
         notificationEmails,
