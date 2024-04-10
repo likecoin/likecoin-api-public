@@ -6,8 +6,13 @@ import { TEST_MODE } from '../constant';
 
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 
-const airtable = new Airtable({ apiKey: AIRTABLE_API_KEY });
-const base = airtable.base(AIRTABLE_BASE_ID);
+let airtable: Airtable;
+let base: Airtable.Base;
+
+if (!process.env.CI) {
+  airtable = new Airtable({ apiKey: AIRTABLE_API_KEY });
+  base = airtable.base(AIRTABLE_BASE_ID);
+}
 
 export async function createAirtablePublicationRecord({
   timestamp,
