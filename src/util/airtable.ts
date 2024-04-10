@@ -26,6 +26,8 @@ export async function createAirtablePublicationRecord({
   minPrice,
   maxPrice,
   imageURL,
+  iscnObject,
+  metadata,
 }: {
   timestamp: Date;
   name: string;
@@ -37,6 +39,8 @@ export async function createAirtablePublicationRecord({
   maxPrice: number;
   imageURL: string;
   iscnIdPrefix?: string;
+  iscnObject?: any;
+  metadata?: any;
 }): Promise<void> {
   if (TEST_MODE) return;
 
@@ -59,6 +63,22 @@ export async function createAirtablePublicationRecord({
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
+    }
+
+    if (iscnObject) {
+      try {
+        fields['ISCN Object'] = JSON.stringify(iscnObject);
+      } catch {
+        // No-op
+      }
+    }
+
+    if (metadata) {
+      try {
+        fields.Metadata = JSON.stringify(metadata);
+      } catch {
+        // No-op
+      }
     }
 
     const ownerData = await getUserWithCivicLikerPropertiesByWallet(ownerWallet);

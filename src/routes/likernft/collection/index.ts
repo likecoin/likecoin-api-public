@@ -88,6 +88,7 @@ router.post('/collection', jwtAuth('write:nftcollection'), async (req, res, next
       minPrice: price,
       maxPrice: price,
       imageURL: result.image,
+      metadata: result,
     });
 
     res.json(filterNFTCollection(result, true));
