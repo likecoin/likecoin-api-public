@@ -828,7 +828,7 @@ export function sendNFTBookSalesEmail({
     }
   }
   if (shippingDetails) {
-    content += `<p>Shipping details: ${JSON.stringify(shippingDetails)}</p>`;
+    content += `<p>Shipping details: <pre>${JSON.stringify(shippingDetails, null, 2)}</pre></p>`;
     content += `<p>Phone: ${phone}</p>`;
   }
   content += `<p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
