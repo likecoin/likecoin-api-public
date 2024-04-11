@@ -68,7 +68,7 @@ async function validateCollectionTypeData(
   if (!classIds.length) throw new ValidationError('INVALID_NFT_CLASS_IDS');
   if (!name) throw new ValidationError('INVALID_NAME');
   if (!description) throw new ValidationError('INVALID_DESCRIPTION');
-  let typePayload = {};
+  let typePayload: any = {};
   if (type === 'book') {
     // check book collection list valid, e.g. wallet own all nft classes
     const {

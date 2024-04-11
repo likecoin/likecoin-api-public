@@ -111,7 +111,7 @@ config.NEW_USER_BONUS_COOLDOWN = 259200000; // 3 days
 config.GCLOUD_PUBSUB_MAX_MESSAGES = 10;
 config.GCLOUD_PUBSUB_MAX_WAIT = 1000;
 config.GCLOUD_PUBSUB_ENABLE = false;
-config.APP_SERVER = 'likecoin-api-pulic';
+config.APP_SERVER = 'likecoin-api-public';
 
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
@@ -121,5 +121,8 @@ config.IS_CHAIN_UPGRADING = false;
 config.LIKER_LAND_GET_WALLET_SECRET = '';
 
 config.WNFT_BATCH_PURCHASE_LIMIT = 100;
+
+config.AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+config.AIRTABLE_BASE_ID = '';
 
 module.exports = config;

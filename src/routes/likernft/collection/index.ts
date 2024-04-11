@@ -15,6 +15,7 @@ import {
 } from '../../../util/api/likernft/collection';
 import { filterNFTCollection } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
+import { createAirtablePublicationRecord } from '../../../util/airtable';
 
 const router = Router();
 
@@ -75,6 +76,21 @@ router.post('/collection', jwtAuth('write:nftcollection'), async (req, res, next
       throw new ValidationError('INVALID_COLLECTION_TYPE');
     }
     const result = await createNFTCollectionByType(wallet as string, type, payload);
+
+    const price = (result.typePayload?.priceInDecimal || 0) / 100;
+    await createAirtablePublicationRecord({
+      timestamp: new Date(result.timestamp),
+      id: result.id,
+      name: result.name,
+      description: result.description,
+      ownerWallet: result.ownerWallet,
+      type: `col_${result.type}`,
+      minPrice: price,
+      maxPrice: price,
+      imageURL: result.image,
+      metadata: result,
+    });
+
     res.json(filterNFTCollection(result, true));
   } catch (err) {
     next(err);
