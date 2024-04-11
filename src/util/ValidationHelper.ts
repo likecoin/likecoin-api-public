@@ -596,26 +596,25 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       moderatorWallets,
       connectedWallets,
     } = payload;
+    const publicInfo = {
+      priceInDecimal,
+      stock,
+      defaultPaymentCurrency,
+      isAllowCustomPrice,
+      hasShipping,
+      shippingRates,
+      isPhysicalOnly,
+    };
     if (!isOwner) {
-      return {
-        priceInDecimal,
-        stock,
-        defaultPaymentCurrency,
-      };
+      return publicInfo;
     }
     return {
+      ...publicInfo,
       coupons,
       successUrl,
       cancelUrl,
-      priceInDecimal,
-      stock,
       sold,
       pendingNFTCount,
-      isAllowCustomPrice,
-      isPhysicalOnly,
-      hasShipping,
-      shippingRates,
-      defaultPaymentCurrency,
       notificationEmails,
       moderatorWallets,
       connectedWallets,
