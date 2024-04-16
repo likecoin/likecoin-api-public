@@ -15,6 +15,7 @@ import cosmos from './cosmos';
 import arweave from './arweave';
 import iscn from './iscn';
 import likernft from './likernft';
+import likerland from './likerland';
 import wallet from './wallet';
 
 const router = Router();
@@ -34,6 +35,7 @@ router.use('/cosmos', cosmos);
 router.use('/arweave', arweave);
 router.use('/iscn', iscn);
 router.use('/likernft', likernft);
+router.use('/likerland', likerland);
 router.use('/wallet', wallet);
 
 export default router;
