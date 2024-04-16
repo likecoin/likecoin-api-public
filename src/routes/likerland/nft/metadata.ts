@@ -111,7 +111,11 @@ async function getNFTClassAndISCNMetadata(classId) {
   }
   const [iscnData, apiMetadata] = await Promise.all(promises);
 
-  const classData = apiMetadata
+  const hasApiMetadata = !!apiMetadata && typeof apiMetadata === 'object'
+    && !Array.isArray(apiMetadata)
+    && apiMetadata !== null;
+
+  const classData = hasApiMetadata
     ? { ...chainMetadata, ...apiMetadata }
     : chainMetadata;
   const iscnOwner = iscnData.owner;
