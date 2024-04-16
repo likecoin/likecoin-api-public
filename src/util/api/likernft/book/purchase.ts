@@ -46,6 +46,7 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../ses';
+import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
@@ -758,8 +759,8 @@ export async function processNFTBookStripePurchase(
       isPhysicalOnly,
       originalPriceInDecimal,
     } = txData;
-    const [, classData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string),
+    const [capturedPaymentIntent, classData] = await Promise.all([
+      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction'] }),
       getNFTClassDataById(classId).catch(() => null),
     ]);
 
@@ -809,6 +810,7 @@ export async function processNFTBookStripePurchase(
         method: 'Fiat',
         from,
       }),
+      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent),
     ]);
   } catch (err) {
     // eslint-disable-next-line no-console
