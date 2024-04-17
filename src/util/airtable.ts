@@ -226,20 +226,11 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
       balanceTxCurrency = balanceTx.currency;
       balanceTxExchangeRate = balanceTx.exchange_rate || undefined;
 
-      balanceTx.fee_details.forEach(({
-        type,
-        amount,
-        currency,
-      }) => {
-        switch (type) {
-          case 'stripe_fee':
-            stripeFee = amount / 100;
-            stripeFeeCurrency = currency;
-            break;
-          default:
-            break;
-        }
-      });
+      const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+      if (stripeFeeDetails) {
+        stripeFee = stripeFeeDetails.amount / 100;
+        stripeFeeCurrency = stripeFeeDetails.currency;
+      }
 
       feeTotal = balanceTx.fee / 100;
     }
