@@ -208,7 +208,10 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
   let stripeFeeCurrency = 'usd';
   let feeTotal = 0;
 
-  if (pi.latest_charge && typeof pi.latest_charge !== 'string') {
+  if (!pi.latest_charge || typeof pi.latest_charge === 'string') {
+    // eslint-disable-next-line no-console
+    console.error('Latest charge not found in the payment indent:', pi.id);
+  } else {
     customerEmail = pi.latest_charge.billing_details?.email || '';
 
     const paymentMethodDetails = pi.latest_charge?.payment_method_details;
@@ -220,7 +223,10 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     }
 
     const balanceTx = pi.latest_charge.balance_transaction;
-    if (balanceTx && typeof balanceTx !== 'string') {
+    if (!balanceTx || typeof balanceTx === 'string') {
+      // eslint-disable-next-line no-console
+      console.error('Balance transaction not found in the payment indent:', pi.id);
+    } else {
       balanceTxAmount = balanceTx.amount / 100;
       balanceTxNetAmount = balanceTx.net / 100;
       balanceTxCurrency = balanceTx.currency;
