@@ -944,6 +944,7 @@ export async function claimNFTBook(
 
 export async function sendNFTBookClaimedEmailNotification(
   classId: string,
+  nftId: string,
   paymentId: string,
   {
     message, wallet, email, isGift, giftInfo,
@@ -964,7 +965,7 @@ export async function sendNFTBookClaimedEmailNotification(
   const { notificationEmails = [] } = docData;
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
-  if (notificationEmails && notificationEmails.length) {
+  if (!nftId && notificationEmails && notificationEmails.length) {
     await sendNFTBookClaimedEmail({
       emails: notificationEmails,
       classId,

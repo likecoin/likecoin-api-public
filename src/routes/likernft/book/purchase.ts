@@ -368,6 +368,7 @@ router.post(
 
         await sendNFTBookClaimedEmailNotification(
           classId,
+          nftId,
           paymentId,
           {
             message,
@@ -592,6 +593,7 @@ router.post(
       });
       await sendNFTBookClaimedEmailNotification(
         classId,
+        nftId,
         paymentId,
         {
           message,
