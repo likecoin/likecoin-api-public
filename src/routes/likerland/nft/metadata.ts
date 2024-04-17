@@ -4,7 +4,7 @@ import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
-import { API_HOSTNAME } from '../../../constant';
+import { API_HOSTNAME, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -294,7 +294,7 @@ router.get('/nft/metadata', async (req, res, next) => {
       result.bookstoreInfo = bookstoreInfo;
     }
 
-    res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=50');
+    res.set('Cache-Control', `public, max-age=10, stale-while-revalidate=${ONE_DAY_IN_S}`);
     res.json(result);
   } catch (err) {
     const error = err as AxiosError;
