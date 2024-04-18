@@ -33,6 +33,7 @@ import {
 } from '../../../../ses';
 import { sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
+import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -456,8 +457,8 @@ export async function processNFTBookCollectionStripePurchase(
       isPhysicalOnly,
       originalPriceInDecimal,
     } = txData;
-    const [, collectionData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string),
+    const [capturedPaymentIntent, collectionData] = await Promise.all([
+      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction'] }),
       getBookCollectionInfoById(collectionId),
     ]);
 
@@ -500,6 +501,7 @@ export async function processNFTBookCollectionStripePurchase(
         method: 'USD',
         from,
       }),
+      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent),
     ]);
   } catch (err) {
     // eslint-disable-next-line no-console
