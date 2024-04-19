@@ -446,7 +446,7 @@ export function filterBookPurchaseData({
   giftInfo,
   timestamp,
   autoMemo,
-  isAutoDeliver
+  isAutoDeliver,
 }) {
   return {
     id,
@@ -474,7 +474,7 @@ export function filterBookPurchaseData({
     giftInfo,
     timestamp: timestamp.toMillis(),
     autoMemo,
-    isAutoDeliver
+    isAutoDeliver,
   };
 }
 
