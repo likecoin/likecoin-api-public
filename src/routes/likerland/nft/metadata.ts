@@ -294,7 +294,7 @@ router.get('/nft/metadata', async (req, res, next) => {
       result.bookstoreInfo = bookstoreInfo;
     }
 
-    res.set('Cache-Control', `public, max-age=10, stale-while-revalidate=${ONE_DAY_IN_S}`);
+    res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);
     res.json(result);
   } catch (err) {
     const error = err as AxiosError;
