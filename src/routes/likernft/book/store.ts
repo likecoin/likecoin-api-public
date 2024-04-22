@@ -56,35 +56,46 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
     if (conditions.limit > 100) throw new ValidationError('LIMIT_TOO_LARGE', 400);
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
-    const list = ownedBookInfos.map((b) => {
-      const {
-        prices: docPrices = [],
-        shippingRates,
-        pendingNFTCount,
-        defaultPaymentCurrency,
-        moderatorWallets,
-        ownerWallet,
-        id,
-        timestamp,
-      } = b;
-      const isAuthorized = req.user
-        && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
-      const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
-      const result: any = {
-        classId: id,
-        ownerWallet,
-        prices,
-        stock,
-        shippingRates,
-        defaultPaymentCurrency,
-        timestamp: timestamp.toMillis(),
-      };
-      if (req.user && req.user.wallet === wallet) {
-        result.pendingNFTCount = pendingNFTCount;
-        result.sold = sold;
-      }
-      return result;
-    });
+    const list = ownedBookInfos
+      .filter((b) => {
+        const {
+          isHidden,
+          moderatorWallets = [],
+          ownerWallet,
+        } = b;
+        const isAuthorized = req.user
+          && (req.user.wallet === ownerWallet || moderatorWallets?.includes(req.user.wallet));
+        return isAuthorized || !isHidden;
+      })
+      .map((b) => {
+        const {
+          prices: docPrices = [],
+          shippingRates,
+          pendingNFTCount,
+          defaultPaymentCurrency,
+          moderatorWallets = [],
+          ownerWallet,
+          id,
+          timestamp,
+        } = b;
+        const isAuthorized = req.user
+          && (req.user.wallet === ownerWallet || moderatorWallets?.includes(req.user.wallet));
+        const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
+        const result: any = {
+          classId: id,
+          ownerWallet,
+          prices,
+          stock,
+          shippingRates,
+          defaultPaymentCurrency,
+          timestamp: timestamp.toMillis(),
+        };
+        if (isAuthorized) {
+          result.pendingNFTCount = pendingNFTCount;
+          result.sold = sold;
+        }
+        return result;
+      });
     const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
     if (req.user) {
       res.set('Cache-Control', 'no-store');
