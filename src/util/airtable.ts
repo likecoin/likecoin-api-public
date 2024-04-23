@@ -190,7 +190,9 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     classId,
     collectionId,
     priceIndex: priceIndexRaw,
-    likerLandArtFee: likerLandArtFeeRaw = '0',
+    likerLandArtFee: likerLandArtFeeRaw = 0,
+    likerLandTipFeeAmount: likerLandTipFeeRaw = 0,
+    customPriceDiff: customPriceDiffRaw = 0,
     utmSource,
     gaClientId,
     gaSessionId,
@@ -254,14 +256,17 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
   const likerLandCommission = isLikerLandChannel ? channelCommission : 0;
 
-  const likerLandArtFee = Number(likerLandArtFeeRaw) / 100;
+  const likerLandArtFee = Number(likerLandArtFeeRaw) / 100 || 0;
+  const likerLandTipFee = Number(likerLandTipFeeRaw) / 100 || 0;
+
+  const customPriceDiff = Number(customPriceDiffRaw) / 100 || 0;
 
   const otherCommission = !withStripeConnect && !isLikerLandChannel ? channelCommission : 0;
 
   // NOTE: Liker Land commission is included in the application fee after the commission fix date
   const applicationFee = pi.application_fee_amount ? pi.application_fee_amount / 100 : 0;
   const likerLandFee = withStripeConnect
-    ? applicationFee - stripeFee - likerLandCommission - likerLandArtFee
+    ? applicationFee - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee
     : balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
 
   // NOTE: We have to collect commission for tx with Stripe Connect before the commission fix date
@@ -272,7 +277,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
   );
 
   const payableAmount = !withStripeConnect
-    ? balanceTxAmount - stripeFee - likerLandFee - likerLandCommission - likerLandArtFee
+    ? balanceTxAmount - stripeFee - likerLandFee - likerLandCommission
+      - likerLandArtFee - likerLandTipFee
     : 0;
 
   return {
@@ -297,6 +303,9 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     stripeFeeCurrency,
     likerLandFee,
     likerLandArtFee,
+    likerLandTipFee,
+
+    customPriceDiff,
 
     // Commission
     channel,
@@ -345,6 +354,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
       'Liker Land Tx Fee': record.likerLandFee,
       'Liker Land Commission': record.likerLandCommission,
       'Liker Land Art Fee': record.likerLandArtFee,
+      'Tip Amount': record.customPriceDiff,
+      'Liker Land Tip Fee': record.likerLandTipFee,
       'Other Commission': record.otherCommission,
       'Payable To Liker Land': record.receivableAmount,
       'UTM Source': record.utmSource,
