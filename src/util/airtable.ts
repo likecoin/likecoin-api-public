@@ -249,6 +249,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
   const editionIndex = priceIndexRaw ? Number(priceIndexRaw) : 0;
 
   const withStripeConnect = !!pi.transfer_data;
+  const hasApplicationFee = withStripeConnect;
 
   const isAppliedStripeConnectCommissionFix = true;
 
@@ -316,6 +317,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     likerLandCommission,
     otherCommission,
     isStripeConnect: withStripeConnect,
+    hasApplicationFee,
 
     // Product
     productId: classId || collectionId,
@@ -351,6 +353,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
       'Balance Tx Net Amount': record.balanceTxNetAmount,
       'Balance Tx Exchange Rate': record.balanceTxExchangeRate,
       'Stripe Connected': record.isStripeConnect,
+      'Has Application Fee': record.hasApplicationFee,
       'Stripe Fee': record.stripeFee,
       'Stripe Fee Currency': record.stripeFeeCurrency,
       'Application Fee': record.applicationFee,
