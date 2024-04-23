@@ -193,6 +193,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     likerLandArtFee: likerLandArtFeeRaw = 0,
     likerLandTipFeeAmount: likerLandTipFeeRaw = 0,
     customPriceDiff: customPriceDiffRaw = 0,
+    channelCommission: channelCommissionRaw = 0,
+    likerLandCommission: likerLandCommissionRaw = 0,
     utmSource,
     gaClientId,
     gaSessionId,
@@ -250,11 +252,13 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
   const isAppliedStripeConnectCommissionFix = true;
 
-  const channelCommission = balanceTxAmount * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO;
+  const channelCommission = Number(channelCommissionRaw) / 100
+    || balanceTxAmount * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO;
 
   const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 
-  const likerLandCommission = isLikerLandChannel ? channelCommission : 0;
+  const likerLandCommission = Number(likerLandCommissionRaw) / 100
+    || isLikerLandChannel ? channelCommission : 0;
 
   const likerLandArtFee = Number(likerLandArtFeeRaw) / 100 || 0;
   const likerLandTipFee = Number(likerLandTipFeeRaw) / 100 || 0;
