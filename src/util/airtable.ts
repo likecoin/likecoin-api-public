@@ -184,13 +184,18 @@ async function queryAirtablePublicationRecordById(id: string) {
   return record;
 }
 
-function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.PaymentIntent) {
+function normalizeStripePaymentIntentForAirtableBookSalesRecord(
+  pi: Stripe.PaymentIntent,
+  transfers: Stripe.Transfer[],
+) {
   const {
     from: channel,
     classId,
     collectionId,
     priceIndex: priceIndexRaw,
     likerLandArtFee: likerLandArtFeeRaw = 0,
+    likerLandFeeAmount: calculatedLikerLandFeeRaw = 0,
+    stripeFeeAmount: calculatedStripeFeeRaw = 0,
     likerLandTipFeeAmount: likerLandTipFeeRaw = 0,
     customPriceDiff: customPriceDiffRaw = 0,
     channelCommission: channelCommissionRaw = 0,
@@ -275,8 +280,11 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
   const editionIndex = priceIndexRaw ? Number(priceIndexRaw) : 0;
 
-  const withStripeConnect = !!pi.transfer_data;
-  const hasApplicationFee = withStripeConnect;
+  const hasApplicationFee = !!pi.transfer_data;
+  const hasTransferGroup = !!pi.transfer_group;
+
+  const transferredAmount = transfers.length
+    ? transfers.reduce((acc, transfer) => acc + transfer.amount / 100, 0) : 0;
 
   const isAppliedStripeConnectCommissionFix = true;
 
@@ -293,23 +301,46 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
   const customPriceDiff = convertCurrency(Number(customPriceDiffRaw)) / 100 || 0;
 
-  const otherCommission = !withStripeConnect && !isLikerLandChannel ? channelCommission : 0;
+  const otherCommission = !isLikerLandChannel ? channelCommission : 0;
 
-  const likerLandFee = withStripeConnect
-    ? applicationFeeAmount - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee
-    : balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
+  const estimatedStripeFeeAmount = (Number(calculatedStripeFeeRaw) / 100)
+    || stripeFee;
+  const estimatedLikerLandFeeAmount = (Number(calculatedLikerLandFeeRaw) / 100)
+    || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
+
+  let likerLandFee = 0;
+  if (hasTransferGroup) {
+    // simplified calculation using commission transfer logic in API
+    likerLandFee = estimatedStripeFeeAmount - stripeFee + estimatedLikerLandFeeAmount;
+  } else if (hasApplicationFee) {
+    likerLandFee = applicationFeeAmount
+      - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
+  } else {
+    likerLandFee = balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
+  }
 
   // NOTE: We have to collect commission for tx with Stripe Connect before the commission fix date
   const receivableAmount = (
-    isLikerLandChannel && withStripeConnect && !isAppliedStripeConnectCommissionFix
+    isLikerLandChannel && hasApplicationFee && !isAppliedStripeConnectCommissionFix
       ? likerLandCommission
       : 0
   );
 
-  const payableAmount = !withStripeConnect
-    ? balanceTxAmount - stripeFee - likerLandFee - likerLandCommission
-      - likerLandArtFee - likerLandTipFee
-    : 0;
+  const hasPaidChannelCommission = isLikerLandChannel || !!transfers?.find((t) => t.metadata?.type === 'channelCommission');
+  const hasPaidConnectedWalletCommission = !!transfers?.find((t) => t.metadata?.type === 'connectedWallet');
+  let payableAmount = 0;
+  if (hasTransferGroup) {
+    if (!hasPaidConnectedWalletCommission) {
+      payableAmount = balanceTxAmount - stripeFee - likerLandFee - likerLandCommission
+        - likerLandArtFee - likerLandTipFee;
+    }
+    if (!hasPaidChannelCommission) {
+      payableAmount += otherCommission;
+    }
+  } else if (!hasApplicationFee) {
+    payableAmount = balanceTxAmount
+      - stripeFee - likerLandFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
+  }
 
   return {
     id: pi.id,
@@ -329,6 +360,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     // Fee
     feeTotal,
     applicationFee: applicationFeeAmount,
+    transferredAmount,
     stripeFee,
     stripeFeeCurrency,
     likerLandFee,
@@ -341,7 +373,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
     channel,
     likerLandCommission,
     otherCommission,
-    isStripeConnect: withStripeConnect,
     hasApplicationFee,
 
     // Product
@@ -361,9 +392,10 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
 export async function createAirtableBookSalesRecordFromStripePaymentIntent(
   pi: Stripe.PaymentIntent,
+  transfers: Stripe.Transfer[],
 ): Promise<void> {
   try {
-    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(pi);
+    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(pi, transfers);
     const fields: Partial<FieldSet> = {
       ID: record.id,
       Date: record.date,
@@ -377,7 +409,6 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
       'Balance Tx Currency': record.balanceTxCurrency,
       'Balance Tx Net Amount': record.balanceTxNetAmount,
       'Balance Tx Exchange Rate': record.balanceTxExchangeRate,
-      'Stripe Connected': record.isStripeConnect,
       'Has Application Fee': record.hasApplicationFee,
       'Stripe Fee': record.stripeFee,
       'Stripe Fee Currency': record.stripeFeeCurrency,
@@ -389,6 +420,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
       'Tip Amount': record.customPriceDiff,
       'Liker Land Tip Fee': record.likerLandTipFee,
       'Other Commission': record.otherCommission,
+      'Transferred Amount': record.transferredAmount,
       'Payable To Liker Land': record.receivableAmount,
       'UTM Source': record.utmSource,
       'GA Client ID': record.gaClientId,
