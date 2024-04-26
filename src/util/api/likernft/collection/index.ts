@@ -98,8 +98,13 @@ async function validateCollectionTypeData(
     if (coupons?.length) validateCoupons(coupons);
     await Promise.all(
       classIds.map(async (classId) => {
-        const result = await getISCNFromNFTClassId(classId);
-        if (!result) throw new ValidationError('CLASS_ID_NOT_FOUND');
+        const result = await getISCNFromNFTClassId(classId)
+          .catch((err) => {
+            // eslint-disable-next-line no-console
+            console.error(err);
+            return null;
+          });
+        if (!result) throw new ValidationError(`CLASS_ID_NOT_FOUND: ${classId}`);
         // Skip ISCN owner check
         // const { owner: ownerWallet } = result;
         // if (ownerWallet !== wallet) {
