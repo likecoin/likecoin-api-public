@@ -79,7 +79,7 @@ router.post('/collection', jwtAuth('write:nftcollection'), async (req, res, next
 
     const price = (result.typePayload?.priceInDecimal || 0) / 100;
     await createAirtablePublicationRecord({
-      timestamp: new Date(result.timestamp),
+      timestamp: new Date(result.timestamp || Date.now()),
       id: result.id,
       name: result.name,
       description: result.description,
