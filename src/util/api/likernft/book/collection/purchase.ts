@@ -450,7 +450,7 @@ export async function processNFTBookCollectionStripePurchase(
     });
     const {
       notificationEmails = [],
-      defaultPaymentCurrency,
+      defaultPaymentCurrency = 'USD',
       connectedWallets,
       ownerWallet,
     } = listingData;

@@ -887,7 +887,7 @@ export async function processNFTBookStripePurchase(
     const {
       notificationEmails = [],
       mustClaimToView = false,
-      defaultPaymentCurrency,
+      defaultPaymentCurrency = 'USD',
       connectedWallets,
       ownerWallet,
     } = listingData;
