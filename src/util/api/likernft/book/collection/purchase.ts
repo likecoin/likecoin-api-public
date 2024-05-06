@@ -471,6 +471,7 @@ export async function processNFTBookCollectionStripePurchase(
       getBookCollectionInfoById(collectionId),
     ]);
 
+    const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     await handleStripeConnectedAccount(
       {
         collectionId,
@@ -479,7 +480,7 @@ export async function processNFTBookCollectionStripePurchase(
       },
       {
         amountTotal,
-        chargeId: capturedPaymentIntent.latest_charge,
+        chargeId,
         currency: defaultPaymentCurrency,
         stripeFeeAmount: Number(stripeFeeAmount),
         likerLandFeeAmount: Number(likerLandFeeAmount),
