@@ -458,7 +458,7 @@ export async function processNFTBookCollectionStripePurchase(
       originalPriceInDecimal,
     } = txData;
     const [capturedPaymentIntent, collectionData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction'] }),
+      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction', 'latest_charge.application_fee'] }),
       getBookCollectionInfoById(collectionId),
     ]);
 
