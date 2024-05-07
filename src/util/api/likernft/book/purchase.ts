@@ -178,8 +178,8 @@ export async function handleStripeConnectedAccount({
           .map(async ([wallet, stripeConnectAccountId]) => {
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
-              amount: amountSplit,
-              currency,
+              amount: convertCurrencyToUSD(amountSplit, currency),
+              currency: 'usd', // stripe balance are setteled in USD in source tx
               destination: stripeConnectAccountId,
               transfer_group: paymentId,
               source_transaction: chargeId,
