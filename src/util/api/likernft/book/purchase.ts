@@ -67,7 +67,7 @@ function convertCurrencyToUSD(priceInDecimal: number, currency: string) {
     case 'USD':
       return priceInDecimal;
     case 'HKD':
-      return Math.round((priceInDecimal / USD_TO_HKD_RATIO) * 10) / 10;
+      return Math.round(priceInDecimal / USD_TO_HKD_RATIO);
     default:
       throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
   }
