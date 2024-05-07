@@ -194,3 +194,8 @@ export const LIST_OF_BOOK_SHIPPING_COUNTRY = [
 ];
 
 export const MAXIMUM_CUSTOM_PRICE_IN_DECIMAL = 99999999;
+
+export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
+  'latest_charge.balance_transaction',
+  'latest_charge.application_fee',
+];

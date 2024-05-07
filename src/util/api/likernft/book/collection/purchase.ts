@@ -15,6 +15,7 @@ import {
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
+  STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
@@ -458,7 +459,9 @@ export async function processNFTBookCollectionStripePurchase(
       originalPriceInDecimal,
     } = txData;
     const [capturedPaymentIntent, collectionData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction'] }),
+      stripe.paymentIntents.capture(paymentIntent as string, {
+        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+      }),
       getBookCollectionInfoById(collectionId),
     ]);
 

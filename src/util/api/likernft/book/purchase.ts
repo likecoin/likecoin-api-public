@@ -19,6 +19,7 @@ import {
   LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
+  STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
@@ -760,7 +761,9 @@ export async function processNFTBookStripePurchase(
       originalPriceInDecimal,
     } = txData;
     const [capturedPaymentIntent, classData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string, { expand: ['latest_charge.balance_transaction'] }),
+      stripe.paymentIntents.capture(paymentIntent as string, {
+        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+      }),
       getNFTClassDataById(classId).catch(() => null),
     ]);
 

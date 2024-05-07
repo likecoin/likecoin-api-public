@@ -210,7 +210,12 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
   let balanceTxNetAmount = 0;
   let stripeFee = 0;
   let stripeFeeCurrency = 'usd';
+  let applicationFeeAmount = 0;
   let feeTotal = 0;
+
+  function convertCurrency(amount: number) {
+    return balanceTxExchangeRate ? amount * balanceTxExchangeRate : amount;
+  }
 
   if (!pi.latest_charge || typeof pi.latest_charge === 'string') {
     // eslint-disable-next-line no-console
@@ -234,15 +239,37 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
       balanceTxAmount = balanceTx.amount / 100;
       balanceTxNetAmount = balanceTx.net / 100;
       balanceTxCurrency = balanceTx.currency;
-      balanceTxExchangeRate = balanceTx.exchange_rate || undefined;
+      if (balanceTx.exchange_rate) {
+        balanceTxExchangeRate = balanceTx.exchange_rate;
+      }
 
       const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
       if (stripeFeeDetails) {
-        stripeFee = stripeFeeDetails.amount / 100;
         stripeFeeCurrency = stripeFeeDetails.currency;
+        stripeFee = (
+          stripeFeeDetails.currency !== balanceTxCurrency
+            ? convertCurrency(stripeFeeDetails.amount)
+            : stripeFeeDetails.amount
+        ) / 100;
       }
 
       feeTotal = balanceTx.fee / 100;
+
+      if (pi.application_fee_amount) {
+        const applicationFee = pi.latest_charge.application_fee;
+        if (!applicationFee || typeof applicationFee === 'string') {
+          // eslint-disable-next-line no-console
+          console.error('Application fee not found in the payment indent:', pi.id);
+        } else {
+          // NOTE:
+          // Liker Land commission is included in the application fee after the commission fix date
+          applicationFeeAmount = (
+            applicationFee.currency !== balanceTxCurrency
+              ? convertCurrency(applicationFee.amount)
+              : applicationFee.amount
+          ) / 100;
+        }
+      }
     }
   }
 
@@ -253,25 +280,23 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
   const isAppliedStripeConnectCommissionFix = true;
 
-  const channelCommission = Number(channelCommissionRaw) / 100
+  const channelCommission = convertCurrency(Number(channelCommissionRaw)) / 100
     || balanceTxAmount * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO;
 
   const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 
-  const likerLandCommission = Number(likerLandCommissionRaw) / 100
+  const likerLandCommission = convertCurrency(Number(likerLandCommissionRaw)) / 100
     || isLikerLandChannel ? channelCommission : 0;
 
-  const likerLandArtFee = Number(likerLandArtFeeRaw) / 100 || 0;
-  const likerLandTipFee = Number(likerLandTipFeeRaw) / 100 || 0;
+  const likerLandArtFee = convertCurrency(Number(likerLandArtFeeRaw)) / 100 || 0;
+  const likerLandTipFee = convertCurrency(Number(likerLandTipFeeRaw)) / 100 || 0;
 
-  const customPriceDiff = Number(customPriceDiffRaw) / 100 || 0;
+  const customPriceDiff = convertCurrency(Number(customPriceDiffRaw)) / 100 || 0;
 
   const otherCommission = !withStripeConnect && !isLikerLandChannel ? channelCommission : 0;
 
-  // NOTE: Liker Land commission is included in the application fee after the commission fix date
-  const applicationFee = pi.application_fee_amount ? pi.application_fee_amount / 100 : 0;
   const likerLandFee = withStripeConnect
-    ? applicationFee - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee
+    ? applicationFeeAmount - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee
     : balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
 
   // NOTE: We have to collect commission for tx with Stripe Connect before the commission fix date
@@ -303,7 +328,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(pi: Stripe.Payme
 
     // Fee
     feeTotal,
-    applicationFee,
+    applicationFee: applicationFeeAmount,
     stripeFee,
     stripeFeeCurrency,
     likerLandFee,
