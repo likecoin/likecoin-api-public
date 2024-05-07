@@ -284,7 +284,13 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   const hasTransferGroup = !!pi.transfer_group;
 
   const transferredAmount = transfers.length
-    ? transfers.reduce((acc, transfer) => acc + transfer.amount / 100, 0) : 0;
+    ? transfers.reduce((acc, transfer) => {
+      let amount = transfer.amount / 100;
+      if (balanceTxCurrency !== transfer.currency) {
+        amount = convertCurrency(amount);
+      }
+      return acc + amount;
+    }, 0) : 0;
 
   const isAppliedStripeConnectCommissionFix = true;
 
