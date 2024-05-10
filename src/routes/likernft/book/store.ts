@@ -166,6 +166,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       mustClaimToView = false,
       hideDownload = false,
       canPayByLIKE = false,
+      enableCustomMessagePage,
       coupons,
     } = bookInfo;
     const isAuthorized = req.user
@@ -181,6 +182,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       mustClaimToView,
       hideDownload,
       canPayByLIKE,
+      enableCustomMessagePage,
     };
     if (isAuthorized) {
       payload.sold = sold;
@@ -451,6 +453,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView = false,
       hideDownload = false,
       canPayByLIKE = false,
+      enableCustomMessagePage = false,
       autoDeliverNFTsTxHash,
       coupons,
     } = req.body;
@@ -498,6 +501,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       connectedWallets,
       shippingRates,
       mustClaimToView,
+      enableCustomMessagePage,
       hideDownload,
       canPayByLIKE,
       coupons,
@@ -536,6 +540,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       classId,
       mustClaimToView,
       hideDownload,
+      enableCustomMessagePage,
       canPayByLIKE,
     });
 
@@ -559,6 +564,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       mustClaimToView,
       hideDownload,
       canPayByLIKE,
+      enableCustomMessagePage,
       coupons,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
@@ -578,6 +584,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       mustClaimToView,
       hideDownload,
       canPayByLIKE,
+      enableCustomMessagePage,
       coupons,
     });
 
