@@ -53,6 +53,7 @@ import {
   sendNFTBookSaleCommissionEmail,
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 
 function convertCurrency(priceInDecimal, exchangeRate) {
   return Math.round(priceInDecimal * exchangeRate);
@@ -113,12 +114,17 @@ export async function handleStripeConnectedAccount({
       }
     }
     let fromStripeConnectAccountId;
-    if (fromUser) {
+    if (fromUser && fromUser.bookUserInfo) {
+      const { bookUserInfo, likerUserinfo } = fromUser;
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
-        notificationEmail,
-      } = fromUser;
+        isEnableNotificationEmails = true,
+      } = bookUserInfo;
+      const {
+        email,
+        isEmailVerified,
+      } = likerUserinfo || {};
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
@@ -150,9 +156,10 @@ export async function handleStripeConnectedAccount({
           currency,
           timestamp: FieldValue.serverTimestamp(),
         });
-        if (notificationEmail) {
+        const shouldSendNotificationEmail = isEnableNotificationEmails && email && isEmailVerified;
+        if (shouldSendNotificationEmail) {
           await sendNFTBookSaleCommissionEmail({
-            email: notificationEmail,
+            email,
             classId,
             collectionId,
             bookName,
@@ -201,7 +208,7 @@ export async function handleStripeConnectedAccount({
           .map(async ([wallet, userInfo]) => {
             const {
               stripeConnectAccountId,
-              notificationEmail,
+              isEnableNotificationEmails = true,
             } = userInfo;
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
@@ -231,9 +238,16 @@ export async function handleStripeConnectedAccount({
               currency,
               timestamp: FieldValue.serverTimestamp(),
             });
-            if (notificationEmail) {
+            const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+            const {
+              email,
+              isEmailVerified,
+            } = likerUserInfo || {};
+            const shouldSendNotificationEmail = isEnableNotificationEmails
+              && email && isEmailVerified;
+            if (shouldSendNotificationEmail) {
               await sendNFTBookSaleCommissionEmail({
-                email: notificationEmail,
+                email,
                 classId,
                 collectionId,
                 bookName,
