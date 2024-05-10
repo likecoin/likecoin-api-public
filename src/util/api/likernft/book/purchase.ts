@@ -338,7 +338,7 @@ export async function formatStripeCheckoutSession({
   };
 
   if (customPriceDiffInDecimal) {
-    paymentIntentData.metadata.customPriceDiff = customPriceDiffInDecimal;
+    paymentIntentData.metadata.customPriceDiff = convertedCustomPriceDiffInDecimal;
   }
 
   if (connectedWallets && Object.keys(connectedWallets).length) {
