@@ -294,13 +294,13 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const isAppliedStripeConnectCommissionFix = true;
 
-  const channelCommission = convertCurrency(Number(channelCommissionRaw)) / 100
+  const channelCommission = (convertCurrency(Number(channelCommissionRaw)) / 100)
     || balanceTxAmount * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO;
 
   const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 
-  const likerLandCommission = convertCurrency(Number(likerLandCommissionRaw)) / 100
-    || isLikerLandChannel ? channelCommission : 0;
+  const likerLandCommission = (convertCurrency(Number(likerLandCommissionRaw)) / 100)
+    || (isLikerLandChannel ? channelCommission : 0);
 
   const likerLandArtFee = convertCurrency(Number(likerLandArtFeeRaw)) / 100 || 0;
   const likerLandTipFee = convertCurrency(Number(likerLandTipFeeRaw)) / 100 || 0;
@@ -309,9 +309,9 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const otherCommission = !isLikerLandChannel ? channelCommission : 0;
 
-  const estimatedStripeFeeAmount = (Number(calculatedStripeFeeRaw) / 100)
+  const estimatedStripeFeeAmount = (convertCurrency(Number(calculatedStripeFeeRaw)) / 100)
     || stripeFee;
-  const estimatedLikerLandFeeAmount = (Number(calculatedLikerLandFeeRaw) / 100)
+  const estimatedLikerLandFeeAmount = (convertCurrency(Number(calculatedLikerLandFeeRaw)) / 100)
     || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
 
   let likerLandFee = 0;
