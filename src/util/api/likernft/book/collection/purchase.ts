@@ -480,7 +480,7 @@ export async function processNFTBookCollectionStripePurchase(
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
 
-    await handleStripeConnectedAccount(
+    const { transfers } = await handleStripeConnectedAccount(
       {
         collectionId,
         paymentId,
@@ -540,7 +540,7 @@ export async function processNFTBookCollectionStripePurchase(
         method: 'USD',
         from,
       }),
-      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent),
+      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent, transfers),
     ]);
   } catch (err) {
     // eslint-disable-next-line no-console
