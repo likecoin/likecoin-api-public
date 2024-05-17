@@ -6,8 +6,63 @@ import stripe from '../../../util/stripe';
 import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
+import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 
 const router = Router();
+
+router.get(
+  '/profile',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+      const userData = userDoc.data();
+      if (!userData) {
+        throw new ValidationError('USER_NOT_FOUND', 404);
+      }
+      const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+      const {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        isEnableNotificationEmails = true,
+      } = userData;
+      const {
+        email = null,
+        isEmailVerified = false,
+      } = likerUserInfo || {};
+      const payload = {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+        isEnableNotificationEmails,
+        notificationEmail: email,
+        isEmailVerified,
+      };
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/profile',
+  jwtAuth('write:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const {
+        isEnableNotificationEmails,
+      } = req.body;
+      await likeNFTBookUserCollection.doc(wallet).update({
+        isEnableNotificationEmails,
+      });
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get(
   '/connect/status',

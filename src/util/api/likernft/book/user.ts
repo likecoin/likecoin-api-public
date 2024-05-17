@@ -1,6 +1,9 @@
 import { ValidationError } from '../../../ValidationError';
 import { likeNFTBookUserCollection } from '../../../firebase';
-import { getUserWithCivicLikerProperties } from '../../users/getPublicInfo';
+import {
+  getUserWithCivicLikerProperties,
+  getUserWithCivicLikerPropertiesByWallet,
+} from '../../users/getPublicInfo';
 
 export async function getBookUserInfo(wallet: string) {
   const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
@@ -16,7 +19,7 @@ export async function getBookUserInfoFromLikerId(likerId: string) {
   if (!userInfo) return null;
   const { likeWallet } = userInfo;
   const user = await getBookUserInfo(likeWallet);
-  return { likeWallet, ...user };
+  return { likeWallet, bookUserInfo: user, likerUserInfo: userInfo };
 }
 
 export async function getBookUserInfoFromLegacyString(from: string) {
@@ -29,27 +32,9 @@ export async function getBookUserInfoFromLegacyString(from: string) {
   if (!userData) {
     return null;
   }
-  return { likeWallet: userDoc.id, ...userData };
-}
-
-export async function getStripeConnectAccountId(wallet: string) {
-  const userData = await getBookUserInfo(wallet);
-  if (!userData) return null;
-  const { stripeConnectAccountId, isStripeConnectReady } = userData;
-  return isStripeConnectReady ? stripeConnectAccountId : null;
-}
-
-export async function getStripeConnectAccountIdFromLikerId(likerId: string) {
-  const user = await getBookUserInfoFromLikerId(likerId);
-  if (!user) return null;
-  return user.isStripeConnectReady ? user.stripeConnectAccountId : null;
-}
-
-export async function getStripeConnectAccountIdFromLegacyString(from: string) {
-  const user = await getBookUserInfoFromLegacyString(from);
-  if (!user) return null;
-  const { stripeConnectAccountId, isStripeConnectReady } = user;
-  return isStripeConnectReady ? stripeConnectAccountId : null;
+  const likeWallet = userDoc.id;
+  const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(likeWallet);
+  return { likeWallet: userDoc.id, bookUserInfo: userData, likerUserInfo };
 }
 
 export async function validateConnectedWallets(connectedWallets: {[key: string]: number}) {
