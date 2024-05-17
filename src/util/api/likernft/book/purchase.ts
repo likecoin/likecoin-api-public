@@ -23,9 +23,11 @@ import {
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
-import { getStripeConnectAccountId } from './user';
+import { getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId, getStripeConnectAccountId } from './user';
 import stripe from '../../../stripe';
-import { likeNFTBookCollection, FieldValue, db } from '../../../firebase';
+import {
+  likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
+} from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
@@ -48,6 +50,158 @@ import {
   sendNFTBookGiftSentEmail,
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+
+function convertCurrency(priceInDecimal, exchangeRate) {
+  return Math.round(priceInDecimal * exchangeRate);
+}
+
+function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
+  switch (currency) {
+    case 'USD':
+      return usdPriceInDecimal;
+    case 'HKD':
+      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
+    default:
+      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
+  }
+}
+
+export async function handleStripeConnectedAccount({
+  classId = '',
+  collectionId = '',
+  priceIndex = -1,
+  paymentId,
+  ownerWallet,
+}: {
+  classId?: string,
+  collectionId?: string,
+  priceIndex?: number,
+  paymentId: string,
+  ownerWallet: string,
+}, {
+  chargeId,
+  amountTotal,
+  currency,
+  exchangeRate,
+  stripeFeeAmount = 0,
+  likerLandFeeAmount = 0,
+  likerLandTipFeeAmount = 0,
+  likerLandCommission = 0,
+  likerlandArtFee = 0,
+  channelCommission = 0,
+}, { connectedWallets, from }) {
+  const metadata: Record<string, string> = {
+    ownerWallet,
+  };
+  if (classId) metadata.classId = classId;
+  if (collectionId) metadata.collectionId = collectionId;
+  if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
+  if (channelCommission) {
+    let fromUser: any = null;
+    if (from && !checkIsFromLikerLand(from)) {
+      if (from.startsWith('@')) {
+        fromUser = await getBookUserInfoFromLikerId(
+          from.substring(1, from.length),
+        );
+      } else {
+        fromUser = await getBookUserInfoFromLegacyString(from);
+      }
+    }
+    let fromStripeConnectAccountId;
+    if (fromUser) {
+      const { stripeConnectAccountId, isStripeConnectReady } = fromUser;
+      if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
+      if (fromStripeConnectAccountId) {
+        const fromLikeWallet = fromUser.likeWallet;
+        const transfer = await stripe.transfers.create({
+          amount: convertCurrency(channelCommission, exchangeRate),
+          currency: 'usd', // stripe balance are setteled in USD in source tx
+          destination: fromStripeConnectAccountId,
+          transfer_group: paymentId,
+          source_transaction: chargeId,
+          metadata: {
+            type: 'channelCommission',
+            channel: from,
+            ...metadata,
+          },
+        });
+        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(paymentId).create({
+          type: 'channelCommission',
+          ownerWallet,
+          classId,
+          priceIndex,
+          collectionId,
+          transferId: transfer.id,
+          chargeId,
+          stripeConnectAccountId,
+          paymentId,
+          amountTotal,
+          amount: channelCommission,
+          currency,
+          timestamp: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+  }
+  if (connectedWallets && Object.keys(connectedWallets).length) {
+    const amountToSplit = amountTotal
+      - channelCommission
+      - (stripeFeeAmount
+        + likerLandFeeAmount
+        + likerLandCommission
+        + likerlandArtFee
+        + likerLandTipFeeAmount);
+    if (amountToSplit > 0) {
+      const wallets = Object.keys(connectedWallets);
+      const stripeConnectAccountIds: string[] = await Promise.all(
+        wallets.map((wallet) => getStripeConnectAccountId(wallet)
+          // eslint-disable-next-line no-console
+          .catch((e) => { console.error(e); })),
+      );
+      let totalSplit = 0;
+      const walletToIdMap: Record<string, string> = {};
+      wallets.forEach((wallet, i) => {
+        const stripeConnectAccountId = stripeConnectAccountIds[i];
+        if (stripeConnectAccountId) {
+          walletToIdMap[wallet] = stripeConnectAccountId;
+          totalSplit += connectedWallets[wallet];
+        }
+      });
+      await Promise.all(
+        Object.entries(walletToIdMap)
+          .map(async ([wallet, stripeConnectAccountId]) => {
+            const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+            const transfer = await stripe.transfers.create({
+              amount: convertCurrency(amountSplit, exchangeRate),
+              currency: 'usd', // stripe balance are setteled in USD in source tx
+              destination: stripeConnectAccountId,
+              transfer_group: paymentId,
+              source_transaction: chargeId,
+              metadata: {
+                type: 'connectedWallet',
+                ...metadata,
+              },
+            });
+            await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(paymentId).create({
+              type: 'connectedWallet',
+              ownerWallet,
+              classId,
+              priceIndex,
+              collectionId,
+              transferId: transfer.id,
+              chargeId,
+              stripeConnectAccountId,
+              paymentId,
+              amountTotal,
+              amount: amountSplit,
+              currency,
+              timestamp: FieldValue.serverTimestamp(),
+            });
+          }),
+      );
+    }
+  }
+}
 
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
@@ -194,17 +348,6 @@ export async function processNFTBookPurchase({
   return { listingData, txData };
 }
 
-function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
-  switch (currency) {
-    case 'USD':
-      return usdPriceInDecimal;
-    case 'HKD':
-      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-    default:
-      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
-  }
-}
-
 export function getCouponDiscountRate(coupons, couponCode: string) {
   let discount = 1;
   if (coupons?.[couponCode]) {
@@ -268,7 +411,6 @@ export async function formatStripeCheckoutSession({
   defaultPaymentCurrency,
   priceInDecimal,
   customPriceDiffInDecimal,
-  connectedWallets,
   isLikerLandArt,
   successUrl,
   cancelUrl,
@@ -278,12 +420,11 @@ export async function formatStripeCheckoutSession({
   defaultPaymentCurrency: string,
   priceInDecimal: number,
   customPriceDiffInDecimal?: number,
-  connectedWallets: string[],
   isLikerLandArt: boolean,
   successUrl: string,
   cancelUrl: string,
 }) {
-  const sessionMetadata: Stripe.MetadataParam = {
+  let sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
     paymentId,
     ownerWallet,
@@ -321,6 +462,9 @@ export async function formatStripeCheckoutSession({
   const likerLandTipFeeAmount = Math.ceil(
     convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   );
+  const channelCommission = (from && !isFromLikerLand)
+    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+    : 0;
   const likerLandCommission = isFromLikerLand
     ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
     : 0;
@@ -328,36 +472,22 @@ export async function formatStripeCheckoutSession({
     ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
     : 0;
 
-  paymentIntentData.metadata = {
-    ...paymentIntentData.metadata,
+  paymentIntentData.transfer_group = paymentId;
+  sessionMetadata = {
+    ...sessionMetadata,
     stripeFeeAmount,
     likerLandTipFeeAmount,
     likerLandFeeAmount,
     likerLandCommission,
+    channelCommission,
     likerlandArtFee,
   };
 
   if (customPriceDiffInDecimal) {
-    paymentIntentData.metadata.customPriceDiff = convertedCustomPriceDiffInDecimal;
+    sessionMetadata.customPriceDiff = convertedCustomPriceDiffInDecimal;
   }
 
-  if (connectedWallets && Object.keys(connectedWallets).length) {
-    const wallet = Object.keys(connectedWallets)[0];
-    const stripeConnectAccountId = await getStripeConnectAccountId(wallet);
-    if (stripeConnectAccountId) {
-      // TODO: support connectedWallets +1
-      paymentIntentData.application_fee_amount = (
-        stripeFeeAmount
-          + likerLandFeeAmount
-          + likerLandCommission
-          + likerlandArtFee
-          + likerLandTipFeeAmount
-      );
-      paymentIntentData.transfer_data = {
-        destination: stripeConnectAccountId,
-      };
-    }
-  }
+  paymentIntentData.metadata = sessionMetadata;
 
   const productMetadata: Stripe.MetadataParam = {};
   if (classId) productMetadata.classId = classId;
@@ -505,7 +635,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       gaSessionId,
     }),
     ownerWallet,
-    connectedWallets,
     shippingRates,
     defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
@@ -609,7 +738,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     defaultPaymentCurrency,
     priceInDecimal,
     customPriceDiffInDecimal,
-    connectedWallets,
     isLikerLandArt,
     successUrl,
     cancelUrl,
@@ -724,6 +852,12 @@ export async function processNFTBookStripePurchase(
       iscnPrefix,
       paymentId,
       priceIndex: priceIndexString = '0',
+      stripeFeeAmount = '0',
+      likerLandFeeAmount = '0',
+      likerLandTipFeeAmount = '0',
+      likerLandCommission = '0',
+      channelCommission = '0',
+      likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -747,7 +881,9 @@ export async function processNFTBookStripePurchase(
     const {
       notificationEmails = [],
       mustClaimToView = false,
-      defaultPaymentCurrency,
+      defaultPaymentCurrency = 'USD',
+      connectedWallets,
+      ownerWallet,
     } = listingData;
     const {
       claimToken,
@@ -766,6 +902,36 @@ export async function processNFTBookStripePurchase(
       }),
       getNFTClassDataById(classId).catch(() => null),
     ]);
+
+    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+      ?.balance_transaction as Stripe.BalanceTransaction;
+    const currency = balanceTx?.currency || defaultPaymentCurrency;
+    const exchangeRate = balanceTx?.exchange_rate
+      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
+
+    const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+
+    await handleStripeConnectedAccount(
+      {
+        classId,
+        priceIndex,
+        paymentId,
+        ownerWallet,
+      },
+      {
+        amountTotal,
+        chargeId,
+        exchangeRate,
+        currency,
+        stripeFeeAmount: Number(stripeFeeAmount),
+        likerLandFeeAmount: Number(likerLandFeeAmount),
+        likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
+        likerLandCommission: Number(likerLandCommission),
+        channelCommission: Number(channelCommission),
+        likerlandArtFee: Number(likerlandArtFee),
+      },
+      { connectedWallets, from },
+    );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',
