@@ -484,7 +484,7 @@ export async function formatStripeCheckoutSession({
   };
 
   if (customPriceDiffInDecimal) {
-    sessionMetadata.customPriceDiff = customPriceDiffInDecimal;
+    sessionMetadata.customPriceDiff = convertedCustomPriceDiffInDecimal;
   }
 
   paymentIntentData.metadata = sessionMetadata;
