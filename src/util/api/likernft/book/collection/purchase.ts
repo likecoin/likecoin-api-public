@@ -16,6 +16,7 @@ import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  USD_TO_HKD_RATIO,
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
@@ -471,6 +472,11 @@ export async function processNFTBookCollectionStripePurchase(
       getBookCollectionInfoById(collectionId),
     ]);
 
+    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+      ?.balance_transaction as Stripe.BalanceTransaction;
+    const currency = balanceTx?.currency || defaultPaymentCurrency;
+    const exchangeRate = balanceTx?.exchange_rate
+      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     await handleStripeConnectedAccount(
       {
@@ -481,7 +487,8 @@ export async function processNFTBookCollectionStripePurchase(
       {
         amountTotal,
         chargeId,
-        currency: defaultPaymentCurrency,
+        currency,
+        exchangeRate,
         stripeFeeAmount: Number(stripeFeeAmount),
         likerLandFeeAmount: Number(likerLandFeeAmount),
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),

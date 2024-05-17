@@ -51,23 +51,16 @@ import {
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 
+function convertCurrency(priceInDecimal, exchangeRate) {
+  return Math.round(priceInDecimal * exchangeRate);
+}
+
 function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
   switch (currency) {
     case 'USD':
       return usdPriceInDecimal;
     case 'HKD':
       return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-    default:
-      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
-  }
-}
-
-function convertCurrencyToUSD(priceInDecimal: number, currency: string) {
-  switch (currency) {
-    case 'USD':
-      return priceInDecimal;
-    case 'HKD':
-      return Math.round(priceInDecimal / USD_TO_HKD_RATIO);
     default:
       throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
   }
@@ -89,6 +82,7 @@ export async function handleStripeConnectedAccount({
   chargeId,
   amountTotal,
   currency,
+  exchangeRate,
   stripeFeeAmount = 0,
   likerLandFeeAmount = 0,
   likerLandTipFeeAmount = 0,
@@ -120,7 +114,7 @@ export async function handleStripeConnectedAccount({
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
         const transfer = await stripe.transfers.create({
-          amount: convertCurrencyToUSD(channelCommission, currency),
+          amount: convertCurrency(channelCommission, exchangeRate),
           currency: 'usd', // stripe balance are setteled in USD in source tx
           destination: fromStripeConnectAccountId,
           transfer_group: paymentId,
@@ -178,7 +172,7 @@ export async function handleStripeConnectedAccount({
           .map(async ([wallet, stripeConnectAccountId]) => {
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
-              amount: convertCurrencyToUSD(amountSplit, currency),
+              amount: convertCurrency(amountSplit, exchangeRate),
               currency: 'usd', // stripe balance are setteled in USD in source tx
               destination: stripeConnectAccountId,
               transfer_group: paymentId,
@@ -909,6 +903,12 @@ export async function processNFTBookStripePurchase(
       getNFTClassDataById(classId).catch(() => null),
     ]);
 
+    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+      ?.balance_transaction as Stripe.BalanceTransaction;
+    const currency = balanceTx?.currency || defaultPaymentCurrency;
+    const exchangeRate = balanceTx?.exchange_rate
+      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
+
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
 
     await handleStripeConnectedAccount(
@@ -921,7 +921,8 @@ export async function processNFTBookStripePurchase(
       {
         amountTotal,
         chargeId,
-        currency: defaultPaymentCurrency,
+        exchangeRate,
+        currency,
         stripeFeeAmount: Number(stripeFeeAmount),
         likerLandFeeAmount: Number(likerLandFeeAmount),
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
