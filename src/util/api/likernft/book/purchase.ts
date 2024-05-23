@@ -586,6 +586,9 @@ export async function formatStripeCheckoutSession({
     ],
     payment_intent_data: paymentIntentData,
     metadata: sessionMetadata,
+    consent_collection: {
+      promotions: 'auto',
+    },
   };
   if (convertedCustomPriceDiffInDecimal) {
     checkoutPayload.line_items?.push({
