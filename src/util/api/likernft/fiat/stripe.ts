@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js';
 import axios from 'axios';
+import Stripe from 'stripe';
 import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
 import { ValidationError } from '../../../ValidationError';
@@ -18,6 +19,7 @@ import {
 } from '../../../../../config/config';
 import { sendStripeFiatPurchaseSlackNotification } from '../../../slack';
 import { DEFAULT_NFT_IMAGE_SIZE, checkIsWritingNFT, parseImageURLFromMetadata } from '../metadata';
+import { subscribeEmailToLikerLandSubstack } from '../../../substack';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
@@ -206,6 +208,25 @@ export async function processStripeFiatNFTPurchase(session, req) {
     classIds,
   });
   return true;
+}
+
+export async function handlePromotionalEmails(session: Stripe.Checkout.Session, req) {
+  const promoConsent = session.consent?.promotions;
+  if (promoConsent) {
+    const email = session.customer_details?.email;
+    if (email) {
+      try {
+        await subscribeEmailToLikerLandSubstack(email);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(error);
+      }
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'LikerNFTFiatPromoConsent',
+        email,
+      });
+    }
+  }
 }
 
 function getImage(classMetadata) {
