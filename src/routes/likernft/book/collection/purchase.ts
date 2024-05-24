@@ -29,6 +29,7 @@ import {
 import { getBookCollectionInfoById } from '../../../../util/api/likernft/collection/book';
 import { getCouponDiscountRate } from '../../../../util/api/likernft/book/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../../util/slack';
+import { subscribeEmailToLikerLandSubstack } from '../../../../util/substack';
 
 const router = Router();
 
@@ -266,6 +267,15 @@ router.post(
           method: 'free',
         }),
       ]);
+
+      if (email) {
+        try {
+          await subscribeEmailToLikerLandSubstack(email);
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error(error);
+        }
+      }
 
       if (wallet) {
         await claimNFTBookCollection(
