@@ -169,6 +169,9 @@ router.post(
           metadata: sessionMetadata,
           capture_method: 'manual',
         },
+        consent_collection: {
+          promotions: 'auto',
+        },
         metadata: sessionMetadata,
       };
       if (email) checkoutPayload.customer_email = email;
