@@ -590,6 +590,7 @@ export async function claimNFTBookCollection(
       throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
     }
     t.update(docRef, {
+      isPendingClaim: false,
       status: 'pendingNFT',
       wallet,
       message: message || '',

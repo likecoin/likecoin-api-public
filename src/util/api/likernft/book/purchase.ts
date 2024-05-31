@@ -1110,6 +1110,7 @@ export async function claimNFTBook(
       throw new ValidationError('CANNOT_CLAIM_PHYSICAL_ONLY', 409);
     }
     t.update(docRef, {
+      isPendingClaim: false,
       status: 'pendingNFT',
       wallet,
       message: message || '',
