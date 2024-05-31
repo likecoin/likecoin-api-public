@@ -143,7 +143,7 @@ export async function handleStripeConnectedAccount({
           },
         });
         transfers.push(transfer);
-        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(paymentId).create({
+        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
           type: 'channelCommission',
           ownerWallet,
           classId,
@@ -225,7 +225,7 @@ export async function handleStripeConnectedAccount({
                 ...metadata,
               },
             });
-            await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(paymentId).create({
+            await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
               type: 'connectedWallet',
               ownerWallet,
               classId,
