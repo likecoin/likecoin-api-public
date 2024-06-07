@@ -1,5 +1,5 @@
 /* eslint-disable no-underscore-dangle */
-import { getBasicTemplate, getBasicV2Template, getNFTTwoContentWithMessageAndButtonTemplate } from '@likecoin/edm';
+import { getBasicV2Template, getNFTTwoContentWithMessageAndButtonTemplate } from '@likecoin/edm';
 import aws from 'aws-sdk';
 import { TEST_MODE, CUSTOMER_SERVICE_URL } from '../constant';
 import {
@@ -73,7 +73,7 @@ export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: getBasicTemplate({
+          Data: getBasicV2Template({
             title: res.__('Email.VerifiyAndCouponEmail.subject'),
             content: res.__('Email.VerifiyAndCouponEmail.body', {
               name: user.displayName,
@@ -112,7 +112,7 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: getBasicTemplate({
+          Data: getBasicV2Template({
             title,
             content: res.__('Email.InvitationEmail.body', {
               referrerId,
@@ -803,7 +803,7 @@ export function sendNFTBookSalesEmail({
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: getBasicTemplate({
+          Data: getBasicV2Template({
             title,
             content,
           }).body,
@@ -851,7 +851,7 @@ export function sendNFTBookSaleCommissionEmail({
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: getBasicTemplate({
+          Data: getBasicV2Template({
             title,
             content: `<p>Dear Book lover,</p>
             <br/>
@@ -897,7 +897,7 @@ export function sendNFTBookClaimedEmail({
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: getBasicTemplate({
+          Data: getBasicV2Template({
             title,
             content: `<p>Dear Creator,</p>
             <br/>
