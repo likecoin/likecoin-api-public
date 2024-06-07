@@ -199,3 +199,5 @@ export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
   'latest_charge.balance_transaction',
   'latest_charge.application_fee',
 ];
+
+export const CUSTOMER_SERVICE_URL = 'https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7';
