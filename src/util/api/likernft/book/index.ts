@@ -219,17 +219,20 @@ export async function getNftBookInfo(classId) {
 
 export async function listLatestNFTBookInfo({
   ownerWallet,
+  excludedOwnerWallet,
   before,
   limit,
   key,
 }: {
   ownerWallet?: string;
+  excludedOwnerWallet?: string;
   before?: number;
   limit?: number;
   key?: number;
 } = {}) {
   let snapshot = likeNFTBookCollection.orderBy('timestamp', 'desc');
   if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
+  if (excludedOwnerWallet) snapshot = snapshot.where('ownerWallet', '!=', excludedOwnerWallet);
   const tsNumber = before || key;
   if (tsNumber) {
     // HACK: bypass startAfter() type check
