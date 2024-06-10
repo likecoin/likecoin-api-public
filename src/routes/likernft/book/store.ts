@@ -76,6 +76,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
           moderatorWallets = [],
           ownerWallet,
           id,
+          hideDownload,
           timestamp,
         } = b;
         const isAuthorized = req.user
@@ -88,6 +89,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
           stock,
           shippingRates,
           defaultPaymentCurrency,
+          hideDownload,
           timestamp: timestamp.toMillis(),
         };
         if (isAuthorized) {
