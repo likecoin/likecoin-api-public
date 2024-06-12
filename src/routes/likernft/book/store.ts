@@ -43,7 +43,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const {
       wallet,
-      excluded_wallet: excludedWallet,
+      exclude_wallet: excludedWallet,
       before: beforeString,
       limit: limitString,
       key: keyString,
