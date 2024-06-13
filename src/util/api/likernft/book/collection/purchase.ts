@@ -474,7 +474,7 @@ export async function processNFTBookCollectionStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
-    const currency = balanceTx?.currency || defaultPaymentCurrency;
+    const currency = capturedPaymentIntent.currency || defaultPaymentCurrency;
     const exchangeRate = balanceTx?.exchange_rate
       || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
