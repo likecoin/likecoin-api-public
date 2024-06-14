@@ -113,7 +113,7 @@ router.post(
       const fiatPrice = Number(fiatPriceString);
       if (LIKEPrice === 0) throw new ValidationError('NFT_IS_FREE');
       const paymentId = uuidv4();
-      const claimToken = randomBytes(32).toString('base64url');
+      const claimToken = wallet ? '' : randomBytes(32).toString('base64url');
 
       const classIdLog = {};
       // Metadata can have up to 50 keys
