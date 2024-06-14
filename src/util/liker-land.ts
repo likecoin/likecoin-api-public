@@ -2,6 +2,15 @@ import { LIKER_LAND_HOSTNAME } from '../constant';
 
 export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
+interface GetLikerLandNFTPageURLParams {
+  type?: 'nft_book' | 'writing_nft',
+  language?: string
+}
+export const getLikerLandPortfolioPageURL = ({
+  type = 'nft_book',
+  language = 'en',
+}: GetLikerLandNFTPageURLParams = {}): string => getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
+
 export const getLikerLandNFTClassPageURL = ({
   classId,
   language,
