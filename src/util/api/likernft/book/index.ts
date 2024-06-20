@@ -10,7 +10,7 @@ import {
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
-import { getNFTsByClassId } from '../../../cosmos/nft';
+import { getNFTsByClassId, getNFTISCNData } from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
 
@@ -82,7 +82,21 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     canPayByLIKE,
     enableCustomMessagePage,
     coupons,
+    iscnIdPrefix,
   } = data;
+  const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
+
+  const {
+    inLanguage,
+    name,
+    description,
+    keywords: keywordString = '',
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
+  } = iscnData?.contentMetadata || {};
+  const keywords = keywordString.split(',').map((k) => k.trim());
   const newPrices = prices.map((p, order) => ({
     order,
     sold: 0,
@@ -96,6 +110,14 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     ownerWallet,
     timestamp,
   };
+  if (inLanguage) payload.inLanguage = inLanguage;
+  if (name) payload.name = name;
+  if (description) payload.description = description;
+  if (keywords) payload.keywords = keywords;
+  if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
+  if (author) payload.author = author;
+  if (usageInfo) payload.usageInfo = usageInfo;
+  if (isbn) payload.isbn = isbn;
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;

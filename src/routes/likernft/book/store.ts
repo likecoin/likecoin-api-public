@@ -466,7 +466,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       getNFTClassDataById(classId),
     ]);
     if (!iscnInfo) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const { owner: ownerWallet } = iscnInfo;
+    const { owner: ownerWallet, iscnIdPrefix } = iscnInfo;
     if (ownerWallet !== req.user.wallet) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
@@ -495,6 +495,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await newNftBookInfo(classId, {
+      iscnIdPrefix,
       ownerWallet,
       successUrl,
       cancelUrl,
