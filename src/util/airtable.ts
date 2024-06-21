@@ -299,8 +299,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 
-  const likerLandCommission = (convertCurrency(Number(likerLandCommissionRaw)) / 100)
-    || (isLikerLandChannel ? channelCommission : 0);
+  const likerLandCommission = convertCurrency(Number(likerLandCommissionRaw)) / 100 || 0;
 
   const likerLandArtFee = convertCurrency(Number(likerLandArtFeeRaw)) / 100 || 0;
   const likerLandTipFee = convertCurrency(Number(likerLandTipFeeRaw)) / 100 || 0;
