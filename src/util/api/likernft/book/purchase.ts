@@ -1018,6 +1018,7 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
+    const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
     const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
     const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
     await Promise.all([
@@ -1025,7 +1026,7 @@ export async function processNFTBookStripePurchase(
         email,
         phone: phone || '',
         shippingDetails,
-        shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
+        shippingCost: shippingCostAmount,
         originalPrice: originalPriceInDecimal / 100,
         isGift,
         giftInfo,
@@ -1049,7 +1050,12 @@ export async function processNFTBookStripePurchase(
         method: 'Fiat',
         from,
       }),
-      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent, transfers),
+      createAirtableBookSalesRecordFromStripePaymentIntent({
+        pi: capturedPaymentIntent,
+        transfers,
+        shippingCountry: shippingDetails?.address?.country,
+        shippingCost: shippingCostAmount,
+      }),
     ]);
   } catch (err) {
     // eslint-disable-next-line no-console

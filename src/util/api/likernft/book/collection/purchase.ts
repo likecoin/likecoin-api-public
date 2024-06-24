@@ -513,6 +513,7 @@ export async function processNFTBookCollectionStripePurchase(
       isGift,
     });
 
+    const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
     await Promise.all([
       sendNFTBookCollectionPurchaseEmail({
         email,
@@ -527,7 +528,7 @@ export async function processNFTBookCollectionStripePurchase(
         isPhysicalOnly,
         phone: phone || '',
         shippingDetails,
-        shippingCost: shippingCost ? shippingCost.amount_total / 100 : 0,
+        shippingCost: shippingCostAmount,
         originalPrice: originalPriceInDecimal / 100,
       }),
       sendNFTBookSalesSlackNotification({
@@ -540,7 +541,12 @@ export async function processNFTBookCollectionStripePurchase(
         method: 'USD',
         from,
       }),
-      createAirtableBookSalesRecordFromStripePaymentIntent(capturedPaymentIntent, transfers),
+      createAirtableBookSalesRecordFromStripePaymentIntent({
+        pi: capturedPaymentIntent,
+        transfers,
+        shippingCountry: shippingDetails?.address?.country,
+        shippingCost: shippingCostAmount,
+      }),
     ]);
   } catch (err) {
     // eslint-disable-next-line no-console
