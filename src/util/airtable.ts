@@ -384,10 +384,17 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   };
 }
 
-export async function createAirtableBookSalesRecordFromStripePaymentIntent(
+export async function createAirtableBookSalesRecordFromStripePaymentIntent({
+  pi,
+  transfers,
+  shippingCountry,
+  shippingCost,
+}: {
   pi: Stripe.PaymentIntent,
   transfers: Stripe.Transfer[],
-): Promise<void> {
+  shippingCountry?: string | null,
+  shippingCost?: number,
+}): Promise<void> {
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(pi, transfers);
     const fields: Partial<FieldSet> = {
@@ -423,6 +430,12 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
     const publicationRecord = await queryAirtablePublicationRecordById(record.productId);
     if (publicationRecord) {
       fields.Product = [publicationRecord.id];
+    }
+    if (shippingCountry) {
+      fields['Shipping Country'] = shippingCountry;
+    }
+    if (shippingCost) {
+      fields['Shipping Cost'] = shippingCost;
     }
     await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
   } catch (err) {
