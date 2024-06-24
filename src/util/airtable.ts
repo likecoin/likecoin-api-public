@@ -292,10 +292,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
       return acc + amount;
     }, 0) : 0;
 
-  const isAppliedStripeConnectCommissionFix = true;
-
-  const channelCommission = (convertCurrency(Number(channelCommissionRaw)) / 100)
-    || balanceTxAmount * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO;
+  // Note: Channel commission must be provided in metadata at checkout
+  const channelCommission = convertCurrency(Number(channelCommissionRaw)) / 100 || 0;
 
   const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 
@@ -305,8 +303,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   const likerLandTipFee = convertCurrency(Number(likerLandTipFeeRaw)) / 100 || 0;
 
   const customPriceDiff = convertCurrency(Number(customPriceDiffRaw)) / 100 || 0;
-
-  const otherCommission = !isLikerLandChannel ? channelCommission : 0;
 
   const estimatedStripeFeeAmount = (convertCurrency(Number(calculatedStripeFeeRaw)) / 100)
     || stripeFee;
@@ -318,18 +314,12 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     // simplified calculation using commission transfer logic in API
     likerLandFee = estimatedStripeFeeAmount - stripeFee + estimatedLikerLandFeeAmount;
   } else if (hasApplicationFee) {
+    // NOTE: Application Fee is deprecated
     likerLandFee = applicationFeeAmount
       - stripeFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
   } else {
     likerLandFee = balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
   }
-
-  // NOTE: We have to collect commission for tx with Stripe Connect before the commission fix date
-  const receivableAmount = (
-    isLikerLandChannel && hasApplicationFee && !isAppliedStripeConnectCommissionFix
-      ? likerLandCommission
-      : 0
-  );
 
   const hasPaidChannelCommission = isLikerLandChannel || !!transfers?.find((t) => t.metadata?.type === 'channelCommission');
   const hasPaidConnectedWalletCommission = !!transfers?.find((t) => t.metadata?.type === 'connectedWallet');
@@ -340,7 +330,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
         - likerLandArtFee - likerLandTipFee;
     }
     if (!hasPaidChannelCommission) {
-      payableAmount += otherCommission;
+      payableAmount += channelCommission;
     }
   } else if (!hasApplicationFee) {
     payableAmount = balanceTxAmount
@@ -360,7 +350,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     balanceTxExchangeRate,
     balanceTxNetAmount,
     payableAmount,
-    receivableAmount,
 
     // Fee
     feeTotal,
@@ -377,7 +366,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     // Commission
     channel,
     likerLandCommission,
-    otherCommission,
+    channelCommission,
     hasApplicationFee,
 
     // Product
@@ -424,9 +413,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent(
       'Liker Land Art Fee': record.likerLandArtFee,
       'Tip Amount': record.customPriceDiff,
       'Liker Land Tip Fee': record.likerLandTipFee,
-      'Other Commission': record.otherCommission,
+      'Channel Commission': record.channelCommission,
       'Transferred Amount': record.transferredAmount,
-      'Payable To Liker Land': record.receivableAmount,
       'UTM Source': record.utmSource,
       'GA Client ID': record.gaClientId,
       'GA Session ID': record.gaSessionId,
