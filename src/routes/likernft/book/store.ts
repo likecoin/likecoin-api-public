@@ -172,6 +172,14 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       canPayByLIKE = false,
       enableCustomMessagePage,
       coupons,
+      inLanguage,
+      name,
+      description,
+      keywords,
+      thumbnailUrl,
+      author,
+      usageInfo,
+      isbn,
     } = bookInfo;
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
@@ -187,6 +195,14 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       hideDownload,
       canPayByLIKE,
       enableCustomMessagePage,
+      inLanguage,
+      name,
+      description,
+      keywords,
+      thumbnailUrl,
+      author,
+      usageInfo,
+      isbn,
     };
     if (isAuthorized) {
       payload.sold = sold;
