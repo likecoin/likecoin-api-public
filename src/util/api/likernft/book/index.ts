@@ -10,7 +10,7 @@ import {
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
-import { getNFTsByClassId, getNFTISCNData } from '../../../cosmos/nft';
+import { getNFTsByClassId } from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
 
@@ -82,21 +82,16 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     canPayByLIKE,
     enableCustomMessagePage,
     coupons,
-    iscnIdPrefix,
-  } = data;
-  const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
 
-  const {
     inLanguage,
     name,
     description,
-    keywords: keywordString = '',
+    keywords,
     thumbnailUrl,
     author,
     usageInfo,
     isbn,
-  } = iscnData?.contentMetadata || {};
-  const keywords = keywordString.split(',').map((k) => k.trim());
+  } = data;
   const newPrices = prices.map((p, order) => ({
     order,
     sold: 0,

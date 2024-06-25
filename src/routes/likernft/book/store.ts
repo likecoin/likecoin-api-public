@@ -13,7 +13,7 @@ import {
   validateAutoDeliverNFTsTxHash,
   validateCoupons,
 } from '../../../util/api/likernft/book';
-import { getISCNFromNFTClassId, getNFTClassDataById } from '../../../util/cosmos/nft';
+import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
@@ -510,6 +510,21 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
+
+    const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
+    const iscnContentMetadata = iscnData?.contentMetadata || {};
+    const {
+      inLanguage,
+      name,
+      description,
+      keywords: keywordString = '',
+      thumbnailUrl,
+      author,
+      usageInfo,
+      isbn,
+    } = iscnContentMetadata;
+    const keywords = keywordString.split(',').map((k: string) => k.trim());
+
     await newNftBookInfo(classId, {
       iscnIdPrefix,
       ownerWallet,
@@ -526,6 +541,16 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideDownload,
       canPayByLIKE,
       coupons,
+
+      // From ISCN content metadata
+      inLanguage,
+      name,
+      description,
+      keywords,
+      thumbnailUrl,
+      author,
+      usageInfo,
+      isbn,
     }, apiWalletOwnedNFTIds);
 
     const className = metadata?.name || classId;
@@ -546,12 +571,18 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         description: metadata?.description || '',
         iscnIdPrefix: iscnInfo.iscnIdPrefix,
         iscnObject: iscnInfo,
+        iscnContentMetadata,
         metadata,
         ownerWallet,
         type: metadata?.data?.metadata?.nft_meta_collection_id,
         minPrice: prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100,
         maxPrice: prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100,
         imageURL: metadata?.data?.metadata?.image,
+        language: inLanguage,
+        keywords,
+        author,
+        usageInfo,
+        isbn,
       }),
     ]);
 

@@ -35,7 +35,13 @@ export async function createAirtablePublicationRecord({
   minPrice,
   maxPrice,
   imageURL,
+  author,
+  language,
+  keywords = [],
+  usageInfo,
+  isbn,
   iscnObject,
+  iscnContentMetadata,
   metadata,
 }: {
   timestamp: Date;
@@ -47,8 +53,14 @@ export async function createAirtablePublicationRecord({
   minPrice: number;
   maxPrice: number;
   imageURL: string;
+  author?: string;
+  language?: string;
+  keywords?: string[];
+  usageInfo?: string;
+  isbn?: string;
   iscnIdPrefix?: string;
   iscnObject?: any;
+  iscnContentMetadata?: any;
   metadata?: any;
 }): Promise<void> {
   if (!base) return;
@@ -70,6 +82,12 @@ export async function createAirtablePublicationRecord({
       'Max Price': maxPrice,
     };
 
+    if (author) fields.Author = author;
+    if (language) fields.Language = [language];
+    if (keywords.length) fields.Keywords = keywords;
+    if (usageInfo) fields['Usage Info'] = usageInfo;
+    if (isbn) fields.ISBN = isbn;
+
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
     }
@@ -77,6 +95,14 @@ export async function createAirtablePublicationRecord({
     if (iscnObject) {
       try {
         fields['ISCN Object'] = JSON.stringify(iscnObject);
+      } catch {
+        // No-op
+      }
+    }
+
+    if (iscnContentMetadata) {
+      try {
+        fields['ISCN Content Metadata'] = JSON.stringify(iscnContentMetadata);
       } catch {
         // No-op
       }
