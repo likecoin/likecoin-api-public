@@ -83,7 +83,7 @@ export async function createAirtablePublicationRecord({
     };
 
     if (author) fields.Author = author;
-    if (language) fields.Language = [language];
+    if (language) fields.Language = language;
     if (keywords.length) fields.Keywords = keywords;
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
