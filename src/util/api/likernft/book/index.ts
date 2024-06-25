@@ -121,7 +121,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
         await sleep(10);
         batch = db.batch();
       }
-      batch.create(
+      batch.set(
         likeNFTBookCollection
           .doc(classId)
           .collection('nft')
@@ -130,6 +130,9 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
           isSold: false,
           isProcessing: false,
           timestamp,
+        },
+        {
+          merge: true,
         },
       );
     }
@@ -195,7 +198,7 @@ export async function updateNftBookInfo(classId: string, {
         await sleep(10);
         batch = db.batch();
       }
-      batch.create(
+      batch.set(
         likeNFTBookCollection
           .doc(classId)
           .collection('nft')
@@ -204,6 +207,9 @@ export async function updateNftBookInfo(classId: string, {
           isSold: false,
           isProcessing: false,
           timestamp,
+        },
+        {
+          merge: true,
         },
       );
     }
