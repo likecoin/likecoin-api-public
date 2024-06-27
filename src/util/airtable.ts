@@ -43,6 +43,7 @@ export async function createAirtablePublicationRecord({
   iscnObject,
   iscnContentMetadata,
   metadata,
+  isDRMFree = false,
 }: {
   timestamp: Date;
   name: string;
@@ -62,6 +63,7 @@ export async function createAirtablePublicationRecord({
   iscnObject?: any;
   iscnContentMetadata?: any;
   metadata?: any;
+  isDRMFree?: boolean;
 }): Promise<void> {
   if (!base) return;
 
@@ -80,6 +82,7 @@ export async function createAirtablePublicationRecord({
       'Image URL': normalizedImageURL,
       'Min Price': minPrice,
       'Max Price': maxPrice,
+      'DRM-free': isDRMFree,
     };
 
     if (author) fields.Author = author;

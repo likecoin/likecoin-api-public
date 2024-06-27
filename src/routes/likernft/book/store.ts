@@ -583,6 +583,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         author,
         usageInfo,
         isbn,
+        isDRMFree: !hideDownload,
       }),
     ]);
 
