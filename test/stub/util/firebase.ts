@@ -220,6 +220,7 @@ export const likeNFTFiatCollection = createCollection([]);
 export const likeNFTSubscriptionUserCollection = createCollection([]);
 export const likeNFTSubscriptionTxCollection = createCollection([]);
 export const likeNFTFreeMintTxCollection = createCollection([]);
+export const likeNFTBookCartCollection = createCollection([]);
 export const likeNFTBookCollection = createCollection([]);
 export const likeNFTBookUserCollection = createCollection([]);
 export const likeNFTCollectionCollection = createCollection([]);
