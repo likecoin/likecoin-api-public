@@ -55,6 +55,35 @@ import {
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 
+export type ItemPriceInfo = {
+  quantity: number;
+  currency: string;
+  priceInDecimal: number;
+  customPriceDiffInDecimal: number;
+  originalPriceInDecimal: number;
+  likerLandTipFeeAmount: number;
+  likerLandFeeAmount: number;
+  likerLandCommission: number;
+  channelCommission: number;
+  likerLandArtFee: number;
+  classId?: string;
+  priceIndex?: number;
+  iscnPrefix?: string;
+  collectionId?: string;
+}
+
+export type TransactionFeeInfo = {
+  priceInDecimal: number
+  originalPriceInDecimal: number
+  stripeFeeAmount: number
+  likerLandTipFeeAmount: number
+  likerLandFeeAmount: number
+  likerLandCommission: number
+  channelCommission: number
+  likerLandArtFee: number
+  customPriceDiff: number
+}
+
 function convertCurrency(priceInDecimal, exchangeRate) {
   return Math.round(priceInDecimal * exchangeRate);
 }
@@ -93,7 +122,7 @@ export async function handleStripeConnectedAccount({
   likerLandFeeAmount = 0,
   likerLandTipFeeAmount = 0,
   likerLandCommission = 0,
-  likerlandArtFee = 0,
+  likerLandArtFee = 0,
   channelCommission = 0,
 }, { connectedWallets, from }) {
   let transfers: Stripe.Transfer[] = [];
@@ -179,7 +208,7 @@ export async function handleStripeConnectedAccount({
       - (stripeFeeAmount
         + likerLandFeeAmount
         + likerLandCommission
-        + likerlandArtFee
+        + likerLandArtFee
         + likerLandTipFeeAmount);
     if (amountToSplit > 0) {
       const wallets = Object.keys(connectedWallets);
@@ -282,6 +311,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   giftInfo,
   from = '',
   isPhysicalOnly = false,
+  itemPrices,
+  feeInfo,
 }: {
   type: string;
   email?: string;
@@ -300,6 +331,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     fromName: string,
     message?: string,
   };
+  itemPrices?: any[],
+  feeInfo?: TransactionFeeInfo,
 }) {
   const payload: any = {
     type,
@@ -320,6 +353,8 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     timestamp: FieldValue.serverTimestamp(),
   };
   if (coupon) payload.coupon = coupon;
+  if (itemPrices) payload.itemPrices = itemPrices;
+  if (feeInfo) payload.feeInfo = feeInfo;
 
   const isGift = !!giftInfo;
 
@@ -521,7 +556,7 @@ export async function formatStripeCheckoutSession({
         : 0;
       const convertedPriceInDecimal = convertUSDToCurrency(item.priceInDecimal, convertedCurrency);
       const convertedOriginalPriceInDecimal = convertedPriceInDecimal
-    - convertedCustomPriceDiffInDecimal;
+        - convertedCustomPriceDiffInDecimal;
       const likerLandFeeAmount = Math.ceil(
         convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
@@ -537,11 +572,8 @@ export async function formatStripeCheckoutSession({
       const likerLandArtFee = item.isLikerLandArt
         ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
         : 0;
-      return {
-        classId: item.classId,
-        priceIndex: item.priceIndex,
-        collectionId: item.collectionId,
-        iscnPrefix: item.iscnPrefix,
+
+      const payload: ItemPriceInfo = {
         quantity: item.quantity,
         currency: convertedCurrency,
         priceInDecimal: convertedPriceInDecimal,
@@ -553,6 +585,11 @@ export async function formatStripeCheckoutSession({
         channelCommission,
         likerLandArtFee,
       };
+      if (item.classId) payload.classId = item.classId;
+      if (item.priceIndex) payload.priceIndex = item.priceIndex;
+      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
+      if (item.collectionId) payload.collectionId = item.collectionId;
+      return payload;
     },
   );
   const itemWithPrices = items.map(
@@ -561,8 +598,8 @@ export async function formatStripeCheckoutSession({
       ...item,
     }),
   );
-  const convertedPriceInDecimal = items.reduce((acc, item) => acc + item.priceInDecimal, 0);
-  const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
+  const totalConvertedPriceInDecimal = items.reduce((acc, item) => acc + item.priceInDecimal, 0);
+  const stripeFeeAmount = calculateStripeFee(totalConvertedPriceInDecimal, convertedCurrency);
   const likerLandTipFeeAmount = itemPrices.reduce(
     (acc, item) => acc + item.likerLandTipFeeAmount,
     0,
@@ -581,6 +618,10 @@ export async function formatStripeCheckoutSession({
   );
   const likerLandArtFee = itemPrices.reduce(
     (acc, item) => acc + item.likerLandArtFee,
+    0,
+  );
+  const totalOriginalPriceInDecimal = itemPrices.reduce(
+    (acc, item) => acc + item.originalPriceInDecimal,
     0,
   );
   const totalCustomPriceDiffInDecimal = itemPrices.reduce(
@@ -682,7 +723,21 @@ export async function formatStripeCheckoutSession({
     }
   }
   const session = await stripe.checkout.sessions.create(checkoutPayload);
-  return session;
+  return {
+    session,
+    itemPrices,
+    feeInfo: {
+      priceInDecimal: totalConvertedPriceInDecimal,
+      originalPriceInDecimal: totalOriginalPriceInDecimal,
+      stripeFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+      customPriceDiff: totalCustomPriceDiffInDecimal,
+    },
+  };
 }
 
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
@@ -834,7 +889,11 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     description = undefined;
   } // stripe does not like empty string
 
-  const session = await formatStripeCheckoutSession({
+  const {
+    session,
+    itemPrices,
+    feeInfo,
+  } = await formatStripeCheckoutSession({
     classId,
     iscnPrefix,
     paymentId,
@@ -855,6 +914,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     quantity: 1,
     isLikerLandArt,
     ownerWallet,
+    classId,
+    iscnPrefix,
   }], {
     hasShipping,
     shippingRates,
@@ -878,6 +939,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     giftInfo,
     isPhysicalOnly,
     from: from as string,
+    itemPrices,
+    feeInfo,
   });
 
   return {
@@ -974,12 +1037,6 @@ export async function processNFTBookStripePurchase(
       iscnPrefix,
       paymentId,
       priceIndex: priceIndexString = '0',
-      stripeFeeAmount = '0',
-      likerLandFeeAmount = '0',
-      likerLandTipFeeAmount = '0',
-      likerLandCommission = '0',
-      channelCommission = '0',
-      likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -1017,7 +1074,16 @@ export async function processNFTBookStripePurchase(
       giftInfo,
       isPhysicalOnly,
       originalPriceInDecimal,
+      feeInfo,
     } = txData;
+    const {
+      stripeFeeAmount,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+    } = feeInfo;
     const [capturedPaymentIntent, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -1052,7 +1118,7 @@ export async function processNFTBookStripePurchase(
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
         likerLandCommission: Number(likerLandCommission),
         channelCommission: Number(channelCommission),
-        likerlandArtFee: Number(likerlandArtFee),
+        likerLandArtFee: Number(likerLandArtFee),
       },
       { connectedWallets, from },
     );
@@ -1106,6 +1172,7 @@ export async function processNFTBookStripePurchase(
       }),
       createAirtableBookSalesRecordFromStripePaymentIntent({
         pi: capturedPaymentIntent,
+        feeInfo,
         transfers,
         shippingCountry: shippingDetails?.address?.country,
         shippingCost: shippingCostAmount,
