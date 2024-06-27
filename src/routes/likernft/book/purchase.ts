@@ -34,6 +34,7 @@ import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
+import { handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 
 const router = Router();
 
@@ -109,6 +110,63 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+});
+
+router.post('/cart/new', async (req, res, next) => {
+  try {
+    const { from } = req.query;
+    const {
+      gaClientId,
+      gaSessionId,
+      email,
+      utmCampaign,
+      utmSource,
+      utmMedium,
+      items = [],
+    } = req.body;
+
+    if (!items?.length) {
+      throw new ValidationError('REQUIRE_ITEMS');
+    }
+
+    const {
+      url,
+      paymentId,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiffInDecimal,
+      sessionId,
+    } = await handleNewCartStripeCheckout(items, {
+      gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
+      from: from as string,
+      email,
+      utm: {
+        campaign: utmCampaign,
+        source: utmSource,
+        medium: utmMedium,
+      },
+    });
+    res.json({ url });
+
+    if (priceInDecimal) {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTCartPurchaseNew',
+        type: 'stripe',
+        paymentId,
+        price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
+        sessionId,
+        channel: from,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+      });
+    }
+  } catch (err) {
+    next(err);
   }
 });
 
