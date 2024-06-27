@@ -82,6 +82,15 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     canPayByLIKE,
     enableCustomMessagePage,
     coupons,
+
+    inLanguage,
+    name,
+    description,
+    keywords,
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
   } = data;
   const newPrices = prices.map((p, order) => ({
     order,
@@ -96,6 +105,14 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     ownerWallet,
     timestamp,
   };
+  if (inLanguage) payload.inLanguage = inLanguage;
+  if (name) payload.name = name;
+  if (description) payload.description = description;
+  if (keywords) payload.keywords = keywords;
+  if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
+  if (author) payload.author = author;
+  if (usageInfo) payload.usageInfo = usageInfo;
+  if (isbn) payload.isbn = isbn;
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
