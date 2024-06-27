@@ -302,24 +302,25 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   const session = await formatStripeCheckoutSession({
     collectionId,
     paymentId,
-    ownerWallet,
     from,
     gaClientId,
     gaSessionId,
     email,
     giftInfo,
     utm,
-  }, {
+  }, [{
     name,
     description,
     images,
-  }, {
-    hasShipping,
-    shippingRates,
-    defaultPaymentCurrency,
+    quantity: 1,
     priceInDecimal,
     customPriceDiffInDecimal,
     isLikerLandArt,
+    ownerWallet,
+  }], {
+    hasShipping,
+    shippingRates,
+    defaultPaymentCurrency,
     successUrl,
     cancelUrl,
   });

@@ -429,10 +429,10 @@ export function getCouponDiscountRate(coupons, couponCode: string) {
 export async function formatStripeCheckoutSession({
   classId,
   iscnPrefix,
+  cartId,
   collectionId,
   paymentId,
   priceIndex,
-  ownerWallet,
   email,
   from,
   gaClientId,
@@ -443,10 +443,10 @@ export async function formatStripeCheckoutSession({
 }: {
   classId?: string,
   iscnPrefix?: string,
+  cartId?: string,
   collectionId?: string,
   priceIndex?: number,
   paymentId: string,
-  ownerWallet: string,
   email?: string,
   from?: string,
   gaClientId?: string,
@@ -463,38 +463,37 @@ export async function formatStripeCheckoutSession({
     medium?: string,
   },
   httpMethod?: 'GET' | 'POST',
-}, {
-  name,
-  description,
-  images,
-}: {
+}, items: {
   name: string,
   description: string,
   images: string[],
-}, {
+  priceInDecimal: number,
+  customPriceDiffInDecimal?: number,
+  isLikerLandArt: boolean,
+  quantity: number,
+  ownerWallet: string,
+  classId?: string,
+  priceIndex?: number,
+  collectionId?: string,
+  iscnPrefix?: string,
+}[], {
   hasShipping,
   shippingRates,
   defaultPaymentCurrency,
-  priceInDecimal,
-  customPriceDiffInDecimal,
-  isLikerLandArt,
   successUrl,
   cancelUrl,
 }: {
   hasShipping: boolean,
   shippingRates: any[],
   defaultPaymentCurrency: string,
-  priceInDecimal: number,
-  customPriceDiffInDecimal?: number,
-  isLikerLandArt: boolean,
   successUrl: string,
   cancelUrl: string,
 }) {
   let sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
     paymentId,
-    ownerWallet,
   };
+  if (cartId) sessionMetadata.cartId = cartId;
   if (classId) sessionMetadata.classId = classId;
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
@@ -514,30 +513,80 @@ export async function formatStripeCheckoutSession({
   };
 
   const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-  const convertedPriceInDecimal = convertUSDToCurrency(priceInDecimal, convertedCurrency);
-  const convertedCustomPriceDiffInDecimal = customPriceDiffInDecimal
-    ? convertUSDToCurrency(customPriceDiffInDecimal, convertedCurrency) : 0;
-  const convertedOriginalPriceInDecimal = convertedPriceInDecimal
-    - convertedCustomPriceDiffInDecimal;
-
   const isFromLikerLand = checkIsFromLikerLand(from);
+  const itemPrices = items.map(
+    (item) => {
+      const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal
+        ? convertUSDToCurrency(item.customPriceDiffInDecimal, convertedCurrency)
+        : 0;
+      const convertedPriceInDecimal = convertUSDToCurrency(item.priceInDecimal, convertedCurrency);
+      const convertedOriginalPriceInDecimal = convertedPriceInDecimal
+    - convertedCustomPriceDiffInDecimal;
+      const likerLandFeeAmount = Math.ceil(
+        convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+      );
+      const likerLandTipFeeAmount = Math.ceil(
+        convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
+      );
+      const channelCommission = (from && !isFromLikerLand)
+        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        : 0;
+      const likerLandCommission = isFromLikerLand
+        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        : 0;
+      const likerLandArtFee = item.isLikerLandArt
+        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+        : 0;
+      return {
+        classId: item.classId,
+        priceIndex: item.priceIndex,
+        collectionId: item.collectionId,
+        iscnPrefix: item.iscnPrefix,
+        quantity: item.quantity,
+        currency: convertedCurrency,
+        priceInDecimal: convertedPriceInDecimal,
+        customPriceDiffInDecimal: convertedCustomPriceDiffInDecimal,
+        originalPriceInDecimal: convertedOriginalPriceInDecimal,
+        likerLandTipFeeAmount,
+        likerLandFeeAmount,
+        likerLandCommission,
+        channelCommission,
+        likerLandArtFee,
+      };
+    },
+  );
+  const itemWithPrices = items.map(
+    (item, index) => ({
+      ...itemPrices[index],
+      ...item,
+    }),
+  );
+  const convertedPriceInDecimal = items.reduce((acc, item) => acc + item.priceInDecimal, 0);
   const stripeFeeAmount = calculateStripeFee(convertedPriceInDecimal, convertedCurrency);
-  const likerLandFeeAmount = Math.ceil(
-    convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+  const likerLandTipFeeAmount = itemPrices.reduce(
+    (acc, item) => acc + item.likerLandTipFeeAmount,
+    0,
   );
-  const likerLandTipFeeAmount = Math.ceil(
-    convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
+  const likerLandFeeAmount = itemPrices.reduce(
+    (acc, item) => acc + item.likerLandFeeAmount,
+    0,
   );
-  const channelCommission = (from && !isFromLikerLand)
-    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-    : 0;
-  const likerLandCommission = isFromLikerLand
-    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-    : 0;
-  const likerlandArtFee = isLikerLandArt
-    ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
-    : 0;
-
+  const likerLandCommission = itemPrices.reduce(
+    (acc, item) => acc + item.likerLandCommission,
+    0,
+  );
+  const channelCommission = itemPrices.reduce(
+    (acc, item) => acc + item.channelCommission,
+    0,
+  );
+  const likerLandArtFee = itemPrices.reduce(
+    (acc, item) => acc + item.likerLandArtFee,
+    0,
+  );
+  const totalCustomPriceDiffInDecimal = itemPrices.reduce(
+    (acc, item) => acc + item.customPriceDiffInDecimal,
+    0,
+  );
   paymentIntentData.transfer_group = paymentId;
   sessionMetadata = {
     ...sessionMetadata,
@@ -546,63 +595,64 @@ export async function formatStripeCheckoutSession({
     likerLandFeeAmount,
     likerLandCommission,
     channelCommission,
-    likerlandArtFee,
+    likerLandArtFee,
   };
 
-  if (customPriceDiffInDecimal) {
-    sessionMetadata.customPriceDiff = convertedCustomPriceDiffInDecimal;
+  if (totalCustomPriceDiffInDecimal) {
+    sessionMetadata.customPriceDiff = totalCustomPriceDiffInDecimal;
   }
 
   paymentIntentData.metadata = sessionMetadata;
 
-  const productMetadata: Stripe.MetadataParam = {};
-  if (classId) productMetadata.classId = classId;
-  if (iscnPrefix) productMetadata.iscnPrefix = iscnPrefix;
-  if (collectionId) productMetadata.collectionId = collectionId;
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  itemWithPrices.forEach((item) => {
+    const productMetadata: Stripe.MetadataParam = {};
+    if (item.classId) productMetadata.classId = item.classId;
+    if (item.iscnPrefix) productMetadata.iscnPrefix = item.iscnPrefix;
+    if (item.collectionId) productMetadata.collectionId = item.collectionId;
 
-  const productData = {
-    name,
-    description,
-    images,
-    metadata: productMetadata,
-  };
-
+    lineItems.push({
+      price_data: {
+        currency: convertedCurrency,
+        product_data: {
+          name: item.name,
+          description: item.description,
+          images: item.images,
+          metadata: productMetadata,
+        },
+        unit_amount: item.originalPriceInDecimal,
+      },
+      adjustable_quantity: {
+        enabled: false,
+      },
+      quantity: item.quantity,
+    });
+    if (item.customPriceDiffInDecimal) {
+      lineItems.push({
+        price_data: {
+          currency: convertedCurrency,
+          product_data: {
+            name: 'Extra Tip',
+            description: 'Fund will be distributed to stakeholders and creators',
+            metadata: productMetadata,
+          },
+          unit_amount: item.customPriceDiffInDecimal,
+        },
+        quantity: 1,
+      });
+    }
+  });
   const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     success_url: `${successUrl}`,
     cancel_url: `${cancelUrl}`,
-    line_items: [
-      {
-        price_data: {
-          currency: convertedCurrency,
-          product_data: productData,
-          unit_amount: convertedPriceInDecimal - convertedCustomPriceDiffInDecimal,
-        },
-        adjustable_quantity: {
-          enabled: false,
-        },
-        quantity: 1,
-      },
-    ],
+    line_items: lineItems,
     payment_intent_data: paymentIntentData,
     metadata: sessionMetadata,
     consent_collection: {
       promotions: 'auto',
     },
   };
-  if (convertedCustomPriceDiffInDecimal) {
-    checkoutPayload.line_items?.push({
-      price_data: {
-        currency: convertedCurrency,
-        product_data: {
-          name: 'Extra Tip',
-          description: 'Fund will be distributed to stakeholders and creators',
-        },
-        unit_amount: convertedCustomPriceDiffInDecimal,
-      },
-      quantity: 1,
-    });
-  }
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
@@ -789,7 +839,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     iscnPrefix,
     paymentId,
     priceIndex,
-    ownerWallet,
     from,
     gaClientId,
     gaSessionId,
@@ -797,17 +846,19 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     giftInfo,
     utm,
     httpMethod,
-  }, {
+  }, [{
     name,
     description,
     images: image ? [image] : [],
-  }, {
+    priceInDecimal,
+    customPriceDiffInDecimal,
+    quantity: 1,
+    isLikerLandArt,
+    ownerWallet,
+  }], {
     hasShipping,
     shippingRates,
     defaultPaymentCurrency,
-    priceInDecimal,
-    customPriceDiffInDecimal,
-    isLikerLandArt,
     successUrl,
     cancelUrl,
   });
