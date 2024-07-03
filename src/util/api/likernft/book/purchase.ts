@@ -306,6 +306,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceInDecimal,
   originalPriceInDecimal,
   coupon,
+  quantity = 1,
   priceName,
   priceIndex,
   giftInfo,
@@ -321,6 +322,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceInDecimal: number,
   originalPriceInDecimal: number,
   coupon?: string,
+  quantity?: number,
   priceName: string;
   priceIndex: number;
   from?: string;
@@ -348,6 +350,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     price: priceInDecimal / 100,
     priceName,
     priceIndex,
+    quantity,
     from,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
@@ -394,7 +397,7 @@ export async function processNFTBookPurchase({
     const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
     const paymentData = paymentDoc.data();
     if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    const { status, priceIndex } = paymentData;
+    const { quantity, status, priceIndex } = paymentData;
     if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
     const {
       prices,
@@ -406,9 +409,9 @@ export async function processNFTBookPurchase({
       isAutoDeliver,
       autoMemo = '',
     } = priceInfo;
-    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-    priceInfo.stock -= 1;
-    priceInfo.sold += 1;
+    if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+    priceInfo.stock -= quantity;
+    priceInfo.sold += quantity;
     priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
     const paymentPayload: any = {
       isPaid: true,
@@ -423,13 +426,16 @@ export async function processNFTBookPurchase({
         .collection('nft')
         .where('isSold', '==', false)
         .where('isProcessing', '==', false)
-        .limit(1));
-      if (!nftRes.size) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-      const { id: nftId } = nftRes.docs[0];
-      t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+        .limit(quantity));
+      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+      const nftIds = nftRes.docs.map((d) => d.id);
+      nftIds.forEach((nftId) => {
+        t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+      });
       paymentPayload.isAutoDeliver = true;
       paymentPayload.autoMemo = autoMemo;
-      paymentPayload.nftId = nftId;
+      [paymentPayload.nftId] = nftIds;
+      paymentPayload.nftIds = nftIds;
     }
     if (hasShipping) paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
@@ -598,34 +604,37 @@ export async function formatStripeCheckoutSession({
       ...item,
     }),
   );
-  const totalConvertedPriceInDecimal = items.reduce((acc, item) => acc + item.priceInDecimal, 0);
+  const totalConvertedPriceInDecimal = items.reduce(
+    (acc, item) => acc + item.priceInDecimal * item.quantity,
+    0,
+  );
   const stripeFeeAmount = calculateStripeFee(totalConvertedPriceInDecimal, convertedCurrency);
   const likerLandTipFeeAmount = itemPrices.reduce(
-    (acc, item) => acc + item.likerLandTipFeeAmount,
+    (acc, item) => acc + item.likerLandTipFeeAmount * item.quantity,
     0,
   );
   const likerLandFeeAmount = itemPrices.reduce(
-    (acc, item) => acc + item.likerLandFeeAmount,
+    (acc, item) => acc + item.likerLandFeeAmount * item.quantity,
     0,
   );
   const likerLandCommission = itemPrices.reduce(
-    (acc, item) => acc + item.likerLandCommission,
+    (acc, item) => acc + item.likerLandCommission * item.quantity,
     0,
   );
   const channelCommission = itemPrices.reduce(
-    (acc, item) => acc + item.channelCommission,
+    (acc, item) => acc + item.channelCommission * item.quantity,
     0,
   );
   const likerLandArtFee = itemPrices.reduce(
-    (acc, item) => acc + item.likerLandArtFee,
+    (acc, item) => acc + item.likerLandArtFee * item.quantity,
     0,
   );
   const totalOriginalPriceInDecimal = itemPrices.reduce(
-    (acc, item) => acc + item.originalPriceInDecimal,
+    (acc, item) => acc + item.originalPriceInDecimal * item.quantity,
     0,
   );
   const totalCustomPriceDiffInDecimal = itemPrices.reduce(
-    (acc, item) => acc + item.customPriceDiffInDecimal,
+    (acc, item) => acc + item.customPriceDiffInDecimal * item.quantity,
     0,
   );
   paymentIntentData.transfer_group = paymentId;
@@ -746,6 +755,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   from: inputFrom,
   coupon,
   customPriceInDecimal,
+  quantity = 1,
   email,
   giftInfo,
   utm,
@@ -758,6 +768,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   from?: string,
   coupon?: string,
   customPriceInDecimal?: number,
+  quantity?: number,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -911,7 +922,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     images: image ? [image] : [],
     priceInDecimal,
     customPriceDiffInDecimal,
-    quantity: 1,
+    quantity,
     isLikerLandArt,
     ownerWallet,
     classId,
@@ -934,6 +945,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceInDecimal,
     originalPriceInDecimal,
     coupon,
+    quantity,
     priceName,
     priceIndex,
     giftInfo,
@@ -1047,6 +1059,7 @@ export async function processNFTBookStripePurchase(
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+
   const { email, phone } = customer;
   try {
     const { txData, listingData } = await processNFTBookPurchase({
@@ -1215,6 +1228,7 @@ export async function claimNFTBook(
     email,
     isAutoDeliver,
     nftId,
+    nftIds,
     autoMemo = '',
   } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
@@ -1252,8 +1266,10 @@ export async function claimNFTBook(
 
   if (isAutoDeliver) {
     let txHash = '';
+    const msgSendNftIds = nftIds || [nftId];
     try {
-      const txMessages = [formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId)];
+      const txMessages = msgSendNftIds
+        .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
     } catch (autoDeliverErr) {
       await docRef.update({
@@ -1273,10 +1289,12 @@ export async function claimNFTBook(
         txHash,
         isAutoDeliver,
       }, t);
-      t.update(bookRef.collection('nft').doc(nftId), {
-        ownerWallet: wallet,
-        isProcessing: false,
-        isSold: true,
+      msgSendNftIds.forEach((id) => {
+        t.update(bookRef.collection('nft').doc(id), {
+          ownerWallet: wallet,
+          isProcessing: false,
+          isSold: true,
+        });
       });
       return paymentDocData;
     });
@@ -1308,7 +1326,7 @@ export async function claimNFTBook(
     });
   }
 
-  return { email, nftId };
+  return { email, nftId: nftIds?.[0] };
 }
 
 export async function sendNFTBookClaimedEmailNotification(
@@ -1366,12 +1384,14 @@ export async function updateNFTBookPostDeliveryData({
   callerWallet,
   paymentId,
   txHash,
+  quantity = 1,
   isAutoDeliver = false,
 }: {
   classId: string,
   callerWallet: string,
   paymentId: string,
   txHash: string,
+  quantity?: number,
   isAutoDeliver?: boolean,
 }, t: any) {
   // TODO: check tx content contains valid nft info and address
@@ -1390,7 +1410,10 @@ export async function updateNFTBookPostDeliveryData({
   if (!paymentDocData) {
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
-  const { status, isPhysicalOnly } = paymentDocData;
+  const { status, isPhysicalOnly, quantity: docQuantity = 1 } = paymentDocData;
+  if (quantity !== docQuantity) {
+    throw new ValidationError('INVALID_QUANTITY', 400);
+  }
   if (status !== 'pendingNFT') {
     throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
   }

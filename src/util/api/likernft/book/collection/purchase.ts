@@ -43,6 +43,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   priceInDecimal,
   originalPriceInDecimal,
   coupon,
+  quantity = 1,
   email = '',
   claimToken,
   sessionId = '',
@@ -59,6 +60,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   priceInDecimal: number,
   originalPriceInDecimal: number,
   coupon?: string,
+  quantity?: number
   from?: string;
   isPhysicalOnly?: boolean,
   giftInfo?: {
@@ -85,6 +87,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     priceInDecimal,
     originalPriceInDecimal,
     price: priceInDecimal / 100,
+    quantity,
     from,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
@@ -130,14 +133,14 @@ export async function processNFTBookCollectionPurchase({
     if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
     const { typePayload } = docData;
     const { stock } = typePayload;
-    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-
     const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
     const paymentData = paymentDoc.data();
     if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
-    typePayload.stock -= 1;
-    typePayload.sold += 1;
+    const { quantity, status } = paymentData;
+    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+    if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+    typePayload.stock -= quantity;
+    typePayload.sold += quantity;
     typePayload.lastSaleTimestamp = firestore.Timestamp.now();
     t.update(collectionRef, {
       typePayload,
@@ -167,6 +170,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaClientId,
   gaSessionId,
   from: inputFrom,
+  quantity = 1,
   giftInfo,
   coupon,
   customPriceInDecimal,
@@ -178,6 +182,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   from?: string,
   email?: string,
   coupon?: string,
+  quantity?: number,
   customPriceInDecimal?: number,
   giftInfo?: {
     toEmail: string,
@@ -323,7 +328,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     name,
     description,
     images,
-    quantity: 1,
+    quantity,
     priceInDecimal,
     customPriceDiffInDecimal,
     isLikerLandArt,
@@ -345,6 +350,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     priceInDecimal,
     originalPriceInDecimal,
     coupon,
+    quantity,
     claimToken,
     sessionId,
     from: from as string,
