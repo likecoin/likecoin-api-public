@@ -116,6 +116,65 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).create(payload);
 }
 
+async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
+  email,
+  phone,
+  hasShipping,
+  shippingDetails,
+  shippingCost,
+  execGrantTxHash,
+}) {
+  const collectionRef = likeNFTCollectionCollection.doc(collectionId);
+  const doc = await t.get(collectionRef);
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+  const { typePayload } = docData;
+  const { stock } = typePayload;
+  const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
+  const paymentData = paymentDoc.data();
+  if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+  const { quantity, status } = paymentData;
+  if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+  if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+  typePayload.stock -= quantity;
+  typePayload.sold += quantity;
+  typePayload.lastSaleTimestamp = firestore.Timestamp.now();
+  const paymentPayload: any = {
+    isPaid: true,
+    isPendingClaim: true,
+    hasShipping,
+    status: 'paid',
+    email,
+  };
+  if (phone) paymentPayload.phone = phone;
+  if (hasShipping) paymentPayload.shippingStatus = 'pending';
+  if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+  if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+  if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
+  return {
+    listingData: docData,
+    typePayload,
+    txData: paymentData,
+  };
+}
+
+async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, {
+  listingData,
+  typePayload,
+  txData,
+}) {
+  const collectionRef = likeNFTCollectionCollection.doc(collectionId);
+  t.update(collectionRef, {
+    typePayload,
+  });
+  t.update(collectionRef.collection('transactions').doc(paymentId), txData);
+  return {
+    listingData,
+    typePayload,
+    txData,
+  };
+}
+
 export async function processNFTBookCollectionPurchase({
   collectionId,
   email,
@@ -127,40 +186,18 @@ export async function processNFTBookCollectionPurchase({
 }) {
   const hasShipping = !!shippingDetails;
   const { listingData, txData } = await db.runTransaction(async (t) => {
-    const collectionRef = likeNFTCollectionCollection.doc(collectionId);
-    const doc = await t.get(collectionRef);
-    const docData = doc.data();
-    if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const { typePayload } = docData;
-    const { stock } = typePayload;
-    const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
-    const paymentData = paymentDoc.data();
-    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    const { quantity, status } = paymentData;
-    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
-    if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
-    typePayload.stock -= quantity;
-    typePayload.sold += quantity;
-    typePayload.lastSaleTimestamp = firestore.Timestamp.now();
-    t.update(collectionRef, {
-      typePayload,
-    });
-    const paymentPayload: any = {
-      isPaid: true,
-      isPendingClaim: true,
-      hasShipping,
-      status: 'paid',
+    const data = await processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
       email,
-    };
-    if (phone) paymentPayload.phone = phone;
-    if (hasShipping) paymentPayload.shippingStatus = 'pending';
-    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-    if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
-    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
-    t.update(collectionRef.collection('transactions').doc(paymentId), paymentPayload);
+      phone,
+      hasShipping,
+      shippingDetails,
+      shippingCost,
+      execGrantTxHash,
+    });
+    await processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, data);
     return {
-      listingData: { ...docData, ...typePayload },
-      txData: paymentData,
+      listingData: { ...data.listingData, ...data.typePayload },
+      txData: data.txData,
     };
   });
   return { listingData, txData };

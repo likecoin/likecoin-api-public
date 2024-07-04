@@ -379,6 +379,93 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
 
+async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
+  hasShipping,
+  email,
+  phone,
+  shippingDetails,
+  shippingCost,
+  execGrantTxHash,
+}) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const doc = await t.get(bookRef);
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+  const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
+  const paymentData = paymentDoc.data();
+  if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+  const { quantity, status, priceIndex } = paymentData;
+  if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+  const {
+    prices,
+  } = docData;
+  const priceInfo = prices[priceIndex];
+  if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+  const {
+    stock,
+    isAutoDeliver,
+    autoMemo = '',
+  } = priceInfo;
+  if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+  priceInfo.stock -= quantity;
+  priceInfo.sold += quantity;
+  priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
+  const paymentPayload: any = {
+    isPaid: true,
+    isPendingClaim: true,
+    hasShipping,
+    status: 'paid',
+    email,
+  };
+  if (phone) paymentPayload.phone = phone;
+  if (isAutoDeliver) {
+    const nftRes = await t.get(bookRef
+      .collection('nft')
+      .where('isSold', '==', false)
+      .where('isProcessing', '==', false)
+      .limit(quantity));
+    if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+    const nftIds = nftRes.docs.map((d) => d.id);
+    paymentPayload.isAutoDeliver = true;
+    paymentPayload.autoMemo = autoMemo;
+    [paymentPayload.nftId] = nftIds;
+    paymentPayload.nftIds = nftIds;
+  }
+  if (hasShipping) paymentPayload.shippingStatus = 'pending';
+  if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+  if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+  if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
+
+  return {
+    listingData: docData,
+    txData: { ...paymentData, ...paymentPayload },
+  };
+}
+
+async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
+  listingData,
+  txData,
+}) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const {
+    prices,
+  } = listingData;
+  if (txData.nftIds) {
+    txData.nftIds.forEach((nftId) => {
+      t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+    });
+  }
+  t.update(bookRef.collection('transactions').doc(paymentId), txData);
+  t.update(bookRef, {
+    prices,
+    lastSaleTimestamp: FieldValue.serverTimestamp(),
+  });
+  return {
+    listingData,
+    txData,
+  };
+}
+
 export async function processNFTBookPurchase({
   classId,
   email,
@@ -389,70 +476,28 @@ export async function processNFTBookPurchase({
   execGrantTxHash = '',
 }) {
   const hasShipping = !!shippingDetails;
-  const { listingData, txData } = await db.runTransaction(async (t) => {
-    const bookRef = likeNFTBookCollection.doc(classId);
-    const doc = await t.get(bookRef);
-    const docData = doc.data();
-    if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const paymentDoc = await t.get(bookRef.collection('transactions').doc(paymentId));
-    const paymentData = paymentDoc.data();
-    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    const { quantity, status, priceIndex } = paymentData;
-    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+  const data = await db.runTransaction(async (t) => {
     const {
-      prices,
-    } = docData;
-    const priceInfo = prices[priceIndex];
-    if (!priceInfo) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-    const {
-      stock,
-      isAutoDeliver,
-      autoMemo = '',
-    } = priceInfo;
-    if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
-    priceInfo.stock -= quantity;
-    priceInfo.sold += quantity;
-    priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
-    const paymentPayload: any = {
-      isPaid: true,
-      isPendingClaim: true,
-      hasShipping,
-      status: 'paid',
+      txData,
+      listingData,
+    } = await processNFTBookPurchaseTxGet(t, classId, paymentId, {
       email,
-    };
-    if (phone) paymentPayload.phone = phone;
-    if (isAutoDeliver) {
-      const nftRes = await t.get(bookRef
-        .collection('nft')
-        .where('isSold', '==', false)
-        .where('isProcessing', '==', false)
-        .limit(quantity));
-      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-      const nftIds = nftRes.docs.map((d) => d.id);
-      nftIds.forEach((nftId) => {
-        t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
-      });
-      paymentPayload.isAutoDeliver = true;
-      paymentPayload.autoMemo = autoMemo;
-      [paymentPayload.nftId] = nftIds;
-      paymentPayload.nftIds = nftIds;
-    }
-    if (hasShipping) paymentPayload.shippingStatus = 'pending';
-    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-    if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
-    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
-    t.update(bookRef.collection('transactions').doc(paymentId), paymentPayload);
-    t.update(bookRef, {
-      prices,
-      lastSaleTimestamp: FieldValue.serverTimestamp(),
+      phone,
+      shippingDetails,
+      shippingCost,
+      execGrantTxHash,
+      hasShipping,
     });
-    const updatedPaymentData = { ...paymentData, ...paymentPayload };
+    await processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
+      listingData,
+      txData,
+    });
     return {
-      listingData: docData,
-      txData: updatedPaymentData,
+      listingData,
+      txData,
     };
   });
-  return { listingData, txData };
+  return data;
 }
 
 export function getCouponDiscountRate(coupons, couponCode: string) {
