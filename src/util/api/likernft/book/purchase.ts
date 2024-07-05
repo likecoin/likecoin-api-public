@@ -88,7 +88,7 @@ function convertCurrency(priceInDecimal, exchangeRate) {
   return Math.round(priceInDecimal * exchangeRate);
 }
 
-function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
+export function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
   switch (currency) {
     case 'USD':
       return usdPriceInDecimal;
@@ -381,7 +381,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
 
-async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
+export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   hasShipping,
   email,
   phone,
@@ -444,7 +444,7 @@ async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   };
 }
 
-async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
+export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
   listingData,
   txData,
 }) {
@@ -639,7 +639,7 @@ export async function formatStripeCheckoutSession({
         likerLandArtFee,
       };
       if (item.classId) payload.classId = item.classId;
-      if (item.priceIndex) payload.priceIndex = item.priceIndex;
+      if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
       if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
       if (item.collectionId) payload.collectionId = item.collectionId;
       return payload;
