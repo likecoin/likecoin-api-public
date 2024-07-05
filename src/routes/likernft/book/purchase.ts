@@ -7,7 +7,7 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
-import { db, likeNFTBookCollection } from '../../../util/firebase';
+import { db, likeNFTBookCartCollection, likeNFTBookCollection } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
@@ -34,9 +34,130 @@ import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
-import { handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
+import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 
 const router = Router();
+
+router.get(
+  '/cart/:cartId/status',
+  async (req, res, next) => {
+    try {
+      const { cartId } = req.params;
+      const doc = await likeNFTBookCartCollection.doc(cartId).get();
+      const docData = doc.data();
+      if (!docData) {
+        res.status(404).send('PAYMENT_ID_NOT_FOUND');
+        return;
+      }
+      res.json(filterBookPurchaseData(docData));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/cart/:cartId/claim',
+  async (req, res, next) => {
+    try {
+      const { cartId } = req.params;
+      const { token } = req.query;
+      const { wallet, message } = req.body;
+
+      if (!token) throw new ValidationError('MISSING_TOKEN');
+      if (!wallet) throw new ValidationError('MISSING_WALLET');
+
+      const {
+        email,
+        classIds,
+        collectionIds,
+        newClaimedNFTs,
+        errors,
+      } = await claimNFTBookCart(
+        cartId,
+        {
+          message,
+          wallet,
+          token: token as string,
+        },
+        req,
+      );
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookCartClaimed',
+        cartId,
+        wallet,
+        email,
+        message,
+      });
+      res.json({
+        classIds,
+        collectionIds,
+        newClaimedNFTs,
+        errors,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post('/cart/new', async (req, res, next) => {
+  try {
+    const { from } = req.query;
+    const {
+      gaClientId,
+      gaSessionId,
+      email,
+      utmCampaign,
+      utmSource,
+      utmMedium,
+      items = [],
+    } = req.body;
+
+    if (!items?.length) {
+      throw new ValidationError('REQUIRE_ITEMS');
+    }
+
+    const {
+      url,
+      paymentId,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiffInDecimal,
+      sessionId,
+    } = await handleNewCartStripeCheckout(items, {
+      gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
+      from: from as string,
+      email,
+      utm: {
+        campaign: utmCampaign,
+        source: utmSource,
+        medium: utmMedium,
+      },
+    });
+    res.json({ url });
+
+    if (priceInDecimal) {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTCartPurchaseNew',
+        type: 'stripe',
+        paymentId,
+        price: priceInDecimal / 100,
+        originalPrice: originalPriceInDecimal / 100,
+        customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
+        sessionId,
+        channel: from,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
   const { classId } = req.params;
@@ -110,63 +231,6 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } else {
       next(err);
     }
-  }
-});
-
-router.post('/cart/new', async (req, res, next) => {
-  try {
-    const { from } = req.query;
-    const {
-      gaClientId,
-      gaSessionId,
-      email,
-      utmCampaign,
-      utmSource,
-      utmMedium,
-      items = [],
-    } = req.body;
-
-    if (!items?.length) {
-      throw new ValidationError('REQUIRE_ITEMS');
-    }
-
-    const {
-      url,
-      paymentId,
-      priceInDecimal,
-      originalPriceInDecimal,
-      customPriceDiffInDecimal,
-      sessionId,
-    } = await handleNewCartStripeCheckout(items, {
-      gaClientId: gaClientId as string,
-      gaSessionId: gaSessionId as string,
-      from: from as string,
-      email,
-      utm: {
-        campaign: utmCampaign,
-        source: utmSource,
-        medium: utmMedium,
-      },
-    });
-    res.json({ url });
-
-    if (priceInDecimal) {
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTCartPurchaseNew',
-        type: 'stripe',
-        paymentId,
-        price: priceInDecimal / 100,
-        originalPrice: originalPriceInDecimal / 100,
-        customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
-        sessionId,
-        channel: from,
-        utmCampaign,
-        utmSource,
-        utmMedium,
-      });
-    }
-  } catch (err) {
-    next(err);
   }
 });
 
