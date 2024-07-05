@@ -1,19 +1,47 @@
 import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
+import Stripe from 'stripe';
 
 import { getNftBookInfo, NFT_BOOK_TEXT_DEFAULT_LOCALE } from '.';
-import { NFT_BOOK_SALE_DESCRIPTION, MAXIMUM_CUSTOM_PRICE_IN_DECIMAL, NFT_BOOK_DEFAULT_FROM_CHANNEL } from '../../../../constant';
+import {
+  NFT_BOOK_SALE_DESCRIPTION,
+  MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
+  NFT_BOOK_DEFAULT_FROM_CHANNEL,
+  STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  USD_TO_HKD_RATIO,
+  PUBSUB_TOPIC_MISC,
+} from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { getLikerLandCartURL, getLikerLandNFTClaimPageURL } from '../../../liker-land';
 import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
-  getCouponDiscountRate, formatStripeCheckoutSession, TransactionFeeInfo, createNewNFTBookPayment,
+  getCouponDiscountRate,
+  formatStripeCheckoutSession,
+  TransactionFeeInfo,
+  createNewNFTBookPayment,
   ItemPriceInfo,
+  processNFTBookPurchaseTxUpdate,
+  handleStripeConnectedAccount,
+  sendNFTBookPurchaseEmail,
+  convertUSDToCurrency,
+  processNFTBookPurchaseTxGet,
 } from './purchase';
-import { FieldValue, likeNFTBookCartCollection } from '../../../firebase';
-import { createNewNFTBookCollectionPayment } from './collection/purchase';
+import {
+  db,
+  FieldValue, likeNFTBookCartCollection,
+} from '../../../firebase';
+import {
+  createNewNFTBookCollectionPayment,
+  processNFTBookCollectionPurchaseTxGet,
+  processNFTBookCollectionPurchaseTxUpdate,
+  sendNFTBookCollectionPurchaseEmail,
+} from './collection/purchase';
+import stripe from '../../../stripe';
+import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+import { sendNFTBookSalesSlackNotification } from '../../../slack';
+import publisher from '../../../gcloudPub';
 
 export type CartItem = {
   collectionId?: string
@@ -42,6 +70,7 @@ export type CartItemWithInfo = CartItem & {
   collectionId?: string,
   classId?: string,
   priceIndex?: number,
+  iscnPrefix?: string,
   quantity: number,
 }
 
@@ -92,7 +121,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     priceInDecimal: totalPriceInDecimal,
   } = feeInfo;
   await likeNFTBookCartCollection.doc(cartId).create(payload);
-  itemPrices.map((item, index) => {
+  await Promise.all(itemPrices.map((item, index) => {
     const { coupon } = itemInfos[index];
     const {
       classId,
@@ -150,7 +179,277 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       });
     }
     throw new ValidationError('ITEM_ID_NOT_SET');
+  }));
+}
+
+export async function processNFTBookCartPurchase({
+  cartId,
+  email,
+  phone,
+  paymentId,
+}) {
+  const cartRef = likeNFTBookCartCollection.doc(cartId);
+  const infos = await db.runTransaction(async (t) => {
+    const cartDoc = await t.get(cartRef);
+    const cartData = cartDoc.data();
+    if (!cartData) throw new ValidationError('CART_ID_NOT_FOUND');
+    const {
+      status,
+      classIds,
+      collectionIds,
+    } = cartData;
+    if (status !== 'new') throw new ValidationError('CART_STATUS_INVALID');
+
+    const classInfos = await Promise.all(classIds.map(async (classId) => {
+      const { listingData, txData } = await processNFTBookPurchaseTxGet(
+        t,
+        classId,
+        paymentId,
+        {
+          email,
+          phone,
+          hasShipping: false,
+          shippingDetails: null,
+          shippingCost: null,
+          execGrantTxHash: '',
+        },
+      );
+      return {
+        classId,
+        listingData,
+        txData,
+      };
+    }));
+    const collectionInfos = await Promise.all(collectionIds.map(async (collectionId) => {
+      const data = await processNFTBookCollectionPurchaseTxGet(
+        t,
+        collectionId,
+        paymentId,
+        {
+          email,
+          phone,
+          hasShipping: false,
+          shippingDetails: null,
+          shippingCost: null,
+          execGrantTxHash: '',
+        },
+      );
+      return {
+        collectionId,
+        listingData: { ...data.listingData, ...data.typePayload },
+        txData: data.txData,
+      };
+    }));
+
+    await Promise.all(classInfos.map(async (info, index) => {
+      await processNFTBookPurchaseTxUpdate(t, classIds[index], paymentId, info);
+    }));
+
+    await Promise.all(collectionInfos.map(async (info, index) => {
+      await processNFTBookCollectionPurchaseTxUpdate(t, collectionIds[index], paymentId, info);
+    }));
+    t.update(cartRef, {
+      status: 'paid',
+      isPaid: true,
+      isPendingClaim: true,
+      email,
+      hasShipping: false,
+    });
+    return {
+      classInfos,
+      collectionInfos,
+    };
   });
+  return infos;
+}
+
+export async function processNFTBookCartStripePurchase(
+  session: Stripe.Checkout.Session,
+  req: Express.Request,
+) {
+  const {
+    metadata: {
+      cartId,
+    } = {} as any,
+    customer_details: customer,
+    payment_intent: paymentIntent,
+    amount_total: amountTotal,
+  } = session;
+  const paymentId = cartId;
+  if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
+  if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+  const { email, phone } = customer;
+  try {
+    const infos = await processNFTBookCartPurchase({
+      cartId,
+      email,
+      phone,
+      paymentId,
+    });
+    const capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
+      expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+    });
+    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+      ?.balance_transaction as Stripe.BalanceTransaction;
+    const currency = capturedPaymentIntent.currency || 'USD';
+    const exchangeRate = balanceTx?.exchange_rate
+      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
+
+    const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+
+    const {
+      classInfos,
+      collectionInfos,
+    } = infos;
+    for (const info of [...classInfos, ...collectionInfos]) {
+      const {
+        collectionId,
+        classId,
+        listingData,
+        txData,
+      } = info;
+      const {
+        notificationEmails = [],
+        defaultPaymentCurrency = 'USD',
+        connectedWallets,
+        ownerWallet,
+        mustClaimToView = false,
+      } = listingData;
+      const {
+        claimToken,
+        price,
+        from,
+        isGift,
+        giftInfo,
+        isPhysicalOnly,
+        originalPriceInDecimal,
+        priceIndex,
+        priceName,
+        feeInfo,
+      } = txData;
+      const {
+        priceInDecimal,
+        stripeFeeAmount,
+        likerLandFeeAmount,
+        likerLandTipFeeAmount,
+        likerLandCommission,
+        channelCommission,
+        likerLandArtFee,
+      } = feeInfo as TransactionFeeInfo;
+      const bookId = collectionId || classId;
+      const bookData = await (collectionId
+        ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
+      const bookName = bookData?.name?.[NFT_BOOK_TEXT_DEFAULT_LOCALE] || bookData?.name || bookId;
+      const { transfers } = await handleStripeConnectedAccount(
+        {
+          classId,
+          priceIndex,
+          collectionId,
+          paymentId,
+          ownerWallet,
+          bookName,
+        },
+        {
+          amountTotal: priceInDecimal,
+          chargeId,
+          exchangeRate,
+          currency,
+          stripeFeeAmount,
+          likerLandFeeAmount,
+          likerLandTipFeeAmount,
+          likerLandCommission,
+          channelCommission,
+          likerLandArtFee,
+        },
+        { connectedWallets, from },
+      );
+
+      const shippingCostAmount = 0;
+      const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
+      const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
+      await Promise.all([
+        collectionId ? sendNFTBookCollectionPurchaseEmail({
+          email,
+          notificationEmails,
+          isGift,
+          giftInfo,
+          collectionId,
+          collectionName: bookName,
+          paymentId,
+          claimToken,
+          amountTotal: (amountTotal || 0) / 100,
+          isPhysicalOnly,
+          phone: phone || '',
+          shippingDetails: null,
+          shippingCost: shippingCostAmount,
+          originalPrice: originalPriceInDecimal / 100,
+        }) : sendNFTBookPurchaseEmail({
+          email,
+          phone: phone || '',
+          shippingDetails: null,
+          shippingCost: 0,
+          originalPrice: originalPriceInDecimal / 100,
+          isGift,
+          giftInfo,
+          notificationEmails,
+          classId,
+          bookName,
+          priceName,
+          paymentId,
+          claimToken,
+          amountTotal: (amountTotal || 0) / 100,
+          mustClaimToView,
+          isPhysicalOnly,
+        }),
+        sendNFTBookSalesSlackNotification({
+          classId,
+          bookName,
+          paymentId,
+          email,
+          priceName,
+          priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
+          method: 'Fiat',
+          from,
+        }),
+        createAirtableBookSalesRecordFromStripePaymentIntent({
+          pi: capturedPaymentIntent,
+          feeInfo,
+          transfers,
+          shippingCountry: undefined,
+          shippingCost: undefined,
+        }),
+      ]);
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTPurchaseCaptured',
+        paymentId,
+        cartId,
+        fromChannel: from,
+        sessionId: session.id,
+        isGift,
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    const errorMessage = (err as Error).message;
+    const errorStack = (err as Error).stack;
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseError',
+      type: 'stripe',
+      paymentId,
+      cartId,
+      error: (err as Error).toString(),
+      errorMessage,
+      errorStack,
+    });
+    await likeNFTBookCartCollection.doc(cartId).update({
+      status: 'canceled',
+      email,
+    });
+    await stripe.paymentIntents.cancel(paymentIntent as string)
+      .catch((error) => console.error(error)); // eslint-disable-line no-console
+  }
 }
 
 export async function handleNewCartStripeCheckout(items: CartItem[], {
@@ -399,6 +698,10 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       isLikerLandArt,
       ownerWallet,
       quantity,
+      classId,
+      collectionId,
+      priceIndex,
+      iscnPrefix,
     } = info;
     return {
       name,
@@ -409,6 +712,10 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       isLikerLandArt,
       quantity,
       ownerWallet,
+      classId,
+      collectionId,
+      priceIndex,
+      iscnPrefix,
     };
   }), {
     hasShipping: false,

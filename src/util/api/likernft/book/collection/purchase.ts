@@ -116,7 +116,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).create(payload);
 }
 
-async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
+export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
   email,
   phone,
   hasShipping,
@@ -158,7 +158,7 @@ async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId,
   };
 }
 
-async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, {
+export async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, {
   listingData,
   typePayload,
   txData,

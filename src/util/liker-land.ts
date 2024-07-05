@@ -168,6 +168,10 @@ export const getLikerLandNFTClaimPageURL = ({
     qsPayload.collection_id = collectionId;
   }
 
+  if (cartId) {
+    qsPayload.cart_id = cartId;
+  }
+
   if (redirect) {
     qsPayload.redirect = '1';
   }
