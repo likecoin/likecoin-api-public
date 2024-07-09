@@ -369,9 +369,10 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     payableAmount = balanceTxAmount
       - stripeFee - likerLandFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
   }
+  const productId = classId || collectionId;
 
   return {
-    id: pi.id,
+    paymentIntentId: pi.id,
     date: date.toISOString(),
 
     // Payment
@@ -403,7 +404,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     hasApplicationFee,
 
     // Product
-    productId: classId || collectionId,
+    productId,
     editionIndex,
 
     // Customer info
@@ -431,7 +432,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(pi, transfers);
     const fields: Partial<FieldSet> = {
-      ID: record.id,
+      'Payment Intent ID': record.paymentIntentId,
       Date: record.date,
       Channel: record.channel,
       Edition: record.editionIndex,
