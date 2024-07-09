@@ -377,6 +377,9 @@ router.post(
       const { token } = req.query;
       const { wallet, message } = req.body;
 
+      if (!token) throw new ValidationError('MISSING_TOKEN');
+      if (!wallet) throw new ValidationError('MISSING_WALLET');
+
       const email = await claimNFTBookCollection(
         collectionId,
         paymentId,
