@@ -424,12 +424,14 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
   transfers,
+  quantity = 1,
   feeInfo,
   shippingCountry,
   shippingCost,
 }: {
   pi: Stripe.PaymentIntent,
   transfers: Stripe.Transfer[],
+  quantity?: number,
   feeInfo: any,
   shippingCountry?: string | null,
   shippingCost?: number,
@@ -441,6 +443,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       Date: record.date,
       Channel: record.channel,
       Edition: record.editionIndex,
+      Quantity: quantity,
       'Customer Email': record.customerEmail,
       'Payment Method': record.paymentMethod,
       'Payment Amount': record.paymentAmount,

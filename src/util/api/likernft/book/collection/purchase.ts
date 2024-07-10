@@ -519,6 +519,7 @@ export async function processNFTBookCollectionStripePurchase(
       isPhysicalOnly,
       originalPriceInDecimal,
       feeInfo,
+      quantity,
     } = txData;
     const {
       stripeFeeAmount,
@@ -608,6 +609,7 @@ export async function processNFTBookCollectionStripePurchase(
       createAirtableBookSalesRecordFromStripePaymentIntent({
         pi: capturedPaymentIntent,
         feeInfo,
+        quantity,
         transfers,
         shippingCountry: shippingDetails?.address?.country,
         shippingCost: shippingCostAmount,
