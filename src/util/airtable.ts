@@ -5,10 +5,7 @@ import {
   AIRTABLE_API_KEY,
   AIRTABLE_BASE_ID,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
-  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
 } from '../../config/config';
-
-import { NFT_BOOK_DEFAULT_FROM_CHANNEL } from '../constant';
 
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 import { parseImageURLFromMetadata } from './api/likernft/metadata';
@@ -324,8 +321,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   // Note: Channel commission must be provided in metadata at checkout
   const channelCommission = convertCurrency(Number(channelCommissionRaw)) / 100 || 0;
 
-  const isLikerLandChannel = channel === NFT_BOOK_DEFAULT_FROM_CHANNEL;
-
   const likerLandCommission = convertCurrency(Number(likerLandCommissionRaw)) / 100 || 0;
 
   const likerLandArtFee = convertCurrency(Number(likerLandArtFeeRaw)) / 100 || 0;
@@ -350,16 +345,25 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     likerLandFee = balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
   }
 
-  const hasPaidChannelCommission = isLikerLandChannel || !!transfers?.find((t) => t.metadata?.type === 'channelCommission');
+  const hasPaidChannelCommission = !!transfers?.find((t) => t.metadata?.type === 'channelCommission');
   const hasPaidConnectedWalletCommission = !!transfers?.find((t) => t.metadata?.type === 'connectedWallet');
   let payableAmount = 0;
   if (hasTransferGroup) {
     if (!hasPaidConnectedWalletCommission) {
-      payableAmount = balanceTxAmount - stripeFee - likerLandFee - likerLandCommission
-        - likerLandArtFee - likerLandTipFee;
-    }
-    if (!hasPaidChannelCommission) {
-      payableAmount += channelCommission;
+      payableAmount = (
+        balanceTxAmount
+          - stripeFee
+          - likerLandFee
+          - likerLandCommission
+          - likerLandArtFee
+          - likerLandTipFee
+      );
+
+      if (hasPaidChannelCommission) {
+        payableAmount -= channelCommission;
+      }
+    } else if (!hasPaidChannelCommission) {
+      payableAmount = channelCommission;
     }
   } else if (!hasApplicationFee) {
     payableAmount = balanceTxAmount
