@@ -96,10 +96,25 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   const classIdsWithPrice = itemPrices.filter((item) => !!item.classId).map((item) => ({
     classId: item.classId,
     priceIndex: item.priceIndex,
+    quantity: item.quantity,
+    price: item.priceInDecimal / 100,
+    priceInDecimal: item.priceInDecimal,
+    originalPriceInDecimal: item.originalPriceInDecimal,
+  }));
+  const collectionIdsWithPrice = itemPrices.filter((item) => !!item.collectionId).map((item) => ({
+    collectionId: item.collectionId,
+    quantity: item.quantity,
+    price: item.priceInDecimal / 100,
+    priceInDecimal: item.priceInDecimal,
+    originalPriceInDecimal: item.originalPriceInDecimal,
   }));
   const classIds = classIdsWithPrice.map((item) => item.classId);
-  const collectionIds = itemPrices.filter((item) => !!item.collectionId)
-    .map((item) => item.collectionId);
+  const collectionIds = collectionIdsWithPrice.map((item) => item.collectionId);
+  const {
+    stripeFeeAmount: totalStripeFeeAmount = 0,
+    priceInDecimal: totalPriceInDecimal = 0,
+    originalPriceInDecimal: totalOriginalPriceInDecimal = 0,
+  } = feeInfo;
   const payload: any = {
     type,
     email,
@@ -113,13 +128,13 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     classIds,
     classIdsWithPrice,
     collectionIds,
+    collectionIdsWithPrice,
     timestamp: FieldValue.serverTimestamp(),
+    price: totalPriceInDecimal / 100,
+    priceInDecimal: totalPriceInDecimal,
+    originalPriceInDecimal: totalOriginalPriceInDecimal,
     feeInfo,
   };
-  const {
-    stripeFeeAmount: totalStripeFeeAmount,
-    priceInDecimal: totalPriceInDecimal,
-  } = feeInfo;
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
     const { coupon } = itemInfos[index];
