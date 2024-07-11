@@ -709,6 +709,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gaSessionId,
   });
   const cancelUrl = getLikerLandCartURL({
+    type: 'book',
     utmCampaign: utm?.campaign,
     utmSource: utm?.source,
     utmMedium: utm?.medium,

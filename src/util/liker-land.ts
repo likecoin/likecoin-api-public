@@ -13,6 +13,7 @@ export const getLikerLandPortfolioPageURL = ({
 
 export const getLikerLandCartURL = ({
   language,
+  type = 'book',
   utmCampaign,
   utmSource,
   utmMedium,
@@ -20,6 +21,7 @@ export const getLikerLandCartURL = ({
   gaSessionId,
 }: {
   language?: string,
+  type?: 'book' | 'wnft',
   utmCampaign?: string;
   utmSource?: string;
   utmMedium?: string;
@@ -43,7 +45,7 @@ export const getLikerLandCartURL = ({
     qsPayload.ga_session_id = gaSessionId;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
-  return getLikerLandURL(`/shopping-cart?${qs}`, { language });
+  return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
 };
 
 export const getLikerLandNFTClassPageURL = ({
