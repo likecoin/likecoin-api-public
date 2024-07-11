@@ -50,6 +50,7 @@ export type CartItem = {
   coupon?: string
   customPriceInDecimal?: number
   quantity?: number
+  from?: string
 }
 
 export type CartItemWithInfo = CartItem & {
@@ -137,7 +138,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   };
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
-    const { coupon } = itemInfos[index];
+    const { coupon, from: itemFrom } = itemInfos[index];
     const {
       classId,
       collectionId,
@@ -175,7 +176,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         quantity,
         priceName: '',
         priceIndex,
-        from,
+        from: itemFrom || from,
         itemPrices: [item],
         feeInfo: itemFeeInfo,
       });
@@ -188,7 +189,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         quantity,
         claimToken,
         sessionId,
-        from,
+        from: itemFrom || from,
         itemPrices: [item],
         feeInfo: itemFeeInfo,
       });
@@ -491,6 +492,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       coupon,
       customPriceInDecimal,
       quantity = 1,
+      from: itemFrom,
     } = item;
     let info;
     if (classId && priceIndex !== undefined) {
@@ -530,6 +532,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       } else if (priceDescription) {
         description = `${description} - ${priceDescription}`;
       }
+      if (itemFrom) description = `[${itemFrom}] ${description}`;
       const { image } = classMetadata;
       const images = [parseImageURLFromMetadata(image)];
       info = {
@@ -579,7 +582,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         }
       });
       const name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
-      const description = typeof collectionDescriptionObj === 'object' ? collectionDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionDescriptionObj || '';
+      let description = typeof collectionDescriptionObj === 'object' ? collectionDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionDescriptionObj || '';
+      if (itemFrom) description = `[${itemFrom}] ${description}`;
       info = {
         stock,
         hasShipping,
@@ -716,6 +720,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       collectionId,
       priceIndex,
       iscnPrefix,
+      from: itemFrom,
     } = info;
     return {
       name,
@@ -730,6 +735,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       collectionId,
       priceIndex,
       iscnPrefix,
+      from: itemFrom,
     };
   }), {
     hasShipping: false,
@@ -746,7 +752,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     type: 'stripe',
     claimToken,
     sessionId,
-    from: from as string,
+    from,
     itemInfos,
     itemPrices,
     feeInfo,
