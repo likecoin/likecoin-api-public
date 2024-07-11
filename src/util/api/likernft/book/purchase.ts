@@ -564,6 +564,7 @@ export async function formatStripeCheckoutSession({
   priceIndex?: number,
   collectionId?: string,
   iscnPrefix?: string,
+  from?: string,
 }[], {
   hasShipping,
   shippingRates,
@@ -601,9 +602,9 @@ export async function formatStripeCheckoutSession({
   };
 
   const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-  const isFromLikerLand = checkIsFromLikerLand(from);
   const itemPrices = items.map(
     (item) => {
+      const isFromLikerLand = checkIsFromLikerLand(item.from || from);
       const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal
         ? convertUSDToCurrency(item.customPriceDiffInDecimal, convertedCurrency)
         : 0;
