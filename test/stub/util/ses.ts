@@ -33,6 +33,16 @@ export function sendPendingClaimEmail({
   return Promise.resolve();
 }
 
+export function sendNFTBookCartPendingClaimEmail({
+  email,
+  cartId,
+  bookNames,
+  paymentId,
+  claimToken,
+}) {
+  return Promise.resolve();
+}
+
 export function sendNFTBookListingEmail({
   classId = '',
   collectionId = '',
@@ -105,6 +115,7 @@ export function sendNFTBookPendingClaimEmail({
   email,
   classId = '',
   collectionId = '',
+  cartId = '',
   bookName,
   paymentId,
   claimToken,
