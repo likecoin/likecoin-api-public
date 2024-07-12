@@ -74,6 +74,7 @@ export type CartItemWithInfo = CartItem & {
   classId?: string,
   priceIndex?: number,
   iscnPrefix?: string,
+  priceName?: string,
   quantity: number,
 }
 
@@ -140,7 +141,11 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   };
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
-    const { coupon, from: itemFrom } = itemInfos[index];
+    const {
+      coupon,
+      from: itemFrom,
+      priceName = '',
+    } = itemInfos[index];
     const {
       classId,
       collectionId,
@@ -176,7 +181,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         originalPriceInDecimal,
         coupon,
         quantity,
-        priceName: '',
+        priceName,
         priceIndex,
         from: itemFrom || from,
         itemPrices: [item],
@@ -577,6 +582,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         originalPriceInDecimal,
         classId,
         iscnPrefix,
+        priceName,
       };
     } else if (collectionId) {
       const collectionData = await getBookCollectionInfoById(collectionId);
@@ -641,6 +647,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       ownerWallet,
       shippingRates,
       isLikerLandArt,
+      priceName = '',
     } = info;
 
     if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
@@ -672,6 +679,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
     return {
       ...item,
+      priceName,
       priceInDecimal,
       customPriceDiffInDecimal,
       stock,
