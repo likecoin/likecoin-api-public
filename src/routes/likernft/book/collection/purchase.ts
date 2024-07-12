@@ -115,8 +115,9 @@ router.post('/:collectionId/new', async (req, res, next) => {
       utmCampaign,
       utmSource,
       utmMedium,
-      quantity = 1,
     } = req.body;
+    let { quantity = 1 } = req.body;
+    quantity = parseInt(quantity, 10) || 1;
 
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');

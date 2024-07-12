@@ -130,8 +130,11 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       utmSource,
       utmMedium,
       customPriceInDecimal,
+    } = req.body;
+    let {
       quantity = 1,
     } = req.body;
+    quantity = parseInt(quantity, 10) || 1;
 
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
@@ -634,7 +637,10 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const { txHash, quantity } = req.body;
+      const { txHash } = req.body;
+      let { quantity = 1 } = req.body;
+      quantity = parseInt(quantity, 10) || 1;
+
       const { wallet } = req.user;
 
       const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
