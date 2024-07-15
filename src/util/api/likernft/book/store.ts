@@ -134,6 +134,7 @@ export async function handleGiftBook(
         mustClaimToView,
         isPhysicalOnly,
         shippingDetails: null,
+        from: '',
       }),
       sendNFTBookSalesSlackNotification({
         classId,

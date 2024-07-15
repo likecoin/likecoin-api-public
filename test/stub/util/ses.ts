@@ -108,6 +108,7 @@ export function sendNFTBookPendingClaimEmail({
   bookName,
   paymentId,
   claimToken,
+  from = '',
   mustClaimToView = false,
 }) {
   return Promise.resolve();

@@ -256,6 +256,7 @@ router.post(
           mustClaimToView,
           isPhysicalOnly,
           shippingDetails: null,
+          from,
         }),
         sendNFTBookSalesSlackNotification({
           collectionId,
