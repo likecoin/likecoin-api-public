@@ -324,6 +324,7 @@ export function sendNFTBookPendingClaimEmail({
   bookName,
   paymentId,
   claimToken,
+  from = '',
   mustClaimToView = false,
 }) {
   if (TEST_MODE) return Promise.resolve();
@@ -386,7 +387,8 @@ export function sendNFTBookPendingClaimEmail({
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land</p>
+            <p>[${from}]</p>`,
 
             // English version
             title2: titleEn,
@@ -403,7 +405,8 @@ export function sendNFTBookPendingClaimEmail({
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land</p>
+            <p>[${from}]</p>`,
           }).body,
         },
       },

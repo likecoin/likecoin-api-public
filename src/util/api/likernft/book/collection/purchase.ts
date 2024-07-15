@@ -366,6 +366,7 @@ export async function sendNFTBookCollectionPurchaseEmail({
   shippingDetails,
   shippingCost = 0,
   originalPrice = amountTotal,
+  from,
 }) {
   if (isPhysicalOnly) {
     await sendNFTBookPhysicalOnlyEmail({
@@ -399,6 +400,7 @@ export async function sendNFTBookCollectionPurchaseEmail({
       paymentId,
       claimToken,
       mustClaimToView,
+      from,
     });
   }
   await sendNFTBookSalesEmail({
@@ -530,6 +532,7 @@ export async function processNFTBookCollectionStripePurchase(
         shippingDetails,
         shippingCost: shippingCostAmount,
         originalPrice: originalPriceInDecimal / 100,
+        from,
       }),
       sendNFTBookSalesSlackNotification({
         collectionId,
