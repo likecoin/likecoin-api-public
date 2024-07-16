@@ -397,6 +397,7 @@ export async function processNFTBookCartStripePurchase(
           shippingDetails: null,
           shippingCost: shippingCostAmount,
           originalPrice: originalPriceInDecimal / 100,
+          from,
         }) : sendNFTBookPurchaseEmail({
           email,
           phone: phone || '',
@@ -414,6 +415,7 @@ export async function processNFTBookCartStripePurchase(
           amountTotal: (amountTotal || 0) / 100,
           mustClaimToView,
           isPhysicalOnly: false,
+          from,
         }),
         sendNFTBookSalesSlackNotification({
           classId,
