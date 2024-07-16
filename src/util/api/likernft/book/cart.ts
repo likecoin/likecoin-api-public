@@ -571,9 +571,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         name: collectionNameObj,
         description: collectionDescriptionObj,
       } = collectionData;
-
-      if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
-
       const classDataList = await Promise.all(classIds.map((id) => getNFTClassDataById(id)));
 
       const images: string[] = [];
@@ -620,6 +617,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       shippingRates,
       isLikerLandArt,
     } = info;
+
+    if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
     description = description.length > 300
