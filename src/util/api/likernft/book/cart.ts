@@ -837,7 +837,7 @@ export async function claimNFTBookCart(
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
-      errors.push({ classId, error: err });
+      errors.push({ classId, error: (err as Error).toString() });
     }
   }));
   await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
@@ -848,7 +848,7 @@ export async function claimNFTBookCart(
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
-      errors.push({ collectionId, error: err });
+      errors.push({ collectionId, error: (err as Error).toString() });
     }
   }));
 
@@ -856,6 +856,11 @@ export async function claimNFTBookCart(
     await cartRef.update({
       status: 'pending',
       isPendingClaim: false,
+      errors: FieldValue.delete(),
+    });
+  } else {
+    await cartRef.update({
+      errors,
     });
   }
 
