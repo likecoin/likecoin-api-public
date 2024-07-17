@@ -143,7 +143,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       classId,
       collectionId,
       priceIndex,
-      quantity,
+      quantity = 1,
       priceInDecimal,
       customPriceDiffInDecimal,
       originalPriceInDecimal,
@@ -154,15 +154,15 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       likerLandArtFee,
     } = item;
     const itemFeeInfo: TransactionFeeInfo = {
-      stripeFeeAmount: (totalStripeFeeAmount * priceInDecimal) / totalPriceInDecimal,
-      priceInDecimal,
-      originalPriceInDecimal,
-      customPriceDiff: customPriceDiffInDecimal,
-      likerLandTipFeeAmount,
-      likerLandFeeAmount,
-      likerLandCommission,
-      channelCommission,
-      likerLandArtFee,
+      stripeFeeAmount: (totalStripeFeeAmount * priceInDecimal * quantity) / totalPriceInDecimal,
+      priceInDecimal: priceInDecimal * quantity,
+      originalPriceInDecimal: originalPriceInDecimal * quantity,
+      customPriceDiff: customPriceDiffInDecimal * quantity,
+      likerLandTipFeeAmount: likerLandTipFeeAmount * quantity,
+      likerLandFeeAmount: likerLandFeeAmount * quantity,
+      likerLandCommission: likerLandCommission * quantity,
+      channelCommission: channelCommission * quantity,
+      likerLandArtFee: likerLandArtFee * quantity,
     };
     if (classId && priceIndex !== undefined) {
       return createNewNFTBookPayment(classId, paymentId, {
