@@ -219,6 +219,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     pi,
     transfers,
     from: channel,
+    stripeFeeAmount,
+    stripeFeeCurrency,
   }: {
     classId?: string,
     collectionId?: string,
@@ -227,6 +229,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     pi: Stripe.PaymentIntent,
     transfers: Stripe.Transfer[],
     from?: string,
+    stripeFeeAmount: number,
+    stripeFeeCurrency: string,
   },
 ) {
   const {
@@ -253,7 +257,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   let balanceTxExchangeRate: number | undefined;
   let balanceTxNetAmount = 0;
   let stripeFee = 0;
-  let stripeFeeCurrency = 'usd';
   let applicationFeeAmount = 0;
   let feeTotal = 0;
 
@@ -280,22 +283,19 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
       // eslint-disable-next-line no-console
       console.error('Balance transaction not found in the payment indent:', pi.id);
     } else {
-      balanceTxAmount = balanceTx.amount / 100;
-      balanceTxNetAmount = balanceTx.net / 100;
       balanceTxCurrency = balanceTx.currency;
       if (balanceTx.exchange_rate) {
         balanceTxExchangeRate = balanceTx.exchange_rate;
       }
 
-      const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-      if (stripeFeeDetails) {
-        stripeFeeCurrency = stripeFeeDetails.currency;
-        stripeFee = (
-          stripeFeeDetails.currency !== balanceTxCurrency
-            ? convertCurrency(stripeFeeDetails.amount)
-            : stripeFeeDetails.amount
-        ) / 100;
-      }
+      stripeFee = (
+        stripeFeeCurrency !== balanceTxCurrency
+          ? convertCurrency(stripeFeeAmount)
+          : stripeFeeAmount
+      ) / 100;
+
+      balanceTxAmount = (feeInfo.priceInDecimal || balanceTx.amount) / 100;
+      balanceTxNetAmount = balanceTxAmount - stripeFee;
 
       feeTotal = balanceTx.fee / 100;
 
@@ -441,6 +441,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   feeInfo,
   shippingCountry,
   shippingCost,
+  stripeFeeAmount,
+  stripeFeeCurrency,
   from,
 }: {
   pi: Stripe.PaymentIntent,
@@ -452,11 +454,21 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   feeInfo: any,
   shippingCountry?: string | null,
   shippingCost?: number,
+  stripeFeeAmount: number,
+  stripeFeeCurrency: string,
   from?: string,
 }): Promise<void> {
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
-      classId, priceIndex, collectionId, feeInfo, pi, transfers, from,
+      classId,
+      priceIndex,
+      collectionId,
+      feeInfo,
+      pi,
+      transfers,
+      from,
+      stripeFeeAmount,
+      stripeFeeCurrency,
     });
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': record.paymentIntentId,

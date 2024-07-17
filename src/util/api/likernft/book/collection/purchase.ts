@@ -525,7 +525,7 @@ export async function processNFTBookCollectionStripePurchase(
       quantity,
     } = txData;
     const {
-      stripeFeeAmount,
+      stripeFeeAmount: docStripeFeeAmount,
       likerLandFeeAmount,
       likerLandTipFeeAmount,
       likerLandCommission,
@@ -544,6 +544,9 @@ export async function processNFTBookCollectionStripePurchase(
     const currency = capturedPaymentIntent.currency || defaultPaymentCurrency;
     const exchangeRate = balanceTx?.exchange_rate
       || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
+    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+    const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+    const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
 
@@ -618,6 +621,8 @@ export async function processNFTBookCollectionStripePurchase(
         transfers,
         shippingCountry: shippingDetails?.address?.country,
         shippingCost: shippingCostAmount,
+        stripeFeeCurrency,
+        stripeFeeAmount,
       }),
     ]);
   } catch (err) {
