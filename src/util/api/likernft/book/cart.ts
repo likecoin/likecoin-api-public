@@ -429,6 +429,10 @@ export async function processNFTBookCartStripePurchase(
         }),
         createAirtableBookSalesRecordFromStripePaymentIntent({
           pi: capturedPaymentIntent,
+          classId,
+          collectionId,
+          priceIndex,
+          from,
           quantity,
           feeInfo,
           transfers,
