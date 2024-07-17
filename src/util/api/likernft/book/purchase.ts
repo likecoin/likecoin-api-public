@@ -733,7 +733,7 @@ export async function formatStripeCheckoutSession({
           },
           unit_amount: item.customPriceDiffInDecimal,
         },
-        quantity: 1,
+        quantity: item.quantity,
       });
     }
   });
