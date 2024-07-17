@@ -307,6 +307,11 @@ export async function processNFTBookCartStripePurchase(
     });
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
+
+    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+    const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+    const totalStripeFeeAmount = stripeFeeDetails?.amount || 0;
+
     const currency = capturedPaymentIntent.currency || 'USD';
     const exchangeRate = balanceTx?.exchange_rate
       || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
@@ -343,13 +348,15 @@ export async function processNFTBookCartStripePurchase(
       } = txData;
       const {
         priceInDecimal,
-        stripeFeeAmount,
+        stripeFeeAmount: documentStripeFeeAmount,
         likerLandFeeAmount,
         likerLandTipFeeAmount,
         likerLandCommission,
         channelCommission,
         likerLandArtFee,
       } = feeInfo as TransactionFeeInfo;
+      const stripeFeeAmount = ((totalStripeFeeAmount * priceInDecimal)
+        / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
       const bookId = collectionId || classId;
       const bookData = await (collectionId
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
@@ -432,6 +439,8 @@ export async function processNFTBookCartStripePurchase(
           classId,
           collectionId,
           priceIndex,
+          stripeFeeAmount,
+          stripeFeeCurrency,
           from,
           quantity,
           feeInfo,
