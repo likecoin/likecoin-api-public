@@ -609,8 +609,8 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
   try {
     const { classId } = req.params;
     const {
-      notificationEmails = [],
-      moderatorWallets = [],
+      notificationEmails,
+      moderatorWallets,
       connectedWallets,
       defaultPaymentCurrency,
       shippingRates,
