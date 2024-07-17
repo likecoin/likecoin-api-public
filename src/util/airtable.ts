@@ -211,15 +211,25 @@ async function queryAirtablePublicationRecordById(id: string) {
 }
 
 function normalizeStripePaymentIntentForAirtableBookSalesRecord(
-  feeInfo: any,
-  pi: Stripe.PaymentIntent,
-  transfers: Stripe.Transfer[],
-) {
-  const {
-    from: channel,
+  {
     classId,
     collectionId,
-    priceIndex: priceIndexRaw,
+    priceIndex,
+    feeInfo,
+    pi,
+    transfers,
+    from: channel,
+  }: {
+    classId?: string,
+    collectionId?: string,
+    priceIndex?: number,
+    feeInfo: any,
+    pi: Stripe.PaymentIntent,
+    transfers: Stripe.Transfer[],
+    from?: string,
+  },
+) {
+  const {
     utmSource,
     gaClientId,
     gaSessionId,
@@ -307,7 +317,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     }
   }
 
-  const editionIndex = priceIndexRaw ? Number(priceIndexRaw) : 0;
+  const editionIndex = priceIndex || 0;
 
   const hasApplicationFee = !!pi.transfer_data;
   const hasTransferGroup = !!pi.transfer_group;
@@ -372,7 +382,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     payableAmount = balanceTxAmount
       - stripeFee - likerLandFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
   }
-  const productId = classId || collectionId;
+  const productId = classId || collectionId || '';
 
   return {
     paymentIntentId: pi.id,
@@ -423,21 +433,31 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
+  classId,
+  collectionId,
+  priceIndex,
   transfers,
   quantity = 1,
   feeInfo,
   shippingCountry,
   shippingCost,
+  from,
 }: {
   pi: Stripe.PaymentIntent,
+  classId?: string,
+  collectionId?: string,
+  priceIndex?: number,
   transfers: Stripe.Transfer[],
   quantity?: number,
   feeInfo: any,
   shippingCountry?: string | null,
   shippingCost?: number,
+  from?: string,
 }): Promise<void> {
   try {
-    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(feeInfo, pi, transfers);
+    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
+      classId, priceIndex, collectionId, feeInfo, pi, transfers, from,
+    });
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': record.paymentIntentId,
       Date: record.date,
