@@ -134,6 +134,7 @@ export function sendNFTBookSalesEmail({
 export function sendNFTBookSaleCommissionEmail({
   classId = '',
   collectionId = '',
+  paymentId,
   email,
   bookName,
   amount,
