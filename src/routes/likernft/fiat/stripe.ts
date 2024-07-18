@@ -16,7 +16,7 @@ import {
   processStripeFiatNFTPurchase,
   findPaymentFromStripeSessionId,
   formatLineItem,
-  handlePromotionalEmails,
+  // handlePromotionalEmails,
 } from '../../../util/api/likernft/fiat/stripe';
 import { getNFTClassDataById, getLikerNFTPendingClaimSigningClientAndWallet } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -69,7 +69,8 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }
-        await handlePromotionalEmails(session, req);
+        // Do not send substack email, spammy
+        // await handlePromotionalEmails(session, req);
         break;
       }
       case 'invoice.paid':
