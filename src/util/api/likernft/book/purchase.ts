@@ -116,7 +116,7 @@ export async function handleStripeConnectedAccount({
     }
     let fromStripeConnectAccountId;
     if (fromUser && fromUser.bookUserInfo) {
-      const { bookUserInfo, likerUserinfo } = fromUser;
+      const { bookUserInfo, likerUserInfo } = fromUser;
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
@@ -125,7 +125,7 @@ export async function handleStripeConnectedAccount({
       const {
         email,
         isEmailVerified,
-      } = likerUserinfo || {};
+      } = likerUserInfo || {};
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
