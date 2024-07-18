@@ -657,7 +657,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       priceInDecimal = customPriceInDecimal;
     }
     if (priceInDecimal <= 0) throw new ValidationError('PRICE_INVALID');
-    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
+    if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
     return {
       ...item,
       priceInDecimal,
