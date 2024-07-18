@@ -823,6 +823,7 @@ export function sendNFTBookSalesEmail({
 export function sendNFTBookSaleCommissionEmail({
   classId = '',
   collectionId = '',
+  paymentId,
   email,
   bookName,
   amount,
@@ -834,7 +835,7 @@ export function sendNFTBookSaleCommissionEmail({
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId })
     : getLikerLandNFTClassPageURL({ classId });
-  const title = `You have earn $${amount} for ${isRoyalty ? '' : 'helping '}selling ${bookName}`;
+  const title = `You have earned US$${amount} for ${isRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
@@ -862,7 +863,8 @@ export function sendNFTBookSaleCommissionEmail({
             <br/>
             <p>Congratulation!</p>
             <p>Someone has bought the NFT book <a href="${nftPageURLEn}">${bookName}</a></p>
-            <p>As a result you have earn $${amount} due to commission type "${displayType}"</p>
+            <p>As a result you have earn US$${amount} due to commission type "${displayType}"</p>
+            <p>Ref ID: ${paymentId}.</p>
             <br/>
             <p>Liker Land</p>`,
           }).body,
