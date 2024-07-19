@@ -11,6 +11,41 @@ export const getLikerLandPortfolioPageURL = ({
   language = 'en',
 }: GetLikerLandNFTPageURLParams = {}): string => getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
 
+export const getLikerLandCartURL = ({
+  language,
+  utmCampaign,
+  utmSource,
+  utmMedium,
+  gaClientId,
+  gaSessionId,
+}: {
+  language?: string,
+  utmCampaign?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  gaClientId?: string;
+  gaSessionId?: string;
+}) => {
+  const qsPayload: any = {};
+  if (utmCampaign) {
+    qsPayload.utm_campaign = utmCampaign;
+  }
+  if (utmSource) {
+    qsPayload.utm_source = utmSource;
+  }
+  if (utmMedium) {
+    qsPayload.utm_medium = utmMedium;
+  }
+  if (gaClientId) {
+    qsPayload.ga_client_id = gaClientId;
+  }
+  if (gaSessionId) {
+    qsPayload.ga_session_id = gaSessionId;
+  }
+  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  return getLikerLandURL(`/shopping-cart?${qs}`, { language });
+};
+
 export const getLikerLandNFTClassPageURL = ({
   classId,
   language,
@@ -88,6 +123,7 @@ export const getLikerLandNFTCollectionPageURL = ({
 export const getLikerLandNFTClaimPageURL = ({
   classId,
   collectionId,
+  cartId,
   paymentId,
   free = false,
   token,
@@ -104,6 +140,7 @@ export const getLikerLandNFTClaimPageURL = ({
 }: {
   classId?: string;
   collectionId?: string;
+  cartId?: string;
   paymentId: string;
   free?: boolean,
   token: string;
@@ -168,6 +205,7 @@ export const getLikerLandNFTClaimPageURL = ({
 export const getLikerLandNFTGiftPageURL = ({
   classId,
   collectionId,
+  cartId,
   paymentId,
   type = '',
   language,
@@ -182,6 +220,7 @@ export const getLikerLandNFTGiftPageURL = ({
 }: {
   classId?: string;
   collectionId?: string;
+  cartId?: string;
   paymentId: string;
   type?: string;
   language?: string;

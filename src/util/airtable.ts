@@ -211,6 +211,7 @@ async function queryAirtablePublicationRecordById(id: string) {
 }
 
 function normalizeStripePaymentIntentForAirtableBookSalesRecord(
+  feeInfo: any,
   pi: Stripe.PaymentIntent,
   transfers: Stripe.Transfer[],
 ) {
@@ -219,6 +220,11 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     classId,
     collectionId,
     priceIndex: priceIndexRaw,
+    utmSource,
+    gaClientId,
+    gaSessionId,
+  } = pi.metadata;
+  const {
     likerLandArtFee: likerLandArtFeeRaw = 0,
     likerLandFeeAmount: calculatedLikerLandFeeRaw = 0,
     stripeFeeAmount: calculatedStripeFeeRaw = 0,
@@ -226,10 +232,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     customPriceDiff: customPriceDiffRaw = 0,
     channelCommission: channelCommissionRaw = 0,
     likerLandCommission: likerLandCommissionRaw = 0,
-    utmSource,
-    gaClientId,
-    gaSessionId,
-  } = pi.metadata;
+  } = feeInfo;
 
   const date = new Date(pi.created * 1000);
 
@@ -421,21 +424,26 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
   transfers,
+  quantity = 1,
+  feeInfo,
   shippingCountry,
   shippingCost,
 }: {
   pi: Stripe.PaymentIntent,
   transfers: Stripe.Transfer[],
+  quantity?: number,
+  feeInfo: any,
   shippingCountry?: string | null,
   shippingCost?: number,
 }): Promise<void> {
   try {
-    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(pi, transfers);
+    const record = normalizeStripePaymentIntentForAirtableBookSalesRecord(feeInfo, pi, transfers);
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': record.paymentIntentId,
       Date: record.date,
       Channel: record.channel,
       Edition: record.editionIndex,
+      Quantity: quantity,
       'Customer Email': record.customerEmail,
       'Payment Method': record.paymentMethod,
       'Payment Amount': record.paymentAmount,

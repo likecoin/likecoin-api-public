@@ -45,8 +45,10 @@ router.get('/:collectionId/new', async (req, res, next) => {
       utm_source: utmSource,
       utm_medium: utmMedium,
       custom_price: inputCustomPriceInDecimal,
+      quantity: inputQuantity,
     } = req.query;
 
+    const quantity = parseInt(inputQuantity as string, 10) || 1;
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
@@ -60,6 +62,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       from: from as string,
       coupon: coupon as string,
+      quantity,
       customPriceInDecimal,
       utm: {
         campaign: utmCampaign as string,
@@ -113,6 +116,8 @@ router.post('/:collectionId/new', async (req, res, next) => {
       utmSource,
       utmMedium,
     } = req.body;
+    let { quantity = 1 } = req.body;
+    quantity = parseInt(quantity, 10) || 1;
 
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
@@ -131,6 +136,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       from: from as string,
       giftInfo,
       coupon,
+      quantity,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       utm: {
         campaign: utmCampaign,

@@ -49,10 +49,11 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       utm_source: utmSource,
       utm_medium: utmMedium,
       custom_price: inputCustomPriceInDecimal,
+      quantity: inputQuantity,
       coupon,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
-
+    const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
@@ -68,6 +69,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       coupon: coupon as string,
       customPriceInDecimal,
+      quantity,
       from: from as string,
       utm: {
         campaign: utmCampaign as string,
@@ -129,6 +131,10 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       utmMedium,
       customPriceInDecimal,
     } = req.body;
+    let {
+      quantity = 1,
+    } = req.body;
+    quantity = parseInt(quantity, 10) || 1;
 
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
@@ -149,6 +155,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,
+      quantity,
       giftInfo,
       email,
       utm: {
@@ -631,6 +638,9 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { txHash } = req.body;
+      let { quantity = 1 } = req.body;
+      quantity = parseInt(quantity, 10) || 1;
+
       const { wallet } = req.user;
 
       const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
@@ -638,6 +648,7 @@ router.post(
           classId,
           callerWallet: wallet,
           paymentId,
+          quantity,
           txHash,
         }, t);
         return result;
@@ -663,6 +674,7 @@ router.post(
         logType: 'BookNFTSentUpdate',
         paymentId,
         classId,
+        quantity,
         // TODO: parse nftId and wallet from txHash,
         txHash,
         isGift,

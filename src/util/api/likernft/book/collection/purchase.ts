@@ -20,6 +20,7 @@ import {
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
+  TransactionFeeInfo,
   formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
 } from '../purchase';
 import stripe from '../../../../stripe';
@@ -42,12 +43,15 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   priceInDecimal,
   originalPriceInDecimal,
   coupon,
+  quantity = 1,
   email = '',
   claimToken,
   sessionId = '',
   from = '',
   isPhysicalOnly = false,
   giftInfo,
+  itemPrices,
+  feeInfo,
 }: {
   type: string;
   email?: string;
@@ -56,6 +60,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   priceInDecimal: number,
   originalPriceInDecimal: number,
   coupon?: string,
+  quantity?: number
   from?: string;
   isPhysicalOnly?: boolean,
   giftInfo?: {
@@ -64,6 +69,8 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     fromName: string,
     message?: string,
   };
+  itemPrices?: any[],
+  feeInfo?: TransactionFeeInfo,
 }) {
   const docData = await getBookCollectionInfoById(collectionId);
   const { classIds } = docData;
@@ -80,10 +87,13 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     priceInDecimal,
     originalPriceInDecimal,
     price: priceInDecimal / 100,
+    quantity,
     from,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
   };
+  if (itemPrices) payload.itemPrices = itemPrices;
+  if (feeInfo) payload.feeInfo = feeInfo;
   if (coupon) payload.coupon = coupon;
 
   const isGift = !!giftInfo;
@@ -106,6 +116,65 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).create(payload);
 }
 
+async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
+  email,
+  phone,
+  hasShipping,
+  shippingDetails,
+  shippingCost,
+  execGrantTxHash,
+}) {
+  const collectionRef = likeNFTCollectionCollection.doc(collectionId);
+  const doc = await t.get(collectionRef);
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
+  const { typePayload } = docData;
+  const { stock } = typePayload;
+  const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
+  const paymentData = paymentDoc.data();
+  if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
+  const { quantity, status } = paymentData;
+  if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
+  if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+  typePayload.stock -= quantity;
+  typePayload.sold += quantity;
+  typePayload.lastSaleTimestamp = firestore.Timestamp.now();
+  const paymentPayload: any = {
+    isPaid: true,
+    isPendingClaim: true,
+    hasShipping,
+    status: 'paid',
+    email,
+  };
+  if (phone) paymentPayload.phone = phone;
+  if (hasShipping) paymentPayload.shippingStatus = 'pending';
+  if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+  if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
+  if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
+  return {
+    listingData: docData,
+    typePayload,
+    txData: paymentData,
+  };
+}
+
+async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, {
+  listingData,
+  typePayload,
+  txData,
+}) {
+  const collectionRef = likeNFTCollectionCollection.doc(collectionId);
+  t.update(collectionRef, {
+    typePayload,
+  });
+  t.update(collectionRef.collection('transactions').doc(paymentId), txData);
+  return {
+    listingData,
+    typePayload,
+    txData,
+  };
+}
+
 export async function processNFTBookCollectionPurchase({
   collectionId,
   email,
@@ -117,40 +186,18 @@ export async function processNFTBookCollectionPurchase({
 }) {
   const hasShipping = !!shippingDetails;
   const { listingData, txData } = await db.runTransaction(async (t) => {
-    const collectionRef = likeNFTCollectionCollection.doc(collectionId);
-    const doc = await t.get(collectionRef);
-    const docData = doc.data();
-    if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const { typePayload } = docData;
-    const { stock } = typePayload;
-    if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-
-    const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
-    const paymentData = paymentDoc.data();
-    if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
-    if (paymentData.status !== 'new') throw new ValidationError('PAYMENT_ALREADY_CLAIMED');
-    typePayload.stock -= 1;
-    typePayload.sold += 1;
-    typePayload.lastSaleTimestamp = firestore.Timestamp.now();
-    t.update(collectionRef, {
-      typePayload,
-    });
-    const paymentPayload: any = {
-      isPaid: true,
-      isPendingClaim: true,
-      hasShipping,
-      status: 'paid',
+    const data = await processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
       email,
-    };
-    if (phone) paymentPayload.phone = phone;
-    if (hasShipping) paymentPayload.shippingStatus = 'pending';
-    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-    if (shippingCost) paymentPayload.shippingCost = shippingCost.amount_total / 100;
-    if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
-    t.update(collectionRef.collection('transactions').doc(paymentId), paymentPayload);
+      phone,
+      hasShipping,
+      shippingDetails,
+      shippingCost,
+      execGrantTxHash,
+    });
+    await processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, data);
     return {
-      listingData: { ...docData, ...typePayload },
-      txData: paymentData,
+      listingData: { ...data.listingData, ...data.typePayload },
+      txData: data.txData,
     };
   });
   return { listingData, txData };
@@ -160,6 +207,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gaClientId,
   gaSessionId,
   from: inputFrom,
+  quantity = 1,
   giftInfo,
   coupon,
   customPriceInDecimal,
@@ -171,6 +219,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   from?: string,
   email?: string,
   coupon?: string,
+  quantity?: number,
   customPriceInDecimal?: number,
   giftInfo?: {
     toEmail: string,
@@ -299,27 +348,33 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     }
   });
 
-  const session = await formatStripeCheckoutSession({
+  const {
+    session,
+    itemPrices,
+    feeInfo,
+  } = await formatStripeCheckoutSession({
     collectionId,
     paymentId,
-    ownerWallet,
     from,
     gaClientId,
     gaSessionId,
     email,
     giftInfo,
     utm,
-  }, {
+  }, [{
     name,
     description,
     images,
-  }, {
-    hasShipping,
-    shippingRates,
-    defaultPaymentCurrency,
+    quantity,
     priceInDecimal,
     customPriceDiffInDecimal,
     isLikerLandArt,
+    ownerWallet,
+    collectionId,
+  }], {
+    hasShipping,
+    shippingRates,
+    defaultPaymentCurrency,
     successUrl,
     cancelUrl,
   });
@@ -332,11 +387,14 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     priceInDecimal,
     originalPriceInDecimal,
     coupon,
+    quantity,
     claimToken,
     sessionId,
     from: from as string,
     isPhysicalOnly,
     giftInfo,
+    itemPrices,
+    feeInfo,
   });
 
   return {
@@ -426,12 +484,6 @@ export async function processNFTBookCollectionStripePurchase(
     metadata: {
       collectionId,
       paymentId,
-      stripeFeeAmount = '0',
-      likerLandFeeAmount = '0',
-      likerLandTipFeeAmount = '0',
-      likerLandCommission = '0',
-      channelCommission = '0',
-      likerlandArtFee = '0',
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -466,7 +518,17 @@ export async function processNFTBookCollectionStripePurchase(
       giftInfo,
       isPhysicalOnly,
       originalPriceInDecimal,
+      feeInfo,
+      quantity,
     } = txData;
+    const {
+      stripeFeeAmount,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+    } = feeInfo;
     const [capturedPaymentIntent, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -494,12 +556,12 @@ export async function processNFTBookCollectionStripePurchase(
         chargeId,
         currency,
         exchangeRate,
-        stripeFeeAmount: Number(stripeFeeAmount),
-        likerLandFeeAmount: Number(likerLandFeeAmount),
-        likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
-        likerLandCommission: Number(likerLandCommission),
-        channelCommission: Number(channelCommission),
-        likerlandArtFee: Number(likerlandArtFee),
+        stripeFeeAmount,
+        likerLandFeeAmount,
+        likerLandTipFeeAmount,
+        likerLandCommission,
+        channelCommission,
+        likerLandArtFee,
       },
       { connectedWallets, from },
     );
@@ -546,6 +608,8 @@ export async function processNFTBookCollectionStripePurchase(
       }),
       createAirtableBookSalesRecordFromStripePaymentIntent({
         pi: capturedPaymentIntent,
+        feeInfo,
+        quantity,
         transfers,
         shippingCountry: shippingDetails?.address?.country,
         shippingCost: shippingCostAmount,
