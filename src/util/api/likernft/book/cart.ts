@@ -510,6 +510,16 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       from: itemFrom,
     } = item;
     let info;
+    if (!Number.isInteger(quantity) || quantity <= 1) {
+      throw new ValidationError('QUANTITY_INVALID');
+    }
+    if (customPriceInDecimal
+      && (!Number.isInteger(customPriceInDecimal) || customPriceInDecimal < 0)) {
+      throw new ValidationError('CUSTOM_PRICE_INVALID');
+    }
+    if (priceIndex && (!Number.isInteger(priceIndex) || priceIndex < 0)) {
+      throw new ValidationError('PRICE_INDEX_INVALID');
+    }
     if (classId && priceIndex !== undefined) {
       const [metadata, bookInfo] = await Promise.all([
         getNFTClassDataById(classId),
