@@ -1198,9 +1198,11 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
-    const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
     const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
     const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
+    const shippingCostAmount = shippingCost
+      ? (convertUSDToCurrency(shippingCost.amount_total, convertedCurrency) / 100)
+      : 0;
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
