@@ -1281,6 +1281,7 @@ export async function claimNFTBook(
     nftId,
     nftIds,
     autoMemo = '',
+    quantity,
   } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
@@ -1338,6 +1339,7 @@ export async function claimNFTBook(
         callerWallet: LIKER_NFT_TARGET_ADDRESS,
         paymentId,
         txHash,
+        quantity,
         isAutoDeliver,
       }, t);
       msgSendNftIds.forEach((id) => {
