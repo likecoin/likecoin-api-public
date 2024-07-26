@@ -154,7 +154,10 @@ async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId,
   return {
     listingData: docData,
     typePayload,
-    txData: paymentData,
+    txData: {
+      ...paymentData,
+      ...paymentPayload,
+    },
   };
 }
 
