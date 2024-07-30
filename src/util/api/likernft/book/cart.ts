@@ -220,7 +220,7 @@ export async function processNFTBookCartPurchase({
       classIds,
       collectionIds,
     } = cartData;
-    if (status !== 'new') throw new ValidationError('CART_STATUS_INVALID');
+    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_PROCESSED');
 
     const classInfos = await Promise.all(classIds.map(async (classId) => {
       const { listingData, txData } = await processNFTBookPurchaseTxGet(
@@ -462,21 +462,23 @@ export async function processNFTBookCartStripePurchase(
     console.error(err);
     const errorMessage = (err as Error).message;
     const errorStack = (err as Error).stack;
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'BookNFTPurchaseError',
-      type: 'stripe',
-      paymentId,
-      cartId,
-      error: (err as Error).toString(),
-      errorMessage,
-      errorStack,
-    });
-    await likeNFTBookCartCollection.doc(cartId).update({
-      status: 'canceled',
-      email,
-    });
-    await stripe.paymentIntents.cancel(paymentIntent as string)
-      .catch((error) => console.error(error)); // eslint-disable-line no-console
+    if (errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTPurchaseError',
+        type: 'stripe',
+        paymentId,
+        cartId,
+        error: (err as Error).toString(),
+        errorMessage,
+        errorStack,
+      });
+      await likeNFTBookCartCollection.doc(cartId).update({
+        status: 'canceled',
+        email,
+      });
+      await stripe.paymentIntents.cancel(paymentIntent as string)
+        .catch((error) => console.error(error)); // eslint-disable-line no-console
+    }
   }
 }
 
