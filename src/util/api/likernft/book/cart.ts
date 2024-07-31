@@ -510,7 +510,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       from: itemFrom,
     } = item;
     let info;
-    if (!Number.isInteger(quantity) || quantity <= 1) {
+    if (!Number.isInteger(quantity) || quantity < 1) {
       throw new ValidationError('QUANTITY_INVALID');
     }
     if (customPriceInDecimal
