@@ -448,6 +448,10 @@ export function filterBookPurchaseData({
   autoMemo,
   isAutoDeliver,
   quantity = 1,
+  classIds,
+  classIdsWithPrice,
+  collectionIds,
+  collectionIdsWithPrice,
 }) {
   return {
     id,
@@ -477,6 +481,10 @@ export function filterBookPurchaseData({
     autoMemo,
     isAutoDeliver,
     quantity,
+    classIds,
+    classIdsWithPrice,
+    collectionIds,
+    collectionIdsWithPrice,
   };
 }
 

@@ -24,24 +24,25 @@ import {
   ItemPriceInfo,
   processNFTBookPurchaseTxUpdate,
   handleStripeConnectedAccount,
-  sendNFTBookPurchaseEmail,
   convertUSDToCurrency,
   processNFTBookPurchaseTxGet,
+  claimNFTBook,
 } from './purchase';
 import {
   db,
   FieldValue, likeNFTBookCartCollection,
 } from '../../../firebase';
 import {
+  claimNFTBookCollection,
   createNewNFTBookCollectionPayment,
   processNFTBookCollectionPurchaseTxGet,
   processNFTBookCollectionPurchaseTxUpdate,
-  sendNFTBookCollectionPurchaseEmail,
 } from './collection/purchase';
 import stripe from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
+import { sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 
 export type CartItem = {
   collectionId?: string
@@ -72,6 +73,7 @@ export type CartItemWithInfo = CartItem & {
   classId?: string,
   priceIndex?: number,
   iscnPrefix?: string,
+  priceName?: string,
   quantity: number,
 }
 
@@ -138,7 +140,11 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   };
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
-    const { coupon, from: itemFrom } = itemInfos[index];
+    const {
+      coupon,
+      from: itemFrom,
+      priceName = '',
+    } = itemInfos[index];
     const {
       classId,
       collectionId,
@@ -174,7 +180,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         originalPriceInDecimal,
         coupon,
         quantity,
-        priceName: '',
+        priceName,
         priceIndex,
         from: itemFrom || from,
         itemPrices: [item],
@@ -214,7 +220,7 @@ export async function processNFTBookCartPurchase({
       classIds,
       collectionIds,
     } = cartData;
-    if (status !== 'new') throw new ValidationError('CART_STATUS_INVALID');
+    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_PROCESSED');
 
     const classInfos = await Promise.all(classIds.map(async (classId) => {
       const { listingData, txData } = await processNFTBookPurchaseTxGet(
@@ -264,14 +270,20 @@ export async function processNFTBookCartPurchase({
     await Promise.all(collectionInfos.map(async (info, index) => {
       await processNFTBookCollectionPurchaseTxUpdate(t, collectionIds[index], paymentId, info);
     }));
-    t.update(cartRef, {
+    const updatePayload = {
       status: 'paid',
       isPaid: true,
       isPendingClaim: true,
       email,
       hasShipping: false,
-    });
+    };
+    t.update(cartRef, updatePayload);
+
     return {
+      txData: {
+        ...cartData,
+        ...updatePayload,
+      },
       classInfos,
       collectionInfos,
     };
@@ -321,8 +333,13 @@ export async function processNFTBookCartStripePurchase(
     const {
       classInfos,
       collectionInfos,
+      txData: cartData,
     } = infos;
-    for (const info of [...classInfos, ...collectionInfos]) {
+    const { claimToken } = cartData;
+
+    const infoList = [...classInfos, ...collectionInfos];
+    const bookNames: string[] = [];
+    for (const info of infoList) {
       const {
         collectionId,
         classId,
@@ -334,10 +351,8 @@ export async function processNFTBookCartStripePurchase(
         defaultPaymentCurrency = 'USD',
         connectedWallets,
         ownerWallet,
-        mustClaimToView = false,
       } = listingData;
       const {
-        claimToken,
         price,
         from,
         quantity,
@@ -361,6 +376,7 @@ export async function processNFTBookCartStripePurchase(
       const bookData = await (collectionId
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
       const bookName = bookData?.name?.[NFT_BOOK_TEXT_DEFAULT_LOCALE] || bookData?.name || bookId;
+      bookNames.push(bookName);
       const { transfers } = await handleStripeConnectedAccount(
         {
           classId,
@@ -385,44 +401,21 @@ export async function processNFTBookCartStripePurchase(
         { connectedWallets, from },
       );
 
-      const shippingCostAmount = 0;
       const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
       const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
       await Promise.all([
-        collectionId ? sendNFTBookCollectionPurchaseEmail({
-          email,
-          notificationEmails,
+        await sendNFTBookSalesEmail({
+          buyerEmail: email,
+          emails: notificationEmails,
+          bookName,
           isGift: false,
-          giftInfo: null,
-          collectionId,
-          collectionName: bookName,
-          paymentId,
-          claimToken,
-          amountTotal: (amountTotal || 0) / 100,
-          isPhysicalOnly: false,
-          phone: phone || '',
-          shippingDetails: null,
-          shippingCost: shippingCostAmount,
-          originalPrice: originalPriceInDecimal / 100,
-          from,
-        }) : sendNFTBookPurchaseEmail({
-          email,
-          phone: phone || '',
-          shippingDetails: null,
+          giftToEmail: '',
+          giftToName: '',
+          amount: priceInDecimal / 100,
+          phone,
+          shippingDetails: '',
           shippingCost: 0,
           originalPrice: originalPriceInDecimal / 100,
-          isGift: false,
-          giftInfo: null,
-          notificationEmails,
-          classId,
-          bookName,
-          priceName,
-          paymentId,
-          claimToken,
-          amountTotal: (amountTotal || 0) / 100,
-          mustClaimToView,
-          isPhysicalOnly: false,
-          from,
         }),
         sendNFTBookSalesSlackNotification({
           classId,
@@ -449,36 +442,43 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
         }),
       ]);
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTPurchaseCaptured',
-        paymentId,
-        cartId,
-        fromChannel: from,
-        sessionId: session.id,
-        isGift: false,
-      });
     }
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPurchaseCaptured',
+      paymentId,
+      cartId,
+      sessionId: session.id,
+      isGift: false,
+    });
+    await sendNFTBookCartPendingClaimEmail({
+      email,
+      cartId,
+      bookNames,
+      paymentId,
+      claimToken,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
     const errorMessage = (err as Error).message;
     const errorStack = (err as Error).stack;
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'BookNFTPurchaseError',
-      type: 'stripe',
-      paymentId,
-      cartId,
-      error: (err as Error).toString(),
-      errorMessage,
-      errorStack,
-    });
-    await likeNFTBookCartCollection.doc(cartId).update({
-      status: 'canceled',
-      email,
-    });
-    await stripe.paymentIntents.cancel(paymentIntent as string)
-      .catch((error) => console.error(error)); // eslint-disable-line no-console
+    if (errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTPurchaseError',
+        type: 'stripe',
+        paymentId,
+        cartId,
+        error: (err as Error).toString(),
+        errorMessage,
+        errorStack,
+      });
+      await likeNFTBookCartCollection.doc(cartId).update({
+        status: 'canceled',
+        email,
+      });
+      await stripe.paymentIntents.cancel(paymentIntent as string)
+        .catch((error) => console.error(error)); // eslint-disable-line no-console
+    }
   }
 }
 
@@ -575,6 +575,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         originalPriceInDecimal,
         classId,
         iscnPrefix,
+        priceName,
       };
     } else if (collectionId) {
       const collectionData = await getBookCollectionInfoById(collectionId);
@@ -639,6 +640,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       ownerWallet,
       shippingRates,
       isLikerLandArt,
+      priceName = '',
     } = info;
 
     if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
@@ -670,6 +672,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
     return {
       ...item,
+      priceName,
       priceInDecimal,
       customPriceDiffInDecimal,
       stock,
@@ -698,7 +701,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     cartId,
     paymentId,
     token: claimToken,
-    type: 'cart',
+    type: 'nft_book',
     redirect: true,
     utmCampaign: utm?.campaign,
     utmSource: utm?.source,
@@ -707,6 +710,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gaSessionId,
   });
   const cancelUrl = getLikerLandCartURL({
+    type: 'book',
     utmCampaign: utm?.campaign,
     utmSource: utm?.source,
     utmMedium: utm?.medium,
@@ -796,5 +800,77 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     priceInDecimal,
     originalPriceInDecimal,
     customPriceDiffInDecimal,
+  };
+}
+
+export async function claimNFTBookCart(
+  cartId: string,
+  { message, wallet, token }: { message: string, wallet: string, token: string },
+  req,
+) {
+  const cartRef = likeNFTBookCartCollection.doc(cartId);
+  const cartDoc = await cartRef.get();
+  const cartData = cartDoc.data();
+  const {
+    email,
+    classIds,
+    collectionIds,
+    claimedClassIds = [],
+    claimedCollectionIds = [],
+    claimToken,
+    status,
+  } = cartData;
+
+  if (status !== 'paid') {
+    throw new ValidationError('CART_ALREADY_CLAIMED', 403);
+  }
+  if (token !== claimToken) {
+    throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+  }
+  const unclaimedClassIds = classIds.filter((id) => !claimedClassIds.includes(id));
+  const unclaimedCollectionIds = collectionIds.filter((id) => !claimedCollectionIds.includes(id));
+  const errors: any = [];
+  const newClaimedNFTs: any = [];
+  await Promise.all(unclaimedClassIds.map(async (classId) => {
+    try {
+      const { nftId } = await claimNFTBook(classId, cartId, { message, wallet, token }, req);
+      newClaimedNFTs.push({ classId, nftId });
+      await cartRef.update({ claimedClassIds: FieldValue.arrayUnion(classId) });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      errors.push({ classId, error: (err as Error).toString() });
+    }
+  }));
+  await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
+    try {
+      await claimNFTBookCollection(collectionId, cartId, { message, wallet, token });
+      newClaimedNFTs.push({ collectionId });
+      await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      errors.push({ collectionId, error: (err as Error).toString() });
+    }
+  }));
+
+  if (!errors.length) {
+    await cartRef.update({
+      status: 'pending',
+      isPendingClaim: false,
+      errors: FieldValue.delete(),
+    });
+  } else {
+    await cartRef.update({
+      errors,
+    });
+  }
+
+  return {
+    email,
+    classIds: claimedClassIds,
+    collectionIds: claimedCollectionIds,
+    newClaimedNFTs,
+    errors,
   };
 }

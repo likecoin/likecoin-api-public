@@ -333,6 +333,7 @@ export function sendNFTBookPendingClaimEmail({
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
     : getLikerLandNFTClassPageURL({ classId, language: 'en' });
+
   const nftPageURLZh = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
     : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
@@ -407,6 +408,93 @@ export function sendNFTBookPendingClaimEmail({
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>Liker Land</p>
             <p>[${from}]</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export function sendNFTBookCartPendingClaimEmail({
+  email,
+  cartId,
+  bookNames,
+  paymentId,
+  claimToken,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  const titleEn = 'Claim your eBooks';
+  const titleZh = '領取你的電子書';
+  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+    cartId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'en',
+  });
+  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+    cartId,
+    paymentId,
+    token: claimToken,
+    type: 'nft_book',
+    language: 'zh-Hant',
+  });
+  const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookCartPendingClaimEmail',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: [titleZh, titleEn].join(' | '),
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getNFTTwoContentWithMessageAndButtonTemplate({
+            title1: titleZh,
+            content1: `<p>親愛的讀者：</p>
+            <p>感謝支持並購買以下電子書</p>
+            <ul>${bookNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>請根據網頁指示領取你的電子書，亦可按以下連結前往該頁面。完成步驟後，即可領取電子書。</p>
+            <p>若你購買的電子書需要作者親自簽發，請在完成步驟後，耐心等待作者發貨。
+            作者會在 1-3 個工作天內親手簽發你的電子書。
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 個人主頁</a>查閱。</p>`,
+            buttonText1: '領取我的電子書',
+            buttonHref1: claimPageURLZh,
+            append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <p>Liker Land</p>`,
+
+            // English version
+            title2: titleEn,
+            content2: `<p>Dear reader,</p>
+            <p>Thanks for purchasing the following ebooks</p>
+            <ul>${bookNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>Please follow the steps on the web to claim your ebooks.
+            You can also click the button below to get a direct link to that page.
+            Once the steps are completed, you can receive your ebooks.</p>
+            <p>If the ebook you purchased requires a personal signature from the author,
+            please wait patiently for the author to dispatch it after completing the steps,
+            typically within 3 days.
+            You can check the status of the ebooks on your <a href="${portfolioURLEn}">Liker Land Dashboard</a>.</p>`,
+            buttonText2: 'Claim your ebooks',
+            buttonHref2: claimPageURLEn,
+            append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
+            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
+            <p>Liker Land</p>`,
           }).body,
         },
       },
