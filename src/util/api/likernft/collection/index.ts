@@ -74,6 +74,7 @@ async function validateCollectionTypeData(
   if (type === 'book') {
     // check book collection list valid, e.g. wallet own all nft classes
     const {
+      autoMemo,
       priceInDecimal,
       stock,
       successUrl,
@@ -137,6 +138,7 @@ async function validateCollectionTypeData(
         isPhysicalOnly,
         hasShipping,
         shippingRates,
+        autoMemo,
         isAutoDeliver,
       }),
     );
@@ -181,6 +183,7 @@ export async function createNFTCollectionByType(
     description,
     image,
     isAutoDeliver,
+    autoMemo,
     autoDeliverNFTsTxHash,
     stock,
   } = payload;

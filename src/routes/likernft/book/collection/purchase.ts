@@ -25,6 +25,7 @@ import {
   processNFTBookCollectionPurchase,
   sendNFTBookCollectionClaimedEmailNotification,
   sendNFTBookCollectionPurchaseEmail,
+  updateNFTBookCollectionPostDeliveryData,
 } from '../../../../util/api/likernft/book/collection/purchase';
 import { getBookCollectionInfoById } from '../../../../util/api/likernft/collection/book';
 import { getCouponDiscountRate } from '../../../../util/api/likernft/book/purchase';
@@ -297,6 +298,7 @@ router.post(
             wallet,
             token: claimToken as string,
           },
+          req,
         );
 
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -399,6 +401,7 @@ router.post(
           wallet,
           token: token as string,
         },
+        req,
       );
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -433,40 +436,21 @@ router.post(
     try {
       const { collectionId, paymentId } = req.params;
       const { txHash } = req.body;
-      // TODO: check tx content contains valid nft info and address
-      const collectionRef = likeNFTCollectionCollection.doc(collectionId);
-      const collectionDoc = await collectionRef.get();
-      const collectionDocData = collectionDoc.data();
-      if (!collectionDocData) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
-      const { name, ownerWallet, moderatorWallets = [] } = collectionDocData;
-      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-        // TODO: check tx is sent by req.user.wallet
-        throw new ValidationError('NOT_OWNER', 403);
-      }
-      const paymentDocRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
+      let { quantity = 1 } = req.body;
+      quantity = parseInt(quantity, 10) || 1;
 
+      // TODO: check tx content contains valid nft info and address
       const {
-        email, isGift, giftInfo,
+        name, email, isGift, giftInfo,
       } = await db.runTransaction(async (t) => {
-        const doc = await t.get(paymentDocRef);
-        const docData = doc.data();
-        if (!docData) {
-          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        }
-        const {
-          status,
-        } = docData;
-        if (status !== 'pendingNFT') {
-          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
-        }
-        t.update(paymentDocRef, {
-          status: 'completed',
+        const result = await updateNFTBookCollectionPostDeliveryData({
+          collectionId,
+          callerWallet: req.user.wallet,
+          paymentId,
           txHash,
-        });
-        t.update(collectionRef, {
-          'typePayload.pendingNFTCount': FieldValue.increment(-1),
-        });
-        return docData;
+          quantity,
+        }, t);
+        return result;
       });
 
       if (isGift && giftInfo) {
