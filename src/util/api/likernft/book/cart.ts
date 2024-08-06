@@ -844,7 +844,7 @@ export async function claimNFTBookCart(
   }));
   await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
     try {
-      await claimNFTBookCollection(collectionId, cartId, { message, wallet, token });
+      await claimNFTBookCollection(collectionId, cartId, { message, wallet, token }, req);
       newClaimedNFTs.push({ collectionId });
       await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
     } catch (err) {
