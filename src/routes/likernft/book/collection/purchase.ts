@@ -48,6 +48,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       quantity: inputQuantity,
     } = req.query;
 
+    const referrer = req.get('Referrer');
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
@@ -69,6 +70,8 @@ router.get('/:collectionId/new', async (req, res, next) => {
         source: utmSource as string,
         medium: utmMedium as string,
       },
+      httpMethod: 'GET',
+      referrer,
     });
     res.redirect(url);
 
@@ -143,6 +146,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
         source: utmSource,
         medium: utmMedium,
       },
+      httpMethod: 'POST',
     });
     res.json({ url });
 

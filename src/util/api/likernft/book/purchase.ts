@@ -526,6 +526,7 @@ export async function formatStripeCheckoutSession({
   gaClientId,
   gaSessionId,
   giftInfo,
+  referrer,
   utm,
   httpMethod,
 }: {
@@ -545,6 +546,7 @@ export async function formatStripeCheckoutSession({
     toEmail: string,
     message?: string,
   },
+  referrer?: string,
   utm?: {
     campaign?: string,
     source?: string,
@@ -595,6 +597,7 @@ export async function formatStripeCheckoutSession({
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
   if (httpMethod) sessionMetadata.httpMethod = httpMethod;
+  if (referrer) sessionMetadata.referrer = referrer;
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
@@ -806,6 +809,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   quantity = 1,
   email,
   giftInfo,
+  referrer,
   utm,
   httpMethod,
 }: {
@@ -823,6 +827,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     fromName: string,
     message?: string,
   },
+  referrer?: string,
   utm?: {
     campaign?: string,
     source?: string,
@@ -963,6 +968,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     email,
     giftInfo,
     utm,
+    referrer,
     httpMethod,
   }, [{
     name,

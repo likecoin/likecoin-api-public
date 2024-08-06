@@ -177,6 +177,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
+    const referrer = req.header('Referrer');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
@@ -193,6 +194,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       customPriceInDecimal,
       quantity,
       from: from as string,
+      referrer,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
