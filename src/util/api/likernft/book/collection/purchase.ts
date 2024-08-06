@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
+import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 
 import { NFT_BOOK_TEXT_DEFAULT_LOCALE } from '..';
 import { getNFTClassDataById } from '../../../../cosmos/nft';
@@ -23,6 +24,7 @@ import {
   TransactionFeeInfo,
   formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
 } from '../purchase';
+import { handleNFTPurchaseTransaction } from '../../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
@@ -33,10 +35,15 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookPhysicalOnlyEmail,
+  sendNFTBookGiftSentEmail,
 } from '../../../../ses';
 import { sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
+
+import {
+  LIKER_NFT_TARGET_ADDRESS,
+} from '../../../../../../config/config';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -128,8 +135,8 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
   const doc = await t.get(collectionRef);
   const docData = doc.data();
   if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
-  const { typePayload } = docData;
-  const { stock } = typePayload;
+  const { typePayload, classIds } = docData;
+  const { stock, isAutoDeliver, autoMemo } = typePayload;
   const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
   const paymentData = paymentDoc.data();
   if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
@@ -146,6 +153,25 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
     status: 'paid',
     email,
   };
+  if (isAutoDeliver) {
+    const nftIdMap = {};
+    for (let i = 0; i < classIds.length; i += 1) {
+      const classId = classIds[i];
+      const nftRes = await t.get(collectionRef
+        .collection('class')
+        .doc(classId)
+        .collection('nft')
+        .where('isSold', '==', false)
+        .where('isProcessing', '==', false)
+        .limit(quantity));
+      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+      const nftIds = nftRes.docs.map((d) => d.id);
+      nftIdMap[classId] = nftIds;
+    }
+    paymentPayload.isAutoDeliver = true;
+    paymentPayload.autoMemo = autoMemo;
+    paymentPayload.nftIdMap = nftIdMap;
+  }
   if (phone) paymentPayload.phone = phone;
   if (hasShipping) paymentPayload.shippingStatus = 'pending';
   if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
@@ -171,6 +197,17 @@ export async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, 
     typePayload,
   });
   t.update(collectionRef.collection('transactions').doc(paymentId), txData);
+  if (txData.nftIdMap) {
+    Object.entries(txData.nftIdMap).forEach(([classId, nftIds]) => {
+      (nftIds as string[]).forEach((nftId) => {
+        t.update(collectionRef
+          .collection('class')
+          .doc(classId)
+          .collection('nft')
+          .doc(nftId), { isProcessing: true });
+      });
+    });
+  }
   return {
     listingData,
     typePayload,
@@ -661,10 +698,13 @@ export async function claimNFTBookCollection(
   collectionId: string,
   paymentId: string,
   { message, wallet, token }: { message: string, wallet: string, token: string },
+  req,
 ) {
   const bookRef = likeNFTCollectionCollection.doc(collectionId);
   const docRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
-  const { email } = await db.runTransaction(async (t) => {
+  const {
+    email, nftIdMap, isAutoDeliver, autoMemo, quantity,
+  } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) {
@@ -686,11 +726,83 @@ export async function claimNFTBookCollection(
       wallet,
       message: message || '',
     });
-    t.update(bookRef, {
-      'typePayload.pendingNFTCount': FieldValue.increment(1),
-    });
+
+    if (!docData.isAutoDeliver) {
+      t.update(bookRef, {
+        'typePayload.pendingNFTCount': FieldValue.increment(1),
+      });
+    }
     return docData;
   });
+
+  if (isAutoDeliver) {
+    let txHash = '';
+    const txMessages: any[] = [];
+    try {
+      Object.entries(nftIdMap).forEach(([classId, nftIds]) => {
+        (nftIds as string[]).forEach((nftId) => {
+          txMessages.push(formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId));
+        });
+      });
+      txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
+    } catch (autoDeliverErr) {
+      await docRef.update({
+        status: 'paid',
+        wallet: '',
+        message: '',
+      });
+      throw autoDeliverErr;
+    }
+
+    const { isGift, giftInfo, name } = await db.runTransaction(async (t) => {
+      // eslint-disable-next-line no-use-before-define
+      const paymentDocData = await updateNFTBookCollectionPostDeliveryData({
+        collectionId,
+        callerWallet: LIKER_NFT_TARGET_ADDRESS,
+        paymentId,
+        txHash,
+        quantity,
+        isAutoDeliver,
+      }, t);
+      Object.entries(nftIdMap).forEach(([classId, nftIds]) => {
+        (nftIds as string[]).forEach((nftId) => {
+          t.update(bookRef
+            .collection('class')
+            .doc(classId)
+            .collection('nft')
+            .doc(nftId), {
+            ownerWallet: wallet,
+            isProcessing: false,
+            isSold: true,
+          });
+        });
+      });
+      return paymentDocData;
+    });
+
+    if (isGift && giftInfo) {
+      const {
+        fromName,
+        toName,
+      } = giftInfo;
+      await sendNFTBookGiftSentEmail({
+        fromEmail: email,
+        fromName,
+        toName,
+        bookName: name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+        txHash,
+      });
+    }
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTSentUpdate',
+      isAutoDeliver,
+      paymentId,
+      collectionId,
+      txHash,
+      isGift,
+    });
+  }
   return email;
 }
 
@@ -735,4 +847,61 @@ export async function sendNFTBookCollectionClaimedEmailNotification(
       toName,
     });
   }
+}
+
+export async function updateNFTBookCollectionPostDeliveryData({
+  collectionId,
+  callerWallet,
+  paymentId,
+  txHash,
+  quantity = 1,
+  isAutoDeliver = false,
+}: {
+  collectionId: string,
+  callerWallet: string,
+  paymentId: string,
+  txHash: string,
+  quantity?: number,
+  isAutoDeliver?: boolean,
+}, t: any) {
+  // TODO: check tx content contains valid nft info and address
+  const collectionRef = likeNFTCollectionCollection.doc(collectionId);
+  const collectionDoc = await collectionRef.get();
+  const collectionDocData = collectionDoc.data();
+  if (!collectionDocData) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
+  const { name, ownerWallet, moderatorWallets = [] } = collectionDocData;
+  if (![ownerWallet, ...moderatorWallets, LIKER_NFT_TARGET_ADDRESS].includes(callerWallet)) {
+    // TODO: check tx is sent by req.user.wallet
+    throw new ValidationError('NOT_OWNER', 403);
+  }
+  const paymentDocRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
+
+  const doc = await t.get(paymentDocRef);
+  const docData = doc.data();
+  if (!docData) {
+    throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+  }
+  const {
+    status,
+    quantity: docQuantity = 1,
+  } = docData;
+  if (quantity !== docQuantity) {
+    throw new ValidationError('INVALID_QUANTITY', 400);
+  }
+  if (status === 'completed') {
+    throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
+  }
+  t.update(paymentDocRef, {
+    status: 'completed',
+    txHash,
+  });
+  if (status === 'pendingNFT' && !isAutoDeliver) {
+    t.update(collectionRef, {
+      'typePayload.pendingNFTCount': FieldValue.increment(-1),
+    });
+  }
+  return {
+    ...docData,
+    name,
+  };
 }
