@@ -216,6 +216,8 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   customPriceInDecimal,
   email,
   utm,
+  referrer,
+  httpMethod,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -235,6 +237,8 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     source?: string,
     medium?: string,
   },
+  referrer?: string,
+  httpMethod?: 'GET' | 'POST',
 } = {}) {
   const collectionData = await getBookCollectionInfoById(collectionId);
   if (!collectionData) throw new ValidationError('NFT_NOT_FOUND');
@@ -363,7 +367,9 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     gaSessionId,
     email,
     giftInfo,
+    referrer,
     utm,
+    httpMethod,
   }, [{
     name,
     description,
