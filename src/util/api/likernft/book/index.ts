@@ -439,12 +439,7 @@ export async function validateStocks(
   };
 }
 
-export async function validateAutoDeliverNFTsTxHash(
-  txHash: string,
-  classId: string,
-  sender: string,
-  expectedNFTCount: number,
-) {
+async function parseNFTIdsMapFromTxHash(txHash: string, sender: string) {
   if (!txHash) throw new ValidationError('TX_HASH_IS_EMPTY');
   const client = await getClient();
   const tx = await client.getTx(txHash);
@@ -452,17 +447,57 @@ export async function validateAutoDeliverNFTsTxHash(
   const { code, tx: rawTx } = tx;
   if (code) throw new ValidationError('TX_FAILED');
   const { body } = decodeTxRaw(rawTx);
-  const nftIds = body.messages
+  const sendMessages = body.messages
     .filter((m) => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
     .map(((m) => MsgSend.decode(m.value)))
-    .filter((m) => m.classId === classId
-      && m.sender === sender
-      && m.receiver === LIKER_NFT_TARGET_ADDRESS)
-    .map((m) => m.id);
+    .filter((m) => m.sender === sender
+      && m.receiver === LIKER_NFT_TARGET_ADDRESS);
+  const nftIdsMap = {};
+  sendMessages.forEach((m) => {
+    nftIdsMap[m.classId] ??= [];
+    nftIdsMap[m.classId].push(m.id);
+  });
+  return nftIdsMap;
+}
+
+export async function validateAutoDeliverNFTsTxHash(
+  txHash: string,
+  classId: string,
+  sender: string,
+  expectedNFTCount: number,
+) {
+  const nftIdsMap = await parseNFTIdsMapFromTxHash(txHash, sender);
+  const nftIds = nftIdsMap[classId];
+  if (!nftIds) {
+    throw new ValidationError(`TX_SEND_NFT_CLASS_ID_NOT_FOUND: ${classId}`);
+  }
   if (nftIds.length < expectedNFTCount) {
     throw new ValidationError(`TX_SEND_NFT_COUNT_NOT_ENOUGH: EXPECTED: ${expectedNFTCount}, ACTUAL: ${nftIds.length}`);
   }
   return nftIds;
+}
+
+// TODO: replace validateAutoDeliverNFTsTxHash with this
+export async function validateAutoDeliverNFTsTxHashV2({
+  txHash,
+  sender,
+  expectedNFTCountMap,
+}: {
+  txHash: string;
+  sender: string;
+  expectedNFTCountMap: Record<string, number>;
+}) {
+  const nftIdsMap = await parseNFTIdsMapFromTxHash(txHash, sender);
+  Object.entries(expectedNFTCountMap).forEach(([classId, expectedNFTCount]) => {
+    const nftIds = nftIdsMap[classId];
+    if (!nftIds) {
+      throw new ValidationError(`TX_SEND_NFT_CLASS_ID_NOT_FOUND: ${classId}`);
+    }
+    if (nftIds.length < expectedNFTCount) {
+      throw new ValidationError(`TX_SEND_NFT_COUNT_NOT_ENOUGH: EXPECTED: ${expectedNFTCount}, ACTUAL: ${nftIds.length}`);
+    }
+  });
+  return nftIdsMap;
 }
 
 export function getNFTBookStoreSendPageURL(classId: string, paymentId: string) {

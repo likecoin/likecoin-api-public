@@ -1,9 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
-import { FieldValue, likeNFTCollectionCollection } from '../../../firebase';
+import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
-import { validateCoupons, validatePrice } from '../book';
+import { validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
+import { sleep } from '../../../misc';
+import { FIRESTORE_BATCH_SIZE } from '../../../../constant';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -85,6 +87,7 @@ async function validateCollectionTypeData(
       isPhysicalOnly,
       hasShipping,
       shippingRates,
+      isAutoDeliver,
     } = data;
     validatePrice({
       priceInDecimal,
@@ -110,9 +113,11 @@ async function validateCollectionTypeData(
         // if (ownerWallet !== wallet) {
         //   throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
         // }
-        const { nfts } = await getNFTsByClassId(classId, wallet);
-        if (nfts.length < stock) {
-          throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
+        if (!isAutoDeliver) {
+          const { nfts } = await getNFTsByClassId(classId, wallet);
+          if (nfts.length < stock) {
+            throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
+          }
         }
       }),
     );
@@ -132,6 +137,7 @@ async function validateCollectionTypeData(
         isPhysicalOnly,
         hasShipping,
         shippingRates,
+        isAutoDeliver,
       }),
     );
   } else if (type === 'reader') {
@@ -144,6 +150,24 @@ async function validateCollectionTypeData(
   return typePayload;
 }
 
+function calculateExpectedNFTCountMap(
+  oldClassIds: string[],
+  oldStock: number,
+  newClassIds: string[],
+  newStock: number,
+): { [classId: string]: number } {
+  const map = {};
+  const stockDiff = newStock - oldStock;
+  const addedClassIds = newClassIds.filter((classId) => !oldClassIds.includes(classId));
+  oldClassIds.forEach((classId) => {
+    map[classId] = stockDiff;
+  });
+  addedClassIds.forEach((classId) => {
+    map[classId] = newStock;
+  });
+  return map;
+}
+
 export async function createNFTCollectionByType(
   wallet: string,
   type: CollectionType,
@@ -152,10 +176,18 @@ export async function createNFTCollectionByType(
   const collectionId = `col_${type}_${uuidv4()}`;
   const typePayload = await validateCollectionTypeData(wallet, type, payload);
   const {
-    classIds = [], name, description, image,
+    classIds = [],
+    name,
+    description,
+    image,
+    isAutoDeliver,
+    autoDeliverNFTsTxHash,
+    stock,
   } = payload;
   const docRef = likeNFTCollectionCollection.doc(collectionId);
-  await docRef.create({
+
+  let batch = db.batch();
+  batch.create(docRef, {
     ownerWallet: wallet,
     classIds,
     name,
@@ -169,8 +201,63 @@ export async function createNFTCollectionByType(
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
+
+  if (isAutoDeliver && stock > 0) {
+    const expectedNFTCountMap = calculateExpectedNFTCountMap(
+      [],
+      0,
+      classIds,
+      stock,
+    );
+    const classIdToNFTIdsMap = await validateAutoDeliverNFTsTxHashV2({
+      txHash: autoDeliverNFTsTxHash,
+      sender: wallet,
+      expectedNFTCountMap,
+    });
+
+    const flattenedEntries = Object.entries(classIdToNFTIdsMap).reduce(
+      (acc, [classId, nftIds]) => {
+        (nftIds as any[]).forEach((nftId) => {
+          acc.push({ classId, nftId });
+        });
+        return acc;
+      },
+      [] as any[],
+    );
+
+    for (let i = 0; i < flattenedEntries.length; i += 1) {
+      if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+        // TODO: remove this after solving API CPU hang error
+        await sleep(10);
+        batch = db.batch();
+      }
+      const { classId, nftId } = flattenedEntries[i];
+      batch.set(
+        likeNFTCollectionCollection
+          .doc(collectionId)
+          .collection('class')
+          .doc(classId)
+          .collection('nft')
+          .doc(nftId),
+        {
+          nftId,
+          classId,
+          isSold: false,
+          isProcessing: false,
+          timestamp: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+  }
+
+  await batch.commit();
+
   const createdDoc = await docRef.get();
   const createdDocData = createdDoc.data();
+
   return {
     id: collectionId,
     ownerWallet: wallet,
@@ -201,6 +288,7 @@ export async function patchNFTCollectionById(
     name: docName,
     description: docDescription,
     classIds: docClassIds,
+    isAutoDeliver,
   } = docData;
   if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
   const {
@@ -208,7 +296,25 @@ export async function patchNFTCollectionById(
     name: newName,
     description: newDescription,
     image,
+    stock: newStock,
+    isAutoDeliver: newIsAutoDeliver,
+    autoDeliverNFTsTxHash,
   } = payload;
+
+  if (isAutoDeliver) {
+    if (!newIsAutoDeliver) {
+      throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_COLLECTION', 403);
+    }
+
+    if (newStock < typePayload.stock) {
+      throw new ValidationError('CANNOT_DECREASE_STOCK_OF_AUTO_DELIVERY_COLLECTION', 403);
+    }
+
+    const someDocClassIdNotIncluded = docClassIds.some((classId) => !newClassIds.includes(classId));
+    if (someDocClassIdNotIncluded) {
+      throw new ValidationError('CANNOT_REMOVE_CLASS_ID_OF_AUTO_DELIVERY_COLLECTION', 403);
+    }
+  }
 
   const newTypePayload = await validateCollectionTypeData(wallet, type, {
     name: newName || docName,
@@ -229,7 +335,64 @@ export async function patchNFTCollectionById(
   if (newName !== undefined) updatePayload.name = newName;
   if (newDescription !== undefined) updatePayload.description = newDescription;
   if (image !== undefined) updatePayload.image = image;
-  await likeNFTCollectionCollection.doc(collectionId).update(updatePayload);
+
+  let batch = db.batch();
+  batch.update(likeNFTCollectionCollection.doc(collectionId), updatePayload);
+
+  if (newIsAutoDeliver) {
+    const expectedNFTCountMap = calculateExpectedNFTCountMap(
+      docClassIds,
+      isAutoDeliver ? typePayload.stock : 0,
+      newClassIds,
+      newStock,
+    );
+    const shouldUpdateNFTId = Object.values(expectedNFTCountMap).some((count) => count > 0);
+    if (shouldUpdateNFTId) {
+      const classIdToNFTIdsMap = await validateAutoDeliverNFTsTxHashV2({
+        txHash: autoDeliverNFTsTxHash,
+        sender: wallet,
+        expectedNFTCountMap,
+      });
+
+      const flattenedEntries = Object.entries(classIdToNFTIdsMap).reduce(
+        (acc, [classId, nftIds]) => {
+          (nftIds as any[]).forEach((nftId) => {
+            acc.push({ classId, nftId });
+          });
+          return acc;
+        },
+        [] as any[],
+      );
+      for (let i = 0; i < flattenedEntries.length; i += 1) {
+        if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await batch.commit();
+          // TODO: remove this after solving API CPU hang error
+          await sleep(10);
+          batch = db.batch();
+        }
+        const { classId, nftId } = flattenedEntries[i];
+        batch.set(
+          likeNFTCollectionCollection
+            .doc(collectionId)
+            .collection('class')
+            .doc(classId)
+            .collection('nft')
+            .doc(nftId),
+          {
+            nftId,
+            classId,
+            isSold: false,
+            isProcessing: false,
+            timestamp: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+    }
+  }
+
+  await batch.commit();
 }
 
 export async function removeNFTCollectionById(
