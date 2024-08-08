@@ -265,6 +265,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     }
 
     const httpMethod = 'POST';
+    const referrer = req.header('Referrer');
     const {
       url,
       paymentId,
@@ -279,6 +280,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,
+      referrer,
       quantity,
       giftInfo,
       email,
