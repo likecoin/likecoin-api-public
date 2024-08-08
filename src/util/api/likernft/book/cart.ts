@@ -258,8 +258,8 @@ export async function processNFTBookCartPurchase({
       );
       return {
         collectionId,
+        ...data,
         listingData: { ...data.listingData, ...data.typePayload },
-        txData: data.txData,
       };
     }));
 
