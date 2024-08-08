@@ -125,7 +125,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
     }
-
+    const referrer = req.header('Referrer');
     const {
       url,
       paymentId,
@@ -147,6 +147,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
         medium: utmMedium,
       },
       httpMethod: 'POST',
+      referrer,
     });
     res.json({ url });
 

@@ -235,6 +235,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 ) {
   const {
     utmSource,
+    referrer,
     gaClientId,
     gaSessionId,
   } = pi.metadata;
@@ -424,6 +425,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     customerEmail,
 
     utmSource,
+    referrer,
     gaClientId,
     gaSessionId,
 
@@ -497,6 +499,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'Channel Commission': record.channelCommission,
       'Transferred Amount': record.transferredAmount,
       'UTM Source': record.utmSource,
+      'HTTP Referrer': record.referrer,
       'GA Client ID': record.gaClientId,
       'GA Session ID': record.gaSessionId,
       'Raw Data': record.rawData,
