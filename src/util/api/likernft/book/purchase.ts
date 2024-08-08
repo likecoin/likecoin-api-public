@@ -51,7 +51,7 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
-  sendNFTBookSaleCommissionEmail,
+  sendNFTBookSaleCommissionsEmail,
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
@@ -133,6 +133,7 @@ export async function handleStripeConnectedAccount({
   if (classId) metadata.classId = classId;
   if (collectionId) metadata.collectionId = collectionId;
   if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
+  const emailMap = {};
   if (channelCommission) {
     let fromUser: any = null;
     if (from && !checkIsFromLikerLand(from)) {
@@ -190,16 +191,11 @@ export async function handleStripeConnectedAccount({
         });
         const shouldSendNotificationEmail = isEnableNotificationEmails && email && isEmailVerified;
         if (shouldSendNotificationEmail) {
-          await sendNFTBookSaleCommissionEmail({
-            email,
-            classId,
-            collectionId,
-            paymentId,
-            bookName,
+          emailMap[email] ??= [];
+          emailMap[email].push({
             amount: channelCommission / 100,
             type: 'channelCommission',
-            // eslint-disable-next-line no-console
-          }).catch(console.error);
+          });
         }
       }
     }
@@ -279,16 +275,11 @@ export async function handleStripeConnectedAccount({
             const shouldSendNotificationEmail = isEnableNotificationEmails
               && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
-              await sendNFTBookSaleCommissionEmail({
-                email,
-                classId,
-                collectionId,
-                paymentId,
-                bookName,
+              emailMap[email] ??= [];
+              emailMap[email].push({
                 amount: amountSplit / 100,
                 type: 'connectedWallet',
-                // eslint-disable-next-line no-console
-              }).catch(console.error);
+              });
             }
             return transfer;
           }),
@@ -298,6 +289,16 @@ export async function handleStripeConnectedAccount({
       }
     }
   }
+  await Promise.all(Object.entries(emailMap)
+    .map(([email, commissions]) => sendNFTBookSaleCommissionsEmail({
+      email,
+      classId,
+      collectionId,
+      paymentId,
+      bookName,
+      commissions,
+    // eslint-disable-next-line no-console
+    }).catch(console.error)));
   return { transfers };
 }
 
