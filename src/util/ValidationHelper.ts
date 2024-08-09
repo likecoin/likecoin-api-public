@@ -637,6 +637,8 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      isAutoDeliver,
+      autoMemo,
     } = payload;
     const publicInfo = {
       priceInDecimal,
@@ -660,6 +662,8 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
+      isAutoDeliver,
+      autoMemo,
     };
   }
   return {
