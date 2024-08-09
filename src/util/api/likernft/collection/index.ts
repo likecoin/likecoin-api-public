@@ -291,9 +291,12 @@ export async function patchNFTCollectionById(
     name: docName,
     description: docDescription,
     classIds: docClassIds,
-    isAutoDeliver,
   } = docData;
   if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
+  const {
+    stock,
+    isAutoDeliver,
+  } = typePayload;
   const {
     classIds: newClassIds,
     name: newName,
@@ -309,7 +312,7 @@ export async function patchNFTCollectionById(
       throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_COLLECTION', 403);
     }
 
-    if (newStock < typePayload.stock) {
+    if (newStock < stock) {
       throw new ValidationError('CANNOT_DECREASE_STOCK_OF_AUTO_DELIVERY_COLLECTION', 403);
     }
 
@@ -345,7 +348,7 @@ export async function patchNFTCollectionById(
   if (newIsAutoDeliver) {
     const expectedNFTCountMap = calculateExpectedNFTCountMap(
       docClassIds,
-      isAutoDeliver ? typePayload.stock : 0,
+      isAutoDeliver ? stock : 0,
       newClassIds,
       newStock,
     );
