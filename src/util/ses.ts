@@ -578,7 +578,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   mustClaimToView,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const titleEn = `${fromName} has sent you a ebook gift from Liker Land`;
+  const titleEn = `${fromName} has sent you an eBook gift from Liker Land`;
   const titleZh = `${fromName} 送了一本電子書禮物給你`;
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
@@ -853,7 +853,7 @@ export function sendNFTBookSalesEmail({
   shippingCost,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const title = `You have sold an Book for $${amount}`;
+  const title = `You have sold a Book for $${amount}`;
   let content = `<p>Dear Creator,</p>
   <br/>
   <p>Congratulation!</p>
