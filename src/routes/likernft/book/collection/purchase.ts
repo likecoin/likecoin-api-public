@@ -457,7 +457,7 @@ router.post(
         const {
           status,
         } = docData;
-        if (status !== 'pendingNFT') {
+        if (status === 'completed') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
         }
         t.update(paymentDocRef, {
@@ -532,7 +532,7 @@ router.post(
         if (!hasShipping) {
           throw new ValidationError('PAYMENT_DOES_NOT_HAS_SHIPPING', 409);
         }
-        if (shippingStatus !== 'pending') {
+        if (shippingStatus === 'shipped') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
         }
         t.update(paymentDocRef, {

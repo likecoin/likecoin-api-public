@@ -846,7 +846,7 @@ router.post(
         if (!hasShipping) {
           throw new ValidationError('PAYMENT_DOES_NOT_HAS_SHIPPING', 409);
         }
-        if (shippingStatus !== 'pending') {
+        if (shippingStatus === 'shipped') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
         }
         const updatePayload: any = {

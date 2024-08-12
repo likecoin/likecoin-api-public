@@ -1484,7 +1484,7 @@ export async function updateNFTBookPostDeliveryData({
   if (quantity !== docQuantity) {
     throw new ValidationError('INVALID_QUANTITY', 400);
   }
-  if (status !== 'pendingNFT') {
+  if (status === 'completed') {
     throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
   }
   if (isPhysicalOnly) {
