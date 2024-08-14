@@ -16,7 +16,7 @@
     "dev:docker:test": "npm run dev:docker:test:build && docker-compose -f docker-compose-test.yml up -d",
     "dev:docker:test:build": "docker-compose -f docker-compose-test.yml build",
     "dev:docker:test:stop": "docker-compose -f docker-compose-test.yml stop",
-    "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/ && cp -r ./src/util/stabilityai/generation ./dist/src/util/stabilityai/generation",
+    "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/",
     "lint": "eslint --ext .ts,.js src test --fix",
     "start": "NODE_ENV=production node dist/src/api.js",
     "start:web": "NODE_ENV=production node dist/src/web.js",
