@@ -1496,7 +1496,7 @@ export async function updateNFTBookPostDeliveryData({
     status: 'completed',
     txHash,
   });
-  if (!isAutoDeliver) {
+  if (status === 'pendingNFT' && !isAutoDeliver) {
     t.update(bookDocRef, {
       pendingNFTCount: FieldValue.increment(-1),
     });
