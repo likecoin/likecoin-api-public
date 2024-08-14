@@ -475,13 +475,15 @@ router.post(
           fromName,
           toName,
         } = giftInfo;
-        await sendNFTBookGiftSentEmail({
-          fromEmail: email,
-          fromName,
-          toName,
-          bookName: name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-          txHash,
-        });
+        if (email) {
+          await sendNFTBookGiftSentEmail({
+            fromEmail: email,
+            fromName,
+            toName,
+            bookName: name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+            txHash,
+          });
+        }
       }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

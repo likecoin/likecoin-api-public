@@ -787,13 +787,15 @@ router.post(
         } = giftInfo;
         const classData = await getNFTClassDataById(classId).catch(() => null);
         const className = classData?.name || classId;
-        await sendNFTBookGiftSentEmail({
-          fromEmail: email,
-          fromName,
-          toName,
-          bookName: className,
-          txHash,
-        });
+        if (email) {
+          await sendNFTBookGiftSentEmail({
+            fromEmail: email,
+            fromName,
+            toName,
+            bookName: className,
+            txHash,
+          });
+        }
       }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
