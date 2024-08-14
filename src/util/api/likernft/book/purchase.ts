@@ -20,6 +20,7 @@ import {
   PUBSUB_TOPIC_MISC,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  LIKER_LAND_WAIVED_CHANNEL,
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
@@ -608,6 +609,7 @@ export async function formatStripeCheckoutSession({
   const itemPrices = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
+      const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
       const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal
         ? convertUSDToCurrency(item.customPriceDiffInDecimal, convertedCurrency)
         : 0;
@@ -620,7 +622,7 @@ export async function formatStripeCheckoutSession({
       const likerLandTipFeeAmount = Math.ceil(
         convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
       );
-      const channelCommission = (from && !isFromLikerLand)
+      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
         ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
         : 0;
       const likerLandCommission = isFromLikerLand
