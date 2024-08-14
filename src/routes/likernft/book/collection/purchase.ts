@@ -464,9 +464,11 @@ router.post(
           status: 'completed',
           txHash,
         });
-        t.update(collectionRef, {
-          'typePayload.pendingNFTCount': FieldValue.increment(-1),
-        });
+        if (status === 'pendingNFT') {
+          t.update(collectionRef, {
+            'typePayload.pendingNFTCount': FieldValue.increment(-1),
+          });
+        }
         return docData;
       });
 
