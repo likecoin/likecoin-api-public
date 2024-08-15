@@ -908,34 +908,34 @@ export function sendNFTBookSalesEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookSaleCommissionsEmail({
+export function sendNFTBookSalePaymentsEmail({
   classId = '',
   collectionId = '',
   paymentId,
   email,
   bookName,
-  commissions,
+  payments,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const hasRoyalty = commissions.some(({ type }) => type === 'connectedWallet');
-  const totalAmount = commissions.reduce((acc, { amount }) => acc + amount, 0);
-  const displayCommissions = commissions.map(({ amount, type }) => {
+  const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
+  const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
+  const displayPayments = payments.map(({ amount, type }) => {
     const isRoyalty = type === 'connectedWallet';
-    const displayType = isRoyalty ? 'royalty' : type;
+    const displayType = isRoyalty ? 'royalty' : 'commission';
     const name = `${displayType}: US$${amount}`;
     return name;
   });
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId })
     : getLikerLandNFTClassPageURL({ classId });
-  const title = `You have earned US$${totalAmount} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
+  const title = `You received US$${totalAmount} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookSaleCommissionsEmail',
+        Value: 'sendNFTBookSalePaymentsEmail',
       },
     ],
     Destination: {
@@ -956,8 +956,8 @@ export function sendNFTBookSaleCommissionsEmail({
             <br/>
             <p>Congratulation!</p>
             <p>Someone has bought the NFT book <a href="${nftPageURLEn}">${bookName}</a></p>
-            <p>As a result you have earn follow commissions: </p>
-            <ul>${displayCommissions.map((commission) => `<li>${commission}</li>`).join('')}</ul>
+            <p>As a result, you received follow payments: </p>
+            <ul>${displayPayments.map((payment) => `<li>${payment}</li>`).join('')}</ul>
             <p>Ref ID: ${paymentId}.</p>
             <br/>
             <p>Liker Land</p>`,

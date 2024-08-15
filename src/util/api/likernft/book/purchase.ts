@@ -51,7 +51,7 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
-  sendNFTBookSaleCommissionsEmail,
+  sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
@@ -290,13 +290,13 @@ export async function handleStripeConnectedAccount({
     }
   }
   await Promise.all(Object.entries(emailMap)
-    .map(([email, commissions]) => sendNFTBookSaleCommissionsEmail({
+    .map(([email, payments]) => sendNFTBookSalePaymentsEmail({
       email,
       classId,
       collectionId,
       paymentId,
       bookName,
-      commissions,
+      payments,
     // eslint-disable-next-line no-console
     }).catch(console.error)));
   return { transfers };
