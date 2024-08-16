@@ -861,7 +861,7 @@ export function sendNFTBookSalesEmail({
   if (amount > originalPrice || shippingCost) {
     content += `<p>Price: $${originalPrice}</p>`;
     if (amount > originalPrice) {
-      content += `<p>Tip: $${amount - originalPrice}</p>`;
+      content += `<p>Tip: $${amount - originalPrice - shippingCost}</p>`;
     }
     if (shippingCost) {
       content += `<p>Shipping paid: $${shippingCost}</p>`;
