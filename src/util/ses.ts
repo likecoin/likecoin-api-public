@@ -908,29 +908,34 @@ export function sendNFTBookSalesEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookSaleCommissionEmail({
+export function sendNFTBookSalePaymentsEmail({
   classId = '',
   collectionId = '',
   paymentId,
   email,
   bookName,
-  amount,
-  type,
+  payments,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const isRoyalty = type === 'connectedWallet';
-  const displayType = isRoyalty ? 'royalty' : type;
+  const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
+  const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
+  const displayPayments = payments.map(({ amount, type }) => {
+    const isRoyalty = type === 'connectedWallet';
+    const displayType = isRoyalty ? 'royalty' : 'commission';
+    const name = `${displayType}: US$${amount}`;
+    return name;
+  });
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId })
     : getLikerLandNFTClassPageURL({ classId });
-  const title = `You have earned US$${amount} for ${isRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
+  const title = `You received US$${totalAmount} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookSaleCommissionEmail',
+        Value: 'sendNFTBookSalePaymentsEmail',
       },
     ],
     Destination: {
@@ -951,7 +956,8 @@ export function sendNFTBookSaleCommissionEmail({
             <br/>
             <p>Congratulation!</p>
             <p>Someone has bought the NFT book <a href="${nftPageURLEn}">${bookName}</a></p>
-            <p>As a result you have earn US$${amount} due to commission type "${displayType}"</p>
+            <p>As a result, you received follow payments: </p>
+            <ul>${displayPayments.map((payment) => `<li>${payment}</li>`).join('')}</ul>
             <p>Ref ID: ${paymentId}.</p>
             <br/>
             <p>Liker Land</p>`,

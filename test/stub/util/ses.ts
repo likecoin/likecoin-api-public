@@ -142,14 +142,13 @@ export function sendNFTBookSalesEmail({
   return Promise.resolve();
 }
 
-export function sendNFTBookSaleCommissionEmail({
+export function sendNFTBookSalePaymentsEmail({
   classId = '',
   collectionId = '',
   paymentId,
   email,
   bookName,
-  amount,
-  type,
+  payments,
 }) {
   return Promise.resolve();
 }
