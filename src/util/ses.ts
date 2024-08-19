@@ -336,8 +336,8 @@ export async function sendNFTBookPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Claim your eBook';
-  const titleZh = '領取你的電子書';
+  const titleEn = 'Read your eBook';
+  const titleZh = '閱讀你的電子書';
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
     : getLikerLandNFTClassPageURL({ classId, language: 'en' });
@@ -393,6 +393,8 @@ export async function sendNFTBookPendingClaimEmail({
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
             屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
+            buttonText1: titleZh,
+            buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>
@@ -402,12 +404,14 @@ export async function sendNFTBookPendingClaimEmail({
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thanks for purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your e-book.
+            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
-            <p>If the e-book you purchased requires the author's personal signature,
+            <p>If the eBook you purchased requires the author's personal signature,
             please first log in to Liker Land by clicking here and then patiently wait for the author's dispatch notification.
-            The author will personally sign your e-book within 1-3 business days.
+            The author will personally sign your eBook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
+            buttonText2: titleEn,
+            buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>Liker Land</p>
@@ -434,8 +438,8 @@ export async function sendNFTBookCartPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Claim your eBooks';
-  const titleZh = '領取你的電子書';
+  const titleEn = 'Read your eBook';
+  const titleZh = '閱讀你的電子書';
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
@@ -483,6 +487,8 @@ export async function sendNFTBookCartPendingClaimEmail({
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
             屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
+            buttonText1: titleZh,
+            buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
             <p>Liker Land</p>`,
@@ -490,14 +496,16 @@ export async function sendNFTBookCartPendingClaimEmail({
             // English version
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
-            <p>Thank you for purchasing the following e-book</p>
+            <p>Thank you for purchasing the following ebook</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your e-book.
+            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
-            <p>If the e-book you purchased requires the author's personal signature,
+            <p>If the eBook you purchased requires the author's personal signature,
             please first log in to Liker Land by clicking here and then patiently wait for the author's dispatch notification.
-            The author will personally sign your e-book within 1-3 business days.
+            The author will personally sign your eBook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
+            buttonText2: titleEn,
+            buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>Liker Land</p>`,
