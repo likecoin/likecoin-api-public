@@ -336,7 +336,7 @@ export async function sendNFTBookPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Read your eBook';
+  const titleEn = 'Read your ebook';
   const titleZh = '閱讀你的電子書';
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
@@ -404,11 +404,11 @@ export async function sendNFTBookPendingClaimEmail({
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thanks for purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
+            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your ebook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
-            <p>If the eBook you purchased requires the author's personal signature,
+            <p>If the ebook you purchased requires the author's personal signature,
             please first log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
-            The author will personally sign your eBook within 1-3 business days.
+            The author will personally sign your ebook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
@@ -438,7 +438,7 @@ export async function sendNFTBookCartPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Read your eBook';
+  const titleEn = 'Read your ebook';
   const titleZh = '閱讀你的電子書';
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     cartId,
@@ -498,11 +498,11 @@ export async function sendNFTBookCartPendingClaimEmail({
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thank you for purchasing the following ebook</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
+            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your ebook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
-            <p>If the eBook you purchased requires the author's personal signature,
+            <p>If the ebook you purchased requires the author's personal signature,
             please log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
-            The author will personally sign your eBook within 1-3 business days.
+            The author will personally sign your ebook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
@@ -592,7 +592,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   mustClaimToView,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const titleEn = `${fromName} has sent you an eBook gift from Liker Land`;
+  const titleEn = `${fromName} has sent you an ebook gift from Liker Land`;
   const titleZh = `${fromName} 送了一本電子書禮物給你`;
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
@@ -752,7 +752,7 @@ export function sendNFTBookGiftClaimedEmail({
   toName,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const titleEn = `${toName} has accepted your eBook gift ${bookName}`;
+  const titleEn = `${toName} has accepted your ebook gift ${bookName}`;
   const titleZh = `${toName} 已接受你的禮物電子書 ${bookName}`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
