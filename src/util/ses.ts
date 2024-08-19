@@ -390,7 +390,7 @@ export async function sendNFTBookPendingClaimEmail({
             <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》</a>。</p>
             <p>請<a href="${claimPageURLZh}">登入 Liker Land 書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
             屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
             buttonText1: titleZh,
@@ -407,7 +407,7 @@ export async function sendNFTBookPendingClaimEmail({
             <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the eBook you purchased requires the author's personal signature,
-            please first log in to Liker Land by clicking here and then patiently wait for the author's dispatch notification.
+            please first log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
             The author will personally sign your eBook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
             buttonText2: titleEn,
@@ -484,7 +484,7 @@ export async function sendNFTBookCartPendingClaimEmail({
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
             <p>請<a href="${claimPageURLZh}">登入 Liker Land 書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
             屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
             buttonText1: titleZh,
@@ -501,7 +501,7 @@ export async function sendNFTBookCartPendingClaimEmail({
             <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your eBook.
             If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the eBook you purchased requires the author's personal signature,
-            please first log in to Liker Land by clicking here and then patiently wait for the author's dispatch notification.
+            please log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
             The author will personally sign your eBook within 1-3 business days.
             Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
             buttonText2: titleEn,
