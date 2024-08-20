@@ -404,4 +404,15 @@ export async function checkReferrerExists(referrer) {
   return referrerRef.exists;
 }
 
+export async function fetchUserDisplayNameByEmail(email: string) {
+  const snapshot = await dbRef
+    .where('email', '==', email)
+    .limit(1)
+    .get();
+  if (!snapshot.size) return '';
+  const [doc] = snapshot.docs;
+  const data = doc.data();
+  return data.displayName || doc.id;
+}
+
 export * from './getPublicInfo';
