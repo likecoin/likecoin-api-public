@@ -47,9 +47,10 @@ router.get('/:collectionId/new', async (req, res, next) => {
       utm_medium: utmMedium,
       custom_price: inputCustomPriceInDecimal,
       quantity: inputQuantity,
+      referrer: inputReferrer,
     } = req.query;
 
-    const referrer = req.get('Referrer');
+    const referrer = inputReferrer || req.get('Referrer');
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
@@ -72,7 +73,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
         medium: utmMedium as string,
       },
       httpMethod: 'GET',
-      referrer,
+      referrer: referrer as string,
     });
     res.redirect(url);
 
@@ -91,6 +92,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       });
     }
   } catch (err) {
@@ -119,6 +121,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       utmCampaign,
       utmSource,
       utmMedium,
+      referrer: inputReferrer,
     } = req.body;
     let { quantity = 1 } = req.body;
     quantity = parseInt(quantity, 10) || 1;
@@ -126,7 +129,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
     if (giftInfo && !giftInfo.toEmail) {
       throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
     }
-    const referrer = req.header('Referrer');
+    const referrer = inputReferrer || req.get('Referrer');
     const {
       url,
       paymentId,
@@ -167,6 +170,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       });
     }
   } catch (err) {
