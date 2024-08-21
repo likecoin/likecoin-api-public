@@ -112,13 +112,14 @@ router.post('/cart/new', async (req, res, next) => {
       utmCampaign,
       utmSource,
       utmMedium,
+      referrer: inputReferrer,
       items = [],
     } = req.body;
 
     if (!items?.length) {
       throw new ValidationError('REQUIRE_ITEMS');
     }
-
+    const referrer = inputReferrer || req.get('Referrer');
     const {
       url,
       paymentId,
@@ -136,6 +137,7 @@ router.post('/cart/new', async (req, res, next) => {
         source: utmSource,
         medium: utmMedium,
       },
+      referrer,
     });
     res.json({ url });
 
@@ -152,6 +154,7 @@ router.post('/cart/new', async (req, res, next) => {
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       });
     }
   } catch (err) {
@@ -172,12 +175,13 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       utm_medium: utmMedium,
       custom_price: inputCustomPriceInDecimal,
       quantity: inputQuantity,
+      referrer: inputReferrer,
       coupon,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
-    const referrer = req.header('Referrer');
+    const referrer = inputReferrer || req.get('Referrer');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
@@ -194,7 +198,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       customPriceInDecimal,
       quantity,
       from: from as string,
-      referrer,
+      referrer: referrer as string,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
@@ -222,6 +226,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
         httpMethod,
       });
     }
@@ -253,6 +258,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       utmCampaign,
       utmSource,
       utmMedium,
+      referrer: inputReferrer,
       customPriceInDecimal,
     } = req.body;
     let {
@@ -265,7 +271,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     }
 
     const httpMethod = 'POST';
-    const referrer = req.header('Referrer');
+    const referrer = inputReferrer || req.get('Referrer');
     const {
       url,
       paymentId,
@@ -311,6 +317,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
         httpMethod,
       });
     }
@@ -542,6 +549,7 @@ router.post(
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       } = req.body;
 
       const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
@@ -632,6 +640,7 @@ router.post(
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       });
       const className = metadata?.name || classId;
       await sendNFTBookSalesSlackNotification({

@@ -105,7 +105,9 @@ router.post(
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer: inputReferrer,
       } = req.body;
+      const referrer = inputReferrer || req.get('Referrer');
       const { iscnPrefixes, classIds } = res.locals;
       const [purchaseInfoList, classMetadataList] = await Promise.all([
         getPurchaseInfoList(iscnPrefixes, classIds),
@@ -146,6 +148,7 @@ router.post(
       if (utmCampaign) sessionMetadata.utmCampaign = utmCampaign;
       if (utmSource) sessionMetadata.utmSource = utmSource;
       if (utmMedium) sessionMetadata.utmMedium = utmMedium;
+      if (referrer) sessionMetadata.referrer = referrer;
       if (gaClientId) sessionMetadata.gaClientId = gaClientId;
       if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
       const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
@@ -221,6 +224,7 @@ router.post(
         utmCampaign,
         utmSource,
         utmMedium,
+        referrer,
       });
     } catch (err) {
       next(err);
