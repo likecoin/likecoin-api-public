@@ -715,7 +715,10 @@ export async function formatStripeCheckoutSession({
           product_data: {
             name: 'Extra Tip',
             description: 'Fund will be distributed to stakeholders and creators',
-            metadata: productMetadata,
+            metadata: {
+              tippingFor: item.collectionId || item.classId || 'unknown',
+              ...productMetadata,
+            },
           },
           unit_amount: item.customPriceDiffInDecimal,
         },
@@ -1071,6 +1074,31 @@ export async function sendNFTBookPurchaseEmail({
   });
 }
 
+export async function updateNFTBookPostCheckoutFeeInfo({
+  classId,
+  paymentId,
+  session,
+  balanceTx,
+  feeInfo,
+}) {
+  const {
+    stripeFeeAmount: docStripeFeeAmount,
+  } = feeInfo;
+  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+  if (stripeFeeAmount !== docStripeFeeAmount) {
+    await likeNFTBookCollection.doc(classId).collection('transactions')
+      .doc(paymentId).update({
+        'feeInfo.stripeFeeAmount': stripeFeeAmount,
+      });
+  }
+  return {
+    stripeFeeCurrency,
+    stripeFeeAmount,
+  };
+}
+
 export async function processNFTBookStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
@@ -1139,9 +1167,17 @@ export async function processNFTBookStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
-    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-    const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-    const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+
+    const {
+      stripeFeeAmount,
+      stripeFeeCurrency,
+    } = await updateNFTBookPostCheckoutFeeInfo({
+      classId,
+      paymentId,
+      session,
+      balanceTx,
+      feeInfo,
+    });
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
 
     const { transfers } = await handleStripeConnectedAccount(

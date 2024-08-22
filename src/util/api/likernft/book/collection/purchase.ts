@@ -523,6 +523,31 @@ export async function sendNFTBookCollectionPurchaseEmail({
   });
 }
 
+export async function updateNFTBookCollectionPostCheckoutFeeInfo({
+  collectionId,
+  paymentId,
+  session,
+  balanceTx,
+  feeInfo,
+}) {
+  const {
+    stripeFeeAmount: docStripeFeeAmount,
+  } = feeInfo;
+  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+  if (stripeFeeAmount !== docStripeFeeAmount) {
+    await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
+      .doc(paymentId).update({
+        'feeInfo.stripeFeeAmount': stripeFeeAmount,
+      });
+  }
+  return {
+    stripeFeeCurrency,
+    stripeFeeAmount,
+  };
+}
+
 export async function processNFTBookCollectionStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
@@ -584,6 +609,15 @@ export async function processNFTBookCollectionStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
+
+    await updateNFTBookCollectionPostCheckoutFeeInfo({
+      collectionId,
+      paymentId,
+      session,
+      balanceTx,
+      feeInfo,
+    });
+
     const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
     const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
     const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;

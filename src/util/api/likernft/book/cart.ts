@@ -30,6 +30,8 @@ import {
 import {
   db,
   FieldValue, likeNFTBookCartCollection,
+  likeNFTBookCollection,
+  likeNFTCollectionCollection,
 } from '../../../firebase';
 import {
   claimNFTBookCollection,
@@ -313,6 +315,12 @@ export async function processNFTBookCartStripePurchase(
       phone,
       paymentId,
     });
+    const {
+      classInfos,
+      collectionInfos,
+      txData: cartData,
+    } = infos;
+    const { claimToken, feeInfo: totalFeeInfo } = cartData;
     const capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
     });
@@ -324,13 +332,6 @@ export async function processNFTBookCartStripePurchase(
     const totalStripeFeeAmount = stripeFeeDetails?.amount || 0;
 
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
-
-    const {
-      classInfos,
-      collectionInfos,
-      txData: cartData,
-    } = infos;
-    const { claimToken } = cartData;
 
     const infoList = [...classInfos, ...collectionInfos];
     const bookNames: string[] = [];
@@ -366,6 +367,21 @@ export async function processNFTBookCartStripePurchase(
       } = feeInfo as TransactionFeeInfo;
       const stripeFeeAmount = ((totalStripeFeeAmount * priceInDecimal)
         / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
+
+      if (stripeFeeAmount !== documentStripeFeeAmount) {
+        if (collectionId) {
+          await likeNFTCollectionCollection.doc(collectionId)
+            .collection('transactions').doc(paymentId).update({
+              'feeInfo.stripeFeeAmount': stripeFeeAmount,
+            });
+        } else if (classId) {
+          await likeNFTBookCollection.doc(classId)
+            .collection('transactions').doc(paymentId).update({
+              'feeInfo.stripeFeeAmount': stripeFeeAmount,
+            });
+        }
+      }
+
       const bookId = collectionId || classId;
       const bookData = await (collectionId
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
@@ -432,6 +448,11 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
         }),
       ]);
+    }
+    if (totalStripeFeeAmount !== totalFeeInfo.stripeFeeAmount) {
+      await likeNFTBookCartCollection.doc(cartId).update({
+        'feeInfo.stripeFeeAmount': totalStripeFeeAmount,
+      });
     }
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',
