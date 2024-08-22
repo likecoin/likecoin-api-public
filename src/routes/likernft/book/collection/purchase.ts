@@ -74,6 +74,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       },
       httpMethod: 'GET',
       referrer: referrer as string,
+      userAgent: req.get('User-Agent'),
     });
     res.redirect(url);
 
@@ -152,6 +153,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       },
       httpMethod: 'POST',
       referrer,
+      userAgent: req.get('User-Agent'),
     });
     res.json({ url });
 

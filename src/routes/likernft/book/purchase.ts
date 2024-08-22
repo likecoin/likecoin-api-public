@@ -138,6 +138,7 @@ router.post('/cart/new', async (req, res, next) => {
         medium: utmMedium,
       },
       referrer,
+      userAgent: req.get('User-Agent'),
     });
     res.json({ url });
 
@@ -198,6 +199,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       customPriceInDecimal,
       quantity,
       from: from as string,
+      userAgent: req.get('User-Agent'),
       referrer: referrer as string,
       utm: {
         campaign: utmCampaign as string,
@@ -296,6 +298,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         medium: utmMedium,
       },
       httpMethod,
+      userAgent: req.get('User-Agent'),
     });
     res.json({ url });
 
