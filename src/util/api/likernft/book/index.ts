@@ -72,7 +72,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     ownerWallet,
     successUrl,
     cancelUrl,
-    defaultPaymentCurrency = 'USD',
     notificationEmails,
     moderatorWallets,
     connectedWallets,
@@ -119,7 +118,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
   if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
-  if (defaultPaymentCurrency) payload.defaultPaymentCurrency = defaultPaymentCurrency;
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   if (canPayByLIKE !== undefined) payload.canPayByLIKE = canPayByLIKE;
@@ -162,7 +160,6 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails,
   moderatorWallets,
   connectedWallets,
-  defaultPaymentCurrency,
   shippingRates,
   mustClaimToView,
   hideDownload,
@@ -174,7 +171,6 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
-  defaultPaymentCurrency?: string;
   shippingRates?: any[];
   mustClaimToView?: boolean;
   hideDownload?: boolean;
@@ -190,9 +186,6 @@ export async function updateNftBookInfo(classId: string, {
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
-  if (defaultPaymentCurrency !== undefined) {
-    payload.defaultPaymentCurrency = defaultPaymentCurrency;
-  }
   if (shippingRates !== undefined) {
     payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   }

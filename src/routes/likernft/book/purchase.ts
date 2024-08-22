@@ -573,7 +573,6 @@ router.post(
       const {
         ownerWallet,
         prices,
-        defaultPaymentCurrency,
         defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
         coupons,
       } = bookInfo;
@@ -652,7 +651,7 @@ router.post(
         paymentId,
         email,
         priceName: priceNameEn,
-        priceWithCurrency: `${LIKEPrice} LIKE (${price} ${defaultPaymentCurrency || 'USD'})`,
+        priceWithCurrency: `${LIKEPrice} LIKE (${price} 'USD'})`,
         method: 'LIKE',
         from,
       });

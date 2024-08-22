@@ -24,7 +24,6 @@ import {
   ItemPriceInfo,
   processNFTBookPurchaseTxUpdate,
   handleStripeConnectedAccount,
-  convertUSDToCurrency,
   processNFTBookPurchaseTxGet,
   claimNFTBook,
 } from './purchase';
@@ -324,10 +323,6 @@ export async function processNFTBookCartStripePurchase(
     const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
     const totalStripeFeeAmount = stripeFeeDetails?.amount || 0;
 
-    const currency = capturedPaymentIntent.currency || 'USD';
-    const exchangeRate = balanceTx?.exchange_rate
-      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
-
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
 
     const {
@@ -348,7 +343,6 @@ export async function processNFTBookCartStripePurchase(
       } = info;
       const {
         notificationEmails = [],
-        defaultPaymentCurrency = 'USD',
         connectedWallets,
         ownerWallet,
       } = listingData;
@@ -389,8 +383,6 @@ export async function processNFTBookCartStripePurchase(
         {
           amountTotal: priceInDecimal,
           chargeId,
-          exchangeRate,
-          currency,
           stripeFeeAmount,
           likerLandFeeAmount,
           likerLandTipFeeAmount,
@@ -401,8 +393,7 @@ export async function processNFTBookCartStripePurchase(
         { connectedWallets, from },
       );
 
-      const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-      const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
+      const convertedPriceInDecimal = price;
       await Promise.all([
         await sendNFTBookSalesEmail({
           buyerEmail: email,
@@ -423,7 +414,7 @@ export async function processNFTBookCartStripePurchase(
           paymentId,
           email,
           priceName,
-          priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
+          priceWithCurrency: `${convertedPriceInDecimal} usd`,
           method: 'Fiat',
           from,
         }),
@@ -774,7 +765,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   }), {
     hasShipping: false,
     shippingRates: [],
-    defaultPaymentCurrency: 'USD',
     successUrl,
     cancelUrl,
   });

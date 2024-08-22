@@ -253,7 +253,7 @@ export function formatLineItem(classMetadata, fiatPrice) {
   if (!formattedDescription) { formattedDescription = undefined; }
   return {
     price_data: {
-      currency: 'USD',
+      currency: 'usd',
       product_data: {
         name,
         description: formattedDescription,

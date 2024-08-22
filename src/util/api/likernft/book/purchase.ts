@@ -15,7 +15,6 @@ import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandN
 import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   NFT_BOOK_SALE_DESCRIPTION,
-  USD_TO_HKD_RATIO,
   LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
@@ -85,21 +84,6 @@ export type TransactionFeeInfo = {
   customPriceDiff: number
 }
 
-function convertCurrency(priceInDecimal, exchangeRate) {
-  return Math.round(priceInDecimal * exchangeRate);
-}
-
-export function convertUSDToCurrency(usdPriceInDecimal: number, currency: string) {
-  switch (currency) {
-    case 'USD':
-      return usdPriceInDecimal;
-    case 'HKD':
-      return Math.round((usdPriceInDecimal * USD_TO_HKD_RATIO) / 10) * 10;
-    default:
-      throw new ValidationError(`INVALID_CURRENCY_'${currency}'`);
-  }
-}
-
 export async function handleStripeConnectedAccount({
   classId = '',
   collectionId = '',
@@ -117,8 +101,6 @@ export async function handleStripeConnectedAccount({
 }, {
   chargeId,
   amountTotal,
-  currency,
-  exchangeRate,
   stripeFeeAmount = 0,
   likerLandFeeAmount = 0,
   likerLandTipFeeAmount = 0,
@@ -161,7 +143,7 @@ export async function handleStripeConnectedAccount({
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
         const transfer = await stripe.transfers.create({
-          amount: convertCurrency(channelCommission, exchangeRate),
+          amount: channelCommission,
           currency: 'usd', // stripe balance are setteled in USD in source tx
           destination: fromStripeConnectAccountId,
           transfer_group: paymentId,
@@ -186,7 +168,6 @@ export async function handleStripeConnectedAccount({
           paymentId,
           amountTotal,
           amount: channelCommission,
-          currency,
           timestamp: FieldValue.serverTimestamp(),
         });
         const shouldSendNotificationEmail = isEnableNotificationEmails && email && isEmailVerified;
@@ -241,7 +222,7 @@ export async function handleStripeConnectedAccount({
             } = userInfo;
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
-              amount: convertCurrency(amountSplit, exchangeRate),
+              amount: amountSplit,
               currency: 'usd', // stripe balance are setteled in USD in source tx
               destination: userInfo.stripeConnectAccountId,
               transfer_group: paymentId,
@@ -264,7 +245,6 @@ export async function handleStripeConnectedAccount({
               paymentId,
               amountTotal,
               amount: amountSplit,
-              currency,
               timestamp: FieldValue.serverTimestamp(),
             });
             const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
@@ -574,13 +554,11 @@ export async function formatStripeCheckoutSession({
 }[], {
   hasShipping,
   shippingRates,
-  defaultPaymentCurrency,
   successUrl,
   cancelUrl,
 }: {
   hasShipping: boolean,
   shippingRates: any[],
-  defaultPaymentCurrency: string,
   successUrl: string,
   cancelUrl: string,
 }) {
@@ -609,15 +587,12 @@ export async function formatStripeCheckoutSession({
     metadata: sessionMetadata,
   };
 
-  const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
   const itemPrices = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
       const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
-      const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal
-        ? convertUSDToCurrency(item.customPriceDiffInDecimal, convertedCurrency)
-        : 0;
-      const convertedPriceInDecimal = convertUSDToCurrency(item.priceInDecimal, convertedCurrency);
+      const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
+      const convertedPriceInDecimal = item.priceInDecimal;
       const convertedOriginalPriceInDecimal = convertedPriceInDecimal
         - convertedCustomPriceDiffInDecimal;
       const likerLandFeeAmount = Math.ceil(
@@ -638,7 +613,7 @@ export async function formatStripeCheckoutSession({
 
       const payload: ItemPriceInfo = {
         quantity: item.quantity,
-        currency: convertedCurrency,
+        currency: 'usd',
         priceInDecimal: convertedPriceInDecimal,
         customPriceDiffInDecimal: convertedCustomPriceDiffInDecimal,
         originalPriceInDecimal: convertedOriginalPriceInDecimal,
@@ -665,7 +640,7 @@ export async function formatStripeCheckoutSession({
     (acc, item) => acc + item.priceInDecimal * item.quantity,
     0,
   );
-  const stripeFeeAmount = calculateStripeFee(totalConvertedPriceInDecimal, convertedCurrency);
+  const stripeFeeAmount = calculateStripeFee(totalConvertedPriceInDecimal);
   const likerLandTipFeeAmount = itemPrices.reduce(
     (acc, item) => acc + item.likerLandTipFeeAmount * item.quantity,
     0,
@@ -720,7 +695,7 @@ export async function formatStripeCheckoutSession({
 
     lineItems.push({
       price_data: {
-        currency: convertedCurrency,
+        currency: 'usd',
         product_data: {
           name: item.name,
           description: item.description,
@@ -737,7 +712,7 @@ export async function formatStripeCheckoutSession({
     if (item.customPriceDiffInDecimal) {
       lineItems.push({
         price_data: {
-          currency: convertedCurrency,
+          currency: 'usd',
           product_data: {
             name: 'Extra Tip',
             description: 'Fund will be distributed to stakeholders and creators',
@@ -772,16 +747,14 @@ export async function formatStripeCheckoutSession({
         .filter((s) => s?.name && s?.priceInDecimal >= 0)
         .map((s) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-          const convertedShippingPriceInDecimal = (
-            convertUSDToCurrency(shippingPriceInDecimal, convertedCurrency)
-          );
+          const convertedShippingPriceInDecimal = shippingPriceInDecimal;
           return {
             shipping_rate_data: {
               display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
               type: 'fixed_amount',
               fixed_amount: {
                 amount: convertedShippingPriceInDecimal,
-                currency: convertedCurrency,
+                currency: 'usd',
               },
             },
           };
@@ -882,7 +855,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     }),
     ownerWallet,
     shippingRates,
-    defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
     coupons,
@@ -993,7 +965,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   }], {
     hasShipping,
     shippingRates,
-    defaultPaymentCurrency,
     successUrl,
     cancelUrl,
   });
@@ -1136,7 +1107,6 @@ export async function processNFTBookStripePurchase(
     const {
       notificationEmails = [],
       mustClaimToView = false,
-      defaultPaymentCurrency = 'USD',
       connectedWallets,
       ownerWallet,
     } = listingData;
@@ -1171,10 +1141,6 @@ export async function processNFTBookStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
-    const currency = capturedPaymentIntent.currency || defaultPaymentCurrency;
-    const exchangeRate = balanceTx?.exchange_rate
-      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
-
     const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
     const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
     const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
@@ -1191,8 +1157,6 @@ export async function processNFTBookStripePurchase(
       {
         amountTotal,
         chargeId,
-        exchangeRate,
-        currency,
         stripeFeeAmount: Number(stripeFeeAmount),
         likerLandFeeAmount: Number(likerLandFeeAmount),
         likerLandTipFeeAmount: Number(likerLandTipFeeAmount),
@@ -1217,11 +1181,8 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
-    const convertedCurrency = defaultPaymentCurrency === 'HKD' ? 'HKD' : 'USD';
-    const convertedPriceInDecimal = convertUSDToCurrency(price, convertedCurrency);
-    const shippingCostAmount = shippingCost
-      ? (convertUSDToCurrency(shippingCost.amount_total, convertedCurrency) / 100)
-      : 0;
+    const convertedPriceInDecimal = price;
+    const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
@@ -1248,7 +1209,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${convertedPriceInDecimal} ${convertedCurrency}`,
+        priceWithCurrency: `${convertedPriceInDecimal} usd`,
         method: 'Fiat',
         from,
       }),
