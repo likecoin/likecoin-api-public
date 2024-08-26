@@ -147,6 +147,15 @@ router.post(
           metadata: {
             wallet,
           },
+          settings: {
+            payouts: {
+              schedule: {
+                interval: 'monthly',
+                monthly_anchor: 8,
+                delay_days: 7,
+              },
+            },
+          },
         });
         stripeConnectAccountId = account.id;
       }
