@@ -1209,7 +1209,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${convertedPriceInDecimal} usd`,
+        priceWithCurrency: `${convertedPriceInDecimal} USD`,
         method: 'Fiat',
         from,
       }),
