@@ -393,7 +393,6 @@ export async function processNFTBookCartStripePurchase(
         { connectedWallets, from },
       );
 
-      const convertedPriceInDecimal = price;
       await Promise.all([
         await sendNFTBookSalesEmail({
           buyerEmail: email,
@@ -414,7 +413,7 @@ export async function processNFTBookCartStripePurchase(
           paymentId,
           email,
           priceName,
-          priceWithCurrency: `${convertedPriceInDecimal} USD`,
+          priceWithCurrency: `${price} USD`,
           method: 'Fiat',
           from,
         }),

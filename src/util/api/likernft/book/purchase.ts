@@ -591,32 +591,31 @@ export async function formatStripeCheckoutSession({
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
       const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
-      const convertedCustomPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
-      const convertedPriceInDecimal = item.priceInDecimal;
-      const convertedOriginalPriceInDecimal = convertedPriceInDecimal
-        - convertedCustomPriceDiffInDecimal;
+      const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
+      const { priceInDecimal } = item;
+      const originalPriceInDecimal = priceInDecimal - customPriceDiffInDecimal;
       const likerLandFeeAmount = Math.ceil(
-        convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+        originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
       const likerLandTipFeeAmount = Math.ceil(
-        convertedCustomPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
+        customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
       );
       const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
-        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
         : 0;
       const likerLandCommission = isFromLikerLand
-        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
         : 0;
       const likerLandArtFee = item.isLikerLandArt
-        ? Math.ceil(convertedOriginalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
         : 0;
 
       const payload: ItemPriceInfo = {
         quantity: item.quantity,
         currency: 'usd',
-        priceInDecimal: convertedPriceInDecimal,
-        customPriceDiffInDecimal: convertedCustomPriceDiffInDecimal,
-        originalPriceInDecimal: convertedOriginalPriceInDecimal,
+        priceInDecimal,
+        customPriceDiffInDecimal,
+        originalPriceInDecimal,
         likerLandTipFeeAmount,
         likerLandFeeAmount,
         likerLandCommission,
@@ -636,11 +635,11 @@ export async function formatStripeCheckoutSession({
       ...item,
     }),
   );
-  const totalConvertedPriceInDecimal = items.reduce(
+  const totalPriceInDecimal = items.reduce(
     (acc, item) => acc + item.priceInDecimal * item.quantity,
     0,
   );
-  const stripeFeeAmount = calculateStripeFee(totalConvertedPriceInDecimal);
+  const stripeFeeAmount = calculateStripeFee(totalPriceInDecimal);
   const likerLandTipFeeAmount = itemPrices.reduce(
     (acc, item) => acc + item.likerLandTipFeeAmount * item.quantity,
     0,
@@ -747,13 +746,12 @@ export async function formatStripeCheckoutSession({
         .filter((s) => s?.name && s?.priceInDecimal >= 0)
         .map((s) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-          const convertedShippingPriceInDecimal = shippingPriceInDecimal;
           return {
             shipping_rate_data: {
               display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
               type: 'fixed_amount',
               fixed_amount: {
-                amount: convertedShippingPriceInDecimal,
+                amount: shippingPriceInDecimal,
                 currency: 'usd',
               },
             },
@@ -766,7 +764,7 @@ export async function formatStripeCheckoutSession({
     session,
     itemPrices,
     feeInfo: {
-      priceInDecimal: totalConvertedPriceInDecimal,
+      priceInDecimal: totalPriceInDecimal,
       originalPriceInDecimal: totalOriginalPriceInDecimal,
       stripeFeeAmount,
       likerLandTipFeeAmount,
@@ -1181,7 +1179,6 @@ export async function processNFTBookStripePurchase(
       isGift,
     });
 
-    const convertedPriceInDecimal = price;
     const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
     await Promise.all([
       sendNFTBookPurchaseEmail({
@@ -1209,7 +1206,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         email,
         priceName,
-        priceWithCurrency: `${convertedPriceInDecimal} USD`,
+        priceWithCurrency: `${price} USD`,
         method: 'Fiat',
         from,
       }),
