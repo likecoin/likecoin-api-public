@@ -539,25 +539,51 @@ export async function sendNFTBookCollectionPurchaseEmail({
 export async function updateNFTBookCollectionPostCheckoutFeeInfo({
   collectionId,
   paymentId,
-  session,
+  amountSubtotal,
+  amountTotal,
+  shippingCost,
   balanceTx,
   feeInfo,
 }) {
   const {
     stripeFeeAmount: docStripeFeeAmount,
+    priceInDecimal,
   } = feeInfo;
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
   const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  if (stripeFeeAmount !== docStripeFeeAmount) {
+  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
+  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
+  const productAmountTotal = amountTotal - shippingCostAmount;
+  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
+  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
+    && productAmountTotal !== amountSubtotal;
+  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
+  if (shouldUpdateAmountFee) {
+    [
+      'priceInDecimal',
+      'likerLandTipFeeAmount',
+      'likerLandFeeAmount',
+      'likerLandCommission',
+      'channelCommission',
+      'likerLandArtFee',
+      'customPriceDiff',
+    ].forEach((key) => {
+      if (typeof newFeeInfo[key] === 'number') {
+        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
+      }
+    });
+  }
+  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
     await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
       .doc(paymentId).update({
-        'feeInfo.stripeFeeAmount': stripeFeeAmount,
+        feeInfo: newFeeInfo,
+        shippingCost: shippingCostAmount / 100,
       });
   }
   return {
+    ...newFeeInfo,
     stripeFeeCurrency,
-    stripeFeeAmount,
   };
 }
 
@@ -573,6 +599,7 @@ export async function processNFTBookCollectionStripePurchase(
     customer_details: customer,
     payment_intent: paymentIntent,
     amount_total: amountTotal,
+    amount_subtotal: amountSubtotal,
     shipping_details: shippingDetails,
     shipping_cost: shippingCost,
   } = session;
@@ -606,14 +633,6 @@ export async function processNFTBookCollectionStripePurchase(
       feeInfo,
       quantity,
     } = txData;
-    const {
-      stripeFeeAmount: docStripeFeeAmount,
-      likerLandFeeAmount,
-      likerLandTipFeeAmount,
-      likerLandCommission,
-      channelCommission,
-      likerLandArtFee,
-    } = feeInfo;
     const [captured, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -624,18 +643,24 @@ export async function processNFTBookCollectionStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
-
-    await updateNFTBookCollectionPostCheckoutFeeInfo({
+    const {
+      stripeFeeAmount,
+      stripeFeeCurrency,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+    } = await updateNFTBookCollectionPostCheckoutFeeInfo({
       collectionId,
       paymentId,
-      session,
+      amountSubtotal,
+      amountTotal,
       balanceTx,
       feeInfo,
+      shippingCost,
     });
 
-    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-    const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-    const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
     const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
