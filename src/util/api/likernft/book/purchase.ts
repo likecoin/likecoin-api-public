@@ -795,6 +795,7 @@ export async function formatStripeCheckoutSession({
     consent_collection: {
       promotions: 'auto',
     },
+    allow_promotion_codes: true,
   };
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
