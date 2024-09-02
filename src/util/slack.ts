@@ -105,14 +105,12 @@ export async function sendNFTBookNewListingSlackNotification({
   wallet,
   classId,
   className,
-  currency,
   prices,
   canPayByLIKE,
 }: {
   wallet: string;
   classId: string;
   className: string;
-  currency: string;
   prices: {
     name: Record<string, string>;
     priceInDecimal: number;
@@ -125,7 +123,7 @@ export async function sendNFTBookNewListingSlackNotification({
     const classLink = getLikerLandNFTClassPageURL({ classId });
     const editions = prices.map(
       (p) => {
-        const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} ${currency}`;
+        const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} USD}`;
         return `Name: ${Object.values(p.name).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
       },
     ).join('\n');

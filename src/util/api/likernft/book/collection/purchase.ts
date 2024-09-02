@@ -322,7 +322,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     ownerWallet,
     shippingRates,
     isPhysicalOnly,
-    defaultPaymentCurrency = 'USD',
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
     priceInDecimal: originalPriceInDecimal,
@@ -423,7 +422,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   }], {
     hasShipping,
     shippingRates,
-    defaultPaymentCurrency,
     successUrl,
     cancelUrl,
   });
@@ -554,7 +552,6 @@ export async function processNFTBookCollectionStripePurchase(
     });
     const {
       notificationEmails = [],
-      defaultPaymentCurrency = 'USD',
       connectedWallets,
       ownerWallet,
     } = listingData;
@@ -587,9 +584,6 @@ export async function processNFTBookCollectionStripePurchase(
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
-    const currency = capturedPaymentIntent.currency || defaultPaymentCurrency;
-    const exchangeRate = balanceTx?.exchange_rate
-      || (currency.toLowerCase() === 'hkd' ? 1 / USD_TO_HKD_RATIO : 1);
     const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
     const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
     const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
@@ -606,8 +600,6 @@ export async function processNFTBookCollectionStripePurchase(
       {
         amountTotal,
         chargeId,
-        currency,
-        exchangeRate,
         stripeFeeAmount,
         likerLandFeeAmount,
         likerLandTipFeeAmount,
@@ -654,7 +646,7 @@ export async function processNFTBookCollectionStripePurchase(
         paymentId,
         email,
         priceName: collectionName,
-        priceWithCurrency: `${price} ${defaultPaymentCurrency || 'USD'}`,
+        priceWithCurrency: `${price} USD`,
         method: 'USD',
         from,
       }),

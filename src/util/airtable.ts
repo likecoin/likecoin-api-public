@@ -263,10 +263,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   let applicationFeeAmount = 0;
   let feeTotal = 0;
 
-  function convertCurrency(amount: number) {
-    return balanceTxExchangeRate ? amount * balanceTxExchangeRate : amount;
-  }
-
   if (!pi.latest_charge || typeof pi.latest_charge === 'string') {
     // eslint-disable-next-line no-console
     console.error('Latest charge not found in the payment indent:', pi.id);
@@ -290,12 +286,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
       if (balanceTx.exchange_rate) {
         balanceTxExchangeRate = balanceTx.exchange_rate;
       }
-
-      stripeFee = (
-        stripeFeeCurrency !== balanceTxCurrency
-          ? convertCurrency(stripeFeeAmount)
-          : stripeFeeAmount
-      ) / 100;
+      stripeFee = stripeFeeAmount / 100;
 
       balanceTxAmount = (feeInfo.priceInDecimal || balanceTx.amount) / 100;
       balanceTxNetAmount = balanceTxAmount - stripeFee;
@@ -310,11 +301,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
         } else {
           // NOTE:
           // Liker Land commission is included in the application fee after the commission fix date
-          applicationFeeAmount = (
-            applicationFee.currency !== balanceTxCurrency
-              ? convertCurrency(applicationFee.amount)
-              : applicationFee.amount
-          ) / 100;
+          applicationFeeAmount = applicationFee.amount / 100;
         }
       }
     }
@@ -327,26 +314,23 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const transferredAmount = transfers.length
     ? transfers.reduce((acc, transfer) => {
-      let amount = transfer.amount / 100;
-      if (balanceTxCurrency !== transfer.currency) {
-        amount = convertCurrency(amount);
-      }
+      const amount = transfer.amount / 100;
       return acc + amount;
     }, 0) : 0;
 
   // Note: Channel commission must be provided in metadata at checkout
-  const channelCommission = convertCurrency(Number(channelCommissionRaw)) / 100 || 0;
+  const channelCommission = (Number(channelCommissionRaw) / 100) || 0;
 
-  const likerLandCommission = convertCurrency(Number(likerLandCommissionRaw)) / 100 || 0;
+  const likerLandCommission = (Number(likerLandCommissionRaw) / 100) || 0;
 
-  const likerLandArtFee = convertCurrency(Number(likerLandArtFeeRaw)) / 100 || 0;
-  const likerLandTipFee = convertCurrency(Number(likerLandTipFeeRaw)) / 100 || 0;
+  const likerLandArtFee = (Number(likerLandArtFeeRaw) / 100) || 0;
+  const likerLandTipFee = (Number(likerLandTipFeeRaw) / 100) || 0;
 
-  const customPriceDiff = convertCurrency(Number(customPriceDiffRaw)) / 100 || 0;
+  const customPriceDiff = (Number(customPriceDiffRaw) / 100) || 0;
 
-  const estimatedStripeFeeAmount = (convertCurrency(Number(calculatedStripeFeeRaw)) / 100)
+  const estimatedStripeFeeAmount = Number(calculatedStripeFeeRaw) / 100
     || stripeFee;
-  const estimatedLikerLandFeeAmount = (convertCurrency(Number(calculatedLikerLandFeeRaw)) / 100)
+  const estimatedLikerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100
     || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
 
   let likerLandFee = 0;

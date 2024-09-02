@@ -46,10 +46,9 @@ import { getLIKEPrice } from './likePrice';
 const FEE_RATIO = LIKER_NFT_FEE_ADDRESS ? 0.025 : 0;
 const EXPIRATION_BUFFER_TIME = 10000;
 
-export function calculateStripeFee(inputAmount, currency = 'USD') {
+export function calculateStripeFee(inputAmount) {
   // 2.9% + 30 cents, 1.5% for international cards
-  let flatFee = 30;
-  if (currency === 'HKD') flatFee = Math.ceil(flatFee * USD_TO_HKD_RATIO);
+  const flatFee = 30;
   return Math.ceil(inputAmount * (0.029 + 0.015) + flatFee);
 }
 

@@ -633,7 +633,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       isPhysicalOnly,
       hasShipping,
       shippingRates,
-      defaultPaymentCurrency,
       notificationEmails,
       moderatorWallets,
       connectedWallets,
@@ -643,7 +642,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
     const publicInfo = {
       priceInDecimal,
       stock,
-      defaultPaymentCurrency,
       isAllowCustomPrice,
       hasShipping,
       shippingRates,
