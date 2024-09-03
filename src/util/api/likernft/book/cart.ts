@@ -161,7 +161,8 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       likerLandArtFee,
     } = item;
     const itemFeeInfo: TransactionFeeInfo = {
-      stripeFeeAmount: (totalStripeFeeAmount * priceInDecimal * quantity) / totalPriceInDecimal,
+      stripeFeeAmount: Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity)
+        / totalPriceInDecimal),
       priceInDecimal: priceInDecimal * quantity,
       originalPriceInDecimal: originalPriceInDecimal * quantity,
       customPriceDiff: customPriceDiffInDecimal * quantity,
@@ -365,7 +366,7 @@ export async function processNFTBookCartStripePurchase(
         channelCommission,
         likerLandArtFee,
       } = feeInfo as TransactionFeeInfo;
-      const stripeFeeAmount = ((totalStripeFeeAmount * priceInDecimal)
+      const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
         / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
 
       if (stripeFeeAmount !== documentStripeFeeAmount) {
