@@ -186,3 +186,55 @@ export async function sendNFTBookSalesSlackNotification({
     console.error(err);
   }
 }
+
+export function getSlackAttachmentFromError(errMessage) {
+  return {
+    color: 'danger',
+    title: 'Command failed',
+    text: `${errMessage}`,
+  };
+}
+
+export function getSlackAttachmentFromSubscriptionInfo(id, info) {
+  const fields = [
+    {
+      title: 'Type',
+      value: info.currentType,
+    },
+    {
+      title: 'Start Date',
+      value: `<!date^${Math.trunc(info.currentPeriodStart / 1000)}^{date_num} {time_secs}|${info.currentPeriodStart}>`,
+    },
+    {
+      title: 'End Date',
+      value: `<!date^${Math.trunc(info.currentPeriodEnd / 1000)}^{date_num} {time_secs}|${info.currentPeriodEnd}>`,
+    },
+    {
+      title: 'Remaining LIKE',
+      value: info.LIKE,
+      short: true,
+    },
+    {
+      title: 'Period LIKE',
+      value: info.periodTotalLIKE,
+      short: true,
+    },
+    {
+      title: 'LIKE to USD',
+      value: info.LIKEUSD,
+      short: true,
+    },
+  ];
+  if (info.yearPeriodEnd) {
+    fields.push({
+      title: 'Year End Date',
+      value: `<!date^${Math.trunc(info.yearPeriodEnd / 1000)}^{date_num} {time_secs}|${info.yearPeriodEnd}>`,
+    });
+  }
+  return {
+    color: '#40bfa5',
+    pretext: `*Subscription info of* \`${id}\``,
+    fields,
+    mrkdwn_in: ['pretext', 'fields'],
+  };
+}
