@@ -16,6 +16,7 @@ import arweave from './arweave';
 import iscn from './iscn';
 import likernft from './likernft';
 import likerland from './likerland';
+import slack from './slack';
 import wallet from './wallet';
 
 const router = Router();
@@ -36,6 +37,7 @@ router.use('/arweave', arweave);
 router.use('/iscn', iscn);
 router.use('/likernft', likernft);
 router.use('/likerland', likerland);
+router.use('/slack', slack);
 router.use('/wallet', wallet);
 
 export default router;

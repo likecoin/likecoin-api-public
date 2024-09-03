@@ -120,4 +120,12 @@ config.WNFT_BATCH_PURCHASE_LIMIT = 100;
 config.AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 config.AIRTABLE_BASE_ID = '';
 
+config.SLACK_COMMAND_TOKEN = '';
+
+config.USER_ALLOWED_CHANNEL_IDS = '';
+config.USER_ALLOWED_USER_IDS = '';
+config.WALLET_ALLOWED_USER_IDS = '';
+config.WALLET_ALLOWED_CHANNEL_IDS = '';
+config.TEAM_WALLET_TABLE = {};
+
 module.exports = config;

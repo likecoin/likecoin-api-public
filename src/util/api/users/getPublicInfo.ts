@@ -25,7 +25,7 @@ function isValidUserDoc(userDoc) {
   return true;
 }
 
-function formatUserCivicLikerProperies(userDoc) {
+export function formatUserCivicLikerProperies(userDoc) {
   const { id } = userDoc;
   const data = userDoc.data();
   const { civicLiker, avatarHash } = data;
