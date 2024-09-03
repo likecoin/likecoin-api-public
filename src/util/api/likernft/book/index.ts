@@ -435,7 +435,12 @@ export async function validateStocks(
 async function parseNFTIdsMapFromTxHash(txHash: string, sender: string) {
   if (!txHash) throw new ValidationError('TX_HASH_IS_EMPTY');
   const client = await getClient();
-  const tx = await client.getTx(txHash);
+  let tx;
+  for (let tryCount = 0; tryCount < 4; tryCount += 1) {
+    tx = await client.getTx(txHash);
+    if (tx) break;
+    await sleep(3000);
+  }
   if (!tx) throw new ValidationError('TX_NOT_FOUND');
   const { code, tx: rawTx } = tx;
   if (code) throw new ValidationError('TX_FAILED');
