@@ -85,6 +85,40 @@ export async function getAuthCoreUserById(authCoreUserId, accessToken) {
   return parseAuthCoreUser(data);
 }
 
+export async function getAuthCoreUserContactById(authCoreUserId, accessToken) {
+  const { data } = await api.get(`/management/users/${authCoreUserId}/contacts`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_OAUTH_ERROR');
+  if (!data.contacts) return [];
+  const { contacts } = data;
+  return contacts.map((c) => ({
+    type: c.type,
+    value: c.value,
+    verified: c.verified,
+    primary: c.primary,
+  }));
+}
+
+export async function getAuthCoreUserOAuthFactorsById(authCoreUserId, accessToken) {
+  const { data } = await api.get(`/management/users/${authCoreUserId}/oauth_factors`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!data) throw new Error('AUTHCORE_OAUTH_ERROR');
+  if (!data.oauth_factors) return [];
+  const oAuthFactors = data.oauth_factors;
+  return oAuthFactors.map((f) => ({
+    service: f.service.toLowerCase(),
+    lastUsedAt: f.last_used_at,
+    createdAt: f.created_at,
+    userId: f.oauth_user_id,
+  }));
+}
+
 export async function updateAuthCoreUserById(authCoreUserId, payload, accessToken) {
   const {
     user: userName,
