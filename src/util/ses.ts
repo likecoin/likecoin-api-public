@@ -936,13 +936,13 @@ export function sendNFTBookSalePaymentsEmail({
   const displayPayments = payments.map(({ amount, type }) => {
     const isRoyalty = type === 'connectedWallet';
     const displayType = isRoyalty ? 'royalty' : 'commission';
-    const name = `${displayType}: US$${amount}`;
+    const name = `${displayType}: US$${amount.toFixed(2)}`;
     return name;
   });
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId })
     : getLikerLandNFTClassPageURL({ classId });
-  const title = `You received US$${totalAmount} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
+  const title = `You received US$${totalAmount.toFixed(2)} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
