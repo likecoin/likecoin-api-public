@@ -1,5 +1,4 @@
 import BigNumber from 'bignumber.js';
-import axios from 'axios';
 import Stripe from 'stripe';
 import stripe from '../../../stripe';
 import { likeNFTFiatCollection } from '../../../firebase';
@@ -7,7 +6,6 @@ import { ValidationError } from '../../../ValidationError';
 import { processFiatNFTPurchase } from '.';
 import {
   API_EXTERNAL_HOSTNAME,
-  LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
 import publisher from '../../../gcloudPub';
@@ -15,32 +13,16 @@ import { sendPendingClaimEmail, sendAutoClaimEmail } from '../../../ses';
 import { getNFTISCNData } from '../../../cosmos/nft';
 import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
-  LIKER_LAND_GET_WALLET_SECRET,
 } from '../../../../../config/config';
 import { sendStripeFiatPurchaseSlackNotification } from '../../../slack';
 import { DEFAULT_NFT_IMAGE_SIZE, checkIsWritingNFT, parseImageURLFromMetadata } from '../metadata';
 import { subscribeEmailToLikerLandSubstack } from '../../../substack';
+import { findLikerLandWalletUserWithVerifiedEmail } from '../../../liker-land';
 
 export async function findPaymentFromStripeSessionId(sessionId) {
   const query = await likeNFTFiatCollection.where('sessionId', '==', sessionId).limit(1).get();
   const [doc] = query.docs;
   return doc;
-}
-
-async function findWalletWithVerifiedEmail(email) {
-  try {
-    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
-      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
-      params: { email },
-    });
-    return data.wallet;
-  } catch (error) {
-    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-      // eslint-disable-next-line no-console
-      console.error(error);
-    }
-    return null;
-  }
 }
 
 export async function processStripeFiatNFTPurchase(session, req) {
@@ -87,7 +69,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
   const { email } = customer;
   const isWalletProvided = !!wallet;
   if (!isWalletProvided && email) {
-    wallet = await findWalletWithVerifiedEmail(email);
+    ({ wallet } = await findLikerLandWalletUserWithVerifiedEmail(email));
   }
   const isPendingClaim = !wallet;
   let claimToken: string | undefined;

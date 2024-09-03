@@ -24,7 +24,7 @@ router.post(
       switch (command) {
         case 'list': {
           const cosmosWallets = Object.keys(TEAM_WALLET_TABLE);
-          const promises = cosmosWallets.map(d => getCosmosAccountLIKE(d));
+          const promises = cosmosWallets.map((d) => getCosmosAccountLIKE(d));
           const amounts = await Promise.all(promises);
           const fields: any[] = [];
           for (let i = 0; i < amounts.length; i += 1) {

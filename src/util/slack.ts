@@ -238,3 +238,18 @@ export function getSlackAttachmentFromSubscriptionInfo(id, info) {
     mrkdwn_in: ['pretext', 'fields'],
   };
 }
+
+export function getSlackAttachmentForMap(title, map) {
+  const fields = Object.entries(
+    map,
+  ).map(([key, value]) => ({
+    title: key,
+    value: JSON.stringify(value, null, 2),
+  }));
+  return {
+    color: '#40bfa5',
+    pretext: `*${title}*`,
+    fields,
+    mrkdwn_in: ['pretext', 'fields'],
+  };
+}

@@ -1,4 +1,8 @@
+import axios from 'axios';
 import { LIKER_LAND_HOSTNAME } from '../constant';
+import {
+  LIKER_LAND_GET_WALLET_SECRET,
+} from '../../config/config';
 
 export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
@@ -328,3 +332,35 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/fiat/stripe?${qs}`, { language });
 };
+
+export async function findLikerLandWalletUserWithVerifiedEmail(email) {
+  try {
+    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
+      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
+      params: { email },
+    });
+    return data;
+  } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
+    return null;
+  }
+}
+
+export async function fetchLikerLandWalletUserInfo(wallet) {
+  try {
+    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
+      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
+      params: { wallet },
+    });
+    return data;
+  } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
+    return null;
+  }
+}
