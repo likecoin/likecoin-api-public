@@ -615,8 +615,7 @@ export async function processNFTBookCollectionStripePurchase(
       isGift,
       giftInfo,
       isPhysicalOnly,
-      originalPriceInDecimal,
-      feeInfo,
+      feeInfo: docFeeInfo,
       quantity,
     } = txData;
     const [captured, collectionData] = await Promise.all([
@@ -637,16 +636,30 @@ export async function processNFTBookCollectionStripePurchase(
       likerLandCommission,
       channelCommission,
       likerLandArtFee,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiff,
     } = await updateNFTBookCollectionPostCheckoutFeeInfo({
       collectionId,
       paymentId,
       amountSubtotal,
       amountTotal,
       balanceTx,
-      feeInfo,
+      feeInfo: docFeeInfo,
       shippingCost,
     });
 
+    const feeInfo: TransactionFeeInfo = {
+      stripeFeeAmount,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiff,
+    };
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
 
