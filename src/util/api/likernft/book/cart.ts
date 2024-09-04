@@ -417,7 +417,7 @@ export async function processNFTBookCartStripePurchase(
         originalPriceInDecimal,
         priceIndex,
         priceName,
-        feeInfo,
+        feeInfo: docFeeInfo,
       } = txData;
       const {
         priceInDecimal,
@@ -427,12 +427,12 @@ export async function processNFTBookCartStripePurchase(
         likerLandCommission,
         channelCommission,
         likerLandArtFee,
-      } = feeInfo as TransactionFeeInfo;
+      } = docFeeInfo as TransactionFeeInfo;
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
         / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
 
-      const newFeeInfo = {
-        ...feeInfo,
+      const feeInfo = {
+        ...docFeeInfo,
       };
       if (shouldUpdateAmountFee) {
         [
@@ -444,8 +444,8 @@ export async function processNFTBookCartStripePurchase(
           'likerLandArtFee',
           'customPriceDiff',
         ].forEach((key) => {
-          if (typeof newFeeInfo[key] === 'number') {
-            newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
+          if (typeof feeInfo[key] === 'number') {
+            feeInfo[key] = Math.round(feeInfo[key] * discountRate);
           }
         });
       }
@@ -454,12 +454,12 @@ export async function processNFTBookCartStripePurchase(
         if (collectionId) {
           await likeNFTCollectionCollection.doc(collectionId)
             .collection('transactions').doc(paymentId).update({
-              feeInfo: newFeeInfo,
+              feeInfo,
             });
         } else if (classId) {
           await likeNFTBookCollection.doc(classId)
             .collection('transactions').doc(paymentId).update({
-              feeInfo: newFeeInfo,
+              feeInfo,
             });
         }
       }
