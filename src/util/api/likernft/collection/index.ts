@@ -8,6 +8,8 @@ import {
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE } from '../../../../constant';
+import stripe from '../../../stripe';
+import { parseImageURLFromMetadata } from '../metadata';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -186,6 +188,24 @@ export async function createNFTCollectionByType(
   } = payload;
   const docRef = likeNFTCollectionCollection.doc(collectionId);
 
+  const images: string[] = [];
+  if (image) {
+    images.push(parseImageURLFromMetadata(image));
+  }
+  const stripeProductId = await stripe.products.create({
+    name,
+    description,
+    images,
+    metadata: {
+      collectionId,
+    },
+  });
+  const stripePriceId = await stripe.prices.create({
+    product: stripeProductId.id,
+    unit_amount: typePayload.priceInDecimal,
+    currency: 'usd',
+  });
+
   let batch = db.batch();
   batch.create(docRef, {
     ownerWallet: wallet,
@@ -196,6 +216,8 @@ export async function createNFTCollectionByType(
     type,
     typePayload: {
       sold: 0,
+      stripeProductId,
+      stripePriceId,
       ...typePayload,
     },
     timestamp: FieldValue.serverTimestamp(),
@@ -293,6 +315,8 @@ export async function patchNFTCollectionById(
   const {
     stock,
     isAutoDeliver,
+    stripeProductId,
+    stripePriceId,
   } = typePayload;
   const {
     classIds: newClassIds,
@@ -338,6 +362,29 @@ export async function patchNFTCollectionById(
   if (newName !== undefined) updatePayload.name = newName;
   if (newDescription !== undefined) updatePayload.description = newDescription;
   if (image !== undefined) updatePayload.image = image;
+
+  if (stripeProductId) {
+    if (newName || newDescription || image) {
+      await stripe.products.update(stripeProductId, {
+        name: newName || docName,
+        description: newDescription || docDescription,
+        images: image ? [parseImageURLFromMetadata(image)] : undefined,
+      });
+    }
+    if (stripePriceId) {
+      if (typePayload.priceInDecimal !== newTypePayload.priceInDecimal) {
+        await stripe.prices.update(stripePriceId, {
+          active: false,
+        });
+        const newStripePrice = await stripe.prices.create({
+          product: stripeProductId,
+          unit_amount: newTypePayload.priceInDecimal,
+          currency: 'usd',
+        });
+        updatePayload.typePayload.stripePriceId = newStripePrice.id;
+      }
+    }
+  }
 
   let batch = db.batch();
   batch.update(likeNFTCollectionCollection.doc(collectionId), updatePayload);
@@ -407,7 +454,16 @@ export async function removeNFTCollectionById(
   if (!docData) {
     throw new ValidationError('COLLECTION_NOT_FOUND', 404);
   }
-  const { ownerWallet } = docData;
+  const { ownerWallet, typePayload = {} } = docData;
   if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
+  const { stripeProductId, stripePriceId } = typePayload;
+  if (stripePriceId) {
+    await stripe.prices.update(stripePriceId, {
+      active: false,
+    });
+  }
+  if (stripeProductId) {
+    await stripe.products.del(stripeProductId);
+  }
   await likeNFTCollectionCollection.doc(collectionId).delete();
 }
