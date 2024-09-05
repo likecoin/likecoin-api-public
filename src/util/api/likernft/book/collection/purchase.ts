@@ -24,7 +24,7 @@ import {
   TransactionFeeInfo,
   formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
 } from '../purchase';
-import { handleNFTPurchaseTransaction } from '../../purchase';
+import { handleNFTPurchaseTransaction, checkIsFromLikerLand } from '../../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
@@ -37,9 +37,10 @@ import {
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../../ses';
-import { sendNFTBookSalesSlackNotification } from '../../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidIdSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
+import { getBookUserInfoFromLikerId, getBookUserInfoFromLegacyString } from '../user';
 
 import {
   LIKER_NFT_TARGET_ADDRESS,
@@ -697,6 +698,29 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeAmount,
       }),
     ]);
+    if (from && !checkIsFromLikerLand(from)) {
+      let fromUser: any = null;
+
+      if (from.startsWith('@')) {
+        fromUser = await getBookUserInfoFromLikerId(from.slice(1));
+      } else {
+        fromUser = await getBookUserInfoFromLegacyString(from);
+      }
+
+      const bookUserInfo = fromUser?.bookUserInfo;
+
+      if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
+        await sendNFTBookInvalidIdSlackNotification({
+          collectionId,
+          bookName: collectionName,
+          paymentId,
+          email,
+          priceWithCurrency: `${price} USD`,
+          from,
+          isStripeConnected: bookUserInfo ? bookUserInfo.isStripeConnectReady : false,
+        });
+      }
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

@@ -32,7 +32,7 @@ import {
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
-import { sendNFTBookSalesSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidIdSlackNotification } from '../../../slack';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
@@ -1260,6 +1260,29 @@ export async function processNFTBookStripePurchase(
         stripeFeeAmount,
       }),
     ]);
+    if (from && !checkIsFromLikerLand(from)) {
+      let fromUser: any = null;
+
+      if (from.startsWith('@')) {
+        fromUser = await getBookUserInfoFromLikerId(from.slice(1));
+      } else {
+        fromUser = await getBookUserInfoFromLegacyString(from);
+      }
+
+      const bookUserInfo = fromUser?.bookUserInfo;
+
+      if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
+        await sendNFTBookInvalidIdSlackNotification({
+          classId,
+          bookName: className,
+          paymentId,
+          email,
+          priceWithCurrency: `${price} USD`,
+          from,
+          isStripeConnected: bookUserInfo ? bookUserInfo.isStripeConnectReady : false,
+        });
+      }
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

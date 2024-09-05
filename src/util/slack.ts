@@ -11,6 +11,7 @@ import {
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
+  NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 
 export async function sendStripeFiatPurchaseSlackNotification({
@@ -180,6 +181,49 @@ export async function sendNFTBookSalesSlackNotification({
       priceWithCurrency,
       method,
       from,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendNFTBookInvalidIdSlackNotification({
+  classId = '',
+  collectionId,
+  bookName,
+  paymentId,
+  email,
+  priceWithCurrency,
+  from = '',
+  isStripeConnected = false,
+} : {
+  classId?: string;
+  collectionId?: string;
+  bookName: string;
+  paymentId: string;
+  email: string | null;
+  priceWithCurrency: string;
+  from?: string;
+  isStripeConnected?: boolean;
+}) {
+  if (!NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK) return;
+  try {
+    const classLink = collectionId
+      ? getLikerLandNFTCollectionPageURL({ collectionId })
+      : getLikerLandNFTClassPageURL({ classId });
+    const paymentLink = collectionId
+      ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
+      : getNFTBookStoreSendPageURL(classId, paymentId);
+    await axios.post(NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      className: bookName,
+      classLink,
+      email: email || 'N/A',
+      paymentLink,
+      priceWithCurrency,
+      from,
+      isStripeConnected,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

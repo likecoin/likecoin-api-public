@@ -41,9 +41,11 @@ import {
 } from './collection/purchase';
 import stripe from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
-import { sendNFTBookSalesSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidIdSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import { checkIsFromLikerLand } from '../purchase';
+import { getBookUserInfoFromLikerId, getBookUserInfoFromLegacyString } from './user';
 
 export type CartItem = {
   collectionId?: string
@@ -449,6 +451,29 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
         }),
       ]);
+      if (from && !checkIsFromLikerLand(from)) {
+        let fromUser: any = null;
+
+        if (from.startsWith('@')) {
+          fromUser = await getBookUserInfoFromLikerId(from.slice(1));
+        } else {
+          fromUser = await getBookUserInfoFromLegacyString(from);
+        }
+
+        const bookUserInfo = fromUser?.bookUserInfo;
+
+        if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
+          await sendNFTBookInvalidIdSlackNotification({
+            classId,
+            bookName,
+            paymentId,
+            email,
+            priceWithCurrency: `${price} USD`,
+            from,
+            isStripeConnected: bookUserInfo ? bookUserInfo.isStripeConnectReady : false,
+          });
+        }
+      }
     }
     if (totalStripeFeeAmount !== totalFeeInfo.stripeFeeAmount) {
       await likeNFTBookCartCollection.doc(cartId).update({
