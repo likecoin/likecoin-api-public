@@ -12,6 +12,7 @@ import {
   validatePrices,
   validateAutoDeliverNFTsTxHash,
   validateCoupons,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -23,6 +24,7 @@ import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
+import stripe from '../../../util/stripe';
 
 const router = Router();
 
@@ -281,15 +283,26 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { prices = [] } = bookInfo;
+    const { stripeProductId, prices = [] } = bookInfo;
     if (priceIndex !== prices.length) {
       throw new ValidationError('INVALID_PRICE_INDEX', 400);
     }
-    const newPrice = {
+    const newPrice: any = {
       order: prices.length,
       sold: 0,
       ...formatPriceInfo(price),
     };
+    if (stripeProductId) {
+      const stripePrice = await stripe.prices.create({
+        product: stripeProductId,
+        currency: 'usd',
+        unit_amount: price.priceInDecimal,
+        metadata: {
+          name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+        },
+      });
+      newPrice.stripePriceId = stripePrice.id;
+    }
     prices.push(newPrice);
 
     let newNFTIds: string[] = [];
@@ -320,7 +333,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { prices = [] } = bookInfo;
+    const { prices = [], stripeProductId } = bookInfo;
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
@@ -349,10 +362,39 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       );
     }
 
-    prices[priceIndex] = {
+    const newPriceInfo = {
       ...oldPriceInfo,
       ...formatPriceInfo(price),
     };
+
+    if (stripeProductId && oldPriceInfo.stripePriceId) {
+      if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
+        await stripe.prices.update(
+          oldPriceInfo.stripePriceId,
+          { active: false },
+        );
+        const newStripePrice = await stripe.prices.create({
+          product: stripeProductId,
+          currency: 'usd',
+          unit_amount: price.priceInDecimal,
+          metadata: {
+            name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+          },
+        });
+        newPriceInfo.stripePriceId = newStripePrice.id;
+      } else if (oldPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]
+          !== newPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]) {
+        await stripe.prices.update(
+          oldPriceInfo.stripePriceId,
+          {
+            metadata: {
+              name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+            },
+          },
+        );
+      }
+    }
+    prices[priceIndex] = newPriceInfo;
 
     await updateNftBookInfo(classId, { prices }, newNFTIds);
     res.sendStatus(200);
