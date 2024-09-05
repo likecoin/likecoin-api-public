@@ -508,6 +508,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       isbn,
     } = iscnContentMetadata;
     const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+    const image = metadata?.data?.metadata?.image;
 
     await newNftBookInfo(classId, {
       iscnIdPrefix,
@@ -533,6 +534,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       author,
       usageInfo,
       isbn,
+      image,
     }, apiWalletOwnedNFTIds);
 
     const className = metadata?.name || classId;
@@ -558,7 +560,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         type: metadata?.data?.metadata?.nft_meta_collection_id,
         minPrice: prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100,
         maxPrice: prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100,
-        imageURL: metadata?.data?.metadata?.image,
+        imageURL: image,
         language: inLanguage,
         keywords,
         author,
