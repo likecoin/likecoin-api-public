@@ -170,7 +170,7 @@ export function sendAutoClaimEmail({
             content1: `<p>親愛的讀者：</p>
             <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}。</p>
             <p>你的信箱先前已與地址為 ${wallet} 的錢包完成驗證，你所購買的 Writing NFT 已發送至該錢包。
-            <br>請往你的 <a href="${portfolioURLZh}">Liker Land 個人主頁</a>查閱。</p>
+            <br>請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>
             <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝支持創作。</p>
             <p>Liker Land</p>`,
@@ -181,7 +181,7 @@ export function sendAutoClaimEmail({
             <p>Thank you for purchasing "<a href="${nftClassURLEn}">${firstClassName}</a>"${pluralDescriptionEn}.</p>
             <p>Your email is previously linked with the wallet address ${wallet},
             the Writing NFT you purchased has been sent to the wallet.</p>
-            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Liker Land Dashboard</a>.</p>
+            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>
             <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for supporting creativity.</p>
             <p>Liker Land</p>`,
@@ -249,7 +249,7 @@ export function sendPendingClaimEmail({
             <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}。</p>
             <p>請根據網頁指示領取你的 Writing NFT，亦可按以下連結前往該頁面。
             完成步驟後，即可領取 Writing NFT。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 個人主頁</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>`,
             buttonText1: '領取我的 Writing NFT',
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
@@ -263,7 +263,7 @@ export function sendPendingClaimEmail({
             <p>Please follow the steps on the web to claim your Writing NFT.
             You can also click the button below to get a direct link to that page.
             Once the steps are completed, you can receive your Writing NFT.
-            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Liker Land Dashboard</a>.</p>`,
+            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>`,
             buttonText2: 'Claim your Writing NFT',
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
@@ -388,11 +388,11 @@ export async function sendNFTBookPendingClaimEmail({
             title1: titleZh,
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
             <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》</a>。</p>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 書架</a>閱讀你的電子書。
+            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 登記，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 綱站的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
@@ -404,12 +404,12 @@ export async function sendNFTBookPendingClaimEmail({
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thanks for purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your ebook.
-            If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
+            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land website</a> to read your ebook.
+            If you have not registered an account on Liker Land website, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
-            please first log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
+            please first log in to Liker Land website and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
             The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
+            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land website</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
@@ -482,11 +482,11 @@ export async function sendNFTBookCartPendingClaimEmail({
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
             <p>感謝購買以下電子書</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 書架</a>閱讀你的電子書。
+            <p>請<a href="${claimPageURLZh}">登入 Liker Land 綱站的書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 登記，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 綱站的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
@@ -498,12 +498,12 @@ export async function sendNFTBookCartPendingClaimEmail({
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thank you for purchasing the following ebook</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURLEn}">login to Liker Land Bookshelf</a> to read your ebook.
-            If you have not registered a Liker Land account, please <a href="${claimPageURLEn}">click here</a> to register.</p>
+            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land website</a> to read your ebook.
+            If you have not registered an account on Liker Land website, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
-            please log in to Liker Land and register by clicking here, and then patiently wait for the author's dispatch notification.
+            please log in to Liker Land website and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
             The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURLEn}">Liker Land Bookshelf</a> at that time.</p>`,
+            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land website</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
@@ -646,7 +646,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>請根據網頁指示領取你的電子書，亦可按以下連結前往該頁面。完成步驟後，即可領取電子書。</p>
             <p>若你收到的電子書需要作者親自簽發，請在完成步驟後，耐心等待作者發貨。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 個人主頁</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>`,
             messageTitle1: `${fromName} 的留言`,
             messageContent1: message,
             buttonText1: '領取我的電子書',
@@ -664,7 +664,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             Once the steps are completed, you can receive your ebook.</p>
             <p>If the ebook you received requires a personal signature from the author,
             please wait patiently for the author to dispatch it after completing the steps,
-            typically within 3 days. You can check the status of the ebook on your <a href="${portfolioURLEn}">Liker Land Dashboard</a>.</p>`,
+            typically within 3 days. You can check the status of the ebook on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>`,
             messageTitle2: `${fromName}'s message`,
             messageContent2: message,
             buttonText2: 'Claim your ebook',
