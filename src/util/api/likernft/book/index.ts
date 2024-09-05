@@ -13,6 +13,8 @@ import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../consta
 import { getNFTsByClassId } from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
+import stripe from '../../../stripe';
+import { parseImageURLFromMetadata } from '../metadata';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
@@ -88,12 +90,43 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     author,
     usageInfo,
     isbn,
+
+    iscnIdPrefix,
+    image,
   } = data;
-  const newPrices = prices.map((p, order) => ({
+  let newPrices = prices.map((p, order) => ({
     order,
     sold: 0,
     ...formatPriceInfo(p),
   }));
+
+  const images: string[] = [];
+  if (image) images.push(parseImageURLFromMetadata(image));
+  if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+  const product = await stripe.products.create({
+    name,
+    description,
+    images,
+    metadata: {
+      classId,
+      iscnIdPrefix,
+    },
+  });
+  const stripeProductId = product.id;
+  const stripePrices = await Promise.all(newPrices.map((p) => stripe.prices.create({
+    product: stripeProductId,
+    currency: 'usd',
+    unit_amount: p.priceInDecimal,
+    metadata: {
+      name: p.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+    },
+  })));
+
+  newPrices = newPrices.map((p, index) => ({
+    ...p,
+    stripePriceId: stripePrices[index].id,
+  }));
+
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     classId,
@@ -101,7 +134,10 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     prices: newPrices,
     ownerWallet,
     timestamp,
+    stripeProductId,
   };
+  if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
+  if (image) payload.image = image;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
