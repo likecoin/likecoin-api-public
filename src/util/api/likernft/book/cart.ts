@@ -427,8 +427,9 @@ export async function processNFTBookCartStripePurchase(
         channelCommission,
         likerLandArtFee,
       } = docFeeInfo as TransactionFeeInfo;
+      // use pre-discounted price for fee ratio calculation
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
-        / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
+        / (amountSubtotal || totalFeeInfo.priceInDecimal)) || documentStripeFeeAmount;
 
       const feeInfo = {
         ...docFeeInfo,
