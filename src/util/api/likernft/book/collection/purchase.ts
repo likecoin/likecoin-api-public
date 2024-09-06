@@ -713,7 +713,6 @@ export async function processNFTBookCollectionStripePurchase(
         await sendNFTBookInvalidChannelIdSlackNotification({
           collectionId,
           bookName: collectionName,
-          paymentId,
           email,
           priceWithCurrency: `${price} USD`,
           from,

@@ -192,7 +192,6 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   classId = '',
   collectionId,
   bookName,
-  paymentId,
   email,
   priceWithCurrency,
   from = '',
@@ -201,7 +200,6 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   classId?: string;
   collectionId?: string;
   bookName: string;
-  paymentId: string;
   email: string | null;
   priceWithCurrency: string;
   from?: string;
@@ -212,15 +210,11 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
     const classLink = collectionId
       ? getLikerLandNFTCollectionPageURL({ collectionId })
       : getLikerLandNFTClassPageURL({ classId });
-    const paymentLink = collectionId
-      ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
-      : getNFTBookStoreSendPageURL(classId, paymentId);
     await axios.post(NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       className: bookName,
       classLink,
       email: email || 'N/A',
-      paymentLink,
       priceWithCurrency,
       from,
       isStripeConnected,
