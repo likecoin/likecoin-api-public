@@ -20,6 +20,10 @@ export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
+export function getLocalizedTextWithFallback(field, locale) {
+  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE];
+}
+
 export function formatPriceInfo(price) {
   const {
     name: nameInput,
@@ -118,7 +122,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     currency: 'usd',
     unit_amount: p.priceInDecimal,
     metadata: {
-      name: p.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+      name: getLocalizedTextWithFallback(p.name, 'zh'),
     },
   })));
 
