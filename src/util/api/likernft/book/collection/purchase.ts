@@ -37,7 +37,7 @@ import {
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../../ses';
-import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidIdSlackNotification } from '../../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
 import { getBookUserInfoFromLikerId, getBookUserInfoFromLegacyString } from '../user';
@@ -710,7 +710,7 @@ export async function processNFTBookCollectionStripePurchase(
       const bookUserInfo = fromUser?.bookUserInfo;
 
       if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
-        await sendNFTBookInvalidIdSlackNotification({
+        await sendNFTBookInvalidChannelIdSlackNotification({
           collectionId,
           bookName: collectionName,
           paymentId,

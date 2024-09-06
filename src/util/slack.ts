@@ -11,7 +11,7 @@ import {
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
-  NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK,
+  NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 
 export async function sendStripeFiatPurchaseSlackNotification({
@@ -188,7 +188,7 @@ export async function sendNFTBookSalesSlackNotification({
   }
 }
 
-export async function sendNFTBookInvalidIdSlackNotification({
+export async function sendNFTBookInvalidChannelIdSlackNotification({
   classId = '',
   collectionId,
   bookName,
@@ -207,7 +207,7 @@ export async function sendNFTBookInvalidIdSlackNotification({
   from?: string;
   isStripeConnected?: boolean;
 }) {
-  if (!NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK) return;
+  if (!NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK) return;
   try {
     const classLink = collectionId
       ? getLikerLandNFTCollectionPageURL({ collectionId })
@@ -215,7 +215,7 @@ export async function sendNFTBookInvalidIdSlackNotification({
     const paymentLink = collectionId
       ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
       : getNFTBookStoreSendPageURL(classId, paymentId);
-    await axios.post(NFT_BOOK_SALES_INVALID_ID_NOTIFICATION_WEBHOOK, {
+    await axios.post(NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       className: bookName,
       classLink,

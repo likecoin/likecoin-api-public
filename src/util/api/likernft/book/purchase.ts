@@ -32,7 +32,7 @@ import {
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
-import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidIdSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
@@ -1272,7 +1272,7 @@ export async function processNFTBookStripePurchase(
       const bookUserInfo = fromUser?.bookUserInfo;
 
       if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
-        await sendNFTBookInvalidIdSlackNotification({
+        await sendNFTBookInvalidChannelIdSlackNotification({
           classId,
           bookName: className,
           paymentId,
