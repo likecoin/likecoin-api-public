@@ -3,7 +3,7 @@ import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import {
-  validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice,
+  validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice, getLocalizedTextWithFallback,
 } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
@@ -196,8 +196,8 @@ export async function createNFTCollectionByType(
     images.push(parseImageURLFromMetadata(image));
   }
   const stripeProductId = await stripe.products.create({
-    name,
-    description,
+    name: getLocalizedTextWithFallback(name, 'zh'),
+    description: getLocalizedTextWithFallback(description, 'zh'),
     images,
     metadata: {
       collectionId,
@@ -369,8 +369,8 @@ export async function patchNFTCollectionById(
   if (stripeProductId) {
     if (newName || newDescription || image) {
       await stripe.products.update(stripeProductId, {
-        name: newName || docName,
-        description: newDescription || docDescription,
+        name: getLocalizedTextWithFallback(newName || docName, 'zh'),
+        description: getLocalizedTextWithFallback(newDescription || docDescription, 'zh'),
         images: image ? [parseImageURLFromMetadata(image)] : undefined,
       });
     }

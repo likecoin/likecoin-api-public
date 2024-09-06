@@ -13,6 +13,7 @@ import {
   validateAutoDeliverNFTsTxHash,
   validateCoupons,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  getLocalizedTextWithFallback,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -298,7 +299,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
         currency: 'usd',
         unit_amount: price.priceInDecimal,
         metadata: {
-          name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+          name: getLocalizedTextWithFallback(price.name, 'zh'),
         },
       });
       newPrice.stripePriceId = stripePrice.id;
@@ -378,7 +379,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
           currency: 'usd',
           unit_amount: price.priceInDecimal,
           metadata: {
-            name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+            name: getLocalizedTextWithFallback(price.name, 'zh'),
           },
         });
         newPriceInfo.stripePriceId = newStripePrice.id;
@@ -388,7 +389,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
           oldPriceInfo.stripePriceId,
           {
             metadata: {
-              name: price.name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
+              name: getLocalizedTextWithFallback(price.name, 'zh'),
             },
           },
         );
