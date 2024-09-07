@@ -193,17 +193,19 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   collectionId,
   bookName,
   email,
-  priceWithCurrency,
   from = '',
-  isStripeConnected = false,
+  hasStripeAccount = false,
+  isStripeConnectReady = false,
+  isInvalidChannelId = false,
 } : {
   classId?: string;
   collectionId?: string;
   bookName: string;
   email: string | null;
-  priceWithCurrency: string;
   from?: string;
-  isStripeConnected?: boolean;
+  hasStripeAccount?: boolean;
+  isStripeConnectReady?: boolean;
+  isInvalidChannelId?: boolean;
 }) {
   if (!NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK) return;
   try {
@@ -212,12 +214,15 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
       : getLikerLandNFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
+
+      channelId: from,
+      isInvalidChannelId,
+      hasStripeAccount,
+      isStripeConnectReady,
+
       className: bookName,
       classLink,
       email: email || 'N/A',
-      priceWithCurrency,
-      from,
-      isStripeConnected,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

@@ -91,6 +91,7 @@ export async function handleStripeConnectedAccount({
   paymentId,
   ownerWallet,
   bookName,
+  buyerEmail,
 }: {
   classId?: string,
   collectionId?: string,
@@ -98,6 +99,7 @@ export async function handleStripeConnectedAccount({
   paymentId: string,
   ownerWallet: string,
   bookName: string,
+  buyerEmail: string | null,
 }, {
   chargeId,
   amountTotal,
@@ -118,14 +120,32 @@ export async function handleStripeConnectedAccount({
   const emailMap = {};
   if (channelCommission) {
     let fromUser: any = null;
+    let isInvalidChannelId = false;
     if (from && !checkIsFromLikerLand(from)) {
       if (from.startsWith('@')) {
         fromUser = await getBookUserInfoFromLikerId(
           from.substring(1, from.length),
         );
+        if (!fromUser?.likerUserInfo) {
+          isInvalidChannelId = true;
+        }
       } else {
         fromUser = await getBookUserInfoFromLegacyString(from);
+        if (!fromUser?.bookUserInfo) {
+          isInvalidChannelId = true;
+        }
       }
+    }
+    if (isInvalidChannelId) {
+      await sendNFTBookInvalidChannelIdSlackNotification({
+        classId,
+        bookName,
+        from,
+        email: buyerEmail,
+        isInvalidChannelId: true,
+        hasStripeAccount: false,
+        isStripeConnectReady: false,
+      });
     }
     let fromStripeConnectAccountId;
     if (fromUser && fromUser.bookUserInfo) {
@@ -135,6 +155,19 @@ export async function handleStripeConnectedAccount({
         isStripeConnectReady,
         isEnableNotificationEmails = true,
       } = bookUserInfo;
+      if (
+        !bookUserInfo.stripeConnectAccountId
+      || !bookUserInfo.isStripeConnectReady
+      ) {
+        await sendNFTBookInvalidChannelIdSlackNotification({
+          classId,
+          bookName,
+          from,
+          email: buyerEmail,
+          hasStripeAccount: !!bookUserInfo.stripeConnectAccountId,
+          isStripeConnectReady: !!bookUserInfo.isStripeConnectReady,
+        });
+      }
       const {
         email,
         isEmailVerified,
@@ -1187,6 +1220,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         ownerWallet,
         bookName: className,
+        buyerEmail: email,
       },
       {
         amountTotal,
@@ -1260,28 +1294,6 @@ export async function processNFTBookStripePurchase(
         stripeFeeAmount,
       }),
     ]);
-    if (from && !checkIsFromLikerLand(from)) {
-      let fromUser: any = null;
-
-      if (from.startsWith('@')) {
-        fromUser = await getBookUserInfoFromLikerId(from.slice(1));
-      } else {
-        fromUser = await getBookUserInfoFromLegacyString(from);
-      }
-
-      const bookUserInfo = fromUser?.bookUserInfo;
-
-      if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
-        await sendNFTBookInvalidChannelIdSlackNotification({
-          classId,
-          bookName: className,
-          email,
-          priceWithCurrency: `${price} USD`,
-          from,
-          isStripeConnected: bookUserInfo ? bookUserInfo.isStripeConnectReady : false,
-        });
-      }
-    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

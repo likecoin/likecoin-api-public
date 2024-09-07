@@ -631,6 +631,7 @@ export async function processNFTBookCollectionStripePurchase(
         paymentId,
         ownerWallet,
         bookName: collectionName,
+        buyerEmail: email,
       },
       {
         amountTotal,
@@ -698,28 +699,6 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeAmount,
       }),
     ]);
-    if (from && !checkIsFromLikerLand(from)) {
-      let fromUser: any = null;
-
-      if (from.startsWith('@')) {
-        fromUser = await getBookUserInfoFromLikerId(from.slice(1));
-      } else {
-        fromUser = await getBookUserInfoFromLegacyString(from);
-      }
-
-      const bookUserInfo = fromUser?.bookUserInfo;
-
-      if (!bookUserInfo || !bookUserInfo.isStripeConnectReady) {
-        await sendNFTBookInvalidChannelIdSlackNotification({
-          collectionId,
-          bookName: collectionName,
-          email,
-          priceWithCurrency: `${price} USD`,
-          from,
-          isStripeConnected: bookUserInfo ? bookUserInfo.isStripeConnectReady : false,
-        });
-      }
-    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
