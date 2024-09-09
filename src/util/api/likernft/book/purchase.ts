@@ -137,19 +137,6 @@ export async function handleStripeConnectedAccount({
         isStripeConnectReady,
         isEnableNotificationEmails = true,
       } = bookUserInfo;
-      if (
-        !bookUserInfo.stripeConnectAccountId
-      || !bookUserInfo.isStripeConnectReady
-      ) {
-        await sendNFTBookInvalidChannelIdSlackNotification({
-          classId,
-          bookName,
-          from,
-          email: buyerEmail,
-          hasStripeAccount: !!bookUserInfo.stripeConnectAccountId,
-          isStripeConnectReady: !!bookUserInfo.isStripeConnectReady,
-        });
-      }
       const {
         email,
         isEmailVerified,
@@ -193,6 +180,15 @@ export async function handleStripeConnectedAccount({
             type: 'channelCommission',
           });
         }
+      } else {
+        await sendNFTBookInvalidChannelIdSlackNotification({
+          classId,
+          bookName,
+          from,
+          email: buyerEmail,
+          hasStripeAccount: !!stripeConnectAccountId,
+          isStripeConnectReady: false,
+        });
       }
     } else {
       await sendNFTBookInvalidChannelIdSlackNotification({
