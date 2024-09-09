@@ -17,14 +17,13 @@ import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
-  USD_TO_HKD_RATIO,
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
   TransactionFeeInfo,
   formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
 } from '../purchase';
-import { handleNFTPurchaseTransaction, checkIsFromLikerLand } from '../../purchase';
+import { handleNFTPurchaseTransaction } from '../../purchase';
 import stripe from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
@@ -37,10 +36,9 @@ import {
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
 } from '../../../../ses';
-import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../../slack';
+import { sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
-import { getBookUserInfoFromLikerId, getBookUserInfoFromLegacyString } from '../user';
 
 import {
   LIKER_NFT_TARGET_ADDRESS,

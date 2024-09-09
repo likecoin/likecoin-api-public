@@ -8,7 +8,6 @@ import {
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
-  USD_TO_HKD_RATIO,
   PUBSUB_TOPIC_MISC,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
@@ -41,11 +40,9 @@ import {
 } from './collection/purchase';
 import stripe from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
-import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
-import { checkIsFromLikerLand } from '../purchase';
-import { getBookUserInfoFromLikerId, getBookUserInfoFromLegacyString } from './user';
 
 export type CartItem = {
   collectionId?: string
