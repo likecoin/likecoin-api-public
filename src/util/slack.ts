@@ -218,7 +218,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
       network: IS_TESTNET ? 'testnet' : 'mainnet',
 
       channelId: from,
-      isInvalidChannelId,
+      isValidChannelId: !isInvalidChannelId,
       hasStripeAccount,
       isStripeConnectReady,
 
