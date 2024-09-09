@@ -120,32 +120,14 @@ export async function handleStripeConnectedAccount({
   const emailMap = {};
   if (channelCommission) {
     let fromUser: any = null;
-    let isInvalidChannelId = false;
     if (from && !checkIsFromLikerLand(from)) {
       if (from.startsWith('@')) {
         fromUser = await getBookUserInfoFromLikerId(
           from.substring(1, from.length),
         );
-        if (!fromUser?.likerUserInfo) {
-          isInvalidChannelId = true;
-        }
       } else {
         fromUser = await getBookUserInfoFromLegacyString(from);
-        if (!fromUser?.bookUserInfo) {
-          isInvalidChannelId = true;
-        }
       }
-    }
-    if (isInvalidChannelId) {
-      await sendNFTBookInvalidChannelIdSlackNotification({
-        classId,
-        bookName,
-        from,
-        email: buyerEmail,
-        isInvalidChannelId: true,
-        hasStripeAccount: false,
-        isStripeConnectReady: false,
-      });
     }
     let fromStripeConnectAccountId;
     if (fromUser && fromUser.bookUserInfo) {
@@ -212,6 +194,16 @@ export async function handleStripeConnectedAccount({
           });
         }
       }
+    } else {
+      await sendNFTBookInvalidChannelIdSlackNotification({
+        classId,
+        bookName,
+        from,
+        email: buyerEmail,
+        isInvalidChannelId: true,
+        hasStripeAccount: false,
+        isStripeConnectReady: false,
+      });
     }
   }
   if (connectedWallets && Object.keys(connectedWallets).length) {
