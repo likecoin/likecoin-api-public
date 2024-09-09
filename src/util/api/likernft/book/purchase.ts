@@ -32,7 +32,7 @@ import {
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
-import { sendNFTBookSalesSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
@@ -91,6 +91,7 @@ export async function handleStripeConnectedAccount({
   paymentId,
   ownerWallet,
   bookName,
+  buyerEmail,
 }: {
   classId?: string,
   collectionId?: string,
@@ -98,6 +99,7 @@ export async function handleStripeConnectedAccount({
   paymentId: string,
   ownerWallet: string,
   bookName: string,
+  buyerEmail: string | null,
 }, {
   chargeId,
   amountTotal,
@@ -178,7 +180,26 @@ export async function handleStripeConnectedAccount({
             type: 'channelCommission',
           });
         }
+      } else {
+        await sendNFTBookInvalidChannelIdSlackNotification({
+          classId,
+          bookName,
+          from,
+          email: buyerEmail,
+          hasStripeAccount: !!stripeConnectAccountId,
+          isStripeConnectReady: false,
+        });
       }
+    } else {
+      await sendNFTBookInvalidChannelIdSlackNotification({
+        classId,
+        bookName,
+        from,
+        email: buyerEmail,
+        isInvalidChannelId: true,
+        hasStripeAccount: false,
+        isStripeConnectReady: false,
+      });
     }
   }
   if (connectedWallets && Object.keys(connectedWallets).length) {
@@ -1187,6 +1208,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         ownerWallet,
         bookName: className,
+        buyerEmail: email,
       },
       {
         amountTotal,

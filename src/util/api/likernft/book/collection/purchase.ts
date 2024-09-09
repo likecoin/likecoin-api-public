@@ -17,7 +17,6 @@ import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
-  USD_TO_HKD_RATIO,
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
@@ -630,6 +629,7 @@ export async function processNFTBookCollectionStripePurchase(
         paymentId,
         ownerWallet,
         bookName: collectionName,
+        buyerEmail: email,
       },
       {
         amountTotal,
