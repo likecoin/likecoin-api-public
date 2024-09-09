@@ -92,6 +92,8 @@ export async function handleStripeConnectedAccount({
   ownerWallet,
   bookName,
   buyerEmail,
+  paymentIntentId,
+
 }: {
   classId?: string,
   collectionId?: string,
@@ -100,6 +102,7 @@ export async function handleStripeConnectedAccount({
   ownerWallet: string,
   bookName: string,
   buyerEmail: string | null,
+  paymentIntentId: string,
 }, {
   chargeId,
   amountTotal,
@@ -188,6 +191,8 @@ export async function handleStripeConnectedAccount({
           email: buyerEmail,
           hasStripeAccount: !!stripeConnectAccountId,
           isStripeConnectReady: false,
+          paymentId,
+          paymentIntentId,
         });
       }
     } else {
@@ -199,6 +204,8 @@ export async function handleStripeConnectedAccount({
         isInvalidChannelId: true,
         hasStripeAccount: false,
         isStripeConnectReady: false,
+        paymentId,
+        paymentIntentId,
       });
     }
   }
@@ -1209,6 +1216,7 @@ export async function processNFTBookStripePurchase(
         ownerWallet,
         bookName: className,
         buyerEmail: email,
+        paymentIntentId: paymentIntent as string,
       },
       {
         amountTotal,

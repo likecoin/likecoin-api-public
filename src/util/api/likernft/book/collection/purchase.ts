@@ -630,6 +630,7 @@ export async function processNFTBookCollectionStripePurchase(
         ownerWallet,
         bookName: collectionName,
         buyerEmail: email,
+        paymentIntentId: paymentIntent as string,
       },
       {
         amountTotal,
