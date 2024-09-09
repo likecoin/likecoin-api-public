@@ -396,6 +396,7 @@ export async function processNFTBookCartStripePurchase(
           ownerWallet,
           bookName,
           buyerEmail: email,
+          paymentIntentId: paymentIntent as string,
         },
         {
           amountTotal: priceInDecimal,
