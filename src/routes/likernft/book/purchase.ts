@@ -114,11 +114,17 @@ router.post('/cart/new', async (req, res, next) => {
       utmMedium,
       referrer: inputReferrer,
       items = [],
+      giftInfo,
     } = req.body;
 
     if (!items?.length) {
       throw new ValidationError('REQUIRE_ITEMS');
     }
+
+    if (giftInfo && !giftInfo.toEmail) {
+      throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+    }
+
     const referrer = inputReferrer || req.get('Referrer');
     const {
       url,
@@ -131,6 +137,7 @@ router.post('/cart/new', async (req, res, next) => {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       from: from as string,
+      giftInfo,
       email,
       utm: {
         campaign: utmCampaign,
@@ -156,6 +163,7 @@ router.post('/cart/new', async (req, res, next) => {
         utmSource,
         utmMedium,
         referrer,
+        isGift: !!giftInfo,
       });
     }
   } catch (err) {
