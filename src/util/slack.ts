@@ -197,6 +197,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   hasStripeAccount = false,
   isStripeConnectReady = false,
   isInvalidChannelId = false,
+  paymentId,
 } : {
   classId?: string;
   collectionId?: string;
@@ -206,6 +207,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   hasStripeAccount?: boolean;
   isStripeConnectReady?: boolean;
   isInvalidChannelId?: boolean;
+  paymentId?: string;
 }) {
   if (!NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK) return;
   try {
@@ -223,6 +225,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
       className: bookName,
       classLink,
       email: email || 'N/A',
+      paymentId,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

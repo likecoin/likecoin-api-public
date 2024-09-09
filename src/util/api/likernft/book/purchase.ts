@@ -188,6 +188,7 @@ export async function handleStripeConnectedAccount({
           email: buyerEmail,
           hasStripeAccount: !!stripeConnectAccountId,
           isStripeConnectReady: false,
+          paymentId,
         });
       }
     } else {
@@ -199,6 +200,7 @@ export async function handleStripeConnectedAccount({
         isInvalidChannelId: true,
         hasStripeAccount: false,
         isStripeConnectReady: false,
+        paymentId,
       });
     }
   }
