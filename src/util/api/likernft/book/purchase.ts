@@ -1149,6 +1149,7 @@ export async function processNFTBookStripePurchase(
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
 
   const { email, phone } = customer;
+  let capturedPaymentIntent: Stripe.Response<Stripe.PaymentIntent> | null = null;
   try {
     const { txData, listingData } = await processNFTBookPurchase({
       classId,
@@ -1185,12 +1186,13 @@ export async function processNFTBookStripePurchase(
       channelCommission,
       likerLandArtFee,
     } = feeInfo;
-    const [capturedPaymentIntent, classData] = await Promise.all([
+    const [captured, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
       }),
       getNFTClassDataById(classId).catch(() => null),
     ]);
+    capturedPaymentIntent = captured;
     const className = classData?.name || classId;
 
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
@@ -1295,7 +1297,7 @@ export async function processNFTBookStripePurchase(
     console.error(err);
     const errorMessage = (err as Error).message;
     const errorStack = (err as Error).stack;
-    if (errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+    if (!capturedPaymentIntent && errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseError',
         type: 'stripe',

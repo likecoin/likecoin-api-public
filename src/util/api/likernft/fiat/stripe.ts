@@ -81,6 +81,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
       throw new ValidationError('CLAIM_TOKEN_NOT_FOUND');
     }
   }
+  let capturedPaymentIntent: Stripe.Response<Stripe.PaymentIntent> | null = null;
   try {
     await processFiatNFTPurchase({
       paymentId,
@@ -133,7 +134,7 @@ export async function processStripeFiatNFTPurchase(session, req) {
     }
     return false;
   }
-  await stripe.paymentIntents.capture(session.payment_intent, {
+  capturedPaymentIntent = await stripe.paymentIntents.capture(session.payment_intent, {
     amount_to_capture: fiatAmount.toNumber(),
   });
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -176,6 +177,11 @@ export async function processStripeFiatNFTPurchase(session, req) {
         ? classIds.join(', ') : classIds[0]} to ${email}`);
       // eslint-disable-next-line no-console
       console.error(err);
+      const errorMessage = (err as Error).message;
+      if (!capturedPaymentIntent && errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+        await stripe.paymentIntents.cancel(session.payment_intent)
+          .catch((error) => console.error(error)); // eslint-disable-line no-console
+      }
     }
   }
   await sendStripeFiatPurchaseSlackNotification({
