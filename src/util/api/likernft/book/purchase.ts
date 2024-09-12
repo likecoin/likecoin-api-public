@@ -132,8 +132,10 @@ export async function handleStripeConnectedAccount({
         fromUser = await getBookUserInfoFromLegacyString(from);
       }
     }
+    const isValidChannelId = fromUser && fromUser.bookUserInfo;
     let fromStripeConnectAccountId;
-    if (fromUser && fromUser.bookUserInfo) {
+    let transfer: Stripe.Response<Stripe.Transfer> | null = null;
+    if (isValidChannelId) {
       const { bookUserInfo, likerUserInfo } = fromUser;
       const {
         stripeConnectAccountId,
@@ -147,7 +149,7 @@ export async function handleStripeConnectedAccount({
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
         const fromLikeWallet = fromUser.likeWallet;
-        const transfer = await stripe.transfers.create({
+        transfer = await stripe.transfers.create({
           amount: channelCommission,
           currency: 'usd', // stripe balance are setteled in USD in source tx
           destination: fromStripeConnectAccountId,
@@ -159,50 +161,50 @@ export async function handleStripeConnectedAccount({
             channel: from,
             ...metadata,
           },
+        }).catch((e) => {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to create transfer for ${fromLikeWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
+          // eslint-disable-next-line no-console
+          console.error(e);
+          return null;
         });
-        transfers.push(transfer);
-        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
-          type: 'channelCommission',
-          ownerWallet,
-          classId,
-          priceIndex,
-          collectionId,
-          transferId: transfer.id,
-          chargeId,
-          stripeConnectAccountId,
-          paymentId,
-          amountTotal,
-          amount: channelCommission,
-          timestamp: FieldValue.serverTimestamp(),
-        });
-        const shouldSendNotificationEmail = isEnableNotificationEmails && email && isEmailVerified;
-        if (shouldSendNotificationEmail) {
-          emailMap[email] ??= [];
-          emailMap[email].push({
-            amount: channelCommission / 100,
+        if (transfer) {
+          transfers.push(transfer);
+          await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
             type: 'channelCommission',
+            ownerWallet,
+            classId,
+            priceIndex,
+            collectionId,
+            transferId: transfer.id,
+            chargeId,
+            stripeConnectAccountId,
+            paymentId,
+            amountTotal,
+            amount: channelCommission,
+            timestamp: FieldValue.serverTimestamp(),
           });
+          const shouldSendNotificationEmail = isEnableNotificationEmails
+            && email
+            && isEmailVerified;
+          if (shouldSendNotificationEmail) {
+            emailMap[email] ??= [];
+            emailMap[email].push({
+              amount: channelCommission / 100,
+              type: 'channelCommission',
+            });
+          }
         }
-      } else {
-        await sendNFTBookInvalidChannelIdSlackNotification({
-          classId,
-          bookName,
-          from,
-          email: buyerEmail,
-          hasStripeAccount: !!stripeConnectAccountId,
-          isStripeConnectReady: false,
-          paymentId,
-          paymentIntentId,
-        });
       }
-    } else {
+    }
+    if (from && !transfer) {
       await sendNFTBookInvalidChannelIdSlackNotification({
         classId,
         bookName,
         from,
         email: buyerEmail,
-        isInvalidChannelId: true,
-        hasStripeAccount: false,
+        isInvalidChannelId: !isValidChannelId,
+        hasStripeAccount: !!fromStripeConnectAccountId,
         isStripeConnectReady: false,
         paymentId,
         paymentIntentId,
@@ -260,7 +262,13 @@ export async function handleStripeConnectedAccount({
                 type: 'connectedWallet',
                 ...metadata,
               },
+            }).catch((e) => {
+              // eslint-disable-next-line no-console
+              console.error(`Failed to create transfer for ${wallet} with stripeConnectAccountId ${stripeConnectAccountId}`);
+              // eslint-disable-next-line no-console
+              console.error(e);
             });
+            if (!transfer) return null;
             await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
               type: 'connectedWallet',
               ownerWallet,
@@ -292,8 +300,12 @@ export async function handleStripeConnectedAccount({
             return transfer;
           }),
       );
+
       if (connectedTransfers.length) {
-        transfers = transfers.concat(connectedTransfers);
+        // typescript doesn't regconize .filter(t => t !== null)
+        connectedTransfers.forEach((t) => {
+          if (t) transfers.push(t);
+        });
       }
     }
   }
