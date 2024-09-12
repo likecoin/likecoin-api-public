@@ -148,10 +148,11 @@ export async function handleStripeConnectedAccount({
       } = likerUserInfo || {};
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
+        const currency = 'usd'; // stripe balance are setteled in USD in source tx
         const fromLikeWallet = fromUser.likeWallet;
         transfer = await stripe.transfers.create({
           amount: channelCommission,
-          currency: 'usd', // stripe balance are setteled in USD in source tx
+          currency,
           destination: fromStripeConnectAccountId,
           transfer_group: paymentId,
           source_transaction: chargeId,
@@ -182,6 +183,7 @@ export async function handleStripeConnectedAccount({
             paymentId,
             amountTotal,
             amount: channelCommission,
+            currency,
             timestamp: FieldValue.serverTimestamp(),
           });
           const shouldSendNotificationEmail = isEnableNotificationEmails
@@ -250,10 +252,11 @@ export async function handleStripeConnectedAccount({
               stripeConnectAccountId,
               isEnableNotificationEmails = true,
             } = userInfo;
+            const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
-              currency: 'usd', // stripe balance are setteled in USD in source tx
+              currency,
               destination: userInfo.stripeConnectAccountId,
               transfer_group: paymentId,
               source_transaction: chargeId,
@@ -281,6 +284,7 @@ export async function handleStripeConnectedAccount({
               paymentId,
               amountTotal,
               amount: amountSplit,
+              currency,
               timestamp: FieldValue.serverTimestamp(),
             });
             const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
