@@ -121,8 +121,9 @@ router.post('/cart/new', async (req, res, next) => {
       throw new ValidationError('REQUIRE_ITEMS');
     }
 
-    if (giftInfo && !giftInfo.toEmail) {
-      throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+    if (giftInfo) {
+      if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+      if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
 
     const referrer = inputReferrer || req.get('Referrer');
