@@ -35,6 +35,7 @@ import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
+import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../util/airtable';
 
 const router = Router();
 
@@ -382,8 +383,15 @@ router.post(
         email = '',
         wallet,
         message,
+        gaClientId,
+        gaSessionId,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        referrer: inputReferrer,
       } = req.body;
 
+      const referrer = inputReferrer || req.get('Referrer');
       if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
       if (email) {
         const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
@@ -453,13 +461,35 @@ router.post(
         shippingCost: null,
       });
 
+      // Remove after refactoring free purchase into purchase
+      await createAirtableBookSalesRecordFromFreePurchase({
+        classId,
+        priceIndex,
+        from: from as string,
+        email,
+        wallet,
+        utmSource,
+        utmCampaign,
+        utmMedium,
+        referrer,
+        gaClientId,
+        gaSessionId,
+      });
+
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTFreePurchaseNew',
         channel: from,
         paymentId,
         classId,
+        priceIndex,
         email,
         wallet,
+        utmSource,
+        utmCampaign,
+        utmMedium,
+        referrer,
+        gaClientId,
+        gaSessionId,
       });
 
       const className = metadata?.name || classId;

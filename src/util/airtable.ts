@@ -510,3 +510,80 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     console.error(err);
   }
 }
+
+export async function createAirtableBookSalesRecordFromFreePurchase({
+  classId,
+  collectionId,
+  priceIndex,
+  quantity = 1,
+  from,
+  email,
+  wallet,
+  utmSource,
+  utmCampaign,
+  utmMedium,
+  referrer,
+  gaClientId,
+  gaSessionId,
+}: {
+  classId?: string,
+  collectionId?: string,
+  priceIndex?: number,
+  quantity?: number,
+  from?: string,
+  email?: string,
+  wallet,
+  utmSource,
+  utmCampaign,
+  utmMedium,
+  referrer,
+  gaClientId,
+  gaSessionId,
+}): Promise<void> {
+  try {
+    const date = new Date();
+    const fields: Partial<FieldSet> = {
+      'Payment Intent ID': '',
+      Date: date.toISOString(),
+      Channel: from,
+      Edition: priceIndex,
+      Quantity: quantity,
+      'Customer Email': email,
+      'Payment Method': 'free',
+      'Payment Amount': 0,
+      'Payment Currency': 'usd',
+      'Balance Tx Amount': 0,
+      'Balance Tx Currency': 'usd',
+      'Balance Tx Net Amount': 0,
+      'Balance Tx Exchange Rate': 0,
+      'Has Application Fee': false,
+      'Stripe Fee': 0,
+      'Stripe Fee Currency': 'usd',
+      'Application Fee': 0,
+      'Payable From Liker Land': 0,
+      'Liker Land Tx Fee': 0,
+      'Liker Land Commission': 0,
+      'Liker Land Art Fee': 0,
+      'Tip Amount': 0,
+      'Liker Land Tip Fee': 0,
+      'Channel Commission': 0,
+      'Transferred Amount': 0,
+      'UTM Source': utmSource,
+      'UTM Campaign': utmCampaign,
+      'UTM Medium': utmMedium,
+      'HTTP Referrer': referrer,
+      'GA Client ID': gaClientId,
+      'GA Session ID': gaSessionId,
+      'Raw Data': '',
+    };
+    const productId = classId || collectionId || '';
+    const publicationRecord = await queryAirtablePublicationRecordById(productId);
+    if (publicationRecord) {
+      fields.Product = [publicationRecord.id];
+    }
+    await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
