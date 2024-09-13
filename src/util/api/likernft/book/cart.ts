@@ -336,7 +336,8 @@ export async function processNFTBookCartStripePurchase(
 
     const infoList = [...classInfos, ...collectionInfos];
     const bookNames: string[] = [];
-    for (const info of infoList) {
+    for (let itemIndex = 0; itemIndex < infoList.length; itemIndex += 1) {
+      const info = infoList[itemIndex];
       const {
         collectionId,
         classId,
@@ -442,6 +443,7 @@ export async function processNFTBookCartStripePurchase(
           classId,
           collectionId,
           priceIndex,
+          itemIndex,
           stripeFeeAmount,
           stripeFeeCurrency,
           from,
