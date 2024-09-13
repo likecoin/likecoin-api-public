@@ -260,6 +260,7 @@ router.post(
         paymentId,
         collectionId,
         email,
+        wallet,
       });
 
       await Promise.all([

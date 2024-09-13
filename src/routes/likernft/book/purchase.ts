@@ -459,6 +459,7 @@ router.post(
         paymentId,
         classId,
         email,
+        wallet,
       });
 
       const className = metadata?.name || classId;
