@@ -423,6 +423,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
+  paymentId,
   classId,
   collectionId,
   priceIndex,
@@ -436,6 +437,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   from,
 }: {
   pi: Stripe.PaymentIntent,
+  paymentId: string,
   classId?: string,
   collectionId?: string,
   priceIndex?: number,
@@ -462,6 +464,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     });
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': record.paymentIntentId,
+      'Payment ID': paymentId,
       Date: record.date,
       Channel: record.channel,
       Edition: record.editionIndex,
@@ -515,6 +518,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   classId,
   collectionId,
   priceIndex,
+  paymentId,
   quantity = 1,
   from,
   email,
@@ -529,6 +533,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   classId?: string,
   collectionId?: string,
   priceIndex?: number,
+  paymentId: string,
   quantity?: number,
   from?: string,
   email?: string,
@@ -544,6 +549,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     const date = new Date();
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': '',
+      'Payment ID': paymentId,
       Date: date.toISOString(),
       Channel: from,
       Edition: priceIndex,

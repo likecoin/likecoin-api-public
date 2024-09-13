@@ -280,6 +280,7 @@ router.post(
       // Remove after refactoring free purchase into purchase
       await createAirtableBookSalesRecordFromFreePurchase({
         collectionId,
+        paymentId,
         from: from as string,
         email,
         wallet,
