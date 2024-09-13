@@ -35,7 +35,7 @@ import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
-import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../util/airtable';
+import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
 
 const router = Router();
 
@@ -464,6 +464,7 @@ router.post(
       // Remove after refactoring free purchase into purchase
       await createAirtableBookSalesRecordFromFreePurchase({
         classId,
+        paymentId,
         priceIndex,
         from: from as string,
         email,
