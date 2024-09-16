@@ -827,7 +827,17 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
 
 export async function claimNFTBookCart(
   cartId: string,
-  { message, wallet, token }: { message: string, wallet: string, token: string },
+  {
+    message,
+    wallet,
+    token,
+    loginMethod,
+  }: {
+    message: string,
+    wallet: string,
+    token: string,
+    loginMethod?: string,
+  },
   req,
 ) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
@@ -855,7 +865,14 @@ export async function claimNFTBookCart(
   const newClaimedNFTs: any = [];
   await Promise.all(unclaimedClassIds.map(async (classId) => {
     try {
-      const { nftId } = await claimNFTBook(classId, cartId, { message, wallet, token }, req);
+      const { nftId } = await claimNFTBook(
+        classId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
       newClaimedNFTs.push({ classId, nftId });
       await cartRef.update({ claimedClassIds: FieldValue.arrayUnion(classId) });
     } catch (err) {
@@ -866,7 +883,14 @@ export async function claimNFTBookCart(
   }));
   await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
     try {
-      await claimNFTBookCollection(collectionId, cartId, { message, wallet, token }, req);
+      await claimNFTBookCollection(
+        collectionId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
       newClaimedNFTs.push({ collectionId });
       await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
     } catch (err) {
@@ -881,10 +905,12 @@ export async function claimNFTBookCart(
       status: 'pending',
       isPendingClaim: false,
       errors: FieldValue.delete(),
+      loginMethod: loginMethod || '',
     });
   } else {
     await cartRef.update({
       errors,
+      loginMethod: loginMethod || '',
     });
   }
 
