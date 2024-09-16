@@ -73,6 +73,7 @@ router.post(
         classIds,
         collectionIds,
         newClaimedNFTs,
+        allItemsAutoClaimed,
         errors,
       } = await claimNFTBookCart(
         cartId,
@@ -92,11 +93,13 @@ router.post(
         email,
         message,
         loginMethod,
+        allItemsAutoClaimed,
       });
       res.json({
         classIds,
         collectionIds,
         newClaimedNFTs,
+        allItemsAutoClaimed,
         errors,
       });
     } catch (err) {

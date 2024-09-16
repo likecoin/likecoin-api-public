@@ -888,7 +888,7 @@ export async function claimNFTBookCart(
   }));
   await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
     try {
-      await claimNFTBookCollection(
+      const { nftIds } = await claimNFTBookCollection(
         collectionId,
         cartId,
         {
@@ -896,7 +896,7 @@ export async function claimNFTBookCart(
         },
         req,
       );
-      newClaimedNFTs.push({ collectionId });
+      newClaimedNFTs.push({ collectionId, nftIds });
       await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -905,9 +905,12 @@ export async function claimNFTBookCart(
     }
   }));
 
+  const allItemsAutoClaimed = newClaimedNFTs.filter(
+    (nft) => !!(nft.nftIds?.length || nft.nftId),
+  ).length === (unclaimedClassIds.length + unclaimedCollectionIds.length);
   if (!errors.length) {
     await cartRef.update({
-      status: 'pending',
+      status: allItemsAutoClaimed ? 'completed' : 'pending',
       isPendingClaim: false,
       errors: FieldValue.delete(),
       loginMethod: loginMethod || '',
@@ -924,6 +927,7 @@ export async function claimNFTBookCart(
     classIds: claimedClassIds,
     collectionIds: claimedCollectionIds,
     newClaimedNFTs,
+    allItemsAutoClaimed,
     errors,
   };
 }

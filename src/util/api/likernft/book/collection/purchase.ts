@@ -786,14 +786,17 @@ export async function claimNFTBookCollection(
     return docData;
   });
 
+  let txHash = '';
+  let autoSentNftIds: string[] | null = null;
   if (isAutoDeliver) {
-    let txHash = '';
     const txMessages: any[] = [];
+    autoSentNftIds = [];
     try {
       Object.entries(nftIdMap).forEach(([classId, nftIds]) => {
         (nftIds as string[]).forEach((nftId) => {
           txMessages.push(formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId));
         });
+        autoSentNftIds = (autoSentNftIds as string[]).concat(nftIds as string[]);
       });
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
     } catch (autoDeliverErr) {
@@ -854,7 +857,7 @@ export async function claimNFTBookCollection(
       isGift,
     });
   }
-  return email;
+  return { email, nftIds: autoSentNftIds, txHash };
 }
 
 export async function sendNFTBookCollectionClaimedEmailNotification(
