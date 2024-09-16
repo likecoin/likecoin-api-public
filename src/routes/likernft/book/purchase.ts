@@ -63,7 +63,7 @@ router.post(
     try {
       const { cartId } = req.params;
       const { token } = req.query;
-      const { wallet, message } = req.body;
+      const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
@@ -80,6 +80,7 @@ router.post(
           message,
           wallet,
           token: token as string,
+          loginMethod,
         },
         req,
       );
@@ -90,6 +91,7 @@ router.post(
         wallet,
         email,
         message,
+        loginMethod,
       });
       res.json({
         classIds,
@@ -760,7 +762,7 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { token } = req.query;
-      const { wallet, message } = req.body;
+      const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
@@ -772,6 +774,7 @@ router.post(
           message,
           wallet,
           token: token as string,
+          loginMethod,
         },
         req,
       );
@@ -783,6 +786,7 @@ router.post(
         wallet,
         email,
         message,
+        loginMethod,
       });
       await sendNFTBookClaimedEmailNotification(
         classId,

@@ -1335,7 +1335,17 @@ export async function processNFTBookStripePurchase(
 export async function claimNFTBook(
   classId: string,
   paymentId: string,
-  { message, wallet, token }: { message: string, wallet: string, token: string },
+  {
+    message,
+    wallet,
+    token,
+    loginMethod,
+  }: {
+    message: string,
+    wallet: string,
+    token: string,
+    loginMethod?: string,
+  },
   req,
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
@@ -1372,6 +1382,7 @@ export async function claimNFTBook(
       status: 'pendingNFT',
       wallet,
       message: message || '',
+      loginMethod: loginMethod || '',
     });
     if (!docData.isAutoDeliver) {
       t.update(bookRef, {
