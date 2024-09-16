@@ -113,7 +113,7 @@ export async function handleStripeConnectedAccount({
   likerLandArtFee = 0,
   channelCommission = 0,
 }, { connectedWallets, from }) {
-  let transfers: Stripe.Transfer[] = [];
+  const transfers: Stripe.Transfer[] = [];
   const metadata: Record<string, string> = {
     ownerWallet,
   };
@@ -1392,8 +1392,8 @@ export async function claimNFTBook(
     return docData;
   });
 
+  let txHash = '';
   if (isAutoDeliver) {
-    let txHash = '';
     const msgSendNftIds = nftIds || [nftId];
     try {
       const txMessages = msgSendNftIds
@@ -1457,7 +1457,9 @@ export async function claimNFTBook(
     });
   }
 
-  return { email, nftId: nftIds?.[0] };
+  return {
+    email, nftIds, nftId: nftIds?.[0], txHash,
+  };
 }
 
 export async function sendNFTBookClaimedEmailNotification(
