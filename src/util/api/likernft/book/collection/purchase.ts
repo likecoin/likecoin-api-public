@@ -631,6 +631,7 @@ export async function processNFTBookCollectionStripePurchase(
     const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
+    const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
 
     const { transfers } = await handleStripeConnectedAccount(
       {
@@ -640,6 +641,7 @@ export async function processNFTBookCollectionStripePurchase(
         bookName: collectionName,
         buyerEmail: email,
         paymentIntentId: paymentIntent as string,
+        shippingCost: shippingCostAmount,
       },
       {
         amountTotal,
@@ -664,8 +666,6 @@ export async function processNFTBookCollectionStripePurchase(
       sessionId: session.id,
       isGift,
     });
-
-    const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
     await Promise.all([
       sendNFTBookCollectionPurchaseEmail({
         email,

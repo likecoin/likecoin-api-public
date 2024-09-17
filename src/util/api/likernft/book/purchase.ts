@@ -93,7 +93,7 @@ export async function handleStripeConnectedAccount({
   bookName,
   buyerEmail,
   paymentIntentId,
-
+  shippingCost,
 }: {
   classId?: string,
   collectionId?: string,
@@ -103,6 +103,7 @@ export async function handleStripeConnectedAccount({
   bookName: string,
   buyerEmail: string | null,
   paymentIntentId: string,
+  shippingCost?: number,
 }, {
   chargeId,
   amountTotal,
@@ -254,13 +255,16 @@ export async function handleStripeConnectedAccount({
             } = userInfo;
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+            const shippingCostSplit = Math.floor(
+              ((shippingCost || 0) * connectedWallets[wallet]) / totalSplit,
+            );
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
               currency,
               destination: userInfo.stripeConnectAccountId,
               transfer_group: paymentId,
               source_transaction: chargeId,
-              description: `Connected commission for ${bookName}`,
+              description: `Connected commission${shippingCostSplit ? ' and shipping' : ''} for ${bookName}`,
               metadata: {
                 type: 'connectedWallet',
                 ...metadata,
@@ -296,10 +300,17 @@ export async function handleStripeConnectedAccount({
               && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
+              const walletAmount = amountSplit / 100 - shippingCostSplit;
               emailMap[email].push({
-                amount: amountSplit / 100,
+                amount: walletAmount,
                 type: 'connectedWallet',
               });
+              if (shippingCostSplit) {
+                emailMap[email].push({
+                  amount: shippingCostSplit,
+                  type: 'shipping',
+                });
+              }
             }
             return transfer;
           }),
@@ -1234,6 +1245,7 @@ export async function processNFTBookStripePurchase(
       feeInfo,
     });
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+    const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
 
     const { transfers } = await handleStripeConnectedAccount(
       {
@@ -1244,6 +1256,7 @@ export async function processNFTBookStripePurchase(
         bookName: className,
         buyerEmail: email,
         paymentIntentId: paymentIntent as string,
+        shippingCost: shippingCostAmount,
       },
       {
         amountTotal,
@@ -1271,8 +1284,6 @@ export async function processNFTBookStripePurchase(
       sessionId: session.id,
       isGift,
     });
-
-    const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
