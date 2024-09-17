@@ -692,7 +692,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
 }) {
   if (TEST_MODE) return Promise.resolve();
   const titleEn = `${fromName} has sent you an ebook gift from Liker Land`;
-  const titleZh = `${fromName} 送了 Liker Land 電子書禮物給你`;
+  const titleZh = `${fromName} 送了電子書禮物給你`;
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
