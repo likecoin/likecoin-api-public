@@ -525,7 +525,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
       classId,
-      priceIndex,
+      priceIndex: inputPriceIndex,
       collectionId,
       coupon,
       customPriceInDecimal,
@@ -540,10 +540,12 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       && (!Number.isInteger(customPriceInDecimal) || customPriceInDecimal < 0)) {
       throw new ValidationError('CUSTOM_PRICE_INVALID');
     }
-    if (priceIndex && (!Number.isInteger(priceIndex) || priceIndex < 0)) {
+    const priceIndex = inputPriceIndex || 0;
+    if (priceIndex !== undefined
+        && (!Number.isInteger(priceIndex) || priceIndex < 0)) {
       throw new ValidationError('PRICE_INDEX_INVALID');
     }
-    if (classId && priceIndex !== undefined) {
+    if (classId) {
       const [metadata, bookInfo] = await Promise.all([
         getNFTClassDataById(classId),
         getNftBookInfo(classId),
