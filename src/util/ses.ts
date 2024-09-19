@@ -934,7 +934,7 @@ export function sendNFTBookSalePaymentsEmail({
   const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
   const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
   const displayPayments = payments.map(({ amount, type }) => {
-    const roundedCurrency = `US$${amount.toFixed(2)}`
+    const roundedCurrency = `US$${amount.toFixed(2)}`;
     switch (type) {
       case 'connectedWallet':
         return `Royalty: ${roundedCurrency}`;
