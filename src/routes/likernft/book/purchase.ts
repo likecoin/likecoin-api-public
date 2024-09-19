@@ -111,6 +111,7 @@ router.post('/cart/new', async (req, res, next) => {
     const {
       gaClientId,
       gaSessionId,
+      gclid,
       email,
       utmCampaign,
       utmSource,
@@ -133,6 +134,7 @@ router.post('/cart/new', async (req, res, next) => {
     } = await handleNewCartStripeCheckout(items, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gclid: gclid as string,
       from: from as string,
       email,
       utm: {
@@ -173,6 +175,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       from,
       ga_client_id: gaClientId = '',
       ga_session_id: gaSessionId = '',
+      gclid = '',
       price_index: priceIndexString = undefined,
       utm_campaign: utmCampaign,
       utm_source: utmSource,
@@ -198,6 +201,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gclid: gclid as string,
       coupon: coupon as string,
       customPriceInDecimal,
       quantity,
@@ -257,6 +261,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const {
       gaClientId,
       gaSessionId,
+      gclid,
       coupon,
       email,
       giftInfo,
@@ -289,6 +294,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gclid: gclid as string,
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,

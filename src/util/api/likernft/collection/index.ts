@@ -2,7 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
-import { validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice } from '../book';
+import {
+  validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice,
+} from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE } from '../../../../constant';

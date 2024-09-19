@@ -100,6 +100,7 @@ router.post(
       const {
         gaClientId = '',
         gaSessionId = '',
+        gclid = '',
         memo = '',
         email,
         utmCampaign,
@@ -162,6 +163,7 @@ router.post(
           utmMedium,
           gaClientId,
           gaSessionId,
+          gclid,
         }),
         client_reference_id: wallet as string || undefined,
         customer_email: email,

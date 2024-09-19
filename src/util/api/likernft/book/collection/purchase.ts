@@ -245,6 +245,7 @@ export async function processNFTBookCollectionPurchase({
 export async function handleNewNFTBookCollectionStripeCheckout(collectionId: string, {
   gaClientId,
   gaSessionId,
+  gclid,
   from: inputFrom,
   quantity = 1,
   giftInfo,
@@ -258,6 +259,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
 }: {
   gaClientId?: string,
   gaSessionId?: string,
+  gclid?: string,
   from?: string,
   email?: string,
   coupon?: string,
@@ -298,6 +300,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }) : getLikerLandNFTClaimPageURL({
       collectionId,
       paymentId,
@@ -309,6 +312,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }),
     cancelUrl = getLikerLandNFTCollectionPageURL({
       collectionId,
@@ -317,6 +321,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }),
     ownerWallet,
     shippingRates,
@@ -367,6 +372,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     });
     return { url: freePurchaseUrl };
   }
@@ -402,6 +408,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     from,
     gaClientId,
     gaSessionId,
+    gclid,
     email,
     giftInfo,
     referrer,

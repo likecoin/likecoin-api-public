@@ -113,7 +113,7 @@ export async function handleStripeConnectedAccount({
   likerLandArtFee = 0,
   channelCommission = 0,
 }, { connectedWallets, from }) {
-  let transfers: Stripe.Transfer[] = [];
+  const transfers: Stripe.Transfer[] = [];
   const metadata: Record<string, string> = {
     ownerWallet,
   };
@@ -547,6 +547,7 @@ export async function formatStripeCheckoutSession({
   from,
   gaClientId,
   gaSessionId,
+  gclid,
   giftInfo,
   referrer,
   utm,
@@ -563,6 +564,7 @@ export async function formatStripeCheckoutSession({
   from?: string,
   gaClientId?: string,
   gaSessionId?: string,
+  gclid?: string,
   giftInfo?: {
     fromName: string,
     toName: string,
@@ -823,6 +825,7 @@ export async function formatStripeCheckoutSession({
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   gaSessionId,
+  gclid,
   from: inputFrom,
   coupon,
   customPriceInDecimal,
@@ -837,6 +840,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
   gaSessionId?: string,
+  gclid?: string,
   email?: string,
   from?: string,
   coupon?: string,
@@ -874,6 +878,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
@@ -885,6 +890,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }),
     cancelUrl = getLikerLandNFTClassPageURL({
       classId,
@@ -893,6 +899,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     }),
     ownerWallet,
     shippingRates,
@@ -946,6 +953,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gclid,
     });
     return { url: freePurchaseUrl };
   }
@@ -986,6 +994,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     from,
     gaClientId,
     gaSessionId,
+    gclid,
     email,
     giftInfo,
     utm,

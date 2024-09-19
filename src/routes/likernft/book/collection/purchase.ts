@@ -43,6 +43,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       coupon,
       ga_client_id: gaClientId = '',
       ga_session_id: gaSessionId = '',
+      gclid = '',
       utm_campaign: utmCampaign,
       utm_source: utmSource,
       utm_medium: utmMedium,
@@ -64,6 +65,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gclid: gclid as string,
       from: from as string,
       coupon: coupon as string,
       quantity,
@@ -117,6 +119,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
     const {
       gaClientId,
       gaSessionId,
+      gclid,
       giftInfo,
       coupon,
       customPriceInDecimal,
@@ -144,6 +147,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
     } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gclid: gclid as string,
       from: from as string,
       giftInfo,
       coupon,
@@ -195,6 +199,7 @@ router.post(
         message,
         gaClientId,
         gaSessionId,
+        gclid,
         utmCampaign,
         utmSource,
         utmMedium,
