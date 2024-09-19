@@ -502,7 +502,8 @@ export async function processNFTBookCartStripePurchase(
 export async function handleNewCartStripeCheckout(items: CartItem[], {
   gaClientId,
   gaSessionId,
-  gclid,
+  gadClickId,
+  gadSource,
   from: inputFrom,
   email,
   utm,
@@ -511,7 +512,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
 }: {
   gaClientId?: string,
   gaSessionId?: string,
-  gclid?: string
+  gadClickId?: string,
+  gadSource?: string,
   email?: string,
   from?: string,
   utm?: {
@@ -733,7 +735,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utmMedium: utm?.medium,
     gaClientId,
     gaSessionId,
-    gclid,
+    gadClickId,
+    gadSource,
   });
   const cancelUrl = getLikerLandCartURL({
     type: 'book',
@@ -742,7 +745,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utmMedium: utm?.medium,
     gaClientId,
     gaSessionId,
-    gclid,
+    gadClickId,
+    gadSource,
   });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
@@ -759,7 +763,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     from,
     gaClientId,
     gaSessionId,
-    gclid,
+    gadClickId,
+    gadSource,
     email,
     utm,
     referrer,
