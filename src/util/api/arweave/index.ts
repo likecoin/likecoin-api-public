@@ -21,6 +21,7 @@ import {
 import { getIPFSHash, uploadFileToIPFS, uploadFilesToIPFS } from '../../ipfs';
 
 import { ARWEAVE_LIKE_TARGET_ADDRESS } from '../../../../config/config';
+import { ARWEAVE_GATEWAY } from '../../../constant';
 
 export const ARWEAVE_MAX_SIZE_V1 = 100 * 1024 * 1024; // 100 MB
 export const ARWEAVE_MAX_SIZE_V2 = 200 * 1024 * 1024; // 200 MB
@@ -253,7 +254,7 @@ export async function processTxUploadToArweaveV2({
 }
 
 async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
-  const { data } = await axios.get(`https://arweave.net/${arweaveId}`, { responseType: 'arraybuffer' });
+  const { data } = await axios.get(`${ARWEAVE_GATEWAY}/${arweaveId}`, { responseType: 'arraybuffer' });
   const returnedSize = (data as ArrayBuffer).byteLength;
   if (returnedSize > fileSize) {
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
