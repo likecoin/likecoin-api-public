@@ -101,6 +101,8 @@ export const QUERY_STRING_TO_REMOVE = [
   'fbclid',
   'gclid',
   'gi',
+  'gad_source',
+  'utm_id',
   'utm_source',
   'utm_medium',
   'utm_campaign',
