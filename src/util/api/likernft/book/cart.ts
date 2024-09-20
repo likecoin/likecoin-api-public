@@ -317,6 +317,56 @@ export async function processNFTBookCartPurchase({
   return infos;
 }
 
+async function updateNFTBookCartPostCheckoutFeeInfo({
+  cartId,
+  amountSubtotal,
+  amountTotal,
+  shippingCost,
+  balanceTx,
+  feeInfo,
+}) {
+  const {
+    stripeFeeAmount: docStripeFeeAmount,
+    priceInDecimal,
+  } = feeInfo;
+  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
+  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
+  const productAmountTotal = amountTotal - shippingCostAmount;
+  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
+  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
+    && productAmountTotal !== amountSubtotal;
+  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
+  if (shouldUpdateAmountFee) {
+    [
+      'priceInDecimal',
+      'likerLandTipFeeAmount',
+      'likerLandFeeAmount',
+      'likerLandCommission',
+      'channelCommission',
+      'likerLandArtFee',
+      'customPriceDiff',
+    ].forEach((key) => {
+      if (typeof newFeeInfo[key] === 'number') {
+        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
+      }
+    });
+  }
+  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+    await likeNFTBookCartCollection.doc(cartId).update({
+      feeInfo: newFeeInfo,
+      shippingCost: shippingCostAmount / 100,
+    });
+  }
+  return {
+    ...newFeeInfo,
+    stripeFeeCurrency,
+    discountRate,
+  };
+}
+
 export async function processNFTBookCartStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
@@ -328,6 +378,8 @@ export async function processNFTBookCartStripePurchase(
     customer_details: customer,
     payment_intent: paymentIntent,
     amount_total: amountTotal,
+    amount_subtotal: amountSubtotal,
+    shipping_cost: shippingCost,
   } = session;
   const paymentId = cartId;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -358,15 +410,25 @@ export async function processNFTBookCartStripePurchase(
     const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
 
-    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-    const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-    const totalStripeFeeAmount = stripeFeeDetails?.amount || 0;
-
+    const {
+      stripeFeeAmount: totalStripeFeeAmount,
+      stripeFeeCurrency,
+      discountRate,
+    } = await updateNFTBookCartPostCheckoutFeeInfo({
+      cartId,
+      amountSubtotal,
+      amountTotal,
+      balanceTx,
+      feeInfo: totalFeeInfo,
+      shippingCost,
+    });
+    const shouldUpdateAmountFee = discountRate !== 1;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
 
     const infoList = [...classInfos, ...collectionInfos];
     const bookNames: string[] = [];
-    for (const info of infoList) {
+    for (let itemIndex = 0; itemIndex < infoList.length; itemIndex += 1) {
+      const info = infoList[itemIndex];
       const {
         collectionId,
         classId,
@@ -385,9 +447,9 @@ export async function processNFTBookCartStripePurchase(
         originalPriceInDecimal,
         priceIndex,
         priceName,
-        feeInfo,
         isGift,
         giftInfo,
+        feeInfo: docFeeInfo,
       } = txData;
       const {
         priceInDecimal,
@@ -397,20 +459,40 @@ export async function processNFTBookCartStripePurchase(
         likerLandCommission,
         channelCommission,
         likerLandArtFee,
-      } = feeInfo as TransactionFeeInfo;
+      } = docFeeInfo as TransactionFeeInfo;
+      // use pre-discounted price for fee ratio calculation
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
-        / (amountTotal || priceInDecimal)) || documentStripeFeeAmount;
+        / (amountSubtotal || totalFeeInfo.priceInDecimal)) || documentStripeFeeAmount;
 
-      if (stripeFeeAmount !== documentStripeFeeAmount) {
+      const feeInfo = {
+        ...docFeeInfo,
+      };
+      if (shouldUpdateAmountFee) {
+        [
+          'priceInDecimal',
+          'likerLandTipFeeAmount',
+          'likerLandFeeAmount',
+          'likerLandCommission',
+          'channelCommission',
+          'likerLandArtFee',
+          'customPriceDiff',
+        ].forEach((key) => {
+          if (typeof feeInfo[key] === 'number') {
+            feeInfo[key] = Math.round(feeInfo[key] * discountRate);
+          }
+        });
+      }
+      const shouldUpdateStripeFee = stripeFeeAmount !== documentStripeFeeAmount;
+      if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
         if (collectionId) {
           await likeNFTCollectionCollection.doc(collectionId)
             .collection('transactions').doc(paymentId).update({
-              'feeInfo.stripeFeeAmount': stripeFeeAmount,
+              feeInfo,
             });
         } else if (classId) {
           await likeNFTBookCollection.doc(classId)
             .collection('transactions').doc(paymentId).update({
-              'feeInfo.stripeFeeAmount': stripeFeeAmount,
+              feeInfo,
             });
         }
       }
@@ -470,9 +552,11 @@ export async function processNFTBookCartStripePurchase(
         }),
         createAirtableBookSalesRecordFromStripePaymentIntent({
           pi: capturedPaymentIntent,
+          paymentId,
           classId,
           collectionId,
           priceIndex,
+          itemIndex,
           stripeFeeAmount,
           stripeFeeCurrency,
           from,
@@ -483,11 +567,6 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
         }),
       ]);
-    }
-    if (totalStripeFeeAmount !== totalFeeInfo.stripeFeeAmount) {
-      await likeNFTBookCartCollection.doc(cartId).update({
-        'feeInfo.stripeFeeAmount': totalStripeFeeAmount,
-      });
     }
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',
@@ -550,6 +629,8 @@ export async function processNFTBookCartStripePurchase(
 export async function handleNewCartStripeCheckout(items: CartItem[], {
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
   from: inputFrom,
   email,
   giftInfo,
@@ -559,6 +640,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
 }: {
   gaClientId?: string,
   gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
   email?: string,
   from?: string,
   giftInfo?: {
@@ -578,7 +661,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
       classId,
-      priceIndex,
+      priceIndex: inputPriceIndex,
       collectionId,
       coupon,
       customPriceInDecimal,
@@ -593,10 +676,12 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       && (!Number.isInteger(customPriceInDecimal) || customPriceInDecimal < 0)) {
       throw new ValidationError('CUSTOM_PRICE_INVALID');
     }
-    if (priceIndex && (!Number.isInteger(priceIndex) || priceIndex < 0)) {
+    const priceIndex = inputPriceIndex || 0;
+    if (priceIndex !== undefined
+        && (!Number.isInteger(priceIndex) || priceIndex < 0)) {
       throw new ValidationError('PRICE_INDEX_INVALID');
     }
-    if (classId && priceIndex !== undefined) {
+    if (classId) {
       const [metadata, bookInfo] = await Promise.all([
         getNFTClassDataById(classId),
         getNftBookInfo(classId),
@@ -783,6 +868,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utmMedium: utm?.medium,
     gaClientId,
     gaSessionId,
+    gadClickId,
+    gadSource,
   }) : getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
@@ -794,6 +881,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utmMedium: utm?.medium,
     gaClientId,
     gaSessionId,
+    gadClickId,
+    gadSource,
   });
   const cancelUrl = getLikerLandCartURL({
     type: 'book',
@@ -802,6 +891,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utmMedium: utm?.medium,
     gaClientId,
     gaSessionId,
+    gadClickId,
+    gadSource,
   });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
@@ -818,6 +909,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     from,
     gaClientId,
     gaSessionId,
+    gadClickId,
+    gadSource,
     email,
     giftInfo,
     utm,
@@ -894,7 +987,17 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
 
 export async function claimNFTBookCart(
   cartId: string,
-  { message, wallet, token }: { message: string, wallet: string, token: string },
+  {
+    message,
+    wallet,
+    token,
+    loginMethod,
+  }: {
+    message: string,
+    wallet: string,
+    token: string,
+    loginMethod?: string,
+  },
   req,
 ) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
@@ -922,7 +1025,14 @@ export async function claimNFTBookCart(
   const newClaimedNFTs: any = [];
   await Promise.all(unclaimedClassIds.map(async (classId) => {
     try {
-      const { nftId } = await claimNFTBook(classId, cartId, { message, wallet, token }, req);
+      const { nftId } = await claimNFTBook(
+        classId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
       newClaimedNFTs.push({ classId, nftId });
       await cartRef.update({ claimedClassIds: FieldValue.arrayUnion(classId) });
     } catch (err) {
@@ -933,8 +1043,15 @@ export async function claimNFTBookCart(
   }));
   await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
     try {
-      await claimNFTBookCollection(collectionId, cartId, { message, wallet, token }, req);
-      newClaimedNFTs.push({ collectionId });
+      const { nftIds } = await claimNFTBookCollection(
+        collectionId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
+      newClaimedNFTs.push({ collectionId, nftIds });
       await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -943,15 +1060,20 @@ export async function claimNFTBookCart(
     }
   }));
 
+  const allItemsAutoClaimed = newClaimedNFTs.filter(
+    (nft) => !!(nft.nftIds?.length || nft.nftId),
+  ).length === (unclaimedClassIds.length + unclaimedCollectionIds.length);
   if (!errors.length) {
     await cartRef.update({
-      status: 'pending',
+      status: allItemsAutoClaimed ? 'completed' : 'pending',
       isPendingClaim: false,
       errors: FieldValue.delete(),
+      loginMethod: loginMethod || '',
     });
   } else {
     await cartRef.update({
       errors,
+      loginMethod: loginMethod || '',
     });
   }
 
@@ -960,6 +1082,7 @@ export async function claimNFTBookCart(
     classIds: claimedClassIds,
     collectionIds: claimedCollectionIds,
     newClaimedNFTs,
+    allItemsAutoClaimed,
     errors,
   };
 }

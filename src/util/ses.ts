@@ -1028,10 +1028,17 @@ export function sendNFTBookSalePaymentsEmail({
   const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
   const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
   const displayPayments = payments.map(({ amount, type }) => {
-    const isRoyalty = type === 'connectedWallet';
-    const displayType = isRoyalty ? 'royalty' : 'commission';
-    const name = `${displayType}: US$${amount.toFixed(2)}`;
-    return name;
+    const roundedCurrency = `US$${amount.toFixed(2)}`;
+    switch (type) {
+      case 'connectedWallet':
+        return `Royalty: ${roundedCurrency}`;
+      case 'channelCommission':
+        return `Commission: ${roundedCurrency}`;
+      case 'shipping':
+        return `Shipping: ${roundedCurrency}`;
+      default:
+        return `Unknown: ${roundedCurrency}`;
+    }
   });
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId })

@@ -93,7 +93,7 @@ export async function handleStripeConnectedAccount({
   bookName,
   buyerEmail,
   paymentIntentId,
-
+  shippingCost,
 }: {
   classId?: string,
   collectionId?: string,
@@ -103,6 +103,7 @@ export async function handleStripeConnectedAccount({
   bookName: string,
   buyerEmail: string | null,
   paymentIntentId: string,
+  shippingCost?: number,
 }, {
   chargeId,
   amountTotal,
@@ -113,7 +114,7 @@ export async function handleStripeConnectedAccount({
   likerLandArtFee = 0,
   channelCommission = 0,
 }, { connectedWallets, from }) {
-  let transfers: Stripe.Transfer[] = [];
+  const transfers: Stripe.Transfer[] = [];
   const metadata: Record<string, string> = {
     ownerWallet,
   };
@@ -132,8 +133,10 @@ export async function handleStripeConnectedAccount({
         fromUser = await getBookUserInfoFromLegacyString(from);
       }
     }
+    const isValidChannelId = fromUser && fromUser.bookUserInfo;
     let fromStripeConnectAccountId;
-    if (fromUser && fromUser.bookUserInfo) {
+    let transfer: Stripe.Response<Stripe.Transfer> | null = null;
+    if (isValidChannelId) {
       const { bookUserInfo, likerUserInfo } = fromUser;
       const {
         stripeConnectAccountId,
@@ -146,10 +149,11 @@ export async function handleStripeConnectedAccount({
       } = likerUserInfo || {};
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
+        const currency = 'usd'; // stripe balance are setteled in USD in source tx
         const fromLikeWallet = fromUser.likeWallet;
-        const transfer = await stripe.transfers.create({
+        transfer = await stripe.transfers.create({
           amount: channelCommission,
-          currency: 'usd', // stripe balance are setteled in USD in source tx
+          currency,
           destination: fromStripeConnectAccountId,
           transfer_group: paymentId,
           source_transaction: chargeId,
@@ -159,50 +163,51 @@ export async function handleStripeConnectedAccount({
             channel: from,
             ...metadata,
           },
+        }).catch((e) => {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to create transfer for ${fromLikeWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
+          // eslint-disable-next-line no-console
+          console.error(e);
+          return null;
         });
-        transfers.push(transfer);
-        await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
-          type: 'channelCommission',
-          ownerWallet,
-          classId,
-          priceIndex,
-          collectionId,
-          transferId: transfer.id,
-          chargeId,
-          stripeConnectAccountId,
-          paymentId,
-          amountTotal,
-          amount: channelCommission,
-          timestamp: FieldValue.serverTimestamp(),
-        });
-        const shouldSendNotificationEmail = isEnableNotificationEmails && email && isEmailVerified;
-        if (shouldSendNotificationEmail) {
-          emailMap[email] ??= [];
-          emailMap[email].push({
-            amount: channelCommission / 100,
+        if (transfer) {
+          transfers.push(transfer);
+          await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
             type: 'channelCommission',
+            ownerWallet,
+            classId,
+            priceIndex,
+            collectionId,
+            transferId: transfer.id,
+            chargeId,
+            stripeConnectAccountId,
+            paymentId,
+            amountTotal,
+            amount: channelCommission,
+            currency,
+            timestamp: FieldValue.serverTimestamp(),
           });
+          const shouldSendNotificationEmail = isEnableNotificationEmails
+            && email
+            && isEmailVerified;
+          if (shouldSendNotificationEmail) {
+            emailMap[email] ??= [];
+            emailMap[email].push({
+              amount: channelCommission / 100,
+              type: 'channelCommission',
+            });
+          }
         }
-      } else {
-        await sendNFTBookInvalidChannelIdSlackNotification({
-          classId,
-          bookName,
-          from,
-          email: buyerEmail,
-          hasStripeAccount: !!stripeConnectAccountId,
-          isStripeConnectReady: false,
-          paymentId,
-          paymentIntentId,
-        });
       }
-    } else {
+    }
+    if (from && !transfer) {
       await sendNFTBookInvalidChannelIdSlackNotification({
         classId,
         bookName,
         from,
         email: buyerEmail,
-        isInvalidChannelId: true,
-        hasStripeAccount: false,
+        isInvalidChannelId: !isValidChannelId,
+        hasStripeAccount: !!fromStripeConnectAccountId,
         isStripeConnectReady: false,
         paymentId,
         paymentIntentId,
@@ -248,19 +253,29 @@ export async function handleStripeConnectedAccount({
               stripeConnectAccountId,
               isEnableNotificationEmails = true,
             } = userInfo;
+            const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+            const shippingCostSplit = Math.floor(
+              ((shippingCost || 0) * connectedWallets[wallet]) / totalSplit,
+            );
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
-              currency: 'usd', // stripe balance are setteled in USD in source tx
+              currency,
               destination: userInfo.stripeConnectAccountId,
               transfer_group: paymentId,
               source_transaction: chargeId,
-              description: `Connected commission for ${bookName}`,
+              description: `Connected commission${shippingCostSplit ? ' and shipping' : ''} for ${bookName}`,
               metadata: {
                 type: 'connectedWallet',
                 ...metadata,
               },
+            }).catch((e) => {
+              // eslint-disable-next-line no-console
+              console.error(`Failed to create transfer for ${wallet} with stripeConnectAccountId ${stripeConnectAccountId}`);
+              // eslint-disable-next-line no-console
+              console.error(e);
             });
+            if (!transfer) return null;
             await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
               type: 'connectedWallet',
               ownerWallet,
@@ -273,6 +288,7 @@ export async function handleStripeConnectedAccount({
               paymentId,
               amountTotal,
               amount: amountSplit,
+              currency,
               timestamp: FieldValue.serverTimestamp(),
             });
             const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
@@ -284,16 +300,27 @@ export async function handleStripeConnectedAccount({
               && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
+              const walletAmount = amountSplit / 100 - shippingCostSplit;
               emailMap[email].push({
-                amount: amountSplit / 100,
+                amount: walletAmount,
                 type: 'connectedWallet',
               });
+              if (shippingCostSplit) {
+                emailMap[email].push({
+                  amount: shippingCostSplit,
+                  type: 'shipping',
+                });
+              }
             }
             return transfer;
           }),
       );
+
       if (connectedTransfers.length) {
-        transfers = transfers.concat(connectedTransfers);
+        // typescript doesn't regconize .filter(t => t !== null)
+        connectedTransfers.forEach((t) => {
+          if (t) transfers.push(t);
+        });
       }
     }
   }
@@ -535,6 +562,8 @@ export async function formatStripeCheckoutSession({
   from,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
   giftInfo,
   referrer,
   utm,
@@ -551,6 +580,8 @@ export async function formatStripeCheckoutSession({
   from?: string,
   gaClientId?: string,
   gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
   giftInfo?: {
     fromName: string,
     toName: string,
@@ -764,6 +795,7 @@ export async function formatStripeCheckoutSession({
     consent_collection: {
       promotions: 'auto',
     },
+    allow_promotion_codes: true,
   };
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
@@ -811,6 +843,8 @@ export async function formatStripeCheckoutSession({
 export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
   from: inputFrom,
   coupon,
   customPriceInDecimal,
@@ -825,6 +859,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
   gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
   email?: string,
   from?: string,
   coupon?: string,
@@ -862,6 +898,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gadClickId,
+      gadSource,
     }) : getLikerLandNFTClaimPageURL({
       classId,
       paymentId,
@@ -873,6 +911,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gadClickId,
+      gadSource,
     }),
     cancelUrl = getLikerLandNFTClassPageURL({
       classId,
@@ -881,6 +921,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gadClickId,
+      gadSource,
     }),
     ownerWallet,
     shippingRates,
@@ -934,6 +976,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       utmMedium: utm?.medium,
       gaClientId,
       gaSessionId,
+      gadClickId,
+      gadSource,
     });
     return { url: freePurchaseUrl };
   }
@@ -974,6 +1018,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     from,
     gaClientId,
     gaSessionId,
+    gadClickId,
+    gadSource,
     email,
     giftInfo,
     utm,
@@ -1105,25 +1151,51 @@ export async function sendNFTBookPurchaseEmail({
 export async function updateNFTBookPostCheckoutFeeInfo({
   classId,
   paymentId,
-  session,
+  amountSubtotal,
+  amountTotal,
+  shippingCost,
   balanceTx,
   feeInfo,
 }) {
   const {
     stripeFeeAmount: docStripeFeeAmount,
+    priceInDecimal,
   } = feeInfo;
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
   const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  if (stripeFeeAmount !== docStripeFeeAmount) {
+  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
+  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
+  const productAmountTotal = amountTotal - shippingCostAmount;
+  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
+  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
+    && productAmountTotal !== amountSubtotal;
+  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
+  if (shouldUpdateAmountFee) {
+    [
+      'priceInDecimal',
+      'likerLandTipFeeAmount',
+      'likerLandFeeAmount',
+      'likerLandCommission',
+      'channelCommission',
+      'likerLandArtFee',
+      'customPriceDiff',
+    ].forEach((key) => {
+      if (typeof newFeeInfo[key] === 'number') {
+        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
+      }
+    });
+  }
+  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
     await likeNFTBookCollection.doc(classId).collection('transactions')
       .doc(paymentId).update({
-        'feeInfo.stripeFeeAmount': stripeFeeAmount,
+        feeInfo: newFeeInfo,
+        shippingCost: shippingCostAmount / 100,
       });
   }
   return {
+    ...newFeeInfo,
     stripeFeeCurrency,
-    stripeFeeAmount,
   };
 }
 
@@ -1141,6 +1213,7 @@ export async function processNFTBookStripePurchase(
     customer_details: customer,
     payment_intent: paymentIntent,
     amount_total: amountTotal,
+    amount_subtotal: amountSubtotal,
     shipping_details: shippingDetails,
     shipping_cost: shippingCost,
   } = session;
@@ -1174,18 +1247,9 @@ export async function processNFTBookStripePurchase(
       isGift,
       giftInfo,
       isPhysicalOnly,
-      originalPriceInDecimal,
-      feeInfo,
+      feeInfo: docFeeInfo,
       quantity,
     } = txData;
-    const {
-      stripeFeeAmount: docStripeFeeAmount,
-      likerLandFeeAmount,
-      likerLandTipFeeAmount,
-      likerLandCommission,
-      channelCommission,
-      likerLandArtFee,
-    } = feeInfo;
     const [captured, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -1201,14 +1265,36 @@ export async function processNFTBookStripePurchase(
     const {
       stripeFeeAmount,
       stripeFeeCurrency,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiff,
     } = await updateNFTBookPostCheckoutFeeInfo({
       classId,
       paymentId,
-      session,
+      amountSubtotal,
+      amountTotal,
       balanceTx,
-      feeInfo,
+      feeInfo: docFeeInfo,
+      shippingCost,
     });
+    const feeInfo: TransactionFeeInfo = {
+      stripeFeeAmount,
+      likerLandFeeAmount,
+      likerLandTipFeeAmount,
+      likerLandCommission,
+      channelCommission,
+      likerLandArtFee,
+      priceInDecimal,
+      originalPriceInDecimal,
+      customPriceDiff,
+    };
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+    const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
 
     const { transfers } = await handleStripeConnectedAccount(
       {
@@ -1219,6 +1305,7 @@ export async function processNFTBookStripePurchase(
         bookName: className,
         buyerEmail: email,
         paymentIntentId: paymentIntent as string,
+        shippingCost: shippingCostAmount,
       },
       {
         amountTotal,
@@ -1246,8 +1333,6 @@ export async function processNFTBookStripePurchase(
       sessionId: session.id,
       isGift,
     });
-
-    const shippingCostAmount = (shippingCost?.amount_total || 0) / 100;
     await Promise.all([
       sendNFTBookPurchaseEmail({
         email,
@@ -1280,6 +1365,7 @@ export async function processNFTBookStripePurchase(
       }),
       createAirtableBookSalesRecordFromStripePaymentIntent({
         pi: capturedPaymentIntent,
+        paymentId,
         classId,
         priceIndex,
         from,
@@ -1322,7 +1408,17 @@ export async function processNFTBookStripePurchase(
 export async function claimNFTBook(
   classId: string,
   paymentId: string,
-  { message, wallet, token }: { message: string, wallet: string, token: string },
+  {
+    message,
+    wallet,
+    token,
+    loginMethod,
+  }: {
+    message: string,
+    wallet: string,
+    token: string,
+    loginMethod?: string,
+  },
   req,
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
@@ -1359,6 +1455,7 @@ export async function claimNFTBook(
       status: 'pendingNFT',
       wallet,
       message: message || '',
+      loginMethod: loginMethod || '',
     });
     if (!docData.isAutoDeliver) {
       t.update(bookRef, {
@@ -1368,8 +1465,8 @@ export async function claimNFTBook(
     return docData;
   });
 
+  let txHash = '';
   if (isAutoDeliver) {
-    let txHash = '';
     const msgSendNftIds = nftIds || [nftId];
     try {
       const txMessages = msgSendNftIds
@@ -1433,7 +1530,9 @@ export async function claimNFTBook(
     });
   }
 
-  return { email, nftId: nftIds?.[0] };
+  return {
+    email, nftIds, nftId: nftIds?.[0], txHash,
+  };
 }
 
 export async function sendNFTBookClaimedEmailNotification(

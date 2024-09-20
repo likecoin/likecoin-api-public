@@ -23,6 +23,8 @@ export const getLikerLandCartURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   language?: string,
   type?: 'book' | 'wnft',
@@ -31,6 +33,8 @@ export const getLikerLandCartURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -47,6 +51,12 @@ export const getLikerLandCartURL = ({
   }
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
@@ -60,6 +70,8 @@ export const getLikerLandNFTClassPageURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   classId: string,
   language?: string,
@@ -68,6 +80,8 @@ export const getLikerLandNFTClassPageURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -84,6 +98,12 @@ export const getLikerLandNFTClassPageURL = ({
   }
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
@@ -97,6 +117,8 @@ export const getLikerLandNFTCollectionPageURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   collectionId: string,
   language?: string,
@@ -105,6 +127,8 @@ export const getLikerLandNFTCollectionPageURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -121,6 +145,12 @@ export const getLikerLandNFTCollectionPageURL = ({
   }
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/collection/${collectionId}?${qs}`, { language });
@@ -143,6 +173,8 @@ export const getLikerLandNFTClaimPageURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   classId?: string;
   collectionId?: string;
@@ -160,6 +192,8 @@ export const getLikerLandNFTClaimPageURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -208,6 +242,12 @@ export const getLikerLandNFTClaimPageURL = ({
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
   }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
+  }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/claim?${qs}`, { language });
 };
@@ -227,6 +267,8 @@ export const getLikerLandNFTGiftPageURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   classId?: string;
   collectionId?: string;
@@ -242,6 +284,8 @@ export const getLikerLandNFTGiftPageURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -286,6 +330,12 @@ export const getLikerLandNFTGiftPageURL = ({
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
   }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
+  }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/gift?${qs}`, { language });
 };
@@ -300,6 +350,8 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   utmMedium,
   gaClientId,
   gaSessionId,
+  gadClickId,
+  gadSource,
 }: {
   classId: string;
   paymentId: string;
@@ -310,6 +362,8 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   utmMedium?: string;
   gaClientId?: string;
   gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
 }) => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -332,6 +386,12 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   }
   if (gaSessionId) {
     qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   return getLikerLandURL(`/nft/fiat/stripe?${qs}`, { language });

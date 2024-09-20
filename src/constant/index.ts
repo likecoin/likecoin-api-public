@@ -101,6 +101,8 @@ export const QUERY_STRING_TO_REMOVE = [
   'fbclid',
   'gclid',
   'gi',
+  'gad_source',
+  'utm_id',
   'utm_source',
   'utm_medium',
   'utm_campaign',
@@ -203,3 +205,5 @@ export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
 export const CUSTOMER_SERVICE_URL = 'https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7';
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
+
+export const ARWEAVE_GATEWAY = IS_TESTNET ? 'https://gateway.irys.xyz' : 'https://arweave.net';

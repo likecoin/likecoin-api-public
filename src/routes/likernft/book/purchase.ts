@@ -35,6 +35,7 @@ import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
+import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
 
 const router = Router();
 
@@ -62,7 +63,7 @@ router.post(
     try {
       const { cartId } = req.params;
       const { token } = req.query;
-      const { wallet, message } = req.body;
+      const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
@@ -72,6 +73,7 @@ router.post(
         classIds,
         collectionIds,
         newClaimedNFTs,
+        allItemsAutoClaimed,
         errors,
       } = await claimNFTBookCart(
         cartId,
@@ -79,6 +81,7 @@ router.post(
           message,
           wallet,
           token: token as string,
+          loginMethod,
         },
         req,
       );
@@ -89,11 +92,14 @@ router.post(
         wallet,
         email,
         message,
+        loginMethod,
+        allItemsAutoClaimed,
       });
       res.json({
         classIds,
         collectionIds,
         newClaimedNFTs,
+        allItemsAutoClaimed,
         errors,
       });
     } catch (err) {
@@ -108,6 +114,8 @@ router.post('/cart/new', async (req, res, next) => {
     const {
       gaClientId,
       gaSessionId,
+      gclid: gadClickId,
+      gad_source: gadSource,
       email,
       utmCampaign,
       utmSource,
@@ -137,6 +145,8 @@ router.post('/cart/new', async (req, res, next) => {
     } = await handleNewCartStripeCheckout(items, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gadClickId: gadClickId as string,
+      gadSource: gadSource as string,
       from: from as string,
       giftInfo,
       email,
@@ -179,6 +189,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       from,
       ga_client_id: gaClientId = '',
       ga_session_id: gaSessionId = '',
+      gclid: gadClickId = '',
+      gad_source: gadSource = '',
       price_index: priceIndexString = undefined,
       utm_campaign: utmCampaign,
       utm_source: utmSource,
@@ -204,6 +216,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gadClickId: gadClickId as string,
+      gadSource: gadSource as string,
       coupon: coupon as string,
       customPriceInDecimal,
       quantity,
@@ -263,6 +277,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     const {
       gaClientId,
       gaSessionId,
+      gadClickId,
+      gadSource,
       coupon,
       email,
       giftInfo,
@@ -295,6 +311,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     } = await handleNewStripeCheckout(classId, priceIndex, {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      gadClickId,
+      gadSource,
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,
@@ -391,8 +409,15 @@ router.post(
         email = '',
         wallet,
         message,
+        gaClientId,
+        gaSessionId,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        referrer: inputReferrer,
       } = req.body;
 
+      const referrer = inputReferrer || req.get('Referrer');
       if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
       if (email) {
         const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
@@ -462,12 +487,36 @@ router.post(
         shippingCost: null,
       });
 
+      // Remove after refactoring free purchase into purchase
+      await createAirtableBookSalesRecordFromFreePurchase({
+        classId,
+        paymentId,
+        priceIndex,
+        from: from as string,
+        email,
+        wallet,
+        utmSource,
+        utmCampaign,
+        utmMedium,
+        referrer,
+        gaClientId,
+        gaSessionId,
+      });
+
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTFreePurchaseNew',
         channel: from,
         paymentId,
         classId,
+        priceIndex,
         email,
+        wallet,
+        utmSource,
+        utmCampaign,
+        utmMedium,
+        referrer,
+        gaClientId,
+        gaSessionId,
       });
 
       const className = metadata?.name || classId;
@@ -737,7 +786,7 @@ router.post(
     try {
       const { classId, paymentId } = req.params;
       const { token } = req.query;
-      const { wallet, message } = req.body;
+      const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
@@ -749,6 +798,7 @@ router.post(
           message,
           wallet,
           token: token as string,
+          loginMethod,
         },
         req,
       );
@@ -760,6 +810,7 @@ router.post(
         wallet,
         email,
         message,
+        loginMethod,
       });
       await sendNFTBookClaimedEmailNotification(
         classId,
