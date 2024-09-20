@@ -107,7 +107,7 @@ router.post(
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
-      if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
+      if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -242,7 +242,7 @@ router.get(
         throw new ValidationError('ACCOUNT_NOT_CREATED', 404);
       }
       if (!isStripeConnectReady) {
-        throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
+        throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
       }
       const payoutRes = await stripe.payouts.list({
         limit: 100,
@@ -282,7 +282,7 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), async (req, res, next) => {
       throw new ValidationError('ACCOUNT_NOT_CREATED', 404);
     }
     if (!isStripeConnectReady) {
-      throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
+      throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
     }
     const payout = await stripe.payouts.retrieve(id, {
       stripeAccount: stripeConnectAccountId,
