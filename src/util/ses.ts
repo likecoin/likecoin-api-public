@@ -392,7 +392,7 @@ export async function sendNFTBookPendingClaimEmail({
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 綱站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
@@ -482,11 +482,11 @@ export async function sendNFTBookCartPendingClaimEmail({
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
             <p>感謝購買以下電子書</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 綱站的書架</a>閱讀你的電子書。
+            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 綱站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
@@ -735,11 +735,11 @@ export function sendNFTBookCartGiftPendingClaimEmail({
             content1: `<p>親愛的 ${toName || '讀者'}：</p>
             <p>${fromName} 贈送了以下電子書給你作為禮物。</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 綱站的書架</a>閱讀你的電子書。
+            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 綱站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
             messageTitle1: `${fromName} 的留言`,
             messageContent1: message,
             buttonText1: '領取我的電子書',
