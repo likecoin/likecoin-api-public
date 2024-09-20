@@ -107,7 +107,7 @@ router.post(
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
-      if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 405);
+      if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -224,6 +224,110 @@ router.post(
 );
 
 router.get(
+  '/payouts/list',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+      const userData = userDoc.data();
+      if (!userData) {
+        throw new ValidationError('USER_NOT_FOUND', 404);
+      }
+      const {
+        stripeConnectAccountId,
+        isStripeConnectReady,
+      } = userData;
+      if (!stripeConnectAccountId) {
+        throw new ValidationError('ACCOUNT_NOT_CREATED', 404);
+      }
+      if (!isStripeConnectReady) {
+        throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
+      }
+      const payoutRes = await stripe.payouts.list({
+        limit: 100,
+      }, {
+        stripeAccount: stripeConnectAccountId,
+      });
+      const payouts = payoutRes.data.map((payout) => ({
+        amount: payout.amount,
+        currency: payout.currency,
+        id: payout.id,
+        status: payout.status,
+        arrivalTs: payout.arrival_date,
+        createdTs: payout.created,
+      }));
+
+      res.json({ payouts });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get('/payouts/:id', jwtAuth('read:nftbook'), async (req, res, next) => {
+  try {
+    const { wallet } = req.user;
+    const { id } = req.params;
+    const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+    const userData = userDoc.data();
+    if (!userData) {
+      throw new ValidationError('USER_NOT_FOUND', 404);
+    }
+    const {
+      stripeConnectAccountId,
+      isStripeConnectReady,
+    } = userData;
+    if (!stripeConnectAccountId) {
+      throw new ValidationError('ACCOUNT_NOT_CREATED', 404);
+    }
+    if (!isStripeConnectReady) {
+      throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
+    }
+    const payout = await stripe.payouts.retrieve(id, {
+      stripeAccount: stripeConnectAccountId,
+    });
+    const balanceTransactionRes = await stripe.balanceTransactions.list({
+      payout: id,
+      type: 'payment',
+      limit: 100,
+    }, {
+      stripeAccount: stripeConnectAccountId,
+    });
+    const balanceTransactions = balanceTransactionRes.data;
+    const charges = await Promise.all(balanceTransactions.map(
+      async (data) => stripe.charges.retrieve(data.source as string, {
+        stripeAccount: stripeConnectAccountId,
+      }),
+    ));
+    const transfers = await Promise.all(charges.map((charge) => stripe.transfers.retrieve(
+      charge.source_transfer as string,
+    )));
+    const items = charges.map((charge, index) => ({
+      amount: charge.amount,
+      currency: charge.currency,
+      status: charge.status,
+      createdTs: charge.created,
+      description: transfers[index].description,
+      commissionId: transfers[index].transfer_group,
+      metadata: transfers[index].metadata,
+    }));
+    const payload = {
+      amount: payout.amount,
+      currency: payout.currency,
+      id: payout.id,
+      status: payout.status,
+      arrivalTs: payout.arrival_date,
+      createdTs: payout.created,
+      items,
+    };
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(
   '/commissions/list',
   jwtAuth('read:nftbook'),
   async (req, res, next) => {
@@ -241,6 +345,25 @@ router.get(
         return data;
       }).map((data) => filterBookPurchaseCommission(data));
       res.json({ commissions: list });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/commissions/:id',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      const { id } = req.params;
+      const commissionDoc = await likeNFTBookUserCollection
+        .doc(wallet)
+        .collection('commissions')
+        .doc(id)
+        .get();
+      res.json(filterBookPurchaseCommission(commissionDoc.data()));
     } catch (err) {
       next(err);
     }
