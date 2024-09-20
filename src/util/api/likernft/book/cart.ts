@@ -12,7 +12,7 @@ import {
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getNFTClassDataById } from '../../../cosmos/nft';
-import { getLikerLandCartURL, getLikerLandNFTClaimPageURL } from '../../../liker-land';
+import { getLikerLandCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
@@ -42,7 +42,7 @@ import stripe from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
-import { sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 
 export type CartItem = {
   collectionId?: string
@@ -83,6 +83,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   claimToken,
   sessionId = '',
   from = '',
+  giftInfo,
   itemPrices,
   itemInfos,
   feeInfo,
@@ -92,6 +93,12 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   claimToken: string;
   sessionId?: string;
   from?: string;
+  giftInfo?: {
+    toName: string,
+    toEmail: string,
+    fromName: string,
+    message?: string,
+  };
   itemPrices: ItemPriceInfo[];
   itemInfos: CartItemWithInfo[];
   feeInfo: TransactionFeeInfo,
@@ -138,6 +145,22 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     originalPriceInDecimal: totalOriginalPriceInDecimal,
     feeInfo,
   };
+  const isGift = !!giftInfo;
+  if (isGift) {
+    const {
+      toEmail = '',
+      toName = '',
+      fromName = '',
+      message = '',
+    } = giftInfo;
+    payload.isGift = true;
+    payload.giftInfo = {
+      toEmail,
+      toName,
+      fromName,
+      message,
+    };
+  }
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
     const {
@@ -183,6 +206,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         quantity,
         priceName,
         priceIndex,
+        giftInfo,
         from: itemFrom || from,
         itemPrices: [item],
         feeInfo: itemFeeInfo,
@@ -196,6 +220,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         quantity,
         claimToken,
         sessionId,
+        giftInfo,
         from: itemFrom || from,
         itemPrices: [item],
         feeInfo: itemFeeInfo,
@@ -373,7 +398,12 @@ export async function processNFTBookCartStripePurchase(
       collectionInfos,
       txData: cartData,
     } = infos;
-    const { claimToken, feeInfo: totalFeeInfo } = cartData;
+    const {
+      claimToken,
+      feeInfo: totalFeeInfo,
+      isGift: cartIsGift,
+      giftInfo: cartGiftInfo,
+    } = cartData;
     capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
     });
@@ -417,6 +447,8 @@ export async function processNFTBookCartStripePurchase(
         originalPriceInDecimal,
         priceIndex,
         priceName,
+        isGift,
+        giftInfo,
         feeInfo: docFeeInfo,
       } = txData;
       const {
@@ -497,11 +529,11 @@ export async function processNFTBookCartStripePurchase(
       await Promise.all([
         await sendNFTBookSalesEmail({
           buyerEmail: email,
+          isGift,
+          giftToEmail: (giftInfo as any)?.toEmail,
+          giftToName: (giftInfo as any)?.toName,
           emails: notificationEmails,
           bookName,
-          isGift: false,
-          giftToEmail: '',
-          giftToName: '',
           amount: priceInDecimal / 100,
           phone,
           shippingDetails: '',
@@ -541,15 +573,34 @@ export async function processNFTBookCartStripePurchase(
       paymentId,
       cartId,
       sessionId: session.id,
-      isGift: false,
+      isGift: cartIsGift,
     });
-    await sendNFTBookCartPendingClaimEmail({
-      email,
-      cartId,
-      bookNames,
-      paymentId,
-      claimToken,
-    });
+    if (cartIsGift && cartGiftInfo) {
+      const {
+        fromName,
+        toName,
+        toEmail,
+        message,
+      } = cartGiftInfo;
+      await sendNFTBookCartGiftPendingClaimEmail({
+        fromName,
+        toName,
+        toEmail,
+        message,
+        cartId,
+        bookNames,
+        paymentId,
+        claimToken,
+      });
+    } else {
+      await sendNFTBookCartPendingClaimEmail({
+        email,
+        cartId,
+        bookNames,
+        paymentId,
+        claimToken,
+      });
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -582,6 +633,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gadSource,
   from: inputFrom,
   email,
+  giftInfo,
   utm,
   referrer,
   userAgent,
@@ -592,6 +644,12 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gadSource?: string,
   email?: string,
   from?: string,
+  giftInfo?: {
+    toEmail: string,
+    toName: string,
+    fromName: string,
+    message?: string,
+  },
   utm?: {
     campaign?: string,
     source?: string,
@@ -800,7 +858,19 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   const paymentId = uuidv4();
   const cartId = paymentId;
   const claimToken = crypto.randomBytes(32).toString('hex');
-  const successUrl = getLikerLandNFTClaimPageURL({
+  const successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
+    cartId,
+    paymentId,
+    type: 'nft_book',
+    redirect: true,
+    utmCampaign: utm?.campaign,
+    utmSource: utm?.source,
+    utmMedium: utm?.medium,
+    gaClientId,
+    gaSessionId,
+    gadClickId,
+    gadSource,
+  }) : getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
@@ -842,6 +912,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gadClickId,
     gadSource,
     email,
+    giftInfo,
     utm,
     referrer,
     userAgent,
@@ -890,6 +961,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     type: 'stripe',
     claimToken,
     sessionId,
+    giftInfo,
     from,
     itemInfos,
     itemPrices,

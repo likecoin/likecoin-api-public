@@ -122,11 +122,18 @@ router.post('/cart/new', async (req, res, next) => {
       utmMedium,
       referrer: inputReferrer,
       items = [],
+      giftInfo,
     } = req.body;
 
     if (!items?.length) {
       throw new ValidationError('REQUIRE_ITEMS');
     }
+
+    if (giftInfo) {
+      if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+      if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
+    }
+
     const referrer = inputReferrer || req.get('Referrer');
     const {
       url,
@@ -141,6 +148,7 @@ router.post('/cart/new', async (req, res, next) => {
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
       from: from as string,
+      giftInfo,
       email,
       utm: {
         campaign: utmCampaign,
@@ -166,6 +174,7 @@ router.post('/cart/new', async (req, res, next) => {
         utmSource,
         utmMedium,
         referrer,
+        isGift: !!giftInfo,
       });
     }
   } catch (err) {
