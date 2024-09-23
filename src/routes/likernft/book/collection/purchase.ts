@@ -209,6 +209,7 @@ router.post(
         utmSource,
         utmMedium,
         referrer: inputReferrer,
+        loginMethod,
       } = req.body;
 
       const referrer = inputReferrer || req.get('Referrer');
@@ -285,6 +286,7 @@ router.post(
         referrer,
         gaClientId,
         gaSessionId,
+        loginMethod,
       });
 
       // Remove after refactoring free purchase into purchase
@@ -345,6 +347,7 @@ router.post(
           {
             message,
             wallet,
+            loginMethod,
             token: claimToken as string,
           },
           req,

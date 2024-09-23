@@ -415,6 +415,7 @@ router.post(
         utmSource,
         utmMedium,
         referrer: inputReferrer,
+        loginMethod,
       } = req.body;
 
       const referrer = inputReferrer || req.get('Referrer');
@@ -517,6 +518,7 @@ router.post(
         referrer,
         gaClientId,
         gaSessionId,
+        loginMethod,
       });
 
       const className = metadata?.name || classId;
@@ -565,6 +567,7 @@ router.post(
           {
             message,
             wallet,
+            loginMethod,
             token: claimToken as string,
           },
           req,
