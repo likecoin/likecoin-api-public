@@ -69,7 +69,10 @@ export async function processStripeFiatNFTPurchase(session, req) {
   const { email } = customer;
   const isWalletProvided = !!wallet;
   if (!isWalletProvided && email) {
-    ({ wallet } = await findLikerLandWalletUserWithVerifiedEmail(email));
+    const user = await findLikerLandWalletUserWithVerifiedEmail(email);
+    if (user && user.wallet) {
+      wallet = user.wallet;
+    }
   }
   const isPendingClaim = !wallet;
   let claimToken: string | undefined;
