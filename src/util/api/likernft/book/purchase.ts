@@ -54,6 +54,7 @@ import {
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
+import { upsertCrispProfile } from '../../../crisp';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1378,6 +1379,17 @@ export async function processNFTBookStripePurchase(
         stripeFeeAmount,
       }),
     ]);
+
+    if (email) {
+      const segments = ['purchaser'];
+      if (feeInfo.customPriceDiff) segments.push('tipper');
+      try {
+        await upsertCrispProfile(email, { segments });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
