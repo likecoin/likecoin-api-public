@@ -21,7 +21,7 @@ import {
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
   TransactionFeeInfo,
-  formatStripeCheckoutSession, getCouponDiscountRate, handleStripeConnectedAccount,
+  formatStripeCheckoutSession, handleStripeConnectedAccount,
 } from '../purchase';
 import { handleNFTPurchaseTransaction } from '../../purchase';
 import stripe from '../../../../stripe';
@@ -67,8 +67,8 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   priceInDecimal: number,
   originalPriceInDecimal: number,
   coupon?: string,
-  quantity?: number
-  from?: string;
+  quantity?: number,
+  from?: string,
   isPhysicalOnly?: boolean,
   giftInfo?: {
     toName: string,
@@ -335,7 +335,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
     priceInDecimal: originalPriceInDecimal,
-    coupons,
     isAllowCustomPrice,
     stock,
     hasShipping,
@@ -347,13 +346,6 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
   }
   let priceInDecimal = originalPriceInDecimal;
-
-  let discount = 1;
-  if (coupon) {
-    discount = getCouponDiscountRate(coupons, coupon as string);
-  }
-  priceInDecimal = Math.round(priceInDecimal * discount);
-
   let customPriceDiffInDecimal = 0;
   if (isAllowCustomPrice
     && customPriceInDecimal

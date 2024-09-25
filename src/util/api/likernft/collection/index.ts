@@ -3,7 +3,7 @@ import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import {
-  validateCoupons, validateAutoDeliverNFTsTxHashV2, validatePrice,
+  validateAutoDeliverNFTsTxHashV2, validatePrice,
 } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
@@ -84,7 +84,6 @@ async function validateCollectionTypeData(
       notificationEmails,
       moderatorWallets,
       connectedWallets,
-      coupons,
       isAllowCustomPrice,
       isPhysicalOnly,
       hasShipping,
@@ -100,7 +99,6 @@ async function validateCollectionTypeData(
       isPhysicalOnly,
       hasShipping,
     });
-    if (coupons?.length) validateCoupons(coupons);
     await Promise.all(
       classIds.map(async (classId) => {
         const result = await getISCNFromNFTClassId(classId)
@@ -133,7 +131,6 @@ async function validateCollectionTypeData(
         notificationEmails,
         moderatorWallets,
         connectedWallets,
-        coupons,
         isAllowCustomPrice,
         isPhysicalOnly,
         hasShipping,

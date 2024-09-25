@@ -11,7 +11,6 @@ import {
   validatePrice,
   validatePrices,
   validateAutoDeliverNFTsTxHash,
-  validateCoupons,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -166,7 +165,6 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       hideDownload = false,
       canPayByLIKE = false,
       enableCustomMessagePage,
-      coupons,
       inLanguage,
       name,
       description,
@@ -204,7 +202,6 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       payload.moderatorWallets = moderatorWallets;
       payload.notificationEmails = notificationEmails;
       payload.connectedWallets = connectedWallets;
-      payload.coupons = coupons;
     }
     res.json(payload);
   } catch (err) {
@@ -466,7 +463,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       canPayByLIKE = false,
       enableCustomMessagePage = false,
       autoDeliverNFTsTxHash,
-      coupons,
     } = req.body;
     const [iscnInfo, metadata] = await Promise.all([
       getISCNFromNFTClassId(classId),
@@ -496,9 +492,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       manualDeliverTotalStock,
       autoDeliverTotalStock,
     );
-
-    if (coupons?.length) validateCoupons(coupons);
-
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
 
@@ -530,7 +523,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       enableCustomMessagePage,
       hideDownload,
       canPayByLIKE,
-      coupons,
 
       // From ISCN content metadata
       inLanguage,
@@ -606,7 +598,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideDownload,
       canPayByLIKE,
       enableCustomMessagePage,
-      coupons,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -615,7 +606,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     } = bookInfo;
     if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
-    if (coupons?.length) validateCoupons(coupons);
     await updateNftBookInfo(classId, {
       notificationEmails,
       moderatorWallets,
@@ -625,7 +615,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideDownload,
       canPayByLIKE,
       enableCustomMessagePage,
-      coupons,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

@@ -30,7 +30,6 @@ import {
   sendNFTBookClaimedEmailNotification,
   sendNFTBookPurchaseEmail,
   updateNFTBookPostDeliveryData,
-  getCouponDiscountRate,
 } from '../../../util/api/likernft/book/purchase';
 import { calculatePayment } from '../../../util/api/likernft/fiat';
 import { checkTxGrantAndAmount } from '../../../util/api/likernft/purchase';
@@ -365,20 +364,14 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const { price_index: priceIndexString, coupon } = req.query;
+      const { price_index: priceIndexString } = req.query;
       const bookInfo = await getNftBookInfo(classId);
 
       const priceIndex = Number(priceIndexString);
-      const { prices, canPayByLIKE, coupons } = bookInfo;
+      const { prices, canPayByLIKE } = bookInfo;
       if (prices.length <= priceIndex) {
         throw new ValidationError('PRICE_NOT_FOUND', 404);
       }
-
-      let discount = 1;
-      if (coupon) {
-        discount = getCouponDiscountRate(coupons, coupon as string);
-      }
-
       const { priceInDecimal } = prices[priceIndex];
       const price = priceInDecimal / 100;
 
@@ -387,13 +380,12 @@ router.get(
         totalLIKEPrice,
         totalFiatPriceString,
         totalFiatPricePrediscountString,
-      } = await calculatePayment([price], { discount });
+      } = await calculatePayment([price]);
       const payload = {
         LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
         LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
         fiatPricePrediscount: Number(totalFiatPricePrediscountString),
-        fiatDiscount: discount,
       };
       res.json(payload);
     } catch (err) {
@@ -662,17 +654,12 @@ router.post(
       if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
         from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
       }
-
-      let discount = 1;
-      if (coupon) {
-        discount = getCouponDiscountRate(coupons, coupon as string);
-      }
       const {
         priceInDecimal: originalPriceInDecimal,
         isPhysicalOnly = false,
         name: { en: priceNameEn },
       } = prices[priceIndex];
-      const priceInDecimal = Math.round(originalPriceInDecimal * discount);
+      const priceInDecimal = Math.round(originalPriceInDecimal);
       const price = priceInDecimal / 100;
 
       const { totalLIKEPrice: LIKEPrice } = await calculatePayment([price]);
