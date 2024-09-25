@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { STRIPE_KEY } from '../../config/config';
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-export default Stripe(STRIPE_KEY) as Stripe;
+const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2024-06-20', typescript: true });
+
+export default stripe;
