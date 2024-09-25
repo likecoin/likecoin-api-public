@@ -6,7 +6,7 @@ import { ValidationError } from '../../../../util/ValidationError';
 import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../util/api/likernft/book';
-import { FieldValue, db, likeNFTCollectionCollection } from '../../../../util/firebase';
+import { db, likeNFTCollectionCollection } from '../../../../util/firebase';
 import publisher from '../../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
@@ -17,7 +17,6 @@ import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
 import { jwtAuth } from '../../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../../util/ses';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
-import { calculatePayment } from '../../../../util/api/likernft/fiat';
 import {
   claimNFTBookCollection,
   createNewNFTBookCollectionPayment,
@@ -410,36 +409,6 @@ router.post(
       }
 
       res.json({ claimed: !!wallet });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.get(
-  '/:collectionId/price',
-  async (req, res, next) => {
-    try {
-      const { collectionId } = req.params;
-
-      const collectionData = await getBookCollectionInfoById(collectionId);
-      const { priceInDecimal: originalPriceInDecimal, canPayByLIKE } = collectionData;
-
-      const price = originalPriceInDecimal / 100;
-
-      const {
-        totalLIKEPricePrediscount,
-        totalLIKEPrice,
-        totalFiatPriceString,
-        totalFiatPricePrediscountString,
-      } = await calculatePayment([price]);
-      const payload = {
-        LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
-        LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
-        fiatPrice: Number(totalFiatPriceString),
-        fiatPricePrediscount: Number(totalFiatPricePrediscountString),
-      };
-      res.json(payload);
     } catch (err) {
       next(err);
     }

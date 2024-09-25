@@ -107,7 +107,6 @@ export async function sendNFTBookNewListingSlackNotification({
   classId,
   className,
   prices,
-  canPayByLIKE,
 }: {
   wallet: string;
   classId: string;
@@ -117,7 +116,6 @@ export async function sendNFTBookNewListingSlackNotification({
     priceInDecimal: number;
     stock: number;
   }[];
-  canPayByLIKE: boolean;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
@@ -134,7 +132,6 @@ export async function sendNFTBookNewListingSlackNotification({
       className,
       classLink,
       editions,
-      canPayByLIKE,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
