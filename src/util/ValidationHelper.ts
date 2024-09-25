@@ -622,7 +622,6 @@ export function filterFollow({
 export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
   if (type === 'book') {
     const {
-      coupons,
       successUrl,
       cancelUrl,
       priceInDecimal,
@@ -652,7 +651,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
     }
     return {
       ...publicInfo,
-      coupons,
       successUrl,
       cancelUrl,
       sold,

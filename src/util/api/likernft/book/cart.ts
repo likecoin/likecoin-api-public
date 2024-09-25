@@ -16,7 +16,6 @@ import { getLikerLandCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPa
 import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
-  getCouponDiscountRate,
   formatStripeCheckoutSession,
   TransactionFeeInfo,
   createNewNFTBookPayment,
@@ -68,7 +67,6 @@ export type CartItemWithInfo = CartItem & {
   ownerWallet: string,
   shippingRates: any[],
   isLikerLandArt: boolean;
-  coupons: any[],
   originalPriceInDecimal: number,
   collectionId?: string,
   classId?: string,
@@ -681,7 +679,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       classId,
       priceIndex: inputPriceIndex,
       collectionId,
-      coupon,
       customPriceInDecimal,
       quantity = 1,
       from: itemFrom,
@@ -711,7 +708,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         ownerWallet,
         shippingRates,
         isLikerLandArt,
-        coupons,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const {
@@ -750,7 +746,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         ownerWallet,
         shippingRates,
         isLikerLandArt,
-        coupons,
         originalPriceInDecimal,
         classId,
         iscnPrefix,
@@ -767,7 +762,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         isPhysicalOnly,
         isLikerLandArt,
         priceInDecimal: originalPriceInDecimal,
-        coupons,
         isAllowCustomPrice,
         stock,
         hasShipping,
@@ -797,7 +791,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         ownerWallet,
         shippingRates,
         isLikerLandArt,
-        coupons,
         originalPriceInDecimal,
         collectionId,
       };
@@ -811,7 +804,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     const {
       isAllowCustomPrice,
       originalPriceInDecimal,
-      coupons,
       stock,
       hasShipping,
       isPhysicalOnly,
@@ -833,12 +825,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     } // stripe does not like empty string
 
     let priceInDecimal = originalPriceInDecimal;
-    let discount = 1;
-    if (coupon) {
-      discount = getCouponDiscountRate(coupons, coupon as string);
-    }
-    priceInDecimal = Math.round(priceInDecimal * discount);
-
     let customPriceDiffInDecimal = 0;
     if (isAllowCustomPrice
         && customPriceInDecimal
@@ -864,7 +850,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       ownerWallet,
       shippingRates,
       isLikerLandArt,
-      coupons,
       originalPriceInDecimal,
       collectionId,
       classId,

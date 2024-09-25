@@ -540,18 +540,6 @@ export async function processNFTBookPurchase({
   return data;
 }
 
-export function getCouponDiscountRate(coupons, couponCode: string) {
-  let discount = 1;
-  if (coupons?.[couponCode]) {
-    const activeCoupon = coupons?.[couponCode];
-    const { discount: couponDiscount, expireTs } = activeCoupon;
-    if (!expireTs || Date.now() <= expireTs) {
-      discount = couponDiscount;
-    }
-  }
-  return discount;
-}
-
 export async function formatStripeCheckoutSession({
   classId,
   iscnPrefix,
@@ -929,7 +917,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     shippingRates,
     defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
     isLikerLandArt,
-    coupons,
   } = bookInfo;
   if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
   let from: string = inputFrom as string || '';
@@ -947,11 +934,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   } = prices[priceIndex];
 
   let priceInDecimal = originalPriceInDecimal;
-  let discount = 1;
-  if (coupon) {
-    discount = getCouponDiscountRate(coupons, coupon as string);
-  }
-  priceInDecimal = Math.round(priceInDecimal * discount);
 
   let customPriceDiffInDecimal = 0;
   if (isAllowCustomPrice
