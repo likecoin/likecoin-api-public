@@ -151,7 +151,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
-      gadSource: gadClickId as string,
+      gadSource: gadSource as string,
       from: from as string,
       giftInfo,
       coupon,
