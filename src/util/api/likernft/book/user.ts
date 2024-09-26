@@ -14,6 +14,14 @@ export async function getBookUserInfo(wallet: string) {
   return userData;
 }
 
+export async function getBookUserInfoFromWallet(wallet: string) {
+  const [bookUserInfo, likerUserInfo] = await Promise.all([
+    getBookUserInfo(wallet),
+    getUserWithCivicLikerPropertiesByWallet(wallet),
+  ]);
+  return { likeWallet: wallet, bookUserInfo, likerUserInfo };
+}
+
 export async function getBookUserInfoFromLikerId(likerId: string) {
   const userInfo = await getUserWithCivicLikerProperties(likerId);
   if (!userInfo) return null;
