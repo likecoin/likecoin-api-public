@@ -31,6 +31,7 @@ import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
+import { upsertCrispProfile } from '../../../util/crisp';
 
 const router = Router();
 
@@ -473,6 +474,16 @@ router.post(
         gaSessionId,
         loginMethod,
       });
+
+      if (email) {
+        const segments = ['free book'];
+        try {
+          await upsertCrispProfile(email, { segments });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(err);
+        }
+      }
 
       const className = metadata?.name || classId;
       await Promise.all([
