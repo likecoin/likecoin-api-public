@@ -80,7 +80,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     hideDownload,
     canPayByLIKE,
     enableCustomMessagePage,
-    coupons,
 
     inLanguage,
     name,
@@ -124,7 +123,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
-  if (coupons && coupons.length) payload.coupons = coupons;
   let batch = db.batch();
   batch.create(likeNFTBookCollection.doc(classId), payload);
   if (apiWalletOwnedNFTIds.length) {
@@ -165,7 +163,6 @@ export async function updateNftBookInfo(classId: string, {
   hideDownload,
   canPayByLIKE,
   enableCustomMessagePage,
-  coupons,
 }: {
   prices?: any[];
   notificationEmails?: string[];
@@ -176,7 +173,6 @@ export async function updateNftBookInfo(classId: string, {
   hideDownload?: boolean;
   canPayByLIKE?: boolean;
   enableCustomMessagePage?: boolean;
-  coupons?: any;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -195,7 +191,6 @@ export async function updateNftBookInfo(classId: string, {
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
-  if (coupons !== undefined) { payload.coupons = coupons; }
   const classIdRef = likeNFTBookCollection.doc(classId);
   let batch = db.batch();
   batch.update(classIdRef, payload);
@@ -396,15 +391,6 @@ export function validatePrices(prices: any[], classId: string, wallet: string) {
     autoDeliverTotalStock,
     manualDeliverTotalStock,
   };
-}
-
-export function validateCoupons(coupons) {
-  const now = Date.now();
-  Object.entries(coupons).forEach(([key, value]) => {
-    const { expireTs, discount } = value as any;
-    if (expireTs && expireTs < now) throw new ValidationError(`COUPON_EXPIRED: ${key}`);
-    if (discount > 1 || discount < 0) throw new ValidationError(`INVALID_COUPON_DISCOUNT: ${key}`);
-  });
 }
 
 export async function validateStocks(

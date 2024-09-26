@@ -28,7 +28,6 @@ import {
   updateNFTBookCollectionPostDeliveryData,
 } from '../../../../util/api/likernft/book/collection/purchase';
 import { getBookCollectionInfoById } from '../../../../util/api/likernft/collection/book';
-import { getCouponDiscountRate } from '../../../../util/api/likernft/book/purchase';
 import { sendNFTBookSalesSlackNotification } from '../../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../../util/substack';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../../util/airtable';
@@ -385,15 +384,10 @@ router.get(
   async (req, res, next) => {
     try {
       const { collectionId } = req.params;
-      const { coupon } = req.query;
 
       const collectionData = await getBookCollectionInfoById(collectionId);
-      const { priceInDecimal: originalPriceInDecimal, canPayByLIKE, coupons } = collectionData;
+      const { priceInDecimal: originalPriceInDecimal, canPayByLIKE } = collectionData;
 
-      let discount = 1;
-      if (coupon) {
-        discount = getCouponDiscountRate(coupons, coupon as string);
-      }
       const price = originalPriceInDecimal / 100;
 
       const {
@@ -401,13 +395,12 @@ router.get(
         totalLIKEPrice,
         totalFiatPriceString,
         totalFiatPricePrediscountString,
-      } = await calculatePayment([price], { discount });
+      } = await calculatePayment([price]);
       const payload = {
         LIKEPricePrediscount: canPayByLIKE ? totalLIKEPricePrediscount : null,
         LIKEPrice: canPayByLIKE ? totalLIKEPrice : null,
         fiatPrice: Number(totalFiatPriceString),
         fiatPricePrediscount: Number(totalFiatPricePrediscountString),
-        fiatDiscount: discount,
       };
       res.json(payload);
     } catch (err) {
