@@ -70,6 +70,7 @@ export type ItemPriceInfo = {
   priceIndex?: number;
   iscnPrefix?: string;
   collectionId?: string;
+  stripePriceId?: string;
 }
 
 export type TransactionFeeInfo = {
@@ -598,6 +599,7 @@ export async function formatStripeCheckoutSession({
   collectionId?: string,
   iscnPrefix?: string,
   from?: string,
+  stripePriceId?: string,
 }[], {
   hasShipping,
   shippingRates,
@@ -673,6 +675,7 @@ export async function formatStripeCheckoutSession({
       if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
       if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
       if (item.collectionId) payload.collectionId = item.collectionId;
+      if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
       return payload;
     },
   );
@@ -739,22 +742,32 @@ export async function formatStripeCheckoutSession({
     if (item.iscnPrefix) productMetadata.iscnPrefix = item.iscnPrefix;
     if (item.collectionId) productMetadata.collectionId = item.collectionId;
 
-    lineItems.push({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.name,
-          description: item.description,
-          images: item.images,
-          metadata: productMetadata,
+    if (item.stripePriceId) {
+      lineItems.push({
+        price: item.stripePriceId,
+        adjustable_quantity: {
+          enabled: false,
         },
-        unit_amount: item.originalPriceInDecimal,
-      },
-      adjustable_quantity: {
-        enabled: false,
-      },
-      quantity: item.quantity,
-    });
+        quantity: item.quantity,
+      });
+    } else {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.name,
+            description: item.description,
+            images: item.images,
+            metadata: productMetadata,
+          },
+          unit_amount: item.originalPriceInDecimal,
+        },
+        adjustable_quantity: {
+          enabled: false,
+        },
+        quantity: item.quantity,
+      });
+    }
     if (item.customPriceDiffInDecimal) {
       lineItems.push({
         price_data: {
@@ -930,6 +943,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     isAllowCustomPrice,
     name: priceNameObj,
     description: pricDescriptionObj,
+    stripePriceId,
   } = prices[priceIndex];
 
   let priceInDecimal = originalPriceInDecimal;
@@ -1019,6 +1033,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     ownerWallet,
     classId,
     iscnPrefix,
+    stripePriceId,
   }], {
     hasShipping,
     shippingRates,

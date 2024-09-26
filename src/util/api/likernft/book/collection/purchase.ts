@@ -339,6 +339,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     hasShipping,
     name: collectionNameObj,
     description: collectionDescriptionObj,
+    stripePriceId,
   } = collectionData;
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
@@ -424,6 +425,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     isLikerLandArt,
     ownerWallet,
     collectionId,
+    stripePriceId,
   }], {
     hasShipping,
     shippingRates,
