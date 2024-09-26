@@ -3,10 +3,11 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import stripe from '../../../util/stripe';
-import { NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
+import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 
 const router = Router();
 
@@ -129,23 +130,28 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
-      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
+      const { bookUserInfo, likerUserInfo } = await getBookUserInfoFromWallet(wallet);
       const {
         stripeConnectAccountId: existingId,
         isStripeConnectReady,
-      } = userData || {};
+      } = bookUserInfo || {};
 
       let stripeConnectAccountId = existingId;
       if (isStripeConnectReady) {
         throw new ValidationError('ALREADY_HAS_ACCOUNT');
       }
 
+      const { email, user: likerId } = likerUserInfo || {};
       if (!stripeConnectAccountId) {
         const account = await stripe.accounts.create({
           type: 'express',
+          email,
           metadata: {
             wallet,
+          },
+          business_profile: {
+            name: likerId ? `@${likerId}` : undefined,
+            url: likerId ? `https://${LIKER_LAND_HOSTNAME}/${likerId}` : undefined,
           },
           settings: {
             payouts: {
