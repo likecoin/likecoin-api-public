@@ -78,7 +78,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     shippingRates,
     mustClaimToView,
     hideDownload,
-    canPayByLIKE,
     enableCustomMessagePage,
 
     inLanguage,
@@ -119,7 +118,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
-  if (canPayByLIKE !== undefined) payload.canPayByLIKE = canPayByLIKE;
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
@@ -161,7 +159,6 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates,
   mustClaimToView,
   hideDownload,
-  canPayByLIKE,
   enableCustomMessagePage,
 }: {
   prices?: any[];
@@ -171,7 +168,6 @@ export async function updateNftBookInfo(classId: string, {
   shippingRates?: any[];
   mustClaimToView?: boolean;
   hideDownload?: boolean;
-  canPayByLIKE?: boolean;
   enableCustomMessagePage?: boolean;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
   const timestamp = FieldValue.serverTimestamp();
@@ -187,7 +183,6 @@ export async function updateNftBookInfo(classId: string, {
   }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
-  if (canPayByLIKE !== undefined) { payload.canPayByLIKE = canPayByLIKE; }
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }

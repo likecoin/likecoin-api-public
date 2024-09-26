@@ -163,7 +163,6 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       connectedWallets,
       mustClaimToView = false,
       hideDownload = false,
-      canPayByLIKE = false,
       enableCustomMessagePage,
       inLanguage,
       name,
@@ -185,7 +184,6 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       ownerWallet,
       mustClaimToView,
       hideDownload,
-      canPayByLIKE,
       enableCustomMessagePage,
       inLanguage,
       name,
@@ -460,7 +458,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView = false,
       hideDownload = false,
-      canPayByLIKE = false,
       enableCustomMessagePage = false,
       autoDeliverNFTsTxHash,
     } = req.body;
@@ -522,7 +519,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView,
       enableCustomMessagePage,
       hideDownload,
-      canPayByLIKE,
 
       // From ISCN content metadata
       inLanguage,
@@ -543,7 +539,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         classId,
         className,
         prices,
-        canPayByLIKE,
       }),
       createAirtablePublicationRecord({
         id: classId,
@@ -575,7 +570,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView,
       hideDownload,
       enableCustomMessagePage,
-      canPayByLIKE,
     });
 
     res.json({
@@ -596,7 +590,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       shippingRates,
       mustClaimToView,
       hideDownload,
-      canPayByLIKE,
       enableCustomMessagePage,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
@@ -613,7 +606,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       shippingRates,
       mustClaimToView,
       hideDownload,
-      canPayByLIKE,
       enableCustomMessagePage,
     });
 
