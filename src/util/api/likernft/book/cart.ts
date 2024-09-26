@@ -45,6 +45,8 @@ import publisher from '../../../gcloudPub';
 import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { upsertCrispProfile } from '../../../crisp';
 
+import { CRISP_WALLET_TO_SEGMENT_MAPPING } from '../../../../../config/config';
+
 export type CartItem = {
   collectionId?: string
   classId?: string
@@ -573,6 +575,12 @@ export async function processNFTBookCartStripePurchase(
     if (email) {
       const segments = ['purchaser'];
       if (totalFeeInfo.customPriceDiff) segments.push('tipper');
+      infoList.forEach((info) => {
+        const { ownerWallet } = info.listingData;
+        if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
+          segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
+        }
+      });
       try {
         await upsertCrispProfile(email, { segments });
       } catch (err) {

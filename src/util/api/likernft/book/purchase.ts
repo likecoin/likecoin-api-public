@@ -41,6 +41,7 @@ import {
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
+  CRISP_WALLET_TO_SEGMENT_MAPPING,
 } from '../../../../../config/config';
 import {
   sendNFTBookPendingClaimEmail,
@@ -1383,6 +1384,9 @@ export async function processNFTBookStripePurchase(
     if (email) {
       const segments = ['purchaser'];
       if (feeInfo.customPriceDiff) segments.push('tipper');
+      if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
+        segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
+      }
       try {
         await upsertCrispProfile(email, { segments });
       } catch (err) {

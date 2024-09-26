@@ -18,7 +18,10 @@ import {
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
+import {
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  CRISP_WALLET_TO_SEGMENT_MAPPING,
+} from '../../../../config/config';
 import {
   handleNewStripeCheckout,
   claimNFTBook,
@@ -435,6 +438,7 @@ router.post(
         prices,
         notificationEmails,
         mustClaimToView = false,
+        ownerWallet,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const {
@@ -524,6 +528,9 @@ router.post(
 
       if (email) {
         const segments = ['free book'];
+        if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
+          segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
+        }
         try {
           await upsertCrispProfile(email, { segments });
         } catch (err) {
