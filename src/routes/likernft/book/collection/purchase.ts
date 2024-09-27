@@ -138,7 +138,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
 
-    const referrer = inputReferrer || req.get('Referrer');
+    const referrer = inputReferrer;
     const {
       url,
       paymentId,
@@ -211,7 +211,7 @@ router.post(
         loginMethod,
       } = req.body;
 
-      const referrer = inputReferrer || req.get('Referrer');
+      const referrer = inputReferrer;
       if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
       if (email) {
         const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
