@@ -6,6 +6,7 @@ import {
   CRISP_PLUGIN_IDENTIFIER,
   CRISP_PLUGIN_KEY,
   CRISP_WEBSITE_ID,
+  CRISP_WALLET_TO_SEGMENT_MAPPING,
 } from '../../config/config';
 
 const CrispClient = new Crisp();
@@ -67,4 +68,12 @@ export async function upsertCrispProfile(
     like_wallet: wallet,
     login_method: loginMethod,
   });
+}
+
+export function getReaderSegmentNameFromAuthorWallet(ownerWallet: string) {
+  // Note that we are often using owner wallet instead of author
+  if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
+    return CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet];
+  }
+  return undefined;
 }
