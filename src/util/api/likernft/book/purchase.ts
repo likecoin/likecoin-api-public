@@ -41,7 +41,6 @@ import {
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
-  CRISP_WALLET_TO_SEGMENT_MAPPING,
 } from '../../../../../config/config';
 import {
   sendNFTBookPendingClaimEmail,
@@ -55,7 +54,7 @@ import {
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
-import { upsertCrispProfile } from '../../../crisp';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1384,9 +1383,8 @@ export async function processNFTBookStripePurchase(
     if (email) {
       const segments = ['purchaser'];
       if (feeInfo.customPriceDiff) segments.push('tipper');
-      if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
-        segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
-      }
+      const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+      if (readerSegment) segments.push(readerSegment);
       try {
         await upsertCrispProfile(email, { segments });
       } catch (err) {

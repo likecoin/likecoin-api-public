@@ -43,9 +43,7 @@ import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../a
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
-import { upsertCrispProfile } from '../../../crisp';
-
-import { CRISP_WALLET_TO_SEGMENT_MAPPING } from '../../../../../config/config';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 
 export type CartItem = {
   collectionId?: string
@@ -577,9 +575,8 @@ export async function processNFTBookCartStripePurchase(
       if (totalFeeInfo.customPriceDiff) segments.push('tipper');
       infoList.forEach((info) => {
         const { ownerWallet } = info.listingData;
-        if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
-          segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
-        }
+        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+        if (readerSegment) segments.push(readerSegment);
       });
       try {
         await upsertCrispProfile(email, { segments });

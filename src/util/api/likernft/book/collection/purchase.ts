@@ -42,9 +42,8 @@ import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../.
 
 import {
   LIKER_NFT_TARGET_ADDRESS,
-  CRISP_WALLET_TO_SEGMENT_MAPPING,
 } from '../../../../../../config/config';
-import { upsertCrispProfile } from '../../../../crisp';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -759,9 +758,8 @@ export async function processNFTBookCollectionStripePurchase(
     if (email) {
       const segments = ['purchaser'];
       if (feeInfo.customPriceDiff) segments.push('tipper');
-      if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
-        segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
-      }
+      const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+      if (readerSegment) segments.push(readerSegment);
       try {
         await upsertCrispProfile(email, { segments });
       } catch (err) {

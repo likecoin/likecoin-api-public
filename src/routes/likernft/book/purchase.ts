@@ -20,7 +20,6 @@ import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
-  CRISP_WALLET_TO_SEGMENT_MAPPING,
 } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -39,7 +38,7 @@ import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
-import { upsertCrispProfile } from '../../../util/crisp';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../util/crisp';
 
 const router = Router();
 
@@ -528,9 +527,8 @@ router.post(
 
       if (email) {
         const segments = ['free book'];
-        if (CRISP_WALLET_TO_SEGMENT_MAPPING?.[ownerWallet]) {
-          segments.push(CRISP_WALLET_TO_SEGMENT_MAPPING[ownerWallet]);
-        }
+        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+        if (readerSegment) segments.push(readerSegment);
         try {
           await upsertCrispProfile(email, { segments });
         } catch (err) {
