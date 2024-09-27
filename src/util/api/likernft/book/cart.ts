@@ -75,6 +75,7 @@ export type CartItemWithInfo = CartItem & {
   priceIndex?: number,
   iscnPrefix?: string,
   priceName?: string,
+  stripePriceId?: string,
   quantity: number,
 }
 
@@ -722,6 +723,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         isAllowCustomPrice,
         name: priceNameObj,
         description: pricDescriptionObj,
+        stripePriceId,
       } = prices[priceIndex];
       let { name = '', description = '' } = metadata;
       const classMetadata = metadata.data.metadata;
@@ -755,13 +757,14 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         classId,
         iscnPrefix,
         priceName,
+        stripePriceId,
       };
     } else if (collectionId) {
       const collectionData = await getBookCollectionInfoById(collectionId);
       if (!collectionData) throw new ValidationError('NFT_NOT_FOUND');
-      const { classIds } = collectionData;
-      const { image } = collectionData;
       const {
+        classIds,
+        image,
         ownerWallet,
         shippingRates,
         isPhysicalOnly,
@@ -773,6 +776,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         hasShipping,
         name: collectionNameObj,
         description: collectionDescriptionObj,
+        stripePriceId,
       } = collectionData;
       const classDataList = await Promise.all(classIds.map((id) => getNFTClassDataById(id)));
 
@@ -800,6 +804,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
         coupons,
         originalPriceInDecimal,
         collectionId,
+        stripePriceId,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -820,6 +825,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       shippingRates,
       isLikerLandArt,
       priceName = '',
+      stripePriceId,
     } = info;
 
     if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
@@ -870,6 +876,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       classId,
       priceIndex,
       quantity,
+      stripePriceId,
     };
   }));
 
@@ -948,6 +955,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       collectionId,
       priceIndex,
       iscnPrefix,
+      stripePriceId,
       from: itemFrom,
     } = info;
     return {
@@ -963,6 +971,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       collectionId,
       priceIndex,
       iscnPrefix,
+      stripePriceId,
       from: itemFrom,
     };
   }), {
