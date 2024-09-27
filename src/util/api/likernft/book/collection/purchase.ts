@@ -43,6 +43,7 @@ import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../.
 import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../../config/config';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -753,6 +754,19 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeAmount,
       }),
     ]);
+
+    if (email) {
+      const segments = ['purchaser'];
+      if (feeInfo.customPriceDiff) segments.push('tipper');
+      const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+      if (readerSegment) segments.push(readerSegment);
+      try {
+        await upsertCrispProfile(email, { segments });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

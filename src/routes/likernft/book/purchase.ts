@@ -18,7 +18,9 @@ import {
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth } from '../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../config/config';
+import {
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+} from '../../../../config/config';
 import {
   handleNewStripeCheckout,
   claimNFTBook,
@@ -36,6 +38,7 @@ import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../util/crisp';
 
 const router = Router();
 
@@ -434,6 +437,7 @@ router.post(
         prices,
         notificationEmails,
         mustClaimToView = false,
+        ownerWallet,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const {
@@ -520,6 +524,18 @@ router.post(
         gaSessionId,
         loginMethod,
       });
+
+      if (email) {
+        const segments = ['free book'];
+        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+        if (readerSegment) segments.push(readerSegment);
+        try {
+          await upsertCrispProfile(email, { segments });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(err);
+        }
+      }
 
       const className = metadata?.name || classId;
       await Promise.all([

@@ -94,6 +94,10 @@ config.STRIPE_KEY = '';
 config.STRIPE_WEBHOOK_SECRET = '';
 
 config.CRISP_USER_HASH_SECRET = '';
+config.CRISP_PLUGIN_IDENTIFIER = '';
+config.CRISP_PLUGIN_KEY = '';
+config.CRISP_WEBSITE_ID = '';
+config.CRISP_WALLET_TO_SEGMENT_MAPPING = {};
 
 config.MATTERS_APP_ID = '';
 config.MATTERS_APP_SECRET = '';

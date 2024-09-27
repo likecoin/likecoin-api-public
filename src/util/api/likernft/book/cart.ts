@@ -43,6 +43,7 @@ import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../a
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 
 export type CartItem = {
   collectionId?: string
@@ -568,6 +569,23 @@ export async function processNFTBookCartStripePurchase(
         }),
       ]);
     }
+
+    if (email) {
+      const segments = ['purchaser'];
+      if (totalFeeInfo.customPriceDiff) segments.push('tipper');
+      infoList.forEach((info) => {
+        const { ownerWallet } = info.listingData;
+        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
+        if (readerSegment) segments.push(readerSegment);
+      });
+      try {
+        await upsertCrispProfile(email, { segments });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    }
+
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',
       paymentId,
