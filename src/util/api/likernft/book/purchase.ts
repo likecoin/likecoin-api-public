@@ -797,9 +797,12 @@ export async function formatStripeCheckoutSession({
     consent_collection: {
       promotions: 'auto',
     },
-    allow_promotion_codes: true,
   };
-  if (promotion) checkoutPayload.discounts = [{ promotion_code: promotion.id }];
+  if (promotion) {
+    checkoutPayload.discounts = [{ promotion_code: promotion.id }];
+  } else {
+    checkoutPayload.allow_promotion_codes = true;
+  }
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
