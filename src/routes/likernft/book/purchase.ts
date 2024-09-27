@@ -120,6 +120,7 @@ router.post('/cart/new', async (req, res, next) => {
       utmMedium,
       referrer: inputReferrer,
       items = [],
+      coupon,
       giftInfo,
     } = req.body;
 
@@ -148,6 +149,7 @@ router.post('/cart/new', async (req, res, next) => {
       from: from as string,
       giftInfo,
       email,
+      coupon,
       utm: {
         campaign: utmCampaign,
         source: utmSource,

@@ -411,6 +411,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     gadClickId,
     gadSource,
     email,
+    coupon,
     giftInfo,
     referrer,
     utm,

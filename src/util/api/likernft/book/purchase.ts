@@ -26,7 +26,7 @@ import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction 
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe from '../../../stripe';
+import stripe, { getStripePromotionFromCode } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -550,6 +550,7 @@ export async function formatStripeCheckoutSession({
   priceIndex,
   email,
   from,
+  coupon,
   gaClientId,
   gaSessionId,
   gadClickId,
@@ -568,6 +569,7 @@ export async function formatStripeCheckoutSession({
   paymentId: string,
   email?: string,
   from?: string,
+  coupon?: string,
   gaClientId?: string,
   gaSessionId?: string,
   gadClickId?: string,
@@ -787,6 +789,17 @@ export async function formatStripeCheckoutSession({
       });
     }
   });
+
+  let promotion: Stripe.PromotionCode | null = null;
+  if (coupon) {
+    try {
+      promotion = await getStripePromotionFromCode(coupon);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e);
+    }
+  }
+
   const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     success_url: `${successUrl}`,
@@ -799,6 +812,7 @@ export async function formatStripeCheckoutSession({
     },
     allow_promotion_codes: true,
   };
+  if (promotion) checkoutPayload.discounts = [{ promotion_code: promotion.id }];
   if (email) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
@@ -1013,6 +1027,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     paymentId,
     priceIndex,
     from,
+    coupon,
     gaClientId,
     gaSessionId,
     gadClickId,
