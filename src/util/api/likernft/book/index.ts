@@ -10,7 +10,9 @@ import {
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
-import { getNFTsByClassId } from '../../../cosmos/nft';
+import {
+  getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData, getNFTsByClassId,
+} from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
@@ -191,6 +193,65 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   await batch.commit();
 }
 
+export async function getNftBookInfo(classId) {
+  const doc = await likeNFTBookCollection.doc(classId).get();
+  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
+  return doc.data();
+}
+
+export async function syncNFTBookInfoWithISCN(classId) {
+  const [iscnInfo, metadata, bookInfo] = await Promise.all([
+    getISCNFromNFTClassId(classId),
+    getNFTClassDataById(classId),
+    getNftBookInfo(classId),
+  ]);
+  if (!iscnInfo) throw new ValidationError('ISCN_NOT_FOUND');
+  const { iscnIdPrefix } = iscnInfo;
+  const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
+  const iscnContentMetadata = iscnData?.contentMetadata || {};
+  const {
+    inLanguage,
+    name,
+    description,
+    keywords: keywordString = '',
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
+  } = iscnContentMetadata;
+  const {
+    stripeProductId,
+  } = bookInfo;
+  const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+  const image = metadata?.data?.metadata?.image;
+
+  const payload: any = { iscnIdPrefix };
+  if (inLanguage) payload.inLanguage = inLanguage;
+  if (name) payload.name = name;
+  if (description) payload.description = description;
+  if (keywords) payload.keywords = keywords;
+  if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
+  if (author) payload.author = author;
+  if (usageInfo) payload.usageInfo = usageInfo;
+  if (isbn) payload.isbn = isbn;
+  if (image) payload.image = image;
+  await likeNFTBookCollection.doc(classId).update(payload);
+  if (stripeProductId) {
+    const images: string[] = [];
+    if (image) images.push(parseImageURLFromMetadata(image));
+    if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+    await stripe.products.update(stripeProductId, {
+      name,
+      description,
+      images,
+      metadata: {
+        classId,
+        iscnIdPrefix,
+      },
+    });
+  }
+}
+
 export async function updateNftBookInfo(classId: string, {
   prices,
   notificationEmails,
@@ -210,6 +271,8 @@ export async function updateNftBookInfo(classId: string, {
   hideDownload?: boolean;
   enableCustomMessagePage?: boolean;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
+  await syncNFTBookInfoWithISCN(classId);
+
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     lastUpdateTimestamp: timestamp,
@@ -255,12 +318,6 @@ export async function updateNftBookInfo(classId: string, {
     }
   }
   await batch.commit();
-}
-
-export async function getNftBookInfo(classId) {
-  const doc = await likeNFTBookCollection.doc(classId).get();
-  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
-  return doc.data();
 }
 
 export async function listLatestNFTBookInfo({
