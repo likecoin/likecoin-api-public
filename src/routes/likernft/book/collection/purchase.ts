@@ -30,6 +30,7 @@ import { getBookCollectionInfoById } from '../../../../util/api/likernft/collect
 import { sendNFTBookSalesSlackNotification } from '../../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../../util/substack';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../../util/airtable';
+import logPixelEvents from '../../../../util/fbq';
 
 const router = Router();
 
@@ -99,6 +100,15 @@ router.get('/:collectionId/new', async (req, res, next) => {
         referrer,
       });
     }
+
+    await logPixelEvents('InitiateCheckout', {
+      items: [{ productId: collectionId, quantity }],
+      userAgent: req.get('User-Agent'),
+      clientIp: req.ip,
+      value: priceInDecimal / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
       // eslint-disable-next-line no-console
@@ -123,6 +133,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gadSource,
       giftInfo,
       coupon,
+      email,
       customPriceInDecimal,
       utmCampaign,
       utmSource,
@@ -152,6 +163,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gadSource: gadSource as string,
       from: from as string,
       giftInfo,
+      email,
       coupon,
       quantity,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
@@ -184,6 +196,16 @@ router.post('/:collectionId/new', async (req, res, next) => {
         referrer,
       });
     }
+
+    await logPixelEvents('InitiateCheckout', {
+      email,
+      items: [{ productId: collectionId, quantity }],
+      userAgent: req.get('User-Agent'),
+      clientIp: req.ip,
+      value: priceInDecimal / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     next(err);
   }
