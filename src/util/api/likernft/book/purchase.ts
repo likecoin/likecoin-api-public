@@ -41,6 +41,7 @@ import {
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
+  NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
 } from '../../../../../config/config';
 import {
   sendNFTBookPendingClaimEmail,
@@ -322,6 +323,51 @@ export async function handleStripeConnectedAccount({
         connectedTransfers.forEach((t) => {
           if (t) transfers.push(t);
         });
+      }
+    }
+  }
+  if (likerLandArtFee && NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET) {
+    const bookUserInfo = await getBookUserInfo(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET);
+    const {
+      stripeConnectAccountId,
+      isStripeConnectReady,
+    } = bookUserInfo;
+    if (stripeConnectAccountId && isStripeConnectReady) {
+      const currency = 'usd'; // stripe balance are setteled in USD in source tx
+      try {
+        const transfer = await stripe.transfers.create({
+          amount: likerLandArtFee,
+          currency,
+          destination: stripeConnectAccountId,
+          transfer_group: paymentId,
+          source_transaction: chargeId,
+          description: `Art Fee for ${bookName}`,
+          metadata: {
+            type: 'artFee',
+            ...metadata,
+          },
+        });
+        transfers.push(transfer);
+        await likeNFTBookUserCollection.doc(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+          type: 'artFee',
+          ownerWallet,
+          classId,
+          priceIndex,
+          collectionId,
+          transferId: transfer.id,
+          chargeId,
+          stripeConnectAccountId,
+          paymentId,
+          amountTotal,
+          amount: likerLandArtFee,
+          currency,
+          timestamp: FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to create transfer for ${NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET} with stripeConnectAccountId ${stripeConnectAccountId}`);
+        // eslint-disable-next-line no-console
+        console.error(e);
       }
     }
   }
