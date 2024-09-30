@@ -100,6 +100,9 @@ config.CRISP_PLUGIN_KEY = '';
 config.CRISP_WEBSITE_ID = '';
 config.CRISP_WALLET_TO_SEGMENT_MAPPING = {};
 
+config.FB_PIXEL_ID = '';
+config.FB_ACCESS_TOKEN = '';
+
 config.MATTERS_APP_ID = '';
 config.MATTERS_APP_SECRET = '';
 
