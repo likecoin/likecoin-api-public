@@ -51,7 +51,7 @@ export async function upsertCrispProfile(
       person: {
         nickname: displayName || wallet,
       },
-      segments: (people.segments || []).concat(segments),
+      segments: Array.from(new Set([...people.segments, ...(segments || [])])),
       active: Date.now(),
     });
   } else {
