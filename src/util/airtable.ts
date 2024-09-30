@@ -347,6 +347,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const hasPaidChannelCommission = !!transfers?.find((t) => t.metadata?.type === 'channelCommission');
   const hasPaidConnectedWalletCommission = !!transfers?.find((t) => t.metadata?.type === 'connectedWallet');
+  const hasPaidArtFee = !!transfers?.find((t) => t.metadata?.type === 'artFee');
   let payableAmount = 0;
   if (hasTransferGroup) {
     if (!hasPaidConnectedWalletCommission) {
@@ -355,12 +356,15 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
           - stripeFee
           - likerLandFee
           - likerLandCommission
-          - likerLandArtFee
           - likerLandTipFee
       );
 
       if (hasPaidChannelCommission) {
         payableAmount -= channelCommission;
+      }
+
+      if (hasPaidArtFee) {
+        payableAmount -= likerLandArtFee;
       }
     } else if (!hasPaidChannelCommission) {
       payableAmount = channelCommission;

@@ -52,7 +52,7 @@ export async function upsertCrispProfile(
         nickname: displayName || wallet,
       },
       segments: (people.segments || []).concat(segments),
-      active: Math.floor(Date.now() / 1000),
+      active: Date.now(),
     });
   } else {
     await CrispClient.website.addNewPeopleProfile(CRISP_WEBSITE_ID, {
@@ -61,7 +61,7 @@ export async function upsertCrispProfile(
         nickname: displayName || wallet || email.split('@')[0],
       },
       segments,
-      active: Math.floor(Date.now() / 1000),
+      active: Date.now(),
     });
   }
   await CrispClient.website.updatePeopleData(CRISP_WEBSITE_ID, email, {

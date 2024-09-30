@@ -109,7 +109,7 @@ router.post(
         utmMedium,
         referrer: inputReferrer,
       } = req.body;
-      const referrer = inputReferrer || req.get('Referrer');
+      const referrer = inputReferrer;
       const { iscnPrefixes, classIds } = res.locals;
       const [purchaseInfoList, classMetadataList] = await Promise.all([
         getPurchaseInfoList(iscnPrefixes, classIds),
