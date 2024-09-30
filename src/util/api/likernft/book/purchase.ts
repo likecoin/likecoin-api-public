@@ -55,6 +55,7 @@ import {
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
+import logPixelEvents from '../../../fbq';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1210,6 +1211,7 @@ export async function processNFTBookStripePurchase(
       iscnPrefix,
       paymentId,
       priceIndex: priceIndexString = '0',
+      userAgent,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -1392,6 +1394,17 @@ export async function processNFTBookStripePurchase(
         console.error(err);
       }
     }
+    await logPixelEvents('Purchase', {
+      email: email || '',
+      items: [{
+        productId: classId,
+        quantity,
+      }],
+      userAgent,
+      value: (amountTotal || 0) / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

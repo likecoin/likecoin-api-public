@@ -43,6 +43,7 @@ import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
+import logPixelEvents from '../../../fbq';
 
 export type CartItem = {
   collectionId?: string
@@ -373,6 +374,7 @@ export async function processNFTBookCartStripePurchase(
   const {
     metadata: {
       cartId,
+      userAgent,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -617,6 +619,17 @@ export async function processNFTBookCartStripePurchase(
         claimToken,
       });
     }
+    await logPixelEvents('Purchase', {
+      email: email || undefined,
+      items: infoList.map((item) => ({
+        productId: item.classId || item.collectionId,
+        quantity: item.txData.quantity,
+      })),
+      userAgent,
+      value: (amountTotal || 0) / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

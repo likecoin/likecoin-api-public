@@ -38,6 +38,7 @@ import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../util/crisp';
+import logPixelEvents from '../../../util/fbq';
 
 const router = Router();
 
@@ -180,6 +181,19 @@ router.post('/cart/new', async (req, res, next) => {
         referrer,
         isGift: !!giftInfo,
       });
+
+      await logPixelEvents('InitiateCheckout', {
+        email,
+        items: items.map((item) => ({
+          productId: item.classId || item.collectionId,
+          quantity: item.quantity,
+        })),
+        userAgent: req.get('User-Agent'),
+        clientIp: req.ip,
+        value: priceInDecimal / 100,
+        currency: 'USD',
+        paymentId,
+      });
     }
   } catch (err) {
     next(err);
@@ -259,6 +273,15 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
         httpMethod,
       });
     }
+
+    await logPixelEvents('InitiateCheckout', {
+      items: [{ productId: classId, quantity }],
+      userAgent: req.get('User-Agent'),
+      clientIp: req.ip,
+      value: priceInDecimal / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
       // eslint-disable-next-line no-console
@@ -356,6 +379,16 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         httpMethod,
       });
     }
+
+    await logPixelEvents('InitiateCheckout', {
+      email,
+      items: [{ productId: classId, quantity }],
+      userAgent: req.get('User-Agent'),
+      clientIp: req.ip,
+      value: priceInDecimal / 100,
+      currency: 'USD',
+      paymentId,
+    });
   } catch (err) {
     next(err);
   }
