@@ -51,9 +51,10 @@ router.get('/:collectionId/new', async (req, res, next) => {
       custom_price: inputCustomPriceInDecimal,
       quantity: inputQuantity,
       referrer: inputReferrer,
+      fbclid: fbClickId,
     } = req.query;
 
-    const referrer = inputReferrer || req.get('Referrer');
+    const referrer = (inputReferrer || req.get('Referrer')) as string;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
@@ -70,6 +71,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
+      fbClickId: fbClickId as string,
       from: from as string,
       coupon: coupon as string,
       quantity,
@@ -80,7 +82,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
         medium: utmMedium as string,
       },
       httpMethod: 'GET',
-      referrer: referrer as string,
+      referrer,
       userAgent,
       clientIp,
     });
@@ -112,6 +114,8 @@ router.get('/:collectionId/new', async (req, res, next) => {
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId: fbClickId as string,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -135,6 +139,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gaSessionId,
       gadClickId,
       gadSource,
+      fbClickId,
       giftInfo,
       coupon,
       email,
@@ -167,6 +172,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
+      fbClickId: fbClickId as string,
       from: from as string,
       giftInfo,
       email,
@@ -212,6 +218,8 @@ router.post('/:collectionId/new', async (req, res, next) => {
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId,
     });
   } catch (err) {
     next(err);
@@ -232,6 +240,7 @@ router.post(
         gaSessionId,
         gadClickId,
         gadSource,
+        fbClickId,
         utmCampaign,
         utmSource,
         utmMedium,

@@ -376,6 +376,8 @@ export async function processNFTBookCartStripePurchase(
       cartId,
       userAgent,
       clientIp,
+      referrer,
+      fbClickId,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -631,6 +633,8 @@ export async function processNFTBookCartStripePurchase(
       value: (amountTotal || 0) / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -662,6 +666,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gaSessionId,
   gadClickId,
   gadSource,
+  fbClickId,
   email,
   from: inputFrom,
   coupon,
@@ -675,6 +680,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gaSessionId?: string,
   gadClickId?: string,
   gadSource?: string,
+  fbClickId?: string,
   email?: string,
   from?: string,
   coupon?: string,
@@ -934,6 +940,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gaSessionId,
     gadClickId,
     gadSource,
+    fbClickId,
     email,
     giftInfo,
     utm,
