@@ -139,6 +139,8 @@ router.post('/cart/new', async (req, res, next) => {
     }
 
     const referrer = inputReferrer;
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const {
       url,
       paymentId,
@@ -161,9 +163,10 @@ router.post('/cart/new', async (req, res, next) => {
         medium: utmMedium,
       },
       referrer,
-      userAgent: req.get('User-Agent'),
+      userAgent,
+      clientIp,
     });
-    res.json({ url });
+    res.json({ paymentId, url });
 
     if (priceInDecimal) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -188,8 +191,8 @@ router.post('/cart/new', async (req, res, next) => {
           productId: item.classId || item.collectionId,
           quantity: item.quantity,
         })),
-        userAgent: req.get('User-Agent'),
-        clientIp: req.ip,
+        userAgent,
+        clientIp,
         value: priceInDecimal / 100,
         currency: 'USD',
         paymentId,
@@ -222,6 +225,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
     const referrer = inputReferrer || req.get('Referrer');
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const {
       url,
@@ -240,7 +245,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       customPriceInDecimal,
       quantity,
       from: from as string,
-      userAgent: req.get('User-Agent'),
+      clientIp,
       referrer: referrer as string,
       utm: {
         campaign: utmCampaign as string,
@@ -276,8 +281,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
 
     await logPixelEvents('InitiateCheckout', {
       items: [{ productId: classId, quantity }],
-      userAgent: req.get('User-Agent'),
-      clientIp: req.ip,
+      userAgent,
+      clientIp,
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
@@ -327,6 +332,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
 
     const httpMethod = 'POST';
     const referrer = inputReferrer;
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const {
       url,
       paymentId,
@@ -353,9 +360,10 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
         medium: utmMedium,
       },
       httpMethod,
-      userAgent: req.get('User-Agent'),
+      userAgent,
+      clientIp,
     });
-    res.json({ url });
+    res.json({ paymentId, url });
 
     if (priceInDecimal) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -383,8 +391,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
     await logPixelEvents('InitiateCheckout', {
       email,
       items: [{ productId: classId, quantity }],
-      userAgent: req.get('User-Agent'),
-      clientIp: req.ip,
+      userAgent,
+      clientIp,
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
