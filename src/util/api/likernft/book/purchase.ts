@@ -606,6 +606,7 @@ export async function formatStripeCheckoutSession({
   utm,
   httpMethod,
   userAgent,
+  clientIp,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -634,6 +635,7 @@ export async function formatStripeCheckoutSession({
   },
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
+  clientIp?: string,
 }, items: {
   name: string,
   description: string,
@@ -678,6 +680,7 @@ export async function formatStripeCheckoutSession({
   if (httpMethod) sessionMetadata.httpMethod = httpMethod;
   if (referrer) sessionMetadata.referrer = referrer;
   if (userAgent) sessionMetadata.userAgent = userAgent;
+  if (clientIp) sessionMetadata.clientIp = clientIp;
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
@@ -908,6 +911,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   utm,
   httpMethod,
   userAgent,
+  clientIp,
 }: {
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
@@ -932,6 +936,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     medium?: string,
   },
   userAgent?: string,
+  clientIp?: string,
 } = {}) {
   const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
   const [metadata, bookInfo] = (await Promise.all(promises)) as any;
@@ -1074,6 +1079,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     referrer,
     httpMethod,
     userAgent,
+    clientIp,
   }, [{
     name,
     description,
@@ -1258,6 +1264,7 @@ export async function processNFTBookStripePurchase(
       paymentId,
       priceIndex: priceIndexString = '0',
       userAgent,
+      clientIp,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -1447,6 +1454,7 @@ export async function processNFTBookStripePurchase(
         quantity,
       }],
       userAgent,
+      clientIp,
       value: (amountTotal || 0) / 100,
       currency: 'USD',
       paymentId,
