@@ -55,6 +55,8 @@ router.get('/:collectionId/new', async (req, res, next) => {
     const referrer = inputReferrer || req.get('Referrer');
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const {
       url,
       paymentId,
@@ -78,7 +80,8 @@ router.get('/:collectionId/new', async (req, res, next) => {
       },
       httpMethod: 'GET',
       referrer: referrer as string,
-      userAgent: req.get('User-Agent'),
+      userAgent,
+      clientIp,
     });
     res.redirect(url);
 
@@ -103,8 +106,8 @@ router.get('/:collectionId/new', async (req, res, next) => {
 
     await logPixelEvents('InitiateCheckout', {
       items: [{ productId: collectionId, quantity }],
-      userAgent: req.get('User-Agent'),
-      clientIp: req.ip,
+      userAgent,
+      clientIp,
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
@@ -149,6 +152,8 @@ router.post('/:collectionId/new', async (req, res, next) => {
     }
 
     const referrer = inputReferrer;
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const {
       url,
       paymentId,
@@ -174,9 +179,10 @@ router.post('/:collectionId/new', async (req, res, next) => {
       },
       httpMethod: 'POST',
       referrer,
-      userAgent: req.get('User-Agent'),
+      userAgent,
+      clientIp,
     });
-    res.json({ url });
+    res.json({ paymentId, url });
 
     if (priceInDecimal) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -200,8 +206,8 @@ router.post('/:collectionId/new', async (req, res, next) => {
     await logPixelEvents('InitiateCheckout', {
       email,
       items: [{ productId: collectionId, quantity }],
-      userAgent: req.get('User-Agent'),
-      clientIp: req.ip,
+      userAgent,
+      clientIp,
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,

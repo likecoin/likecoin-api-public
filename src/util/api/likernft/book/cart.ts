@@ -376,6 +376,7 @@ export async function processNFTBookCartStripePurchase(
     metadata: {
       cartId,
       userAgent,
+      clientIp,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -627,6 +628,7 @@ export async function processNFTBookCartStripePurchase(
         quantity: item.txData.quantity,
       })),
       userAgent,
+      clientIp,
       value: (amountTotal || 0) / 100,
       currency: 'USD',
       paymentId,
@@ -668,6 +670,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   utm,
   referrer,
   userAgent,
+  clientIp,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -689,6 +692,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   },
   referrer?: string,
   userAgent?: string,
+  clientIp?: string,
 } = {}) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
@@ -942,6 +946,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     utm,
     referrer,
     userAgent,
+    clientIp,
   }, itemInfos.map((info) => {
     const {
       name,
