@@ -602,6 +602,7 @@ export async function formatStripeCheckoutSession({
   gaSessionId,
   gadClickId,
   gadSource,
+  fbClickId,
   giftInfo,
   referrer,
   utm,
@@ -622,6 +623,7 @@ export async function formatStripeCheckoutSession({
   gaSessionId?: string,
   gadClickId?: string,
   gadSource?: string,
+  fbClickId?: string,
   giftInfo?: {
     fromName: string,
     toName: string,
@@ -683,6 +685,7 @@ export async function formatStripeCheckoutSession({
   if (referrer) sessionMetadata.referrer = referrer;
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
+  if (fbClickId) sessionMetadata.fbClickId = fbClickId;
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
@@ -914,6 +917,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gaSessionId,
   gadClickId,
   gadSource,
+  fbClickId,
   from: inputFrom,
   coupon,
   customPriceInDecimal,
@@ -931,6 +935,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gaSessionId?: string,
   gadClickId?: string,
   gadSource?: string,
+  fbClickId?: string,
   email?: string,
   from?: string,
   coupon?: string,
@@ -1087,6 +1092,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     gaSessionId,
     gadClickId,
     gadSource,
+    fbClickId,
     email,
     giftInfo,
     utm,
@@ -1280,6 +1286,8 @@ export async function processNFTBookStripePurchase(
       priceIndex: priceIndexString = '0',
       userAgent,
       clientIp,
+      referrer,
+      fbClickId,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -1473,6 +1481,8 @@ export async function processNFTBookStripePurchase(
       value: (amountTotal || 0) / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
