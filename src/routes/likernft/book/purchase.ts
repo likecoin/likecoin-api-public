@@ -117,8 +117,9 @@ router.post('/cart/new', async (req, res, next) => {
     const {
       gaClientId,
       gaSessionId,
-      gclid: gadClickId,
-      gad_source: gadSource,
+      gadClickId,
+      gadSource,
+      fbClickId,
       email,
       utmCampaign,
       utmSource,
@@ -149,10 +150,11 @@ router.post('/cart/new', async (req, res, next) => {
       customPriceDiffInDecimal,
       sessionId,
     } = await handleNewCartStripeCheckout(items, {
-      gaClientId: gaClientId as string,
-      gaSessionId: gaSessionId as string,
-      gadClickId: gadClickId as string,
-      gadSource: gadSource as string,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+      fbClickId,
       from: from as string,
       giftInfo,
       email,
@@ -196,6 +198,8 @@ router.post('/cart/new', async (req, res, next) => {
         value: priceInDecimal / 100,
         currency: 'USD',
         paymentId,
+        referrer,
+        fbClickId,
       });
     }
   } catch (err) {
@@ -220,11 +224,12 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       quantity: inputQuantity,
       referrer: inputReferrer,
       coupon,
+      fbclid: fbClickId = '',
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
-    const referrer = inputReferrer || req.get('Referrer');
+    const referrer = (inputReferrer || req.get('Referrer')) as string;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
@@ -241,12 +246,13 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
+      fbClickId: fbClickId as string,
       coupon: coupon as string,
       customPriceInDecimal,
       quantity,
       from: from as string,
       clientIp,
-      referrer: referrer as string,
+      referrer,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
@@ -286,6 +292,8 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId: fbClickId as string,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -311,6 +319,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       gaSessionId,
       gadClickId,
       gadSource,
+      fbClickId,
       coupon,
       email,
       giftInfo,
@@ -343,10 +352,11 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       customPriceDiffInDecimal,
       sessionId,
     } = await handleNewStripeCheckout(classId, priceIndex, {
-      gaClientId: gaClientId as string,
-      gaSessionId: gaSessionId as string,
+      gaClientId,
+      gaSessionId,
       gadClickId,
       gadSource,
+      fbClickId,
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       from: from as string,
@@ -396,6 +406,8 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       value: priceInDecimal / 100,
       currency: 'USD',
       paymentId,
+      referrer,
+      fbClickId,
     });
   } catch (err) {
     next(err);
