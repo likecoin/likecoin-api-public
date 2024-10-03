@@ -830,7 +830,7 @@ export async function claimNFTBookCollection(
   const bookRef = likeNFTCollectionCollection.doc(collectionId);
   const docRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
   const {
-    email, nftIdMap, isAutoDeliver, autoMemo, quantity,
+    email, classIds, nftIdMap, isAutoDeliver, autoMemo, quantity,
   } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
@@ -869,8 +869,10 @@ export async function claimNFTBookCollection(
     const txMessages: any[] = [];
     autoSentNftIds = [];
     try {
-      Object.entries(nftIdMap).forEach(([classId, nftIds]) => {
-        (nftIds as string[]).forEach((nftId) => {
+      // classId must be in order for autoMemo array to work
+      classIds.forEach((classId) => {
+        const nftIds: string[] = nftIdMap[classId];
+        nftIds.forEach((nftId) => {
           txMessages.push(formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, nftId));
         });
         autoSentNftIds = (autoSentNftIds as string[]).concat(nftIds as string[]);
