@@ -192,7 +192,7 @@ export async function createNFTCollectionByType(
   if (image) {
     images.push(parseImageURLFromMetadata(image));
   }
-  const stripeProductId = await stripe.products.create({
+  const stripeProduct = await stripe.products.create({
     name: getLocalizedTextWithFallback(name, 'zh'),
     description: getLocalizedTextWithFallback(description, 'zh'),
     images,
@@ -200,11 +200,13 @@ export async function createNFTCollectionByType(
       collectionId,
     },
   });
-  const stripePriceId = await stripe.prices.create({
-    product: stripeProductId.id,
+  const stripeProductId = stripeProduct.id;
+  const stripePrice = await stripe.prices.create({
+    product: stripeProductId,
     unit_amount: typePayload.priceInDecimal,
     currency: 'usd',
   });
+  const stripePriceId = stripePrice.id;
 
   let batch = db.batch();
   batch.create(docRef, {
