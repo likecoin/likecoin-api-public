@@ -132,7 +132,9 @@ export async function handleStripeConnectedAccount({
         fromUser = await getBookUserInfoFromLikerId(
           from.substring(1, from.length),
         );
-      } else {
+      }
+      // also check if @string is a legacy string
+      if (!fromUser) {
         fromUser = await getBookUserInfoFromLegacyString(from);
       }
     }
