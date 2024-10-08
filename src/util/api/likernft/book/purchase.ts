@@ -1210,6 +1210,62 @@ export async function sendNFTBookPurchaseEmail({
   });
 }
 
+export function calculateFeeAndDiscountFromBalanceTx({
+  paymentId,
+  amountSubtotal,
+  amountTotal,
+  shippingCost,
+  balanceTx,
+  feeInfo,
+}) {
+  const {
+    stripeFeeAmount: docStripeFeeAmount,
+    channelCommission,
+    likerLandCommission,
+    priceInDecimal,
+  } = feeInfo;
+  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
+  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
+  const productAmountTotal = amountTotal - shippingCostAmount;
+  const isStripeFeeUpdated = stripeFeeAmount !== docStripeFeeAmount;
+  const isAmountFeeUpdated = priceInDecimal !== productAmountTotal
+    && productAmountTotal !== amountSubtotal;
+  const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
+  const discountAmount = amountSubtotal - productAmountTotal;
+  if (isAmountFeeUpdated) {
+    if (channelCommission) {
+      newFeeInfo.channelCommission -= discountAmount;
+      if (newFeeInfo.channelCommission < 0) {
+        newFeeInfo.channelCommission = 0;
+        // eslint-disable-next-line no-console
+        console.error(`Negative channelCommission for paymentId: ${paymentId}`);
+      }
+    } else if (likerLandCommission) {
+      newFeeInfo.likerLandCommission -= discountAmount;
+      if (newFeeInfo.likerLandCommission < 0) {
+        newFeeInfo.likerLandCommission = 0;
+        // eslint-disable-next-line no-console
+        console.error(`Negative likerLandCommission for paymentId: ${paymentId}`);
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(`Discount amount ${discountAmount} but no commission found for paymentId: ${paymentId}`);
+    }
+  }
+  return {
+    ...newFeeInfo,
+    stripeFeeCurrency,
+    discountAmount,
+    discountRate,
+    shippingCostAmount,
+    isStripeFeeUpdated,
+    isAmountFeeUpdated,
+  };
+}
+
 export async function updateNFTBookPostCheckoutFeeInfo({
   classId,
   paymentId,
@@ -1220,35 +1276,20 @@ export async function updateNFTBookPostCheckoutFeeInfo({
   feeInfo,
 }) {
   const {
-    stripeFeeAmount: docStripeFeeAmount,
-    priceInDecimal,
-  } = feeInfo;
-  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
-  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
-  const productAmountTotal = amountTotal - shippingCostAmount;
-  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
-  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
-    && productAmountTotal !== amountSubtotal;
-  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
-  if (shouldUpdateAmountFee) {
-    [
-      'priceInDecimal',
-      'likerLandTipFeeAmount',
-      'likerLandFeeAmount',
-      'likerLandCommission',
-      'channelCommission',
-      'likerLandArtFee',
-      'customPriceDiff',
-    ].forEach((key) => {
-      if (typeof newFeeInfo[key] === 'number') {
-        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
-      }
-    });
-  }
-  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+    isStripeFeeUpdated,
+    isAmountFeeUpdated,
+    stripeFeeCurrency,
+    newFeeInfo,
+    shippingCostAmount,
+  } = calculateFeeAndDiscountFromBalanceTx({
+    paymentId,
+    amountSubtotal,
+    amountTotal,
+    shippingCost,
+    balanceTx,
+    feeInfo,
+  });
+  if (isStripeFeeUpdated || isAmountFeeUpdated) {
     await likeNFTBookCollection.doc(classId).collection('transactions')
       .doc(paymentId).update({
         feeInfo: newFeeInfo,
