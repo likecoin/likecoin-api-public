@@ -638,6 +638,7 @@ export async function processNFTBookCollectionStripePurchase(
       isPhysicalOnly,
       feeInfo: docFeeInfo,
       quantity,
+      coupon,
     } = txData;
     const [captured, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
@@ -758,6 +759,7 @@ export async function processNFTBookCollectionStripePurchase(
         shippingCost: shippingCostAmount,
         stripeFeeCurrency,
         stripeFeeAmount,
+        coupon,
       }),
     ]);
 
