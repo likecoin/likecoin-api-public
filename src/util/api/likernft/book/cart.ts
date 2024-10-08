@@ -49,7 +49,6 @@ export type CartItem = {
   collectionId?: string
   classId?: string
   priceIndex?: number
-  coupon?: string
   customPriceInDecimal?: number
   quantity?: number
   from?: string
@@ -87,6 +86,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   itemPrices,
   itemInfos,
   feeInfo,
+  coupon,
 }: {
   type: string;
   email?: string;
@@ -102,6 +102,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   itemPrices: ItemPriceInfo[];
   itemInfos: CartItemWithInfo[];
   feeInfo: TransactionFeeInfo,
+  coupon?: string,
 }) {
   const classIdsWithPrice = itemPrices.filter((item) => !!item.classId).map((item) => ({
     classId: item.classId,
@@ -144,6 +145,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     priceInDecimal: totalPriceInDecimal,
     originalPriceInDecimal: totalOriginalPriceInDecimal,
     feeInfo,
+    coupon,
   };
   const isGift = !!giftInfo;
   if (isGift) {
@@ -164,7 +166,6 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
     const {
-      coupon,
       from: itemFrom,
       priceName = '',
     } = itemInfos[index];
@@ -407,6 +408,7 @@ export async function processNFTBookCartStripePurchase(
       feeInfo: totalFeeInfo,
       isGift: cartIsGift,
       giftInfo: cartGiftInfo,
+      coupon,
     } = cartData;
     capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -569,6 +571,7 @@ export async function processNFTBookCartStripePurchase(
           transfers,
           shippingCountry: undefined,
           shippingCost: undefined,
+          coupon,
         }),
       ]);
     }
@@ -997,6 +1000,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     itemInfos,
     itemPrices,
     feeInfo,
+    coupon,
   });
 
   const {
