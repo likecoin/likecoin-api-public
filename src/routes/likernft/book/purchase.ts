@@ -90,7 +90,7 @@ router.post(
         cartId,
         wallet,
         email,
-        message,
+        buyerMessage: message,
         loginMethod,
         allItemsAutoClaimed,
       });
@@ -603,7 +603,7 @@ router.post(
           classId,
           wallet,
           email,
-          message,
+          buyerMessage: message,
         });
 
         await sendNFTBookClaimedEmailNotification(
@@ -672,7 +672,7 @@ router.post(
         classId,
         wallet,
         email,
-        message,
+        buyerMessage: message,
         loginMethod,
       });
       await sendNFTBookClaimedEmailNotification(
