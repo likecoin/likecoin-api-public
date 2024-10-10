@@ -1256,7 +1256,7 @@ export function calculateFeeAndDiscountFromBalanceTx({
     }
   }
   return {
-    ...newFeeInfo,
+    newFeeInfo,
     stripeFeeCurrency,
     discountAmount,
     discountRate,
