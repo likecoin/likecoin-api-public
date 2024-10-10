@@ -25,7 +25,7 @@ import {
   formatStripeCheckoutSession, handleStripeConnectedAccount,
 } from '../purchase';
 import { handleNFTPurchaseTransaction } from '../../purchase';
-import stripe from '../../../../stripe';
+import stripe, { getStripePromotoionCodesFromCheckoutSession } from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
 import {
@@ -546,8 +546,10 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
   amountSubtotal,
   amountTotal,
   shippingCost,
+  sessionId,
   balanceTx,
   feeInfo,
+  coupon: existingCoupon,
 }) {
   const {
     isStripeFeeUpdated,
@@ -563,6 +565,10 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
     balanceTx,
     feeInfo,
   });
+  let coupon = existingCoupon;
+  if (isAmountFeeUpdated) {
+    [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
+  }
   if (isStripeFeeUpdated || isAmountFeeUpdated) {
     await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
       .doc(paymentId).update({
@@ -572,6 +578,7 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
   }
   return {
     ...newFeeInfo,
+    coupon,
     stripeFeeCurrency,
   };
 }
@@ -595,6 +602,7 @@ export async function processNFTBookCollectionStripePurchase(
     amount_subtotal: amountSubtotal,
     shipping_details: shippingDetails,
     shipping_cost: shippingCost,
+    id: sessionId,
   } = session;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
@@ -624,7 +632,7 @@ export async function processNFTBookCollectionStripePurchase(
       isPhysicalOnly,
       feeInfo: docFeeInfo,
       quantity,
-      coupon,
+      coupon: docCoupon,
     } = txData;
     const [captured, collectionData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
@@ -647,14 +655,17 @@ export async function processNFTBookCollectionStripePurchase(
       priceInDecimal,
       originalPriceInDecimal,
       customPriceDiff,
+      coupon,
     } = await updateNFTBookCollectionPostCheckoutFeeInfo({
       collectionId,
       paymentId,
       amountSubtotal,
       amountTotal,
+      sessionId,
       balanceTx,
       feeInfo: docFeeInfo,
       shippingCost,
+      coupon: docCoupon,
     });
 
     const feeInfo: TransactionFeeInfo = {
