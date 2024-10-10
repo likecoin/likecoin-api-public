@@ -25,6 +25,7 @@ import {
   processNFTBookPurchaseTxGet,
   claimNFTBook,
   calculateFeeAndDiscountFromBalanceTx,
+  DISCOUNTED_FEE_TYPES,
 } from './purchase';
 import {
   db,
@@ -410,6 +411,7 @@ export async function processNFTBookCartStripePurchase(
       stripeFeeAmount: totalStripeFeeAmount,
       stripeFeeCurrency,
       discountAmount,
+      discountRate,
       isAmountFeeUpdated,
       isStripeFeeUpdated,
     } = await updateNFTBookCartPostCheckoutFeeInfo({
@@ -467,6 +469,11 @@ export async function processNFTBookCartStripePurchase(
         ...docFeeInfo,
       };
       if (isAmountFeeUpdated) {
+        DISCOUNTED_FEE_TYPES.forEach((key) => {
+          if (typeof feeInfo[key] === 'number') {
+            feeInfo[key] = Math.round(feeInfo[key] * discountRate);
+          }
+        });
         if (channelCommission) {
           feeInfo.channelCommission -= discountAmountForItem;
           if (feeInfo.channelCommission < 0) {
