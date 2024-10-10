@@ -626,6 +626,7 @@ export async function processNFTBookCartStripePurchase(
       email: email || undefined,
       items: infoList.map((item) => ({
         productId: item.classId || item.collectionId,
+        priceIndex: item.priceIndex,
         quantity: item.txData.quantity,
       })),
       userAgent,
