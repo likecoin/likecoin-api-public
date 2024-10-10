@@ -1223,7 +1223,7 @@ export function calculateFeeAndDiscountFromBalanceTx({
     channelCommission,
     likerLandCommission,
     priceInDecimal,
-  } = feeInfo;
+  } = feeInfo as TransactionFeeInfo;
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
   const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;

@@ -354,6 +354,8 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     stripeFeeCurrency,
     discountRate,
     discountAmount,
+    isAmountFeeUpdated,
+    isStripeFeeUpdated,
   };
 }
 
