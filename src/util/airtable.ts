@@ -336,7 +336,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   let likerLandFee = 0;
   if (hasTransferGroup) {
     // simplified calculation using commission transfer logic in API
-    likerLandFee = estimatedStripeFeeAmount - stripeFee + estimatedLikerLandFeeAmount;
+    likerLandFee = estimatedLikerLandFeeAmount;
   } else if (hasApplicationFee) {
     // NOTE: Application Fee is deprecated
     likerLandFee = applicationFeeAmount
