@@ -1225,6 +1225,12 @@ export async function sendNFTBookPurchaseEmail({
   });
 }
 
+export const DISCOUNTED_FEE_TYPES = [
+  'priceInDecimal',
+  'likerLandTipFeeAmount',
+  'customPriceDiff',
+];
+
 export function calculateFeeAndDiscountFromBalanceTx({
   paymentId,
   amountSubtotal,
@@ -1238,7 +1244,7 @@ export function calculateFeeAndDiscountFromBalanceTx({
     channelCommission,
     likerLandCommission,
     priceInDecimal,
-  } = feeInfo;
+  } = feeInfo as TransactionFeeInfo;
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
   const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
@@ -1251,6 +1257,11 @@ export function calculateFeeAndDiscountFromBalanceTx({
   const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
   const discountAmount = amountSubtotal - productAmountTotal;
   if (isAmountFeeUpdated) {
+    DISCOUNTED_FEE_TYPES.forEach((key) => {
+      if (typeof newFeeInfo[key] === 'number') {
+        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
+      }
+    });
     if (channelCommission) {
       newFeeInfo.channelCommission -= discountAmount;
       if (newFeeInfo.channelCommission < 0) {
