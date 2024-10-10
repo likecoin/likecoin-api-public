@@ -164,7 +164,7 @@ export async function handleGiftBook(
           classId,
           wallet,
           email,
-          message: '',
+          buyerMessage: '',
         });
         return { wallet, nftId: nftId as string };
       }));

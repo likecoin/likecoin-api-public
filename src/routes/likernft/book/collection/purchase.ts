@@ -394,7 +394,7 @@ router.post(
           collectionId,
           wallet,
           email,
-          message,
+          buyerMessage: message,
         });
 
         await sendNFTBookCollectionClaimedEmailNotification(
@@ -461,7 +461,7 @@ router.post(
         collectionId,
         wallet,
         email,
-        message,
+        buyerMessage: message,
       });
       await sendNFTBookCollectionClaimedEmailNotification(
         collectionId,
