@@ -187,6 +187,7 @@ router.post('/cart/new', async (req, res, next) => {
         email,
         items: items.map((item) => ({
           productId: item.classId || item.collectionId,
+          priceIndex: item.priceIndex,
           quantity: item.quantity,
         })),
         userAgent,
@@ -282,7 +283,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     }
 
     await logPixelEvents('InitiateCheckout', {
-      items: [{ productId: classId, quantity }],
+      items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
       clientIp,
       value: priceInDecimal / 100,
@@ -396,7 +397,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
 
     await logPixelEvents('InitiateCheckout', {
       email,
-      items: [{ productId: classId, quantity }],
+      items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
       clientIp,
       value: priceInDecimal / 100,
