@@ -35,8 +35,9 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
+  sendNFTBookOutOfStockEmail,
 } from '../../../../ses';
-import { sendNFTBookSalesSlackNotification } from '../../../../slack';
+import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
 
@@ -625,6 +626,7 @@ export async function processNFTBookCollectionStripePurchase(
       notificationEmails = [],
       connectedWallets,
       ownerWallet,
+      typePayload,
     } = listingData;
     const {
       claimToken,
@@ -716,7 +718,8 @@ export async function processNFTBookCollectionStripePurchase(
       sessionId: session.id,
       isGift,
     });
-    await Promise.all([
+
+    const notifications: Promise<any>[] = [
       sendNFTBookCollectionPurchaseEmail({
         email,
         notificationEmails,
@@ -757,7 +760,29 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeCurrency,
         stripeFeeAmount,
       }),
-    ]);
+    ];
+
+    const stock = typePayload?.stock;
+    const isOutOfStock = stock <= 0;
+    if (isOutOfStock) {
+      notifications.push(sendNFTBookOutOfStockSlackNotification({
+        collectionId,
+        className: collectionName,
+        priceName: '',
+        priceIndex: 0,
+        notificationEmails,
+        wallet: ownerWallet,
+        stock,
+      }));
+      notifications.push(sendNFTBookOutOfStockEmail({
+        emails: notificationEmails,
+        collectionId,
+        bookName: collectionName,
+        priceName: '',
+      // eslint-disable-next-line no-console
+      }).catch((err) => console.error(err)));
+    }
+    await Promise.all(notifications);
 
     if (email) {
       const segments = ['purchaser'];

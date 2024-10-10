@@ -8,7 +8,12 @@ import {
   getLikerLandNFTCollectionPageURL,
   getLikerLandPortfolioPageURL,
 } from './liker-land';
-import { getNFTBookStoreCollectionSendPageURL, getNFTBookStoreSendPageURL } from './api/likernft/book';
+import {
+  getNFTBookStoreClassPageURL,
+  getNFTBookStoreCollectionPageURL,
+  getNFTBookStoreCollectionSendPageURL,
+  getNFTBookStoreSendPageURL,
+} from './api/likernft/book';
 import { fetchUserDisplayNameByEmail } from './api/users';
 
 if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
@@ -1128,5 +1133,59 @@ export function sendNFTBookClaimedEmail({
       },
     },
   };
+  return ses.sendEmail(params).promise();
+}
+
+export function sendNFTBookOutOfStockEmail({
+  emails,
+  classId = '',
+  collectionId = '',
+  bookName,
+  priceName,
+}) {
+  if (TEST_MODE) return Promise.resolve();
+  if (!emails.length) return Promise.resolve();
+  const title = `Your book ${bookName} ${priceName} is sold out`;
+  const url = collectionId
+    ? getNFTBookStoreCollectionPageURL(collectionId)
+    : getNFTBookStoreClassPageURL(classId);
+  const content = `<p>Dear Creator,</p>
+  <br/>
+  <p>Congratulation!</p>
+  <p>Your book ${bookName} ${priceName} is sold out.</p>
+  <p>Please <a href="${url}">restock your book</a> to continue selling.</p>
+  <br/>
+  <p>Liker Land</p>`;
+  const params = {
+    Source: '"Liker Land Sales" <sales@liker.land>',
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookOutOfStockEmail',
+      },
+    ],
+    Destination: {
+      BccAddresses: ['"Liker Land Sales" <sales@liker.land>'],
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getBasicV2Template({
+            title,
+            content,
+          }).body,
+        },
+      },
+    },
+  };
+  if (emails && emails.length > 0) {
+    (params.Destination as any).ToAddresses = emails;
+  }
   return ses.sendEmail(params).promise();
 }
