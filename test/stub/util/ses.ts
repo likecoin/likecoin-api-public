@@ -172,3 +172,13 @@ export function sendNFTBookClaimedEmail({
 }) {
   return Promise.resolve();
 }
+
+export function sendNFTBookOutOfStockEmail({
+  emails,
+  classId = '',
+  collectionId = '',
+  bookName,
+  priceName,
+}) {
+  return Promise.resolve();
+}
