@@ -26,6 +26,7 @@ import {
   claimNFTBook,
   calculateFeeAndDiscountFromBalanceTx,
   DISCOUNTED_FEE_TYPES,
+  calculateCommissionWithDiscount,
 } from './purchase';
 import {
   db,
@@ -337,7 +338,6 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     newFeeInfo,
     shippingCostAmount,
     discountRate,
-    discountAmount,
   } = calculateFeeAndDiscountFromBalanceTx({
     paymentId,
     amountSubtotal,
@@ -356,7 +356,6 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     ...newFeeInfo,
     stripeFeeCurrency,
     discountRate,
-    discountAmount,
     isAmountFeeUpdated,
     isStripeFeeUpdated,
   };
@@ -413,7 +412,6 @@ export async function processNFTBookCartStripePurchase(
     const {
       stripeFeeAmount: totalStripeFeeAmount,
       stripeFeeCurrency,
-      discountAmount,
       discountRate,
       isAmountFeeUpdated,
       isStripeFeeUpdated,
@@ -467,8 +465,7 @@ export async function processNFTBookCartStripePurchase(
       const prediscountTotal = amountSubtotal || totalFeeInfo.priceInDecimal;
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
         / prediscountTotal) || documentStripeFeeAmount;
-      const discountAmountForItem = Math.ceil((discountAmount * priceInDecimal) / prediscountTotal);
-      const feeInfo = {
+      const feeInfo: TransactionFeeInfo = {
         ...docFeeInfo,
       };
       if (isAmountFeeUpdated) {
@@ -478,19 +475,19 @@ export async function processNFTBookCartStripePurchase(
           }
         });
         if (channelCommission) {
-          feeInfo.channelCommission -= discountAmountForItem;
-          if (feeInfo.channelCommission < 0) {
-            feeInfo.channelCommission = 0;
-            // eslint-disable-next-line no-console
-            console.error(`Negative channel commission in cart ${cartId} for item ${classId || collectionId}`);
-          }
+          feeInfo.channelCommission = calculateCommissionWithDiscount({
+            paymentId: `${paymentId}-${itemIndex}`,
+            discountRate,
+            originalPriceInDecimal,
+            commission: channelCommission,
+          });
         } else if (likerLandCommission) {
-          feeInfo.likerLandCommission -= discountAmountForItem;
-          if (feeInfo.likerLandCommission < 0) {
-            feeInfo.likerLandCommission = 0;
-            // eslint-disable-next-line no-console
-            console.error(`Negative likerLand commission in cart ${cartId} for item ${classId || collectionId}`);
-          }
+          feeInfo.likerLandCommission = calculateCommissionWithDiscount({
+            paymentId: `${paymentId}-${itemIndex}`,
+            discountRate,
+            originalPriceInDecimal,
+            commission: likerLandCommission,
+          });
         } else {
           // eslint-disable-next-line no-console
           console.error(`No commission found but discounted in cart ${cartId} for item ${classId || collectionId}`);
