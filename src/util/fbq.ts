@@ -19,7 +19,7 @@ export default async function logPixelEvents(event, {
   fbClickId,
 }: {
   email?: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; priceIndex?: number; quantity?: number }[];
   userAgent?: string;
   clientIp?: string;
   value: number;
@@ -60,11 +60,23 @@ export default async function logPixelEvents(event, {
               currency,
               order_id: paymentId,
               content_type: 'product',
-              content_ids: items.map((item) => item.productId),
-              contents: items.map((item) => ({
-                id: item.productId,
-                quantity: item.quantity || 1,
-              })),
+              content_ids: items.map((item) => {
+                let id = item.productId;
+                if (item.priceIndex !== undefined) {
+                  id = `${id}-${item.priceIndex}`;
+                }
+                return id;
+              }),
+              contents: items.map((item) => {
+                let id = item.productId;
+                if (item.priceIndex !== undefined) {
+                  id = `${id}-${item.priceIndex}`;
+                }
+                return {
+                  id,
+                  quantity: item.quantity || 1,
+                };
+              }),
             },
           },
         ],

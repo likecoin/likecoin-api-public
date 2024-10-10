@@ -1584,6 +1584,7 @@ export async function processNFTBookStripePurchase(
       email: email || '',
       items: [{
         productId: classId,
+        priceIndex,
         quantity,
       }],
       userAgent,
