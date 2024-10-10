@@ -15,4 +15,14 @@ export async function getStripePromotionFromCode(code: string) {
   return promotionCode.data[0];
 }
 
+export async function getStripePromotoionCodesFromCheckoutSession(sessionId: string) {
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['total_details.breakdown.discounts.discount.promotion_code'],
+  });
+  const promotionCodes = session.total_details?.breakdown?.discounts
+    .map((d) => (d.discount.promotion_code as Stripe.PromotionCode)?.code)
+    .filter((p) => p);
+  return promotionCodes || [];
+}
+
 export default stripe;

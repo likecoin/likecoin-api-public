@@ -26,7 +26,7 @@ import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction 
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe, { getStripePromotionFromCode } from '../../../stripe';
+import stripe, { getStripePromotionFromCode, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -1216,6 +1216,8 @@ export async function updateNFTBookPostCheckoutFeeInfo({
   amountSubtotal,
   amountTotal,
   shippingCost,
+  sessionId,
+  coupon: existingCoupon,
   balanceTx,
   feeInfo,
 }) {
@@ -1248,15 +1250,21 @@ export async function updateNFTBookPostCheckoutFeeInfo({
       }
     });
   }
+  let coupon = existingCoupon;
+  if (shouldUpdateAmountFee) {
+    [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
+  }
   if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
     await likeNFTBookCollection.doc(classId).collection('transactions')
       .doc(paymentId).update({
         feeInfo: newFeeInfo,
         shippingCost: shippingCostAmount / 100,
+        coupon,
       });
   }
   return {
     ...newFeeInfo,
+    coupon,
     stripeFeeCurrency,
   };
 }
@@ -1282,6 +1290,7 @@ export async function processNFTBookStripePurchase(
     amount_subtotal: amountSubtotal,
     shipping_details: shippingDetails,
     shipping_cost: shippingCost,
+    id: sessionId,
   } = session;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -1315,7 +1324,7 @@ export async function processNFTBookStripePurchase(
       isPhysicalOnly,
       feeInfo: docFeeInfo,
       quantity,
-      coupon,
+      coupon: docCoupon,
     } = txData;
     const [captured, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
@@ -1340,11 +1349,14 @@ export async function processNFTBookStripePurchase(
       priceInDecimal,
       originalPriceInDecimal,
       customPriceDiff,
+      coupon,
     } = await updateNFTBookPostCheckoutFeeInfo({
       classId,
       paymentId,
       amountSubtotal,
       amountTotal,
+      coupon: docCoupon,
+      sessionId,
       balanceTx,
       feeInfo: docFeeInfo,
       shippingCost,

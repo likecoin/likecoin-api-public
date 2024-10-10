@@ -37,7 +37,7 @@ import {
   processNFTBookCollectionPurchaseTxGet,
   processNFTBookCollectionPurchaseTxUpdate,
 } from './collection/purchase';
-import stripe from '../../../stripe';
+import stripe, { getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
@@ -325,6 +325,8 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   shippingCost,
   balanceTx,
   feeInfo,
+  coupon: existingCoupon,
+  sessionId,
 }) {
   const {
     stripeFeeAmount: docStripeFeeAmount,
@@ -355,14 +357,20 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
       }
     });
   }
+  let coupon = existingCoupon;
+  if (shouldUpdateAmountFee) {
+    [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
+  }
   if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
     await likeNFTBookCartCollection.doc(cartId).update({
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount / 100,
+      coupon,
     });
   }
   return {
     ...newFeeInfo,
+    coupon,
     stripeFeeCurrency,
     discountRate,
   };
@@ -385,6 +393,7 @@ export async function processNFTBookCartStripePurchase(
     amount_total: amountTotal,
     amount_subtotal: amountSubtotal,
     shipping_cost: shippingCost,
+    id: sessionId,
   } = session;
   const paymentId = cartId;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -408,7 +417,7 @@ export async function processNFTBookCartStripePurchase(
       feeInfo: totalFeeInfo,
       isGift: cartIsGift,
       giftInfo: cartGiftInfo,
-      coupon,
+      coupon: docCoupon,
     } = cartData;
     capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -420,13 +429,16 @@ export async function processNFTBookCartStripePurchase(
       stripeFeeAmount: totalStripeFeeAmount,
       stripeFeeCurrency,
       discountRate,
+      coupon,
     } = await updateNFTBookCartPostCheckoutFeeInfo({
       cartId,
       amountSubtotal,
       amountTotal,
+      sessionId,
       balanceTx,
       feeInfo: totalFeeInfo,
       shippingCost,
+      coupon: docCoupon,
     });
     const shouldUpdateAmountFee = discountRate !== 1;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
