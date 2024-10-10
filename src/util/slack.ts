@@ -12,6 +12,7 @@ import {
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_MESSAGE_SLACK_USER,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
+  NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 
 export async function sendStripeFiatPurchaseSlackNotification({
@@ -226,6 +227,46 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
       email: email || 'N/A',
       paymentId,
       paymentIntentId,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendNFTBookOutOfStockSlackNotification({
+  priceIndex,
+  notificationEmails,
+  classId = '',
+  collectionId = '',
+  wallet,
+  className,
+  stock,
+  priceName,
+}: {
+  wallet: string;
+  classId?: string;
+  collectionId?: string;
+  className: string;
+  priceIndex: number;
+  notificationEmails: string[];
+  stock: number;
+  priceName: string;
+}) {
+  if (!NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK) return;
+  try {
+    const classLink = collectionId
+      ? getLikerLandNFTCollectionPageURL({ collectionId })
+      : getLikerLandNFTClassPageURL({ classId });
+    await axios.post(NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      priceIndex,
+      email: notificationEmails.join(' '),
+      classLink,
+      wallet,
+      className,
+      stock,
+      priceName,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

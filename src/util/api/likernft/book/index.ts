@@ -479,6 +479,14 @@ export async function validateAutoDeliverNFTsTxHashV2({
   return nftIdsMap;
 }
 
+export function getNFTBookStoreClassPageURL(classId: string) {
+  return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/status/${classId}`;
+}
+
+export function getNFTBookStoreCollectionPageURL(collectionId: string) {
+  return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/collection/status/${collectionId}`;
+}
+
 export function getNFTBookStoreSendPageURL(classId: string, paymentId: string) {
   return `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/send/${classId}/?payment_id=${paymentId}`;
 }
