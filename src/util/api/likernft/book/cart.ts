@@ -465,7 +465,7 @@ export async function processNFTBookCartStripePurchase(
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
         / prediscountTotal) || documentStripeFeeAmount;
       const discountAmountForItem = Math.ceil((discountAmount * priceInDecimal) / prediscountTotal);
-      const feeInfo = {
+      const feeInfo: TransactionFeeInfo = {
         ...docFeeInfo,
       };
       if (isAmountFeeUpdated) {

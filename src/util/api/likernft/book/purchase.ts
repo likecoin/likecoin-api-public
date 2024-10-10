@@ -1233,7 +1233,7 @@ export function calculateFeeAndDiscountFromBalanceTx({
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
   const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
+  const newFeeInfo: TransactionFeeInfo = { ...feeInfo, stripeFeeAmount };
   const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
   const productAmountTotal = amountTotal - shippingCostAmount;
   const isStripeFeeUpdated = stripeFeeAmount !== docStripeFeeAmount;
