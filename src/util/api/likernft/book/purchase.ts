@@ -1216,6 +1216,22 @@ export const DISCOUNTED_FEE_TYPES = [
   'customPriceDiff',
 ];
 
+export function calculateCommissionWithDiscount({
+  paymentId,
+  commission,
+  originalPriceInDecimal,
+  discountRate,
+}) {
+  const originalRate = commission / originalPriceInDecimal;
+  const discountedRate = originalRate - (1 - discountRate);
+  if (discountedRate < 0) {
+    // eslint-disable-next-line no-console
+    console.error(`Negative commission rate ${discountedRate} for paymentId: ${paymentId}`);
+    return 0;
+  }
+  return Math.floor(originalPriceInDecimal * discountedRate);
+}
+
 export function calculateFeeAndDiscountFromBalanceTx({
   paymentId,
   amountSubtotal,
@@ -1229,6 +1245,7 @@ export function calculateFeeAndDiscountFromBalanceTx({
     channelCommission,
     likerLandCommission,
     priceInDecimal,
+    originalPriceInDecimal,
   } = feeInfo as TransactionFeeInfo;
   const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
@@ -1240,7 +1257,8 @@ export function calculateFeeAndDiscountFromBalanceTx({
   const isAmountFeeUpdated = priceInDecimal !== productAmountTotal
     && productAmountTotal !== amountSubtotal;
   const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
-  const discountAmount = amountSubtotal - productAmountTotal;
+  const totalDiscountAmount = amountSubtotal - productAmountTotal;
+  const originalPriceDiscountAmount = Math.ceil(discountRate * originalPriceInDecimal);
   if (isAmountFeeUpdated) {
     DISCOUNTED_FEE_TYPES.forEach((key) => {
       if (typeof newFeeInfo[key] === 'number') {
@@ -1248,28 +1266,29 @@ export function calculateFeeAndDiscountFromBalanceTx({
       }
     });
     if (channelCommission) {
-      newFeeInfo.channelCommission -= discountAmount;
-      if (newFeeInfo.channelCommission < 0) {
-        newFeeInfo.channelCommission = 0;
-        // eslint-disable-next-line no-console
-        console.error(`Negative channelCommission for paymentId: ${paymentId}`);
-      }
+      newFeeInfo.channelCommission = calculateCommissionWithDiscount({
+        paymentId,
+        commission: channelCommission,
+        originalPriceInDecimal,
+        discountRate,
+      });
     } else if (likerLandCommission) {
-      newFeeInfo.likerLandCommission -= discountAmount;
-      if (newFeeInfo.likerLandCommission < 0) {
-        newFeeInfo.likerLandCommission = 0;
-        // eslint-disable-next-line no-console
-        console.error(`Negative likerLandCommission for paymentId: ${paymentId}`);
-      }
+      newFeeInfo.likerLandCommission = calculateCommissionWithDiscount({
+        paymentId,
+        commission: likerLandCommission,
+        originalPriceInDecimal,
+        discountRate,
+      });
     } else {
       // eslint-disable-next-line no-console
-      console.error(`Discount amount ${discountAmount} but no commission found for paymentId: ${paymentId}`);
+      console.error(`Discount amount ${totalDiscountAmount} but no commission found for paymentId: ${paymentId}`);
     }
   }
   return {
     newFeeInfo,
     stripeFeeCurrency,
-    discountAmount,
+    totalDiscountAmount,
+    originalPriceDiscountAmount,
     discountRate,
     shippingCostAmount,
     isStripeFeeUpdated,
