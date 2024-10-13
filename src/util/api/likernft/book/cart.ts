@@ -362,11 +362,12 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
   }
   if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
-    await likeNFTBookCartCollection.doc(cartId).update({
+    const payload: any = {
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount / 100,
-      coupon,
-    });
+    };
+    if (coupon) payload.coupon = coupon;
+    await likeNFTBookCartCollection.doc(cartId).update(payload);
   }
   return {
     ...newFeeInfo,
@@ -502,16 +503,14 @@ export async function processNFTBookCartStripePurchase(
       }
       const shouldUpdateStripeFee = stripeFeeAmount !== documentStripeFeeAmount;
       if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+        const payload: any = { feeInfo };
+        if (coupon) payload.coupon = coupon;
         if (collectionId) {
           await likeNFTCollectionCollection.doc(collectionId)
-            .collection('transactions').doc(paymentId).update({
-              feeInfo,
-            });
+            .collection('transactions').doc(paymentId).update(payload);
         } else if (classId) {
           await likeNFTBookCollection.doc(classId)
-            .collection('transactions').doc(paymentId).update({
-              feeInfo,
-            });
+            .collection('transactions').doc(paymentId).update(payload);
         }
       }
 

@@ -582,11 +582,13 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
     [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
   }
   if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+    const payload: any = {
+      feeInfo: newFeeInfo,
+      shippingCost: shippingCostAmount / 100,
+    };
+    if (coupon) payload.coupon = coupon;
     await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
-      .doc(paymentId).update({
-        feeInfo: newFeeInfo,
-        shippingCost: shippingCostAmount / 100,
-      });
+      .doc(paymentId).update(payload);
   }
   return {
     ...newFeeInfo,
