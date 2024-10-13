@@ -17,12 +17,17 @@ export async function getStripePromotionFromCode(code: string) {
 
 export async function getStripePromotoionCodesFromCheckoutSession(sessionId: string) {
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ['total_details.breakdown.discounts.discount.promotion_code'],
+    expand: ['total_details.breakdown.discounts.discount'],
   });
-  const promotionCodes = session.total_details?.breakdown?.discounts
-    .map((d) => (d.discount.promotion_code as Stripe.PromotionCode)?.code)
-    .filter((p) => p);
-  return promotionCodes || [];
+  const promotionCodeIds = session.total_details?.breakdown?.discounts
+    .map((d) => (d.discount.promotion_code as string)) || [];
+  const promotionCodeObjects = await Promise.all(promotionCodeIds
+    .filter((id) => !!id)
+    .map((id) => stripe.promotionCodes.retrieve(id)));
+  const promotionCodes = promotionCodeObjects
+    .map((p) => p.code)
+    .filter((p) => !!p);
+  return promotionCodes;
 }
 
 export default stripe;
