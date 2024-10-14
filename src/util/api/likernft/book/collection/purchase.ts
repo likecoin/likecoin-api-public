@@ -43,6 +43,7 @@ import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../.
 
 import {
   LIKER_NFT_TARGET_ADDRESS,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../../config/config';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
 import logPixelEvents from '../../../../fbq';
@@ -764,7 +765,7 @@ export async function processNFTBookCollectionStripePurchase(
 
     const stock = typePayload?.stock;
     const isOutOfStock = stock <= 0;
-    if (isOutOfStock) {
+    if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
       notifications.push(sendNFTBookOutOfStockSlackNotification({
         collectionId,
         className: collectionName,
@@ -774,6 +775,8 @@ export async function processNFTBookCollectionStripePurchase(
         wallet: ownerWallet,
         stock,
       }));
+    }
+    if (isOutOfStock) {
       notifications.push(sendNFTBookOutOfStockEmail({
         emails: notificationEmails,
         collectionId,

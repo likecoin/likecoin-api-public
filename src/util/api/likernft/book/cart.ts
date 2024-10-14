@@ -49,6 +49,9 @@ import {
 } from '../../../ses';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 import logPixelEvents from '../../../fbq';
+import {
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
+} from '../../../../../config/config';
 
 export type CartItem = {
   collectionId?: string
@@ -580,7 +583,7 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
         }),
       ];
-      if (isOutOfStock) {
+      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
         notifications.push(sendNFTBookOutOfStockSlackNotification({
           classId,
           className: bookName,
@@ -590,6 +593,8 @@ export async function processNFTBookCartStripePurchase(
           wallet: ownerWallet,
           stock,
         }));
+      }
+      if (isOutOfStock) {
         notifications.push(sendNFTBookOutOfStockEmail({
           emails: notificationEmails,
           classId,
