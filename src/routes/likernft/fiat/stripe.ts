@@ -32,6 +32,7 @@ import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL }
 import { processNFTBookStripePurchase } from '../../../util/api/likernft/book/purchase';
 import { processNFTBookCollectionStripePurchase } from '../../../util/api/likernft/book/collection/purchase';
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
+import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         const session: Stripe.Checkout.Session = event.data.object;
         const {
           metadata: {
-            store, collectionId, classId, cartId,
+            store, collectionId, classId, cartId, likerId,
           } = {} as any,
         } = session;
         if (store === 'book') {
@@ -71,6 +72,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
           } else if (classId) {
             await processNFTBookStripePurchase(session, req);
           }
+          if (likerId) await handleNFTBookStripeSessionCustomer(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }

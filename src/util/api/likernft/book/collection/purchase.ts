@@ -45,6 +45,7 @@ import {
 } from '../../../../../../config/config';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
 import logPixelEvents from '../../../../fbq';
+import { getBookUserInfoFromLikerId } from '../user';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -255,6 +256,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   giftInfo,
   coupon,
   customPriceInDecimal,
+  likerId,
   email,
   utm,
   referrer,
@@ -267,6 +269,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   gadClickId?: string,
   gadSource?: string,
   fbClickId?: string,
+  likerId?: string,
   from?: string,
   email?: string,
   coupon?: string,
@@ -295,6 +298,15 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     image,
   } = collectionData;
 
+  let customerEmail = email;
+  let customerId;
+  if (likerId) {
+    const res = await getBookUserInfoFromLikerId(likerId);
+    const { bookUserInfo, likerUserInfo } = res || {};
+    const { email: userEmail, isEmailVerified } = likerUserInfo || {};
+    customerId = bookUserInfo?.stripeCustomerId;
+    customerEmail = isEmailVerified ? userEmail : email;
+  }
   const paymentId = uuidv4();
   const claimToken = crypto.randomBytes(32).toString('hex');
   const {
@@ -409,13 +421,15 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
   } = await formatStripeCheckoutSession({
     collectionId,
     paymentId,
+    likerId,
+    customerId,
     from,
     gaClientId,
     gaSessionId,
     gadClickId,
     gadSource,
     fbClickId,
-    email,
+    email: customerEmail,
     coupon,
     giftInfo,
     referrer,
