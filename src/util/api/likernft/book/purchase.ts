@@ -42,6 +42,7 @@ import {
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../config/config';
 import {
   sendNFTBookPendingClaimEmail,
@@ -1447,8 +1448,9 @@ export async function processNFTBookStripePurchase(
         stripeFeeAmount,
       }),
     ];
-    const isOutOfStock = priceInfo.stock <= 0;
-    if (isOutOfStock) {
+    const { stock } = priceInfo;
+    const isOutOfStock = stock <= 0;
+    if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
       notifications.push(sendNFTBookOutOfStockSlackNotification({
         classId,
         className,
@@ -1456,8 +1458,10 @@ export async function processNFTBookStripePurchase(
         priceIndex,
         notificationEmails,
         wallet: ownerWallet,
-        stock: priceInfo.stock,
+        stock,
       }));
+    }
+    if (isOutOfStock) {
       notifications.push(sendNFTBookOutOfStockEmail({
         emails: notificationEmails,
         classId,

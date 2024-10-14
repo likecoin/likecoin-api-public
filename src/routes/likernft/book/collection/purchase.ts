@@ -16,7 +16,10 @@ import {
 import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
 import { jwtAuth } from '../../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../../util/ses';
-import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import {
+  LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
+} from '../../../../../config/config';
 import {
   claimNFTBookCollection,
   createNewNFTBookCollectionPayment,
@@ -368,7 +371,7 @@ router.post(
       ];
       const newStock = listingData?.typePayload?.stock;
       const isOutOfStock = newStock <= 0;
-      if (isOutOfStock) {
+      if (newStock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
         notifications.push(sendNFTBookOutOfStockSlackNotification({
           collectionId,
           className: collectionName,
@@ -376,8 +379,10 @@ router.post(
           priceIndex: 0,
           notificationEmails,
           wallet: ownerWallet,
-          stock,
+          stock: newStock,
         }));
+      }
+      if (isOutOfStock) {
         notifications.push(sendNFTBookOutOfStockEmail({
           emails: notificationEmails,
           collectionId,
