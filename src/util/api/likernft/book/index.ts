@@ -23,7 +23,7 @@ export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export function getLocalizedTextWithFallback(field, locale) {
-  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE];
+  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || undefined;
 }
 
 export function formatPriceInfo(price) {
@@ -111,8 +111,8 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
   const product = await stripe.products.create({
     name,
-    description,
-    images,
+    description: description || undefined,
+    images: images.length ? images : undefined,
     metadata: {
       classId,
       iscnIdPrefix,
@@ -242,8 +242,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
     if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
     await stripe.products.update(stripeProductId, {
       name,
-      description,
-      images,
+      description: description || undefined,
+      images: images.length ? images : undefined,
       metadata: {
         classId,
         iscnIdPrefix,
