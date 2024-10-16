@@ -437,6 +437,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount,
   stripeFeeCurrency,
   from,
+  coupon,
 }: {
   pi: Stripe.PaymentIntent,
   paymentId: string,
@@ -452,6 +453,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount: number,
   stripeFeeCurrency: string,
   from?: string,
+  coupon?: string,
 }): Promise<void> {
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
@@ -510,6 +512,9 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     }
     if (shippingCost) {
       fields['Shipping Cost'] = shippingCost;
+    }
+    if (coupon) {
+      fields.Coupon = coupon;
     }
     await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
   } catch (err) {
