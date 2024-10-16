@@ -1,3 +1,4 @@
+import { Stripe } from 'stripe';
 import { ValidationError } from '../../../ValidationError';
 import { likeNFTBookUserCollection } from '../../../firebase';
 import {
@@ -56,4 +57,21 @@ export async function validateConnectedWallets(connectedWallets: {[key: string]:
   const invalidData = userData.find((u) => !u.isStripeConnectReady);
   if (invalidData) throw new ValidationError(`INVALID_CONNECTED_WALLETS: ${invalidData}`);
   return true;
+}
+
+export async function handleNFTBookStripeSessionCustomer(
+  session: Stripe.Checkout.Session,
+  req: Express.Request,
+) {
+  const { customer, metadata } = session;
+  if (!customer || !metadata) return;
+  const { likeWallet } = metadata;
+  if (!likeWallet) return;
+  const res = await getBookUserInfoFromWallet(likeWallet);
+  if (!res) return;
+  const { bookUserInfo } = res;
+  if (bookUserInfo?.stripeCustomerId) return;
+  await likeNFTBookUserCollection.doc(likeWallet).set({
+    stripeCustomerId: customer,
+  }, { merge: true });
 }

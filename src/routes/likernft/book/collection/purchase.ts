@@ -14,7 +14,7 @@ import {
   W3C_EMAIL_REGEX,
 } from '../../../../constant';
 import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
-import { jwtAuth } from '../../../../middleware/jwt';
+import { jwtAuth, jwtOptionalAuth } from '../../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
@@ -37,7 +37,7 @@ import logPixelEvents from '../../../../util/fbq';
 
 const router = Router();
 
-router.get('/:collectionId/new', async (req, res, next) => {
+router.get('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   const { collectionId } = req.params;
   try {
     const {
@@ -74,6 +74,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
       fbClickId: fbClickId as string,
+      likeWallet: req.user?.wallet,
       from: from as string,
       coupon: coupon as string,
       quantity,
@@ -130,7 +131,7 @@ router.get('/:collectionId/new', async (req, res, next) => {
   }
 });
 
-router.post('/:collectionId/new', async (req, res, next) => {
+router.post('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { collectionId } = req.params;
     const {
@@ -177,6 +178,7 @@ router.post('/:collectionId/new', async (req, res, next) => {
       fbClickId: fbClickId as string,
       from: from as string,
       giftInfo,
+      likeWallet: req.user?.wallet,
       email,
       coupon,
       quantity,

@@ -25,6 +25,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
+  getBookUserInfoFromWallet,
 } from './user';
 import stripe, { getStripePromotionFromCode } from '../../../stripe';
 import {
@@ -599,6 +600,8 @@ export async function formatStripeCheckoutSession({
   paymentId,
   priceIndex,
   email,
+  likeWallet,
+  customerId,
   from,
   coupon,
   gaClientId,
@@ -620,6 +623,8 @@ export async function formatStripeCheckoutSession({
   priceIndex?: number,
   paymentId: string,
   email?: string,
+  likeWallet?: string,
+  customerId?: string,
   from?: string,
   coupon?: string,
   gaClientId?: string,
@@ -688,6 +693,7 @@ export async function formatStripeCheckoutSession({
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
+  if (likeWallet) sessionMetadata.likeWallet = likeWallet;
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'manual',
@@ -860,7 +866,14 @@ export async function formatStripeCheckoutSession({
   } else {
     checkoutPayload.allow_promotion_codes = true;
   }
-  if (email) checkoutPayload.customer_email = email;
+  if (likeWallet) {
+    if (customerId) {
+      checkoutPayload.customer = customerId;
+    } else {
+      checkoutPayload.customer_creation = 'always';
+    }
+  }
+  if (email && !customerId) checkoutPayload.customer_email = email;
   if (hasShipping) {
     checkoutPayload.shipping_address_collection = {
       // eslint-disable-next-line max-len
@@ -909,6 +922,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gadClickId,
   gadSource,
   fbClickId,
+  likeWallet,
   from: inputFrom,
   coupon,
   customPriceInDecimal,
@@ -928,6 +942,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   gadSource?: string,
   fbClickId?: string,
   email?: string,
+  likeWallet?: string,
   from?: string,
   coupon?: string,
   customPriceInDecimal?: number,
@@ -951,6 +966,15 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   const [metadata, bookInfo] = (await Promise.all(promises)) as any;
   if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
 
+  let customerEmail = email;
+  let customerId;
+  if (likeWallet) {
+    const res = await getBookUserInfoFromWallet(likeWallet);
+    const { bookUserInfo, likerUserInfo } = res || {};
+    const { email: userEmail, isEmailVerified } = likerUserInfo || {};
+    customerId = bookUserInfo?.stripeCustomerId;
+    customerEmail = isEmailVerified ? userEmail : email;
+  }
   const paymentId = uuidv4();
   const claimToken = crypto.randomBytes(32).toString('hex');
   const {
@@ -1076,6 +1100,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     iscnPrefix,
     paymentId,
     priceIndex,
+    likeWallet,
+    customerId,
     from,
     coupon,
     gaClientId,
@@ -1083,7 +1109,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     gadClickId,
     gadSource,
     fbClickId,
-    email,
+    email: customerEmail,
     giftInfo,
     utm,
     referrer,

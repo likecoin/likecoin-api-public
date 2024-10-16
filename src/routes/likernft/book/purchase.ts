@@ -15,7 +15,7 @@ import {
   W3C_EMAIL_REGEX,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
-import { jwtAuth } from '../../../middleware/jwt';
+import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
@@ -108,7 +108,7 @@ router.post(
   },
 );
 
-router.post('/cart/new', async (req, res, next) => {
+router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { from } = req.query;
     const {
@@ -154,6 +154,7 @@ router.post('/cart/new', async (req, res, next) => {
       fbClickId,
       from: from as string,
       giftInfo,
+      likeWallet: req.user?.wallet,
       email,
       coupon,
       utm: {
@@ -205,7 +206,7 @@ router.post('/cart/new', async (req, res, next) => {
   }
 });
 
-router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
+router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   const { classId } = req.params;
   try {
     const {
@@ -248,6 +249,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       coupon: coupon as string,
       customPriceInDecimal,
       quantity,
+      likeWallet: req.user?.wallet,
       from: from as string,
       clientIp,
       referrer,
@@ -304,7 +306,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -357,11 +359,12 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       fbClickId,
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
+      likeWallet: req.user?.wallet,
+      email,
       from: from as string,
       referrer,
       quantity,
       giftInfo,
-      email,
       utm: {
         campaign: utmCampaign,
         source: utmSource,
