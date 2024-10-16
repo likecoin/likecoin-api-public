@@ -7,7 +7,7 @@ import {
 } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
-import { FIRESTORE_BATCH_SIZE } from '../../../../constant';
+import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 
@@ -185,6 +185,7 @@ export async function createNFTCollectionByType(
     autoMemo,
     autoDeliverNFTsTxHash,
     stock,
+    hasShipping,
   } = payload;
   const docRef = likeNFTCollectionCollection.doc(collectionId);
 
@@ -195,18 +196,20 @@ export async function createNFTCollectionByType(
   const stripeProduct = await stripe.products.create({
     name: getLocalizedTextWithFallback(name, 'zh'),
     description: getLocalizedTextWithFallback(description, 'zh'),
+    id: collectionId,
     images,
+    shippable: hasShipping,
+    default_price_data: {
+      currency: 'usd',
+      unit_amount: typePayload.priceInDecimal,
+    },
+    url: `https://${LIKER_LAND_HOSTNAME}/nft/collection/${collectionId}`,
     metadata: {
       collectionId,
     },
   });
   const stripeProductId = stripeProduct.id;
-  const stripePrice = await stripe.prices.create({
-    product: stripeProductId,
-    unit_amount: typePayload.priceInDecimal,
-    currency: 'usd',
-  });
-  const stripePriceId = stripePrice.id;
+  const stripePriceId = stripeProduct.default_price;
 
   let batch = db.batch();
   batch.create(docRef, {

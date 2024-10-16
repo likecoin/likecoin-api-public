@@ -11,8 +11,8 @@ import {
   validatePrice,
   validatePrices,
   validateAutoDeliverNFTsTxHash,
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getLocalizedTextWithFallback,
+  createStripeProductFromNFTBookPrice,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -279,26 +279,26 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { stripeProductId, prices = [] } = bookInfo;
+    const {
+      prices = [],
+    } = bookInfo;
     if (priceIndex !== prices.length) {
       throw new ValidationError('INVALID_PRICE_INDEX', 400);
     }
+    const {
+      stripeProductId,
+      stripePriceId,
+    } = await createStripeProductFromNFTBookPrice(classId, priceIndex, {
+      bookInfo,
+      price,
+    });
     const newPrice: any = {
+      stripeProductId,
+      stripePriceId,
       order: prices.length,
       sold: 0,
       ...formatPriceInfo(price),
     };
-    if (stripeProductId) {
-      const stripePrice = await stripe.prices.create({
-        product: stripeProductId,
-        currency: 'usd',
-        unit_amount: price.priceInDecimal,
-        metadata: {
-          name: getLocalizedTextWithFallback(price.name, 'zh'),
-        },
-      });
-      newPrice.stripePriceId = stripePrice.id;
-    }
     prices.push(newPrice);
 
     let newNFTIds: string[] = [];
@@ -329,7 +329,11 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { prices = [], stripeProductId } = bookInfo;
+    const {
+      prices = [],
+      name,
+      description,
+    } = bookInfo;
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
@@ -363,31 +367,25 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ...formatPriceInfo(price),
     };
 
-    if (stripeProductId && oldPriceInfo.stripePriceId) {
-      if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
-        await stripe.prices.update(
-          oldPriceInfo.stripePriceId,
-          { active: false },
-        );
-        const newStripePrice = await stripe.prices.create({
-          product: stripeProductId,
-          currency: 'usd',
-          unit_amount: price.priceInDecimal,
-          metadata: {
-            name: getLocalizedTextWithFallback(price.name, 'zh'),
-          },
-        });
-        newPriceInfo.stripePriceId = newStripePrice.id;
-      } else if (oldPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]
-          !== newPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]) {
-        await stripe.prices.update(
-          oldPriceInfo.stripePriceId,
-          {
-            metadata: {
-              name: getLocalizedTextWithFallback(price.name, 'zh'),
-            },
-          },
-        );
+    if (oldPriceInfo.stripeProductId) {
+      await stripe.products.update(oldPriceInfo.stripeProductId, {
+        name: `${name} - ${getLocalizedTextWithFallback(newPriceInfo.name, 'zh') || ''}`,
+        description: `${getLocalizedTextWithFallback(newPriceInfo.description, 'zh') || ''}\n${description || ''}`,
+        shippable: newPriceInfo.hasShipping,
+      });
+      if (oldPriceInfo.stripePriceId) {
+        if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
+          await stripe.prices.update(
+            oldPriceInfo.stripePriceId,
+            { active: false },
+          );
+          const newStripePrice = await stripe.prices.create({
+            product: oldPriceInfo.stripeProductId,
+            currency: 'usd',
+            unit_amount: price.priceInDecimal,
+          });
+          newPriceInfo.stripePriceId = newStripePrice.id;
+        }
       }
     }
     prices[priceIndex] = newPriceInfo;
