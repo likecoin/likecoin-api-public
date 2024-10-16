@@ -44,7 +44,7 @@ import publisher from '../../../gcloudPub';
 import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 import logPixelEvents from '../../../fbq';
-import { getBookUserInfoFromLikerId } from './user';
+import { getBookUserInfoFromWallet } from './user';
 
 export type CartItem = {
   collectionId?: string
@@ -669,7 +669,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gadClickId,
   gadSource,
   fbClickId,
-  likerId,
+  likeWallet,
   email,
   from: inputFrom,
   coupon,
@@ -685,7 +685,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   gadSource?: string,
   fbClickId?: string,
   email?: string,
-  likerId?: string,
+  likeWallet?: string,
   from?: string,
   coupon?: string,
   giftInfo?: {
@@ -889,8 +889,8 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
 
   let customerEmail = email;
   let customerId;
-  if (likerId) {
-    const res = await getBookUserInfoFromLikerId(likerId);
+  if (likeWallet) {
+    const res = await getBookUserInfoFromWallet(likeWallet);
     const { bookUserInfo, likerUserInfo } = res || {};
     const { email: userEmail, isEmailVerified } = likerUserInfo || {};
     customerId = bookUserInfo?.stripeCustomerId;
@@ -954,7 +954,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gadClickId,
     gadSource,
     fbClickId,
-    likerId,
+    likeWallet,
     customerId,
     email: customerEmail,
     giftInfo,

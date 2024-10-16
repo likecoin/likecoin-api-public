@@ -65,11 +65,11 @@ export async function handleNFTBookStripeSessionCustomer(
 ) {
   const { customer, metadata } = session;
   if (!customer || !metadata) return;
-  const { likerId } = metadata;
-  if (!likerId) return;
-  const res = await getBookUserInfoFromLikerId(likerId);
+  const { likeWallet } = metadata;
+  if (!likeWallet) return;
+  const res = await getBookUserInfoFromWallet(likeWallet);
   if (!res) return;
-  const { likeWallet, bookUserInfo } = res;
+  const { bookUserInfo } = res;
   if (bookUserInfo?.stripeCustomerId) return;
   await likeNFTBookUserCollection.doc(likeWallet).set({
     stripeCustomerId: customer,

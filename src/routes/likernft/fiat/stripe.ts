@@ -61,7 +61,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         const session: Stripe.Checkout.Session = event.data.object;
         const {
           metadata: {
-            store, collectionId, classId, cartId, likerId,
+            store, collectionId, classId, cartId, likeWallet,
           } = {} as any,
         } = session;
         if (store === 'book') {
@@ -72,7 +72,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
           } else if (classId) {
             await processNFTBookStripePurchase(session, req);
           }
-          if (likerId) await handleNFTBookStripeSessionCustomer(session, req);
+          if (likeWallet) await handleNFTBookStripeSessionCustomer(session, req);
         } else {
           await processStripeFiatNFTPurchase(session, req);
         }
