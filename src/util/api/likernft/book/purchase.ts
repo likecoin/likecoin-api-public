@@ -872,6 +872,9 @@ export async function formatStripeCheckoutSession({
     } else {
       checkoutPayload.customer_creation = 'always';
     }
+    checkoutPayload.saved_payment_method_options = {
+      payment_method_save: 'enabled',
+    };
   }
   if (email && !customerId) checkoutPayload.customer_email = email;
   if (hasShipping) {
