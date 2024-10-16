@@ -39,12 +39,20 @@ import {
 } from './collection/purchase';
 import stripe from '../../../stripe';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
-import { sendNFTBookSalesSlackNotification } from '../../../slack';
+import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
-import { sendNFTBookCartGiftPendingClaimEmail, sendNFTBookCartPendingClaimEmail, sendNFTBookSalesEmail } from '../../../ses';
+import {
+  sendNFTBookCartGiftPendingClaimEmail,
+  sendNFTBookCartPendingClaimEmail,
+  sendNFTBookOutOfStockEmail,
+  sendNFTBookSalesEmail,
+} from '../../../ses';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 import logPixelEvents from '../../../fbq';
 import { getBookUserInfoFromWallet } from './user';
+import {
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
+} from '../../../../../config/config';
 
 export type CartItem = {
   collectionId?: string
@@ -444,6 +452,8 @@ export async function processNFTBookCartStripePurchase(
         notificationEmails = [],
         connectedWallets,
         ownerWallet,
+        prices,
+        typePayload,
       } = listingData;
       const {
         price,
@@ -456,6 +466,8 @@ export async function processNFTBookCartStripePurchase(
         giftInfo,
         feeInfo: docFeeInfo,
       } = txData;
+      const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
+      const isOutOfStock = stock <= 0;
       const {
         priceInDecimal,
         stripeFeeAmount: documentStripeFeeAmount,
@@ -531,8 +543,8 @@ export async function processNFTBookCartStripePurchase(
         { connectedWallets, from },
       );
 
-      await Promise.all([
-        await sendNFTBookSalesEmail({
+      const notifications: Promise<any>[] = [
+        sendNFTBookSalesEmail({
           buyerEmail: email,
           isGift,
           giftToEmail: (giftInfo as any)?.toEmail,
@@ -571,7 +583,29 @@ export async function processNFTBookCartStripePurchase(
           shippingCountry: undefined,
           shippingCost: undefined,
         }),
-      ]);
+      ];
+      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+        notifications.push(sendNFTBookOutOfStockSlackNotification({
+          classId,
+          className: bookName,
+          priceName,
+          priceIndex,
+          notificationEmails,
+          wallet: ownerWallet,
+          stock,
+        }));
+      }
+      if (isOutOfStock) {
+        notifications.push(sendNFTBookOutOfStockEmail({
+          emails: notificationEmails,
+          classId,
+          collectionId,
+          bookName,
+          priceName,
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err)));
+      }
+      await Promise.all(notifications);
     }
 
     if (email) {

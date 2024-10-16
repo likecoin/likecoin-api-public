@@ -33,7 +33,7 @@ import {
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { calculateTxGasFee } from '../../../cosmos/tx';
-import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
+import { sendNFTBookSalesSlackNotification, sendNFTBookInvalidChannelIdSlackNotification, sendNFTBookOutOfStockSlackNotification } from '../../../slack';
 import {
   NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
@@ -43,6 +43,7 @@ import {
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
   NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../config/config';
 import {
   sendNFTBookPendingClaimEmail,
@@ -53,6 +54,7 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookSalePaymentsEmail,
+  sendNFTBookOutOfStockEmail,
 } from '../../../ses';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
@@ -1329,6 +1331,7 @@ export async function processNFTBookStripePurchase(
       mustClaimToView = false,
       connectedWallets,
       ownerWallet,
+      prices,
     } = listingData;
     const {
       claimToken,
@@ -1342,6 +1345,7 @@ export async function processNFTBookStripePurchase(
       feeInfo: docFeeInfo,
       quantity,
     } = txData;
+    const priceInfo = prices[priceIndex];
     const [captured, classData] = await Promise.all([
       stripe.paymentIntents.capture(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -1425,7 +1429,7 @@ export async function processNFTBookStripePurchase(
       sessionId: session.id,
       isGift,
     });
-    await Promise.all([
+    const notifications: Promise<any>[] = [
       sendNFTBookPurchaseEmail({
         email,
         phone: phone || '',
@@ -1469,7 +1473,30 @@ export async function processNFTBookStripePurchase(
         stripeFeeCurrency,
         stripeFeeAmount,
       }),
-    ]);
+    ];
+    const { stock } = priceInfo;
+    const isOutOfStock = stock <= 0;
+    if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+      notifications.push(sendNFTBookOutOfStockSlackNotification({
+        classId,
+        className,
+        priceName,
+        priceIndex,
+        notificationEmails,
+        wallet: ownerWallet,
+        stock,
+      }));
+    }
+    if (isOutOfStock) {
+      notifications.push(sendNFTBookOutOfStockEmail({
+        emails: notificationEmails,
+        classId,
+        bookName: className,
+        priceName,
+      // eslint-disable-next-line no-console
+      }).catch((err) => console.error(err)));
+    }
+    await Promise.all(notifications);
 
     if (email) {
       const segments = ['purchaser'];

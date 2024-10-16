@@ -16,9 +16,10 @@ import {
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
+import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -29,7 +30,7 @@ import {
   sendNFTBookPurchaseEmail,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
-import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
+import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
@@ -495,7 +496,7 @@ router.post(
         from: from as string,
       });
 
-      await processNFTBookPurchase({
+      const { listingData } = await processNFTBookPurchase({
         classId,
         email,
         phone: null,
@@ -503,6 +504,7 @@ router.post(
         shippingDetails: null,
         shippingCost: null,
       });
+      const priceInfo = listingData.prices[priceIndex];
 
       // Remove after refactoring free purchase into purchase
       await createAirtableBookSalesRecordFromFreePurchase({
@@ -549,8 +551,9 @@ router.post(
         }
       }
 
+      const isOutOfStock = priceInfo.stock <= 0;
       const className = metadata?.name || classId;
-      await Promise.all([
+      const notifications: Promise<any>[] = [
         sendNFTBookPurchaseEmail({
           isGift: false,
           giftInfo: null,
@@ -576,7 +579,28 @@ router.post(
           priceWithCurrency: 'FREE',
           method: 'free',
         }),
-      ]);
+      ];
+      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+        notifications.push(sendNFTBookOutOfStockSlackNotification({
+          classId,
+          className,
+          priceName,
+          priceIndex,
+          notificationEmails,
+          wallet: ownerWallet,
+          stock: priceInfo.stock,
+        }));
+      }
+      if (isOutOfStock) {
+        notifications.push(sendNFTBookOutOfStockEmail({
+          emails: notificationEmails,
+          classId,
+          bookName: className,
+          priceName,
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err)));
+      }
+      await Promise.all(notifications);
 
       if (email) {
         try {

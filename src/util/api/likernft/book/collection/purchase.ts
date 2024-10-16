@@ -35,13 +35,15 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
+  sendNFTBookOutOfStockEmail,
 } from '../../../../ses';
-import { sendNFTBookSalesSlackNotification } from '../../../../slack';
+import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
 import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
 
 import {
   LIKER_NFT_TARGET_ADDRESS,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../../config/config';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
 import logPixelEvents from '../../../../fbq';
@@ -639,6 +641,7 @@ export async function processNFTBookCollectionStripePurchase(
       notificationEmails = [],
       connectedWallets,
       ownerWallet,
+      typePayload,
     } = listingData;
     const {
       claimToken,
@@ -730,7 +733,8 @@ export async function processNFTBookCollectionStripePurchase(
       sessionId: session.id,
       isGift,
     });
-    await Promise.all([
+
+    const notifications: Promise<any>[] = [
       sendNFTBookCollectionPurchaseEmail({
         email,
         notificationEmails,
@@ -771,7 +775,31 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeCurrency,
         stripeFeeAmount,
       }),
-    ]);
+    ];
+
+    const stock = typePayload?.stock;
+    const isOutOfStock = stock <= 0;
+    if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+      notifications.push(sendNFTBookOutOfStockSlackNotification({
+        collectionId,
+        className: collectionName,
+        priceName: '',
+        priceIndex: 0,
+        notificationEmails,
+        wallet: ownerWallet,
+        stock,
+      }));
+    }
+    if (isOutOfStock) {
+      notifications.push(sendNFTBookOutOfStockEmail({
+        emails: notificationEmails,
+        collectionId,
+        bookName: collectionName,
+        priceName: '',
+      // eslint-disable-next-line no-console
+      }).catch((err) => console.error(err)));
+    }
+    await Promise.all(notifications);
 
     if (email) {
       const segments = ['purchaser'];
