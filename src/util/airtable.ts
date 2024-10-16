@@ -244,7 +244,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   const {
     likerLandArtFee: likerLandArtFeeRaw = 0,
     likerLandFeeAmount: calculatedLikerLandFeeRaw = 0,
-    stripeFeeAmount: calculatedStripeFeeRaw = 0,
     likerLandTipFeeAmount: likerLandTipFeeRaw = 0,
     customPriceDiff: customPriceDiffRaw = 0,
     channelCommission: channelCommissionRaw = 0,
@@ -328,15 +327,13 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const customPriceDiff = (Number(customPriceDiffRaw) / 100) || 0;
 
-  const estimatedStripeFeeAmount = Number(calculatedStripeFeeRaw) / 100
-    || stripeFee;
-  const estimatedLikerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100
+  const likerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100
     || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
 
   let likerLandFee = 0;
   if (hasTransferGroup) {
     // simplified calculation using commission transfer logic in API
-    likerLandFee = estimatedStripeFeeAmount - stripeFee + estimatedLikerLandFeeAmount;
+    likerLandFee = likerLandFeeAmount;
   } else if (hasApplicationFee) {
     // NOTE: Application Fee is deprecated
     likerLandFee = applicationFeeAmount
@@ -440,6 +437,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount,
   stripeFeeCurrency,
   from,
+  coupon,
 }: {
   pi: Stripe.PaymentIntent,
   paymentId: string,
@@ -455,6 +453,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount: number,
   stripeFeeCurrency: string,
   from?: string,
+  coupon?: string,
 }): Promise<void> {
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
@@ -513,6 +512,9 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     }
     if (shippingCost) {
       fields['Shipping Cost'] = shippingCost;
+    }
+    if (coupon) {
+      fields.Coupon = coupon;
     }
     await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
   } catch (err) {

@@ -15,10 +15,11 @@ import {
   W3C_EMAIL_REGEX,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
-import { jwtAuth } from '../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookShippedEmail } from '../../../util/ses';
+import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
+import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
+  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../config/config';
 import {
   handleNewStripeCheckout,
@@ -29,7 +30,7 @@ import {
   sendNFTBookPurchaseEmail,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
-import { sendNFTBookSalesSlackNotification } from '../../../util/slack';
+import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../util/slack';
 import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
@@ -90,7 +91,7 @@ router.post(
         cartId,
         wallet,
         email,
-        message,
+        buyerMessage: message,
         loginMethod,
         allItemsAutoClaimed,
       });
@@ -107,7 +108,7 @@ router.post(
   },
 );
 
-router.post('/cart/new', async (req, res, next) => {
+router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { from } = req.query;
     const {
@@ -153,6 +154,7 @@ router.post('/cart/new', async (req, res, next) => {
       fbClickId,
       from: from as string,
       giftInfo,
+      likeWallet: req.user?.wallet,
       email,
       coupon,
       utm: {
@@ -187,6 +189,7 @@ router.post('/cart/new', async (req, res, next) => {
         email,
         items: items.map((item) => ({
           productId: item.classId || item.collectionId,
+          priceIndex: item.priceIndex,
           quantity: item.quantity,
         })),
         userAgent,
@@ -203,7 +206,7 @@ router.post('/cart/new', async (req, res, next) => {
   }
 });
 
-router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
+router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   const { classId } = req.params;
   try {
     const {
@@ -246,6 +249,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
       coupon: coupon as string,
       customPriceInDecimal,
       quantity,
+      likeWallet: req.user?.wallet,
       from: from as string,
       clientIp,
       referrer,
@@ -282,7 +286,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
     }
 
     await logPixelEvents('InitiateCheckout', {
-      items: [{ productId: classId, quantity }],
+      items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
       clientIp,
       value: priceInDecimal / 100,
@@ -302,7 +306,7 @@ router.get(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -355,11 +359,12 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
       fbClickId,
       coupon,
       customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
+      likeWallet: req.user?.wallet,
+      email,
       from: from as string,
       referrer,
       quantity,
       giftInfo,
-      email,
       utm: {
         campaign: utmCampaign,
         source: utmSource,
@@ -396,7 +401,7 @@ router.post(['/:classId/new', '/class/:classId/new'], async (req, res, next) => 
 
     await logPixelEvents('InitiateCheckout', {
       email,
-      items: [{ productId: classId, quantity }],
+      items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
       clientIp,
       value: priceInDecimal / 100,
@@ -491,7 +496,7 @@ router.post(
         from: from as string,
       });
 
-      await processNFTBookPurchase({
+      const { listingData } = await processNFTBookPurchase({
         classId,
         email,
         phone: null,
@@ -499,6 +504,7 @@ router.post(
         shippingDetails: null,
         shippingCost: null,
       });
+      const priceInfo = listingData.prices[priceIndex];
 
       // Remove after refactoring free purchase into purchase
       await createAirtableBookSalesRecordFromFreePurchase({
@@ -545,8 +551,9 @@ router.post(
         }
       }
 
+      const isOutOfStock = priceInfo.stock <= 0;
       const className = metadata?.name || classId;
-      await Promise.all([
+      const notifications: Promise<any>[] = [
         sendNFTBookPurchaseEmail({
           isGift: false,
           giftInfo: null,
@@ -572,7 +579,28 @@ router.post(
           priceWithCurrency: 'FREE',
           method: 'free',
         }),
-      ]);
+      ];
+      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+        notifications.push(sendNFTBookOutOfStockSlackNotification({
+          classId,
+          className,
+          priceName,
+          priceIndex,
+          notificationEmails,
+          wallet: ownerWallet,
+          stock: priceInfo.stock,
+        }));
+      }
+      if (isOutOfStock) {
+        notifications.push(sendNFTBookOutOfStockEmail({
+          emails: notificationEmails,
+          classId,
+          bookName: className,
+          priceName,
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err)));
+      }
+      await Promise.all(notifications);
 
       if (email) {
         try {
@@ -603,7 +631,7 @@ router.post(
           classId,
           wallet,
           email,
-          message,
+          buyerMessage: message,
         });
 
         await sendNFTBookClaimedEmailNotification(
@@ -672,7 +700,7 @@ router.post(
         classId,
         wallet,
         email,
-        message,
+        buyerMessage: message,
         loginMethod,
       });
       await sendNFTBookClaimedEmailNotification(
