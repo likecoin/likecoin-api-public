@@ -21,6 +21,7 @@ import {
 import { parseImageURLFromMetadata } from '../../metadata';
 import {
   TransactionFeeInfo,
+  calculateFeeAndDiscountFromBalanceTx,
   formatStripeCheckoutSession, handleStripeConnectedAccount,
 } from '../purchase';
 import { handleNFTPurchaseTransaction } from '../../purchase';
@@ -565,39 +566,24 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
   coupon: existingCoupon,
 }) {
   const {
-    stripeFeeAmount: docStripeFeeAmount,
-    priceInDecimal,
-  } = feeInfo;
-  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
-  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
-  const productAmountTotal = amountTotal - shippingCostAmount;
-  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
-  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
-    && productAmountTotal !== amountSubtotal;
-  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
-  if (shouldUpdateAmountFee) {
-    [
-      'priceInDecimal',
-      'likerLandTipFeeAmount',
-      'likerLandFeeAmount',
-      'likerLandCommission',
-      'channelCommission',
-      'likerLandArtFee',
-      'customPriceDiff',
-    ].forEach((key) => {
-      if (typeof newFeeInfo[key] === 'number') {
-        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
-      }
-    });
-  }
+    isStripeFeeUpdated,
+    isAmountFeeUpdated,
+    stripeFeeCurrency,
+    newFeeInfo,
+    shippingCostAmount,
+  } = calculateFeeAndDiscountFromBalanceTx({
+    paymentId,
+    amountSubtotal,
+    amountTotal,
+    shippingCost,
+    balanceTx,
+    feeInfo,
+  });
   let coupon = existingCoupon;
-  if (shouldUpdateAmountFee) {
+  if (isAmountFeeUpdated) {
     [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
   }
-  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+  if (isStripeFeeUpdated || isAmountFeeUpdated) {
     const payload: any = {
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount / 100,

@@ -24,6 +24,9 @@ import {
   handleStripeConnectedAccount,
   processNFTBookPurchaseTxGet,
   claimNFTBook,
+  calculateFeeAndDiscountFromBalanceTx,
+  DISCOUNTED_FEE_TYPES,
+  calculateCommissionWithDiscount,
 } from './purchase';
 import {
   db,
@@ -329,6 +332,7 @@ export async function processNFTBookCartPurchase({
 
 async function updateNFTBookCartPostCheckoutFeeInfo({
   cartId,
+  paymentId,
   amountSubtotal,
   amountTotal,
   shippingCost,
@@ -338,39 +342,26 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   sessionId,
 }) {
   const {
-    stripeFeeAmount: docStripeFeeAmount,
-    priceInDecimal,
-  } = feeInfo;
-  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  const newFeeInfo = { ...feeInfo, stripeFeeAmount };
-  const shippingCostAmount = shippingCost ? shippingCost.amount_total : 0;
-  const productAmountTotal = amountTotal - shippingCostAmount;
-  const shouldUpdateStripeFee = stripeFeeAmount !== docStripeFeeAmount;
-  const shouldUpdateAmountFee = priceInDecimal !== productAmountTotal
-    && productAmountTotal !== amountSubtotal;
-  const discountRate = shouldUpdateAmountFee ? (productAmountTotal / amountSubtotal) : 1;
-  if (shouldUpdateAmountFee) {
-    [
-      'priceInDecimal',
-      'likerLandTipFeeAmount',
-      'likerLandFeeAmount',
-      'likerLandCommission',
-      'channelCommission',
-      'likerLandArtFee',
-      'customPriceDiff',
-    ].forEach((key) => {
-      if (typeof newFeeInfo[key] === 'number') {
-        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
-      }
-    });
-  }
+    isStripeFeeUpdated,
+    isAmountFeeUpdated,
+    stripeFeeCurrency,
+    newFeeInfo,
+    shippingCostAmount,
+    discountRate,
+  } = calculateFeeAndDiscountFromBalanceTx({
+    paymentId,
+    amountSubtotal,
+    amountTotal,
+    shippingCost,
+    balanceTx,
+    feeInfo,
+  });
+
   let coupon = existingCoupon;
-  if (shouldUpdateAmountFee) {
+  if (isAmountFeeUpdated) {
     [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
   }
-  if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+  if (isStripeFeeUpdated || isAmountFeeUpdated) {
     const payload: any = {
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount / 100,
@@ -383,6 +374,8 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     coupon,
     stripeFeeCurrency,
     discountRate,
+    isAmountFeeUpdated,
+    isStripeFeeUpdated,
   };
 }
 
@@ -439,9 +432,12 @@ export async function processNFTBookCartStripePurchase(
       stripeFeeAmount: totalStripeFeeAmount,
       stripeFeeCurrency,
       discountRate,
+      isAmountFeeUpdated,
+      isStripeFeeUpdated,
       coupon,
     } = await updateNFTBookCartPostCheckoutFeeInfo({
       cartId,
+      paymentId,
       amountSubtotal,
       amountTotal,
       sessionId,
@@ -450,7 +446,6 @@ export async function processNFTBookCartStripePurchase(
       shippingCost,
       coupon: docCoupon,
     });
-    const shouldUpdateAmountFee = discountRate !== 1;
     const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
 
     const infoList = [...classInfos, ...collectionInfos];
@@ -493,29 +488,38 @@ export async function processNFTBookCartStripePurchase(
         likerLandArtFee,
       } = docFeeInfo as TransactionFeeInfo;
       // use pre-discounted price for fee ratio calculation
+      const prediscountTotal = amountSubtotal || totalFeeInfo.priceInDecimal;
       const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal)
-        / (amountSubtotal || totalFeeInfo.priceInDecimal)) || documentStripeFeeAmount;
-
-      const feeInfo = {
+        / prediscountTotal) || documentStripeFeeAmount;
+      const feeInfo: TransactionFeeInfo = {
         ...docFeeInfo,
       };
-      if (shouldUpdateAmountFee) {
-        [
-          'priceInDecimal',
-          'likerLandTipFeeAmount',
-          'likerLandFeeAmount',
-          'likerLandCommission',
-          'channelCommission',
-          'likerLandArtFee',
-          'customPriceDiff',
-        ].forEach((key) => {
+      if (isAmountFeeUpdated) {
+        DISCOUNTED_FEE_TYPES.forEach((key) => {
           if (typeof feeInfo[key] === 'number') {
             feeInfo[key] = Math.round(feeInfo[key] * discountRate);
           }
         });
+        if (channelCommission) {
+          feeInfo.channelCommission = calculateCommissionWithDiscount({
+            paymentId: `${paymentId}-${itemIndex}`,
+            discountRate,
+            originalPriceInDecimal,
+            commission: channelCommission,
+          });
+        } else if (likerLandCommission) {
+          feeInfo.likerLandCommission = calculateCommissionWithDiscount({
+            paymentId: `${paymentId}-${itemIndex}`,
+            discountRate,
+            originalPriceInDecimal,
+            commission: likerLandCommission,
+          });
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(`No commission found but discounted in cart ${cartId} for item ${classId || collectionId}`);
+        }
       }
-      const shouldUpdateStripeFee = stripeFeeAmount !== documentStripeFeeAmount;
-      if (shouldUpdateStripeFee || shouldUpdateAmountFee) {
+      if (isStripeFeeUpdated || isAmountFeeUpdated) {
         const payload: any = { feeInfo };
         if (coupon) payload.coupon = coupon;
         if (collectionId) {
