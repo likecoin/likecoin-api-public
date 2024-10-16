@@ -9,7 +9,7 @@ import {
   likeNFTBookCollection,
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
-import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
+import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
 import {
   getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData, getNFTsByClassId,
 } from '../../../cosmos/nft';
@@ -72,6 +72,42 @@ export function formatShippingRateInfo(shippingRate) {
   };
 }
 
+export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
+  bookInfo,
+  price,
+}) {
+  const {
+    name,
+    description,
+    iscnIdPrefix,
+    image,
+  } = bookInfo;
+  const images: string[] = [];
+  if (image) images.push(parseImageURLFromMetadata(image));
+  // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+  const stripeProduct = await stripe.products.create({
+    name: `${name} - ${getLocalizedTextWithFallback(price.name, 'zh') || ''}`,
+    description: `${getLocalizedTextWithFallback(price.description, 'zh') || ''}\n${description || ''}`,
+    id: `${classId}-${priceIndex}`,
+    images,
+    shippable: price.hasShipping,
+    default_price_data: {
+      currency: 'usd',
+      unit_amount: price.priceInDecimal,
+    },
+    url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}?price_index=${priceIndex}`,
+    metadata: {
+      classId,
+      iscnIdPrefix,
+      priceIndex,
+    },
+  });
+  return {
+    stripeProductId: stripeProduct.id,
+    stripePriceId: stripeProduct.default_price,
+  };
+}
+
 export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string[] = []) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
@@ -100,37 +136,17 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     iscnIdPrefix,
     image,
   } = data;
-  let newPrices = prices.map((p, order) => ({
+
+  const stripeProducts = await Promise.all(prices
+    .map((p) => createStripeProductFromNFTBookPrice(classId, p.index, {
+      bookInfo: data,
+      price: p,
+    })));
+  const newPrices = prices.map((p, order) => ({
     order,
     sold: 0,
+    ...stripeProducts[order],
     ...formatPriceInfo(p),
-  }));
-
-  const images: string[] = [];
-  if (image) images.push(parseImageURLFromMetadata(image));
-  if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
-  const product = await stripe.products.create({
-    name,
-    description: description || undefined,
-    images: images.length ? images : undefined,
-    metadata: {
-      classId,
-      iscnIdPrefix,
-    },
-  });
-  const stripeProductId = product.id;
-  const stripePrices = await Promise.all(newPrices.map((p) => stripe.prices.create({
-    product: stripeProductId,
-    currency: 'usd',
-    unit_amount: p.priceInDecimal,
-    metadata: {
-      name: getLocalizedTextWithFallback(p.name, 'zh'),
-    },
-  })));
-
-  newPrices = newPrices.map((p, index) => ({
-    ...p,
-    stripePriceId: stripePrices[index].id,
   }));
 
   const timestamp = FieldValue.serverTimestamp();
@@ -140,7 +156,6 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     prices: newPrices,
     ownerWallet,
     timestamp,
-    stripeProductId,
   };
   if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (image) payload.image = image;
@@ -220,7 +235,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     isbn,
   } = iscnContentMetadata;
   const {
-    stripeProductId,
+    prices,
   } = bookInfo;
   const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
   const image = metadata?.data?.metadata?.image;
@@ -236,20 +251,18 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (isbn) payload.isbn = isbn;
   if (image) payload.image = image;
   await likeNFTBookCollection.doc(classId).update(payload);
-  if (stripeProductId) {
-    const images: string[] = [];
-    if (image) images.push(parseImageURLFromMetadata(image));
-    if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
-    await stripe.products.update(stripeProductId, {
-      name,
-      description: description || undefined,
-      images: images.length ? images : undefined,
-      metadata: {
-        classId,
-        iscnIdPrefix,
-      },
-    });
-  }
+  await Promise.all(prices.map(async (p) => {
+    if (p.stripeProductId) {
+      const images: string[] = [];
+      if (image) images.push(parseImageURLFromMetadata(image));
+      if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+      await stripe.products.update(p.stripeProductId, {
+        name: `${name} - ${getLocalizedTextWithFallback(p.name, 'zh') || ''}`,
+        description: `${getLocalizedTextWithFallback(p.description, 'zh') || ''}\n${description || ''}`,
+        images: images.length ? images : undefined,
+      });
+    }
+  }));
 }
 
 export async function updateNftBookInfo(classId: string, {

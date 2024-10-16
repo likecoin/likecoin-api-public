@@ -13,6 +13,7 @@ import {
   validateAutoDeliverNFTsTxHash,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getLocalizedTextWithFallback,
+  createStripeProductFromNFTBookPrice,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -21,10 +22,11 @@ import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
-import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { LIKER_LAND_HOSTNAME, ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
+import { parseImageURLFromMetadata } from '../../../util/api/likernft/metadata';
 
 const router = Router();
 
@@ -279,26 +281,26 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { stripeProductId, prices = [] } = bookInfo;
+    const {
+      prices = [],
+    } = bookInfo;
     if (priceIndex !== prices.length) {
       throw new ValidationError('INVALID_PRICE_INDEX', 400);
     }
+    const {
+      stripeProductId,
+      stripePriceId,
+    } = await createStripeProductFromNFTBookPrice(classId, priceIndex, {
+      bookInfo,
+      price,
+    });
     const newPrice: any = {
+      stripeProductId,
+      stripePriceId,
       order: prices.length,
       sold: 0,
       ...formatPriceInfo(price),
     };
-    if (stripeProductId) {
-      const stripePrice = await stripe.prices.create({
-        product: stripeProductId,
-        currency: 'usd',
-        unit_amount: price.priceInDecimal,
-        metadata: {
-          name: getLocalizedTextWithFallback(price.name, 'zh'),
-        },
-      });
-      newPrice.stripePriceId = stripePrice.id;
-    }
     prices.push(newPrice);
 
     let newNFTIds: string[] = [];
@@ -329,7 +331,11 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
 
-    const { prices = [], stripeProductId } = bookInfo;
+    const {
+      prices = [],
+      name,
+      description,
+    } = bookInfo;
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
@@ -363,31 +369,25 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ...formatPriceInfo(price),
     };
 
-    if (stripeProductId && oldPriceInfo.stripePriceId) {
-      if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
-        await stripe.prices.update(
-          oldPriceInfo.stripePriceId,
-          { active: false },
-        );
-        const newStripePrice = await stripe.prices.create({
-          product: stripeProductId,
-          currency: 'usd',
-          unit_amount: price.priceInDecimal,
-          metadata: {
-            name: getLocalizedTextWithFallback(price.name, 'zh'),
-          },
-        });
-        newPriceInfo.stripePriceId = newStripePrice.id;
-      } else if (oldPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]
-          !== newPriceInfo.name[NFT_BOOK_TEXT_DEFAULT_LOCALE]) {
-        await stripe.prices.update(
-          oldPriceInfo.stripePriceId,
-          {
-            metadata: {
-              name: getLocalizedTextWithFallback(price.name, 'zh'),
-            },
-          },
-        );
+    if (oldPriceInfo.stripeProductId) {
+      await stripe.products.update(oldPriceInfo.stripeProductId, {
+        name: `${name} - ${getLocalizedTextWithFallback(newPriceInfo.name, 'zh') || ''}`,
+        description: `${getLocalizedTextWithFallback(newPriceInfo.description, 'zh') || ''}\n${description || ''}`,
+        shippable: newPriceInfo.hasShipping,
+      });
+      if (oldPriceInfo.stripePriceId) {
+        if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
+          await stripe.prices.update(
+            oldPriceInfo.stripePriceId,
+            { active: false },
+          );
+          const newStripePrice = await stripe.prices.create({
+            product: oldPriceInfo.stripeProductId,
+            currency: 'usd',
+            unit_amount: price.priceInDecimal,
+          });
+          newPriceInfo.stripePriceId = newStripePrice.id;
+        }
       }
     }
     prices[priceIndex] = newPriceInfo;
