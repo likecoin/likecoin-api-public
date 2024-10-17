@@ -961,6 +961,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   const successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
     cartId,
     paymentId,
+    token: claimToken,
     type: 'nft_book',
     redirect: true,
     utmCampaign: utm?.campaign,

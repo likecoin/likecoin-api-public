@@ -257,6 +257,7 @@ export const getLikerLandNFTGiftPageURL = ({
   collectionId,
   cartId,
   paymentId,
+  token,
   type = '',
   language,
   redirect = false,
@@ -274,6 +275,7 @@ export const getLikerLandNFTGiftPageURL = ({
   collectionId?: string;
   cartId?: string;
   paymentId: string;
+  token: string
   type?: string;
   language?: string;
   redirect?: boolean;
@@ -289,6 +291,7 @@ export const getLikerLandNFTGiftPageURL = ({
 }) => {
   const qsPayload: any = {
     payment_id: paymentId,
+    claiming_token: token,
   };
 
   if (classId) {
