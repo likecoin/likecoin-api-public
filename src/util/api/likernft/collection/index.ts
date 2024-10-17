@@ -195,7 +195,7 @@ export async function createNFTCollectionByType(
   }
   const stripeProduct = await stripe.products.create({
     name: getLocalizedTextWithFallback(name, 'zh'),
-    description: getLocalizedTextWithFallback(description, 'zh'),
+    description: getLocalizedTextWithFallback(description, 'zh') || undefined,
     id: collectionId,
     images,
     shippable: hasShipping,

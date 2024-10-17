@@ -23,7 +23,7 @@ export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export function getLocalizedTextWithFallback(field, locale) {
-  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || undefined;
+  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
 }
 
 export function formatPriceInfo(price) {
@@ -86,8 +86,8 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   if (image) images.push(parseImageURLFromMetadata(image));
   // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
   const stripeProduct = await stripe.products.create({
-    name: `${name} - ${getLocalizedTextWithFallback(price.name, 'zh') || ''}`,
-    description: `${getLocalizedTextWithFallback(price.description, 'zh') || ''}\n${description || ''}`,
+    name: [name, getLocalizedTextWithFallback(price.name, 'zh')].filter(Boolean).join(' - '),
+    description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n') || undefined,
     id: `${classId}-${priceIndex}`,
     images,
     shippable: price.hasShipping,
@@ -257,8 +257,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
       if (image) images.push(parseImageURLFromMetadata(image));
       if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
       await stripe.products.update(p.stripeProductId, {
-        name: `${name} - ${getLocalizedTextWithFallback(p.name, 'zh') || ''}`,
-        description: `${getLocalizedTextWithFallback(p.description, 'zh') || ''}\n${description || ''}`,
+        name: [name, getLocalizedTextWithFallback(p.name, 'zh')].filter(Boolean).join(' - '),
+        description: [getLocalizedTextWithFallback(p.description, 'zh'), description].filter(Boolean).join('\n'),
         images: images.length ? images : undefined,
       });
     }
