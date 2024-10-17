@@ -316,6 +316,7 @@ export async function handleNewNFTBookCollectionStripeCheckout(collectionId: str
     successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
       collectionId,
       paymentId,
+      token: claimToken,
       type: 'nft_book',
       redirect: true,
       utmCampaign: utm?.campaign,
