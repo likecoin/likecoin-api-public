@@ -9,14 +9,22 @@ import {
   likeNFTBookCollection,
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
-import { FIRESTORE_BATCH_SIZE, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
-import { getNFTsByClassId } from '../../../cosmos/nft';
+import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
+import {
+  getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData, getNFTsByClassId,
+} from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
+import stripe from '../../../stripe';
+import { parseImageURLFromMetadata } from '../metadata';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
+
+export function getLocalizedTextWithFallback(field, locale) {
+  return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
+}
 
 export function formatPriceInfo(price) {
   const {
@@ -64,6 +72,42 @@ export function formatShippingRateInfo(shippingRate) {
   };
 }
 
+export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
+  bookInfo,
+  price,
+}) {
+  const {
+    name,
+    description,
+    iscnIdPrefix,
+    image,
+  } = bookInfo;
+  const images: string[] = [];
+  if (image) images.push(parseImageURLFromMetadata(image));
+  // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+  const stripeProduct = await stripe.products.create({
+    name: [name, getLocalizedTextWithFallback(price.name, 'zh')].filter(Boolean).join(' - '),
+    description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n') || undefined,
+    id: `${classId}-${priceIndex}`,
+    images,
+    shippable: price.hasShipping,
+    default_price_data: {
+      currency: 'usd',
+      unit_amount: price.priceInDecimal,
+    },
+    url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}?price_index=${priceIndex}`,
+    metadata: {
+      classId,
+      iscnIdPrefix,
+      priceIndex,
+    },
+  });
+  return {
+    stripeProductId: stripeProduct.id,
+    stripePriceId: stripeProduct.default_price,
+  };
+}
+
 export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string[] = []) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
@@ -88,12 +132,23 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     author,
     usageInfo,
     isbn,
+
+    iscnIdPrefix,
+    image,
   } = data;
+
+  const stripeProducts = await Promise.all(prices
+    .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
+      bookInfo: data,
+      price: p,
+    })));
   const newPrices = prices.map((p, order) => ({
     order,
     sold: 0,
+    ...stripeProducts[order],
     ...formatPriceInfo(p),
   }));
+
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     classId,
@@ -102,6 +157,8 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     ownerWallet,
     timestamp,
   };
+  if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
+  if (image) payload.image = image;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
@@ -151,6 +208,63 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   await batch.commit();
 }
 
+export async function getNftBookInfo(classId) {
+  const doc = await likeNFTBookCollection.doc(classId).get();
+  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
+  return doc.data();
+}
+
+export async function syncNFTBookInfoWithISCN(classId) {
+  const [iscnInfo, metadata, bookInfo] = await Promise.all([
+    getISCNFromNFTClassId(classId),
+    getNFTClassDataById(classId),
+    getNftBookInfo(classId),
+  ]);
+  if (!iscnInfo) throw new ValidationError('ISCN_NOT_FOUND');
+  const { iscnIdPrefix } = iscnInfo;
+  const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
+  const iscnContentMetadata = iscnData?.contentMetadata || {};
+  const {
+    inLanguage,
+    name,
+    description,
+    keywords: keywordString = '',
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
+  } = iscnContentMetadata;
+  const {
+    prices,
+  } = bookInfo;
+  const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+  const image = metadata?.data?.metadata?.image;
+
+  const payload: any = { iscnIdPrefix };
+  if (inLanguage) payload.inLanguage = inLanguage;
+  if (name) payload.name = name;
+  if (description) payload.description = description;
+  if (keywords) payload.keywords = keywords;
+  if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
+  if (author) payload.author = author;
+  if (usageInfo) payload.usageInfo = usageInfo;
+  if (isbn) payload.isbn = isbn;
+  if (image) payload.image = image;
+  await likeNFTBookCollection.doc(classId).update(payload);
+  await Promise.all(prices.map(async (p) => {
+    if (p.stripeProductId) {
+      const images: string[] = [];
+      if (image) images.push(parseImageURLFromMetadata(image));
+      if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+      await stripe.products.update(p.stripeProductId, {
+        name: [name, getLocalizedTextWithFallback(p.name, 'zh')].filter(Boolean).join(' - '),
+        description: [getLocalizedTextWithFallback(p.description, 'zh'), description].filter(Boolean).join('\n'),
+        images: images.length ? images : undefined,
+      });
+    }
+  }));
+}
+
 export async function updateNftBookInfo(classId: string, {
   prices,
   notificationEmails,
@@ -170,6 +284,8 @@ export async function updateNftBookInfo(classId: string, {
   hideDownload?: boolean;
   enableCustomMessagePage?: boolean;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
+  await syncNFTBookInfoWithISCN(classId);
+
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     lastUpdateTimestamp: timestamp,
@@ -215,12 +331,6 @@ export async function updateNftBookInfo(classId: string, {
     }
   }
   await batch.commit();
-}
-
-export async function getNftBookInfo(classId) {
-  const doc = await likeNFTBookCollection.doc(classId).get();
-  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
-  return doc.data();
 }
 
 export async function listLatestNFTBookInfo({

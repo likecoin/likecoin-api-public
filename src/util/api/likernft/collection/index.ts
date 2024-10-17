@@ -3,11 +3,13 @@ import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import {
-  validateAutoDeliverNFTsTxHashV2, validatePrice,
+  validateAutoDeliverNFTsTxHashV2, validatePrice, getLocalizedTextWithFallback,
 } from '../book';
 import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
-import { FIRESTORE_BATCH_SIZE } from '../../../../constant';
+import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
+import stripe from '../../../stripe';
+import { parseImageURLFromMetadata } from '../metadata';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -183,8 +185,31 @@ export async function createNFTCollectionByType(
     autoMemo,
     autoDeliverNFTsTxHash,
     stock,
+    hasShipping,
   } = payload;
   const docRef = likeNFTCollectionCollection.doc(collectionId);
+
+  const images: string[] = [];
+  if (image) {
+    images.push(parseImageURLFromMetadata(image));
+  }
+  const stripeProduct = await stripe.products.create({
+    name: getLocalizedTextWithFallback(name, 'zh'),
+    description: getLocalizedTextWithFallback(description, 'zh') || undefined,
+    id: collectionId,
+    images,
+    shippable: hasShipping,
+    default_price_data: {
+      currency: 'usd',
+      unit_amount: typePayload.priceInDecimal,
+    },
+    url: `https://${LIKER_LAND_HOSTNAME}/nft/collection/${collectionId}`,
+    metadata: {
+      collectionId,
+    },
+  });
+  const stripeProductId = stripeProduct.id;
+  const stripePriceId = stripeProduct.default_price;
 
   let batch = db.batch();
   batch.create(docRef, {
@@ -196,6 +221,8 @@ export async function createNFTCollectionByType(
     type,
     typePayload: {
       sold: 0,
+      stripeProductId,
+      stripePriceId,
       ...typePayload,
     },
     timestamp: FieldValue.serverTimestamp(),
@@ -293,6 +320,8 @@ export async function patchNFTCollectionById(
   const {
     stock,
     isAutoDeliver,
+    stripeProductId,
+    stripePriceId,
   } = typePayload;
   const {
     classIds: newClassIds,
@@ -338,6 +367,29 @@ export async function patchNFTCollectionById(
   if (newName !== undefined) updatePayload.name = newName;
   if (newDescription !== undefined) updatePayload.description = newDescription;
   if (image !== undefined) updatePayload.image = image;
+
+  if (stripeProductId) {
+    if (newName || newDescription || image) {
+      await stripe.products.update(stripeProductId, {
+        name: getLocalizedTextWithFallback(newName || docName, 'zh'),
+        description: getLocalizedTextWithFallback(newDescription || docDescription, 'zh'),
+        images: image ? [parseImageURLFromMetadata(image)] : undefined,
+      });
+    }
+    if (stripePriceId) {
+      if (typePayload.priceInDecimal !== newTypePayload.priceInDecimal) {
+        await stripe.prices.update(stripePriceId, {
+          active: false,
+        });
+        const newStripePrice = await stripe.prices.create({
+          product: stripeProductId,
+          unit_amount: newTypePayload.priceInDecimal,
+          currency: 'usd',
+        });
+        updatePayload.typePayload.stripePriceId = newStripePrice.id;
+      }
+    }
+  }
 
   let batch = db.batch();
   batch.update(likeNFTCollectionCollection.doc(collectionId), updatePayload);
@@ -407,7 +459,16 @@ export async function removeNFTCollectionById(
   if (!docData) {
     throw new ValidationError('COLLECTION_NOT_FOUND', 404);
   }
-  const { ownerWallet } = docData;
+  const { ownerWallet, typePayload = {} } = docData;
   if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
+  const { stripeProductId, stripePriceId } = typePayload;
+  if (stripePriceId) {
+    await stripe.prices.update(stripePriceId, {
+      active: false,
+    });
+  }
+  if (stripeProductId) {
+    await stripe.products.del(stripeProductId);
+  }
   await likeNFTCollectionCollection.doc(collectionId).delete();
 }
