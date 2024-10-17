@@ -11,7 +11,7 @@ router.post('/authorize', async (req, res, next) => {
       wallet, from, signature, publicKey, message, signMethod,
     } = req.body;
     let { expiresIn } = req.body;
-    if (!expiresIn || !['1h', '1d', '7d'].includes(expiresIn)) {
+    if (!expiresIn || !['1h', '1d', '7d', '30d'].includes(expiresIn)) {
       expiresIn = '1h';
     }
     const inputWallet = wallet || from;
