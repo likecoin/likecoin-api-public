@@ -375,15 +375,15 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
-          await stripe.prices.update(
-            oldPriceInfo.stripePriceId,
-            { active: false },
-          );
           const newStripePrice = await stripe.prices.create({
             product: oldPriceInfo.stripeProductId,
             currency: 'usd',
             unit_amount: price.priceInDecimal,
           });
+          await stripe.prices.update(
+            oldPriceInfo.stripePriceId,
+            { active: false },
+          );
           newPriceInfo.stripePriceId = newStripePrice.id;
         }
       }

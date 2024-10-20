@@ -378,13 +378,13 @@ export async function patchNFTCollectionById(
     }
     if (stripePriceId) {
       if (typePayload.priceInDecimal !== newTypePayload.priceInDecimal) {
-        await stripe.prices.update(stripePriceId, {
-          active: false,
-        });
         const newStripePrice = await stripe.prices.create({
           product: stripeProductId,
           unit_amount: newTypePayload.priceInDecimal,
           currency: 'usd',
+        });
+        await stripe.prices.update(stripePriceId, {
+          active: false,
         });
         updatePayload.typePayload.stripePriceId = newStripePrice.id;
       }
@@ -465,10 +465,16 @@ export async function removeNFTCollectionById(
   if (stripePriceId) {
     await stripe.prices.update(stripePriceId, {
       active: false,
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(err);
     });
   }
   if (stripeProductId) {
-    await stripe.products.del(stripeProductId);
+    await stripe.products.del(stripeProductId).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    });
   }
   await likeNFTCollectionCollection.doc(collectionId).delete();
 }
