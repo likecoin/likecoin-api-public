@@ -369,8 +369,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     if (oldPriceInfo.stripeProductId) {
       await stripe.products.update(oldPriceInfo.stripeProductId, {
-        name: `${name} - ${getLocalizedTextWithFallback(newPriceInfo.name, 'zh') || ''}`,
-        description: `${getLocalizedTextWithFallback(newPriceInfo.description, 'zh') || ''}\n${description || ''}`,
+        name: [name, getLocalizedTextWithFallback(newPriceInfo.name, 'zh')].filter(Boolean).join(' - '),
+        description: [getLocalizedTextWithFallback(newPriceInfo.description, 'zh'), description].filter(Boolean).join('\n'),
         shippable: newPriceInfo.hasShipping,
       });
       if (oldPriceInfo.stripePriceId) {
