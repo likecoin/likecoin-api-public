@@ -136,8 +136,9 @@ export async function queryAirtableForPublication({ query }) {
       'Name',
       'Description',
       'Owner Name',
-    ].map((field) => `FIND("${formattedQueryString}", ${field})`);
-    const formula = `OR(${formulas.join(',')})`; // more than 2 field in OR() it would error
+      'Author',
+    ].map((field) => `IF(SEARCH("${formattedQueryString}", {${field}}), 1)`);
+    const formula = `OR(${formulas.join(', ')})`;
     const res = await base(PUBLICATIONS_TABLE_NAME).select({
       fields: [
         'ID',
@@ -153,6 +154,7 @@ export async function queryAirtableForPublication({ query }) {
         'Timestamp',
         'Type',
         'Liker Land URL',
+        'Author',
       ],
       filterByFormula: formula,
       view: 'All',
@@ -173,6 +175,7 @@ export async function queryAirtableForPublication({ query }) {
         Description: description,
         'ISCN Id Prefix': iscnId,
         'Liker Land URL': url,
+        Author: author,
       }) => ({
         timestamp,
         ownerWallet,
@@ -187,6 +190,7 @@ export async function queryAirtableForPublication({ query }) {
         maxPrice,
         description,
         iscnId,
+        author,
       }));
     return result;
   } catch (err) {
