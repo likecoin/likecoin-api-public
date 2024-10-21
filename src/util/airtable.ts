@@ -136,7 +136,7 @@ export async function queryAirtableForPublication({ query }) {
       'Name',
       'Description',
       'Owner Name',
-    ].map((field) => `FIND("${formattedQueryString}", ${field})`);
+    ].map((field) => `SEARCH("${formattedQueryString}", ${field})`);
     const formula = `OR(${formulas.join(',')})`; // more than 2 field in OR() it would error
     const res = await base(PUBLICATIONS_TABLE_NAME).select({
       fields: [
