@@ -23,6 +23,7 @@ import {
   FIRESTORE_NFT_COLLECTION_ROOT,
   FIRESTORE_LIKE_URL_ROOT,
   FIRESTORE_ISCN_INFO_ROOT,
+  FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
   FIRESTORE_ISCN_LIKER_URL_ROOT,
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
@@ -70,6 +71,7 @@ export const likeNFTBookUserCollection = getCollectionIfDefined(
 export const likeNFTCollectionCollection = getCollectionIfDefined(FIRESTORE_NFT_COLLECTION_ROOT);
 export const likeButtonUrlCollection = getCollectionIfDefined(FIRESTORE_LIKE_URL_ROOT);
 export const iscnInfoCollection = getCollectionIfDefined(FIRESTORE_ISCN_INFO_ROOT);
+export const iscnArweaveTxCollection = getCollectionIfDefined(FIRESTORE_ISCN_ARWEAVE_TX_ROOT);
 export const iscnMappingCollection = getCollectionIfDefined(
   FIRESTORE_ISCN_LIKER_URL_ROOT,
 );
