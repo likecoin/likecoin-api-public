@@ -6,7 +6,6 @@ import {
   USER_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
-  getSlackAttachmentForMap,
   getSlackAttachmentFromError,
 } from '../../util/slack';
 import {
@@ -41,21 +40,46 @@ function formatTransactionForSlack(data) {
     priceInDecimal: price, isPaid, status, email, wallet,
   } = data;
 
-  const formattedTimestamp = convertFirestoreTimestamp(timestamp).toLocaleString();
-  const displayClassId = classId || classIds; // 顯示 classId 或 classIds
+  const transactions = {
+    timestamp: convertFirestoreTimestamp(timestamp).toLocaleString(),
+    paymentId,
+    classId: classId || classIds,
+    sessionId,
+    claimToken,
+    email,
+    from,
+    isAutoDeliver,
+    price,
+    isPaid,
+    wallet,
+    status,
+  };
 
-  return `*Timestamp:* ${formattedTimestamp}\n`
-         + `*Payment ID:* ${paymentId}\n`
-         + `*Class ID:* ${displayClassId}\n`
-         + `*Session ID:* ${sessionId}\n`
-         + `*Claim Token:* ${claimToken}\n`
-         + `*From:* ${from}\n`
-         + `*Is Auto Deliver:* ${isAutoDeliver ? 'Yes' : 'No'}\n`
-         + `*Price:* $${price}\n`
-         + `*Is Paid:* ${isPaid ? 'Yes' : 'No'}\n`
-         + `*Status:* ${status}\n`
-         + `*Email:* ${email}\n`
-         + `${wallet ? `*Wallet:* ${wallet}\n` : ''}`;
+  const formattedTransaction = Object.entries(transactions)
+    .filter(([_, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => `*${key}:* ${value}`)
+    .join('\n');
+
+  return formattedTransaction;
+}
+
+function buildSlackAttachments({ transactions, emailOrWallet, classId = undefined }) {
+  return [{ text: `*${transactions.length} transactions found*` }, {
+    pretext: `Transactions for ${emailOrWallet} ${classId ? `in class ${classId}` : 'in cart collection'}`,
+    color: '#40bfa5',
+    fields: transactions,
+    mrkdwn_in: ['pretext', 'fields'],
+  }];
+}
+
+function mapTransactions(transactionDocs) {
+  return transactionDocs.map((doc, index) => ({
+    title: `<-- 💳 Payment Record #${index + 1} -->`,
+    value: formatTransactionForSlack({
+      ...doc.data(),
+      id: doc.id,
+    }),
+  }));
 }
 
 // eslint-disable-next-line consistent-return
@@ -97,21 +121,14 @@ async function handleTxsQuery(params, res) {
         .where(queryType, '==', emailOrWallet)
         .orderBy('timestamp', 'desc')
         .get();
-
-      const transactions = transactionQuery.docs.map((doc) => formatTransactionForSlack({
-        ...doc.data(),
-        id: doc.id,
-      }));
-      const attachments: any = [{
-        text: `Transactions for ${emailOrWallet} in class ${classId}`,
-      }];
-      attachments.push(getSlackAttachmentForMap('Search Result:', transactions));
+      const transactions = mapTransactions(transactionQuery);
+      const attachments = buildSlackAttachments({ transactions, emailOrWallet, classId });
 
       res.status(200).json({
         response_type: 'ephemeral',
         attachments,
       });
-    } else {
+    } else { // search in cart collection
       const query = likeNFTBookCartCollection
         .where(queryType, '==', emailOrWallet);
 
@@ -121,16 +138,9 @@ async function handleTxsQuery(params, res) {
         query.where('status', '!=', 'new');
       }
 
-      const transactionQuery = await query.limit(10).get();
-      const transactions = transactionQuery.docs.map((doc) => formatTransactionForSlack({
-        ...doc.data(),
-        id: doc.id,
-      }));
-
-      const attachments: any = [{
-        text: `Transactions for ${emailOrWallet} in cart collection`,
-      }];
-      attachments.push(getSlackAttachmentForMap('Search Result:', transactions));
+      const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
+      const transactions = mapTransactions(transactionQuery);
+      const attachments = buildSlackAttachments({ transactions, emailOrWallet });
 
       return res.status(200).json({
         response_type: 'ephemeral',
