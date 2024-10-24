@@ -375,7 +375,7 @@ export function formatPaymentTransactionDetails(data) {
 
   const formattedTransaction = Object.entries(transactions)
     .filter(([_, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `*${key}:* ${value}`)
+    .map(([key, value]) => `• *${key}:* ${value}`)
     .join('\n');
 
   return formattedTransaction;
@@ -383,7 +383,7 @@ export function formatPaymentTransactionDetails(data) {
 
 export function mapTransactionDocsToSlackFields(transactionDocs) {
   return transactionDocs.map((doc, index) => ({
-    title: `<-- 💳 Payment Record #${index + 1} -->`,
+    title: `\n\n💳 Payment Record #${index + 1}`,
     value: formatPaymentTransactionDetails({
       ...doc.data(),
       id: doc.id,
@@ -400,4 +400,22 @@ export function createPaymentSlackAttachments(
     fields: transactions,
     mrkdwn_in: ['pretext', 'fields'],
   }];
+}
+
+export function createStatusSlackAttachments({ transaction, classId = undefined, paymentId }) {
+  const { status } = transaction;
+  return [
+    {
+      text: '*Transactions found*',
+    },
+    {
+      pretext: `Status for payment *${paymentId}* ${classId ? `in class *${classId}*` : ''}`,
+      color: '#40bfa5',
+      fields: [{
+        title: '📝 Payment Status',
+        value: `*Status:* ${status}`,
+      }],
+      mrkdwn_in: ['pretext', 'fields'],
+    },
+  ];
 }

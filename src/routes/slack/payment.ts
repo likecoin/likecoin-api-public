@@ -9,6 +9,7 @@ import {
   getSlackAttachmentFromError,
   createPaymentSlackAttachments,
   mapTransactionDocsToSlackFields,
+  createStatusSlackAttachments,
 } from '../../util/slack';
 import {
   likeNFTBookCollection,
@@ -24,6 +25,9 @@ const PAYMENT_STATUS = {
   CANCELLED: 'cancelled',
   PAID: 'paid', // auto delivered
 };
+
+const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
+const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
 
 // eslint-disable-next-line consistent-return
 async function handleTxsQuery(params, res) {
@@ -42,7 +46,6 @@ async function handleTxsQuery(params, res) {
     throw new Error('Invalid query, email or wallet format incorrect');
   }
 
-  const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
   let status = null;
   let classId = null;
 
@@ -64,7 +67,7 @@ async function handleTxsQuery(params, res) {
         .where(queryType, '==', emailOrWallet)
         .orderBy('timestamp', 'desc')
         .get();
-      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery);
+      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
       const attachments = createPaymentSlackAttachments(
         { transactions: formattedTransactions, emailOrWallet, classId },
       );
@@ -84,7 +87,7 @@ async function handleTxsQuery(params, res) {
       }
 
       const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
-      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery);
+      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
       const attachments = createPaymentSlackAttachments(
         { transactions: formattedTransactions, emailOrWallet },
       );
@@ -101,6 +104,71 @@ async function handleTxsQuery(params, res) {
   }
 }
 
+// eslint-disable-next-line consistent-return
+async function handleStatusQuery(params, res) {
+  const [classIdOrCartId, paymentId] = params;
+
+  let classId = null;
+  let cartId = null;
+
+  if (classIdRegex.test(classIdOrCartId)) {
+    classId = classIdOrCartId;
+    if (!paymentId) {
+      throw new Error('Invalid query, paymentId not found');
+    } else if (!paymentIdRegex.test(paymentId)) {
+      throw new Error('Invalid query, paymentId format incorrect');
+    }
+  } else if (paymentIdRegex.test(classIdOrCartId)) {
+    cartId = classIdOrCartId;
+  }
+
+  try {
+    if (classId) {
+      const transactionDoc = await likeNFTBookCollection
+        .doc(classId)
+        .collection('transactions')
+        .doc(paymentId)
+        .get();
+
+      if (!transactionDoc.exists) {
+        throw new Error(`Transaction with paymentId: ${paymentId} not found in class: ${classId}`);
+      }
+
+      const transactionQuery = transactionDoc.data();
+      const attachment = createStatusSlackAttachments(
+        { transaction: transactionQuery, classId, paymentId },
+      );
+
+      return res.status(200).json({
+        response_type: 'ephemeral',
+        attachments: attachment,
+      });
+    } if (cartId) {
+      const transactionDoc = await likeNFTBookCartCollection
+        .doc(cartId)
+        .get();
+
+      if (!transactionDoc.exists) {
+        throw new Error(`Transaction with cartId: ${cartId} not found`);
+      }
+
+      const transactionQuery = transactionDoc.data();
+      const attachment = createStatusSlackAttachments(
+        { transaction: transactionQuery, paymentId: cartId },
+      );
+
+      return res.status(200).json({
+        response_type: 'ephemeral',
+        attachments: attachment,
+      });
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error fetching transactions:', error);
+    throw new Error('Failed to fetch payment status');
+  }
+}
+
 router.post(
   '/payment',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
@@ -110,8 +178,8 @@ router.post(
       switch (command) {
         case 'txs':
           return await handleTxsQuery(params, res);
-        // case 'status':
-        //   return await handleStatusQuery(params, res);
+        case 'status':
+          return await handleStatusQuery(params, res);
         case 'help': {
           res.json({
             response_type: 'ephemeral',
