@@ -7,6 +7,8 @@ import {
 } from '../../../config/config';
 import {
   getSlackAttachmentFromError,
+  createPaymentSlackAttachments,
+  mapTransactionDocsToSlackFields,
 } from '../../util/slack';
 import {
   likeNFTBookCollection,
@@ -22,65 +24,6 @@ const PAYMENT_STATUS = {
   CANCELLED: 'cancelled',
   PAID: 'paid', // auto delivered
 };
-
-function convertFirestoreTimestamp(timestamp) {
-  // eslint-disable-next-line no-underscore-dangle
-  if (!timestamp || !timestamp._seconds) {
-    return 'No timestamp';
-  }
-
-  // eslint-disable-next-line no-underscore-dangle
-  const date = new Date(timestamp._seconds * 1000 + timestamp._nanoseconds / 1000000);
-  return date;
-}
-
-function formatTransactionForSlack(data) {
-  const {
-    timestamp, id: paymentId, classId, classIds, sessionId, claimToken, from, isAutoDeliver,
-    priceInDecimal: price, isPaid, status, email, wallet,
-  } = data;
-
-  const transactions = {
-    timestamp: convertFirestoreTimestamp(timestamp).toLocaleString(),
-    paymentId,
-    classId: classId || classIds,
-    sessionId,
-    claimToken,
-    email,
-    from,
-    isAutoDeliver,
-    price,
-    isPaid,
-    wallet,
-    status,
-  };
-
-  const formattedTransaction = Object.entries(transactions)
-    .filter(([_, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `*${key}:* ${value}`)
-    .join('\n');
-
-  return formattedTransaction;
-}
-
-function buildSlackAttachments({ transactions, emailOrWallet, classId = undefined }) {
-  return [{ text: `*${transactions.length} transactions found*` }, {
-    pretext: `Transactions for ${emailOrWallet} ${classId ? `in class ${classId}` : 'in cart collection'}`,
-    color: '#40bfa5',
-    fields: transactions,
-    mrkdwn_in: ['pretext', 'fields'],
-  }];
-}
-
-function mapTransactions(transactionDocs) {
-  return transactionDocs.map((doc, index) => ({
-    title: `<-- 💳 Payment Record #${index + 1} -->`,
-    value: formatTransactionForSlack({
-      ...doc.data(),
-      id: doc.id,
-    }),
-  }));
-}
 
 // eslint-disable-next-line consistent-return
 async function handleTxsQuery(params, res) {
@@ -121,8 +64,10 @@ async function handleTxsQuery(params, res) {
         .where(queryType, '==', emailOrWallet)
         .orderBy('timestamp', 'desc')
         .get();
-      const transactions = mapTransactions(transactionQuery);
-      const attachments = buildSlackAttachments({ transactions, emailOrWallet, classId });
+      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery);
+      const attachments = createPaymentSlackAttachments(
+        { transactions: formattedTransactions, emailOrWallet, classId },
+      );
 
       res.status(200).json({
         response_type: 'ephemeral',
@@ -139,8 +84,10 @@ async function handleTxsQuery(params, res) {
       }
 
       const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
-      const transactions = mapTransactions(transactionQuery);
-      const attachments = buildSlackAttachments({ transactions, emailOrWallet });
+      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery);
+      const attachments = createPaymentSlackAttachments(
+        { transactions: formattedTransactions, emailOrWallet },
+      );
 
       return res.status(200).json({
         response_type: 'ephemeral',
