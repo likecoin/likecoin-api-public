@@ -340,3 +340,82 @@ export function getSlackAttachmentForMap(title, map) {
     mrkdwn_in: ['pretext', 'fields'],
   };
 }
+
+export function convertFirestoreTimestamp(timestamp) {
+  // eslint-disable-next-line no-underscore-dangle
+  if (!timestamp || !timestamp._seconds) {
+    return 'No timestamp';
+  }
+
+  // eslint-disable-next-line no-underscore-dangle
+  const date = new Date(timestamp._seconds * 1000 + timestamp._nanoseconds / 1000000);
+  return date;
+}
+
+export function formatPaymentTransactionDetails(data) {
+  const {
+    timestamp, id: paymentId, classId, classIds, sessionId, claimToken, from, isAutoDeliver,
+    priceInDecimal: price, isPaid, status, email, wallet,
+  } = data;
+
+  const transactions = {
+    timestamp: convertFirestoreTimestamp(timestamp).toLocaleString(),
+    paymentId,
+    classId: classId || classIds,
+    sessionId,
+    claimToken,
+    email,
+    from,
+    isAutoDeliver,
+    price,
+    isPaid,
+    wallet,
+    status,
+  };
+
+  const formattedTransaction = Object.entries(transactions)
+    .filter(([_, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => `• *${key}:* ${value}`)
+    .join('\n');
+
+  return formattedTransaction;
+}
+
+export function mapTransactionDocsToSlackFields(transactionDocs) {
+  return transactionDocs.map((doc, index) => ({
+    title: `\n\n💳 Payment Record #${index + 1}`,
+    value: formatPaymentTransactionDetails({
+      ...doc.data(),
+      id: doc.id,
+    }),
+  }));
+}
+
+export function createPaymentSlackAttachments(
+  { transactions, emailOrWallet, classId = undefined },
+) {
+  return [{ text: `*${transactions.length} transactions found*` }, {
+    pretext: `Transactions for ${emailOrWallet} ${classId ? `in class ${classId}` : 'in cart collection'}`,
+    color: '#40bfa5',
+    fields: transactions,
+    mrkdwn_in: ['pretext', 'fields'],
+  }];
+}
+
+export function createStatusSlackAttachments({ transaction, classId = undefined, paymentId }) {
+  const { status } = transaction;
+  return [
+    {
+      text: '*Transactions found*',
+    },
+    {
+      pretext: `Status for payment *${paymentId}* ${classId ? `in class *${classId}*` : ''}`,
+      color: '#40bfa5',
+      fields: [{
+        title: '📝 Payment Status',
+        value: `*Status:* ${status}`,
+      }],
+      mrkdwn_in: ['pretext', 'fields'],
+    },
+  ];
+}
