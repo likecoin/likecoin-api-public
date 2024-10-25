@@ -11,9 +11,12 @@ import {
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { ARWEAVE_LIKE_TARGET_ADDRESS } from '../../../config/config';
+import { ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
+import { ARWEAVE_LIKE_TARGET_ADDRESS, ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../config/config';
 import { getPublicKey } from '../../util/arweave/signer';
+import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
+import { jwtOptionalAuth } from '../../middleware/jwt';
+import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
 
@@ -85,7 +88,16 @@ router.post(
         fileSize, ipfsHash, txHash, signatureData,
       });
       const signatureHex = signature && signature.toString('base64');
-      res.json({ arweaveId, signature: signatureHex });
+      const { token } = await createNewArweaveTx(txHash, {
+        ipfsHash,
+        fileSize,
+      });
+      res.json({
+        token,
+        id: txHash,
+        arweaveId,
+        signature: signatureHex,
+      });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveSigningV2',
         ipfsHash,
@@ -103,12 +115,32 @@ router.post(
 
 router.post(
   '/v2/register',
+  jwtOptionalAuth('write:iscn'),
   async (req, res, next) => {
     try {
-      res.sendStatus(200);
       const {
-        fileSize, ipfsHash, txHash, arweaveId,
+        txHash, arweaveId, token, isRequireAuth,
       } = req.body;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      if (!token) throw new ValidationError('MISSING_TOKEN');
+      if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
+      if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 403);
+      if (tx.token !== token) throw new ValidationError('INVALID_TOKEN', 403);
+      await updateArweaveTxStatus(txHash, {
+        arweaveId,
+        ownerWallet: req.user?.wallet || '',
+        isRequireAuth,
+      });
+      res.json({
+        link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        isRequireAuth,
+      });
+      const {
+        ipfsHash, fileSize,
+      } = tx;
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveIdRegisterStartV2',
         ipfsHash,
@@ -124,6 +156,34 @@ router.post(
         arweaveId,
         txHash,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  '/v2/link/:txHash',
+  jwtOptionalAuth('read:iscn'),
+  async (req, res, next) => {
+    try {
+      const { txHash } = req.params;
+      const { token } = req.query;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      const {
+        arweaveId, token: docToken, isRequireAuth, ownerWallet,
+      } = tx;
+      if (isRequireAuth
+        && (
+          req.user?.wallet !== ownerWallet
+          && token !== docToken
+          && (ARWEAVE_LINK_INTERNAL_TOKEN && token !== ARWEAVE_LINK_INTERNAL_TOKEN))
+      ) {
+        throw new ValidationError('MISSING_USER', 401);
+      }
+      res.redirect(`${ARWEAVE_GATEWAY}/${arweaveId}`);
     } catch (error) {
       next(error);
     }
