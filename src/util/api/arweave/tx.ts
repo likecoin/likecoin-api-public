@@ -1,12 +1,17 @@
 import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
 
-export async function createNewArweaveTx(txHash, { ipfsHash, fileSize }) {
+export async function createNewArweaveTx(txHash, {
+  ipfsHash,
+  fileSize,
+  ownerWallet,
+}) {
   const token = uuidv4();
   await iscnArweaveTxCollection.doc(txHash).create({
     token,
     ipfsHash,
     fileSize,
+    ownerWallet,
     status: 'pending',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdateTimestamp: FieldValue.serverTimestamp(),

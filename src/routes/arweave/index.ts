@@ -69,6 +69,7 @@ router.post(
 
 router.post(
   '/v2/sign_payment_data',
+  jwtOptionalAuth('write:iscn'),
   async (req, res, next) => {
     try {
       const {
@@ -91,6 +92,7 @@ router.post(
       const { token } = await createNewArweaveTx(txHash, {
         ipfsHash,
         fileSize,
+        ownerWallet: req.user?.wallet || '',
       });
       res.json({
         token,
@@ -122,13 +124,16 @@ router.post(
         txHash, arweaveId, token, isRequireAuth,
       } = req.body;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
-      if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
       if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      const { ownerWallet, authToken } = tx;
+      const userWallet = req.user?.wallet || '';
+      const isAuthed = (ownerWallet && userWallet === ownerWallet)
+        || (authToken && authToken === token);
+      if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 403);
-      if (tx.token !== token) throw new ValidationError('INVALID_TOKEN', 403);
       await updateArweaveTxStatus(txHash, {
         arweaveId,
         ownerWallet: req.user?.wallet || '',
