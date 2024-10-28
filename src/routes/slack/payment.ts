@@ -66,6 +66,7 @@ async function handleTxsQuery(params, res) {
         .collection('transactions')
         .where(queryType, '==', emailOrWallet)
         .orderBy('timestamp', 'desc')
+        .limit(10)
         .get();
       const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
       const attachments = createPaymentSlackAttachments(
