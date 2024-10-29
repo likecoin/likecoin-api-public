@@ -11,7 +11,7 @@ import {
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
+import { ARWEAVE_GATEWAY, EXTERNAL_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../constant';
 import { ARWEAVE_LIKE_TARGET_ADDRESS, ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../config/config';
 import { getPublicKey } from '../../util/arweave/signer';
 import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
@@ -121,7 +121,7 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        txHash, arweaveId, token, isRequireAuth,
+        txHash, arweaveId, token, isRequireAuth = true,
       } = req.body;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
@@ -140,7 +140,8 @@ router.post(
         isRequireAuth,
       });
       res.json({
-        link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        link: `https://${EXTERNAL_HOSTNAME}/arweave/v2/link/${txHash}`,
+        token,
         isRequireAuth,
       });
       const {
@@ -187,6 +188,14 @@ router.get(
           && (ARWEAVE_LINK_INTERNAL_TOKEN && token !== ARWEAVE_LINK_INTERNAL_TOKEN))
       ) {
         throw new ValidationError('MISSING_USER', 401);
+      }
+      if (req.accepts('application/json')) {
+        res.json({
+          arweaveId,
+          txHash,
+          link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        });
+        return;
       }
       res.redirect(`${ARWEAVE_GATEWAY}/${arweaveId}`);
     } catch (error) {
