@@ -14,6 +14,7 @@ import {
 import {
   likeNFTBookCollection,
   likeNFTBookCartCollection,
+  likeNFTCollectionCollection,
 } from '../../util/firebase';
 
 const router = Router();
@@ -31,7 +32,7 @@ const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9
 
 // eslint-disable-next-line consistent-return
 async function handleTxsQuery(params, res) {
-  const [emailOrWallet, statusOrClassId] = params;
+  const [emailOrWallet, additionalFilter] = params;
 
   if (!emailOrWallet) {
     throw new Error('Invalid query, email or wallet not found');
@@ -48,14 +49,17 @@ async function handleTxsQuery(params, res) {
 
   let status = null;
   let classId = null;
+  let collectionId = null;
 
-  if (statusOrClassId) {
-    if (classIdRegex.test(statusOrClassId)) {
-      classId = statusOrClassId;
-    } else if (Object.values(PAYMENT_STATUS).includes(statusOrClassId)) {
-      status = statusOrClassId;
+  if (additionalFilter) {
+    if (classIdRegex.test(additionalFilter)) {
+      classId = additionalFilter;
+    } else if (Object.values(PAYMENT_STATUS).includes(additionalFilter)) {
+      status = additionalFilter;
+    } else if (additionalFilter.includes('col_book')) {
+      collectionId = additionalFilter;
     } else {
-      throw new Error('Invalid query, status or classId not found');
+      throw new Error('Invalid option query, status or classId not found');
     }
   }
 
@@ -71,6 +75,23 @@ async function handleTxsQuery(params, res) {
       const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
       const attachments = createPaymentSlackAttachments(
         { transactions: formattedTransactions, emailOrWallet, classId },
+      );
+
+      res.status(200).json({
+        response_type: 'ephemeral',
+        attachments,
+      });
+    } else if (collectionId) {
+      const transactionQuery = await likeNFTCollectionCollection
+        .doc(collectionId)
+        .collection('transactions')
+        .where(queryType, '==', emailOrWallet)
+        .orderBy('timestamp', 'desc')
+        .limit(10)
+        .get();
+      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
+      const attachments = createPaymentSlackAttachments(
+        { transactions: formattedTransactions, emailOrWallet, collectionId },
       );
 
       res.status(200).json({

@@ -381,10 +381,13 @@ export function mapTransactionDocsToSlackFields(transactionDocs) {
 }
 
 export function createPaymentSlackAttachments(
-  { transactions, emailOrWallet, classId = undefined },
+  {
+    transactions, emailOrWallet, classId = undefined, collectionId = undefined,
+  },
 ) {
+  const displayId = classId || collectionId;
   return [{ text: `*${transactions.length} transactions found*` }, {
-    pretext: `Transactions for ${emailOrWallet} ${classId ? `in class ${classId}` : 'in cart collection'}`,
+    pretext: `Transactions for ${emailOrWallet} ${displayId ? `in ${displayId}` : 'in cart collection'}`,
     color: '#40bfa5',
     fields: transactions,
     mrkdwn_in: ['pretext', 'fields'],
