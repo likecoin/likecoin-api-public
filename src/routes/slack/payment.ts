@@ -30,75 +30,35 @@ const PAYMENT_STATUS = {
 const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
 const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
 
-// eslint-disable-next-line consistent-return
-async function handleTxsQuery(params, res) {
-  const [emailOrWallet, additionalFilter] = params;
-
-  if (!emailOrWallet) {
-    throw new Error('Invalid query, email or wallet not found');
-  }
-
-  let queryType = '';
-  if (emailOrWallet.includes('@') && emailOrWallet.includes('.')) {
-    queryType = 'email';
-  } else if (emailOrWallet.startsWith('like1') && emailOrWallet.length === 43) {
-    queryType = 'wallet';
-  } else {
-    throw new Error('Invalid query, email or wallet format incorrect');
-  }
-
-  let status = null;
-  let classId = null;
-  let collectionId = null;
-
-  if (additionalFilter) {
-    if (classIdRegex.test(additionalFilter)) {
-      classId = additionalFilter;
-    } else if (Object.values(PAYMENT_STATUS).includes(additionalFilter)) {
-      status = additionalFilter;
-    } else if (additionalFilter.includes('col_book')) {
-      collectionId = additionalFilter;
-    } else {
-      throw new Error('Invalid option query, status or classId not found');
-    }
-  }
-
+async function handleTxsQuery({
+  email, wallet, classId, collectionId, status, cartId, paymentId, res,
+}) {
   try {
-    if (classId) {
-      const transactionQuery = await likeNFTBookCollection
-        .doc(classId)
-        .collection('transactions')
-        .where(queryType, '==', emailOrWallet)
-        .orderBy('timestamp', 'desc')
-        .limit(10)
-        .get();
-      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
-      const attachments = createPaymentSlackAttachments(
-        { transactions: formattedTransactions, emailOrWallet, classId },
-      );
+    if (email || wallet) {
+      const queryType = email ? 'email' : 'wallet';
+      const emailOrWallet = email || wallet;
 
-      res.status(200).json({
-        response_type: 'ephemeral',
-        attachments,
-      });
-    } else if (collectionId) {
-      const transactionQuery = await likeNFTCollectionCollection
-        .doc(collectionId)
-        .collection('transactions')
-        .where(queryType, '==', emailOrWallet)
-        .orderBy('timestamp', 'desc')
-        .limit(10)
-        .get();
-      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
-      const attachments = createPaymentSlackAttachments(
-        { transactions: formattedTransactions, emailOrWallet, collectionId },
-      );
+      // Search in book or collection
+      if (classId || collectionId) {
+        const bookRef = classId ? likeNFTBookCollection.doc(classId)
+          : likeNFTCollectionCollection.doc(collectionId);
+        const transactionQuery = await bookRef
+          .collection('transactions')
+          .where(queryType, '==', emailOrWallet)
+          .orderBy('timestamp', 'desc')
+          .limit(10)
+          .get();
+        const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
+        const attachments = createPaymentSlackAttachments(
+          { transactions: formattedTransactions, emailOrWallet, classId },
+        );
 
-      res.status(200).json({
-        response_type: 'ephemeral',
-        attachments,
-      });
-    } else { // search in cart collection
+        return res.status(200).json({
+          response_type: 'ephemeral',
+          attachments,
+        });
+      }
+      // Search in cart collection
       const query = likeNFTBookCartCollection
         .where(queryType, '==', emailOrWallet);
 
@@ -119,43 +79,41 @@ async function handleTxsQuery(params, res) {
         attachments,
       });
     }
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error fetching transactions:', error);
-    return res.status(400).json({ message: 'Error fetching transactions' });
-  }
-}
 
-// eslint-disable-next-line consistent-return
-async function handleStatusQuery(params, res) {
-  const [classIdOrCartId, paymentId] = params;
+    if (cartId || classId || collectionId) {
+      if (cartId) {
+        const transactionDoc = await likeNFTBookCartCollection
+          .doc(cartId)
+          .get();
 
-  let classId = null;
-  let cartId = null;
+        if (!transactionDoc.exists) {
+          throw new Error(`Transaction with cartId: ${cartId} not found`);
+        }
 
-  if (classIdRegex.test(classIdOrCartId)) {
-    classId = classIdOrCartId;
-    if (!paymentId) {
-      throw new Error('Invalid query, paymentId not found');
-    } else if (!paymentIdRegex.test(paymentId)) {
-      throw new Error('Invalid query, paymentId format incorrect');
-    }
-  } else if (paymentIdRegex.test(classIdOrCartId)) {
-    cartId = classIdOrCartId;
-  }
+        const transactionQuery = transactionDoc.data();
+        const attachment = createStatusSlackAttachments(
+          { transaction: transactionQuery, paymentId: cartId },
+        );
 
-  try {
-    if (classId) {
-      const transactionDoc = await likeNFTBookCollection
-        .doc(classId)
+        return res.status(200).json({
+          response_type: 'ephemeral',
+          attachments: attachment,
+        });
+      }
+      // search by classId | collection + paymentId
+      if (!paymentId) {
+        throw new Error('Invalid query, paymentId is required');
+      }
+      const bookRef = classId ? likeNFTBookCollection.doc(classId)
+        : likeNFTCollectionCollection.doc(collectionId);
+      const transactionDoc = await bookRef
         .collection('transactions')
         .doc(paymentId)
         .get();
 
       if (!transactionDoc.exists) {
-        throw new Error(`Transaction with paymentId: ${paymentId} not found in class: ${classId}`);
+        throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
       }
-
       const transactionQuery = transactionDoc.data();
       const attachment = createStatusSlackAttachments(
         { transaction: transactionQuery, classId, paymentId },
@@ -165,30 +123,13 @@ async function handleStatusQuery(params, res) {
         response_type: 'ephemeral',
         attachments: attachment,
       });
-    } if (cartId) {
-      const transactionDoc = await likeNFTBookCartCollection
-        .doc(cartId)
-        .get();
-
-      if (!transactionDoc.exists) {
-        throw new Error(`Transaction with cartId: ${cartId} not found`);
-      }
-
-      const transactionQuery = transactionDoc.data();
-      const attachment = createStatusSlackAttachments(
-        { transaction: transactionQuery, paymentId: cartId },
-      );
-
-      return res.status(200).json({
-        response_type: 'ephemeral',
-        attachments: attachment,
-      });
     }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error fetching transactions:', error);
-    throw new Error('Failed to fetch payment status');
+    return res.status(400).json({ message: 'Error fetching transactions' });
   }
+  return null;
 }
 
 router.post(
@@ -197,11 +138,49 @@ router.post(
   async (req, res) => {
     try {
       const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
+      const [mainParam, additionalFilter] = params;
+
+      if (!mainParam) {
+        throw new Error('Invalid query, type help to see the list of available commands');
+      }
+
+      let email = '';
+      let wallet = '';
+      let classId = '';
+      let collectionId = '';
+      let cartId = '';
+      let paymentId = '';
+      let status = '';
+
+      if (mainParam.includes('@') && mainParam.includes('.')) {
+        email = mainParam;
+      } else if (mainParam.startsWith('like1') && mainParam.length === 43) {
+        wallet = mainParam;
+      } else if (classIdRegex.test(mainParam)) {
+        classId = mainParam;
+      } else if (mainParam.includes('col_book')) {
+        collectionId = mainParam;
+      } else if (paymentIdRegex.test(mainParam)) {
+        cartId = mainParam;
+      }
+
+      if (additionalFilter) {
+        if (classIdRegex.test(additionalFilter)) {
+          classId = additionalFilter;
+        } else if (additionalFilter.includes('col_book')) {
+          collectionId = additionalFilter;
+        } else if (paymentIdRegex.test(additionalFilter)) {
+          paymentId = additionalFilter;
+        } else if (Object.values(PAYMENT_STATUS).includes(mainParam)) {
+          status = mainParam;
+        }
+      }
+
       switch (command) {
         case 'txs':
-          return await handleTxsQuery(params, res);
-        case 'status':
-          return await handleStatusQuery(params, res);
+          return await handleTxsQuery({
+            email, wallet, classId, collectionId, status, cartId, paymentId, res,
+          });
         case 'help': {
           res.json({
             response_type: 'ephemeral',
