@@ -6,7 +6,6 @@ import {
   listLatestNFTBookInfo,
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
-  parseBookSalesData,
   updateNftBookInfo,
   validatePrice,
   validatePrices,
@@ -25,6 +24,7 @@ import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
+import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
 
 const router = Router();
 
@@ -73,31 +73,12 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       })
       .map((b) => {
         const {
-          prices: docPrices = [],
-          shippingRates,
-          pendingNFTCount,
           moderatorWallets = [],
           ownerWallet,
-          id,
-          hideDownload,
-          timestamp,
         } = b;
         const isAuthorized = req.user
           && (req.user.wallet === ownerWallet || moderatorWallets?.includes(req.user.wallet));
-        const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
-        const result: any = {
-          classId: id,
-          ownerWallet,
-          prices,
-          stock,
-          shippingRates,
-          hideDownload,
-          timestamp: timestamp.toMillis(),
-        };
-        if (isAuthorized) {
-          result.pendingNFTCount = pendingNFTCount;
-          result.sold = sold;
-        }
+        const result = filterNFTBookListingInfo(b, isAuthorized);
         return result;
       });
     const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
@@ -125,7 +106,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
         id,
         ownerWallet,
       } = b;
-      const { stock, sold, prices } = parseBookSalesData(docPrices, true);
+      const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
       const result: any = {
         classId: id,
         prices,
@@ -157,55 +138,12 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       return;
     }
     const {
-      prices: docPrices = [],
-      shippingRates,
-      pendingNFTCount,
       ownerWallet,
       moderatorWallets = [],
-      notificationEmails,
-      connectedWallets,
-      mustClaimToView = false,
-      hideDownload = false,
-      enableCustomMessagePage,
-      signedMessageText,
-      inLanguage,
-      name,
-      description,
-      keywords,
-      thumbnailUrl,
-      author,
-      usageInfo,
-      isbn,
     } = bookInfo;
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
-    const { stock, sold, prices } = parseBookSalesData(docPrices, isAuthorized);
-    const payload: any = {
-      prices,
-      shippingRates,
-      isSoldOut: stock <= 0,
-      stock,
-      ownerWallet,
-      mustClaimToView,
-      hideDownload,
-      enableCustomMessagePage,
-      signedMessageText,
-      inLanguage,
-      name,
-      description,
-      keywords,
-      thumbnailUrl,
-      author,
-      usageInfo,
-      isbn,
-    };
-    if (isAuthorized) {
-      payload.sold = sold;
-      payload.pendingNFTCount = pendingNFTCount;
-      payload.moderatorWallets = moderatorWallets;
-      payload.notificationEmails = notificationEmails;
-      payload.connectedWallets = connectedWallets;
-    }
+    const payload = filterNFTBookListingInfo(bookInfo, isAuthorized);
     res.json(payload);
   } catch (err) {
     next(err);
@@ -230,42 +168,14 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     } = bookInfo;
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
-
-    const {
-      name,
-      priceInDecimal,
-      hasShipping,
-      isPhysicalOnly,
-      isAllowCustomPrice,
-      stock,
-      isAutoDeliver,
-      autoMemo,
-      sold,
-      order,
-    } = priceInfo;
-    const price = priceInDecimal / 100;
-    const payload: any = {
-      index: priceIndex,
-      name,
-      price,
-      priceInDecimal,
-      hasShipping,
-      isPhysicalOnly,
-      isAllowCustomPrice,
-      isSoldOut: stock <= 0,
-      stock,
-      isAutoDeliver,
-      autoMemo,
-      ownerWallet,
-      shippingRates,
-      order,
-    };
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
-    if (isAuthorized) {
-      payload.sold = sold;
-    }
-    res.json(payload);
+    const { prices: [price] } = filterNFTBookPricesInfo([priceInfo], isAuthorized);
+    res.json({
+      ownerWallet,
+      shippingRates,
+      ...price,
+    });
   } catch (err) {
     next(err);
   }

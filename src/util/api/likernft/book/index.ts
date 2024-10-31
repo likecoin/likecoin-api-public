@@ -374,54 +374,6 @@ export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) 
   });
 }
 
-export function parseBookSalesData(priceData, isAuthorized) {
-  let sold = 0;
-  let stock = 0;
-  const prices: any[] = [];
-  priceData.forEach((p, index) => {
-    const {
-      name,
-      description,
-      priceInDecimal,
-      hasShipping,
-      isPhysicalOnly,
-      isAllowCustomPrice,
-      sold: pSold = 0,
-      stock: pStock = 0,
-      isAutoDeliver,
-      autoMemo,
-      order = index,
-    } = p;
-    const price = priceInDecimal / 100;
-    const payload: any = {
-      index,
-      price,
-      name,
-      description,
-      stock: pStock,
-      isSoldOut: pStock <= 0,
-      isAutoDeliver,
-      autoMemo,
-      hasShipping,
-      isPhysicalOnly,
-      isAllowCustomPrice,
-      order,
-    };
-    if (isAuthorized) {
-      payload.sold = pSold;
-    }
-    prices.push(payload);
-    sold += pSold;
-    stock += pStock;
-  });
-  prices.sort((a, b) => a.order - b.order);
-  return {
-    sold,
-    stock,
-    prices,
-  };
-}
-
 export function validatePrice(price: any) {
   const {
     autoMemo,
