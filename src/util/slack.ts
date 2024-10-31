@@ -341,73 +341,97 @@ export function getSlackAttachmentForMap(title, map) {
   };
 }
 
-export function formatPaymentTransactionDetails(data) {
+export function formatTransactionDetailsForBlockKit(data) {
   const {
-    timestamp, id: paymentId, classId, classIds, sessionId, claimToken, from, isAutoDeliver,
-    priceInDecimal: price, isPaid, status, email, wallet,
+    timestamp, id: paymentId, classId, sessionId,
+    claimToken, from, priceInDecimal: price, status, email,
   } = data;
 
-  const transactions = {
-    timestamp: timestamp.toDate().toLocaleString(),
-    paymentId,
-    classId: classId || classIds,
-    sessionId,
-    claimToken,
-    email,
-    from,
-    isAutoDeliver,
-    price,
-    isPaid,
-    wallet,
-    status,
+  const text = `*Payment ID*\n<https://dashboard.stripe.com/test/search?query=${paymentId}|${paymentId}>\n\n*Class ID*\n<https://liker.land/nft/class/${classId}|${classId}>\n\n*Session ID*\n\`${sessionId}\`\n\n*Claim Token*\n\`${claimToken}\``;
+
+  const fields = [
+    {
+      type: 'mrkdwn',
+      text: `*Timestamp*\n${timestamp.toDate().toLocaleString()}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Email*\n${email}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Price*\n${price}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Status*\n${status}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Channel*\n\`${from}\``,
+    },
+  ];
+
+  return {
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text,
+    },
+    fields,
   };
-
-  const formattedTransaction = Object.entries(transactions)
-    .filter(([_, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `• *${key}:* ${value}`)
-    .join('\n');
-
-  return formattedTransaction;
 }
 
-export function mapTransactionDocsToSlackFields(transactionDocs) {
-  return transactionDocs.map((doc, index) => ({
-    title: `\n\n💳 Payment Record #${index + 1}`,
-    value: formatPaymentTransactionDetails({
+export function mapTransactionDocsToSlackSections(transactionDocs) {
+  const docsArray = Array.isArray(transactionDocs) ? transactionDocs : [transactionDocs];
+  return docsArray.map((doc, index) => ({
+    ...formatTransactionDetailsForBlockKit({
       ...doc.data(),
       id: doc.id,
     }),
+    text: {
+      type: 'mrkdwn',
+      text: `💳 *Payment Record #${index + 1}*\n\n${formatTransactionDetailsForBlockKit({
+        ...doc.data(),
+        id: doc.id,
+      }).text.text}`,
+    },
   }));
 }
 
-export function createPaymentSlackAttachments(
-  {
-    transactions, emailOrWallet, classId = undefined, collectionId = undefined,
-  },
-) {
-  const displayId = classId || collectionId;
-  return [{ text: `*${transactions.length} transactions found*` }, {
-    pretext: `Transactions for ${emailOrWallet} ${displayId ? `in ${displayId}` : 'in cart collection'}`,
-    color: '#40bfa5',
-    fields: transactions,
-    mrkdwn_in: ['pretext', 'fields'],
-  }];
-}
+export function createPaymentSlackBlocks({
+  transactions,
+  emailOrWallet = '',
+  classId = '',
+  collectionId = '',
+  cartId = '',
+  paymentId = '',
+  status = '',
+}) {
+  const contextArray = [
+    emailOrWallet && `for ${emailOrWallet}`,
+    classId && `in class ${classId}`,
+    collectionId && `in collection ${collectionId}`,
+    cartId && `in cart ${cartId}`,
+    paymentId && `for payment ${paymentId}`,
+    status && `with status ${status}`,
+  ].filter(Boolean);
 
-export function createStatusSlackAttachments({ transaction, classId = undefined, paymentId }) {
-  const { status } = transaction;
-  return [
+  const titleText = `*${transactions.length} transaction(s) found ${contextArray.join(' ')}*`;
+
+  const blocks = [
     {
-      text: '*Transactions found*',
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: titleText,
+      },
     },
     {
-      pretext: `Status for payment *${paymentId}* ${classId ? `in class *${classId}*` : ''}`,
-      color: '#40bfa5',
-      fields: [{
-        title: '📝 Payment Status',
-        value: `*Status:* ${status}`,
-      }],
-      mrkdwn_in: ['pretext', 'fields'],
+      type: 'divider',
     },
+    ...transactions,
   ];
+
+  return blocks;
 }

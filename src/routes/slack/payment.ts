@@ -7,9 +7,8 @@ import {
 } from '../../../config/config';
 import {
   getSlackAttachmentFromError,
-  createPaymentSlackAttachments,
-  mapTransactionDocsToSlackFields,
-  createStatusSlackAttachments,
+  createPaymentSlackBlocks,
+  mapTransactionDocsToSlackSections,
 } from '../../util/slack';
 import {
   likeNFTBookCollection,
@@ -48,14 +47,15 @@ async function handleTxsQuery({
           .orderBy('timestamp', 'desc')
           .limit(10)
           .get();
-        const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
-        const attachments = createPaymentSlackAttachments(
-          { transactions: formattedTransactions, emailOrWallet, classId },
-        );
+
+        const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
+        const blocks = createPaymentSlackBlocks({
+          emailOrWallet, transactions: formattedTransactions, classId, collectionId,
+        });
 
         return res.status(200).json({
           response_type: 'ephemeral',
-          attachments,
+          blocks,
         });
       }
       // Search in cart collection
@@ -69,14 +69,15 @@ async function handleTxsQuery({
       }
 
       const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
-      const formattedTransactions = mapTransactionDocsToSlackFields(transactionQuery.docs);
-      const attachments = createPaymentSlackAttachments(
-        { transactions: formattedTransactions, emailOrWallet },
-      );
+
+      const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
+      const blocks = createPaymentSlackBlocks({
+        emailOrWallet, transactions: formattedTransactions, status,
+      });
 
       return res.status(200).json({
         response_type: 'ephemeral',
-        attachments,
+        blocks,
       });
     }
 
@@ -90,14 +91,16 @@ async function handleTxsQuery({
           throw new Error(`Transaction with cartId: ${cartId} not found`);
         }
 
-        const transactionQuery = transactionDoc.data();
-        const attachment = createStatusSlackAttachments(
-          { transaction: transactionQuery, paymentId: cartId },
+        const formattedTransactions = mapTransactionDocsToSlackSections(
+          transactionDoc,
         );
+        const blocks = createPaymentSlackBlocks({
+          transactions: formattedTransactions, cartId,
+        });
 
         return res.status(200).json({
           response_type: 'ephemeral',
-          attachments: attachment,
+          blocks,
         });
       }
       // search by classId | collection + paymentId
@@ -114,14 +117,17 @@ async function handleTxsQuery({
       if (!transactionDoc.exists) {
         throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
       }
-      const transactionQuery = transactionDoc.data();
-      const attachment = createStatusSlackAttachments(
-        { transaction: transactionQuery, classId, paymentId },
+
+      const formattedTransactions = mapTransactionDocsToSlackSections(
+        transactionDoc,
       );
+      const blocks = createPaymentSlackBlocks({
+        transactions: formattedTransactions, classId, collectionId, paymentId,
+      });
 
       return res.status(200).json({
         response_type: 'ephemeral',
-        attachments: attachment,
+        blocks,
       });
     }
   } catch (error) {
@@ -140,7 +146,7 @@ router.post(
       const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
       const [mainParam, additionalFilter] = params;
 
-      if (!mainParam) {
+      if (!mainParam && command !== 'help') {
         throw new Error('Invalid query, type help to see the list of available commands');
       }
 
@@ -152,16 +158,18 @@ router.post(
       let paymentId = '';
       let status = '';
 
-      if (mainParam.includes('@') && mainParam.includes('.')) {
-        email = mainParam;
-      } else if (mainParam.startsWith('like1') && mainParam.length === 43) {
-        wallet = mainParam;
-      } else if (classIdRegex.test(mainParam)) {
-        classId = mainParam;
-      } else if (mainParam.includes('col_book')) {
-        collectionId = mainParam;
-      } else if (paymentIdRegex.test(mainParam)) {
-        cartId = mainParam;
+      if (mainParam) {
+        if (mainParam.includes('@') && mainParam.includes('.')) {
+          email = mainParam;
+        } else if (mainParam.startsWith('like1') && mainParam.length === 43) {
+          wallet = mainParam;
+        } else if (classIdRegex.test(mainParam)) {
+          classId = mainParam;
+        } else if (mainParam.includes('col_book')) {
+          collectionId = mainParam;
+        } else if (paymentIdRegex.test(mainParam)) {
+          cartId = mainParam;
+        }
       }
 
       if (additionalFilter) {
@@ -184,17 +192,30 @@ router.post(
         case 'help': {
           res.json({
             response_type: 'ephemeral',
-            attachments: [
+            blocks: [
               {
-                pretext: '*Available Commands*',
-                color: '#36a64f',
-                text: "*`/payment txs {email｜wallet} [classId/status (option)]`*\nFind all transactions related to the provided email or wallet.\n\nOptionally filter by status:\n- 'new'\n- 'completed'\n- 'cancelled'\n- 'pending'\n- 'paid'\n\n*Example:*\n`/payment txs user@example.com completed`",
-                mrkdwn_in: ['text', 'pretext'],
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: '*Available Command: `txs`*',
+                },
               },
               {
-                color: '#36a64f',
-                text: '*`/payment status {cartId｜classId + paymentId}`*\nCheck the status of a specific payment.\n\n*Example:*\n`/payment status 7a60b8-XXX`\nor\n`/payment status likenft1XXX 7a60b8-XXX`',
-                mrkdwn_in: ['text'],
+                type: 'divider',
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜collectionId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` or `collectionId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
+                },
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId｜collectionId+paymentId}`\n- Retrieve transaction details for a specific cart, class, or collection item using the `cartId` or `classId/collectionId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
+                },
               },
             ],
           });
