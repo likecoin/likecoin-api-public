@@ -91,6 +91,7 @@ async function validateCollectionTypeData(
       hasShipping,
       shippingRates,
       isAutoDeliver,
+      isUnlisted,
     } = data;
     validatePrice({
       priceInDecimal,
@@ -139,6 +140,7 @@ async function validateCollectionTypeData(
         shippingRates,
         autoMemo,
         isAutoDeliver,
+        isUnlisted,
       }),
     );
   } else if (type === 'reader') {
@@ -182,7 +184,6 @@ export async function createNFTCollectionByType(
     description,
     image,
     isAutoDeliver,
-    autoMemo,
     autoDeliverNFTsTxHash,
     stock,
     hasShipping,
