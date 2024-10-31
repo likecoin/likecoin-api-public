@@ -6,7 +6,6 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
-import { Timestamp } from './firebase';
 
 export function checkAddressValid(addr) {
   return addr.length === 42 && addr.substr(0, 2) === '0x';
@@ -617,6 +616,106 @@ export function filterFollow({
     isFollowed,
     ts,
   };
+}
+
+export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
+  let sold = 0;
+  let stock = 0;
+  const prices: any[] = [];
+  inputPrices.forEach((p, index) => {
+    const {
+      name,
+      description,
+      priceInDecimal,
+      hasShipping,
+      isPhysicalOnly,
+      isAllowCustomPrice,
+      sold: pSold = 0,
+      stock: pStock = 0,
+      isAutoDeliver,
+      autoMemo,
+      order = index,
+    } = p;
+    const price = priceInDecimal / 100;
+    const payload: any = {
+      index,
+      price,
+      name,
+      description,
+      stock: pStock,
+      isSoldOut: pStock <= 0,
+      isAutoDeliver,
+      autoMemo,
+      hasShipping,
+      isPhysicalOnly,
+      isAllowCustomPrice,
+      order,
+    };
+    if (isOwner) {
+      payload.sold = pSold;
+    }
+    prices.push(payload);
+    sold += pSold;
+    stock += pStock;
+  });
+  prices.sort((a, b) => a.order - b.order);
+  return {
+    sold,
+    stock,
+    prices,
+  };
+}
+
+export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
+  const {
+    prices: inputPrices = [],
+    shippingRates,
+    pendingNFTCount,
+    ownerWallet,
+    moderatorWallets = [],
+    notificationEmails,
+    connectedWallets,
+    mustClaimToView = false,
+    hideDownload = false,
+    enableCustomMessagePage,
+    signedMessageText,
+    inLanguage,
+    name,
+    description,
+    keywords,
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
+  } = bookInfo;
+  const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
+  const payload: any = {
+    prices,
+    shippingRates,
+    isSoldOut: stock <= 0,
+    stock,
+    ownerWallet,
+    mustClaimToView,
+    hideDownload,
+    enableCustomMessagePage,
+    signedMessageText,
+    inLanguage,
+    name,
+    description,
+    keywords,
+    thumbnailUrl,
+    author,
+    usageInfo,
+    isbn,
+  };
+  if (isOwner) {
+    payload.sold = sold;
+    payload.pendingNFTCount = pendingNFTCount;
+    payload.moderatorWallets = moderatorWallets;
+    payload.notificationEmails = notificationEmails;
+    payload.connectedWallets = connectedWallets;
+  }
+  return payload;
 }
 
 export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
