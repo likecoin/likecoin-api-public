@@ -11,7 +11,7 @@ import {
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { ARWEAVE_GATEWAY, EXTERNAL_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../constant';
+import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
 import { ARWEAVE_LIKE_TARGET_ADDRESS, ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../config/config';
 import { getPublicKey } from '../../util/arweave/signer';
 import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
@@ -140,7 +140,7 @@ router.post(
         isRequireAuth,
       });
       res.json({
-        link: `https://${EXTERNAL_HOSTNAME}/arweave/v2/link/${txHash}`,
+        link: `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`,
         token,
         isRequireAuth,
       });
