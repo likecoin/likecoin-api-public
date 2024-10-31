@@ -630,6 +630,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       hasShipping,
       isPhysicalOnly,
       isAllowCustomPrice,
+      isUnlisted,
       sold: pSold = 0,
       stock: pStock = 0,
       isAutoDeliver,
@@ -642,9 +643,10 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       price,
       name,
       description,
-      stock: pStock,
+      stock: isUnlisted ? 0 : pStock,
       isSoldOut: pStock <= 0,
       isAutoDeliver,
+      isUnlisted,
       autoMemo,
       hasShipping,
       isPhysicalOnly,
@@ -653,6 +655,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
     };
     if (isOwner) {
       payload.sold = pSold;
+      payload.stock = pStock;
     }
     prices.push(payload);
     sold += pSold;
@@ -728,6 +731,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       sold,
       pendingNFTCount,
       isAllowCustomPrice,
+      isUnlisted,
       isPhysicalOnly,
       hasShipping,
       shippingRates,
@@ -739,8 +743,10 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
     } = payload;
     const publicInfo = {
       priceInDecimal,
-      stock,
+      stock: isUnlisted ? 0 : stock,
       isAllowCustomPrice,
+      isUnlisted,
+      isAutoDeliver,
       hasShipping,
       shippingRates,
       isPhysicalOnly,
@@ -750,6 +756,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
     }
     return {
       ...publicInfo,
+      stock,
       successUrl,
       cancelUrl,
       sold,
@@ -757,7 +764,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       notificationEmails,
       moderatorWallets,
       connectedWallets,
-      isAutoDeliver,
       autoMemo,
     };
   }

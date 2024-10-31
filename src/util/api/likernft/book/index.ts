@@ -36,6 +36,7 @@ export function formatPriceInfo(price) {
     isAllowCustomPrice = false,
     stock,
     isAutoDeliver = false,
+    isUnlisted = false,
     autoMemo = '',
   } = price;
   const name = {};
@@ -53,6 +54,7 @@ export function formatPriceInfo(price) {
     isAllowCustomPrice,
     stock,
     isAutoDeliver,
+    isUnlisted,
     autoMemo,
   };
 }
@@ -385,6 +387,7 @@ export function validatePrice(price: any) {
     isPhysicalOnly,
     isAllowCustomPrice,
     isAutoDeliver,
+    isUnlisted,
     priceInDecimal,
   } = price;
   if (!(
@@ -417,6 +420,7 @@ export function validatePrice(price: any) {
     description,
     isPhysicalOnly,
     isAutoDeliver,
+    isUnlisted,
     hasShipping,
     isAllowCustomPrice,
   };
