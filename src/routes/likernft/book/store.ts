@@ -170,7 +170,10 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
     const isAuthorized = req.user
       && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
-    const { prices: [price] } = filterNFTBookPricesInfo([priceInfo], isAuthorized);
+    const { prices: [price] } = filterNFTBookPricesInfo([{
+      ...priceInfo,
+      index: priceIndex,
+    }], isAuthorized);
     res.json({
       ownerWallet,
       shippingRates,
