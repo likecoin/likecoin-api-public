@@ -11,9 +11,12 @@ import {
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { ARWEAVE_LIKE_TARGET_ADDRESS } from '../../../config/config';
+import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
+import { ARWEAVE_LIKE_TARGET_ADDRESS, ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../config/config';
 import { getPublicKey } from '../../util/arweave/signer';
+import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
+import { jwtOptionalAuth } from '../../middleware/jwt';
+import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
 
@@ -66,6 +69,7 @@ router.post(
 
 router.post(
   '/v2/sign_payment_data',
+  jwtOptionalAuth('write:iscn'),
   async (req, res, next) => {
     try {
       const {
@@ -85,7 +89,17 @@ router.post(
         fileSize, ipfsHash, txHash, signatureData,
       });
       const signatureHex = signature && signature.toString('base64');
-      res.json({ arweaveId, signature: signatureHex });
+      const { token } = await createNewArweaveTx(txHash, {
+        ipfsHash,
+        fileSize,
+        ownerWallet: req.user?.wallet || '',
+      });
+      res.json({
+        token,
+        id: txHash,
+        arweaveId,
+        signature: signatureHex,
+      });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveSigningV2',
         ipfsHash,
@@ -103,12 +117,36 @@ router.post(
 
 router.post(
   '/v2/register',
+  jwtOptionalAuth('write:iscn'),
   async (req, res, next) => {
     try {
-      res.sendStatus(200);
       const {
-        fileSize, ipfsHash, txHash, arweaveId,
+        txHash, arweaveId, token, isRequireAuth = true,
       } = req.body;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
+      if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      const { ownerWallet, authToken } = tx;
+      const userWallet = req.user?.wallet || '';
+      const isAuthed = (ownerWallet && userWallet === ownerWallet)
+        || (authToken && authToken === token);
+      if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
+      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
+      await updateArweaveTxStatus(txHash, {
+        arweaveId,
+        ownerWallet: req.user?.wallet || '',
+        isRequireAuth,
+      });
+      res.json({
+        link: `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`,
+        token,
+        isRequireAuth,
+      });
+      const {
+        ipfsHash, fileSize,
+      } = tx;
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveIdRegisterStartV2',
         ipfsHash,
@@ -124,6 +162,41 @@ router.post(
         arweaveId,
         txHash,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  '/v2/link/:txHash',
+  jwtOptionalAuth('read:iscn'),
+  async (req, res, next) => {
+    try {
+      const { txHash } = req.params;
+      const { token } = req.query;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      const {
+        arweaveId, token: docToken, isRequireAuth, ownerWallet,
+      } = tx;
+      if (isRequireAuth) {
+        if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
+        const isUserAuthed = req.user?.wallet === ownerWallet;
+        const isTokenAuthed = token === docToken
+          || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN);
+        if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
+      }
+      if (req.accepts('application/json')) {
+        res.json({
+          arweaveId,
+          txHash,
+          link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        });
+        return;
+      }
+      res.redirect(`${ARWEAVE_GATEWAY}/${arweaveId}`);
     } catch (error) {
       next(error);
     }
