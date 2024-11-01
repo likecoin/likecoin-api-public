@@ -133,7 +133,7 @@ router.post(
       const isAuthed = (ownerWallet && userWallet === ownerWallet)
         || (authToken && authToken === token);
       if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
-      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 403);
+      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
       await updateArweaveTxStatus(txHash, {
         arweaveId,
         ownerWallet: req.user?.wallet || '',
@@ -181,13 +181,12 @@ router.get(
       const {
         arweaveId, token: docToken, isRequireAuth, ownerWallet,
       } = tx;
-      if (isRequireAuth
-        && (
-          req.user?.wallet !== ownerWallet
-          && token !== docToken
-          && (ARWEAVE_LINK_INTERNAL_TOKEN && token !== ARWEAVE_LINK_INTERNAL_TOKEN))
-      ) {
-        throw new ValidationError('MISSING_USER', 401);
+      if (isRequireAuth) {
+        if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
+        const isUserAuthed = req.user?.wallet === ownerWallet;
+        const isTokenAuthed = token === docToken
+          || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN);
+        if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       }
       if (req.accepts('application/json')) {
         res.json({
