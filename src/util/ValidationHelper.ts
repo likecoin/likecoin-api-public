@@ -622,7 +622,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
   let sold = 0;
   let stock = 0;
   const prices: any[] = [];
-  inputPrices.forEach((p, index) => {
+  inputPrices.forEach((p, i) => {
     const {
       name,
       description,
@@ -635,7 +635,8 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       stock: pStock = 0,
       isAutoDeliver,
       autoMemo,
-      order = index,
+      index = i,
+      order,
     } = p;
     const price = priceInDecimal / 100;
     const payload: any = {
@@ -651,7 +652,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       hasShipping,
       isPhysicalOnly,
       isAllowCustomPrice,
-      order,
+      order: order ?? index,
     };
     if (isOwner) {
       payload.sold = pSold;
@@ -671,6 +672,8 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
 
 export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
   const {
+    id: inputId,
+    classId,
     prices: inputPrices = [],
     shippingRates,
     pendingNFTCount,
@@ -692,7 +695,10 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     isbn,
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
+  const id = inputId || classId;
   const payload: any = {
+    id,
+    classId: id,
     prices,
     shippingRates,
     isSoldOut: stock <= 0,
