@@ -41,13 +41,21 @@ const router = Router();
 
 router.get(
   '/cart/:cartId/status',
+  jwtOptionalAuth('read:nftbook'),
   async (req, res, next) => {
     try {
       const { cartId } = req.params;
+      const { token } = req.query;
+      if (!token && !req.user) throw new ValidationError('MISSING_TOKEN');
       const doc = await likeNFTBookCartCollection.doc(cartId).get();
       const docData = doc.data();
       if (!docData) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
+        return;
+      }
+      const { token: docToken, wallet } = docData;
+      if (token !== docToken && (wallet && req.user?.wallet !== wallet)) {
+        res.status(403).send('UNAUTHORIZED');
         return;
       }
       res.json(filterBookPurchaseData(docData));
@@ -657,14 +665,32 @@ router.post(
 
 router.get(
   ['/:classId/status/:paymentId', '/class/:classId/status/:paymentId'],
+  jwtOptionalAuth('read:nftbook'),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const doc = await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get();
-      const docData = doc.data();
-      if (!docData) {
+      const { token } = req.query;
+      const [listingDoc, paymentDoc] = await Promise.all([
+        likeNFTBookCollection.doc(classId).get(),
+        likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get(),
+      ]);
+      if (!listingDoc.exists || !paymentDoc.exists) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
+      }
+      const docData = paymentDoc.data();
+      const bookDocData = listingDoc.data();
+      const { token: docToken, wallet } = docData;
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (!token && !req.user) throw new ValidationError('MISSING_TOKEN', 401);
+      const isTokenValid = token && token === docToken;
+      const sessionWallet = req.user?.wallet;
+      const isUserValid = sessionWallet
+        && (sessionWallet === wallet
+          || sessionWallet === ownerWallet
+          || moderatorWallets.includes(sessionWallet));
+      if (!isTokenValid && !isUserValid) {
+        throw new ValidationError('UNAUTHORIZED', 403);
       }
       res.json(filterBookPurchaseData(docData));
     } catch (err) {
