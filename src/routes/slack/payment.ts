@@ -26,6 +26,15 @@ const PAYMENT_STATUS = {
   PAID: 'paid', // auto delivered
 };
 
+type SlackBlock = {
+  type: 'section' | 'divider';
+  text?: {
+    type: 'mrkdwn';
+    text: string;
+  };
+  fields?: Array<{ type: 'mrkdwn'; text: string }>;
+};
+
 const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
 const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
 
@@ -33,13 +42,25 @@ async function handleTxsQuery({
   email, wallet, classId, collectionId, status, cartId, paymentId, res,
 }) {
   try {
-    if (email || wallet) {
-      const queryType = email ? 'email' : 'wallet';
-      const emailOrWallet = email || wallet;
+    let blocks: SlackBlock[] = [];
 
-      // Search in book or collection
+    if (email || wallet) {
+      let queryType;
+      let emailOrWallet;
+
+      if (email) {
+        queryType = 'email';
+        emailOrWallet = email;
+      } else if (wallet) {
+        queryType = 'wallet';
+        emailOrWallet = wallet;
+      } else {
+        throw new Error('Invalid query, email or wallet is required');
+      }
+
       if (classId || collectionId) {
-        const bookRef = classId ? likeNFTBookCollection.doc(classId)
+        const bookRef = classId
+          ? likeNFTBookCollection.doc(classId)
           : likeNFTCollectionCollection.doc(collectionId);
         const transactionQuery = await bookRef
           .collection('transactions')
@@ -49,93 +70,71 @@ async function handleTxsQuery({
           .get();
 
         const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
-        const blocks = createPaymentSlackBlocks({
+        blocks = createPaymentSlackBlocks({
           emailOrWallet, transactions: formattedTransactions, classId, collectionId,
         });
+      } else {
+        const query = likeNFTBookCartCollection
+          .where(queryType, '==', emailOrWallet);
 
-        return res.status(200).json({
-          response_type: 'ephemeral',
-          blocks,
+        if (status) {
+          query.where('status', '==', status);
+        } else {
+          query.where('status', '!=', 'new');
+        }
+
+        const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
+        const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
+        blocks = createPaymentSlackBlocks({
+          emailOrWallet, transactions: formattedTransactions, status,
         });
       }
-      // Search in cart collection
-      const query = likeNFTBookCartCollection
-        .where(queryType, '==', emailOrWallet);
-
-      if (status) {
-        query.where('status', '==', status);
-      } else {
-        query.where('status', '!=', 'new');
-      }
-
-      const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
-
-      const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
-      const blocks = createPaymentSlackBlocks({
-        emailOrWallet, transactions: formattedTransactions, status,
-      });
-
-      return res.status(200).json({
-        response_type: 'ephemeral',
-        blocks,
-      });
-    }
-
-    if (cartId || classId || collectionId) {
+    } else if (cartId || classId || collectionId) {
       if (cartId) {
-        const transactionDoc = await likeNFTBookCartCollection
-          .doc(cartId)
-          .get();
+        const transactionDoc = await likeNFTBookCartCollection.doc(cartId).get();
 
         if (!transactionDoc.exists) {
           throw new Error(`Transaction with cartId: ${cartId} not found`);
         }
 
-        const formattedTransactions = mapTransactionDocsToSlackSections(
-          transactionDoc,
-        );
-        const blocks = createPaymentSlackBlocks({
+        const formattedTransactions = mapTransactionDocsToSlackSections(transactionDoc);
+        blocks = createPaymentSlackBlocks({
           transactions: formattedTransactions, cartId,
         });
+      } else if (classId || collectionId) {
+        if (!paymentId) {
+          throw new Error('Invalid query, paymentId is required');
+        }
 
-        return res.status(200).json({
-          response_type: 'ephemeral',
-          blocks,
+        const bookRef = classId
+          ? likeNFTBookCollection.doc(classId)
+          : likeNFTCollectionCollection.doc(collectionId);
+
+        const transactionDoc = await bookRef.collection('transactions').doc(paymentId).get();
+
+        if (!transactionDoc.exists) {
+          throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
+        }
+
+        const formattedTransactions = mapTransactionDocsToSlackSections(transactionDoc);
+        blocks = createPaymentSlackBlocks({
+          transactions: formattedTransactions, classId, collectionId, paymentId,
         });
       }
-      // search by classId | collection + paymentId
-      if (!paymentId) {
-        throw new Error('Invalid query, paymentId is required');
-      }
-      const bookRef = classId ? likeNFTBookCollection.doc(classId)
-        : likeNFTCollectionCollection.doc(collectionId);
-      const transactionDoc = await bookRef
-        .collection('transactions')
-        .doc(paymentId)
-        .get();
+    }
 
-      if (!transactionDoc.exists) {
-        throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
-      }
-
-      const formattedTransactions = mapTransactionDocsToSlackSections(
-        transactionDoc,
-      );
-      const blocks = createPaymentSlackBlocks({
-        transactions: formattedTransactions, classId, collectionId, paymentId,
-      });
-
+    if (blocks) {
       return res.status(200).json({
         response_type: 'ephemeral',
         blocks,
       });
     }
+    throw new Error('No transactions found');
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error fetching transactions:', error);
     return res.status(400).json({ message: 'Error fetching transactions' });
   }
-  return null;
 }
 
 router.post(
