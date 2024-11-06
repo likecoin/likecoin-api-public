@@ -26,15 +26,6 @@ const PAYMENT_STATUS = {
   PAID: 'paid', // auto delivered
 };
 
-type SlackBlock = {
-  type: 'section' | 'divider';
-  text?: {
-    type: 'mrkdwn';
-    text: string;
-  };
-  fields?: Array<{ type: 'mrkdwn'; text: string }>;
-};
-
 const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
 const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
 
@@ -42,12 +33,11 @@ async function handleTxsQuery({
   email, wallet, classId, collectionId, status, cartId, paymentId, res,
 }) {
   try {
-    let blocks: SlackBlock[] = [];
+    let transactions: any[] = [];
+    let queryType;
+    let emailOrWallet;
 
     if (email || wallet) {
-      let queryType;
-      let emailOrWallet;
-
       if (email) {
         queryType = 'email';
         emailOrWallet = email;
@@ -69,10 +59,7 @@ async function handleTxsQuery({
           .limit(10)
           .get();
 
-        const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
-        blocks = createPaymentSlackBlocks({
-          emailOrWallet, transactions: formattedTransactions, classId, collectionId,
-        });
+        transactions = transactionQuery.docs;
       } else {
         const query = likeNFTBookCartCollection
           .where(queryType, '==', emailOrWallet);
@@ -84,10 +71,8 @@ async function handleTxsQuery({
         }
 
         const transactionQuery = await query.orderBy('timestamp', 'desc').limit(10).get();
-        const formattedTransactions = mapTransactionDocsToSlackSections(transactionQuery.docs);
-        blocks = createPaymentSlackBlocks({
-          emailOrWallet, transactions: formattedTransactions, status,
-        });
+
+        transactions = transactionQuery.docs;
       }
     } else if (cartId || classId || collectionId) {
       if (cartId) {
@@ -97,10 +82,7 @@ async function handleTxsQuery({
           throw new Error(`Transaction with cartId: ${cartId} not found`);
         }
 
-        const formattedTransactions = mapTransactionDocsToSlackSections(transactionDoc);
-        blocks = createPaymentSlackBlocks({
-          transactions: formattedTransactions, cartId,
-        });
+        transactions = [transactionDoc];
       } else if (classId || collectionId) {
         if (!paymentId) {
           throw new Error('Invalid query, paymentId is required');
@@ -116,14 +98,21 @@ async function handleTxsQuery({
           throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
         }
 
-        const formattedTransactions = mapTransactionDocsToSlackSections(transactionDoc);
-        blocks = createPaymentSlackBlocks({
-          transactions: formattedTransactions, classId, collectionId, paymentId,
-        });
+        transactions = [transactionDoc];
       }
     }
 
-    if (blocks) {
+    if (transactions.length) {
+      const formattedTransactions = mapTransactionDocsToSlackSections(transactions);
+      const blocks = createPaymentSlackBlocks({
+        emailOrWallet,
+        transactions: formattedTransactions,
+        status,
+        classId,
+        collectionId,
+        cartId,
+        paymentId,
+      });
       return res.status(200).json({
         response_type: 'ephemeral',
         blocks,

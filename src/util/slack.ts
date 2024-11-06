@@ -383,8 +383,7 @@ export function formatTransactionDetailsForBlockKit(data) {
 }
 
 export function mapTransactionDocsToSlackSections(transactionDocs) {
-  const docsArray = Array.isArray(transactionDocs) ? transactionDocs : [transactionDocs];
-  return docsArray.map((doc, index) => ({
+  return transactionDocs.map((doc, index) => ({
     ...formatTransactionDetailsForBlockKit({
       ...doc.data(),
       id: doc.id,
