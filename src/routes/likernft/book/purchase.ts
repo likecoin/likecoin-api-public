@@ -53,8 +53,8 @@ router.get(
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
       }
-      const { token: docToken, wallet } = docData;
-      if (token !== docToken && (wallet && req.user?.wallet !== wallet)) {
+      const { claimToken, wallet } = docData;
+      if (token !== claimToken && (wallet && req.user?.wallet !== wallet)) {
         res.status(403).send('UNAUTHORIZED');
         return;
       }
@@ -680,10 +680,10 @@ router.get(
       }
       const docData = paymentDoc.data();
       const bookDocData = listingDoc.data();
-      const { token: docToken, wallet } = docData;
+      const { claimToken, wallet } = docData;
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
       if (!token && !req.user) throw new ValidationError('MISSING_TOKEN', 401);
-      const isTokenValid = token && token === docToken;
+      const isTokenValid = token && token === claimToken;
       const sessionWallet = req.user?.wallet;
       const isUserValid = sessionWallet
         && (sessionWallet === wallet
