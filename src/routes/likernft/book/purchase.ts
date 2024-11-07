@@ -172,6 +172,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTCartPurchaseNew',
         type: 'stripe',
+        email,
         paymentId,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
@@ -380,6 +381,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseNew',
         type: 'stripe',
+        email,
         paymentId,
         classId,
         priceName,
@@ -733,7 +735,9 @@ router.post(
 
       const { wallet } = req.user;
 
-      const { email, isGift, giftInfo } = await db.runTransaction(async (t) => {
+      const {
+        email, wallet: toWallet, isGift, giftInfo,
+      } = await db.runTransaction(async (t) => {
         const result = await updateNFTBookPostDeliveryData({
           classId,
           callerWallet: wallet,
@@ -766,6 +770,9 @@ router.post(
         logType: 'BookNFTSentUpdate',
         paymentId,
         classId,
+        email,
+        fromWallet: wallet,
+        toWallet,
         quantity,
         // TODO: parse nftId and wallet from txHash,
         txHash,
@@ -839,6 +846,8 @@ router.post(
         logType: 'BookNFTShippingUpdate',
         paymentId,
         classId,
+        email,
+        ownerWallet: req.user.wallet,
         shippingMessage: message,
       });
 

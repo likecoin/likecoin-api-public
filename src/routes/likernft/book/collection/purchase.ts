@@ -201,6 +201,7 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, r
         type: 'stripe',
         paymentId,
         collectionId,
+        email,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
         customPriceDiff: customPriceDiffInDecimal && customPriceDiffInDecimal / 100,
@@ -521,7 +522,7 @@ router.post(
 
       // TODO: check tx content contains valid nft info and address
       const {
-        name, email, isGift, giftInfo,
+        wallet, name, email, isGift, giftInfo,
       } = await db.runTransaction(async (t) => {
         const result = await updateNFTBookCollectionPostDeliveryData({
           collectionId,
@@ -553,6 +554,9 @@ router.post(
         logType: 'BookNFTSentUpdate',
         paymentId,
         collectionId,
+        email,
+        fromWallet: req.user.wallet,
+        toWallet: wallet,
         // TODO: parse nftId and wallet from txHash,
         txHash,
         isGift,
@@ -620,6 +624,8 @@ router.post(
         logType: 'BookNFTShippingUpdate',
         paymentId,
         collectionId,
+        email,
+        ownerWallet: req.user.wallet,
         shippingMessage: message,
       });
 

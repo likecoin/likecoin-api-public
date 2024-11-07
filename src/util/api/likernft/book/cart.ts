@@ -602,6 +602,23 @@ export async function processNFTBookCartStripePurchase(
           shippingCost: undefined,
           coupon,
         }),
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'BookNFTPurchaseComplete',
+          type: 'stripe',
+          paymentId,
+          classId,
+          priceName,
+          priceIndex,
+          price,
+          customPriceDiff: feeInfo.customPriceDiff,
+          quantity,
+          email,
+          fromChannel: from,
+          sessionId: session.id,
+          stripeFeeAmount,
+          coupon,
+          isGift,
+        }),
       ];
       if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
         notifications.push(sendNFTBookOutOfStockSlackNotification({
@@ -646,8 +663,13 @@ export async function processNFTBookCartStripePurchase(
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',
       paymentId,
+      email,
       cartId,
+      price: (amountTotal || 0) / 100,
+      customPriceDiff: totalFeeInfo.customPriceDiff,
       sessionId: session.id,
+      numberOfItems: infoList.length,
+      quantity: infoList.reduce((acc, item) => acc + item.txData.quantity, 0),
       isGift: cartIsGift,
     });
     if (cartIsGift && cartGiftInfo) {
@@ -702,6 +724,7 @@ export async function processNFTBookCartStripePurchase(
         type: 'stripe',
         paymentId,
         cartId,
+        email,
         error: (err as Error).toString(),
         errorMessage,
         errorStack,
