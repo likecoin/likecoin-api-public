@@ -340,3 +340,97 @@ export function getSlackAttachmentForMap(title, map) {
     mrkdwn_in: ['pretext', 'fields'],
   };
 }
+
+export function formatTransactionDetailsForBlockKit(data) {
+  const {
+    timestamp, id: paymentId, classId, sessionId,
+    claimToken, from, priceInDecimal: price, status, email,
+  } = data;
+
+  const text = `*Payment ID*\n<https://dashboard.stripe.com/test/search?query=${paymentId}|${paymentId}>\n\n*Class ID*\n<https://liker.land/nft/class/${classId}|${classId}>\n\n*Session ID*\n\`${sessionId}\`\n\n*Claim Token*\n\`${claimToken}\``;
+
+  const fields = [
+    {
+      type: 'mrkdwn',
+      text: `*Timestamp*\n${timestamp.toDate().toLocaleString()}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Email*\n${email}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Price*\n${price}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Status*\n${status}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Channel*\n\`${from}\``,
+    },
+  ];
+
+  return {
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text,
+    },
+    fields,
+  };
+}
+
+export function mapTransactionDocsToSlackSections(transactionDocs) {
+  return transactionDocs.map((doc, index) => ({
+    ...formatTransactionDetailsForBlockKit({
+      ...doc.data(),
+      id: doc.id,
+    }),
+    text: {
+      type: 'mrkdwn',
+      text: `💳 *Payment Record #${index + 1}*\n\n${formatTransactionDetailsForBlockKit({
+        ...doc.data(),
+        id: doc.id,
+      }).text.text}`,
+    },
+  }));
+}
+
+export function createPaymentSlackBlocks({
+  transactions,
+  emailOrWallet = '',
+  classId = '',
+  collectionId = '',
+  cartId = '',
+  paymentId = '',
+  status = '',
+}) {
+  const contextArray = [
+    emailOrWallet && `for ${emailOrWallet}`,
+    classId && `in class ${classId}`,
+    collectionId && `in collection ${collectionId}`,
+    cartId && `in cart ${cartId}`,
+    paymentId && `for payment ${paymentId}`,
+    status && `with status ${status}`,
+  ].filter(Boolean);
+
+  const titleText = `*${transactions.length} transaction(s) found ${contextArray.join(' ')}*`;
+
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: titleText,
+      },
+    },
+    {
+      type: 'divider',
+    },
+    ...transactions,
+  ];
+
+  return blocks;
+}
