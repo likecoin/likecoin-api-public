@@ -25,7 +25,7 @@ import {
 } from '.';
 import { addDefaultFollowers } from './follow';
 import { ValidationError } from '../../ValidationError';
-import { checkUserNameValid, checkCosmosAddressValid } from '../../ValidationHelper';
+import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
 import {
   handleAvatarUploadAndGetURL,
   handleAvatarLinkAndGetURL,
@@ -85,6 +85,7 @@ export async function handleUserRegistration({
     description,
     cosmosWallet,
     likeWallet,
+    evmWallet,
     avatarSHA256,
     avatarURL: avatarURLInput,
     referrer,
@@ -114,11 +115,15 @@ export async function handleUserRegistration({
   if (!checkCosmosAddressValid(likeWallet, 'like')) {
     throw new ValidationError('INVALID_LIKE_WALLET');
   }
+  if (evmWallet && !checkAddressValid(evmWallet)) {
+    throw new ValidationError('INVALID_EVM_WALLET');
+  }
 
   await checkUserInfoUniqueness({
     user,
     cosmosWallet,
     likeWallet,
+    evmWallet,
     email,
     platform,
     platformUserId,
@@ -157,6 +162,7 @@ export async function handleUserRegistration({
           phone,
           cosmosWallet,
           likeWallet,
+          evmWallet,
           displayName,
           referrer,
           locale,
@@ -178,6 +184,7 @@ export async function handleUserRegistration({
     if (avatarHash) createObj.avatarHash = avatarHash;
   }
   if (likeWallet) createObj.likeWallet = likeWallet;
+  if (evmWallet) createObj.evmWallet = evmWallet;
   if (hasReferrer) createObj.referrer = referrer;
   if (description) createObj.description = description;
 
@@ -297,6 +304,11 @@ export async function handleUserRegistration({
         userId: likeWallet,
       };
     }
+    if (evmWallet) {
+      doc.evmWallet = {
+        userId: evmWallet,
+      };
+    }
     batch.create(authDbRef.doc(user), doc);
   }
   await batch.commit();
@@ -312,6 +324,7 @@ export async function handleUserRegistration({
       description,
       cosmosWallet,
       likeWallet,
+      evmWallet,
       avatar: avatarURL,
       referrer: referrer || undefined,
       locale,

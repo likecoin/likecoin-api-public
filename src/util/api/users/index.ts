@@ -276,6 +276,7 @@ async function userInfoQuery({
   user,
   cosmosWallet,
   likeWallet,
+  evmWallet,
   email,
   platform,
   platformUserId,
@@ -284,6 +285,7 @@ async function userInfoQuery({
   user: string;
   cosmosWallet?: string;
   likeWallet?: string;
+  evmWallet?: string;
   email?: string;
   platform?: string;
   platformUserId?: string;
@@ -311,6 +313,15 @@ async function userInfoQuery({
       const docUser = doc.id;
       if (user !== docUser) {
         throw new ValidationError('LIKE_WALLET_ALREADY_EXIST');
+      }
+    });
+    return true;
+  }) : Promise.resolve();
+  const evmWalletQuery = evmWallet ? dbRef.where('evmWallet', '==', evmWallet).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const docUser = doc.id;
+      if (user !== docUser) {
+        throw new ValidationError('EVM_WALLET_ALREADY_EXIST');
       }
     });
     return true;
@@ -355,6 +366,7 @@ async function userInfoQuery({
     userNameQuery,
     cosmosWalletQuery,
     likeWalletQuery,
+    evmWalletQuery,
     emailQuery,
     authQuery,
     authCoreQuery,
@@ -367,6 +379,7 @@ export async function checkUserInfoUniqueness({
   user,
   cosmosWallet,
   likeWallet,
+  evmWallet,
   email,
   platform,
   platformUserId,
@@ -375,6 +388,7 @@ export async function checkUserInfoUniqueness({
   user: string;
   cosmosWallet?: string;
   likeWallet?: string;
+  evmWallet?: string;
   email?: string;
   platform?: string;
   platformUserId?: string;
@@ -386,6 +400,7 @@ export async function checkUserInfoUniqueness({
     user,
     cosmosWallet,
     likeWallet,
+    evmWallet,
     email,
     platform,
     platformUserId,

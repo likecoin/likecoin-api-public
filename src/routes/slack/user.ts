@@ -27,7 +27,7 @@ async function getUserInfo(req, res, query) {
   if (query.includes('@') && query.includes('.')) {
     queryType = 'email';
   } else if (query.startsWith('0x') && query.length === 42) {
-    queryType = 'wallet';
+    queryType = 'evmWallet';
   } else if (query.startsWith('cosmos1') && query.length === 45) {
     queryType = 'cosmosWallet';
   } else if (query.startsWith('like1') && query.length === 43) {
