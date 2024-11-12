@@ -482,7 +482,7 @@ export function filterBookPurchaseData({
     message,
     from,
     giftInfo,
-    timestamp: timestamp.toMillis(),
+    timestamp: timestamp?.toMillis(),
     autoMemo,
     isAutoDeliver,
     quantity,
@@ -519,7 +519,7 @@ export function filterBookPurchaseCommission({
     amountTotal,
     amount,
     currency,
-    timestamp: timestamp.toMillis(),
+    timestamp: timestamp?.toMillis(),
   };
 }
 
@@ -697,6 +697,7 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     author,
     usageInfo,
     isbn,
+    timestamp,
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
@@ -720,6 +721,7 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     author,
     usageInfo,
     isbn,
+    timestamp: timestamp?.toMillis(),
   };
   if (isOwner) {
     payload.sold = sold;
@@ -801,7 +803,7 @@ export function filterNFTCollection({
     typePayload: {
       ...filterNFTCollectionTypePayload(type, typePayload, isOwner),
     },
-    timestamp: timestamp.toMillis(),
+    timestamp: timestamp?.toMillis(),
   };
 }
 
