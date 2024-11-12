@@ -997,6 +997,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     prices,
     successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
       classId,
+      priceIndex,
       paymentId,
       token: claimToken,
       type: 'nft_book',
@@ -1010,6 +1011,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
       gadSource,
     }) : getLikerLandNFTClaimPageURL({
       classId,
+      priceIndex,
       paymentId,
       token: claimToken,
       type: 'nft_book',
