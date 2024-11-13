@@ -37,7 +37,7 @@ import logPixelEvents from '../../../../util/fbq';
 
 const router = Router();
 
-router.get('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (req, res, next) => {
   const { collectionId } = req.params;
   try {
     const {
@@ -131,7 +131,7 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, re
   }
 });
 
-router.post('/:collectionId/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (req, res, next) => {
   try {
     const { collectionId } = req.params;
     const {
@@ -447,14 +447,32 @@ router.post(
 
 router.get(
   '/:collectionId/status/:paymentId',
+  jwtOptionalAuth('read:nftcollection'),
   async (req, res, next) => {
     try {
       const { collectionId, paymentId } = req.params;
-      const doc = await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).get();
-      const docData = doc.data();
-      if (!docData) {
+      const { token } = req.query;
+      const [listingDoc, paymentDoc] = await Promise.all([
+        likeNFTCollectionCollection.doc(collectionId).get(),
+        likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).get(),
+      ]);
+      if (!listingDoc.exists || !paymentDoc.exists) {
         res.status(404).send('PAYMENT_ID_NOT_FOUND');
         return;
+      }
+      const docData = paymentDoc.data();
+      const bookDocData = listingDoc.data();
+      const { claimToken, wallet } = docData;
+      const { ownerWallet, moderatorWallets = [] } = bookDocData;
+      if (!token && !req.user) throw new ValidationError('MISSING_TOKEN', 401);
+      const isTokenValid = token && token === claimToken;
+      const sessionWallet = req.user?.wallet;
+      const isUserValid = sessionWallet
+        && (sessionWallet === wallet
+          || sessionWallet === ownerWallet
+          || moderatorWallets.includes(sessionWallet));
+      if (!isTokenValid && !isUserValid) {
+        throw new ValidationError('UNAUTHORIZED', 403);
       }
       res.json(filterBookPurchaseData(docData));
     } catch (err) {
