@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
-import { getNftBookInfo, NFT_BOOK_TEXT_DEFAULT_LOCALE } from '.';
-import { W3C_EMAIL_REGEX, PUBSUB_TOPIC_MISC } from '../../../../constant';
+import { getNftBookInfo } from '.';
+import { W3C_EMAIL_REGEX, PUBSUB_TOPIC_MISC, NFT_BOOK_TEXT_DEFAULT_LOCALE } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import publisher from '../../../gcloudPub';

@@ -2,13 +2,14 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 
-import { getNftBookInfo, NFT_BOOK_TEXT_DEFAULT_LOCALE } from '.';
+import { getNftBookInfo } from '.';
 import {
   NFT_BOOK_SALE_DESCRIPTION,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   PUBSUB_TOPIC_MISC,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getNFTClassDataById } from '../../../cosmos/nft';

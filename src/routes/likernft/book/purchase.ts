@@ -4,7 +4,6 @@ import uuidv4 from 'uuid/v4';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
 import { db, likeNFTBookCartCollection, likeNFTBookCollection } from '../../../util/firebase';
@@ -13,6 +12,7 @@ import {
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';

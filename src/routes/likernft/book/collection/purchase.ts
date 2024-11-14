@@ -3,13 +3,11 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 
 import { ValidationError } from '../../../../util/ValidationError';
-import {
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
-} from '../../../../util/api/likernft/book';
 import { db, likeNFTCollectionCollection } from '../../../../util/firebase';
 import publisher from '../../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
 } from '../../../../constant';

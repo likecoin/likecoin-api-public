@@ -207,3 +207,7 @@ export const CUSTOMER_SERVICE_URL = 'https://go.crisp.chat/chat/embed/?website_i
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
 export const ARWEAVE_GATEWAY = IS_TESTNET ? 'https://gateway.irys.xyz' : 'https://arweave.net';
+
+export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
+export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
+export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];

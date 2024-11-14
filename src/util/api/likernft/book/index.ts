@@ -9,7 +9,14 @@ import {
   likeNFTBookCollection,
 } from '../../../firebase';
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
-import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME } from '../../../../constant';
+import {
+  FIRESTORE_BATCH_SIZE,
+  LIKER_LAND_HOSTNAME,
+  MIN_BOOK_PRICE_DECIMAL,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  NFT_BOOK_TEXT_LOCALES,
+  NFT_BOOKSTORE_HOSTNAME,
+} from '../../../../constant';
 import {
   getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData, getNFTsByClassId,
 } from '../../../cosmos/nft';
@@ -17,10 +24,8 @@ import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
-
-export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
-export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
-export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
+import { filterNFTBookListingInfo } from '../../../ValidationHelper';
+import { importProductFromBookListing } from '../../../googleRetail';
 
 export function getLocalizedTextWithFallback(field, locale) {
   return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
@@ -265,6 +270,14 @@ export async function syncNFTBookInfoWithISCN(classId) {
       });
     }
   }));
+  try {
+    await importProductFromBookListing(
+      filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload })
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
 }
 
 export async function updateNftBookInfo(classId: string, {
