@@ -1802,7 +1802,7 @@ export async function claimNFTBook(
       paymentId,
       classId,
       email,
-      fromWallet: req.user.wallet,
+      fromWallet: req.user?.wallet,
       toWallet: wallet,
       nftId,
       txHash,
