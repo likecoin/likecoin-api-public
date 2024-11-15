@@ -998,7 +998,7 @@ export async function claimNFTBookCollection(
       isAutoDeliver,
       paymentId,
       email,
-      fromWallet: req.user.wallet,
+      fromWallet: req.user?.wallet,
       toWallet: wallet,
       collectionId,
       txHash,
