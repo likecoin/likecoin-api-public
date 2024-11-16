@@ -782,6 +782,7 @@ export async function processNFTBookCollectionStripePurchase(
         stripeFeeCurrency,
         stripeFeeAmount,
         coupon,
+        isGift,
       }),
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseComplete',
