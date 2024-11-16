@@ -600,6 +600,7 @@ export async function processNFTBookCartStripePurchase(
           transfers,
           coupon,
           cartId,
+          isGift,
         }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',

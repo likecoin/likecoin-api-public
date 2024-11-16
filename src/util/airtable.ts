@@ -444,6 +444,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   from,
   coupon,
   cartId,
+  isGift,
 }: {
   pi: Stripe.PaymentIntent,
   paymentId: string,
@@ -461,6 +462,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   from?: string,
   coupon?: string,
   cartId?: string,
+  isGift?: boolean,
 }): Promise<void> {
   try {
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
@@ -509,6 +511,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'GA Client ID': record.gaClientId,
       'GA Session ID': record.gaSessionId,
       'Raw Data': record.rawData,
+      Gifting: !!isGift,
     };
     const publicationRecord = await queryAirtablePublicationRecordById(record.productId);
     if (publicationRecord) {
