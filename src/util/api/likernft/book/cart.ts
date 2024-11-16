@@ -598,9 +598,8 @@ export async function processNFTBookCartStripePurchase(
           quantity,
           feeInfo,
           transfers,
-          shippingCountry: undefined,
-          shippingCost: undefined,
           coupon,
+          cartId,
         }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
