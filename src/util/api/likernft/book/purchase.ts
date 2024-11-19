@@ -8,7 +8,7 @@ import { Query } from '@google-cloud/firestore';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
-import { NFT_BOOK_TEXT_DEFAULT_LOCALE, getNftBookInfo } from '.';
+import { getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
@@ -20,6 +20,7 @@ import {
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   LIKER_LAND_WAIVED_CHANNEL,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';

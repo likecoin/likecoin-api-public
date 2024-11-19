@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 
-import { NFT_BOOK_TEXT_DEFAULT_LOCALE } from '..';
 import { getNFTClassDataById } from '../../../../cosmos/nft';
 import { ValidationError } from '../../../../ValidationError';
 import {
@@ -17,6 +16,7 @@ import {
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../../constant';
 import { parseImageURLFromMetadata } from '../../metadata';
 import {

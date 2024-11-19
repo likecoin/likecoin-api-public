@@ -121,6 +121,8 @@ config.GCLOUD_PUBSUB_MAX_WAIT = 1000;
 config.GCLOUD_PUBSUB_ENABLE = false;
 config.APP_SERVER = 'likecoin-api-public';
 
+config.GOOGLE_RETAIL_PROJECT_ID = '';
+
 config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
 
