@@ -107,12 +107,12 @@ async function importProductToRetailCatalog(products) {
   await retailClient.importProducts(request);
 }
 
-export async function importProductFromBookListing(bookData) {
+export async function importGoogleRetailProductFromBookListing(bookData) {
   const products = formatBookData(bookData);
   await importProductToRetailCatalog(products);
 }
 
-export async function importProductFromCollection(collectionData) {
+export async function importGoogleRetailProductFromCollection(collectionData) {
   const products = formatCollectionData(collectionData);
   await importProductToRetailCatalog(products);
 }

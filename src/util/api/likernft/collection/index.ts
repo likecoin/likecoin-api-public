@@ -10,7 +10,7 @@ import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
-import { importProductFromCollection } from '../../../googleRetail';
+import { importGoogleRetailProductFromCollection } from '../../../googleRetail';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -288,7 +288,7 @@ export async function createNFTCollectionByType(
   const createdDocData = createdDoc.data();
 
   try {
-    await importProductFromCollection(filterNFTCollection({
+    await importGoogleRetailProductFromCollection(filterNFTCollection({
       id: collectionId,
       ...createdDocData,
     }));
@@ -406,7 +406,7 @@ export async function patchNFTCollectionById(
   batch.update(likeNFTCollectionCollection.doc(collectionId), updatePayload);
 
   try {
-    await importProductFromCollection(
+    await importGoogleRetailProductFromCollection(
       filterNFTCollection({ id: collectionId, ...docData, ...updatePayload }),
     );
   } catch (err) {

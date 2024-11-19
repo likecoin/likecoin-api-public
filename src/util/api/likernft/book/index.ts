@@ -25,7 +25,7 @@ import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
-import { importProductFromBookListing } from '../../../googleRetail';
+import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
 
 export function getLocalizedTextWithFallback(field, locale) {
   return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
@@ -271,7 +271,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     }
   }));
   try {
-    await importProductFromBookListing(
+    await importGoogleRetailProductFromBookListing(
       filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload })
     );
   } catch (err) {
