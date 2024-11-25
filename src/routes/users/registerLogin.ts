@@ -13,7 +13,7 @@ import {
 import {
   getAuthCoreUser,
   updateAuthCoreUserById,
-  createAuthCoreCosmosWalletViaUserToken,
+  createAuthCoreWalletsViaUserToken,
   getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
 import {
@@ -128,10 +128,13 @@ router.post(
           } = authCoreUser;
           payload = req.body;
           payload.authCoreUserId = authCoreUserId;
-          if (!payload.cosmosWallet) {
+          if (!payload.cosmosWallet || !payload.likeWallet || !payload.evmWallet) {
             try {
-              const cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+              const {
+                cosmosWallet, evmWallet,
+              } = await createAuthCoreWalletsViaUserToken(accessToken);
               payload.cosmosWallet = cosmosWallet;
+              if (evmWallet) payload.evmWallet = evmWallet;
             } catch (err) {
               // eslint-disable-next-line no-console
               console.error('Cannot create cosmos wallet');
@@ -539,14 +542,21 @@ router.post('/login', async (req, res, next) => {
           locale,
           cosmosWallet,
           likeWallet,
+          evmWallet,
           timestamp: registerTime,
         } = doc.data();
         if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
           const { accessToken } = req.body;
-          if (!cosmosWallet) {
-            const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-            const newLikeWallet = changeAddressPrefix(newWallet, 'like');
-            await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
+          if (!cosmosWallet || !evmWallet) {
+            const {
+              cosmosWallet: newCosmosWallet, evmWallet: newEvmWallet,
+            } = await createAuthCoreWalletsViaUserToken(accessToken);
+            const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
+            await dbRef.doc(user).update({
+              cosmosWallet: newCosmosWallet,
+              likeWallet: newLikeWallet,
+              evmWallet: newEvmWallet,
+            });
           }
           if (!likeWallet && cosmosWallet) {
             const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');

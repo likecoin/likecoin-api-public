@@ -1,6 +1,10 @@
 import axios from 'axios';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
-import { AuthcoreVaultClient, AuthcoreCosmosProvider } from '@likecoin/secretd-js';
+import {
+  AuthcoreVaultClient,
+  AuthcoreCosmosProvider,
+  AuthcoreEthereumProvider,
+} from '@likecoin/secretd-js';
 import {
   AUTHCORE_API_ENDPOINT,
   AUTHCORE_SECRETD_STATIC_KEY,
@@ -174,23 +178,23 @@ export async function registerAuthCoreUser(payload, accessToken) {
   return { ...data.user };
 }
 
-export async function getAuthCoreCosmosWallet(accessToken: string, userId?: string) {
+export async function getAuthCoreWallets(accessToken: string, userId?: string) {
   try {
     const vaultOpt: any = { apiBaseURL: AUTHCORE_API_ENDPOINT, accessToken };
     if (userId) vaultOpt.staticKey = AUTHCORE_SECRETD_STATIC_KEY;
     const client = new AuthcoreVaultClient(vaultOpt);
-    const cosmosProviderOpt: any = { client };
+    const walletProviderOpt: any = { client };
     if (userId) {
       const uid = await client.authcoreLookupOrCreateUser(userId);
-      cosmosProviderOpt.oid = `user/${uid}/hdwallet_default`;
+      walletProviderOpt.oid = `user/${uid}/hdwallet_default`;
     }
-    const cosmosProvider = new AuthcoreCosmosProvider(cosmosProviderOpt);
-    const addresses = await cosmosProvider.getAddresses();
-    if (!addresses || addresses.length < 1) {
-      return '';
-    }
-    const [address] = addresses;
-    return address;
+    const cosmosProvider = new AuthcoreCosmosProvider(walletProviderOpt);
+    const evmProvider = new AuthcoreEthereumProvider(walletProviderOpt);
+    const [[cosmosWallet], [evmWallet]] = await Promise.all([
+      cosmosProvider.getAddresses(),
+      evmProvider.getAddresses(),
+    ]);
+    return { cosmosWallet: cosmosWallet || '', evmWallet: evmWallet || '' };
   } catch (err) {
     if ((err as any).response) {
       const { data } = (err as any).response;
@@ -200,10 +204,10 @@ export async function getAuthCoreCosmosWallet(accessToken: string, userId?: stri
   }
 }
 
-export async function createAuthCoreCosmosWalletViaUserToken(accessToken) {
-  return getAuthCoreCosmosWallet(accessToken);
+export async function createAuthCoreWalletsViaUserToken(accessToken) {
+  return getAuthCoreWallets(accessToken);
 }
 
-export async function createAuthCoreCosmosWalletViaServiceAccount(userId, accessToken) {
-  return getAuthCoreCosmosWallet(accessToken, userId);
+export async function createAuthCoreWalletsViaServiceAccount(userId, accessToken) {
+  return getAuthCoreWallets(accessToken, userId);
 }
