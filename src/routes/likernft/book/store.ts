@@ -295,6 +295,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
             currency: 'usd',
             unit_amount: price.priceInDecimal,
           });
+          await stripe.products.update(
+            oldPriceInfo.stripeProductId,
+            { default_price: newStripePrice.id },
+          );
           await stripe.prices.update(
             oldPriceInfo.stripePriceId,
             { active: false },
