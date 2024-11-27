@@ -394,6 +394,10 @@ export async function patchNFTCollectionById(
           unit_amount: newTypePayload.priceInDecimal,
           currency: 'usd',
         });
+        await stripe.products.update(
+          stripeProductId,
+          { default_price: newStripePrice.id },
+        );
         await stripe.prices.update(stripePriceId, {
           active: false,
         });
@@ -481,17 +485,11 @@ export async function removeNFTCollectionById(
   }
   const { ownerWallet, typePayload = {} } = docData;
   if (ownerWallet !== wallet) { throw new ValidationError('NOT_OWNER_OF_COLLECTION', 403); }
-  const { stripeProductId, stripePriceId } = typePayload;
-  if (stripePriceId) {
-    await stripe.prices.update(stripePriceId, {
+  const { stripeProductId } = typePayload;
+  if (stripeProductId) {
+    await stripe.products.update(stripeProductId, {
       active: false,
     }).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(err);
-    });
-  }
-  if (stripeProductId) {
-    await stripe.products.del(stripeProductId).catch((err) => {
       // eslint-disable-next-line no-console
       console.error(err);
     });
