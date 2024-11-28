@@ -6,7 +6,7 @@ import { createHash } from 'crypto';
 import jsonStringify from 'fast-json-stable-stringify';
 import path from 'path';
 import sigUtil from 'eth-sig-util';
-import Web3 from 'web3';
+import web3Utils from 'web3-utils';
 import {
   testingCosmosWallet0,
   testingLikeWallet0,
@@ -193,7 +193,7 @@ test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
 // serial will run first
 //
 test.serial('USER: Login Metamask user. Case: success', async (t) => {
-  const payload = Web3.utils.utf8ToHex(JSON.stringify({
+  const payload = web3Utils.utf8ToHex(JSON.stringify({
     ts: Date.now(),
     wallet: testingWallet2,
   }));
@@ -529,7 +529,7 @@ for (let i = 0; i < userCases.length; i += 1) {
     privateKey,
   } = userCases[i];
   test(name, async (t) => {
-    const formatedPayload = Web3.utils.utf8ToHex(JSON.stringify(payload));
+    const formatedPayload = web3Utils.utf8ToHex(JSON.stringify(payload));
     const sign = signERCProfile(formatedPayload, privateKey);
     const res = await axiosist.post('/api/users/new', {
       from,

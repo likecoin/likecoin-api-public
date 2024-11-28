@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
-import Web3 from 'web3';
+import { ethers } from 'ethers';
 import {
   INFURA_HOST, IS_TESTNET, ONE_DAY_IN_S, ONE_HOUR_IN_S,
 } from '../../constant';
@@ -9,10 +9,8 @@ import { getCosmosTotalSupply, getCosmosAccountLIKE } from '../../util/cosmos';
 
 const router = Router();
 
-const web3 = new Web3(new Web3.providers.HttpProvider(INFURA_HOST));
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-const LikeCoin = new web3.eth.Contract(LIKE_COIN_ABI, LIKE_COIN_ADDRESS);
+const provider = new ethers.JsonRpcProvider(INFURA_HOST);
+const LikeCoin = new ethers.Contract(LIKE_COIN_ADDRESS, LIKE_COIN_ABI, provider);
 
 const reservedEthWallets = IS_TESTNET ? [
 ] : [
@@ -30,7 +28,7 @@ const reservedCosmosWallets = IS_TESTNET ? [
 ];
 
 router.get('/totalsupply/erc20', async (req, res) => {
-  let rawSupply = new BigNumber(await LikeCoin.methods.totalSupply().call());
+  let rawSupply = new BigNumber(await LikeCoin.totalSupply());
   if (req.query.raw !== '1') {
     rawSupply = rawSupply.div(new BigNumber(10).pow(18));
   }
@@ -41,9 +39,9 @@ router.get('/totalsupply/erc20', async (req, res) => {
 });
 
 router.get('/circulating/erc20', async (req, res) => {
-  const rawSupply = await LikeCoin.methods.totalSupply().call();
+  const rawSupply = await LikeCoin.totalSupply();
   const amounts = await Promise.all(reservedEthWallets
-    .map((w) => LikeCoin.methods.balanceOf(w).call().catch((err) => {
+    .map((w) => LikeCoin.balanceOf(w).catch((err) => {
       // eslint-disable-next-line no-console
       console.error(err);
       return 0;
