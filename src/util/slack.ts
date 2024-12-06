@@ -345,6 +345,7 @@ export function formatTransactionDetailsForBlockKit(data) {
   const {
     timestamp, id: paymentId, classId, sessionId,
     claimToken, from, priceInDecimal: price, status, email,
+    wallet, txHash,
   } = data;
 
   const text = `*Payment ID*\n<https://dashboard.stripe.com/test/search?query=${paymentId}|${paymentId}>\n\n*Class ID*\n<https://liker.land/nft/class/${classId}|${classId}>\n\n*Session ID*\n\`${sessionId}\`\n\n*Claim Token*\n\`${claimToken}\``;
@@ -371,6 +372,19 @@ export function formatTransactionDetailsForBlockKit(data) {
       text: `*Channel*\n\`${from}\``,
     },
   ];
+
+  if (wallet) {
+    fields.push({
+      type: 'mrkdwn',
+      text: `*Wallet*\n<https://liker.land/${wallet}|${wallet}>`,
+    });
+  }
+  if (txHash) {
+    fields.push({
+      type: 'mrkdwn',
+      text: `*Tx Hash*\n\`${txHash}\``,
+    });
+  }
 
   return {
     type: 'section',
