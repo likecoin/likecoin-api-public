@@ -419,6 +419,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView = false,
       hideDownload = false,
       enableCustomMessagePage = false,
+      tableOfContents,
       autoDeliverNFTsTxHash,
     } = req.body;
     const [iscnInfo, metadata] = await Promise.all([
@@ -479,6 +480,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
+      tableOfContents,
       hideDownload,
 
       // From ISCN content metadata
@@ -532,6 +534,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       mustClaimToView,
       hideDownload,
       enableCustomMessagePage,
+      tableOfContents,
     });
 
     res.json({
@@ -553,6 +556,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       mustClaimToView,
       hideDownload,
       enableCustomMessagePage,
+      tableOfContents,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -569,6 +573,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       mustClaimToView,
       hideDownload,
       enableCustomMessagePage,
+      tableOfContents,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
