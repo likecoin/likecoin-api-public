@@ -17,6 +17,9 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
@@ -52,6 +55,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const {
         isEnableNotificationEmails,
       } = req.body;
@@ -71,6 +77,9 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.query;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
@@ -102,6 +111,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
@@ -130,6 +142,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const { bookUserInfo, likerUserInfo } = await getBookUserInfoFromWallet(wallet);
       const {
         stripeConnectAccountId: existingId,
@@ -195,6 +210,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
@@ -235,6 +253,9 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
       const userData = userDoc.data();
       if (!userData) {
@@ -275,6 +296,9 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), async (req, res, next) => {
   try {
     const { wallet } = req.user;
     const { id } = req.params;
+    if (!wallet) {
+      throw new ValidationError('WALLET_NOT_SET', 403);
+    }
     const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
     const userData = userDoc.data();
     if (!userData) {
@@ -339,6 +363,9 @@ router.get(
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const commissionQuery = await likeNFTBookUserCollection
         .doc(wallet)
         .collection('commissions')
@@ -364,6 +391,9 @@ router.get(
     try {
       const { wallet } = req.user;
       const { id } = req.params;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
       const commissionDoc = await likeNFTBookUserCollection
         .doc(wallet)
         .collection('commissions')
