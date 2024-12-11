@@ -130,6 +130,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     mustClaimToView,
     hideDownload,
     enableCustomMessagePage,
+    tableOfContents,
 
     inLanguage,
     name,
@@ -185,6 +186,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
+  if (tableOfContents) payload.tableOfContents = tableOfContents;
   let batch = db.batch();
   batch.create(likeNFTBookCollection.doc(classId), payload);
   if (apiWalletOwnedNFTIds.length) {
@@ -289,6 +291,7 @@ export async function updateNftBookInfo(classId: string, {
   mustClaimToView,
   hideDownload,
   enableCustomMessagePage,
+  tableOfContents,
 }: {
   prices?: any[];
   notificationEmails?: string[];
@@ -298,6 +301,7 @@ export async function updateNftBookInfo(classId: string, {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   enableCustomMessagePage?: boolean;
+  tableOfContents?: string;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
   await syncNFTBookInfoWithISCN(classId);
 
@@ -317,6 +321,7 @@ export async function updateNftBookInfo(classId: string, {
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
+  if (tableOfContents !== undefined) { payload.tableOfContents = tableOfContents; }
   const classIdRef = likeNFTBookCollection.doc(classId);
   let batch = db.batch();
   batch.update(classIdRef, payload);
