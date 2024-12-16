@@ -33,6 +33,7 @@ export async function createAirtablePublicationRecord({
   maxPrice,
   imageURL,
   author,
+  publisher,
   language,
   keywords = [],
   usageInfo,
@@ -52,6 +53,7 @@ export async function createAirtablePublicationRecord({
   maxPrice: number;
   imageURL: string;
   author?: string;
+  publisher?: string;
   language?: string;
   keywords?: string[];
   usageInfo?: string;
@@ -83,6 +85,7 @@ export async function createAirtablePublicationRecord({
     };
 
     if (author) fields.Author = author;
+    if (publisher) fields.Publisher = publisher;
     if (language) fields.Language = language;
     if (keywords?.length) fields.Keywords = keywords;
     if (usageInfo) fields['Usage Info'] = usageInfo;
@@ -176,6 +179,7 @@ export async function queryAirtableForPublication({ query }) {
         'ISCN Id Prefix': iscnId,
         'Liker Land URL': url,
         Author: author,
+        Publisher: publisher,
       }) => ({
         timestamp,
         ownerWallet,
@@ -191,6 +195,7 @@ export async function queryAirtableForPublication({ query }) {
         description,
         iscnId,
         author,
+        publisher,
       }));
     return result;
   } catch (err) {
