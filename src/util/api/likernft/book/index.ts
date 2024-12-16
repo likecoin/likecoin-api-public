@@ -138,6 +138,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     keywords,
     thumbnailUrl,
     author,
+    publisher,
     usageInfo,
     isbn,
 
@@ -173,6 +174,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
+  if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
   if (isbn) payload.isbn = isbn;
   if (successUrl) payload.successUrl = successUrl;
@@ -240,6 +242,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     keywords: keywordString = '',
     thumbnailUrl,
     author,
+    publisher,
     usageInfo,
     isbn,
   } = iscnContentMetadata;
@@ -256,6 +259,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
+  if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
   if (isbn) payload.isbn = isbn;
   if (image) payload.image = image;
