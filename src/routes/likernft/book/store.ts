@@ -32,9 +32,16 @@ router.get('/search', async (req, res, next) => {
   try {
     const {
       q,
+      fields: fieldsString,
     } = req.query;
+    let fields;
+    if (Array.isArray(fieldsString)) {
+      fields = fieldsString;
+    } else if (typeof fieldsString === 'string') {
+      fields = fieldsString.split(',').map((f) => f.trim());
+    }
     if (!q) throw new ValidationError('INVALID_SEARCH_QUERY');
-    const list = await queryAirtableForPublication({ query: q });
+    const list = await queryAirtableForPublication({ query: q, fields });
     res.json({ list });
   } catch (err) {
     next(err);
