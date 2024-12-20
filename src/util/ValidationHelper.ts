@@ -700,6 +700,7 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     usageInfo,
     isbn,
     timestamp,
+    isHidden,
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
@@ -726,6 +727,7 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     usageInfo,
     isbn,
     timestamp: timestamp?.toMillis(),
+    isHidden,
   };
   if (isOwner) {
     payload.sold = sold;
