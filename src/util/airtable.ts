@@ -134,7 +134,7 @@ export async function createAirtablePublicationRecord({
 
 export async function queryAirtableForPublication({ query, fields }) {
   try {
-    const formattedQueryString = query.replaceAll('"', '');
+    const formattedQueryString = query.replaceAll('"', '').toLowerCase();
 
     const defaultFieldNames = ['Name', 'Description', 'Owner Name', 'Author', 'Publisher'];
     const fieldMap = {
@@ -145,7 +145,9 @@ export async function queryAirtableForPublication({ query, fields }) {
       publisher: 'Publisher',
     };
     const fieldNames = fields?.map((field) => fieldMap[field]).filter(Boolean) || defaultFieldNames;
-    const formulas = fieldNames.map((field) => `IF(SEARCH("${formattedQueryString}", {${field}}), 1)`);
+    const formulas = fieldNames.map(
+      (field) => `IF(SEARCH(LOWER("${formattedQueryString}"), LOWER({${field}})), 1)`,
+    );
     const formula = `OR(${formulas.join(', ')})`;
     const res = await base(PUBLICATIONS_TABLE_NAME).select({
       fields: [
