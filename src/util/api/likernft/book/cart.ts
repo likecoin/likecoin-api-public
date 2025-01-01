@@ -159,8 +159,8 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     priceInDecimal: totalPriceInDecimal,
     originalPriceInDecimal: totalOriginalPriceInDecimal,
     feeInfo,
-    coupon,
   };
+  if (coupon) payload.coupon = coupon;
   const isGift = !!giftInfo;
   if (isGift) {
     const {
