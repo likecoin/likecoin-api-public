@@ -3,11 +3,11 @@ export async function getLIKEPrice({ raw = false } = {}) {
 }
 
 export async function getMaticPriceInLIKE() {
-  return Promise.resolve(700);
+  return Promise.resolve(600);
 }
 
 export async function getArweavePriceInLIKE() {
-  return Promise.resolve(5000);
+  return Promise.resolve(16000);
 }
 
 export default getLIKEPrice();

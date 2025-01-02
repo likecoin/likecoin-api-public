@@ -205,7 +205,7 @@ async function getARPriceRatioBigNumber() {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify(err));
     // TODO: make a less hardcoded fallback price
-    return new BigNumber(5000);
+    return new BigNumber(16000);
   }
 }
 
@@ -219,7 +219,7 @@ async function getMATICPriceRatioBigNumber() {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify(err));
     // TODO: make a less hardcoded fallback price
-    return new BigNumber(700);
+    return new BigNumber(600);
   }
 }
 

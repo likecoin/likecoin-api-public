@@ -42,12 +42,12 @@ export async function getLIKEPrice({ raw = false } = {}) {
 }
 
 export async function getMaticPriceInLIKE() {
-  const price = await getTokenPrice('matic-network', 'likecoin', 700);
+  const price = await getTokenPrice('matic-network', 'likecoin', 600);
   return price;
 }
 
 export async function getArweavePriceInLIKE() {
-  const price = await getTokenPrice('arweave', 'likecoin', 5000);
+  const price = await getTokenPrice('arweave', 'likecoin', 16000);
   return price;
 }
 
