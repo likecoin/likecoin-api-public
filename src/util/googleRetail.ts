@@ -65,7 +65,7 @@ function formatBookData(data) {
     id: `${id}-${price.index}`,
     type: 'PRIMARY',
     gtin: isbn,
-    categories: getCategoryFromName(name),
+    categories: [getCategoryFromName(name)],
     title: `${name} - ${getLocalizedTextWithFallback(price.name, 'zh')}`,
     description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n'),
     languageCode: inLanguage,
