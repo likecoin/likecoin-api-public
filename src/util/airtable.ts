@@ -71,7 +71,7 @@ export async function createAirtablePublicationRecord({
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields: any = {
-      Timestamp: (timestamp.toString() !== 'Invalid Date' ? timestamp : new Date()).toISOString(),
+      Timestamp: (!Number.isNaN(timestamp.getTime()) ? timestamp : new Date()).toISOString(),
       'Owner Wallet': ownerWallet,
       Type: type,
       ID: id,
