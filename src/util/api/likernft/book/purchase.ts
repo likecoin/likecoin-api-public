@@ -1197,6 +1197,7 @@ export async function sendNFTBookPurchaseEmail({
   paymentId,
   claimToken,
   amountTotal,
+  quantity,
   isGift = false,
   giftInfo,
   mustClaimToView = false,
@@ -1257,6 +1258,7 @@ export async function sendNFTBookPurchaseEmail({
     originalPrice,
     bookName,
     amount: amountTotal,
+    quantity,
   });
 }
 
@@ -1556,6 +1558,7 @@ export async function processNFTBookStripePurchase(
         paymentId,
         claimToken,
         amountTotal: (amountTotal || 0) / 100,
+        quantity,
         mustClaimToView,
         isPhysicalOnly,
         from,

@@ -355,6 +355,7 @@ router.post(
           paymentId,
           claimToken,
           amountTotal: 0,
+          quantity: 1,
           mustClaimToView,
           isPhysicalOnly,
           shippingDetails: null,

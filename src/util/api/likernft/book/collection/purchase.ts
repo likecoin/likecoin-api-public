@@ -505,6 +505,7 @@ export async function sendNFTBookCollectionPurchaseEmail({
   shippingDetails,
   shippingCost = 0,
   originalPrice = amountTotal,
+  quantity,
   from,
 }) {
   if (isPhysicalOnly) {
@@ -550,6 +551,7 @@ export async function sendNFTBookCollectionPurchaseEmail({
     giftToEmail: (giftInfo as any)?.toEmail,
     giftToName: (giftInfo as any)?.toName,
     amount: amountTotal,
+    quantity,
     phone,
     shippingDetails,
     shippingCost,
@@ -752,6 +754,7 @@ export async function processNFTBookCollectionStripePurchase(
         paymentId,
         claimToken,
         amountTotal: (amountTotal || 0) / 100,
+        quantity,
         isPhysicalOnly,
         phone: phone || '',
         shippingDetails,
