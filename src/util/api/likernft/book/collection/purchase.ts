@@ -626,7 +626,6 @@ export async function processNFTBookCollectionStripePurchase(
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email, phone } = customer;
-  let capturedPaymentIntent: Stripe.Response<Stripe.PaymentIntent> | null = null;
   try {
     const { txData, listingData } = await processNFTBookCollectionPurchase({
       collectionId,
@@ -654,15 +653,14 @@ export async function processNFTBookCollectionStripePurchase(
       quantity,
       coupon: docCoupon,
     } = txData;
-    const [captured, collectionData] = await Promise.all([
-      stripe.paymentIntents.capture(paymentIntent as string, {
+    const [expandedPaymentIntent, collectionData] = await Promise.all([
+      stripe.paymentIntents.retrieve(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
       }),
       getBookCollectionInfoById(collectionId),
     ]);
-    capturedPaymentIntent = captured;
 
-    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+    const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
     const {
       stripeFeeAmount,
@@ -699,7 +697,7 @@ export async function processNFTBookCollectionStripePurchase(
       originalPriceInDecimal,
       customPriceDiff,
     };
-    const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+    const chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
     const collectionName = collectionData?.name[NFT_BOOK_TEXT_DEFAULT_LOCALE] || collectionId;
     const shippingCostAmount = shippingCost ? shippingCost.amount_total / 100 : 0;
 
@@ -770,7 +768,7 @@ export async function processNFTBookCollectionStripePurchase(
         from,
       }),
       createAirtableBookSalesRecordFromStripePaymentIntent({
-        pi: capturedPaymentIntent,
+        pi: expandedPaymentIntent,
         paymentId,
         collectionId,
         from,
@@ -856,7 +854,7 @@ export async function processNFTBookCollectionStripePurchase(
     console.error(err);
     const errorMessage = (err as Error).message;
     const errorStack = (err as Error).stack;
-    if (!capturedPaymentIntent && errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+    if (errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseError',
         type: 'stripe',
@@ -869,11 +867,9 @@ export async function processNFTBookCollectionStripePurchase(
       });
       await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
         .doc(paymentId).update({
-          status: 'canceled',
+          status: 'error',
           email,
         });
-      await stripe.paymentIntents.cancel(paymentIntent as string)
-        .catch((error) => console.error(error)); // eslint-disable-line no-console
     }
   }
 }
