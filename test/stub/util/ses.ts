@@ -148,6 +148,7 @@ export function sendNFTBookSalesEmail({
   buyerEmail,
   bookName,
   amount,
+  quantity,
   originalPrice,
   phone,
   shippingDetails,

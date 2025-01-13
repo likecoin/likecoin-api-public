@@ -570,6 +570,7 @@ export async function processNFTBookCartStripePurchase(
           emails: notificationEmails,
           bookName,
           amount: priceInDecimal / 100,
+          quantity,
           phone,
           shippingDetails: '',
           shippingCost: 0,

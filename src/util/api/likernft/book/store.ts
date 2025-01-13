@@ -131,6 +131,7 @@ export async function handleGiftBook(
         },
         isGift: true,
         amountTotal: 0,
+        quantity: 1,
         mustClaimToView,
         isPhysicalOnly,
         shippingDetails: null,

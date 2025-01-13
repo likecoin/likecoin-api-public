@@ -976,6 +976,7 @@ export function sendNFTBookSalesEmail({
   buyerEmail,
   bookName,
   amount,
+  quantity,
   originalPrice,
   phone,
   shippingDetails,
@@ -987,14 +988,13 @@ export function sendNFTBookSalesEmail({
   <br/>
   <p>Congratulation!</p>
   <p>${buyerEmail} has bought your book ${bookName} for $${amount}${isGift ? ` as a gift to ${giftToName}<${giftToEmail}>` : ''}.</p>`;
-  if (amount > originalPrice || shippingCost) {
-    content += `<p>Price: $${originalPrice}</p>`;
-    if (amount > originalPrice) {
-      content += `<p>Tip: $${amount - originalPrice - shippingCost}</p>`;
-    }
-    if (shippingCost) {
-      content += `<p>Shipping paid: $${shippingCost}</p>`;
-    }
+  const hasTipping = amount > (originalPrice * quantity);
+  content += `<p>Price: $${originalPrice} x ${quantity}</p>`;
+  if (hasTipping) {
+    content += `<p>Tip: $${amount - originalPrice * quantity - shippingCost}</p>`;
+  }
+  if (shippingCost) {
+    content += `<p>Shipping paid: $${shippingCost}</p>`;
   }
   if (shippingDetails) {
     content += `<p>Shipping details: <pre>${JSON.stringify(shippingDetails, null, 2)}</pre></p>`;
