@@ -404,7 +404,6 @@ export async function processNFTBookCartStripePurchase(
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email, phone } = customer;
-  let capturedPaymentIntent: Stripe.Response<Stripe.PaymentIntent> | null = null;
   try {
     const infos = await processNFTBookCartPurchase({
       cartId,
@@ -424,10 +423,10 @@ export async function processNFTBookCartStripePurchase(
       giftInfo: cartGiftInfo,
       coupon: docCoupon,
     } = cartData;
-    capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntent as string, {
+    const expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
     });
-    const balanceTx = (capturedPaymentIntent.latest_charge as Stripe.Charge)
+    const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
       ?.balance_transaction as Stripe.BalanceTransaction;
 
     const {
@@ -448,7 +447,7 @@ export async function processNFTBookCartStripePurchase(
       shippingCost,
       coupon: docCoupon,
     });
-    const chargeId = typeof capturedPaymentIntent.latest_charge === 'string' ? capturedPaymentIntent.latest_charge : capturedPaymentIntent.latest_charge?.id;
+    const chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
 
     const infoList = [...classInfos, ...collectionInfos];
     const bookNames: string[] = [];
@@ -587,7 +586,7 @@ export async function processNFTBookCartStripePurchase(
           from,
         }),
         createAirtableBookSalesRecordFromStripePaymentIntent({
-          pi: capturedPaymentIntent,
+          pi: expandedPaymentIntent,
           paymentId,
           classId,
           collectionId,
@@ -719,7 +718,7 @@ export async function processNFTBookCartStripePurchase(
     console.error(err);
     const errorMessage = (err as Error).message;
     const errorStack = (err as Error).stack;
-    if (!capturedPaymentIntent && errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
+    if (errorMessage !== 'PAYMENT_ALREADY_PROCESSED') {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseError',
         type: 'stripe',
@@ -731,11 +730,9 @@ export async function processNFTBookCartStripePurchase(
         errorStack,
       });
       await likeNFTBookCartCollection.doc(cartId).update({
-        status: 'canceled',
+        status: 'error',
         email,
       });
-      await stripe.paymentIntents.cancel(paymentIntent as string)
-        .catch((error) => console.error(error)); // eslint-disable-line no-console
     }
   }
 }

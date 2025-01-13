@@ -169,7 +169,7 @@ router.post(
           gadClickId,
           gadSource,
         }),
-        client_reference_id: wallet as string || undefined,
+        client_reference_id: paymentId,
         customer_email: email,
         cancel_url: getLikerLandNFTClassPageURL({
           classId: classIds[0],
@@ -184,7 +184,7 @@ router.post(
         line_items: lineItems,
         payment_intent_data: {
           metadata: sessionMetadata,
-          capture_method: 'manual',
+          capture_method: 'automatic',
         },
         consent_collection: {
           promotions: 'auto',
