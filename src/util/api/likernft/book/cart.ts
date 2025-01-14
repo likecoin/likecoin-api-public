@@ -273,7 +273,7 @@ export async function processNFTBookCartPurchase({
           phone,
           hasShipping: false,
           shippingDetails: null,
-          shippingCost: null,
+          shippingCostAmount: null,
           execGrantTxHash: '',
         },
       );
@@ -293,7 +293,7 @@ export async function processNFTBookCartPurchase({
           phone,
           hasShipping: false,
           shippingDetails: null,
-          shippingCost: null,
+          shippingCostAmount: null,
           execGrantTxHash: '',
         },
       );
@@ -337,7 +337,7 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   paymentId,
   amountSubtotal,
   amountTotal,
-  shippingCost,
+  shippingCostAmount,
   balanceTx,
   feeInfo,
   coupon: existingCoupon,
@@ -348,13 +348,12 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     isAmountFeeUpdated,
     stripeFeeCurrency,
     newFeeInfo,
-    shippingCostAmount,
     discountRate,
   } = calculateFeeAndDiscountFromBalanceTx({
     paymentId,
     amountSubtotal,
     amountTotal,
-    shippingCost,
+    shippingCostAmount,
     balanceTx,
     feeInfo,
   });
@@ -366,7 +365,7 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   if (isStripeFeeUpdated || isAmountFeeUpdated) {
     const payload: any = {
       feeInfo: newFeeInfo,
-      shippingCost: shippingCostAmount / 100,
+      shippingCost: shippingCostAmount,
     };
     if (coupon) payload.coupon = coupon;
     await likeNFTBookCartCollection.doc(cartId).update(payload);
@@ -385,6 +384,10 @@ export async function processNFTBookCartStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
 ) {
+  let {
+    amount_total: amountTotal,
+    amount_subtotal: amountSubtotal,
+  } = session;
   const {
     metadata: {
       cartId,
@@ -395,8 +398,7 @@ export async function processNFTBookCartStripePurchase(
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
-    amount_total: amountTotal,
-    amount_subtotal: amountSubtotal,
+    currency_conversion: currencyConversion,
     shipping_cost: shippingCost,
     id: sessionId,
   } = session;
@@ -404,6 +406,25 @@ export async function processNFTBookCartStripePurchase(
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
   if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   const { email, phone } = customer;
+
+  let shippingCostAmount = 0;
+  if (shippingCost) {
+    shippingCostAmount = shippingCost.amount_total / 100;
+  }
+  if (currencyConversion) {
+    if (currencyConversion.amount_subtotal !== undefined) {
+      amountSubtotal = currencyConversion.amount_subtotal;
+    }
+    if (currencyConversion.amount_total !== undefined) {
+      amountTotal = currencyConversion.amount_total;
+    }
+    if (currencyConversion.fx_rate !== undefined && shippingCost?.amount_total) {
+      shippingCostAmount = Math.round(
+        shippingCost.amount_total / Number(currencyConversion.fx_rate),
+      ) / 100;
+    }
+  }
+
   try {
     const infos = await processNFTBookCartPurchase({
       cartId,
@@ -444,7 +465,7 @@ export async function processNFTBookCartStripePurchase(
       sessionId,
       balanceTx,
       feeInfo: totalFeeInfo,
-      shippingCost,
+      shippingCostAmount,
       coupon: docCoupon,
     });
     const chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
@@ -573,7 +594,7 @@ export async function processNFTBookCartStripePurchase(
           quantity,
           phone,
           shippingDetails: '',
-          shippingCost: 0,
+          shippingCostAmount: 0,
           originalPrice: originalPriceInDecimal / 100,
         }),
         sendNFTBookSalesSlackNotification({

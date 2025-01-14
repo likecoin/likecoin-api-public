@@ -310,7 +310,7 @@ router.post(
         phone: null,
         paymentId,
         shippingDetails: null,
-        shippingCost: null,
+        shippingCostAmount: 0,
       });
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

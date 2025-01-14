@@ -152,7 +152,7 @@ export function sendNFTBookSalesEmail({
   originalPrice,
   phone,
   shippingDetails,
-  shippingCost,
+  shippingCostAmount,
 }) {
   return Promise.resolve();
 }
