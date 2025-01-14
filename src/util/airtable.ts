@@ -450,7 +450,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   quantity = 1,
   feeInfo,
   shippingCountry,
-  shippingCost,
+  shippingCostAmount,
   stripeFeeAmount,
   stripeFeeCurrency,
   from,
@@ -468,7 +468,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   quantity?: number,
   feeInfo: any,
   shippingCountry?: string | null,
-  shippingCost?: number,
+  shippingCostAmount?: number,
   stripeFeeAmount: number,
   stripeFeeCurrency: string,
   from?: string,
@@ -532,8 +532,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     if (shippingCountry) {
       fields['Shipping Country'] = shippingCountry;
     }
-    if (shippingCost) {
-      fields['Shipping Cost'] = shippingCost;
+    if (shippingCostAmount) {
+      fields['Shipping Cost'] = shippingCostAmount;
     }
     if (coupon) {
       fields.Coupon = coupon;

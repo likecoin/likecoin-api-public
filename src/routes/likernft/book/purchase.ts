@@ -512,7 +512,7 @@ router.post(
         phone: null,
         paymentId,
         shippingDetails: null,
-        shippingCost: null,
+        shippingCostAmount: 0,
       });
       const priceInfo = listingData.prices[priceIndex];
 
