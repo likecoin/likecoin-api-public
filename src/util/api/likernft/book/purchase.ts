@@ -240,6 +240,7 @@ export async function handleStripeConnectedAccount({
           .catch((e) => { console.error(e); })),
       );
       const stripeConnectAccountIds = connectedUserInfos.map((userData) => {
+        if (!userData) return null;
         const { stripeConnectAccountId, isStripeConnectReady } = userData;
         return isStripeConnectReady ? stripeConnectAccountId : null;
       });
@@ -248,7 +249,7 @@ export async function handleStripeConnectedAccount({
       wallets.forEach((wallet, i) => {
         const stripeConnectAccountId = stripeConnectAccountIds[i];
         const userInfo = connectedUserInfos[i];
-        if (stripeConnectAccountId) {
+        if (stripeConnectAccountId && userInfo) {
           walletToUserMap[wallet] = {
             ...userInfo,
             stripeConnectAccountId,
