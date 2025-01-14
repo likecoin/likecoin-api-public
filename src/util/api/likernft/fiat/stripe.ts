@@ -50,22 +50,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
   const paymentId = doc.id;
   if (type !== 'stripe') throw new ValidationError('PAYMENT_TYPE_NOT_STRIPE');
   if (status !== 'new') return true; // handled or handling
-  const fiatAmount = new BigNumber(fiatPriceString).shiftedBy(2);
-  const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
-  if (fiatAmount.gt(paymentIntent.amount_capturable)) {
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'LikerNFTFiatPaymentError',
-      type: 'stripe',
-      paymentId,
-      buyerWallet: wallet,
-      purchaseInfoList,
-      fiatPrice,
-      LIKEPrice,
-      sessionId,
-      error: 'ALREADY_CAPTURED',
-    });
-    throw new ValidationError('ALREADY_CAPTURED');
-  }
   const { email } = customer;
   const isWalletProvided = !!wallet;
   if (!isWalletProvided && email) {
@@ -113,27 +97,6 @@ export async function processStripeFiatNFTPurchase(session, req) {
       errorMessage,
       errorStack,
     });
-    if (error instanceof ValidationError) {
-      try {
-        await stripe.paymentIntents.cancel(session.payment_intent);
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'LikerNFTFiatPaymentCancel',
-          type: 'stripe',
-          paymentId,
-          buyerWallet: wallet,
-          purchaseInfoList,
-          fiatPrice,
-          LIKEPrice,
-          sessionId,
-          error: (error as Error).toString(),
-          errorMessage,
-          errorStack,
-        });
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
-      }
-    }
     return false;
   }
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
