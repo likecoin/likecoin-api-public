@@ -523,7 +523,6 @@ router.post(
         priceIndex,
         from: from as string,
         email,
-        wallet,
         utmSource,
         utmCampaign,
         utmMedium,

@@ -42,7 +42,7 @@ import {
   processNFTBookCollectionPurchaseTxUpdate,
 } from './collection/purchase';
 import stripe, { getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
-import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import {
@@ -343,6 +343,16 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   coupon: existingCoupon,
   sessionId,
 }) {
+  if (!balanceTx) {
+    return {
+      ...feeInfo,
+      coupon: existingCoupon,
+      stripeFeeCurrency: '',
+      discountRate: 1,
+      isAmountFeeUpdated: false,
+      isStripeFeeUpdated: false,
+    };
+  }
   const {
     isStripeFeeUpdated,
     isAmountFeeUpdated,
@@ -392,6 +402,11 @@ export async function processNFTBookCartStripePurchase(
       clientIp,
       referrer,
       fbClickId,
+      utmSource,
+      utmCampaign,
+      utmMedium,
+      gaClientId,
+      gaSessionId,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -402,7 +417,10 @@ export async function processNFTBookCartStripePurchase(
   } = session;
   const paymentId = cartId;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
-  if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+
+  const isFree = amountTotal === 0;
+  if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+
   const { email, phone } = customer;
   try {
     const infos = await processNFTBookCartPurchase({
@@ -423,11 +441,15 @@ export async function processNFTBookCartStripePurchase(
       giftInfo: cartGiftInfo,
       coupon: docCoupon,
     } = cartData;
-    const expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
-      expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
-    });
-    const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
-      ?.balance_transaction as Stripe.BalanceTransaction;
+    let expandedPaymentIntent: Stripe.PaymentIntent | null = null;
+    let balanceTx: Stripe.BalanceTransaction | null = null;
+    if (paymentIntent) {
+      expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
+        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+      });
+      balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
+        ?.balance_transaction as Stripe.BalanceTransaction;
+    }
 
     const {
       stripeFeeAmount: totalStripeFeeAmount,
@@ -447,7 +469,11 @@ export async function processNFTBookCartStripePurchase(
       shippingCost,
       coupon: docCoupon,
     });
-    const chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
+
+    let chargeId: string | undefined;
+    if (expandedPaymentIntent) {
+      chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
+    }
 
     const infoList = [...classInfos, ...collectionInfos];
     const bookNames: string[] = [];
@@ -586,23 +612,39 @@ export async function processNFTBookCartStripePurchase(
           method: 'Fiat',
           from,
         }),
-        createAirtableBookSalesRecordFromStripePaymentIntent({
-          pi: expandedPaymentIntent,
-          paymentId,
-          classId,
-          collectionId,
-          priceIndex,
-          itemIndex,
-          stripeFeeAmount,
-          stripeFeeCurrency,
-          from,
-          quantity,
-          feeInfo,
-          transfers,
-          coupon,
-          cartId,
-          isGift,
-        }),
+        expandedPaymentIntent
+          ? createAirtableBookSalesRecordFromStripePaymentIntent({
+            pi: expandedPaymentIntent,
+            paymentId,
+            classId,
+            collectionId,
+            priceIndex,
+            itemIndex,
+            stripeFeeAmount,
+            stripeFeeCurrency,
+            from,
+            quantity,
+            feeInfo,
+            transfers,
+            coupon,
+            cartId,
+            isGift,
+          }) : createAirtableBookSalesRecordFromFreePurchase({
+            classId,
+            collectionId,
+            priceIndex,
+            paymentId,
+            itemIndex,
+            quantity,
+            from,
+            email: email || undefined,
+            utmSource,
+            utmCampaign,
+            utmMedium,
+            referrer,
+            gaClientId,
+            gaSessionId,
+          }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
           type: 'stripe',
@@ -646,7 +688,7 @@ export async function processNFTBookCartStripePurchase(
     }
 
     if (email) {
-      const segments = ['purchaser'];
+      const segments = isFree ? ['free book'] : ['purchaser'];
       if (totalFeeInfo.customPriceDiff) segments.push('tipper');
       infoList.forEach((info) => {
         const { ownerWallet } = info.listingData;
