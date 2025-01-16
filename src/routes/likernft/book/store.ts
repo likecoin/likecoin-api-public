@@ -200,7 +200,13 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
-
+    const {
+      ownerWallet,
+      moderatorWallets = [],
+    } = bookInfo;
+    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    }
     const {
       prices = [],
     } = bookInfo;
@@ -255,7 +261,12 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       prices = [],
       name,
       description,
+      ownerWallet,
+      moderatorWallets = [],
     } = bookInfo;
+    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    }
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
@@ -329,19 +340,19 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     const bookInfo = await getNftBookInfo(classId);
 
     if (!bookInfo) {
-      res.status(404).send('BOOK_NOT_FOUND');
-      return;
+      throw new ValidationError('BOOK_NOT_FOUND', 404);
     }
 
     const priceIndex = Number(req.params.priceIndex);
     const {
       prices = [],
       ownerWallet,
+      moderatorWallets = [],
     } = bookInfo;
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
-    if (req.user.wallet !== ownerWallet) {
+    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
       throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
 
@@ -392,6 +403,18 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
     }
     if (!defaultFromName || !defaultToName || !defaultMessage) {
       throw new ValidationError('INVALID_GIFT_MESSAGE_INFO', 400);
+    }
+    const bookInfo = await getNftBookInfo(classId);
+
+    if (!bookInfo) {
+      throw new ValidationError('BOOK_NOT_FOUND', 404);
+    }
+    const {
+      ownerWallet,
+      moderatorWallets = [],
+    } = bookInfo;
+    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     }
     const result = await handleGiftBook(
       classId,
