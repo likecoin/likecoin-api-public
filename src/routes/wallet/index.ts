@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { checkCosmosSignPayload } from '../../util/api/users';
+import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 
@@ -15,18 +15,30 @@ router.post('/authorize', async (req, res, next) => {
       expiresIn = '1h';
     }
     const inputWallet = wallet || from;
-    if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-    const signed = checkCosmosSignPayload({
-      signature, publicKey, message, inputWallet, signMethod, action: 'authorize',
-    });
+    if (!inputWallet || !signature || !message) throw new ValidationError('INVALID_PAYLOAD');
+    const isEvmWallet = signMethod === 'personal_sign';
+    let signed;
+    if (isEvmWallet) {
+      signed = checkEvmSignPayload({
+        signature, message, inputWallet, signMethod, action: 'authorize',
+      });
+    } else {
+      if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
+      signed = checkCosmosSignPayload({
+        signature, publicKey, message, inputWallet, signMethod, action: 'authorize',
+      });
+    }
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
     }
     const { permissions } = signed;
-    const { token, jwtid } = jwtSign({
-      wallet: inputWallet,
-      permissions,
-    }, { expiresIn });
+    const payload: any = { permissions };
+    if (isEvmWallet) {
+      payload.evmWallet = inputWallet;
+    } else {
+      payload.wallet = inputWallet;
+    }
+    const { token, jwtid } = jwtSign(payload, { expiresIn });
     res.json({ jwtid, token });
   } catch (err) {
     next(err);
