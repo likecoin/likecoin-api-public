@@ -396,6 +396,7 @@ export async function handleStripeConnectedAccount({
 export async function createNewNFTBookPayment(classId, paymentId, {
   type,
   email = '',
+  cartId,
   claimToken,
   sessionId = '',
   priceInDecimal,
@@ -411,6 +412,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   feeInfo,
 }: {
   type: string;
+  cartId?: string;
   email?: string;
   claimToken: string;
   sessionId?: string;
@@ -450,6 +452,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
   };
+  if (cartId) payload.cartId = cartId;
   if (coupon) payload.coupon = coupon;
   if (itemPrices) payload.itemPrices = itemPrices;
   if (feeInfo) payload.feeInfo = feeInfo;
@@ -1233,7 +1236,6 @@ export async function sendNFTBookPurchaseEmail({
       bookName,
       paymentId,
       claimToken,
-      mustClaimToView,
     });
   } else if (email) {
     await sendNFTBookPendingClaimEmail({
@@ -1243,7 +1245,6 @@ export async function sendNFTBookPurchaseEmail({
       bookName,
       paymentId,
       claimToken,
-      mustClaimToView,
       from,
     });
   }

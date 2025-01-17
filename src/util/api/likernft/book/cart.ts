@@ -212,6 +212,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     if (classId && priceIndex !== undefined) {
       return createNewNFTBookPayment(classId, paymentId, {
         type,
+        cartId,
         email,
         claimToken,
         sessionId,
@@ -229,6 +230,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     } if (collectionId) {
       return createNewNFTBookCollectionPayment(collectionId, paymentId, {
         type,
+        cartId,
         priceInDecimal,
         originalPriceInDecimal,
         coupon,

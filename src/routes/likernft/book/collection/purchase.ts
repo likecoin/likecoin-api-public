@@ -13,7 +13,13 @@ import {
 } from '../../../../constant';
 import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../../util/ses';
+import {
+  sendNFTBookGiftPendingClaimEmail,
+  sendNFTBookGiftSentEmail,
+  sendNFTBookOutOfStockEmail,
+  sendNFTBookPendingClaimEmail,
+  sendNFTBookShippedEmail,
+} from '../../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
@@ -576,6 +582,85 @@ router.post(
         toWallet: wallet,
         // TODO: parse nftId and wallet from txHash,
         txHash,
+        isGift,
+      });
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:collectionId/status/:paymentId/remind',
+  jwtAuth('write:nftcollection'),
+  async (req, res, next) => {
+    try {
+      const { collectionId, paymentId } = req.params;
+      const [listingDoc, paymentDoc] = await Promise.all([
+        likeNFTCollectionCollection.doc(collectionId).get(),
+        likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).get(),
+      ]);
+      if (!listingDoc.exists) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
+      if (!paymentDoc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+      const {
+        name: collectionNameObj,
+        ownerWallet,
+        moderatorWallets = [],
+      } = listingDoc.data();
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+        throw new ValidationError('NOT_OWNER', 403);
+      }
+      const {
+        email,
+        isGift,
+        giftInfo,
+        status,
+        claimToken,
+        from,
+      } = paymentDoc.data();
+      if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
+      if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
+      const collectionName = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
+      if (isGift && giftInfo) {
+        const {
+          fromName,
+          toName,
+          toEmail,
+          message,
+        } = giftInfo;
+        if (email) {
+          await sendNFTBookGiftPendingClaimEmail({
+            fromName,
+            toName,
+            toEmail,
+            message,
+            collectionId,
+            bookName: collectionName,
+            paymentId,
+            claimToken,
+            isResend: true,
+          });
+        }
+      } else {
+        await sendNFTBookPendingClaimEmail({
+          email,
+          collectionId,
+          bookName: collectionName,
+          paymentId,
+          claimToken,
+          from,
+          isResend: true,
+        });
+      }
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimReminderSent',
+        paymentId,
+        collectionId,
+        email,
+        fromWallet: req.user.wallet,
         isGift,
       });
 

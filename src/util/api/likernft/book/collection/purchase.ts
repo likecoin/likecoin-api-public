@@ -52,6 +52,7 @@ import { getBookUserInfoFromWallet } from '../user';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
+  cartId,
   priceInDecimal,
   originalPriceInDecimal,
   coupon,
@@ -66,6 +67,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
   feeInfo,
 }: {
   type: string;
+  cartId?: string;
   email?: string;
   claimToken: string;
   sessionId?: string;
@@ -104,6 +106,7 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
     status: 'new',
     timestamp: FieldValue.serverTimestamp(),
   };
+  if (cartId) payload.cartId = cartId;
   if (itemPrices) payload.itemPrices = itemPrices;
   if (feeInfo) payload.feeInfo = feeInfo;
   if (coupon) payload.coupon = coupon;
@@ -530,7 +533,6 @@ export async function sendNFTBookCollectionPurchaseEmail({
       bookName: collectionName,
       paymentId,
       claimToken,
-      mustClaimToView,
     });
   } else if (email) {
     await sendNFTBookPendingClaimEmail({
@@ -539,7 +541,6 @@ export async function sendNFTBookCollectionPurchaseEmail({
       bookName: collectionName,
       paymentId,
       claimToken,
-      mustClaimToView,
       from,
     });
   }
