@@ -6,7 +6,9 @@ import { ValidationError } from '../../../util/ValidationError';
 import {
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
-import { db, likeNFTBookCartCollection, likeNFTBookCollection } from '../../../util/firebase';
+import {
+  db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
+} from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
@@ -846,9 +848,13 @@ router.post(
         giftInfo,
         claimToken,
         from,
+        lastRemindTimestamp,
       } = paymentDoc.data();
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
+      if (lastRemindTimestamp?.toMillis() > Date.now() - 1000 * 60 * 60 * 24) {
+        throw new ValidationError('TOO_FREQUENT_REMIND', 429);
+      }
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
       if (isGift && giftInfo) {
@@ -882,6 +888,10 @@ router.post(
           isResend: true,
         });
       }
+
+      await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).update({
+        lastRemindTimestamp: FieldValue.serverTimestamp(),
+      });
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTClaimReminderSent',

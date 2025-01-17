@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 
 import { ValidationError } from '../../../../util/ValidationError';
-import { db, likeNFTCollectionCollection } from '../../../../util/firebase';
+import { db, FieldValue, likeNFTCollectionCollection } from '../../../../util/firebase';
 import publisher from '../../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
@@ -619,9 +619,13 @@ router.post(
         status,
         claimToken,
         from,
+        lastRemindTimestamp,
       } = paymentDoc.data();
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
+      if (lastRemindTimestamp?.toMillis() > Date.now() - 1000 * 60 * 60 * 24) {
+        throw new ValidationError('TOO_FREQUENT_REMIND', 429);
+      }
       const collectionName = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
       if (isGift && giftInfo) {
         const {
@@ -654,6 +658,10 @@ router.post(
           isResend: true,
         });
       }
+
+      await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).update({
+        lastRemindTimestamp: FieldValue.serverTimestamp(),
+      });
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTClaimReminderSent',
