@@ -894,7 +894,7 @@ export function sendNFTBookGiftClaimedEmail({
             content1: `<p>親愛的 ${fromName}：</p>
             <p>你送給 ${toName} 的《${bookName}》已被接受。
             <br>作者將會在稍後簽署給發送電子書給 ${toName} </p>
-            <p>感謝你分享閱讀的樂趣</p>,
+            <p>感謝你分享閱讀的樂趣</p>
             <p>Liker Land 書店</p>`,
 
             // English version
@@ -950,7 +950,7 @@ export function sendNFTBookGiftSentEmail({
             content1: `<p>親愛的 ${fromName}：</p>
             <p>你購買的 ${bookName} 已成功發送給 ${toName}。
             <br>如需瀏覽技術細節，請按<a href="${txURL}">此連結</a></p>
-            <p>感謝你分享閱讀的樂趣</p>,
+            <p>感謝你分享閱讀的樂趣</p>
             <p>Liker Land 書店</p>`,
 
             // English version
