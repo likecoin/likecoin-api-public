@@ -44,8 +44,8 @@ export async function createAirtablePublicationRecord({
   isDRMFree = false,
 }: {
   timestamp: Date;
-  name: string;
-  description: string;
+  name: string | { zh: string, en: string };
+  description: string | { zh: string, en: string };
   id: string;
   ownerWallet: string;
   type: string;
@@ -75,8 +75,8 @@ export async function createAirtablePublicationRecord({
       'Owner Wallet': ownerWallet,
       Type: type,
       ID: id,
-      Name: name,
-      Description: description,
+      Name: typeof name === 'string' ? name : name.zh,
+      Description: typeof description === 'string' ? description : description.zh,
       Image: [{ url: normalizedImageURL }],
       'Image URL': normalizedImageURL,
       'Min Price': minPrice,
