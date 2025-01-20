@@ -181,10 +181,10 @@ export function sendAutoClaimEmail({
             content1: `<p>親愛的讀者：</p>
             <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}。</p>
             <p>你的信箱先前已與地址為 ${wallet} 的錢包完成驗證，你所購買的 Writing NFT 已發送至該錢包。
-            <br>請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>
+            <br>請往你的 <a href="${portfolioURLZh}">Liker Land 書店的個人主頁</a>查閱。</p>
             <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝支持創作。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -192,10 +192,10 @@ export function sendAutoClaimEmail({
             <p>Thank you for purchasing "<a href="${nftClassURLEn}">${firstClassName}</a>"${pluralDescriptionEn}.</p>
             <p>Your email is previously linked with the wallet address ${wallet},
             the Writing NFT you purchased has been sent to the wallet.</p>
-            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>
+            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land bookstore</a>.</p>
             <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for supporting creativity.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -261,12 +261,12 @@ export function sendPendingClaimEmail({
             <p>感謝購買 《<a href="${nftClassURLZh}">${firstClassName}</a>》${pluralDescriptionZh}。</p>
             <p>請根據網頁指示領取你的 Writing NFT，亦可按以下連結前往該頁面。
             完成步驟後，即可領取 Writing NFT。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書店的個人主頁</a>查閱。</p>`,
             buttonText1: '領取我的 Writing NFT',
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝支持創作。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -275,12 +275,12 @@ export function sendPendingClaimEmail({
             <p>Please follow the steps on the web to claim your Writing NFT.
             You can also click the button below to get a direct link to that page.
             Once the steps are completed, you can receive your Writing NFT.
-            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>`,
+            You can check the status of the Writing NFT on your <a href="${portfolioURLEn}">Dashboard on Liker Land bookstore</a>.</p>`,
             buttonText2: 'Claim your Writing NFT',
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for supporting creativity.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -402,33 +402,33 @@ export async function sendNFTBookPendingClaimEmail({
             title1: titleZh,
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
             <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》</a>。</p>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
+            <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 書店登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書店的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>
+            <p>Liker Land 書店</p>
             <p>[${from}]</p>`,
 
             // English version
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thanks for purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
-            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land website</a> to read your ebook.
-            If you have not registered an account on Liker Land website, please <a href="${claimPageURLEn}">click here</a> to register.</p>
+            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
+            If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
-            please first log in to Liker Land website and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
+            please first log in to Liker Land bookstore and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
             The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land website</a> at that time.</p>`,
+            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land bookstore</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>
+            <p>Liker Land Bookstore</p>
             <p>[${from}]</p>`,
           }).body,
         },
@@ -497,33 +497,33 @@ export async function sendNFTBookCartPendingClaimEmail({
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
             <p>感謝購買以下電子書</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
+            <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 書店登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書店的書架</a>查閱。</p>`,
             buttonText1: titleZh,
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
             <p>Thank you for purchasing the following ebook</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land website</a> to read your ebook.
-            If you have not registered an account on Liker Land website, please <a href="${claimPageURLEn}">click here</a> to register.</p>
+            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
+            If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
-            please log in to Liker Land website and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
+            please log in to Liker Land bookstore and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
             The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land website</a> at that time.</p>`,
+            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land bookstore</a> at that time.</p>`,
             buttonText2: titleEn,
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -577,7 +577,7 @@ export function sendNFTBookPhysicalOnlyEmail({
             <br>我們會安排寄送，所需大約 3-5 天時間。感謝支持！</p>
             <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -586,7 +586,7 @@ export function sendNFTBookPhysicalOnlyEmail({
             <br>We will arrange delivery, which will take about 3-5 days. Thank you for your support!</p>
             <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -663,14 +663,14 @@ export function sendNFTBookGiftPendingClaimEmail({
             <p>請根據網頁指示領取你的電子書，亦可按以下連結前往該頁面。完成步驟後，即可領取電子書。</p>
             <p>若你收到的電子書需要作者親自簽發，請在完成步驟後，耐心等待作者發貨。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的個人主頁</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書店的個人主頁</a>查閱。</p>`,
             messageTitle1: `${fromName} 的留言`,
             messageContent1: message,
             buttonText1: '領取我的電子書',
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -681,14 +681,14 @@ export function sendNFTBookGiftPendingClaimEmail({
             Once the steps are completed, you can receive your ebook.</p>
             <p>If the ebook you received requires a personal signature from the author,
             please wait patiently for the author to dispatch it after completing the steps,
-            typically within 3 days. You can check the status of the ebook on your <a href="${portfolioURLEn}">Dashboard on Liker Land website</a>.</p>`,
+            typically within 3 days. You can check the status of the ebook on your <a href="${portfolioURLEn}">Dashboard on Liker Land bookstore</a>.</p>`,
             messageTitle2: `${fromName}'s message`,
             messageContent2: message,
             buttonText2: 'Claim your ebook',
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -753,37 +753,37 @@ export function sendNFTBookCartGiftPendingClaimEmail({
             content1: `<p>親愛的 ${toName || '讀者'}：</p>
             <p>${fromName} 贈送了以下電子書給你作為禮物。</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請<a href="${claimPageURLZh}">登入 Liker Land 網站的書架</a>閱讀你的電子書。
+            <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 網站登記，然後耐心等待作者的發貨通知。
+            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 書店登記，然後耐心等待作者的發貨通知。
             作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 網站的書架</a>查閱。</p>`,
+            屆時請往你的 <a href="${portfolioURLZh}">Liker Land 書店的書架</a>查閱。</p>`,
             messageTitle1: `${fromName} 的留言`,
             messageContent1: message,
             buttonText1: '領取我的電子書',
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
             content2: `<p>Dear ${toName || 'reader'},</p>
             <p>${fromName} has the following ebooks to you as a gift.</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land website</a> to read your ebook.
-            If you have not registered an account on Liker Land website, please <a href="${claimPageURLEn}">click here</a> to register.</p>
+            <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
+            If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
-            please log in to Liker Land website and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
+            please log in to Liker Land bookstore and register by clicking <a href="${claimPageURLEn}">here</a>, and then patiently wait for the author's dispatch notification.
             The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land website</a> at that time.</p>`,
+            Please check your <a href="${portfolioURLEn}">Bookshelf on Liker Land bookstore</a> at that time.</p>`,
             messageTitle2: `${fromName}'s message`,
             messageContent2: message,
             buttonText2: 'Claim your ebook',
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -838,7 +838,7 @@ export function sendNFTBookShippedEmail({
             messageContent1: message,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -849,7 +849,7 @@ export function sendNFTBookShippedEmail({
             messageContent2: message,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -894,8 +894,8 @@ export function sendNFTBookGiftClaimedEmail({
             content1: `<p>親愛的 ${fromName}：</p>
             <p>你送給 ${toName} 的《${bookName}》已被接受。
             <br>作者將會在稍後簽署給發送電子書給 ${toName} </p>
-            <p>感謝你分享閱讀的樂趣</p>,
-            <p>Liker Land</p>`,
+            <p>感謝你分享閱讀的樂趣</p>
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -903,7 +903,7 @@ export function sendNFTBookGiftClaimedEmail({
             <p>Your ebook gift of ${bookName} has been accepted by ${toName}.
             <br>Author will soon sign and send the ebook copy to ${toName}</p>
             <p>Thank you for sharing the joy of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -950,8 +950,8 @@ export function sendNFTBookGiftSentEmail({
             content1: `<p>親愛的 ${fromName}：</p>
             <p>你購買的 ${bookName} 已成功發送給 ${toName}。
             <br>如需瀏覽技術細節，請按<a href="${txURL}">此連結</a></p>
-            <p>感謝你分享閱讀的樂趣</p>,
-            <p>Liker Land</p>`,
+            <p>感謝你分享閱讀的樂趣</p>
+            <p>Liker Land 書店</p>`,
 
             // English version
             title2: titleEn,
@@ -959,7 +959,7 @@ export function sendNFTBookGiftSentEmail({
             <p>Your gift ${bookName} has been delivered to ${toName}.
             <br>For technical details, visit <a href="${txURL}">transaction detail page</a></p>
             <p>Thank you for sharing the joy of reading.</p>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -1002,7 +1002,7 @@ export function sendNFTBookSalesEmail({
   }
   content += `<p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
   <br/>
-  <p>Liker Land</p>`;
+  <p>Liker Land Bookstore</p>`;
   const params = {
     Source: SALES_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -1098,7 +1098,7 @@ export function sendNFTBookSalePaymentsEmail({
             <ul>${displayPayments.map((payment) => `<li>${payment}</li>`).join('')}</ul>
             <p>Ref ID: ${paymentId}.</p>
             <br/>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -1146,7 +1146,7 @@ export function sendNFTBookClaimedEmail({
             <p>Reader wallet address: ${wallet}</p>
             <p>Please visit the <a href="${url}">NFT book management page</a> to deliver your book.</p>
             <br>
-            <p>Liker Land</p>`,
+            <p>Liker Land Bookstore</p>`,
           }).body,
         },
       },
@@ -1174,7 +1174,7 @@ export function sendNFTBookOutOfStockEmail({
   <p>Your book ${bookName} ${priceName} is sold out.</p>
   <p>Please <a href="${url}">restock your book</a> to continue selling.</p>
   <br/>
-  <p>Liker Land</p>`;
+  <p>Liker Land Bookstore</p>`;
   const params = {
     Source: '"Liker Land Sales" <sales@liker.land>',
     ConfigurationSetName: 'likeco_ses',
