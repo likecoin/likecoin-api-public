@@ -199,7 +199,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     } = item;
     const itemFeeInfo: TransactionFeeInfo = {
       stripeFeeAmount: Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity)
-        / totalPriceInDecimal),
+        / totalPriceInDecimal) || 0,
       priceInDecimal: priceInDecimal * quantity,
       originalPriceInDecimal: originalPriceInDecimal * quantity,
       customPriceDiff: customPriceDiffInDecimal * quantity,
