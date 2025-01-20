@@ -1753,9 +1753,11 @@ export async function claimNFTBook(
       txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
     } catch (autoDeliverErr) {
       await docRef.update({
+        isPendingClaim: true,
         status: 'paid',
         wallet: '',
         message: '',
+        lastError: (autoDeliverErr as Error).toString(),
       });
       throw autoDeliverErr;
     }
