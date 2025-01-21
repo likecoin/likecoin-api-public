@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
+import { findLikeWalletByEvmWallet } from '../../util/api/wallet';
 
 const router = Router();
 
@@ -33,10 +34,15 @@ router.post('/authorize', async (req, res, next) => {
     }
     const { permissions } = signed;
     const payload: any = { permissions };
+    payload.wallet = inputWallet;
     if (isEvmWallet) {
       payload.evmWallet = inputWallet;
+      const likeWallet = await findLikeWalletByEvmWallet(inputWallet);
+      if (likeWallet) {
+        payload.likeWallet = likeWallet;
+      }
     } else {
-      payload.wallet = inputWallet;
+      payload.likeWallet = inputWallet;
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
     res.json({ jwtid, token });
