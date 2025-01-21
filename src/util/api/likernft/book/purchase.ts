@@ -57,7 +57,7 @@ import {
   sendNFTBookSalePaymentsEmail,
   sendNFTBookOutOfStockEmail,
 } from '../../../ses';
-import { createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 import logPixelEvents from '../../../fbq';
@@ -113,7 +113,7 @@ export async function handleStripeConnectedAccount({
   paymentIntentId: string,
   shippingCostAmount?: number,
 }, {
-  chargeId,
+  chargeId = '',
   amountTotal,
   stripeFeeAmount = 0,
   likerLandFeeAmount = 0,
@@ -123,6 +123,8 @@ export async function handleStripeConnectedAccount({
   channelCommission = 0,
 }, { connectedWallets, from }) {
   const transfers: Stripe.Transfer[] = [];
+  if (!amountTotal) return { transfers };
+
   const metadata: Record<string, string> = {
     ownerWallet,
   };
@@ -1071,26 +1073,6 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceInDecimal = customPriceInDecimal;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  if (priceInDecimal === 0) {
-    const freePurchaseUrl = getLikerLandNFTClaimPageURL({
-      classId,
-      paymentId: '',
-      token: '',
-      type: 'nft_book',
-      free: true,
-      redirect: false,
-      priceIndex,
-      from: from as string,
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    });
-    return { url: freePurchaseUrl };
-  }
   let { name = '', description = '' } = metadata;
   const classMetadata = metadata.data.metadata;
   const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
@@ -1359,6 +1341,13 @@ export async function updateNFTBookPostCheckoutFeeInfo({
   balanceTx,
   feeInfo,
 }) {
+  if (!balanceTx) {
+    return {
+      ...feeInfo,
+      coupon: existingCoupon,
+      stripeFeeCurrency: '',
+    };
+  }
   const {
     isStripeFeeUpdated,
     isAmountFeeUpdated,
@@ -1410,6 +1399,11 @@ export async function processNFTBookStripePurchase(
       clientIp,
       referrer,
       fbClickId,
+      utmSource,
+      utmCampaign,
+      utmMedium,
+      gaClientId,
+      gaSessionId,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -1420,7 +1414,9 @@ export async function processNFTBookStripePurchase(
   } = session;
   const priceIndex = Number(priceIndexString);
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
-  if (!paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+
+  const isFree = amountTotal === 0;
+  if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
 
   let shippingCostAmount = 0;
   if (shippingCost) {
@@ -1472,15 +1468,18 @@ export async function processNFTBookStripePurchase(
     } = txData;
     const priceInfo = prices[priceIndex];
     const [expandedPaymentIntent, classData] = await Promise.all([
-      stripe.paymentIntents.retrieve(paymentIntent as string, {
+      isFree ? null : stripe.paymentIntents.retrieve(paymentIntent as string, {
         expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
       }),
       getNFTClassDataById(classId).catch(() => null),
     ]);
     const className = classData?.name || classId;
 
-    const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
-      ?.balance_transaction as Stripe.BalanceTransaction;
+    let balanceTx: Stripe.BalanceTransaction | null = null;
+    if (expandedPaymentIntent) {
+      balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
+        ?.balance_transaction as Stripe.BalanceTransaction;
+    }
 
     const {
       stripeFeeAmount,
@@ -1516,7 +1515,11 @@ export async function processNFTBookStripePurchase(
       originalPriceInDecimal,
       customPriceDiff,
     };
-    const chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
+    let chargeId: string | undefined;
+
+    if (expandedPaymentIntent) {
+      chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
+    }
 
     const { transfers } = await handleStripeConnectedAccount(
       {
@@ -1527,7 +1530,6 @@ export async function processNFTBookStripePurchase(
         bookName: className,
         buyerEmail: email,
         paymentIntentId: paymentIntent as string,
-        shippingCostAmount,
       },
       {
         amountTotal,
@@ -1590,7 +1592,7 @@ export async function processNFTBookStripePurchase(
         method: 'Fiat',
         from,
       }),
-      createAirtableBookSalesRecordFromStripePaymentIntent({
+      expandedPaymentIntent ? createAirtableBookSalesRecordFromStripePaymentIntent({
         pi: expandedPaymentIntent,
         paymentId,
         classId,
@@ -1605,6 +1607,19 @@ export async function processNFTBookStripePurchase(
         stripeFeeAmount,
         coupon,
         isGift,
+      }) : createAirtableBookSalesRecordFromFreePurchase({
+        classId,
+        priceIndex,
+        paymentId,
+        quantity,
+        from,
+        email: email || undefined,
+        utmSource,
+        utmCampaign,
+        utmMedium,
+        referrer,
+        gaClientId,
+        gaSessionId,
       }),
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'BookNFTPurchaseComplete',
@@ -1650,7 +1665,7 @@ export async function processNFTBookStripePurchase(
     await Promise.all(notifications);
 
     if (email) {
-      const segments = ['purchaser'];
+      const segments = isFree ? ['free book'] : ['purchaser'];
       if (feeInfo.customPriceDiff) segments.push('tipper');
       const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
       if (readerSegment) segments.push(readerSegment);

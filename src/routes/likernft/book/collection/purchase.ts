@@ -342,7 +342,6 @@ router.post(
         paymentId,
         from: from as string,
         email,
-        wallet,
         utmSource,
         utmCampaign,
         utmMedium,
