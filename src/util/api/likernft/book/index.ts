@@ -278,7 +278,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   }));
   try {
     await importGoogleRetailProductFromBookListing(
-      filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload })
+      filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload }),
     );
   } catch (err) {
     // eslint-disable-next-line no-console

@@ -4,7 +4,7 @@ import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
 import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
-import { API_HOSTNAME, ONE_DAY_IN_S } from '../../../constant';
+import { API_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -13,7 +13,7 @@ import {
 
 const classChainMetadataCache = new LRUCache({
   max: 1000,
-  ttl: 1000 * 60 * 60 * 24, // 1 day
+  ttl: ONE_DAY_IN_MS,
 });
 
 const axios = Axios.create({

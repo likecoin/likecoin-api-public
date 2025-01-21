@@ -339,7 +339,7 @@ export async function sendNFTBookPendingClaimEmail({
   paymentId,
   claimToken,
   from = '',
-  mustClaimToView = false,
+  isResend = false,
 }) {
   if (TEST_MODE) return Promise.resolve();
 
@@ -349,8 +349,8 @@ export async function sendNFTBookPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Read your ebook';
-  const titleZh = '閱讀你的電子書';
+  const titleEn = `${isResend ? '(Reminder) ' : ''}Read your ebook`;
+  const titleZh = `${isResend ? '（提示）' : ''}閱讀你的電子書`;
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
     : getLikerLandNFTClassPageURL({ classId, language: 'en' });
@@ -401,7 +401,7 @@ export async function sendNFTBookPendingClaimEmail({
           Data: getNFTTwoContentWithMessageAndButtonTemplate({
             title1: titleZh,
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
-            <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》</a>。</p>
+            <p>感謝你${isResend ? '先前' : ''}購買<a href="${nftPageURLZh}">《${bookName}》</a>。</p>
             <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
             <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURLZh}">這裡</a>登入 Liker Land 書店登記，然後耐心等待作者的發貨通知。
@@ -417,7 +417,7 @@ export async function sendNFTBookPendingClaimEmail({
             // English version
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
-            <p>Thanks for purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
+            <p>Thanks for ${isResend ? 'previously' : ''} purchasing "<a href="${nftPageURLEn}">${bookName}</a>".</p>
             <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
             If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
             <p>If the ebook you purchased requires the author's personal signature,
@@ -444,6 +444,7 @@ export async function sendNFTBookCartPendingClaimEmail({
   bookNames,
   paymentId,
   claimToken,
+  isResend = false,
 }) {
   if (TEST_MODE) return Promise.resolve();
   let receiverDisplayName = '';
@@ -452,8 +453,8 @@ export async function sendNFTBookCartPendingClaimEmail({
   } catch {
     // Do nothing
   }
-  const titleEn = 'Read your ebook';
-  const titleZh = '閱讀你的電子書';
+  const titleEn = `${isResend ? '(Reminder) ' : ''}Read your ebook`;
+  const titleZh = `${isResend ? '（提示）' : ''}閱讀你的電子書`;
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
@@ -495,7 +496,7 @@ export async function sendNFTBookCartPendingClaimEmail({
           Data: getNFTTwoContentWithMessageAndButtonTemplate({
             title1: titleZh,
             content1: `<p>親愛的${receiverDisplayName || '讀者'}：</p>
-            <p>感謝購買以下電子書</p>
+            <p>感謝${isResend ? '你先前' : ''}購買以下電子書</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
             <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
@@ -511,7 +512,7 @@ export async function sendNFTBookCartPendingClaimEmail({
             // English version
             title2: titleEn,
             content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
-            <p>Thank you for purchasing the following ebook</p>
+            <p>Thank you for ${isResend ? 'previously' : ''}purchasing the following ebook</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
             <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
             If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
@@ -605,11 +606,11 @@ export function sendNFTBookGiftPendingClaimEmail({
   bookName,
   paymentId,
   claimToken,
-  mustClaimToView,
+  isResend = false,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const titleEn = `${fromName} has sent you an ebook gift from Liker Land`;
-  const titleZh = `${fromName} 送了一本電子書禮物給你`;
+  const titleEn = `${isResend ? '(Reminder) ' : ''} ${fromName} has sent you an ebook gift from Liker Land`;
+  const titleZh = `${isResend ? '（提示）' : ''} ${fromName} 送了一本電子書禮物給你`;
   const nftPageURLEn = collectionId
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
     : getLikerLandNFTClassPageURL({ classId, language: 'en' });
@@ -659,7 +660,7 @@ export function sendNFTBookGiftPendingClaimEmail({
           Data: getNFTTwoContentWithMessageAndButtonTemplate({
             title1: titleZh,
             content1: `<p>親愛的 ${toName}：</p>
-            <p>${fromName} 贈送了一本 <a href="${nftPageURLZh}">《${bookName}》</a> 電子書給你作為禮物。</p>
+            <p>${fromName} ${isResend ? '先前' : ''}贈送了一本 <a href="${nftPageURLZh}">《${bookName}》</a> 電子書給你作為禮物。</p>
             <p>請根據網頁指示領取你的電子書，亦可按以下連結前往該頁面。完成步驟後，即可領取電子書。</p>
             <p>若你收到的電子書需要作者親自簽發，請在完成步驟後，耐心等待作者發貨。
             作者會在 1-3 個工作天內親手簽發你的電子書。
@@ -675,7 +676,7 @@ export function sendNFTBookGiftPendingClaimEmail({
             // English version
             title2: titleEn,
             content2: `<p>Dear reader,</p>
-            <p>${fromName} has send an ebook <a href="${nftPageURLEn}">“${bookName}“</a>” to you as a gift.</p>
+            <p>${fromName} has ${isResend ? 'previously' : ''} sent an ebook <a href="${nftPageURLEn}">“${bookName}“</a>” to you as a gift.</p>
             <p>Please follow the steps on the web to claim your ebook.
             You can also click the button below to get a direct link to that page.
             Once the steps are completed, you can receive your ebook.</p>
@@ -706,10 +707,11 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   bookNames,
   paymentId,
   claimToken,
+  isResend = false,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const titleEn = `${fromName} has sent you an ebook gift from Liker Land`;
-  const titleZh = `${fromName} 送了電子書禮物給你`;
+  const titleEn = `${isResend ? '(Reminder) ' : ''}${fromName} has sent you an ebook gift from Liker Land`;
+  const titleZh = `${isResend ? '（提示）' : ''}${fromName} 送了電子書禮物給你`;
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     cartId,
     paymentId,
@@ -751,7 +753,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
           Data: getNFTTwoContentWithMessageAndButtonTemplate({
             title1: titleZh,
             content1: `<p>親愛的 ${toName || '讀者'}：</p>
-            <p>${fromName} 贈送了以下電子書給你作為禮物。</p>
+            <p>${fromName} ${isResend ? '先前' : ''}贈送了以下電子書給你作為禮物。</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
             <p>請在 Liker Land 書店，到「<a href="${claimPageURLZh}">我的書架</a>」閱讀你的電子書。
             若你未註冊 Liker Land 帳號，請點擊<a href="${claimPageURLZh}">這裡</a>註冊。</p>
@@ -769,7 +771,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
             // English version
             title2: titleEn,
             content2: `<p>Dear ${toName || 'reader'},</p>
-            <p>${fromName} has the following ebooks to you as a gift.</p>
+            <p>${fromName} has ${isResend ? 'preivously' : ''} sent the following ebooks to you as a gift.</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
             <p>Please <a href="${claimPageURLEn}">login to Bookshelf on Liker Land bookstore</a> to read your ebook.
             If you have not registered an account on Liker Land bookstore, please <a href="${claimPageURLEn}">click here</a> to register.</p>
