@@ -4,7 +4,7 @@ import {
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../config/config';
 
-export const getLikerLandURL = (path = '', { language = 'en' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
+export const getLikerLandURL = (path = '', { language = '' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
 interface GetLikerLandNFTPageURLParams {
   type?: 'nft_book' | 'writing_nft',
@@ -12,7 +12,7 @@ interface GetLikerLandNFTPageURLParams {
 }
 export const getLikerLandPortfolioPageURL = ({
   type = 'nft_book',
-  language = 'en',
+  language = '',
 }: GetLikerLandNFTPageURLParams = {}): string => getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
 
 export const getLikerLandCartURL = ({
