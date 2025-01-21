@@ -15,6 +15,7 @@ import {
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
@@ -852,7 +853,7 @@ router.post(
       } = paymentDoc.data();
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
-      if (lastRemindTimestamp?.toMillis() > Date.now() - 1000 * 60 * 60 * 24) {
+      if (lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
         throw new ValidationError('TOO_FREQUENT_REMIND', 429);
       }
       const classData = await getNFTClassDataById(classId).catch(() => null);
