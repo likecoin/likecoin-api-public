@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { LIKER_LAND_HOSTNAME } from '../constant';
 import {
   LIKER_LAND_GET_WALLET_SECRET,
@@ -429,5 +429,22 @@ export async function fetchLikerLandWalletUserInfo(wallet) {
       console.error(error);
     }
     return null;
+  }
+}
+
+export async function migrateLikerLandEvmWallet(likeWallet: string, evmWallet: string) {
+  try {
+    const { data } = await axios.post(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet/evm/migrate`, {
+      evmWallet,
+    }, {
+      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
+      params: { wallet: likeWallet },
+    });
+    return { user: data, error: null };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return { error: new Error((error as AxiosError).response?.data as string) };
+    }
+    return { user: null, error: null };
   }
 }
