@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
-import { findLikeWalletByEvmWallet } from '../../util/api/wallet';
+import { findLikeWalletByEvmWallet, migrateLikeWalletToEvmWallet } from '../../util/api/wallet';
 
 const router = Router();
 
@@ -46,6 +46,55 @@ router.post('/authorize', async (req, res, next) => {
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
     res.json({ jwtid, token });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/evm/migrate', async (req, res, next) => {
+  try {
+    const {
+      cosmos_address: likeWallet,
+      cosmos_signature: signature,
+      cosmos_public_key: publicKey,
+      cosmos_signature_content: message, signMethod,
+    } = req.body;
+    if (!likeWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+    if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
+    const signed = checkCosmosSignPayload({
+      signature, publicKey, message, inputWallet: likeWallet, signMethod, action: 'migrate',
+    });
+    if (!signed) {
+      throw new ValidationError('INVALID_SIGN');
+    }
+    const { evm_wallet: evmWallet } = signed;
+    if (!evmWallet) {
+      throw new ValidationError('INVALID_PAYLOAD');
+    }
+    const {
+      isMigratedBookUser,
+      isMigratedBookOwner,
+      isMigratedLikerId,
+      isMigratedLikerLand,
+      migratedLikerId,
+      migratedLikerLandUser,
+      migrateBookUserError,
+      migrateBookOwnerError,
+      migrateLikerIdError,
+      migrateLikerLandError,
+    } = await migrateLikeWalletToEvmWallet(evmWallet, likeWallet);
+    res.json({
+      isMigratedBookUser,
+      isMigratedBookOwner,
+      isMigratedLikerId,
+      isMigratedLikerLand,
+      migratedLikerId,
+      migratedLikerLandUser,
+      migrateBookUserError,
+      migrateBookOwnerError,
+      migrateLikerIdError,
+      migrateLikerLandError,
+    });
   } catch (err) {
     next(err);
   }
