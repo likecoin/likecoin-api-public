@@ -3,17 +3,24 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 
 import { ValidationError } from '../../../../util/ValidationError';
-import { db, likeNFTCollectionCollection } from '../../../../util/firebase';
+import { db, FieldValue, likeNFTCollectionCollection } from '../../../../util/firebase';
 import publisher from '../../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  ONE_DAY_IN_MS,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
 } from '../../../../constant';
 import { filterBookPurchaseData } from '../../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../../util/ses';
+import {
+  sendNFTBookGiftPendingClaimEmail,
+  sendNFTBookGiftSentEmail,
+  sendNFTBookOutOfStockEmail,
+  sendNFTBookPendingClaimEmail,
+  sendNFTBookShippedEmail,
+} from '../../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
@@ -310,7 +317,7 @@ router.post(
         phone: null,
         paymentId,
         shippingDetails: null,
-        shippingCost: null,
+        shippingCostAmount: 0,
       });
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -575,6 +582,93 @@ router.post(
         toWallet: wallet,
         // TODO: parse nftId and wallet from txHash,
         txHash,
+        isGift,
+      });
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:collectionId/status/:paymentId/remind',
+  jwtAuth('write:nftcollection'),
+  async (req, res, next) => {
+    try {
+      const { collectionId, paymentId } = req.params;
+      const [listingDoc, paymentDoc] = await Promise.all([
+        likeNFTCollectionCollection.doc(collectionId).get(),
+        likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).get(),
+      ]);
+      if (!listingDoc.exists) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
+      if (!paymentDoc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+      const {
+        name: collectionNameObj,
+        ownerWallet,
+        moderatorWallets = [],
+      } = listingDoc.data();
+      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
+        throw new ValidationError('NOT_OWNER', 403);
+      }
+      const {
+        email,
+        isGift,
+        giftInfo,
+        status,
+        claimToken,
+        from,
+        lastRemindTimestamp,
+      } = paymentDoc.data();
+      if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
+      if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
+      if (lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
+        throw new ValidationError('TOO_FREQUENT_REMIND', 429);
+      }
+      const collectionName = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
+      if (isGift && giftInfo) {
+        const {
+          fromName,
+          toName,
+          toEmail,
+          message,
+        } = giftInfo;
+        if (email) {
+          await sendNFTBookGiftPendingClaimEmail({
+            fromName,
+            toName,
+            toEmail,
+            message,
+            collectionId,
+            bookName: collectionName,
+            paymentId,
+            claimToken,
+            isResend: true,
+          });
+        }
+      } else {
+        await sendNFTBookPendingClaimEmail({
+          email,
+          collectionId,
+          bookName: collectionName,
+          paymentId,
+          claimToken,
+          from,
+          isResend: true,
+        });
+      }
+
+      await likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId).update({
+        lastRemindTimestamp: FieldValue.serverTimestamp(),
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimReminderSent',
+        paymentId,
+        collectionId,
+        email,
+        fromWallet: req.user.wallet,
         isGift,
       });
 

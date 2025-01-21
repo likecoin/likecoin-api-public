@@ -6,17 +6,26 @@ import { ValidationError } from '../../../util/ValidationError';
 import {
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
-import { db, likeNFTBookCartCollection, likeNFTBookCollection } from '../../../util/firebase';
+import {
+  db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
+} from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { sendNFTBookGiftSentEmail, sendNFTBookOutOfStockEmail, sendNFTBookShippedEmail } from '../../../util/ses';
+import {
+  sendNFTBookGiftPendingClaimEmail,
+  sendNFTBookGiftSentEmail,
+  sendNFTBookOutOfStockEmail,
+  sendNFTBookPendingClaimEmail,
+  sendNFTBookShippedEmail,
+} from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
@@ -512,7 +521,7 @@ router.post(
         phone: null,
         paymentId,
         shippingDetails: null,
-        shippingCost: null,
+        shippingCostAmount: 0,
       });
       const priceInfo = listingData.prices[priceIndex];
 
@@ -803,6 +812,93 @@ router.post(
         // TODO: parse nftId and wallet from txHash,
         txHash,
         isGift,
+      });
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  ['/:classId/status/:paymentId/remind', '/class/:classId/status/:paymentId/remind'],
+  jwtAuth('write:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params;
+      const { wallet } = req.user;
+      const [listingDoc, paymentDoc] = await Promise.all([
+        likeNFTBookCollection.doc(classId).get(),
+        likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get(),
+      ]);
+      if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      if (!paymentDoc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+      const {
+        ownerWallet,
+        moderatorWallets = [],
+      } = listingDoc.data();
+      if (ownerWallet !== wallet && !moderatorWallets.includes(wallet)) {
+        throw new ValidationError('NOT_OWNER', 403);
+      }
+      const {
+        email,
+        status,
+        isGift,
+        giftInfo,
+        claimToken,
+        from,
+        lastRemindTimestamp,
+      } = paymentDoc.data();
+      if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
+      if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
+      if (lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
+        throw new ValidationError('TOO_FREQUENT_REMIND', 429);
+      }
+      const classData = await getNFTClassDataById(classId).catch(() => null);
+      const className = classData?.name || classId;
+      if (isGift && giftInfo) {
+        const {
+          fromName,
+          toName,
+          toEmail,
+          message,
+        } = giftInfo;
+        if (toEmail) {
+          await sendNFTBookGiftPendingClaimEmail({
+            fromName,
+            toName,
+            toEmail,
+            message,
+            classId,
+            bookName: className,
+            paymentId,
+            claimToken,
+            isResend: true,
+          });
+        }
+      } else {
+        await sendNFTBookPendingClaimEmail({
+          email,
+          classId,
+          bookName: className,
+          paymentId,
+          claimToken,
+          from,
+          isResend: true,
+        });
+      }
+
+      await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).update({
+        lastRemindTimestamp: FieldValue.serverTimestamp(),
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTClaimReminderSent',
+        paymentId,
+        classId,
+        email,
+        fromWallet: wallet,
       });
 
       res.sendStatus(200);

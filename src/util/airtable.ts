@@ -44,8 +44,8 @@ export async function createAirtablePublicationRecord({
   isDRMFree = false,
 }: {
   timestamp: Date;
-  name: string;
-  description: string;
+  name: string | { zh: string, en: string };
+  description: string | { zh: string, en: string };
   id: string;
   ownerWallet: string;
   type: string;
@@ -75,8 +75,8 @@ export async function createAirtablePublicationRecord({
       'Owner Wallet': ownerWallet,
       Type: type,
       ID: id,
-      Name: name,
-      Description: description,
+      Name: typeof name === 'string' ? name : name.zh,
+      Description: typeof description === 'string' ? description : description.zh,
       Image: [{ url: normalizedImageURL }],
       'Image URL': normalizedImageURL,
       'Min Price': minPrice,
@@ -450,7 +450,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   quantity = 1,
   feeInfo,
   shippingCountry,
-  shippingCost,
+  shippingCostAmount,
   stripeFeeAmount,
   stripeFeeCurrency,
   from,
@@ -468,7 +468,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   quantity?: number,
   feeInfo: any,
   shippingCountry?: string | null,
-  shippingCost?: number,
+  shippingCostAmount?: number,
   stripeFeeAmount: number,
   stripeFeeCurrency: string,
   from?: string,
@@ -532,8 +532,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     if (shippingCountry) {
       fields['Shipping Country'] = shippingCountry;
     }
-    if (shippingCost) {
-      fields['Shipping Cost'] = shippingCost;
+    if (shippingCostAmount) {
+      fields['Shipping Cost'] = shippingCostAmount;
     }
     if (coupon) {
       fields.Coupon = coupon;
