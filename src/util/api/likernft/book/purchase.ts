@@ -1799,7 +1799,6 @@ export async function claimNFTBook(
       // eslint-disable-next-line no-use-before-define
       const paymentDocData = await updateNFTBookPostDeliveryData({
         classId,
-        callerWallet: LIKER_NFT_TARGET_ADDRESS,
         paymentId,
         txHash,
         quantity,
@@ -1904,14 +1903,12 @@ export async function sendNFTBookClaimedEmailNotification(
 
 export async function updateNFTBookPostDeliveryData({
   classId,
-  callerWallet,
   paymentId,
   txHash,
   quantity = 1,
   isAutoDeliver = false,
 }: {
   classId: string,
-  callerWallet: string,
   paymentId: string,
   txHash: string,
   quantity?: number,
@@ -1919,14 +1916,6 @@ export async function updateNFTBookPostDeliveryData({
 }, t: any) {
   // TODO: check tx content contains valid nft info and address
   const bookDocRef = likeNFTBookCollection.doc(classId);
-  const bookDoc = await t.get(bookDocRef);
-  const bookDocData = bookDoc.data();
-  if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-  const { ownerWallet, moderatorWallets = [] } = bookDocData;
-  if (![ownerWallet, ...moderatorWallets, LIKER_NFT_TARGET_ADDRESS].includes(callerWallet)) {
-    // TODO: check tx is sent by req.user.wallet
-    throw new ValidationError('NOT_OWNER', 403);
-  }
   const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
   const paymentDoc = await t.get(paymentDocRef);
   const paymentDocData = paymentDoc.data();
