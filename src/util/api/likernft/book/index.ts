@@ -27,6 +27,23 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
 
+export function checkIsAuthorized({
+  ownerWallet,
+  moderatorWallets = [],
+} : {
+  ownerWallet: string;
+  moderatorWallets?: string[];
+}, req: Express.Request) {
+  if (!req.user) return false;
+  const {
+    wallet,
+    likeWallet,
+    evmWallet,
+  } = req.user;
+  return [wallet, likeWallet, evmWallet]
+    .some((w) => w && (w === ownerWallet || moderatorWallets.includes(w)));
+}
+
 export function getLocalizedTextWithFallback(field, locale) {
   return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
 }

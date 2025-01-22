@@ -12,6 +12,7 @@ import {
   validateAutoDeliverNFTsTxHash,
   getLocalizedTextWithFallback,
   createStripeProductFromNFTBookPrice,
+  checkIsAuthorized,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -74,8 +75,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
           moderatorWallets = [],
           ownerWallet,
         } = b;
-        const isAuthorized = req.user
-          && (req.user.wallet === ownerWallet || moderatorWallets?.includes(req.user.wallet));
+        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
         return isAuthorized || !isHidden;
       })
       .map((b) => {
@@ -83,8 +83,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
           moderatorWallets = [],
           ownerWallet,
         } = b;
-        const isAuthorized = req.user
-          && (req.user.wallet === ownerWallet || moderatorWallets?.includes(req.user.wallet));
+        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
         const result = filterNFTBookListingInfo(b, isAuthorized);
         return result;
       });
@@ -148,8 +147,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
-    const isAuthorized = req.user
-      && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     const payload = filterNFTBookListingInfo(bookInfo, isAuthorized);
     res.json(payload);
   } catch (err) {
@@ -175,8 +173,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     } = bookInfo;
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
-    const isAuthorized = req.user
-      && (req.user.wallet === ownerWallet || moderatorWallets.includes(req.user.wallet));
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     const { prices: [price] } = filterNFTBookPricesInfo([{
       ...priceInfo,
       index: priceIndex,
@@ -204,9 +201,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
-    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     const {
       prices = [],
     } = bookInfo;
@@ -264,9 +260,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
-    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     const oldPriceInfo = prices[priceIndex];
     if (!oldPriceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
@@ -352,9 +347,8 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
 
-    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
 
     const { order: newOrderString } = req.body;
     const newOrder = Number(newOrderString);
@@ -413,9 +407,10 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
-    if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
+
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+
     const result = await handleGiftBook(
       classId,
       priceIndex,
@@ -458,9 +453,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     ]);
     if (!iscnInfo) throw new ValidationError('CLASS_ID_NOT_FOUND');
     const { owner: ownerWallet, iscnIdPrefix } = iscnInfo;
-    if (ownerWallet !== req.user.wallet) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
+
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+
     const {
       prices,
       autoDeliverTotalStock,
@@ -596,7 +592,8 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     const {
       ownerWallet,
     } = bookInfo;
-    if (ownerWallet !== req.user.wallet) throw new ValidationError('NOT_OWNER', 403);
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await updateNftBookInfo(classId, {
       notificationEmails,
