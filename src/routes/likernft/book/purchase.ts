@@ -4,6 +4,7 @@ import uuidv4 from 'uuid/v4';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
+  checkIsAuthorized,
   getNftBookInfo,
 } from '../../../util/api/likernft/book';
 import {
@@ -693,11 +694,10 @@ router.get(
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
       if (!token && !req.user) throw new ValidationError('MISSING_TOKEN', 401);
       const isTokenValid = token && token === claimToken;
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       const sessionWallet = req.user?.wallet;
       const isUserValid = sessionWallet
-        && (sessionWallet === wallet
-          || sessionWallet === ownerWallet
-          || moderatorWallets.includes(sessionWallet));
+        && (sessionWallet === wallet || isAuthorized);
       if (!isTokenValid && !isUserValid) {
         throw new ValidationError('UNAUTHORIZED', 403);
       }
@@ -767,15 +767,16 @@ router.post(
       const { txHash } = req.body;
       let { quantity = 1 } = req.body;
       quantity = parseInt(quantity, 10) || 1;
-
-      const { wallet } = req.user;
-
+      const listingDoc = await likeNFTBookCollection.doc(classId).get();
+      if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet, moderatorWallets = [] } = listingDoc.data();
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const {
         email, wallet: toWallet, isGift, giftInfo,
       } = await db.runTransaction(async (t) => {
         const result = await updateNFTBookPostDeliveryData({
           classId,
-          callerWallet: wallet,
           paymentId,
           quantity,
           txHash,
@@ -806,7 +807,7 @@ router.post(
         paymentId,
         classId,
         email,
-        fromWallet: wallet,
+        fromWallet: req.user.wallet,
         toWallet,
         quantity,
         // TODO: parse nftId and wallet from txHash,
@@ -838,9 +839,8 @@ router.post(
         ownerWallet,
         moderatorWallets = [],
       } = listingDoc.data();
-      if (ownerWallet !== wallet && !moderatorWallets.includes(wallet)) {
-        throw new ValidationError('NOT_OWNER', 403);
-      }
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const {
         email,
         status,
@@ -921,10 +921,8 @@ router.post(
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
-      if (ownerWallet !== req.user.wallet && !moderatorWallets.includes(req.user.wallet)) {
-        // TODO: check tx is sent by req.user.wallet
-        throw new ValidationError('NOT_OWNER', 403);
-      }
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
 
       const { email } = await db.runTransaction(async (t) => {
@@ -991,10 +989,9 @@ router.get(
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
       const { wallet } = req.user;
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (
-        ownerWallet !== wallet
-        && !moderatorWallets.includes(wallet)
-        && !LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(wallet)
+        !isAuthorized && !LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(wallet)
       ) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }

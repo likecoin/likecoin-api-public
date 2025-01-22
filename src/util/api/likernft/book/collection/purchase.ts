@@ -991,12 +991,10 @@ export async function claimNFTBookCollection(
       });
       throw autoDeliverErr;
     }
-
-    const { isGift, giftInfo, name } = await db.runTransaction(async (t) => {
+    const { isGift, giftInfo } = await db.runTransaction(async (t) => {
       // eslint-disable-next-line no-use-before-define
       const paymentDocData = await updateNFTBookCollectionPostDeliveryData({
         collectionId,
-        callerWallet: LIKER_NFT_TARGET_ADDRESS,
         paymentId,
         txHash,
         quantity,
@@ -1023,6 +1021,8 @@ export async function claimNFTBookCollection(
         fromName,
         toName,
       } = giftInfo;
+      const bookDoc = await bookRef.get();
+      const { name } = bookDoc.data();
       await sendNFTBookGiftSentEmail({
         fromEmail: email,
         fromName,
@@ -1092,14 +1092,12 @@ export async function sendNFTBookCollectionClaimedEmailNotification(
 
 export async function updateNFTBookCollectionPostDeliveryData({
   collectionId,
-  callerWallet,
   paymentId,
   txHash,
   quantity = 1,
   isAutoDeliver = false,
 }: {
   collectionId: string,
-  callerWallet: string,
   paymentId: string,
   txHash: string,
   quantity?: number,
@@ -1107,16 +1105,7 @@ export async function updateNFTBookCollectionPostDeliveryData({
 }, t: any) {
   // TODO: check tx content contains valid nft info and address
   const collectionRef = likeNFTCollectionCollection.doc(collectionId);
-  const collectionDoc = await collectionRef.get();
-  const collectionDocData = collectionDoc.data();
-  if (!collectionDocData) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
-  const { name, ownerWallet, moderatorWallets = [] } = collectionDocData;
-  if (![ownerWallet, ...moderatorWallets, LIKER_NFT_TARGET_ADDRESS].includes(callerWallet)) {
-    // TODO: check tx is sent by req.user.wallet
-    throw new ValidationError('NOT_OWNER', 403);
-  }
-  const paymentDocRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
-
+  const paymentDocRef = collectionRef.collection('transactions').doc(paymentId);
   const doc = await t.get(paymentDocRef);
   const docData = doc.data();
   if (!docData) {
@@ -1141,8 +1130,5 @@ export async function updateNFTBookCollectionPostDeliveryData({
       'typePayload.pendingNFTCount': FieldValue.increment(-1),
     });
   }
-  return {
-    ...docData,
-    name,
-  };
+  return docData;
 }
