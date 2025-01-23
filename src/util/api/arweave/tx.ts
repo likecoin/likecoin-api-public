@@ -27,6 +27,7 @@ export async function getArweaveTxInfo(txHash) {
 export async function updateArweaveTxStatus(txHash, {
   arweaveId,
   ownerWallet,
+  key = '',
   isRequireAuth = false,
 }) {
   await iscnArweaveTxCollection.doc(txHash).update({
@@ -34,6 +35,7 @@ export async function updateArweaveTxStatus(txHash, {
     arweaveId,
     isRequireAuth,
     ownerWallet,
+    key,
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });
 }
