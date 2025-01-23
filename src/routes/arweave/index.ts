@@ -121,7 +121,7 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        txHash, arweaveId, token, isRequireAuth = true,
+        txHash, arweaveId, token, key, isRequireAuth = true,
       } = req.body;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
@@ -137,6 +137,7 @@ router.post(
       await updateArweaveTxStatus(txHash, {
         arweaveId,
         ownerWallet: req.user?.wallet || '',
+        key,
         isRequireAuth,
       });
       res.json({
@@ -179,7 +180,7 @@ router.get(
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
       const {
-        arweaveId, token: docToken, isRequireAuth, ownerWallet,
+        arweaveId, token: docToken, isRequireAuth, ownerWallet, key,
       } = tx;
       if (isRequireAuth) {
         if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
@@ -188,15 +189,18 @@ router.get(
           || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN);
         if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       }
+      let link = `${ARWEAVE_GATEWAY}/${arweaveId}`;
+      if (key) link += `?key=${key}`;
       if (req.accepts('application/json')) {
         res.json({
           arweaveId,
           txHash,
-          link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+          key,
+          link,
         });
         return;
       }
-      res.redirect(`${ARWEAVE_GATEWAY}/${arweaveId}`);
+      res.redirect(link);
     } catch (error) {
       next(error);
     }
