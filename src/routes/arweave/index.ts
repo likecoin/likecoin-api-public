@@ -189,18 +189,20 @@ router.get(
           || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN);
         if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       }
-      let link = `${ARWEAVE_GATEWAY}/${arweaveId}`;
-      if (key) link += `?key=${key}`;
+      const link = new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`);
+      if (key) {
+        link.searchParams.set('key', key);
+      }
       if (req.accepts('application/json')) {
         res.json({
           arweaveId,
           txHash,
           key,
-          link,
+          link: link.toString(),
         });
         return;
       }
-      res.redirect(link);
+      res.redirect(link.toString());
     } catch (error) {
       next(error);
     }
