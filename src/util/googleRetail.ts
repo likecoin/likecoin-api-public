@@ -71,7 +71,7 @@ function formatBookData(data) {
     languageCode: inLanguage,
     attributes: author ? {
       author: {
-        text: typeof author === 'string' ? author : author?.name || '',
+        text: [typeof author === 'string' ? author : author?.name],
       },
     } : undefined,
     tags: keywords,
