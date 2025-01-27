@@ -1283,12 +1283,24 @@ export function calculateFeeAndDiscountFromBalanceTx({
     priceInDecimal,
     originalPriceInDecimal,
   } = feeInfo as TransactionFeeInfo;
-  const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-  const stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-  const stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  const newFeeInfo: TransactionFeeInfo = { ...feeInfo, stripeFeeAmount };
-  const productAmountTotal = amountTotal - (shippingCostAmount * 100);
+  let newFeeInfo = { ...feeInfo };
+  let stripeFeeAmount = docStripeFeeAmount;
+  let stripeFeeCurrency = 'USD';
+  if (balanceTx) {
+    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+    stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
+    stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
+  } else {
+    stripeFeeAmount = 0;
+  }
   const isStripeFeeUpdated = stripeFeeAmount !== docStripeFeeAmount;
+  if (isStripeFeeUpdated) {
+    newFeeInfo = {
+      ...newFeeInfo,
+      stripeFeeAmount,
+    };
+  }
+  const productAmountTotal = amountTotal - (shippingCostAmount * 100);
   const isAmountFeeUpdated = priceInDecimal !== productAmountTotal
     && productAmountTotal !== amountSubtotal;
   const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
@@ -1341,13 +1353,6 @@ export async function updateNFTBookPostCheckoutFeeInfo({
   balanceTx,
   feeInfo,
 }) {
-  if (!balanceTx) {
-    return {
-      ...feeInfo,
-      coupon: existingCoupon,
-      stripeFeeCurrency: '',
-    };
-  }
   const {
     isStripeFeeUpdated,
     isAmountFeeUpdated,

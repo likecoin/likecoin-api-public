@@ -552,13 +552,6 @@ export async function updateNFTBookCollectionPostCheckoutFeeInfo({
   feeInfo,
   coupon: existingCoupon,
 }) {
-  if (!balanceTx) {
-    return {
-      ...feeInfo,
-      coupon: existingCoupon,
-      stripeFeeCurrency: '',
-    };
-  }
   const {
     isStripeFeeUpdated,
     isAmountFeeUpdated,
