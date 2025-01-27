@@ -345,16 +345,6 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
   coupon: existingCoupon,
   sessionId,
 }) {
-  if (!balanceTx) {
-    return {
-      ...feeInfo,
-      coupon: existingCoupon,
-      stripeFeeCurrency: '',
-      discountRate: 1,
-      isAmountFeeUpdated: false,
-      isStripeFeeUpdated: false,
-    };
-  }
   const {
     isStripeFeeUpdated,
     isAmountFeeUpdated,
