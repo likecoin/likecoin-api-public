@@ -3,14 +3,23 @@ import { ValidationError } from '../util/ValidationError';
 
 export default function errorHandler(err, req, res, next) {
   if (err instanceof ValidationError) {
-    // eslint-disable-next-line no-console
-    if (err.status !== 404) console.error(JSON.stringify((err as Error).message));
+    if (err.status !== 404) {
+      // eslint-disable-next-line no-console
+      console.error(JSON.stringify({
+        message: (err as Error).message,
+        path: req.path,
+      }));
+    }
   } else if (axios.isAxiosError(err)) {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify({
-      message: err, stack: (err as Error).stack,
+      path: req.path,
+      message: err,
+      stack: (err as Error).stack,
     }));
   } else {
+    // eslint-disable-next-line no-console
+    console.error(`Path: ${req.path}`);
     // eslint-disable-next-line no-console
     console.error(err);
   }
