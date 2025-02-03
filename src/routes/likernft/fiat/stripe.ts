@@ -152,7 +152,7 @@ router.post(
       if (utmCampaign) sessionMetadata.utmCampaign = utmCampaign;
       if (utmSource) sessionMetadata.utmSource = utmSource;
       if (utmMedium) sessionMetadata.utmMedium = utmMedium;
-      if (referrer) sessionMetadata.referrer = referrer;
+      if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
       if (gaClientId) sessionMetadata.gaClientId = gaClientId;
       if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
       const checkoutPayload: Stripe.Checkout.SessionCreateParams = {

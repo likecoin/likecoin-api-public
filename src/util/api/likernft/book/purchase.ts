@@ -698,7 +698,7 @@ export async function formatStripeCheckoutSession({
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
   if (httpMethod) sessionMetadata.httpMethod = httpMethod;
-  if (referrer) sessionMetadata.referrer = referrer;
+  if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
