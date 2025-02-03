@@ -447,6 +447,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     priceInDecimal,
     originalPriceInDecimal,
     price: priceInDecimal / 100,
+    originalPrice: originalPriceInDecimal / 100,
     priceName,
     priceIndex,
     quantity,
@@ -1339,6 +1340,8 @@ export function calculateFeeAndDiscountFromBalanceTx({
     discountRate,
     isStripeFeeUpdated,
     isAmountFeeUpdated,
+    priceInDecimal: newFeeInfo.priceInDecimal,
+    originalPriceInDecimal,
   };
 }
 
@@ -1357,6 +1360,7 @@ export async function updateNFTBookPostCheckoutFeeInfo({
     isStripeFeeUpdated,
     isAmountFeeUpdated,
     stripeFeeCurrency,
+    priceInDecimal,
     newFeeInfo,
   } = calculateFeeAndDiscountFromBalanceTx({
     paymentId,
@@ -1374,6 +1378,8 @@ export async function updateNFTBookPostCheckoutFeeInfo({
     const payload: any = {
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount,
+      priceInDecimal,
+      price: priceInDecimal / 100,
     };
     if (coupon) payload.coupon = coupon;
     await likeNFTBookCollection.doc(classId).collection('transactions')
