@@ -351,6 +351,7 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     stripeFeeCurrency,
     newFeeInfo,
     discountRate,
+    priceInDecimal,
   } = calculateFeeAndDiscountFromBalanceTx({
     paymentId,
     amountSubtotal,
@@ -368,6 +369,8 @@ async function updateNFTBookCartPostCheckoutFeeInfo({
     const payload: any = {
       feeInfo: newFeeInfo,
       shippingCost: shippingCostAmount,
+      priceInDecimal,
+      price: priceInDecimal / 100,
     };
     if (coupon) payload.coupon = coupon;
     await likeNFTBookCartCollection.doc(cartId).update(payload);
@@ -560,7 +563,11 @@ export async function processNFTBookCartStripePurchase(
         }
       }
       if (isStripeFeeUpdated || isAmountFeeUpdated) {
-        const payload: any = { feeInfo };
+        const payload: any = {
+          priceInDecimal: feeInfo.priceInDecimal,
+          price: feeInfo.priceInDecimal / 100,
+          feeInfo,
+        };
         if (coupon) payload.coupon = coupon;
         if (collectionId) {
           await likeNFTCollectionCollection.doc(collectionId)
