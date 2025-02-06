@@ -6,6 +6,7 @@ import {
   CUSTOMER_SERVICE_URL,
   CUSTOMER_SERVICE_EMAIL,
   SALES_EMAIL,
+  SYSTEM_EMAIL,
 } from '../constant';
 import {
   getLikerLandNFTClaimPageURL,
@@ -28,7 +29,7 @@ const ses = new aws.SES();
 export async function sendVerificationEmail(res, user, ref) {
   if (TEST_MODE) return Promise.resolve();
   const params = {
-    Source: '"Liker Land" <noreply@liker.land>',
+    Source: SYSTEM_EMAIL,
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -65,7 +66,7 @@ export async function sendVerificationEmail(res, user, ref) {
 export async function sendVerificationWithCouponEmail(res, user, coupon, ref) {
   if (TEST_MODE) return Promise.resolve();
   const params = {
-    Source: '"Liker Land" <noreply@liker.land>',
+    Source: SYSTEM_EMAIL,
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -104,7 +105,7 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
   if (TEST_MODE) return Promise.resolve();
   const title = res.__('Email.InvitationEmail.subject', { referrer });
   const params = {
-    Source: '"Liker Land" <noreply@liker.land>',
+    Source: SYSTEM_EMAIL,
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
@@ -155,7 +156,7 @@ export function sendAutoClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ type: 'writing_nft', language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ type: 'writing_nft', language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -234,7 +235,7 @@ export function sendPendingClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ type: 'writing_nft', language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ type: 'writing_nft', language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -300,7 +301,7 @@ export function sendNFTBookListingEmail({
     ? getLikerLandNFTCollectionPageURL({ collectionId })
     : getLikerLandNFTClassPageURL({ classId });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -377,7 +378,7 @@ export async function sendNFTBookPendingClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -472,7 +473,7 @@ export async function sendNFTBookCartPendingClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -550,7 +551,7 @@ export function sendNFTBookPhysicalOnlyEmail({
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
     : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -636,7 +637,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -729,7 +730,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -811,7 +812,7 @@ export function sendNFTBookShippedEmail({
     ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
     : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -870,7 +871,7 @@ export function sendNFTBookGiftClaimedEmail({
   const titleEn = `${toName} has accepted your ebook gift ${bookName}`;
   const titleZh = `${toName} 已接受你的禮物電子書 ${bookName}`;
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -926,7 +927,7 @@ export function sendNFTBookGiftSentEmail({
   const titleZh = `你給 ${toName} 的禮物電子書 ${bookName} 已經發送`;
   const txURL = `https://mintscan.com/likecoin/txs/${txHash}`;
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -1006,7 +1007,7 @@ export function sendNFTBookSalesEmail({
   <br/>
   <p>Liker Land Bookstore</p>`;
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -1069,7 +1070,7 @@ export function sendNFTBookSalePaymentsEmail({
     : getLikerLandNFTClassPageURL({ classId });
   const title = `You received US$${totalAmount.toFixed(2)} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -1118,7 +1119,7 @@ export function sendNFTBookClaimedEmail({
     ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
     : getNFTBookStoreSendPageURL(classId, paymentId);
   const params = {
-    Source: SALES_EMAIL,
+    Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -1178,7 +1179,7 @@ export function sendNFTBookOutOfStockEmail({
   <br/>
   <p>Liker Land Bookstore</p>`;
   const params = {
-    Source: '"Liker Land Sales" <sales@liker.land>',
+    Source: SYSTEM_EMAIL,
     ConfigurationSetName: 'likeco_ses',
     Tags: [
       {
