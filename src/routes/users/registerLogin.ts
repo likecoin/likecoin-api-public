@@ -53,11 +53,11 @@ const multer = Multer({
 
 const router = Router();
 
-const apiLimiter = new RateLimit({
+const apiLimiter = RateLimit({
   windowMs: REGISTER_LIMIT_WINDOW,
   max: REGISTER_LIMIT_COUNT || 0,
   skipFailedRequests: true,
-  keyGenerator: (req) => (req.headers['x-real-ip'] || req.ip),
+  keyGenerator: (req) => (req.headers['x-real-ip'] as string || req.ip),
   onLimitReached: (req) => {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'eventAPILimitReached',
