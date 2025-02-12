@@ -460,6 +460,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       ]);
       metadata = classData;
       ownerWallet = classOwner;
+      // TODO: Remove this after the new evm owner API is ready
+      ownerWallet = req.user.wallet;
     } else {
       const [info, classData] = await Promise.all([
         getISCNFromNFTClassId(classId),
