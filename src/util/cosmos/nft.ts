@@ -84,7 +84,7 @@ export async function getNFTsByClassId(classId, address) {
   const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
   let nfts: any[] = [];
-  let next: Uint8Array | null = new Uint8Array([0x00]);
+  let next: Uint8Array | undefined = new Uint8Array([0x00]);
   do {
     /* eslint-disable no-await-in-loop */
     const res = await client.nft.NFTs(classId, address, PageRequest.fromPartial({ key: next }));
