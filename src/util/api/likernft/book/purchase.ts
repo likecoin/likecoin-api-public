@@ -8,8 +8,7 @@ import { Query } from '@google-cloud/firestore';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
-import { getNftBookInfo } from '.';
-import { getNFTClassDataById } from '../../../cosmos/nft';
+import { getNftBookInfo, getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
@@ -1082,10 +1081,8 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     priceInDecimal = customPriceInDecimal;
   }
   if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  let { name = '', description = '' } = metadata;
-  const classMetadata = metadata.data.metadata;
-  const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
-  let { image } = classMetadata;
+  let { image, name = '', description = '' } = metadata;
+  const iscnPrefix = metadata.iscnIdPrefix || undefined;
   image = parseImageURLFromMetadata(image);
   name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
   const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
