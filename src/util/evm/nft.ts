@@ -2,6 +2,10 @@ import { readContract } from 'viem/actions';
 import { getEvmClient } from './client';
 import { LIKE_NFT_CLASS_ABI } from './LikeNFT';
 
+export function isEVMClassId(classId) {
+  return classId.startsWith('0x');
+}
+
 export async function getNFTClassOwner(classId) {
   const owner = await readContract(getEvmClient(), {
     address: classId,
@@ -31,4 +35,14 @@ export async function getNFTClassDataById(classId) {
     throw new Error('Invalid data');
   }
   return JSON.parse(dataString.replace('data:application/json;utf8,', ''));
+}
+
+export async function getNFTClassBalanceOf(classId, wallet) {
+  const balance = await readContract(getEvmClient(), {
+    address: classId,
+    abi: LIKE_NFT_CLASS_ABI,
+    functionName: 'balanceOf',
+    args: [wallet],
+  });
+  return balance as number;
 }
