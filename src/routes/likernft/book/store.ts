@@ -15,7 +15,7 @@ import {
   checkIsAuthorized,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
-import { getNFTClassDataById as getEvmNFTClassDataById, getNFTClassOwner as getEvmNFTClassOwner } from '../../../util/evm/nft';
+import { getNFTClassDataById as getEvmNFTClassDataById, getNFTClassOwner as getEvmNFTClassOwner, isEVMClassId } from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
@@ -453,7 +453,14 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     let ownerWallet = '';
     let iscnInfo: any = null;
 
-    if (classId.startsWith('likenft1')) {
+    if (isEVMClassId(classId)) {
+      const [classData, classOwner] = await Promise.all([
+        getEvmNFTClassDataById(classId),
+        getEvmNFTClassOwner(classId),
+      ]);
+      metadata = classData;
+      ownerWallet = classOwner;
+    } else {
       const [info, classData] = await Promise.all([
         getISCNFromNFTClassId(classId),
         getNFTClassDataById(classId),
@@ -470,13 +477,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       };
       ownerWallet = iscnOwner;
       iscnInfo = info;
-    } else if (classId.startsWith('0x')) {
-      const [classData, classOwner] = await Promise.all([
-        getEvmNFTClassDataById(classId),
-        getEvmNFTClassOwner(classId),
-      ]);
-      metadata = classData;
-      ownerWallet = classOwner;
     }
 
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
