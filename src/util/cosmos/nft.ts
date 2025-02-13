@@ -80,6 +80,13 @@ export async function getNFTClassDataById(classId) {
   return res.class;
 }
 
+export async function getNFTBalance(classId, address) {
+  const c = await getNFTQueryClient();
+  const client = await c.getQueryClient();
+  const res = await client.nft.balance(classId, address);
+  return res.amount.toNumber();
+}
+
 export async function getNFTsByClassId(classId, address) {
   const c = await getNFTQueryClient();
   const client = await c.getQueryClient();
