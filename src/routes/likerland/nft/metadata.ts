@@ -35,14 +35,17 @@ async function getNFTClassChainMetadata(classId) {
       name,
       description,
       uri,
-      data: { metadata, parent },
+      uri_hash: uriHash,
+      data: { metadata = {}, parent = null } = {},
     } = data.class;
     const result = {
       name,
       description,
       uri,
+      uriHash,
       ...metadata,
       parent,
+      iscnIdPrefix: parent?.iscn_id_prefix,
     };
     classChainMetadataCache.set(classId, result);
     return result;
@@ -76,6 +79,9 @@ async function getISCNMetadata(iscnId) {
       `${COSMOS_LCD_INDEXER_ENDPOINT}/iscn/records/id?iscn_id=${iscnId}`,
     );
     const result = data.records[0].data;
+    if (!result) {
+      return null;
+    }
     result.owner = data.owner;
     return result;
   } catch (err) {
@@ -101,7 +107,7 @@ function isValidHttpUrl(string) {
 async function getNFTClassAndISCNMetadata(classId) {
   const chainMetadata = await getNFTClassChainMetadata(classId);
 
-  const iscnId = chainMetadata.parent.iscn_id_prefix;
+  const iscnId = chainMetadata.iscnIdPrefix;
   const promises = [getISCNMetadata(iscnId)];
 
   const { uri } = chainMetadata;

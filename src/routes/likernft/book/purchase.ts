@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import { checkIsAuthorized } from '../../../util/api/likernft/book';
+import {
+  checkIsAuthorized,
+  getNFTClassDataById,
+} from '../../../util/api/likernft/book';
 import {
   db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
 } from '../../../util/firebase';
