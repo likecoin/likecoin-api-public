@@ -3,9 +3,12 @@ import { FieldValue, db, likeNFTCollectionCollection } from '../../../firebase';
 import { filterNFTCollection } from '../../../ValidationHelper';
 import { ValidationError } from '../../../ValidationError';
 import {
-  validateAutoDeliverNFTsTxHashV2, validatePrice, getLocalizedTextWithFallback,
+  validateAutoDeliverNFTsTxHashV2,
+  validatePrice,
+  getLocalizedTextWithFallback,
+  getNFTClassDataById,
 } from '../book';
-import { getISCNFromNFTClassId, getNFTsByClassId } from '../../../cosmos/nft';
+import { getNFTsByClassId } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
 import stripe from '../../../stripe';
@@ -105,18 +108,10 @@ async function validateCollectionTypeData(
     });
     await Promise.all(
       classIds.map(async (classId) => {
-        const result = await getISCNFromNFTClassId(classId)
-          .catch((err) => {
-            // eslint-disable-next-line no-console
-            console.error(err);
-            return null;
-          });
-        if (!result) throw new ValidationError(`CLASS_ID_NOT_FOUND: ${classId}`);
-        // Skip ISCN owner check
-        // const { owner: ownerWallet } = result;
-        // if (ownerWallet !== wallet) {
-        //   throw new ValidationError(`NOT_OWNER_OF_NFT_CLASS: ${classId}`, 403);
-        // }
+        const result = await getNFTClassDataById(classId);
+        if (!result) {
+          throw new ValidationError(`CLASS_NOT_FOUND: ${classId}`, 404);
+        }
         if (!isAutoDeliver) {
           const { nfts } = await getNFTsByClassId(classId, wallet);
           if (nfts.length < stock) {
