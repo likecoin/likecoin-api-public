@@ -36,14 +36,16 @@ async function getNFTClassChainMetadata(classId) {
       name,
       description,
       uri,
-      data: { metadata, parent },
+      uri_hash: uriHash,
+      data: { metadata = {}, parent = null } = {},
     } = data.class;
     const result = {
       name,
       description,
       uri,
+      uriHash,
       ...metadata,
-      parent,
+      iscnIdPrefix: parent?.iscn_id_prefix,
     };
     classChainMetadataCache.set(classId, result);
     return result;
