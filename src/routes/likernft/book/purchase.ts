@@ -243,6 +243,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       referrer: inputReferrer,
       coupon,
       fbclid: fbClickId = '',
+      payment_method: paymentMethodQs,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
@@ -251,6 +252,18 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
+
+    let paymentMethods: string[] | undefined;
+    if (paymentMethodQs) {
+      if (Array.isArray(paymentMethodQs)) {
+        paymentMethods = paymentMethodQs as string[];
+      } else {
+        paymentMethods = [paymentMethodQs as string];
+      }
+      paymentMethods.filter((pm) => (['link', 'card', 'crypto'].includes(pm)));
+      if (paymentMethods.length === 0) paymentMethods = undefined;
+    }
+
     const {
       url,
       paymentId,
@@ -278,6 +291,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         medium: utmMedium as string,
       },
       httpMethod,
+      paymentMethods,
     });
     res.redirect(url);
 
