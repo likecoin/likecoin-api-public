@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
-import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import {
   checkIsAuthorized,
   getNftBookInfo,
+  getNFTClassDataById,
 } from '../../../util/api/likernft/book';
 import {
   db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
