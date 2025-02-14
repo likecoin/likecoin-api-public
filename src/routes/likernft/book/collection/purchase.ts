@@ -60,6 +60,7 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       quantity: inputQuantity,
       referrer: inputReferrer,
       fbclid: fbClickId,
+      payment_method: paymentMethodQs,
     } = req.query;
 
     const referrer = (inputReferrer || req.get('Referrer')) as string;
@@ -67,6 +68,17 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
+
+    let paymentMethods: string[] | undefined;
+    if (paymentMethodQs) {
+      if (Array.isArray(paymentMethodQs)) {
+        paymentMethods = paymentMethodQs as string[];
+      } else {
+        paymentMethods = [paymentMethodQs as string];
+      }
+      paymentMethods.filter((pm) => (['link', 'card', 'crypto'].includes(pm)));
+      if (paymentMethods.length === 0) paymentMethods = undefined;
+    }
     const {
       url,
       paymentId,
@@ -94,6 +106,7 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       referrer,
       userAgent,
       clientIp,
+      paymentMethods,
     });
     res.redirect(url);
 

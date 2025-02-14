@@ -815,6 +815,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   referrer,
   userAgent,
   clientIp,
+  paymentMethods,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -839,6 +840,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   referrer?: string,
   userAgent?: string,
   clientIp?: string,
+  paymentMethods?: string[],
 } = {}) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
@@ -1144,6 +1146,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     shippingRates: [],
     successUrl,
     cancelUrl,
+    paymentMethods,
   });
 
   const { url, id: sessionId } = session;
