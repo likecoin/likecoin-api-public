@@ -675,11 +675,13 @@ export async function formatStripeCheckoutSession({
   shippingRates,
   successUrl,
   cancelUrl,
+  paymentMethods,
 }: {
   hasShipping: boolean,
   shippingRates: any[],
   successUrl: string,
   cancelUrl: string,
+  paymentMethods?: string[],
 }) {
   let sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
@@ -881,6 +883,10 @@ export async function formatStripeCheckoutSession({
       promotions: 'auto',
     },
   };
+  if (paymentMethods) {
+    checkoutPayload.payment_method_types = paymentMethods as
+      Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+  }
   if (promotion) {
     checkoutPayload.discounts = [{ promotion_code: promotion.id }];
   } else {
@@ -957,6 +963,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   httpMethod,
   userAgent,
   clientIp,
+  paymentMethods,
 }: {
   httpMethod?: 'GET' | 'POST',
   gaClientId?: string,
@@ -984,6 +991,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
   },
   userAgent?: string,
   clientIp?: string,
+  paymentMethods?: string[],
 } = {}) {
   const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
   const [metadata, bookInfo] = (await Promise.all(promises)) as any;
@@ -1138,6 +1146,7 @@ export async function handleNewStripeCheckout(classId: string, priceIndex: numbe
     shippingRates,
     successUrl,
     cancelUrl,
+    paymentMethods,
   });
 
   const { url, id: sessionId } = session;
