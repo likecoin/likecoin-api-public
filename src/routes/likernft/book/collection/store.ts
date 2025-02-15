@@ -3,7 +3,6 @@ import { ValidationError } from '../../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../../middleware/jwt';
 import { listBookCollectionsInfoByModeratorWallet } from '../../../../util/api/likernft/collection/book';
 import { getNFTCollectionsByOwner, CollectionType, getLatestNFTCollection } from '../../../../util/api/likernft/collection';
-import { isValidLikeAddress } from '../../../../util/cosmos';
 
 const router = Router();
 
@@ -13,7 +12,6 @@ router.get('/list', jwtOptionalAuth('read:nftcollection'), async (req, res, next
     const { wallet } = req.query;
     const type = 'book';
     if (wallet) {
-      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const list = await getNFTCollectionsByOwner(
         wallet as string,
         userWallet === wallet,
