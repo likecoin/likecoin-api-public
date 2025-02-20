@@ -1,4 +1,3 @@
-import BigNumber from 'bignumber.js';
 import { Router } from 'express';
 import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
@@ -149,36 +148,6 @@ async function getNFTClassOwnerInfo(classId) {
   return result;
 }
 
-function formatAndFilterListing(listings, ownerInfo) {
-  const result = listings
-    .map((l) => {
-      const {
-        class_id: classId, nft_id: nftId, seller, price, expiration,
-      } = l;
-      return {
-        classId,
-        nftId,
-        seller,
-        price: new BigNumber(price).shiftedBy(-9).toNumber(),
-        expiration: new Date(expiration),
-      };
-    })
-    .filter((l) => ownerInfo[l.seller]
-      && ownerInfo[l.seller].includes(l.nftId)) // guard listing then sent case
-    .sort((a, b) => a.price - b.price);
-  return result;
-}
-
-async function getNFTClassOwnerInfoAndListingInfo(classId) {
-  const [ownerInfo, listingInfo] = await Promise.all([
-    getNFTClassOwnerInfo(classId),
-    axios.get(`${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/listings/${classId}`),
-  ]);
-  const listingInput = listingInfo.data.listings || [];
-  const listings = formatAndFilterListing(listingInput, ownerInfo);
-  return [ownerInfo, listings];
-}
-
 async function getNFTClassPurchaseInfo(classId) {
   try {
     const { data } = await axios.get(
@@ -229,7 +198,6 @@ router.get('/nft/metadata', async (req, res, next) => {
         'class_api',
         'iscn',
         'owner',
-        'listing',
         'purchase',
         'bookstore',
       ].some((s) => selectedSet.has(s))
@@ -247,12 +215,10 @@ router.get('/nft/metadata', async (req, res, next) => {
       promises.push(Promise.resolve([null, null]));
     }
 
-    if (['all', 'listing'].some((s) => selectedSet.has(s))) {
-      promises.push(getNFTClassOwnerInfoAndListingInfo(classId));
-    } else if (selectedSet.has('owner')) {
-      promises.push(Promise.all([getNFTClassOwnerInfo(classId), null]));
+    if (['all', 'owner'].some((s) => selectedSet.has(s))) {
+      promises.push(getNFTClassOwnerInfo(classId));
     } else {
-      promises.push(Promise.resolve([null, null]));
+      promises.push(Promise.resolve(null));
     }
 
     if (['all', 'purchase'].some((s) => selectedSet.has(s))) {
@@ -269,7 +235,7 @@ router.get('/nft/metadata', async (req, res, next) => {
 
     const [
       [classData, iscnData],
-      [ownerInfo, listings],
+      ownerInfo,
       purchaseInfo,
       bookstoreInfo,
     ] = await Promise.all(promises);
@@ -283,9 +249,6 @@ router.get('/nft/metadata', async (req, res, next) => {
     }
     if (['all', 'owner'].some((s) => selectedSet.has(s))) {
       result.ownerInfo = ownerInfo;
-    }
-    if (['all', 'listing'].some((s) => selectedSet.has(s))) {
-      result.listings = listings;
     }
     if (['all', 'purchase'].some((s) => selectedSet.has(s))) {
       result.purchaseInfo = purchaseInfo;
