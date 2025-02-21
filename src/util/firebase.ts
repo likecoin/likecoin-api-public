@@ -4,7 +4,6 @@ import {
   FIRESTORE_USER_ROOT,
   FIRESTORE_USER_AUTH_ROOT,
   FIRESTORE_SUBSCRIPTION_USER_ROOT,
-  FIRESTORE_CIVIC_USER_METADATA_ROOT,
   FIRESTORE_SUPERLIKE_USER_ROOT,
   FIRESTORE_TX_ROOT,
   FIRESTORE_IAP_ROOT,
@@ -44,9 +43,6 @@ const getCollectionIfDefined = (root) => (root ? database.collection(root) : nul
 export const userCollection = getCollectionIfDefined(FIRESTORE_USER_ROOT);
 export const userAuthCollection = getCollectionIfDefined(FIRESTORE_USER_AUTH_ROOT);
 export const subscriptionUserCollection = getCollectionIfDefined(FIRESTORE_SUBSCRIPTION_USER_ROOT);
-export const civicUserMetadataCollection = getCollectionIfDefined(
-  FIRESTORE_CIVIC_USER_METADATA_ROOT,
-);
 export const superLikeUserCollection = getCollectionIfDefined(FIRESTORE_SUPERLIKE_USER_ROOT);
 export const txCollection = getCollectionIfDefined(FIRESTORE_TX_ROOT);
 export const iapCollection = getCollectionIfDefined(FIRESTORE_IAP_ROOT);

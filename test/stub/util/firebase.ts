@@ -208,7 +208,6 @@ const dbData = [
 export const userCollection = createCollection(userData);
 export const userAuthCollection = createCollection([]);
 export const subscriptionUserCollection = createCollection(subscriptionData);
-export const civicUserMetadataCollection = createCollection([]);
 export const txCollection = createCollection(txData);
 export const iapCollection = createCollection([]);
 export const missionCollection = createCollection(missionData);

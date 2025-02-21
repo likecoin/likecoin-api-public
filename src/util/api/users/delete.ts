@@ -4,7 +4,6 @@ import {
   userAuthCollection,
   subscriptionUserCollection,
   superLikeUserCollection,
-  civicUserMetadataCollection,
   likeButtonUrlCollection,
   iscnMappingCollection,
   db,
@@ -53,8 +52,6 @@ export async function deleteAllUserData(user) {
     db.recursiveDelete(subscriptionUserCollection
       .doc(user)),
     db.recursiveDelete(superLikeUserCollection
-      .doc(user)),
-    db.recursiveDelete(civicUserMetadataCollection
       .doc(user)),
     clearUserButtonData(user),
     clearUserMappingData(user),
