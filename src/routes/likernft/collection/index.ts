@@ -27,7 +27,6 @@ router.get('/collection', jwtOptionalAuth('read:nftcollection'), async (req, res
       throw new ValidationError('INVALID_COLLECTION_TYPE');
     }
     if (wallet) {
-      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const list = await getNFTCollectionsByOwner(
         wallet as string,
         userWallet === wallet,
