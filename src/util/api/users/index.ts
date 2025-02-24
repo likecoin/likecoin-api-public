@@ -146,6 +146,10 @@ function parseActualLoginPayload(message, signMethod) {
         payload = Buffer.from(base64Payload, 'base64').toString('utf8');
         break;
       }
+      case 'personal_sign': {
+        payload = message;
+        break;
+      }
       default:
         payload = parsedMessage.memo;
     }
@@ -180,6 +184,35 @@ export function checkCosmosSignPayload({
     throw new ValidationError('PAYLOAD_ACTION_NOT_MATCH');
   }
   if (payloadLikeWallet !== inputWallet && payloadCosmosWallet !== inputWallet) {
+    throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
+  }
+  if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
+    throw new ValidationError('PAYLOAD_EXPIRED');
+  }
+  return actualPayload;
+}
+
+export function checkEvmSignPayload({
+  signature,
+  message,
+  inputWallet,
+  signMethod = 'personal_sign',
+  action = '',
+}) {
+  const recovered = sigUtil.recoverPersonalSignature({ data: message, sig: signature });
+  if (recovered.toLowerCase() !== inputWallet.toLowerCase()) {
+    throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
+  }
+  const actualPayload = parseActualLoginPayload(message, signMethod);
+  const {
+    action: payloadAction,
+    evmWallet: payloadEvmWallet,
+    ts,
+  } = actualPayload;
+  if (action && action !== payloadAction) {
+    throw new ValidationError('PAYLOAD_ACTION_NOT_MATCH');
+  }
+  if (payloadEvmWallet !== inputWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
   }
   if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
