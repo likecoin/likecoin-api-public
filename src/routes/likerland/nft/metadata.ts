@@ -9,6 +9,7 @@ import {
   COSMOS_LCD_INDEXER_ENDPOINT,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../config/config';
+import { isEVMClassId, getNFTClassDataById as getEvmNFTClassDataById } from '../../../util/evm/nft';
 
 const classChainMetadataCache = new LRUCache({
   max: 1000,
@@ -28,25 +29,30 @@ async function getNFTClassChainMetadata(classId) {
     if (classChainMetadataCache.has(classId)) {
       return classChainMetadataCache.get(classId);
     }
-    const { data } = await axios.get(
-      `${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/nft/v1beta1/classes/${classId}`,
-    );
-    const {
-      name,
-      description,
-      uri,
-      uri_hash: uriHash,
-      data: { metadata = {}, parent = null } = {},
-    } = data.class;
-    const result = {
-      name,
-      description,
-      uri,
-      uriHash,
-      ...metadata,
-      parent,
-      iscnIdPrefix: parent?.iscn_id_prefix,
-    };
+    let result;
+    if (isEVMClassId(classId)) {
+      result = await getEvmNFTClassDataById(classId);
+    } else {
+      const { data } = await axios.get(
+        `${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/nft/v1beta1/classes/${classId}`,
+      );
+      const {
+        name,
+        description,
+        uri,
+        uri_hash: uriHash,
+        data: { metadata = {}, parent = null } = {},
+      } = data.class;
+      result = {
+        name,
+        description,
+        uri,
+        uriHash,
+        ...metadata,
+        parent,
+        iscnIdPrefix: parent?.iscn_id_prefix,
+      };
+    }
     classChainMetadataCache.set(classId, result);
     return result;
   } catch (err) {
@@ -94,7 +100,7 @@ async function getNFTClassAndISCNMetadata(classId) {
   const chainMetadata = await getNFTClassChainMetadata(classId);
 
   const iscnId = chainMetadata.iscnIdPrefix;
-  const promises = [getISCNMetadata(iscnId)];
+  const promises = [iscnId ? getISCNMetadata(iscnId) : null];
 
   const [iscnData, apiMetadata] = await Promise.all(promises);
 
@@ -105,8 +111,8 @@ async function getNFTClassAndISCNMetadata(classId) {
   const classData = hasApiMetadata
     ? { ...chainMetadata, ...apiMetadata }
     : chainMetadata;
-  const iscnOwner = iscnData.owner;
-  const accountOwner = chainMetadata.parent.account;
+  const iscnOwner = iscnData?.owner;
+  const accountOwner = chainMetadata.parent?.account;
   if (iscnOwner) {
     classData.iscn_owner = iscnOwner;
   } else if (accountOwner) {
@@ -128,6 +134,10 @@ function formatOwnerInfo(owners) {
 }
 
 async function getNFTClassOwnerInfo(classId) {
+  if (isEVMClassId(classId)) {
+    // TODO: Implement EVM owner info via indexer
+    return null;
+  }
   const { data } = await axios.get(
     `${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/owner?class_id=${classId}`,
   );
