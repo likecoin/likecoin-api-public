@@ -1101,53 +1101,6 @@ export function calculateFeeAndDiscountFromBalanceTx({
   };
 }
 
-export async function updateNFTBookPostCheckoutFeeInfo({
-  classId,
-  paymentId,
-  amountSubtotal,
-  amountTotal,
-  shippingCostAmount,
-  sessionId,
-  coupon: existingCoupon,
-  balanceTx,
-  feeInfo,
-}) {
-  const {
-    isStripeFeeUpdated,
-    isAmountFeeUpdated,
-    stripeFeeCurrency,
-    priceInDecimal,
-    newFeeInfo,
-  } = calculateFeeAndDiscountFromBalanceTx({
-    paymentId,
-    amountSubtotal,
-    amountTotal,
-    shippingCostAmount,
-    balanceTx,
-    feeInfo,
-  });
-  let coupon = existingCoupon;
-  if (isAmountFeeUpdated) {
-    [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
-  }
-  if (isStripeFeeUpdated || isAmountFeeUpdated) {
-    const payload: any = {
-      feeInfo: newFeeInfo,
-      shippingCost: shippingCostAmount,
-      priceInDecimal,
-      price: priceInDecimal / 100,
-    };
-    if (coupon) payload.coupon = coupon;
-    await likeNFTBookCollection.doc(classId).collection('transactions')
-      .doc(paymentId).update(payload);
-  }
-  return {
-    ...newFeeInfo,
-    coupon,
-    stripeFeeCurrency,
-  };
-}
-
 export async function claimNFTBook(
   classId: string,
   paymentId: string,

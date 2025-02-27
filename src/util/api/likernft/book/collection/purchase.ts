@@ -1,20 +1,15 @@
-import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 
 import { ValidationError } from '../../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
-  STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../../constant';
 import {
   TransactionFeeInfo,
-  calculateFeeAndDiscountFromBalanceTx,
-  handleStripeConnectedAccount,
 } from '../purchase';
 import { handleNFTPurchaseTransaction } from '../../purchase';
-import stripe, { getStripePromotoionCodesFromCheckoutSession } from '../../../../stripe';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
 import {
@@ -25,18 +20,12 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftSentEmail,
-  sendNFTBookOutOfStockEmail,
 } from '../../../../ses';
-import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../../slack';
 import { getBookCollectionInfoById } from '../../collection/book';
-import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../../airtable';
 
 import {
   LIKER_NFT_TARGET_ADDRESS,
-  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../../config/config';
-import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../../crisp';
-import logPixelEvents from '../../../../fbq';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -278,53 +267,6 @@ export async function sendNFTBookCollectionPurchaseEmail({
     shippingCostAmount,
     originalPrice,
   });
-}
-
-export async function updateNFTBookCollectionPostCheckoutFeeInfo({
-  collectionId,
-  paymentId,
-  amountSubtotal,
-  amountTotal,
-  shippingCostAmount,
-  sessionId,
-  balanceTx,
-  feeInfo,
-  coupon: existingCoupon,
-}) {
-  const {
-    isStripeFeeUpdated,
-    isAmountFeeUpdated,
-    stripeFeeCurrency,
-    newFeeInfo,
-    priceInDecimal,
-  } = calculateFeeAndDiscountFromBalanceTx({
-    paymentId,
-    amountSubtotal,
-    amountTotal,
-    shippingCostAmount,
-    balanceTx,
-    feeInfo,
-  });
-  let coupon = existingCoupon;
-  if (isAmountFeeUpdated) {
-    [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
-  }
-  if (isStripeFeeUpdated || isAmountFeeUpdated) {
-    const payload: any = {
-      feeInfo: newFeeInfo,
-      shippingCost: shippingCostAmount,
-      priceInDecimal,
-      price: priceInDecimal / 100,
-    };
-    if (coupon) payload.coupon = coupon;
-    await likeNFTCollectionCollection.doc(collectionId).collection('transactions')
-      .doc(paymentId).update(payload);
-  }
-  return {
-    ...newFeeInfo,
-    coupon,
-    stripeFeeCurrency,
-  };
 }
 
 export async function claimNFTBookCollection(
