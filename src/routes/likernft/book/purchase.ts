@@ -1,12 +1,7 @@
-import crypto from 'crypto';
 import { Router } from 'express';
-import uuidv4 from 'uuid/v4';
 import { getNFTClassDataById } from '../../../util/cosmos/nft';
 import { ValidationError } from '../../../util/ValidationError';
-import {
-  checkIsAuthorized,
-  getNftBookInfo,
-} from '../../../util/api/likernft/book';
+import { checkIsAuthorized } from '../../../util/api/likernft/book';
 import {
   db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
 } from '../../../util/firebase';
@@ -15,7 +10,6 @@ import {
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
@@ -23,27 +17,18 @@ import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftSentEmail,
-  sendNFTBookOutOfStockEmail,
   sendNFTBookPendingClaimEmail,
   sendNFTBookShippedEmail,
 } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
-  SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../config/config';
 import {
   claimNFTBook,
-  createNewNFTBookPayment,
-  processNFTBookPurchase,
   sendNFTBookClaimedEmailNotification,
-  sendNFTBookPurchaseEmail,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
-import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../util/slack';
-import { subscribeEmailToLikerLandSubstack } from '../../../util/substack';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
-import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
-import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../util/crisp';
 import logPixelEvents from '../../../util/fbq';
 import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 
@@ -482,244 +467,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     next(err);
   }
 });
-
-router.post(
-  ['/:classId/new/free', '/class/:classId/new/free'],
-  async (req, res, next) => {
-    try {
-      const { classId } = req.params;
-      const { from = '', price_index: priceIndexString = undefined } = req.query;
-      const {
-        email = '',
-        wallet,
-        message,
-        gaClientId,
-        gaSessionId,
-        utmCampaign,
-        utmSource,
-        utmMedium,
-        referrer: inputReferrer,
-        loginMethod,
-      } = req.body;
-
-      const referrer = inputReferrer;
-      if (!email && !wallet) throw new ValidationError('REQUIRE_WALLET_OR_EMAIL');
-      if (email) {
-        const isEmailInvalid = !W3C_EMAIL_REGEX.test(email);
-        if (isEmailInvalid) throw new ValidationError('INVALID_EMAIL');
-      }
-
-      const priceIndex = Number(priceIndexString) || 0;
-
-      const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
-      const [metadata, bookInfo] = (await Promise.all(promises)) as any;
-      if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
-      const {
-        prices,
-        notificationEmails,
-        mustClaimToView = false,
-        ownerWallet,
-      } = bookInfo;
-      if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      const {
-        priceInDecimal,
-        stock,
-        name: priceNameObj,
-        isPhysicalOnly = false,
-      } = prices[priceIndex];
-      const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
-      if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-      if (priceInDecimal > 0) throw new ValidationError('NOT_FREE_PRICE');
-
-      const bookRef = likeNFTBookCollection.doc(classId);
-      if (email) {
-        const query = await bookRef.collection('transactions')
-          .where('email', '==', email)
-          .where('type', '==', 'free')
-          .limit(1)
-          .get();
-        if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
-      }
-      if (wallet) {
-        const query = await bookRef.collection('transactions')
-          .where('wallet', '==', wallet)
-          .where('type', '==', 'free')
-          .limit(1)
-          .get();
-        if (query.docs.length) throw new ValidationError('ALREADY_PURCHASED');
-      }
-
-      const paymentId = uuidv4();
-      const claimToken = crypto.randomBytes(32).toString('hex');
-
-      await createNewNFTBookPayment(classId, paymentId, {
-        type: 'free',
-        email,
-        claimToken,
-        priceInDecimal,
-        originalPriceInDecimal: priceInDecimal,
-        priceName,
-        priceIndex,
-        isPhysicalOnly,
-        from: from as string,
-      });
-
-      const { listingData } = await processNFTBookPurchase({
-        classId,
-        email,
-        phone: null,
-        paymentId,
-        shippingDetails: null,
-        shippingCostAmount: 0,
-      });
-      const priceInfo = listingData.prices[priceIndex];
-
-      // Remove after refactoring free purchase into purchase
-      await createAirtableBookSalesRecordFromFreePurchase({
-        classId,
-        paymentId,
-        priceIndex,
-        from: from as string,
-        email,
-        utmSource,
-        utmCampaign,
-        utmMedium,
-        referrer,
-        gaClientId,
-        gaSessionId,
-      });
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTFreePurchaseNew',
-        channel: from,
-        paymentId,
-        classId,
-        priceIndex,
-        email,
-        wallet,
-        utmSource,
-        utmCampaign,
-        utmMedium,
-        referrer,
-        gaClientId,
-        gaSessionId,
-        loginMethod,
-      });
-
-      if (email) {
-        const segments = ['free book'];
-        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
-        if (readerSegment) segments.push(readerSegment);
-        try {
-          await upsertCrispProfile(email, { segments });
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }
-
-      const isOutOfStock = priceInfo.stock <= 0;
-      const className = metadata?.name || classId;
-      const notifications: Promise<any>[] = [
-        sendNFTBookPurchaseEmail({
-          isGift: false,
-          giftInfo: null,
-          email,
-          notificationEmails,
-          classId,
-          bookName: className,
-          priceName,
-          paymentId,
-          claimToken,
-          amountTotal: 0,
-          quantity: 1,
-          mustClaimToView,
-          isPhysicalOnly,
-          shippingDetails: null,
-          from,
-        }),
-        sendNFTBookSalesSlackNotification({
-          classId,
-          bookName: className,
-          paymentId,
-          email,
-          priceName,
-          priceWithCurrency: 'FREE',
-          method: 'free',
-        }),
-      ];
-      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
-        notifications.push(sendNFTBookOutOfStockSlackNotification({
-          classId,
-          className,
-          priceName,
-          priceIndex,
-          notificationEmails,
-          wallet: ownerWallet,
-          stock: priceInfo.stock,
-        }));
-      }
-      if (isOutOfStock) {
-        notifications.push(sendNFTBookOutOfStockEmail({
-          emails: notificationEmails,
-          classId,
-          bookName: className,
-          priceName,
-        // eslint-disable-next-line no-console
-        }).catch((err) => console.error(err)));
-      }
-      await Promise.all(notifications);
-
-      if (email) {
-        try {
-          await subscribeEmailToLikerLandSubstack(email);
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(error);
-        }
-      }
-
-      let nftId;
-      if (wallet) {
-        ({ nftId } = await claimNFTBook(
-          classId,
-          paymentId,
-          {
-            message,
-            wallet,
-            loginMethod,
-            token: claimToken as string,
-          },
-          req,
-        ));
-
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'BookNFTClaimed',
-          paymentId,
-          classId,
-          wallet,
-          email,
-          buyerMessage: message,
-        });
-
-        await sendNFTBookClaimedEmailNotification(
-          classId,
-          nftId,
-          paymentId,
-          {
-            message,
-            wallet,
-            email,
-          },
-        );
-      }
-
-      res.json({ claimed: !!wallet, nftId });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
 
 router.get(
   ['/:classId/status/:paymentId', '/class/:classId/status/:paymentId'],

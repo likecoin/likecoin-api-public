@@ -212,34 +212,6 @@ export async function processNFTBookCollectionPurchaseTxUpdate(t, collectionId, 
   };
 }
 
-export async function processNFTBookCollectionPurchase({
-  collectionId,
-  email,
-  phone,
-  paymentId,
-  shippingDetails,
-  shippingCostAmount,
-  execGrantTxHash = '',
-}) {
-  const hasShipping = !!shippingDetails;
-  const { listingData, txData } = await db.runTransaction(async (t) => {
-    const data = await processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
-      email,
-      phone,
-      hasShipping,
-      shippingDetails,
-      shippingCostAmount,
-      execGrantTxHash,
-    });
-    await processNFTBookCollectionPurchaseTxUpdate(t, collectionId, paymentId, data);
-    return {
-      listingData: { ...data.listingData, ...data.typePayload },
-      txData: data.txData,
-    };
-  });
-  return { listingData, txData };
-}
-
 export async function sendNFTBookCollectionPurchaseEmail({
   email,
   notificationEmails,
