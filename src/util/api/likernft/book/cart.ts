@@ -816,6 +816,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   userAgent,
   clientIp,
   paymentMethods,
+  httpMethod = 'POST',
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -841,6 +842,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   userAgent?: string,
   clientIp?: string,
   paymentMethods?: string[],
+  httpMethod?: 'GET' | 'POST',
 } = {}) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
@@ -1108,6 +1110,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     referrer,
     userAgent,
     clientIp,
+    httpMethod,
   }, itemInfos.map((info) => {
     const {
       name,
