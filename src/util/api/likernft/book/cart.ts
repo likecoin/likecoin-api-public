@@ -817,6 +817,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   clientIp,
   paymentMethods,
   httpMethod = 'POST',
+  cancelUrl,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -843,6 +844,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   clientIp?: string,
   paymentMethods?: string[],
   httpMethod?: 'GET' | 'POST',
+  cancelUrl?: string,
 } = {}) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
@@ -1073,16 +1075,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gadClickId,
     gadSource,
   });
-  const cancelUrl = getLikerLandCartURL({
-    type: 'book',
-    utmCampaign: utm?.campaign,
-    utmSource: utm?.source,
-    utmMedium: utm?.medium,
-    gaClientId,
-    gaSessionId,
-    gadClickId,
-    gadSource,
-  });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
     from = NFT_BOOK_DEFAULT_FROM_CHANNEL;
@@ -1148,7 +1140,16 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     hasShipping: false,
     shippingRates: [],
     successUrl,
-    cancelUrl,
+    cancelUrl: cancelUrl || getLikerLandCartURL({
+      type: 'book',
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+    }),
     paymentMethods,
   });
 
