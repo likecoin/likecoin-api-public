@@ -29,8 +29,6 @@ import {
   LIKER_NFT_PENDING_CLAIM_ADDRESS,
 } from '../../../../config/config';
 import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
-import { processNFTBookStripePurchase } from '../../../util/api/likernft/book/purchase';
-import { processNFTBookCollectionStripePurchase } from '../../../util/api/likernft/book/collection/purchase';
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
 
@@ -67,10 +65,6 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         if (store === 'book') {
           if (cartId) {
             await processNFTBookCartStripePurchase(session, req);
-          } else if (collectionId) {
-            await processNFTBookCollectionStripePurchase(session, req);
-          } else if (classId) {
-            await processNFTBookStripePurchase(session, req);
           }
           if (likeWallet) await handleNFTBookStripeSessionCustomer(session, req);
         } else {
