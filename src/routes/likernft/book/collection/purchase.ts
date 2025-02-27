@@ -28,7 +28,6 @@ import {
 import {
   claimNFTBookCollection,
   createNewNFTBookCollectionPayment,
-  handleNewNFTBookCollectionStripeCheckout,
   processNFTBookCollectionPurchase,
   sendNFTBookCollectionClaimedEmailNotification,
   sendNFTBookCollectionPurchaseEmail,
@@ -40,6 +39,7 @@ import { subscribeEmailToLikerLandSubstack } from '../../../../util/substack';
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../../util/airtable';
 import logPixelEvents from '../../../../util/fbq';
 import { checkIsAuthorized } from '../../../../util/api/likernft/book';
+import { handleNewCartStripeCheckout } from '../../../../util/api/likernft/book/cart';
 
 const router = Router();
 
@@ -86,7 +86,13 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       originalPriceInDecimal,
       customPriceDiffInDecimal,
       sessionId,
-    } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
+    } = await handleNewCartStripeCheckout([
+      {
+        collectionId,
+        customPriceInDecimal,
+        quantity,
+        from: from as string,
+      }], {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
@@ -95,8 +101,6 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       likeWallet: req.user?.wallet,
       from: from as string,
       coupon: coupon as string,
-      quantity,
-      customPriceInDecimal,
       utm: {
         campaign: utmCampaign as string,
         source: utmSource as string,
@@ -189,7 +193,13 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (
       originalPriceInDecimal,
       customPriceDiffInDecimal,
       sessionId,
-    } = await handleNewNFTBookCollectionStripeCheckout(collectionId, {
+    } = await handleNewCartStripeCheckout([
+      {
+        collectionId,
+        customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
+        quantity,
+        from: from as string,
+      }], {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
@@ -200,8 +210,6 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (
       likeWallet: req.user?.wallet,
       email,
       coupon,
-      quantity,
-      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       utm: {
         campaign: utmCampaign,
         source: utmSource,

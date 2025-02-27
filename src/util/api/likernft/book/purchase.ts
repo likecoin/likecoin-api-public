@@ -1,32 +1,22 @@
-import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { Query } from '@google-cloud/firestore';
 
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
-import { getNftBookInfo } from '.';
 import { getNFTClassDataById } from '../../../cosmos/nft';
 import { ValidationError } from '../../../ValidationError';
-import { getLikerLandNFTClaimPageURL, getLikerLandNFTClassPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import {
-  NFT_BOOK_DEFAULT_FROM_CHANNEL,
-  NFT_BOOK_SALE_DESCRIPTION,
   LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
-  MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   LIKER_LAND_WAIVED_CHANNEL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
-import { parseImageURLFromMetadata } from '../metadata';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
-  getBookUserInfoFromWallet,
 } from './user';
 import stripe, { getStripePromotionFromCode, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import {
@@ -943,243 +933,6 @@ export async function formatStripeCheckoutSession({
       likerLandArtFee,
       customPriceDiff: totalCustomPriceDiffInDecimal,
     },
-  };
-}
-
-export async function handleNewStripeCheckout(classId: string, priceIndex: number, {
-  gaClientId,
-  gaSessionId,
-  gadClickId,
-  gadSource,
-  fbClickId,
-  likeWallet,
-  from: inputFrom,
-  coupon,
-  customPriceInDecimal,
-  quantity = 1,
-  email,
-  giftInfo,
-  referrer,
-  utm,
-  httpMethod,
-  userAgent,
-  clientIp,
-  paymentMethods,
-}: {
-  httpMethod?: 'GET' | 'POST',
-  gaClientId?: string,
-  gaSessionId?: string,
-  gadClickId?: string,
-  gadSource?: string,
-  fbClickId?: string,
-  email?: string,
-  likeWallet?: string,
-  from?: string,
-  coupon?: string,
-  customPriceInDecimal?: number,
-  quantity?: number,
-  giftInfo?: {
-    toEmail: string,
-    toName: string,
-    fromName: string,
-    message?: string,
-  },
-  referrer?: string,
-  utm?: {
-    campaign?: string,
-    source?: string,
-    medium?: string,
-  },
-  userAgent?: string,
-  clientIp?: string,
-  paymentMethods?: string[],
-} = {}) {
-  const promises = [getNFTClassDataById(classId), getNftBookInfo(classId)];
-  const [metadata, bookInfo] = (await Promise.all(promises)) as any;
-  if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
-
-  let customerEmail = email;
-  let customerId;
-  if (likeWallet) {
-    const res = await getBookUserInfoFromWallet(likeWallet);
-    const { bookUserInfo, likerUserInfo } = res || {};
-    const { email: userEmail, isEmailVerified } = likerUserInfo || {};
-    customerId = bookUserInfo?.stripeCustomerId;
-    customerEmail = isEmailVerified ? userEmail : email;
-  }
-  const paymentId = uuidv4();
-  const claimToken = crypto.randomBytes(32).toString('hex');
-  const {
-    prices,
-    successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
-      classId,
-      priceIndex,
-      paymentId,
-      token: claimToken,
-      type: 'nft_book',
-      redirect: true,
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    }) : getLikerLandNFTClaimPageURL({
-      classId,
-      priceIndex,
-      paymentId,
-      token: claimToken,
-      type: 'nft_book',
-      redirect: true,
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    }),
-    cancelUrl = getLikerLandNFTClassPageURL({
-      classId,
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    }),
-    ownerWallet,
-    shippingRates,
-    defaultFromChannel = NFT_BOOK_DEFAULT_FROM_CHANNEL,
-    isLikerLandArt,
-  } = bookInfo;
-  if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-  let from: string = inputFrom as string || '';
-  if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
-    from = defaultFromChannel || NFT_BOOK_DEFAULT_FROM_CHANNEL;
-  }
-  const {
-    priceInDecimal: originalPriceInDecimal,
-    stock,
-    hasShipping,
-    isPhysicalOnly,
-    isAllowCustomPrice,
-    name: priceNameObj,
-    description: pricDescriptionObj,
-    stripePriceId,
-  } = prices[priceIndex];
-
-  let priceInDecimal = originalPriceInDecimal;
-
-  let customPriceDiffInDecimal = 0;
-  if (isAllowCustomPrice
-      && customPriceInDecimal
-      && customPriceInDecimal > priceInDecimal
-      && customPriceInDecimal <= MAXIMUM_CUSTOM_PRICE_IN_DECIMAL) {
-    customPriceDiffInDecimal = customPriceInDecimal - priceInDecimal;
-    priceInDecimal = customPriceInDecimal;
-  }
-  if (stock <= 0) throw new ValidationError('OUT_OF_STOCK');
-  let { name = '', description = '' } = metadata;
-  const classMetadata = metadata.data.metadata;
-  const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
-  let { image } = classMetadata;
-  image = parseImageURLFromMetadata(image);
-  name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
-  const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
-  const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
-  if (priceName) {
-    name = `${name} - ${priceName}`;
-  }
-  if (NFT_BOOK_SALE_DESCRIPTION[classId]) {
-    description = NFT_BOOK_SALE_DESCRIPTION[classId];
-  } else if (priceDescription) {
-    description = `${description} - ${priceDescription}`;
-  }
-
-  if (from) description = `[${from}] ${description}`;
-  description = description.length > 300
-    ? `${description.substring(0, 299)}…`
-    : description;
-  if (!description) {
-    description = undefined;
-  } // stripe does not like empty string
-
-  const {
-    session,
-    itemPrices,
-    feeInfo,
-  } = await formatStripeCheckoutSession({
-    classId,
-    iscnPrefix,
-    paymentId,
-    priceIndex,
-    likeWallet,
-    customerId,
-    from,
-    coupon,
-    gaClientId,
-    gaSessionId,
-    gadClickId,
-    gadSource,
-    fbClickId,
-    email: customerEmail,
-    giftInfo,
-    utm,
-    referrer,
-    httpMethod,
-    userAgent,
-    clientIp,
-  }, [{
-    name,
-    description,
-    images: image ? [image] : [],
-    priceInDecimal,
-    customPriceDiffInDecimal,
-    quantity,
-    isLikerLandArt,
-    ownerWallet,
-    classId,
-    iscnPrefix,
-    stripePriceId,
-  }], {
-    hasShipping,
-    shippingRates,
-    successUrl,
-    cancelUrl,
-    paymentMethods,
-  });
-
-  const { url, id: sessionId } = session;
-  if (!url) throw new ValidationError('STRIPE_SESSION_URL_NOT_FOUND');
-
-  await createNewNFTBookPayment(classId, paymentId, {
-    type: 'stripe',
-    claimToken,
-    sessionId,
-    priceInDecimal,
-    originalPriceInDecimal,
-    coupon,
-    quantity,
-    priceName,
-    priceIndex,
-    giftInfo,
-    isPhysicalOnly,
-    from: from as string,
-    itemPrices,
-    feeInfo,
-  });
-
-  return {
-    url,
-    paymentId,
-    priceName,
-    priceInDecimal,
-    customPriceDiffInDecimal,
-    originalPriceInDecimal,
-    sessionId,
   };
 }
 
