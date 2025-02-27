@@ -32,7 +32,6 @@ import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../config/config';
 import {
-  handleNewStripeCheckout,
   claimNFTBook,
   createNewNFTBookPayment,
   processNFTBookPurchase,
@@ -267,20 +266,23 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const {
       url,
       paymentId,
-      priceName,
       priceInDecimal,
       originalPriceInDecimal,
       customPriceDiffInDecimal,
       sessionId,
-    } = await handleNewStripeCheckout(classId, priceIndex, {
+    } = await handleNewCartStripeCheckout([{
+      classId,
+      priceIndex,
+      customPriceInDecimal,
+      quantity,
+      from: from as string,
+    }], {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
       fbClickId: fbClickId as string,
       coupon: coupon as string,
-      customPriceInDecimal,
-      quantity,
       likeWallet: req.user?.wallet,
       from: from as string,
       clientIp,
@@ -301,7 +303,6 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         type: 'stripe',
         paymentId,
         classId,
-        priceName,
         priceIndex,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
@@ -379,24 +380,27 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     const {
       url,
       paymentId,
-      priceName,
       priceInDecimal,
       originalPriceInDecimal,
       customPriceDiffInDecimal,
       sessionId,
-    } = await handleNewStripeCheckout(classId, priceIndex, {
+    } = await handleNewCartStripeCheckout([{
+      classId,
+      priceIndex,
+      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
+      quantity,
+      from: from as string,
+    }], {
       gaClientId,
       gaSessionId,
       gadClickId,
       gadSource,
       fbClickId,
       coupon,
-      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
       likeWallet: req.user?.wallet,
       email,
       from: from as string,
       referrer,
-      quantity,
       giftInfo,
       utm: {
         campaign: utmCampaign,
@@ -416,7 +420,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         email,
         paymentId,
         classId,
-        priceName,
         priceIndex,
         price: priceInDecimal / 100,
         originalPrice: originalPriceInDecimal / 100,
