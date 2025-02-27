@@ -45,6 +45,7 @@ import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api
 import { createAirtableBookSalesRecordFromFreePurchase } from '../../../util/airtable';
 import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../util/crisp';
 import logPixelEvents from '../../../util/fbq';
+import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
 
 const router = Router();
 
@@ -182,6 +183,16 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       referrer,
       userAgent,
       clientIp,
+      cancelUrl: getLikerLandCartURL({
+        type: 'book',
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        gaClientId,
+        gaSessionId,
+        gadClickId,
+        gadSource,
+      }),
     });
     res.json({ paymentId, url });
 
@@ -294,6 +305,16 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       },
       httpMethod,
       paymentMethods,
+      cancelUrl: getLikerLandNFTClassPageURL({
+        classId,
+        utmCampaign: utmCampaign as string,
+        utmSource: utmSource as string,
+        utmMedium: utmMedium as string,
+        gaClientId: gaClientId as string,
+        gaSessionId: gaSessionId as string,
+        gadClickId: gadClickId as string,
+        gadSource: gadSource as string,
+      }),
     });
     res.redirect(url);
 
@@ -410,6 +431,16 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       httpMethod,
       userAgent,
       clientIp,
+      cancelUrl: getLikerLandNFTClassPageURL({
+        classId,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        gaClientId,
+        gaSessionId,
+        gadClickId,
+        gadSource,
+      }),
     });
     res.json({ paymentId, url });
 

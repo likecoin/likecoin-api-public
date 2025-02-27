@@ -40,6 +40,7 @@ import { createAirtableBookSalesRecordFromFreePurchase } from '../../../../util/
 import logPixelEvents from '../../../../util/fbq';
 import { checkIsAuthorized } from '../../../../util/api/likernft/book';
 import { handleNewCartStripeCheckout } from '../../../../util/api/likernft/book/cart';
+import { getLikerLandNFTCollectionPageURL } from '../../../../util/liker-land';
 
 const router = Router();
 
@@ -111,6 +112,16 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       userAgent,
       clientIp,
       paymentMethods,
+      cancelUrl: getLikerLandNFTCollectionPageURL({
+        collectionId,
+        utmCampaign: utmCampaign as string,
+        utmSource: utmSource as string,
+        utmMedium: utmMedium as string,
+        gaClientId: gaClientId as string,
+        gaSessionId: gaSessionId as string,
+        gadClickId: gadClickId as string,
+        gadSource: gadSource as string,
+      }),
     });
     res.redirect(url);
 
@@ -219,6 +230,16 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (
       referrer,
       userAgent,
       clientIp,
+      cancelUrl: getLikerLandNFTCollectionPageURL({
+        collectionId,
+        utmCampaign,
+        utmSource,
+        utmMedium,
+        gaClientId,
+        gaSessionId,
+        gadClickId,
+        gadSource,
+      }),
     });
     res.json({ paymentId, url });
 
