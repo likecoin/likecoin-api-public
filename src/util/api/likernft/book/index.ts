@@ -330,7 +330,11 @@ export async function updateNftBookInfo(classId: string, {
   const payload: any = {
     lastUpdateTimestamp: timestamp,
   };
-  if (prices !== undefined) { payload.prices = prices; }
+  if (prices !== undefined) {
+    payload.prices = prices;
+    payload.stripeProductIds = prices.map((p) => p.stripeProductId).filter(Boolean);
+    payload.stripePriceIds = prices.map((p) => p.stripePriceId).filter(Boolean);
+  }
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
