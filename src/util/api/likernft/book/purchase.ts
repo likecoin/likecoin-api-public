@@ -17,7 +17,7 @@ import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction 
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe, { getStripePromotionFromCode, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
+import stripe, { getStripePromotionFromCode } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -633,7 +633,6 @@ function calculateItemPrices(items: CartItemWithInfo[], from) {
       };
       if (item.classId) payload.classId = item.classId;
       if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
       if (item.collectionId) payload.collectionId = item.collectionId;
       if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
       return payload;
@@ -654,6 +653,7 @@ export async function formatStripeCheckoutSession({
   customerId,
   from,
   coupon,
+  claimToken,
   gaClientId,
   gaSessionId,
   gadClickId,
@@ -677,6 +677,7 @@ export async function formatStripeCheckoutSession({
   customerId?: string,
   from?: string,
   coupon?: string,
+  claimToken: string,
   gaClientId?: string,
   gaSessionId?: string,
   gadClickId?: string,
@@ -715,10 +716,19 @@ export async function formatStripeCheckoutSession({
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
+  if (claimToken) sessionMetadata.claimToken = claimToken;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
+  if (gadClickId) sessionMetadata.gadClickId = gadClickId;
+  if (gadSource) sessionMetadata.gadSource = gadSource;
   if (from) sessionMetadata.from = from;
-  if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
+  if (giftInfo) {
+    sessionMetadata.giftInfo = giftInfo.toEmail;
+    sessionMetadata.giftToEmail = giftInfo.toEmail;
+    sessionMetadata.giftFromName = giftInfo.fromName;
+    sessionMetadata.giftToName = giftInfo.toName;
+    if (giftInfo.message) sessionMetadata.giftMessage = giftInfo.message;
+  }
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
