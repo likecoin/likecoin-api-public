@@ -55,11 +55,12 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       return;
     }
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
           metadata: {
-            store, collectionId, classId, cartId, likeWallet,
+            store, cartId, likeWallet,
           } = {} as any,
         } = session;
         if (store === 'book') {

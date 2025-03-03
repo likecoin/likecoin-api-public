@@ -595,7 +595,7 @@ export async function processNFTBookPurchase({
   return data;
 }
 
-function calculateItemPrices(items: CartItemWithInfo[], from) {
+export function calculateItemPrices(items: CartItemWithInfo[], from) {
   const itemPrices: ItemPriceInfo[] = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
