@@ -57,38 +57,7 @@ import { getBookUserInfoFromWallet } from './user';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../config/config';
-
-export type CartItem = {
-  collectionId?: string
-  classId?: string
-  priceIndex?: number
-  customPriceInDecimal?: number
-  quantity?: number
-  from?: string
-}
-
-export type CartItemWithInfo = CartItem & {
-  priceInDecimal: number;
-  customPriceDiffInDecimal: number;
-  stock: number;
-  hasShipping: boolean;
-  isPhysicalOnly: boolean;
-  isAllowCustomPrice: boolean;
-  name: string,
-  description: string,
-  images: string[],
-  ownerWallet: string,
-  shippingRates: any[],
-  isLikerLandArt: boolean;
-  originalPriceInDecimal: number,
-  collectionId?: string,
-  classId?: string,
-  priceIndex?: number,
-  iscnPrefix?: string,
-  priceName?: string,
-  stripePriceId?: string,
-  quantity: number,
-}
+import { CartItem, CartItemWithInfo } from './type';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -1106,42 +1075,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     userAgent,
     clientIp,
     httpMethod,
-  }, itemInfos.map((info) => {
-    const {
-      name,
-      description,
-      images,
-      priceInDecimal,
-      customPriceDiffInDecimal,
-      isLikerLandArt,
-      ownerWallet,
-      quantity,
-      classId,
-      collectionId,
-      priceIndex,
-      iscnPrefix,
-      stripePriceId,
-      from: itemFrom,
-    } = info;
-    return {
-      name,
-      description,
-      images,
-      priceInDecimal,
-      customPriceDiffInDecimal,
-      isLikerLandArt,
-      quantity,
-      ownerWallet,
-      classId,
-      collectionId,
-      priceIndex,
-      iscnPrefix,
-      stripePriceId,
-      from: itemFrom,
-    };
-  }), {
-    hasShipping: false,
-    shippingRates: [],
+  }, itemInfos, {
     successUrl,
     cancelUrl: cancelUrl || getLikerLandCartURL({
       type: 'book',

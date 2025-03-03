@@ -45,6 +45,7 @@ import {
   sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
+import { CartItemWithInfo } from './type';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -640,30 +641,11 @@ export async function formatStripeCheckoutSession({
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
   clientIp?: string,
-}, items: {
-  name: string,
-  description: string,
-  images: string[],
-  priceInDecimal: number,
-  customPriceDiffInDecimal?: number,
-  isLikerLandArt: boolean,
-  quantity: number,
-  ownerWallet: string,
-  classId?: string,
-  priceIndex?: number,
-  collectionId?: string,
-  iscnPrefix?: string,
-  from?: string,
-  stripePriceId?: string,
-}[], {
-  hasShipping,
-  shippingRates,
+}, items: CartItemWithInfo[], {
   successUrl,
   cancelUrl,
   paymentMethods,
 }: {
-  hasShipping: boolean,
-  shippingRates: any[],
   successUrl: string,
   cancelUrl: string,
   paymentMethods?: string[],
@@ -888,14 +870,16 @@ export async function formatStripeCheckoutSession({
     };
   }
   if (email && !customerId) checkoutPayload.customer_email = email;
-  if (hasShipping) {
+  const itemWithShipping = itemWithPrices.find((item) => item.hasShipping);
+
+  if (itemWithShipping) {
     checkoutPayload.shipping_address_collection = {
       // eslint-disable-next-line max-len
       allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
     };
     checkoutPayload.phone_number_collection = { enabled: true };
-    if (shippingRates) {
-      checkoutPayload.shipping_options = shippingRates
+    if (itemWithShipping.shippingRates) {
+      checkoutPayload.shipping_options = itemWithShipping.shippingRates
         .filter((s) => s?.name && s?.priceInDecimal >= 0)
         .map((s) => {
           const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
