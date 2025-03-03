@@ -25,16 +25,12 @@ import {
   handleStripeConnectedAccount,
   processNFTBookPurchaseTxGet,
   claimNFTBook,
-  calculateFeeAndDiscountFromBalanceTx,
-  DISCOUNTED_FEE_TYPES,
-  calculateCommissionWithDiscount,
   calculateItemPrices,
 } from './purchase';
 import {
   db,
-  FieldValue, likeNFTBookCartCollection,
-  likeNFTBookCollection,
-  likeNFTCollectionCollection,
+  FieldValue,
+  likeNFTBookCartCollection,
 } from '../../../firebase';
 import {
   claimNFTBookCollection,
@@ -326,10 +322,10 @@ export async function processNFTBookCartStripePurchase(
       gaSessionId,
       claimToken,
       from,
+      giftToEmail,
       giftToName,
       giftMessage,
       giftFromName,
-      giftToEmail,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
