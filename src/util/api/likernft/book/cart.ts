@@ -1072,6 +1072,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     paymentId,
     from,
     coupon,
+    claimToken,
     gaClientId,
     gaSessionId,
     gadClickId,
