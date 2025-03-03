@@ -112,7 +112,6 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
 export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
   email,
   phone,
-  hasShipping,
   shippingDetails,
   shippingCostAmount,
   execGrantTxHash,
@@ -122,7 +121,9 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
   const docData = doc.data();
   if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND');
   const { typePayload, classIds } = docData;
-  const { stock, isAutoDeliver, autoMemo } = typePayload;
+  const {
+    stock, isAutoDeliver, autoMemo, hasShipping,
+  } = typePayload;
   const paymentDoc = await t.get(collectionRef.collection('transactions').doc(paymentId));
   const paymentData = paymentDoc.data();
   if (!paymentData) throw new ValidationError('PAYMENT_NOT_FOUND');
