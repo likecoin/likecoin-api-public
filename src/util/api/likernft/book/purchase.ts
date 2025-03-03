@@ -586,6 +586,53 @@ export async function processNFTBookPurchase({
   return data;
 }
 
+function calculateItemPrices(items: CartItemWithInfo[], from) {
+  const itemPrices: ItemPriceInfo[] = items.map(
+    (item) => {
+      const isFromLikerLand = checkIsFromLikerLand(item.from || from);
+      const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
+      const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
+      const { priceInDecimal } = item;
+      const originalPriceInDecimal = priceInDecimal - customPriceDiffInDecimal;
+      const likerLandFeeAmount = Math.ceil(
+        originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
+      );
+      const likerLandTipFeeAmount = Math.ceil(
+        customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
+      );
+      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        : 0;
+      const likerLandCommission = isFromLikerLand
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+        : 0;
+      const likerLandArtFee = item.isLikerLandArt
+        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
+        : 0;
+
+      const payload: ItemPriceInfo = {
+        quantity: item.quantity,
+        currency: 'usd',
+        priceInDecimal,
+        customPriceDiffInDecimal,
+        originalPriceInDecimal,
+        likerLandTipFeeAmount,
+        likerLandFeeAmount,
+        likerLandCommission,
+        channelCommission,
+        likerLandArtFee,
+      };
+      if (item.classId) payload.classId = item.classId;
+      if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
+      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
+      if (item.collectionId) payload.collectionId = item.collectionId;
+      if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
+      return payload;
+    },
+  );
+  return itemPrices;
+}
+
 export async function formatStripeCheckoutSession({
   classId,
   iscnPrefix,
@@ -677,50 +724,7 @@ export async function formatStripeCheckoutSession({
     capture_method: 'automatic',
     metadata: sessionMetadata,
   };
-
-  const itemPrices = items.map(
-    (item) => {
-      const isFromLikerLand = checkIsFromLikerLand(item.from || from);
-      const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
-      const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
-      const { priceInDecimal } = item;
-      const originalPriceInDecimal = priceInDecimal - customPriceDiffInDecimal;
-      const likerLandFeeAmount = Math.ceil(
-        originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
-      );
-      const likerLandTipFeeAmount = Math.ceil(
-        customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
-      );
-      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-        : 0;
-      const likerLandCommission = isFromLikerLand
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-        : 0;
-      const likerLandArtFee = item.isLikerLandArt
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
-        : 0;
-
-      const payload: ItemPriceInfo = {
-        quantity: item.quantity,
-        currency: 'usd',
-        priceInDecimal,
-        customPriceDiffInDecimal,
-        originalPriceInDecimal,
-        likerLandTipFeeAmount,
-        likerLandFeeAmount,
-        likerLandCommission,
-        channelCommission,
-        likerLandArtFee,
-      };
-      if (item.classId) payload.classId = item.classId;
-      if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
-      if (item.collectionId) payload.collectionId = item.collectionId;
-      if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
-      return payload;
-    },
-  );
+  const itemPrices = calculateItemPrices(items, from);
   const itemWithPrices = items.map(
     (item, index) => ({
       ...itemPrices[index],
