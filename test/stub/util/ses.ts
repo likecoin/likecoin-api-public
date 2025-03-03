@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 console.log('Using stub (ses.js)'); /* eslint no-console: "off" */
 
 /* istanbul ignore next */
