@@ -466,7 +466,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 }
 
 export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
-  hasShipping,
   email,
   phone,
   shippingDetails,
@@ -491,6 +490,7 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     stock,
     isAutoDeliver,
     autoMemo = '',
+    hasShipping,
   } = priceInfo;
   if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
   priceInfo.stock -= quantity;
@@ -561,7 +561,6 @@ export async function processNFTBookPurchase({
   shippingCostAmount,
   execGrantTxHash = '',
 }) {
-  const hasShipping = !!shippingDetails;
   const data = await db.runTransaction(async (t) => {
     const {
       txData,
@@ -572,7 +571,6 @@ export async function processNFTBookPurchase({
       shippingDetails,
       shippingCostAmount,
       execGrantTxHash,
-      hasShipping,
     });
     await processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
       listingData,

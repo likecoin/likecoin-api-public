@@ -221,6 +221,8 @@ export async function processNFTBookCartPurchase({
   email,
   phone,
   paymentId,
+  shippingDetails,
+  shippingCostAmount,
 }) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
   const infos = await db.runTransaction(async (t) => {
@@ -242,9 +244,8 @@ export async function processNFTBookCartPurchase({
         {
           email,
           phone,
-          hasShipping: false,
-          shippingDetails: null,
-          shippingCostAmount: null,
+          shippingDetails,
+          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -262,9 +263,8 @@ export async function processNFTBookCartPurchase({
         {
           email,
           phone,
-          hasShipping: false,
-          shippingDetails: null,
-          shippingCostAmount: null,
+          shippingDetails,
+          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -287,7 +287,8 @@ export async function processNFTBookCartPurchase({
       isPaid: true,
       isPendingClaim: true,
       email,
-      hasShipping: false,
+      hasShipping: classInfos.some((info) => info.txData.hasShipping)
+        || collectionInfos.some((info) => info.txData.hasShipping),
     };
     t.update(cartRef, updatePayload);
 
@@ -379,6 +380,7 @@ export async function processNFTBookCartStripePurchase(
     payment_intent: paymentIntent,
     currency_conversion: currencyConversion,
     shipping_cost: shippingCost,
+    shipping_details: shippingDetails,
     id: sessionId,
   } = session;
   const paymentId = cartId;
@@ -413,6 +415,8 @@ export async function processNFTBookCartStripePurchase(
       email,
       phone,
       paymentId,
+      shippingDetails,
+      shippingCostAmount,
     });
     const {
       classInfos,
@@ -487,6 +491,7 @@ export async function processNFTBookCartStripePurchase(
         isGift,
         giftInfo,
         feeInfo: docFeeInfo,
+        hasShipping,
       } = txData;
       const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
       const isOutOfStock = stock <= 0;
@@ -587,8 +592,8 @@ export async function processNFTBookCartStripePurchase(
           amount: priceInDecimal / 100,
           quantity,
           phone,
-          shippingDetails: '',
-          shippingCostAmount: 0,
+          shippingDetails: hasShipping ? shippingDetails : undefined,
+          shippingCostAmount: hasShipping ? shippingCostAmount : undefined,
           originalPrice: originalPriceInDecimal / 100,
         }),
         sendNFTBookSalesSlackNotification({
@@ -611,6 +616,8 @@ export async function processNFTBookCartStripePurchase(
             itemIndex,
             stripeFeeAmount,
             stripeFeeCurrency,
+            shippingCostAmount: hasShipping ? shippingCostAmount : undefined,
+            shippingCountry: hasShipping ? shippingDetails?.address?.country : undefined,
             from,
             quantity,
             feeInfo,
