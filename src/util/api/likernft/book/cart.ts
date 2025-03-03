@@ -769,52 +769,7 @@ export async function processNFTBookCartStripePurchase(
   }
 }
 
-export async function handleNewCartStripeCheckout(items: CartItem[], {
-  gaClientId,
-  gaSessionId,
-  gadClickId,
-  gadSource,
-  fbClickId,
-  likeWallet,
-  email,
-  from: inputFrom,
-  coupon,
-  giftInfo,
-  utm,
-  referrer,
-  userAgent,
-  clientIp,
-  paymentMethods,
-  httpMethod = 'POST',
-  cancelUrl,
-}: {
-  gaClientId?: string,
-  gaSessionId?: string,
-  gadClickId?: string,
-  gadSource?: string,
-  fbClickId?: string,
-  email?: string,
-  likeWallet?: string,
-  from?: string,
-  coupon?: string,
-  giftInfo?: {
-    toEmail: string,
-    toName: string,
-    fromName: string,
-    message?: string,
-  },
-  utm?: {
-    campaign?: string,
-    source?: string,
-    medium?: string,
-  },
-  referrer?: string,
-  userAgent?: string,
-  clientIp?: string,
-  paymentMethods?: string[],
-  httpMethod?: 'GET' | 'POST',
-  cancelUrl?: string,
-} = {}) {
+export async function formatCartItemsWithInfo(items: CartItem[]) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
       classId,
@@ -1002,12 +957,60 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       stripePriceId,
     };
   }));
+  return itemInfos;
+}
 
+export async function handleNewCartStripeCheckout(items: CartItem[], {
+  gaClientId,
+  gaSessionId,
+  gadClickId,
+  gadSource,
+  fbClickId,
+  likeWallet,
+  email,
+  from: inputFrom,
+  coupon,
+  giftInfo,
+  utm,
+  referrer,
+  userAgent,
+  clientIp,
+  paymentMethods,
+  httpMethod = 'POST',
+  cancelUrl,
+}: {
+  gaClientId?: string,
+  gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
+  fbClickId?: string,
+  email?: string,
+  likeWallet?: string,
+  from?: string,
+  coupon?: string,
+  giftInfo?: {
+    toEmail: string,
+    toName: string,
+    fromName: string,
+    message?: string,
+  },
+  utm?: {
+    campaign?: string,
+    source?: string,
+    medium?: string,
+  },
+  referrer?: string,
+  userAgent?: string,
+  clientIp?: string,
+  paymentMethods?: string[],
+  httpMethod?: 'GET' | 'POST',
+  cancelUrl?: string,
+} = {}) {
+  const itemInfos = await formatCartItemsWithInfo(items);
   const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
   if (itemsWithShipping.length > 1) {
     throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
   }
-
   let customerEmail = email;
   let customerId;
   if (likeWallet) {
