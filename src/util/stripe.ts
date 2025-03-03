@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { STRIPE_KEY } from '../../config/config';
+import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
 const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2024-06-20', typescript: true });
 
@@ -28,6 +29,20 @@ export async function getStripePromotoionCodesFromCheckoutSession(sessionId: str
     .map((p) => p.code)
     .filter((p) => !!p);
   return promotionCodes;
+}
+
+export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.Session) {
+  const paymentIntent = session.payment_intent;
+  if (!paymentIntent) {
+    return 0;
+  }
+  const expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
+    expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  });
+  const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
+    ?.balance_transaction as Stripe.BalanceTransaction;
+  const stripeFee = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
+  return stripeFee?.amount || 0;
 }
 
 export default stripe;
