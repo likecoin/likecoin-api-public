@@ -991,8 +991,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       stripePriceId,
     } = info;
 
-    if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
-
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
     description = description.length > 300
       ? `${description.substring(0, 299)}…`
@@ -1035,6 +1033,11 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       stripePriceId,
     };
   }));
+
+  const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
+  if (itemsWithShipping.length > 1) {
+    throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
+  }
 
   let customerEmail = email;
   let customerId;
