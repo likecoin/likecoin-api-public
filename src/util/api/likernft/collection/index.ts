@@ -239,7 +239,7 @@ export async function createNFTCollectionByType(
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
 
-  if (isAutoDeliver && stock > 0) {
+  if (isAutoDeliver && stock > 0 && !isEvmCollection) {
     const expectedNFTCountMap = calculateExpectedNFTCountMap(
       [],
       0,
@@ -433,7 +433,7 @@ export async function patchNFTCollectionById(
     console.error(err);
   }
 
-  if (newIsAutoDeliver) {
+  if (newIsAutoDeliver && !isEvmCollection) {
     const expectedNFTCountMap = calculateExpectedNFTCountMap(
       docClassIds,
       isAutoDeliver ? stock : 0,
