@@ -191,8 +191,8 @@ export async function createNFTCollectionByType(
     hasShipping,
   } = payload;
 
-  const isEvmCollection = classIds.all((classId) => isEVMClassId(classId));
-  const isCosmosCollection = classIds.all((classId) => !isEVMClassId(classId));
+  const isEvmCollection = classIds.every((classId) => isEVMClassId(classId));
+  const isCosmosCollection = classIds.every((classId) => !isEVMClassId(classId));
   if (!isEvmCollection && !isCosmosCollection) {
     throw new ValidationError('MIXED_NFT_CLASS_ID_TYPE');
   }
@@ -368,8 +368,8 @@ export async function patchNFTCollectionById(
   }
 
   const classIds = newClassIds || docClassIds;
-  const isEvmCollection = classIds.all((classId) => isEVMClassId(classId));
-  const isCosmosCollection = classIds.all((classId) => !isEVMClassId(classId));
+  const isEvmCollection = classIds.every((classId) => isEVMClassId(classId));
+  const isCosmosCollection = classIds.every((classId) => !isEVMClassId(classId));
   if (!isEvmCollection && !isCosmosCollection) {
     throw new ValidationError('MIXED_NFT_CLASS_ID_TYPE');
   }
