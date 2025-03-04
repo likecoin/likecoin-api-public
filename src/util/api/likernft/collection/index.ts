@@ -8,12 +8,13 @@ import {
   getLocalizedTextWithFallback,
   getNFTClassDataById,
 } from '../book';
-import { getNFTsByClassId } from '../../../cosmos/nft';
+import { getNFTBalance } from '../../../cosmos/nft';
 import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { importGoogleRetailProductFromCollection } from '../../../googleRetail';
+import { getNFTClassBalanceOf, isEVMClassId } from '../../../evm/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -113,8 +114,13 @@ async function validateCollectionTypeData(
           throw new ValidationError(`CLASS_NOT_FOUND: ${classId}`, 404);
         }
         if (!isAutoDeliver) {
-          const { nfts } = await getNFTsByClassId(classId, wallet);
-          if (nfts.length < stock) {
+          let ownedCount = 0;
+          if (isEVMClassId(classId)) {
+            ownedCount = await getNFTClassBalanceOf(classId, wallet);
+          } else {
+            ownedCount = await getNFTBalance(classId, wallet);
+          }
+          if (ownedCount < stock) {
             throw new ValidationError(`NOT_ENOUGH_NFT_COUNT: ${classId}`, 403);
           }
         }
@@ -184,6 +190,13 @@ export async function createNFTCollectionByType(
     stock,
     hasShipping,
   } = payload;
+
+  const isEvmCollection = classIds.all((classId) => isEVMClassId(classId));
+  const isCosmosCollection = classIds.all((classId) => !isEVMClassId(classId));
+  if (!isEvmCollection && !isCosmosCollection) {
+    throw new ValidationError('MIXED_NFT_CLASS_ID_TYPE');
+  }
+
   const docRef = likeNFTCollectionCollection.doc(collectionId);
 
   const images: string[] = [];
@@ -354,10 +367,17 @@ export async function patchNFTCollectionById(
     }
   }
 
+  const classIds = newClassIds || docClassIds;
+  const isEvmCollection = classIds.all((classId) => isEVMClassId(classId));
+  const isCosmosCollection = classIds.all((classId) => !isEVMClassId(classId));
+  if (!isEvmCollection && !isCosmosCollection) {
+    throw new ValidationError('MIXED_NFT_CLASS_ID_TYPE');
+  }
+
   const newTypePayload = await validateCollectionTypeData(wallet, type, {
     name: newName || docName,
     description: newDescription || docDescription,
-    classIds: newClassIds || docClassIds,
+    classIds,
     ...typePayload,
     ...payload,
   });
