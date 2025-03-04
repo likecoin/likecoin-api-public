@@ -1,6 +1,6 @@
-import { readContract } from 'viem/actions';
-import { getEvmClient } from './client';
-import { LIKE_NFT_CLASS_ABI } from './LikeNFT';
+import { readContract, writeContract } from 'viem/actions';
+import { getEvmClient, getEvmWalletClient } from './client';
+import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -45,4 +45,42 @@ export async function getNFTClassBalanceOf(classId, wallet) {
     args: [wallet],
   });
   return balance as number;
+}
+
+export async function getNFTClassTokenIdByOwnerIndex(classId, wallet, index) {
+  const tokenId = await readContract(getEvmClient(), {
+    address: classId,
+    abi: LIKE_NFT_CLASS_ABI,
+    functionName: 'tokenOfOwnerByIndex',
+    args: [wallet, index],
+  });
+  return tokenId as number;
+}
+
+export async function mintNFT(classId, wallet, metadata, count = 1) {
+  const client = getEvmClient();
+  const { request } = await client.simulateContract({
+    address: LIKE_NFT_CONTRACT_ADDRESS,
+    abi: LIKE_NFT_ABI,
+    functionName: 'mintNFTs',
+    args: [{
+      to: wallet,
+      classId,
+      inputs: Array(count).fill(0).map(() => ({
+        metadata: JSON.stringify({
+          image: metadata.image,
+          image_data: '',
+          external_url: metadata.external_url || '',
+          description: metadata.description || '',
+          name: metadata.name || '',
+          attributes: metadata.attributes || [],
+          background_color: '',
+          animation_url: '',
+          youtube_url: '',
+        }),
+      })),
+    }],
+  });
+  const res = await writeContract(getEvmWalletClient(), request);
+  return res;
 }
