@@ -1,6 +1,7 @@
-import { readContract } from 'viem/actions';
-import { getEvmClient } from './client';
-import { LIKE_NFT_CLASS_ABI } from './LikeNFT';
+import { readContract, writeContract } from 'viem/actions';
+import { getAddress } from 'viem';
+import { getEvmClient, getEvmWalletAccount, getEvmWalletClient } from './client';
+import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -8,7 +9,7 @@ export function isEVMClassId(classId) {
 
 export async function getNFTClassOwner(classId) {
   const owner = await readContract(getEvmClient(), {
-    address: classId,
+    address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'owner',
   });
@@ -17,7 +18,7 @@ export async function getNFTClassOwner(classId) {
 
 export async function getNFTOwner(classId, tokenId: number) {
   const owner = await readContract(getEvmClient(), {
-    address: classId,
+    address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'ownerOf',
     args: [tokenId],
@@ -27,7 +28,7 @@ export async function getNFTOwner(classId, tokenId: number) {
 
 export async function getNFTClassDataById(classId) {
   const dataString = await readContract(getEvmClient(), {
-    address: classId,
+    address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'contractURI',
   }) as string;
@@ -39,10 +40,50 @@ export async function getNFTClassDataById(classId) {
 
 export async function getNFTClassBalanceOf(classId, wallet) {
   const balance = await readContract(getEvmClient(), {
-    address: classId,
+    address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'balanceOf',
-    args: [wallet],
+    args: [getAddress(wallet)],
   });
   return balance as number;
+}
+
+export async function getNFTClassTokenIdByOwnerIndex(classId, wallet, index) {
+  const tokenId = await readContract(getEvmClient(), {
+    address: getAddress(classId),
+    abi: LIKE_NFT_CLASS_ABI,
+    functionName: 'tokenOfOwnerByIndex',
+    args: [getAddress(wallet), index],
+  });
+  return tokenId as number;
+}
+
+export async function mintNFT(classId, wallet, metadata, count = 1) {
+  const client = getEvmClient();
+  const account = getEvmWalletAccount();
+  const { request } = await client.simulateContract({
+    address: LIKE_NFT_CONTRACT_ADDRESS,
+    abi: LIKE_NFT_ABI,
+    account,
+    functionName: 'mintNFTs',
+    args: [{
+      to: getAddress(wallet),
+      classId: getAddress(classId),
+      inputs: Array(count).fill(0).map(() => ({
+        metadata: JSON.stringify({
+          image: metadata.image,
+          image_data: '',
+          external_url: metadata.external_url || '',
+          description: metadata.description || '',
+          name: metadata.name || '',
+          attributes: metadata.attributes || [],
+          background_color: '',
+          animation_url: '',
+          youtube_url: '',
+        }),
+      })),
+    }],
+  });
+  const res = await writeContract(getEvmWalletClient(), request);
+  return res;
 }
