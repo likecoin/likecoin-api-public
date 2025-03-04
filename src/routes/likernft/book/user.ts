@@ -163,6 +163,7 @@ router.post(
           email,
           metadata: {
             wallet,
+            likerId,
           },
           business_profile: {
             name: likerId ? `@${likerId}` : undefined,
