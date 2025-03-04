@@ -56,38 +56,7 @@ import { getBookUserInfoFromWallet } from './user';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../config/config';
-
-export type CartItem = {
-  collectionId?: string
-  classId?: string
-  priceIndex?: number
-  customPriceInDecimal?: number
-  quantity?: number
-  from?: string
-}
-
-export type CartItemWithInfo = CartItem & {
-  priceInDecimal: number;
-  customPriceDiffInDecimal: number;
-  stock: number;
-  hasShipping: boolean;
-  isPhysicalOnly: boolean;
-  isAllowCustomPrice: boolean;
-  name: string,
-  description: string,
-  images: string[],
-  ownerWallet: string,
-  shippingRates: any[],
-  isLikerLandArt: boolean;
-  originalPriceInDecimal: number,
-  collectionId?: string,
-  classId?: string,
-  priceIndex?: number,
-  iscnPrefix?: string,
-  priceName?: string,
-  stripePriceId?: string,
-  quantity: number,
-}
+import { CartItem, CartItemWithInfo } from './type';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -251,6 +220,8 @@ export async function processNFTBookCartPurchase({
   email,
   phone,
   paymentId,
+  shippingDetails,
+  shippingCostAmount,
 }) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
   const infos = await db.runTransaction(async (t) => {
@@ -272,9 +243,8 @@ export async function processNFTBookCartPurchase({
         {
           email,
           phone,
-          hasShipping: false,
-          shippingDetails: null,
-          shippingCostAmount: null,
+          shippingDetails,
+          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -292,9 +262,8 @@ export async function processNFTBookCartPurchase({
         {
           email,
           phone,
-          hasShipping: false,
-          shippingDetails: null,
-          shippingCostAmount: null,
+          shippingDetails,
+          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -317,7 +286,8 @@ export async function processNFTBookCartPurchase({
       isPaid: true,
       isPendingClaim: true,
       email,
-      hasShipping: false,
+      hasShipping: classInfos.some((info) => info.txData.hasShipping)
+        || collectionInfos.some((info) => info.txData.hasShipping),
     };
     t.update(cartRef, updatePayload);
 
@@ -409,6 +379,7 @@ export async function processNFTBookCartStripePurchase(
     payment_intent: paymentIntent,
     currency_conversion: currencyConversion,
     shipping_cost: shippingCost,
+    shipping_details: shippingDetails,
     id: sessionId,
   } = session;
   const paymentId = cartId;
@@ -443,6 +414,8 @@ export async function processNFTBookCartStripePurchase(
       email,
       phone,
       paymentId,
+      shippingDetails,
+      shippingCostAmount,
     });
     const {
       classInfos,
@@ -517,6 +490,7 @@ export async function processNFTBookCartStripePurchase(
         isGift,
         giftInfo,
         feeInfo: docFeeInfo,
+        hasShipping,
       } = txData;
       const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
       const isOutOfStock = stock <= 0;
@@ -617,8 +591,8 @@ export async function processNFTBookCartStripePurchase(
           amount: priceInDecimal / 100,
           quantity,
           phone,
-          shippingDetails: '',
-          shippingCostAmount: 0,
+          shippingDetails: hasShipping ? shippingDetails : undefined,
+          shippingCostAmount: hasShipping ? shippingCostAmount : undefined,
           originalPrice: originalPriceInDecimal / 100,
         }),
         sendNFTBookSalesSlackNotification({
@@ -641,6 +615,8 @@ export async function processNFTBookCartStripePurchase(
             itemIndex,
             stripeFeeAmount,
             stripeFeeCurrency,
+            shippingCostAmount: hasShipping ? shippingCostAmount : undefined,
+            shippingCountry: hasShipping ? shippingDetails?.address?.country : undefined,
             from,
             quantity,
             feeInfo,
@@ -799,48 +775,7 @@ export async function processNFTBookCartStripePurchase(
   }
 }
 
-export async function handleNewCartStripeCheckout(items: CartItem[], {
-  gaClientId,
-  gaSessionId,
-  gadClickId,
-  gadSource,
-  fbClickId,
-  likeWallet,
-  email,
-  from: inputFrom,
-  coupon,
-  giftInfo,
-  utm,
-  referrer,
-  userAgent,
-  clientIp,
-  paymentMethods,
-}: {
-  gaClientId?: string,
-  gaSessionId?: string,
-  gadClickId?: string,
-  gadSource?: string,
-  fbClickId?: string,
-  email?: string,
-  likeWallet?: string,
-  from?: string,
-  coupon?: string,
-  giftInfo?: {
-    toEmail: string,
-    toName: string,
-    fromName: string,
-    message?: string,
-  },
-  utm?: {
-    campaign?: string,
-    source?: string,
-    medium?: string,
-  },
-  referrer?: string,
-  userAgent?: string,
-  clientIp?: string,
-  paymentMethods?: string[],
-} = {}) {
+export async function formatCartItemsWithInfo(items: CartItem[]) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     const {
       classId,
@@ -984,8 +919,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       stripePriceId,
     } = info;
 
-    if (hasShipping) throw new ValidationError('CART_ITEM_HAS_SHIPPING');
-
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
     description = description.length > 300
       ? `${description.substring(0, 299)}…`
@@ -1028,7 +961,60 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
       stripePriceId,
     };
   }));
+  return itemInfos;
+}
 
+export async function handleNewCartStripeCheckout(items: CartItem[], {
+  gaClientId,
+  gaSessionId,
+  gadClickId,
+  gadSource,
+  fbClickId,
+  likeWallet,
+  email,
+  from: inputFrom,
+  coupon,
+  giftInfo,
+  utm,
+  referrer,
+  userAgent,
+  clientIp,
+  paymentMethods,
+  httpMethod = 'POST',
+  cancelUrl,
+}: {
+  gaClientId?: string,
+  gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
+  fbClickId?: string,
+  email?: string,
+  likeWallet?: string,
+  from?: string,
+  coupon?: string,
+  giftInfo?: {
+    toEmail: string,
+    toName: string,
+    fromName: string,
+    message?: string,
+  },
+  utm?: {
+    campaign?: string,
+    source?: string,
+    medium?: string,
+  },
+  referrer?: string,
+  userAgent?: string,
+  clientIp?: string,
+  paymentMethods?: string[],
+  httpMethod?: 'GET' | 'POST',
+  cancelUrl?: string,
+} = {}) {
+  const itemInfos = await formatCartItemsWithInfo(items);
+  const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
+  if (itemsWithShipping.length > 1) {
+    throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
+  }
   let customerEmail = email;
   let customerId;
   if (likeWallet) {
@@ -1068,16 +1054,6 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     gadClickId,
     gadSource,
   });
-  const cancelUrl = getLikerLandCartURL({
-    type: 'book',
-    utmCampaign: utm?.campaign,
-    utmSource: utm?.source,
-    utmMedium: utm?.medium,
-    gaClientId,
-    gaSessionId,
-    gadClickId,
-    gadSource,
-  });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
     from = NFT_BOOK_DEFAULT_FROM_CHANNEL;
@@ -1105,44 +1081,19 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
     referrer,
     userAgent,
     clientIp,
-  }, itemInfos.map((info) => {
-    const {
-      name,
-      description,
-      images,
-      priceInDecimal,
-      customPriceDiffInDecimal,
-      isLikerLandArt,
-      ownerWallet,
-      quantity,
-      classId,
-      collectionId,
-      priceIndex,
-      iscnPrefix,
-      stripePriceId,
-      from: itemFrom,
-    } = info;
-    return {
-      name,
-      description,
-      images,
-      priceInDecimal,
-      customPriceDiffInDecimal,
-      isLikerLandArt,
-      quantity,
-      ownerWallet,
-      classId,
-      collectionId,
-      priceIndex,
-      iscnPrefix,
-      stripePriceId,
-      from: itemFrom,
-    };
-  }), {
-    hasShipping: false,
-    shippingRates: [],
+    httpMethod,
+  }, itemInfos, {
     successUrl,
-    cancelUrl,
+    cancelUrl: cancelUrl || getLikerLandCartURL({
+      type: 'book',
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+    }),
     paymentMethods,
   });
 
