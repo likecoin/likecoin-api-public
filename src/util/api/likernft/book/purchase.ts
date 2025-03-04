@@ -46,6 +46,7 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { CartItemWithInfo } from './type';
+import { isEVMClassId, mintNFT } from '../../../evm/nft';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1161,9 +1162,13 @@ export async function claimNFTBook(
   if (isAutoDeliver) {
     const msgSendNftIds = nftIds || [nftId];
     try {
-      const txMessages = msgSendNftIds
-        .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
-      txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
+      if (isEVMClassId(classId)) {
+        txHash = await mintNFT(classId, wallet, msgSendNftIds.length);
+      } else {
+        const txMessages = msgSendNftIds
+          .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
+        txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
+      }
     } catch (autoDeliverErr) {
       await docRef.update({
         isPendingClaim: true,
