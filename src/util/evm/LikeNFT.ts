@@ -128,6 +128,16 @@ export const LIKE_NFT_ABI: Abi = [
             type: 'address',
           },
           {
+            internalType: 'address[]',
+            name: 'updaters',
+            type: 'address[]',
+          },
+          {
+            internalType: 'address[]',
+            name: 'minters',
+            type: 'address[]',
+          },
+          {
             components: [
               {
                 internalType: 'string',
@@ -231,19 +241,6 @@ export const LIKE_NFT_ABI: Abi = [
   },
   {
     inputs: [],
-    name: 'MINTER_ROLE',
-    outputs: [
-      {
-        internalType: 'bytes32',
-        name: '',
-        type: 'bytes32',
-      },
-    ],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
     name: 'UPGRADE_INTERFACE_VERSION',
     outputs: [
       {
@@ -271,15 +268,34 @@ export const LIKE_NFT_ABI: Abi = [
   {
     inputs: [
       {
+        internalType: 'address',
+        name: 'classId',
+        type: 'address',
+      },
+    ],
+    name: 'isLikeNFTClass',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
         components: [
           {
             internalType: 'address',
-            name: 'creator',
+            name: 'classId',
             type: 'address',
           },
           {
             internalType: 'address',
-            name: 'class_id',
+            name: 'to',
             type: 'address',
           },
           {
@@ -290,7 +306,7 @@ export const LIKE_NFT_ABI: Abi = [
                 type: 'string',
               },
             ],
-            internalType: 'struct NFTInput',
+            internalType: 'struct NFTData',
             name: 'input',
             type: 'tuple',
           },
@@ -311,12 +327,12 @@ export const LIKE_NFT_ABI: Abi = [
         components: [
           {
             internalType: 'address',
-            name: 'creator',
+            name: 'classId',
             type: 'address',
           },
           {
             internalType: 'address',
-            name: 'class_id',
+            name: 'to',
             type: 'address',
           },
           {
@@ -327,7 +343,7 @@ export const LIKE_NFT_ABI: Abi = [
                 type: 'string',
               },
             ],
-            internalType: 'struct NFTInput[]',
+            internalType: 'struct NFTData[]',
             name: 'inputs',
             type: 'tuple[]',
           },
@@ -350,6 +366,16 @@ export const LIKE_NFT_ABI: Abi = [
             internalType: 'address',
             name: 'creator',
             type: 'address',
+          },
+          {
+            internalType: 'address[]',
+            name: 'updaters',
+            type: 'address[]',
+          },
+          {
+            internalType: 'address[]',
+            name: 'minters',
+            type: 'address[]',
           },
           {
             components: [
@@ -475,12 +501,7 @@ export const LIKE_NFT_ABI: Abi = [
         components: [
           {
             internalType: 'address',
-            name: 'creator',
-            type: 'address',
-          },
-          {
-            internalType: 'address',
-            name: 'class_id',
+            name: 'classId',
             type: 'address',
           },
           {
@@ -564,6 +585,16 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
             type: 'address',
           },
           {
+            internalType: 'address[]',
+            name: 'updaters',
+            type: 'address[]',
+          },
+          {
+            internalType: 'address[]',
+            name: 'minters',
+            type: 'address[]',
+          },
+          {
             components: [
               {
                 internalType: 'string',
@@ -608,17 +639,147 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   },
   {
     inputs: [],
-    name: 'ApprovalCallerNotOwnerNorApproved',
+    name: 'AccessControlBadConfirmation',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+      {
+        internalType: 'bytes32',
+        name: 'neededRole',
+        type: 'bytes32',
+      },
+    ],
+    name: 'AccessControlUnauthorizedAccount',
     type: 'error',
   },
   {
     inputs: [],
-    name: 'ApprovalQueryForNonexistentToken',
+    name: 'ERC721EnumerableForbiddenBatchMint',
     type: 'error',
   },
   {
-    inputs: [],
-    name: 'BalanceQueryForZeroAddress',
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'sender',
+        type: 'address',
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256',
+      },
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721IncorrectOwner',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address',
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256',
+      },
+    ],
+    name: 'ERC721InsufficientApproval',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'approver',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721InvalidApprover',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721InvalidOperator',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721InvalidOwner',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'receiver',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721InvalidReceiver',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'sender',
+        type: 'address',
+      },
+    ],
+    name: 'ERC721InvalidSender',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256',
+      },
+    ],
+    name: 'ERC721NonexistentToken',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address',
+      },
+      {
+        internalType: 'uint256',
+        name: 'index',
+        type: 'uint256',
+      },
+    ],
+    name: 'ERC721OutOfBoundsIndex',
     type: 'error',
   },
   {
@@ -628,22 +789,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   },
   {
     inputs: [],
-    name: 'MintERC2309QuantityExceedsLimit',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'MintToZeroAddress',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'MintZeroQuantity',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'NotCompatibleWithSpotMints',
+    name: 'ErrUnauthorized',
     type: 'error',
   },
   {
@@ -666,61 +812,6 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
     ],
     name: 'OwnableUnauthorizedAccount',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'OwnerQueryForNonexistentToken',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'OwnershipNotInitializedForExtraData',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'SequentialMintExceedsLimit',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'SequentialUpToTooSmall',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'SpotMintTokenIdTooSmall',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'TokenAlreadyExists',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'TransferCallerNotOwnerNorApproved',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'TransferFromIncorrectOwner',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'TransferToNonERC721ReceiverImplementer',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'TransferToZeroAddress',
-    type: 'error',
-  },
-  {
-    inputs: [],
-    name: 'URIQueryForNonexistentToken',
     type: 'error',
   },
   {
@@ -775,37 +866,6 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   },
   {
     anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: 'uint256',
-        name: 'fromTokenId',
-        type: 'uint256',
-      },
-      {
-        indexed: false,
-        internalType: 'uint256',
-        name: 'toTokenId',
-        type: 'uint256',
-      },
-      {
-        indexed: true,
-        internalType: 'address',
-        name: 'from',
-        type: 'address',
-      },
-      {
-        indexed: true,
-        internalType: 'address',
-        name: 'to',
-        type: 'address',
-      },
-    ],
-    name: 'ConsecutiveTransfer',
-    type: 'event',
-  },
-  {
-    anonymous: false,
     inputs: [],
     name: 'ContractURIUpdated',
     type: 'event',
@@ -827,6 +887,81 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
     ],
     name: 'OwnershipTransferred',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        indexed: true,
+        internalType: 'bytes32',
+        name: 'previousAdminRole',
+        type: 'bytes32',
+      },
+      {
+        indexed: true,
+        internalType: 'bytes32',
+        name: 'newAdminRole',
+        type: 'bytes32',
+      },
+    ],
+    name: 'RoleAdminChanged',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address',
+      },
+    ],
+    name: 'RoleGranted',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address',
+      },
+    ],
+    name: 'RoleRevoked',
     type: 'event',
   },
   {
@@ -887,7 +1022,33 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   },
   {
     inputs: [],
+    name: 'DEFAULT_ADMIN_ROLE',
+    outputs: [
+      {
+        internalType: 'bytes32',
+        name: '',
+        type: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
     name: 'MINTER_ROLE',
+    outputs: [
+      {
+        internalType: 'bytes32',
+        name: '',
+        type: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'UPDATER_ROLE',
     outputs: [
       {
         internalType: 'bytes32',
@@ -913,7 +1074,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     ],
     name: 'approve',
     outputs: [],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -970,6 +1131,67 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   {
     inputs: [
       {
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+    ],
+    name: 'getRoleAdmin',
+    outputs: [
+      {
+        internalType: 'bytes32',
+        name: '',
+        type: 'bytes32',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+    ],
+    name: 'grantRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+    ],
+    name: 'hasRole',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
         internalType: 'address',
         name: 'owner',
         type: 'address',
@@ -1000,7 +1222,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
       {
         internalType: 'string[]',
-        name: 'metadata_list',
+        name: 'metadataList',
         type: 'string[]',
       },
     ],
@@ -1064,6 +1286,42 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   {
     inputs: [
       {
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        internalType: 'address',
+        name: 'callerConfirmation',
+        type: 'address',
+      },
+    ],
+    name: 'renounceRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'bytes32',
+        name: 'role',
+        type: 'bytes32',
+      },
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address',
+      },
+    ],
+    name: 'revokeRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
         internalType: 'address',
         name: 'from',
         type: 'address',
@@ -1081,7 +1339,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     ],
     name: 'safeTransferFrom',
     outputs: [],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -1103,13 +1361,13 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
       {
         internalType: 'bytes',
-        name: '_data',
+        name: 'data',
         type: 'bytes',
       },
     ],
     name: 'safeTransferFrom',
     outputs: [],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -1163,8 +1421,38 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'tokenId',
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'index',
+        type: 'uint256',
+      },
+    ],
+    name: 'tokenByIndex',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address',
+      },
+      {
+        internalType: 'uint256',
+        name: 'index',
+        type: 'uint256',
+      },
+    ],
+    name: 'tokenOfOwnerByIndex',
     outputs: [
       {
         internalType: 'uint256',
@@ -1200,7 +1488,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     outputs: [
       {
         internalType: 'uint256',
-        name: 'result',
+        name: '',
         type: 'uint256',
       },
     ],
@@ -1227,7 +1515,7 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     ],
     name: 'transferFrom',
     outputs: [],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
