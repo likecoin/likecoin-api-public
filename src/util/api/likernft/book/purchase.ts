@@ -514,17 +514,23 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   };
   if (phone) paymentPayload.phone = phone;
   if (isAutoDeliver) {
-    const nftRes = await t.get(bookRef
-      .collection('nft')
-      .where('isSold', '==', false)
-      .where('isProcessing', '==', false)
-      .limit(quantity));
-    if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-    const nftIds = nftRes.docs.map((d) => d.id);
-    paymentPayload.isAutoDeliver = true;
-    paymentPayload.autoMemo = autoMemo;
+    let nftIds: string[];
+    if (isEVMClassId(classId)) {
+      // EVM NFT are mint on demand, we don't need to specify nftId
+      nftIds = Array(quantity).fill(0);
+    } else {
+      const nftRes = await t.get(bookRef
+        .collection('nft')
+        .where('isSold', '==', false)
+        .where('isProcessing', '==', false)
+        .limit(quantity));
+      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+      nftIds = nftRes.docs.map((d) => d.id);
+    }
     [paymentPayload.nftId] = nftIds;
     paymentPayload.nftIds = nftIds;
+    paymentPayload.isAutoDeliver = true;
+    paymentPayload.autoMemo = autoMemo;
   }
   if (hasShipping) {
     paymentPayload.hasShipping = true;
@@ -550,7 +556,8 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
   } = listingData;
   if (txData.nftIds) {
     txData.nftIds.forEach((nftId) => {
-      t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+      // placeholder nftId is 0
+      if (nftId) t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
     });
   }
   t.update(bookRef.collection('transactions').doc(paymentId), txData);
@@ -1123,6 +1130,7 @@ export async function claimNFTBook(
     const msgSendNftIds = nftIds || [nftId];
     try {
       if (isEVMClassId(classId)) {
+        // TODO: add memo to mintNFTs
         txHash = await mintNFT(classId, wallet, msgSendNftIds.length);
       } else {
         const txMessages = msgSendNftIds
@@ -1149,7 +1157,8 @@ export async function claimNFTBook(
         quantity,
         isAutoDeliver,
       }, t);
-      msgSendNftIds.forEach((id) => {
+      // only update nft status if nftId is not placeholder (0)
+      msgSendNftIds.filter((id) => !!id).forEach((id) => {
         t.update(bookRef.collection('nft').doc(id), {
           ownerWallet: wallet,
           isProcessing: false,
