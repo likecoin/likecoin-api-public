@@ -269,7 +269,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
   const image = metadata?.data?.metadata?.image;
 
-  const payload: any = { iscnIdPrefix };
+  const payload: any = {};
+  if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
