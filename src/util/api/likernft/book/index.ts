@@ -306,7 +306,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
   } = bookInfo;
   const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
-  const payload: any = { iscnIdPrefix };
+  const payload: any = {};
+  if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
@@ -383,7 +384,7 @@ export async function updateNftBookInfo(classId: string, {
   const classIdRef = likeNFTBookCollection.doc(classId);
   let batch = db.batch();
   batch.update(classIdRef, payload);
-  if (newAPIWalletOwnedNFTIds.length) {
+  if (newAPIWalletOwnedNFTIds?.length) {
     for (let i = 0; i < newAPIWalletOwnedNFTIds.length; i += 1) {
       if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
         // eslint-disable-next-line no-await-in-loop
@@ -606,6 +607,10 @@ export async function validateAutoDeliverNFTsTxHash(
   sender: string,
   expectedNFTCount: number,
 ) {
+  if (isEVMClassId(classId)) {
+    // evm auto deliver nfts are minted on demand
+    return [];
+  }
   const nftIdsMap = await parseNFTIdsMapFromTxHash(txHash, sender);
   const nftIds = nftIdsMap[classId];
   if (!nftIds) {

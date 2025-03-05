@@ -46,6 +46,7 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { CartItemWithInfo } from './type';
+import { isEVMClassId, mintNFT } from '../../../evm/nft';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -505,17 +506,23 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   };
   if (phone) paymentPayload.phone = phone;
   if (isAutoDeliver) {
-    const nftRes = await t.get(bookRef
-      .collection('nft')
-      .where('isSold', '==', false)
-      .where('isProcessing', '==', false)
-      .limit(quantity));
-    if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-    const nftIds = nftRes.docs.map((d) => d.id);
-    paymentPayload.isAutoDeliver = true;
-    paymentPayload.autoMemo = autoMemo;
+    let nftIds: string[];
+    if (isEVMClassId(classId)) {
+      // EVM NFT are mint on demand, we don't need to specify nftId
+      nftIds = Array(quantity).fill(0);
+    } else {
+      const nftRes = await t.get(bookRef
+        .collection('nft')
+        .where('isSold', '==', false)
+        .where('isProcessing', '==', false)
+        .limit(quantity));
+      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
+      nftIds = nftRes.docs.map((d) => d.id);
+    }
     [paymentPayload.nftId] = nftIds;
     paymentPayload.nftIds = nftIds;
+    paymentPayload.isAutoDeliver = true;
+    paymentPayload.autoMemo = autoMemo;
   }
   if (hasShipping) paymentPayload.shippingStatus = 'pending';
   if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
@@ -538,7 +545,8 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
   } = listingData;
   if (txData.nftIds) {
     txData.nftIds.forEach((nftId) => {
-      t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
+      // placeholder nftId is 0
+      if (nftId) t.update(bookRef.collection('nft').doc(nftId), { isProcessing: true });
     });
   }
   t.update(bookRef.collection('transactions').doc(paymentId), txData);
@@ -1151,9 +1159,14 @@ export async function claimNFTBook(
   if (isAutoDeliver) {
     const msgSendNftIds = nftIds || [nftId];
     try {
-      const txMessages = msgSendNftIds
-        .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
-      txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
+      if (isEVMClassId(classId)) {
+        // TODO: add memo to mintNFTs
+        txHash = await mintNFT(classId, wallet, msgSendNftIds.length);
+      } else {
+        const txMessages = msgSendNftIds
+          .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
+        txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
+      }
     } catch (autoDeliverErr) {
       await docRef.update({
         isPendingClaim: true,
