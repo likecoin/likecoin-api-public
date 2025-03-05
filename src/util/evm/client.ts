@@ -18,10 +18,15 @@ export function getEvmClient() {
   return client;
 }
 
+export function getEvmWalletAccount() {
+  const evmHex = LIKER_NFT_PRIVATE_KEY.toString('hex');
+  const account = privateKeyToAccount(`0x${evmHex}`);
+  return account;
+}
+
 export function getEvmWalletClient() {
   if (!walletClient) {
-    const evmHex = LIKER_NFT_PRIVATE_KEY.toString('hex');
-    const account = privateKeyToAccount(`0x${evmHex}`);
+    const account = getEvmWalletAccount();
     walletClient = createWalletClient({
       account,
       chain: IS_TESTNET ? optimismSepolia : optimism,

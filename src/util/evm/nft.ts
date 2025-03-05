@@ -1,6 +1,6 @@
 import { readContract, writeContract } from 'viem/actions';
 import { getAddress } from 'viem';
-import { getEvmClient, getEvmWalletClient } from './client';
+import { getEvmClient, getEvmWalletAccount, getEvmWalletClient } from './client';
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 
 export function isEVMClassId(classId) {
@@ -60,9 +60,11 @@ export async function getNFTClassTokenIdByOwnerIndex(classId, wallet, index) {
 
 export async function mintNFT(classId, wallet, metadata, count = 1) {
   const client = getEvmClient();
+  const account = getEvmWalletAccount();
   const { request } = await client.simulateContract({
     address: LIKE_NFT_CONTRACT_ADDRESS,
     abi: LIKE_NFT_ABI,
+    account,
     functionName: 'mintNFTs',
     args: [{
       to: getAddress(wallet),
