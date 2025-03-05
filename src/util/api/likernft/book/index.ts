@@ -545,14 +545,7 @@ export async function validateStocks(
   let userWalletOwnedNFTCount = 0;
   let apiWalletOwnedNFTCount = 0;
   if (isEVMClassId(classId)) {
-    [
-      userWalletOwnedNFTCount,
-      apiWalletOwnedNFTCount,
-    ] = await Promise.all([
-      getNFTClassBalanceOf(classId, wallet),
-      LIKER_EVM_NFT_TARGET_ADDRESS
-        ? getNFTClassBalanceOf(classId, LIKER_EVM_NFT_TARGET_ADDRESS) : 0,
-    ]);
+    userWalletOwnedNFTCount = await getNFTClassBalanceOf(classId, wallet)
   } else {
     [
       userWalletOwnedNFTCount,
@@ -562,18 +555,18 @@ export async function validateStocks(
       LIKER_NFT_TARGET_ADDRESS
         ? getNFTBalance(classId, LIKER_NFT_TARGET_ADDRESS) : 0,
     ]);
+    if (apiWalletOwnedNFTCount < autoDeliverTotalStock) {
+      throw new ValidationError(`NOT_ENOUGH_AUTO_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${autoDeliverTotalStock}, ACTUAL: ${apiWalletOwnedNFTCount}`, 403);
+    }
+    if (apiWalletOwnedNFTCount) {
+      ({ nfts: apiWalletOwnedNFTs } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS));
+    }
   }
 
   if (userWalletOwnedNFTCount < manualDeliverTotalStock) {
     throw new ValidationError(`NOT_ENOUGH_MANUAL_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${manualDeliverTotalStock}, ACTUAL: ${userWalletOwnedNFTCount}`, 403);
   }
-  if (apiWalletOwnedNFTCount < autoDeliverTotalStock) {
-    throw new ValidationError(`NOT_ENOUGH_AUTO_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${autoDeliverTotalStock}, ACTUAL: ${apiWalletOwnedNFTCount}`, 403);
-  }
 
-  if (apiWalletOwnedNFTCount) {
-    ({ nfts: apiWalletOwnedNFTs } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS));
-  }
   return {
     apiWalletOwnedNFTs,
   };
