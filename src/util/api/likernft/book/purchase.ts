@@ -1187,7 +1187,8 @@ export async function claimNFTBook(
         quantity,
         isAutoDeliver,
       }, t);
-      msgSendNftIds.forEach((id) => {
+      // only update nft status if nftId is not placeholder (0)
+      msgSendNftIds.filter((id) => !!id).forEach((id) => {
         t.update(bookRef.collection('nft').doc(id), {
           ownerWallet: wallet,
           isProcessing: false,
