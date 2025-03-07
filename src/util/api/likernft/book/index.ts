@@ -545,7 +545,7 @@ export async function validateStocks(
   let userWalletOwnedNFTCount = 0;
   let apiWalletOwnedNFTCount = 0;
   if (isEVMClassId(classId)) {
-    userWalletOwnedNFTCount = await getNFTClassBalanceOf(classId, wallet)
+    userWalletOwnedNFTCount = await getNFTClassBalanceOf(classId, wallet);
   } else {
     [
       userWalletOwnedNFTCount,
