@@ -718,7 +718,7 @@ router.post(
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
-      const paymentDocRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
+      const paymentDocRef = bookRef.collection('transactions').doc(paymentId);
 
       const { email } = await db.runTransaction(async (t) => {
         const doc = await t.get(paymentDocRef);
@@ -728,6 +728,7 @@ router.post(
         }
         const {
           shippingStatus,
+          status,
           isPhysicalOnly,
           hasShipping,
         } = docData;
@@ -742,6 +743,11 @@ router.post(
           shippingMessage: message,
         };
         if (isPhysicalOnly) updatePayload.status = 'completed';
+        if (isPhysicalOnly || status === 'completed') {
+          t.update(bookRef, {
+            pendingNFTCount: FieldValue.increment(-1),
+          });
+        }
         t.update(paymentDocRef, updatePayload);
         return docData;
       });
