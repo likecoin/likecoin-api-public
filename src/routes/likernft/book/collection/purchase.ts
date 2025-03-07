@@ -719,6 +719,8 @@ router.post(
         }
         const {
           shippingStatus,
+          status,
+          isPhysicalOnly,
           hasShipping,
         } = docData;
         if (!hasShipping) {
@@ -727,10 +729,17 @@ router.post(
         if (shippingStatus === 'shipped') {
           throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
         }
-        t.update(paymentDocRef, {
+        const updatePayload: any = {
           shippingStatus: 'shipped',
           shippingMessage: message,
-        });
+        };
+        if (isPhysicalOnly) updatePayload.status = 'completed';
+        if (isPhysicalOnly || status === 'completed') {
+          t.update(collectionRef, {
+            'typePayload.pendingNFTCount': FieldValue.increment(-1),
+          });
+        }
+        t.update(paymentDocRef, updatePayload);
         return docData;
       });
 
