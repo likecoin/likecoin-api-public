@@ -17,7 +17,7 @@ import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction 
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe, { getStripePromotionFromCode, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
+import stripe, { getStripePromotionFromCode } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -592,7 +592,7 @@ export async function processNFTBookPurchase({
   return data;
 }
 
-function calculateItemPrices(items: CartItemWithInfo[], from) {
+export function calculateItemPrices(items: CartItemWithInfo[], from) {
   const itemPrices: ItemPriceInfo[] = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
@@ -630,7 +630,6 @@ function calculateItemPrices(items: CartItemWithInfo[], from) {
       };
       if (item.classId) payload.classId = item.classId;
       if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
       if (item.collectionId) payload.collectionId = item.collectionId;
       if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
       return payload;
@@ -651,6 +650,7 @@ export async function formatStripeCheckoutSession({
   customerId,
   from,
   coupon,
+  claimToken,
   gaClientId,
   gaSessionId,
   gadClickId,
@@ -674,6 +674,7 @@ export async function formatStripeCheckoutSession({
   customerId?: string,
   from?: string,
   coupon?: string,
+  claimToken: string,
   gaClientId?: string,
   gaSessionId?: string,
   gadClickId?: string,
@@ -712,10 +713,19 @@ export async function formatStripeCheckoutSession({
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
+  if (claimToken) sessionMetadata.claimToken = claimToken;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
+  if (gadClickId) sessionMetadata.gadClickId = gadClickId;
+  if (gadSource) sessionMetadata.gadSource = gadSource;
   if (from) sessionMetadata.from = from;
-  if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
+  if (giftInfo) {
+    sessionMetadata.giftInfo = giftInfo.toEmail;
+    sessionMetadata.giftToEmail = giftInfo.toEmail;
+    sessionMetadata.giftFromName = giftInfo.fromName;
+    sessionMetadata.giftToName = giftInfo.toName;
+    if (giftInfo.message) sessionMetadata.giftMessage = giftInfo.message;
+  }
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
@@ -995,104 +1005,6 @@ export async function sendNFTBookPurchaseEmail({
     amount: amountTotal,
     quantity,
   });
-}
-
-export const DISCOUNTED_FEE_TYPES = [
-  'priceInDecimal',
-  'likerLandTipFeeAmount',
-  'customPriceDiff',
-];
-
-export function calculateCommissionWithDiscount({
-  paymentId,
-  commission,
-  originalPriceInDecimal,
-  discountRate,
-}) {
-  const originalRate = commission / originalPriceInDecimal;
-  const discountedRate = originalRate - (1 - discountRate);
-  if (discountedRate < 0) {
-    // eslint-disable-next-line no-console
-    console.error(`Negative commission rate ${discountedRate} for paymentId: ${paymentId}`);
-    return 0;
-  }
-  return Math.floor(originalPriceInDecimal * discountedRate);
-}
-
-export function calculateFeeAndDiscountFromBalanceTx({
-  paymentId,
-  amountSubtotal,
-  amountTotal,
-  shippingCostAmount,
-  balanceTx,
-  feeInfo,
-}) {
-  const {
-    stripeFeeAmount: docStripeFeeAmount,
-    channelCommission,
-    likerLandCommission,
-    priceInDecimal,
-    originalPriceInDecimal,
-  } = feeInfo as TransactionFeeInfo;
-  let newFeeInfo = { ...feeInfo };
-  let stripeFeeAmount = docStripeFeeAmount;
-  let stripeFeeCurrency = 'USD';
-  if (balanceTx) {
-    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-    stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-    stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  } else {
-    stripeFeeAmount = 0;
-  }
-  const isStripeFeeUpdated = stripeFeeAmount !== docStripeFeeAmount;
-  if (isStripeFeeUpdated) {
-    newFeeInfo = {
-      ...newFeeInfo,
-      stripeFeeAmount,
-    };
-  }
-  const productAmountTotal = amountTotal - (shippingCostAmount * 100);
-  const isAmountFeeUpdated = priceInDecimal !== productAmountTotal
-    && productAmountTotal !== amountSubtotal;
-  const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
-  const totalDiscountAmount = amountSubtotal - productAmountTotal;
-  const originalPriceDiscountAmount = Math.ceil(discountRate * originalPriceInDecimal);
-  if (isAmountFeeUpdated) {
-    DISCOUNTED_FEE_TYPES.forEach((key) => {
-      if (typeof newFeeInfo[key] === 'number') {
-        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
-      }
-    });
-    if (channelCommission) {
-      newFeeInfo.channelCommission = calculateCommissionWithDiscount({
-        paymentId,
-        commission: channelCommission,
-        originalPriceInDecimal,
-        discountRate,
-      });
-    } else if (likerLandCommission) {
-      newFeeInfo.likerLandCommission = calculateCommissionWithDiscount({
-        paymentId,
-        commission: likerLandCommission,
-        originalPriceInDecimal,
-        discountRate,
-      });
-    } else {
-      // eslint-disable-next-line no-console
-      console.error(`Discount amount ${totalDiscountAmount} but no commission found for paymentId: ${paymentId}`);
-    }
-  }
-  return {
-    newFeeInfo,
-    stripeFeeCurrency,
-    totalDiscountAmount,
-    originalPriceDiscountAmount,
-    discountRate,
-    isStripeFeeUpdated,
-    isAmountFeeUpdated,
-    priceInDecimal: newFeeInfo.priceInDecimal,
-    originalPriceInDecimal,
-  };
 }
 
 export async function claimNFTBook(
