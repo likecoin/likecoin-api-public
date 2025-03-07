@@ -326,7 +326,7 @@ export async function claimNFTBookCollection(
       loginMethod: loginMethod || '',
     });
 
-    if (!docData.isAutoDeliver) {
+    if (!docData.isAutoDeliver || docData.hasShipping) {
       t.update(bookRef, {
         'typePayload.pendingNFTCount': FieldValue.increment(1),
       });
@@ -501,7 +501,8 @@ export async function updateNFTBookCollectionPostDeliveryData({
     status: 'completed',
     txHash,
   });
-  if (status === 'pendingNFT' && !isAutoDeliver) {
+  const isPendingShipping = docData.hasShipping && docData.shippingStatus !== 'completed';
+  if (status === 'pendingNFT' && !isAutoDeliver && !isPendingShipping) {
     t.update(collectionRef, {
       'typePayload.pendingNFTCount': FieldValue.increment(-1),
     });
