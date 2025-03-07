@@ -6,7 +6,6 @@ import fileType from 'file-type';
 import { sha256 } from 'js-sha256';
 import md5 from 'md5-hex';
 import {
-  IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

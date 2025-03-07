@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const stubCosmosAPI = {
   get(path) {
     let value = {};

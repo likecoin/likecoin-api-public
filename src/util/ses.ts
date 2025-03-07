@@ -1000,7 +1000,14 @@ export function sendNFTBookSalesEmail({
     content += `<p>Shipping paid: $${shippingCostAmount}</p>`;
   }
   if (shippingDetails) {
-    content += `<p>Shipping details: <pre>${JSON.stringify(shippingDetails, null, 2)}</pre></p>`;
+    content += `<p>Shipping details: <pre>
+${shippingDetails.name}
+${['line1', 'line2', 'city', 'state', 'country', 'postal_code']
+    .map((key) => shippingDetails.address[key])
+    .filter(Boolean)
+    .join(',\n')
+}
+</pre></p>`;
     content += `<p>Phone: ${phone}</p>`;
   }
   content += `<p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
