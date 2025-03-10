@@ -1166,11 +1166,12 @@ export async function claimNFTBookCart(
   if (token !== claimToken) {
     throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
   }
-  const unclaimedClassIds = classIds.filter((id) => !claimedClassIds.includes(id));
-  const unclaimedCollectionIds = collectionIds.filter((id) => !claimedCollectionIds.includes(id));
+  const unclaimedClassIds: string[] = classIds.filter((id) => !claimedClassIds.includes(id));
+  const unclaimedCollectionIds: string[] = collectionIds
+    .filter((id) => !claimedCollectionIds.includes(id));
   const errors: any = [];
   const newClaimedNFTs: any = [];
-  await Promise.all(unclaimedClassIds.map(async (classId) => {
+  for (const classId of unclaimedClassIds) {
     try {
       const { nftId } = await claimNFTBook(
         classId,
@@ -1187,8 +1188,8 @@ export async function claimNFTBookCart(
       console.error(err);
       errors.push({ classId, error: (err as Error).toString() });
     }
-  }));
-  await Promise.all(unclaimedCollectionIds.map(async (collectionId) => {
+  }
+  for (const collectionId of unclaimedCollectionIds) {
     try {
       const { nftIds } = await claimNFTBookCollection(
         collectionId,
@@ -1205,7 +1206,7 @@ export async function claimNFTBookCart(
       console.error(err);
       errors.push({ collectionId, error: (err as Error).toString() });
     }
-  }));
+  }
 
   const allItemsAutoClaimed = newClaimedNFTs.filter(
     (nft) => !!(nft.nftIds?.length || nft.nftId),
