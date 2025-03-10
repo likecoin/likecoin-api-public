@@ -599,23 +599,33 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
   const itemPrices: ItemPriceInfo[] = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
+      const isFree = !item.priceInDecimal && !item.customPriceDiffInDecimal;
       const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
       const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
-      const { priceInDecimal } = item;
-      const originalPriceInDecimal = priceInDecimal - customPriceDiffInDecimal;
+      const { priceInDecimal, originalPriceInDecimal } = item;
+      const priceDiscountInDecimal = Math.max(
+        originalPriceInDecimal
+        + customPriceDiffInDecimal
+        - priceInDecimal,
+        0,
+      );
       const likerLandFeeAmount = Math.ceil(
         originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
       const likerLandTipFeeAmount = Math.ceil(
         customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
       );
-      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand && !isFree)
+        ? Math.max(Math.ceil(
+          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
+        ), 0)
         : 0;
-      const likerLandCommission = isFromLikerLand
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      const likerLandCommission = (isFromLikerLand && !isFree)
+        ? Math.ceil(
+          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
+        )
         : 0;
-      const likerLandArtFee = item.isLikerLandArt
+      const likerLandArtFee = (item.isLikerLandArt && !isFree)
         ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
         : 0;
 
