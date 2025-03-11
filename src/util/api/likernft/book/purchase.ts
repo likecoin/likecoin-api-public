@@ -86,7 +86,7 @@ export async function handleStripeConnectedAccount({
   bookName,
   buyerEmail,
   paymentIntentId,
-  shippingCostAmount,
+  shippingCostAmountInDecimal,
 }: {
   classId?: string,
   collectionId?: string,
@@ -96,7 +96,7 @@ export async function handleStripeConnectedAccount({
   bookName: string,
   buyerEmail: string | null,
   paymentIntentId: string,
-  shippingCostAmount?: number,
+  shippingCostAmountInDecimal?: number,
 }, {
   chargeId = '',
   amountTotal,
@@ -254,7 +254,7 @@ export async function handleStripeConnectedAccount({
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const shippingCostSplit = Math.floor(
-              ((shippingCostAmount || 0) * connectedWallets[wallet]) / totalSplit,
+              ((shippingCostAmountInDecimal || 0) * connectedWallets[wallet]) / totalSplit,
             );
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
