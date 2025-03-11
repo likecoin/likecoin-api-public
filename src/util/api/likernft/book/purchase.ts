@@ -74,7 +74,7 @@ export type TransactionFeeInfo = {
   likerLandCommission: number
   channelCommission: number
   likerLandArtFee: number
-  customPriceDiff: number
+  customPriceDiffInDecimal: number
 }
 
 export async function handleStripeConnectedAccount({
@@ -928,7 +928,7 @@ export async function formatStripeCheckoutSession({
       likerLandCommission,
       channelCommission,
       likerLandArtFee,
-      customPriceDiff: totalCustomPriceDiffInDecimal,
+      customPriceDiffInDecimal: totalCustomPriceDiffInDecimal,
     },
   };
 }
