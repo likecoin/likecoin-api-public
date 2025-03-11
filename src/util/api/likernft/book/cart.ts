@@ -168,7 +168,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         / totalPriceInDecimal) || 0,
       priceInDecimal: priceInDecimal * quantity,
       originalPriceInDecimal: originalPriceInDecimal * quantity,
-      customPriceDiff: customPriceDiffInDecimal * quantity,
+      customPriceDiffInDecimal: customPriceDiffInDecimal * quantity,
       likerLandTipFeeAmount: likerLandTipFeeAmount * quantity,
       likerLandFeeAmount: likerLandFeeAmount * quantity,
       likerLandCommission: likerLandCommission * quantity,
@@ -582,7 +582,7 @@ export async function processNFTBookCartStripePurchase(
 
     if (email) {
       const segments = isFree ? ['free book'] : ['purchaser'];
-      if (totalFeeInfo.customPriceDiff) segments.push('tipper');
+      if (totalFeeInfo.customPriceDiffInDecimal) segments.push('tipper');
       infoList.forEach((info) => {
         const { ownerWallet } = info.listingData;
         const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
@@ -602,7 +602,7 @@ export async function processNFTBookCartStripePurchase(
       email,
       cartId,
       price: (amountTotal || 0) / 100,
-      customPriceDiff: totalFeeInfo.customPriceDiff,
+      customPriceDiff: totalFeeInfo.customPriceDiffInDecimal / 100,
       sessionId: session.id,
       numberOfItems: infoList.length,
       quantity: infoList.reduce((acc, item) => acc + item.txData.quantity, 0),
@@ -924,7 +924,8 @@ export async function formatCartItemInfosFromSession(session) {
       likerLandCommission: acc.likerLandCommission + item.likerLandCommission * item.quantity,
       channelCommission: acc.channelCommission + item.channelCommission * item.quantity,
       likerLandArtFee: acc.likerLandArtFee + item.likerLandArtFee * item.quantity,
-      customPriceDiff: acc.customPriceDiff + (item.customPriceDiffInDecimal / 100) * item.quantity,
+      customPriceDiffInDecimal: acc.customPriceDiffInDecimal
+        + item.customPriceDiffInDecimal * item.quantity,
       stripeFeeAmount: acc.stripeFeeAmount,
     }),
     {
@@ -936,7 +937,7 @@ export async function formatCartItemInfosFromSession(session) {
       likerLandCommission: 0,
       channelCommission: 0,
       likerLandArtFee: 0,
-      customPriceDiff: 0,
+      customPriceDiffInDecimal: 0,
     },
   );
   const [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
@@ -1088,7 +1089,7 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   const {
     priceInDecimal,
     originalPriceInDecimal,
-    customPriceDiff: customPriceDiffInDecimal,
+    customPriceDiffInDecimal,
   } = feeInfo;
 
   return {
