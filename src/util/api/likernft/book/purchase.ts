@@ -517,9 +517,11 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     [paymentPayload.nftId] = nftIds;
     paymentPayload.nftIds = nftIds;
   }
-  if (hasShipping) paymentPayload.shippingStatus = 'pending';
-  if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-  if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;
+  if (hasShipping) {
+    paymentPayload.shippingStatus = 'pending';
+    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+    if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;
+  }
   if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
 
   return {
