@@ -106,9 +106,17 @@ export async function handleStripeConnectedAccount({
   likerLandCommission = 0,
   likerLandArtFee = 0,
   channelCommission = 0,
-}, { connectedWallets, from }) {
+}, { connectedWallets: connectedWalletsInput, from }) {
   const transfers: Stripe.Transfer[] = [];
   if (!amountTotal) return { transfers };
+
+  let connectedWallets = connectedWalletsInput;
+  if (!connectedWallets) {
+    // if connectedWallets is not set before, default to ownerWallet
+    connectedWallets = {
+      [ownerWallet]: 1,
+    };
+  }
 
   const metadata: Record<string, string> = {
     ownerWallet,
