@@ -566,10 +566,11 @@ export async function processNFTBookCartStripePurchase(
           ownerWallet,
           bookName,
           buyerEmail: email,
+          shippingCostAmountInDecimal: hasShipping ? shippingCostAmount * 100 : 0,
           paymentIntentId: paymentIntent as string,
         },
         {
-          amountTotal: priceInDecimal,
+          amountTotal: priceInDecimal + (hasShipping ? shippingCostAmount * 100 : 0),
           chargeId,
           stripeFeeAmount,
           likerLandFeeAmount,
