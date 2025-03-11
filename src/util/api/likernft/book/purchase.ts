@@ -716,7 +716,7 @@ export async function formatStripeCheckoutSession({
   cancelUrl: string,
   paymentMethods?: string[],
 }) {
-  let sessionMetadata: Stripe.MetadataParam = {
+  const sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
     paymentId,
   };
@@ -793,20 +793,6 @@ export async function formatStripeCheckoutSession({
     0,
   );
   paymentIntentData.transfer_group = paymentId;
-  sessionMetadata = {
-    ...sessionMetadata,
-    stripeFeeAmount,
-    likerLandTipFeeAmount,
-    likerLandFeeAmount,
-    likerLandCommission,
-    channelCommission,
-    likerLandArtFee,
-  };
-
-  if (totalCustomPriceDiffInDecimal) {
-    sessionMetadata.customPriceDiff = totalCustomPriceDiffInDecimal;
-  }
-
   paymentIntentData.metadata = sessionMetadata;
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
