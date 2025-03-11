@@ -160,9 +160,11 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
     paymentPayload.nftIdMap = nftIdMap;
   }
   if (phone) paymentPayload.phone = phone;
-  if (hasShipping) paymentPayload.shippingStatus = 'pending';
-  if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-  if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;
+  if (hasShipping) {
+    paymentPayload.shippingStatus = 'pending';
+    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
+    if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;
+  }
   if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
   return {
     listingData: docData,
