@@ -748,6 +748,9 @@ export async function formatStripeCheckoutSession({
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
+  if (items.length) {
+    sessionMetadata.fromList = items.map((item) => item.from).join(',');
+  }
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'automatic',
