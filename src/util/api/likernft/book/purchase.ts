@@ -1097,6 +1097,56 @@ export function calculateFeeAndDiscountFromBalanceTx({
   };
 }
 
+export async function sendNFTBookClaimedEmailNotification(
+  classId: string,
+  nftId: string,
+  paymentId: string,
+  {
+    message, wallet, email, isGift, giftInfo,
+  }
+    : {
+      message: string, wallet: string, email: string, isGift?: boolean, giftInfo?: {
+        fromName: string,
+        toName: string,
+        toEmail: string,
+        message?: string,
+      }
+    },
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const doc = await bookRef.get();
+  const docData = doc.data();
+  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  const { notificationEmails = [] } = docData;
+  const classData = await getNFTClassDataById(classId).catch(() => null);
+  const className = classData?.name || classId;
+  if (!nftId && notificationEmails && notificationEmails.length) {
+    await sendNFTBookClaimedEmail({
+      emails: notificationEmails,
+      classId,
+      bookName: className,
+      paymentId,
+      wallet,
+      claimerEmail: giftInfo?.toEmail || email,
+      message,
+    });
+  }
+  if (isGift && giftInfo) {
+    const {
+      fromName,
+      toName,
+    } = giftInfo;
+    if (email) {
+      await sendNFTBookGiftClaimedEmail({
+        bookName: className,
+        fromEmail: email,
+        fromName,
+        toName,
+      });
+    }
+  }
+}
+
 export async function claimNFTBook(
   classId: string,
   paymentId: string,
@@ -1224,61 +1274,37 @@ export async function claimNFTBook(
       txHash,
       isGift,
     });
+  } else {
+    try {
+      await sendNFTBookClaimedEmailNotification(
+        classId,
+        nftId,
+        paymentId,
+        {
+          message,
+          wallet,
+          email,
+        },
+      );
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to send email notification', e);
+    }
   }
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'BookNFTClaimed',
+    paymentId,
+    classId,
+    wallet,
+    email,
+    buyerMessage: message,
+    loginMethod,
+  });
 
   return {
     email, nftIds, nftId: nftIds?.[0], txHash,
   };
-}
-
-export async function sendNFTBookClaimedEmailNotification(
-  classId: string,
-  nftId: string,
-  paymentId: string,
-  {
-    message, wallet, email, isGift, giftInfo,
-  }
-    : {
-      message: string, wallet: string, email: string, isGift?: boolean, giftInfo?: {
-        fromName: string,
-        toName: string,
-        toEmail: string,
-        message?: string,
-      }
-    },
-) {
-  const bookRef = likeNFTBookCollection.doc(classId);
-  const doc = await bookRef.get();
-  const docData = doc.data();
-  if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-  const { notificationEmails = [] } = docData;
-  const classData = await getNFTClassDataById(classId).catch(() => null);
-  const className = classData?.name || classId;
-  if (!nftId && notificationEmails && notificationEmails.length) {
-    await sendNFTBookClaimedEmail({
-      emails: notificationEmails,
-      classId,
-      bookName: className,
-      paymentId,
-      wallet,
-      claimerEmail: giftInfo?.toEmail || email,
-      message,
-    });
-  }
-  if (isGift && giftInfo) {
-    const {
-      fromName,
-      toName,
-    } = giftInfo;
-    if (email) {
-      await sendNFTBookGiftClaimedEmail({
-        bookName: className,
-        fromEmail: email,
-        fromName,
-        toName,
-      });
-    }
-  }
 }
 
 export async function updateNFTBookPostDeliveryData({

@@ -25,7 +25,6 @@ import {
 } from '../../../../config/config';
 import {
   claimNFTBook,
-  sendNFTBookClaimedEmailNotification,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
@@ -514,7 +513,7 @@ router.post(
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
 
-      const { email, nftId } = await claimNFTBook(
+      const { nftId } = await claimNFTBook(
         classId,
         paymentId,
         {
@@ -524,26 +523,6 @@ router.post(
           loginMethod,
         },
         req,
-      );
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTClaimed',
-        paymentId,
-        classId,
-        wallet,
-        email,
-        buyerMessage: message,
-        loginMethod,
-      });
-      await sendNFTBookClaimedEmailNotification(
-        classId,
-        nftId,
-        paymentId,
-        {
-          message,
-          wallet,
-          email,
-        },
       );
 
       res.json({ nftId });
