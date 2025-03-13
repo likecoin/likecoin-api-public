@@ -129,8 +129,8 @@ async function generateManifestFile(files, { stub = false } = {}) {
   };
 }
 
-export async function estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicate = true } = {}) {
-  if (checkDuplicate) {
+export async function estimateARV2MaticPrice(fileSize, ipfsHash) {
+  if (ipfsHash) {
     const id = await getArweaveIdFromHashes(ipfsHash);
     if (id) {
       return {

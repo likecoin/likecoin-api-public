@@ -52,7 +52,7 @@ export function convertMulterFiles(files) {
 
 export async function estimateUploadToArweaveV2(
   fileSize: number,
-  ipfsHash: string,
+  ipfsHash?: string,
   { margin = 0.05 } = {},
 ) {
   if (fileSize > ARWEAVE_MAX_SIZE_V2) {
