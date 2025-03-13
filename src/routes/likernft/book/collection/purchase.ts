@@ -23,7 +23,6 @@ import {
 } from '../../../../../config/config';
 import {
   claimNFTBookCollection,
-  sendNFTBookCollectionClaimedEmailNotification,
   updateNFTBookCollectionPostDeliveryData,
 } from '../../../../util/api/likernft/book/collection/purchase';
 import logPixelEvents from '../../../../util/fbq';
@@ -314,7 +313,7 @@ router.post(
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
 
-      const { email } = await claimNFTBookCollection(
+      await claimNFTBookCollection(
         collectionId,
         paymentId,
         {
@@ -323,24 +322,6 @@ router.post(
           token: token as string,
         },
         req,
-      );
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTClaimed',
-        paymentId,
-        collectionId,
-        wallet,
-        email,
-        buyerMessage: message,
-      });
-      await sendNFTBookCollectionClaimedEmailNotification(
-        collectionId,
-        paymentId,
-        {
-          message,
-          wallet,
-          email,
-        },
       );
 
       res.sendStatus(200);
