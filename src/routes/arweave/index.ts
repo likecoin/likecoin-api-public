@@ -38,7 +38,6 @@ router.post(
     try {
       const { fileSize, ipfsHash } = req.body;
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
-      if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       const {
         LIKE,
         arweaveId,
