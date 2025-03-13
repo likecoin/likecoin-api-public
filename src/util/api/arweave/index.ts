@@ -53,12 +53,14 @@ export function convertMulterFiles(files) {
 export async function estimateUploadToArweaveV2(
   fileSize: number,
   ipfsHash?: string,
-  { margin = 0.05 } = {},
+  { margin = 0.05, checkDuplicate = true } = {},
 ) {
   if (fileSize > ARWEAVE_MAX_SIZE_V2) {
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
-  const { MATIC, wei, arweaveId } = await estimateARV2MaticPrice(fileSize, ipfsHash);
+  const {
+    MATIC, wei, arweaveId,
+  } = await estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicate });
   const { LIKE } = await convertMATICPriceToLIKE(MATIC, { margin });
   if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
   return {
@@ -227,7 +229,11 @@ async function checkTxV2({
 export async function processTxUploadToArweaveV2({
   fileSize, ipfsHash, txHash, signatureData,
 }, { margin = 0.03 } = {}) {
-  const estimate = await estimateUploadToArweaveV2(fileSize, ipfsHash, { margin });
+  const estimate = await estimateUploadToArweaveV2(
+    fileSize,
+    ipfsHash,
+    { margin, checkDuplicate: false },
+  );
   const {
     LIKE,
     MATIC,
@@ -253,7 +259,7 @@ export async function processTxUploadToArweaveV2({
   };
 }
 
-async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
+export async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
   const { data } = await axios.get(`${ARWEAVE_GATEWAY}/${arweaveId}`, { responseType: 'arraybuffer' });
   const returnedSize = (data as ArrayBuffer).byteLength;
   if (returnedSize > fileSize) {
@@ -264,19 +270,6 @@ async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
     // eslint-disable-next-line no-console
     console.warn(`IPFS hash mismatch: ${uploadedIpfsId} !== ${ipfsHash}, arweaveId: ${arweaveId}`);
   }
-}
-
-export async function processArweaveIdRegisterV2({
-  fileSize, ipfsHash, txHash, arweaveId,
-}, { margin = 0.03 } = {}) {
-  const estimate = await estimateUploadToArweaveV2(fileSize, ipfsHash, { margin });
-  const { LIKE } = estimate;
-
-  await checkTxV2({
-    fileSize, ipfsHash, txHash, LIKE,
-  });
-
-  await pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize });
 }
 
 export async function processTxUploadToArweave(
