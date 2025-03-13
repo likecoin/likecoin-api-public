@@ -306,14 +306,15 @@ export async function handleStripeConnectedAccount({
               && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
-              const walletAmount = amountSplit / 100 - shippingCostSplit;
+              const shippingAmount = shippingCostSplit / 100;
+              const walletAmount = amountSplit / 100 - shippingAmount;
               emailMap[email].push({
                 amount: walletAmount,
                 type: 'connectedWallet',
               });
-              if (shippingCostSplit) {
+              if (shippingAmount) {
                 emailMap[email].push({
-                  amount: shippingCostSplit,
+                  amount: shippingAmount,
                   type: 'shipping',
                 });
               }
