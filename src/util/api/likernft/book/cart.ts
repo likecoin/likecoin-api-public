@@ -869,6 +869,7 @@ export async function formatCartItemInfosFromSession(session) {
     currency_conversion: currencyConversion,
     metadata: {
       from,
+      fromList: fromListString,
     } = {} as any,
   } = session;
   const conversionRate = Number(currencyConversion?.fx_rate || 1);
@@ -910,6 +911,12 @@ export async function formatCartItemInfosFromSession(session) {
         quantity: lineItem.quantity || 1,
       });
     }
+  }
+  if (fromListString) {
+    const fromList = fromListString.split(',');
+    fromList.forEach((f: string, index) => {
+      items[index].from = f || items[index].from;
+    });
   }
   const itemInfos = await formatCartItemsWithInfo(items);
   const itemPrices = await calculateItemPrices(itemInfos, from);
