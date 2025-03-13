@@ -6,7 +6,7 @@ import {
   convertMulterFiles,
   estimateUploadToArweave,
   estimateUploadToArweaveV2,
-  processArweaveIdRegisterV2,
+  pushArweaveSingleFileToIPFS,
   processTxUploadToArweave,
   processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
@@ -153,9 +153,7 @@ router.post(
         arweaveId,
         txHash,
       });
-      await processArweaveIdRegisterV2({
-        fileSize, ipfsHash, txHash, arweaveId,
-      });
+      await pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveIdRegisterCompleteV2',
         ipfsHash,
