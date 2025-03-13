@@ -557,6 +557,8 @@ export async function processNFTBookCartStripePurchase(
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
       const bookName = bookData?.name?.[NFT_BOOK_TEXT_DEFAULT_LOCALE] || bookData?.name || bookId;
       bookNames.push(bookName);
+      const shippingCostAmountInDecimal = hasShipping ? shippingCostAmount * 100 : 0;
+      const amountWithShipping = priceInDecimal + shippingCostAmountInDecimal;
       const { transfers } = await handleStripeConnectedAccount(
         {
           classId,
@@ -566,11 +568,11 @@ export async function processNFTBookCartStripePurchase(
           ownerWallet,
           bookName,
           buyerEmail: email,
-          shippingCostAmountInDecimal: hasShipping ? shippingCostAmount * 100 : 0,
+          shippingCostAmountInDecimal,
           paymentIntentId: paymentIntent as string,
         },
         {
-          amountTotal: priceInDecimal + (hasShipping ? shippingCostAmount * 100 : 0),
+          amountTotal: amountWithShipping,
           chargeId,
           stripeFeeAmount,
           likerLandFeeAmount,
@@ -590,7 +592,7 @@ export async function processNFTBookCartStripePurchase(
           giftToName: (giftInfo as any)?.toName,
           emails: notificationEmails,
           bookName,
-          amount: priceInDecimal / 100,
+          amount: amountWithShipping / 100,
           quantity,
           phone,
           shippingDetails: hasShipping ? shippingDetails : undefined,
