@@ -67,27 +67,31 @@ router.post('/evm/migrate', async (req, res, next) => {
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
     }
-    const { evmWallet } = signed;
+    const { evm_wallet: evmWallet } = signed;
     if (!evmWallet) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
     const {
       isMigratedBookUser,
+      isMigratedBookOwner,
       isMigratedLikerId,
       isMigratedLikerLand,
       migratedLikerId,
       migratedLikerLandUser,
       migrateBookUserError,
+      migrateBookOwnerError,
       migrateLikerIdError,
       migrateLikerLandError,
     } = await migrateLikeWalletToEvmWallet(evmWallet, likeWallet);
     res.json({
       isMigratedBookUser,
+      isMigratedBookOwner,
       isMigratedLikerId,
       isMigratedLikerLand,
       migratedLikerId,
       migratedLikerLandUser,
       migrateBookUserError,
+      migrateBookOwnerError,
       migrateLikerIdError,
       migrateLikerLandError,
     });
