@@ -65,20 +65,6 @@ async function getNFTClassChainMetadata(classId) {
   }
 }
 
-async function getNFTClassAPIMetadata(uri) {
-  try {
-    const { data } = await axios.get(uri);
-    return data;
-  } catch (err) {
-    const error = err as AxiosError;
-    if (error.response && error.response.status !== 404) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to get API metadata from ${uri}`);
-    }
-    return null;
-  }
-}
-
 async function getISCNMetadata(iscnId) {
   try {
     const { data } = await axios.get(
@@ -116,10 +102,6 @@ async function getNFTClassAndISCNMetadata(classId) {
   const iscnId = chainMetadata.iscnIdPrefix;
   const promises = [iscnId ? getISCNMetadata(iscnId) : null];
 
-  const { uri } = chainMetadata;
-  if (isValidHttpUrl(uri)) {
-    promises.push(getNFTClassAPIMetadata(uri));
-  }
   const [iscnData, apiMetadata] = await Promise.all(promises);
 
   const hasApiMetadata = !!apiMetadata && typeof apiMetadata === 'object'
