@@ -3,6 +3,7 @@ import { getAddress } from 'viem';
 import { getEvmClient, getEvmWalletAccount, getEvmWalletClient } from './client';
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 import { sendWriteContractWithNonce } from './tx';
+import { logEvmMintNFTsTx } from '../txLogger';
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -85,6 +86,14 @@ export async function mintNFT(classId, wallet, metadata, { count = 1, simulate =
         }),
       })),
     }],
+  });
+  await logEvmMintNFTsTx({
+    txHash: res.transactionHash,
+    chainId: walletClient.chain.id,
+    rawSignedTx: res.tx,
+    from: account.address,
+    nonce: res.nonce,
+    to: LIKE_NFT_CONTRACT_ADDRESS,
   });
   return res.transactionHash;
 }
