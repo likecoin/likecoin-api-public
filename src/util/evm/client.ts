@@ -4,9 +4,10 @@ import {
   createWalletClient,
   http,
   HttpTransport,
+  LocalAccount,
   PublicClient,
+  WalletClient,
 } from 'viem';
-
 import { optimism, optimismSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { IS_TESTNET } from '../../constant';
@@ -15,7 +16,7 @@ import {
 } from '../../../config/secret';
 
 let client: PublicClient<HttpTransport, Chain, undefined>;
-let walletClient;
+let walletClient: WalletClient<HttpTransport, Chain, LocalAccount>;
 
 export function getEvmClient(): PublicClient<HttpTransport, Chain, undefined> {
   if (!client) {
@@ -27,13 +28,13 @@ export function getEvmClient(): PublicClient<HttpTransport, Chain, undefined> {
   return client;
 }
 
-export function getEvmWalletAccount() {
+export function getEvmWalletAccount(): LocalAccount {
   const evmHex = LIKER_NFT_PRIVATE_KEY.toString('hex');
   const account = privateKeyToAccount(`0x${evmHex}`);
   return account;
 }
 
-export function getEvmWalletClient() {
+export function getEvmWalletClient(): WalletClient<HttpTransport, Chain, LocalAccount> {
   if (!walletClient) {
     const account = getEvmWalletAccount();
     walletClient = createWalletClient({
