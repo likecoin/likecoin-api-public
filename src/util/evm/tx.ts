@@ -1,8 +1,9 @@
 import {
   type WriteContractParameters,
   type WalletClient,
+  encodeFunctionData,
+  SimulateContractParameters,
 } from 'viem';
-import { waitForTransactionReceipt } from 'viem/actions';
 import { db, txCollection as txLogRef } from '../firebase';
 import { getEvmClient } from './client';
 import publisher from '../gcloudPub';
@@ -14,7 +15,6 @@ export async function sendWriteContractWithNonce(
 ) {
   const publicClient = getEvmClient();
   let res;
-  let signedTx;
   if (!walletClient.account) {
     throw new Error('Wallet client does not have account');
   }
@@ -23,7 +23,7 @@ export async function sendWriteContractWithNonce(
     publicClient.getTransactionCount({
       address,
     }),
-    await publicClient.simulateContract(params),
+    await publicClient.simulateContract(params as SimulateContractParameters),
   ]);
   const counterRef = txLogRef.doc(`!counter_${address}`);
   const pendingNonce = await db.runTransaction(async (t) => {
@@ -39,22 +39,51 @@ export async function sendWriteContractWithNonce(
   });
 
   try {
-    const hash = await walletClient.writeContract({
-      ...params,
-      nonce: pendingNonce,
+    const {
+      address: toAddress,
+      abi,
+      functionName,
+      args,
+      account,
+      ...otherParams
+    } = params;
+    if (!account) {
+      throw new Error('Account is not provided');
+    }
+    const request = await walletClient.prepareTransactionRequest({
+      ...otherParams,
+      account: walletClient.account,
+      to: toAddress,
+      data: encodeFunctionData({
+        abi,
+        functionName,
+        args,
+      }),
     });
+    const serializedTransaction = await walletClient
+      .signTransaction({
+        ...request,
+        account: walletClient.account,
+      });
+    const hash = await walletClient.sendRawTransaction({ serializedTransaction });
     await db.runTransaction((t) => t.get(counterRef).then((d) => {
       if (pendingNonce + 1 > d.data().value) {
-        return t.update(counterRef, {
+        t.update(counterRef, {
           value: pendingNonce + 1,
         });
       }
-      return Promise.resolve();
     }));
     if (!hash) {
       throw new Error('Transaction hash is not returned');
     }
     res = await publicClient.waitForTransactionReceipt({ hash });
+    return {
+      result: res,
+      tx: serializedTransaction,
+      transactionHash: res.transactionHash,
+      address,
+      nonce: pendingNonce,
+    };
   } catch (err) {
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
       logType: 'eventCosmosError',
@@ -67,13 +96,6 @@ export async function sendWriteContractWithNonce(
     console.error(err);
     throw err;
   }
-  return {
-    result: res,
-    tx: signedTx,
-    transactionHash: res.transactionHash,
-    address,
-    nonce: pendingNonce,
-  };
 }
 
 export default sendWriteContractWithNonce;
