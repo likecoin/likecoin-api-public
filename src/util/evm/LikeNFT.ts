@@ -117,68 +117,39 @@ export const LIKE_NFT_ABI: Abi = [
       {
         indexed: false,
         internalType: 'address',
-        name: 'classId',
+        name: 'bookNFT',
         type: 'address',
       },
       {
         components: [
           {
-            internalType: 'address',
-            name: 'creator',
-            type: 'address',
+            internalType: 'string',
+            name: 'name',
+            type: 'string',
           },
           {
-            internalType: 'address[]',
-            name: 'updaters',
-            type: 'address[]',
+            internalType: 'string',
+            name: 'symbol',
+            type: 'string',
           },
           {
-            internalType: 'address[]',
-            name: 'minters',
-            type: 'address[]',
+            internalType: 'string',
+            name: 'metadata',
+            type: 'string',
           },
           {
-            components: [
-              {
-                internalType: 'string',
-                name: 'name',
-                type: 'string',
-              },
-              {
-                internalType: 'string',
-                name: 'symbol',
-                type: 'string',
-              },
-              {
-                internalType: 'string',
-                name: 'metadata',
-                type: 'string',
-              },
-              {
-                components: [
-                  {
-                    internalType: 'uint64',
-                    name: 'max_supply',
-                    type: 'uint64',
-                  },
-                ],
-                internalType: 'struct ClassConfig',
-                name: 'config',
-                type: 'tuple',
-              },
-            ],
-            internalType: 'struct ClassInput',
-            name: 'input',
-            type: 'tuple',
+            internalType: 'uint64',
+            name: 'max_supply',
+            type: 'uint64',
           },
         ],
         indexed: false,
-        internalType: 'struct MsgNewClass',
-        name: 'params',
+        internalType: 'struct BookConfig',
+        name: 'config',
         type: 'tuple',
       },
     ],
-    name: 'NewClass',
+    name: 'NewBookNFT',
     type: 'event',
   },
   {
@@ -273,7 +244,7 @@ export const LIKE_NFT_ABI: Abi = [
         type: 'address',
       },
     ],
-    name: 'isLikeNFTClass',
+    name: 'isBookNFT',
     outputs: [
       {
         internalType: 'bool',
@@ -395,29 +366,79 @@ export const LIKE_NFT_ABI: Abi = [
                 type: 'string',
               },
               {
-                components: [
-                  {
-                    internalType: 'uint64',
-                    name: 'max_supply',
-                    type: 'uint64',
-                  },
-                ],
-                internalType: 'struct ClassConfig',
-                name: 'config',
-                type: 'tuple',
+                internalType: 'uint64',
+                name: 'max_supply',
+                type: 'uint64',
               },
             ],
-            internalType: 'struct ClassInput',
-            name: 'input',
+            internalType: 'struct BookConfig',
+            name: 'config',
             type: 'tuple',
           },
         ],
-        internalType: 'struct MsgNewClass',
-        name: 'msgNewClass',
+        internalType: 'struct MsgNewBookNFT',
+        name: 'msgNewBookNFT',
         type: 'tuple',
       },
     ],
-    name: 'newClass',
+    name: 'newBookNFT',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: 'address',
+            name: 'creator',
+            type: 'address',
+          },
+          {
+            internalType: 'address[]',
+            name: 'updaters',
+            type: 'address[]',
+          },
+          {
+            internalType: 'address[]',
+            name: 'minters',
+            type: 'address[]',
+          },
+          {
+            components: [
+              {
+                internalType: 'string',
+                name: 'name',
+                type: 'string',
+              },
+              {
+                internalType: 'string',
+                name: 'symbol',
+                type: 'string',
+              },
+              {
+                internalType: 'string',
+                name: 'metadata',
+                type: 'string',
+              },
+              {
+                internalType: 'uint64',
+                name: 'max_supply',
+                type: 'uint64',
+              },
+            ],
+            internalType: 'struct BookConfig',
+            name: 'config',
+            type: 'tuple',
+          },
+        ],
+        internalType: 'struct MsgNewBookNFT[]',
+        name: 'msgNewBookNFTs',
+        type: 'tuple[]',
+      },
+    ],
+    name: 'newBookNFTs',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -478,6 +499,48 @@ export const LIKE_NFT_ABI: Abi = [
   {
     inputs: [
       {
+        components: [
+          {
+            internalType: 'address',
+            name: 'classId',
+            type: 'address',
+          },
+          {
+            internalType: 'address',
+            name: 'to',
+            type: 'address',
+          },
+          {
+            internalType: 'uint256',
+            name: 'fromTokenId',
+            type: 'uint256',
+          },
+          {
+            components: [
+              {
+                internalType: 'string',
+                name: 'metadata',
+                type: 'string',
+              },
+            ],
+            internalType: 'struct NFTData[]',
+            name: 'inputs',
+            type: 'tuple[]',
+          },
+        ],
+        internalType: 'struct MsgMintNFTsFromTokenId',
+        name: 'msgMintNFTsFromTokenId',
+        type: 'tuple',
+      },
+    ],
+    name: 'safeMintNFTsWithTokenId',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
         internalType: 'address',
         name: 'newOwner',
         type: 'address',
@@ -522,29 +585,22 @@ export const LIKE_NFT_ABI: Abi = [
                 type: 'string',
               },
               {
-                components: [
-                  {
-                    internalType: 'uint64',
-                    name: 'max_supply',
-                    type: 'uint64',
-                  },
-                ],
-                internalType: 'struct ClassConfig',
-                name: 'config',
-                type: 'tuple',
+                internalType: 'uint64',
+                name: 'max_supply',
+                type: 'uint64',
               },
             ],
-            internalType: 'struct ClassInput',
-            name: 'input',
+            internalType: 'struct BookConfig',
+            name: 'config',
             type: 'tuple',
           },
         ],
-        internalType: 'struct MsgUpdateClass',
-        name: 'msgUpdateClass',
+        internalType: 'struct MsgUpdateBookNFT',
+        name: 'msgUpdateBookNFT',
         type: 'tuple',
       },
     ],
-    name: 'updateClass',
+    name: 'updateBookNFT',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -612,25 +668,18 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
                 type: 'string',
               },
               {
-                components: [
-                  {
-                    internalType: 'uint64',
-                    name: 'max_supply',
-                    type: 'uint64',
-                  },
-                ],
-                internalType: 'struct ClassConfig',
-                name: 'config',
-                type: 'tuple',
+                internalType: 'uint64',
+                name: 'max_supply',
+                type: 'uint64',
               },
             ],
-            internalType: 'struct ClassInput',
-            name: 'input',
+            internalType: 'struct BookConfig',
+            name: 'config',
             type: 'tuple',
           },
         ],
-        internalType: 'struct MsgNewClass',
-        name: 'msgNewClass',
+        internalType: 'struct MsgNewBookNFT',
+        name: 'msgNewBookNFT',
         type: 'tuple',
       },
     ],
@@ -785,6 +834,17 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
   {
     inputs: [],
     name: 'ErrNftNoSupply',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'nextTokenId',
+        type: 'uint256',
+      },
+    ],
+    name: 'ErrTokenIdMintFails',
     type: 'error',
   },
   {
@@ -1097,6 +1157,34 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
     type: 'function',
   },
   {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'from',
+        type: 'address',
+      },
+      {
+        internalType: 'address[]',
+        name: 'tos',
+        type: 'address[]',
+      },
+      {
+        internalType: 'uint256[]',
+        name: 'tokenIds',
+        type: 'uint256[]',
+      },
+      {
+        internalType: 'string[]',
+        name: 'memos',
+        type: 'string[]',
+      },
+    ],
+    name: 'batchTransferWithMemo',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
     inputs: [],
     name: 'contractURI',
     outputs: [
@@ -1123,6 +1211,54 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
         internalType: 'address',
         name: '',
         type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getBookConfig',
+    outputs: [
+      {
+        components: [
+          {
+            internalType: 'string',
+            name: 'name',
+            type: 'string',
+          },
+          {
+            internalType: 'string',
+            name: 'symbol',
+            type: 'string',
+          },
+          {
+            internalType: 'string',
+            name: 'metadata',
+            type: 'string',
+          },
+          {
+            internalType: 'uint64',
+            name: 'max_supply',
+            type: 'uint64',
+          },
+        ],
+        internalType: 'struct BookConfig',
+        name: '',
+        type: 'tuple',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getCurrentIndex',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -1315,6 +1451,29 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
     ],
     name: 'revokeRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'fromTokenId',
+        type: 'uint256',
+      },
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address',
+      },
+      {
+        internalType: 'string[]',
+        name: 'metadataList',
+        type: 'string[]',
+      },
+    ],
+    name: 'safeMintWithTokenId',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -1579,20 +1738,13 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
             type: 'string',
           },
           {
-            components: [
-              {
-                internalType: 'uint64',
-                name: 'max_supply',
-                type: 'uint64',
-              },
-            ],
-            internalType: 'struct ClassConfig',
-            name: 'config',
-            type: 'tuple',
+            internalType: 'uint64',
+            name: 'max_supply',
+            type: 'uint64',
           },
         ],
-        internalType: 'struct ClassInput',
-        name: 'classInput',
+        internalType: 'struct BookConfig',
+        name: 'config',
         type: 'tuple',
       },
     ],
