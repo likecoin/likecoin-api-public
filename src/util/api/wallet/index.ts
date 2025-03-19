@@ -102,6 +102,24 @@ async function migrateLikerId(likeWallet:string, evmWallet: string) {
   }
 }
 
+export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: string) {
+  const [
+    { error: migrateLikerIdError, likerId },
+    { error: migrateLikerLandError, user: likerLandUser },
+  ] = await Promise.all([
+    migrateLikerId(likeWallet, evmWallet),
+    migrateLikerLandEVMWallet(likeWallet, evmWallet),
+  ]);
+  return {
+    isMigratedLikerId: !migrateLikerIdError,
+    isMigratedLikerLand: !migrateLikerLandError,
+    migratedLikerId: likerId,
+    migratedLikerLandUser: likerLandUser,
+    migrateLikerIdError,
+    migrateLikerLandError,
+  };
+}
+
 export async function migrateLikeWalletToEVMWallet(likeWallet: string, evmWallet: string) {
   const [
     { error: migrateBookUserError },
