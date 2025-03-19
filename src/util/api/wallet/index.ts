@@ -1,5 +1,10 @@
 import {
-  db, FieldValue, likeNFTBookCollection, likeNFTBookUserCollection, userCollection,
+  db,
+  FieldValue,
+  likeNFTBookCollection,
+  likeNFTBookUserCollection,
+  likeNFTCollectionCollection,
+  userCollection,
 } from '../../firebase';
 import { migrateLikerLandEvmWallet } from '../../liker-land';
 
@@ -90,6 +95,53 @@ async function migrateLikerId(likeWallet:string, evmWallet: string) {
       return userDoc.id;
     });
     return { likerId, error: null };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    return { error: (error as Error).message };
+  }
+}
+
+export async function migrateBookClassId(likeClassId:string, evmClassId: string) {
+  try {
+    // TODO: verify evmClassId contains information about likeClassId
+    const res = await db.runTransaction(async (t) => {
+      const migratedClassIds: string[] = [];
+      const migratedCollectionIds: string[] = [];
+      const [bookListingDoc, collectionQuery] = await Promise.all([
+        t.get(likeNFTBookCollection.doc(likeClassId).get()),
+        t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
+      ]);
+      if (bookListingDoc.exists) {
+        const { evmClassId: existingEvmClassId } = bookListingDoc.data();
+        if (!existingEvmClassId) {
+          t.update(bookListingDoc.ref, { evmClassId });
+          migratedClassIds.push(likeClassId);
+        }
+      }
+      collectionQuery.docs.forEach((doc) => {
+        const { classIds } = doc.data();
+        const index = classIds.indexOf(likeClassId);
+        if (index >= 0) {
+          classIds[index] = evmClassId;
+          t.update(doc.ref, { classIds });
+          migratedCollectionIds.push(doc.id);
+        }
+      });
+      return {
+        migratedClassIds,
+        migratedCollectionIds,
+      };
+    });
+    const {
+      migratedClassIds,
+      migratedCollectionIds,
+    } = res;
+    return {
+      error: null,
+      migratedClassIds,
+      migratedCollectionIds,
+    };
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
