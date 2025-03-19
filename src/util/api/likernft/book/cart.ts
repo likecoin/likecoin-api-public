@@ -436,6 +436,7 @@ export async function processNFTBookCartStripePurchase(
         giftInfo,
         feeInfo,
         hasShipping,
+        from: itemFrom,
       } = txData;
       const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
       const isOutOfStock = stock <= 0;
@@ -477,7 +478,7 @@ export async function processNFTBookCartStripePurchase(
           channelCommission,
           likerLandArtFee,
         },
-        { connectedWallets, from },
+        { connectedWallets, from: itemFrom },
       );
 
       const notifications: Promise<any>[] = [
@@ -918,7 +919,7 @@ export async function formatCartItemInfosFromSession(session) {
   if (fromListString) {
     const fromList = fromListString.split(',');
     fromList.forEach((f: string, index) => {
-      items[index].from = f || items[index].from;
+      items[index].from = f || items[index].from || from;
     });
   }
   const itemInfos = await formatCartItemsWithInfo(items);
