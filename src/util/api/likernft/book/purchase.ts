@@ -621,9 +621,9 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
         ), 0)
         : 0;
       const likerLandCommission = (isFromLikerLand && !isFree)
-        ? Math.ceil(
+        ? Math.max(Math.ceil(
           originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
-        )
+        ), 0)
         : 0;
       const likerLandArtFee = (item.isLikerLandArt && !isFree)
         ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
