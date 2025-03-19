@@ -3,7 +3,10 @@ import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/user
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 import {
-  findLikeWalletByEvmWallet, migrateLikeUserToEvmUser, migrateLikeWalletToEvmWallet,
+  findLikeWalletByEvmWallet,
+  migrateBookClassId,
+  migrateLikeUserToEvmUser,
+  migrateLikeWalletToEvmWallet,
 } from '../../util/api/wallet';
 
 const router = Router();
@@ -48,6 +51,28 @@ router.post('/authorize', async (req, res, next) => {
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
     res.json({ jwtid, token });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/evm/migrate/book', async (req, res, next) => {
+  try {
+    const {
+      like_class_id: likeClassId,
+      evm_class_id: evmClassId,
+    } = req.body;
+    if (!likeClassId || !evmClassId) throw new ValidationError('INVALID_PAYLOAD');
+    const {
+      error,
+      migratedClassIds,
+      migratedCollectionIds,
+    } = await migrateBookClassId(likeClassId, evmClassId);
+    res.json({
+      migratedClassIds,
+      migratedCollectionIds,
+      error,
+    });
   } catch (err) {
     next(err);
   }
