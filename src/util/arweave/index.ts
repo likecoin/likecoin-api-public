@@ -14,10 +14,7 @@ import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
-const IPFS_KEY = 'IPFS-Add';
-
-const IPFS_CONSTRAINT_KEY = 'standard';
-const IPFS_CONSTRAINT = 'v0.1';
+const IPFS_KEY = 'IPFS-CID';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const jwk = require('../../../config/arweave-key.json');
@@ -30,21 +27,21 @@ const arweaveGraphQL = Arweave.init({
 });
 
 // eslint-disable-next-line no-underscore-dangle
-let _bundlr;
-
-async function getBundlr() {
-  if (!_bundlr) {
-    // eslint-disable-next-line global-require
-    if (!global.crypto) global.crypto = require('crypto'); // hack for bundlr
-    const { NodeBundlr } = await (import('@bundlr-network/client'));
-    _bundlr = new NodeBundlr(
-      IS_TESTNET ? 'https://node2.irys.xyz' : 'https://node1.irys.xyz',
-      'arweave',
-      jwk,
-    );
+let _irys;
+const getBundlr = async () => {
+  if (!_irys) {
+    const { NodeIrys } = await (import('@irys/sdk'));
+    _irys = new NodeIrys({
+      network: IS_TESTNET ? 'devnet' : 'mainnet',
+      token: 'arweave',
+      config: {
+        providerUrl: IS_TESTNET ? 'https://arweave.dev' : 'https://arweave.net',
+      },
+      key: jwk,
+    });
   }
-  return _bundlr;
-}
+  return _irys;
+};
 
 export async function getArweaveIdFromHashes(ipfsHash) {
   const cachedInfo = arweaveIdCache.get(ipfsHash);
@@ -56,7 +53,6 @@ export async function getArweaveIdFromHashes(ipfsHash) {
       transactions(
         tags: [
           { name: "${IPFS_KEY}", values: ["${ipfsHash}"] },
-          { name: "${IPFS_CONSTRAINT_KEY}", values: ["${IPFS_CONSTRAINT}"] }
         ]
       ) {
         edges {
@@ -279,7 +275,6 @@ export async function submitToArweave(data, ipfsHash) {
     { name: 'App-Version', value: '1.0' },
     { name: 'User-Agent', value: 'app.like.co' },
     { name: IPFS_KEY, value: ipfsHash },
-    { name: IPFS_CONSTRAINT_KEY, value: IPFS_CONSTRAINT },
     { name: 'Content-Type', value: mimetype },
   ];
 
