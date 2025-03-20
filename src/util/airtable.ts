@@ -564,6 +564,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   referrer,
   gaClientId,
   gaSessionId,
+  coupon,
 }: {
   classId?: string,
   collectionId?: string,
@@ -579,6 +580,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   referrer,
   gaClientId,
   gaSessionId,
+  coupon?: string,
 }): Promise<void> {
   try {
     const date = new Date();
@@ -622,6 +624,9 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     const publicationRecord = await queryAirtablePublicationRecordById(productId);
     if (publicationRecord) {
       fields.Product = [publicationRecord.id];
+    }
+    if (coupon) {
+      fields.Coupon = coupon;
     }
     await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
   } catch (err) {

@@ -540,6 +540,7 @@ export async function processNFTBookCartStripePurchase(
             referrer,
             gaClientId,
             gaSessionId,
+            coupon,
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
