@@ -604,9 +604,7 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
       const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
       const { priceInDecimal, originalPriceInDecimal } = item;
       const priceDiscountInDecimal = Math.max(
-        originalPriceInDecimal
-        + customPriceDiffInDecimal
-        - priceInDecimal,
+        originalPriceInDecimal - priceInDecimal,
         0,
       );
       const likerLandFeeAmount = Math.ceil(
