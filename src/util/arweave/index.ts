@@ -7,7 +7,7 @@ import {
   getFolderIPFSHash,
   uploadFileToIPFS,
 } from '../ipfs';
-import { getMaticBundlr } from './signer';
+import { getEthereumBundlr, getMaticBundlr } from './signer';
 import { IS_TESTNET } from '../../constant';
 import { getMaticPriceInLIKE, getArweavePriceInLIKE } from '../api/likernft/likePrice';
 import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
@@ -125,23 +125,27 @@ async function generateManifestFile(files, { stub = false } = {}) {
   };
 }
 
-export async function estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicate = true } = {}) {
+export async function estimateARV2Price(fileSize, ipfsHash, { checkDuplicate = true } = {}) {
   if (ipfsHash && checkDuplicate) {
     const id = await getArweaveIdFromHashes(ipfsHash);
     if (id) {
       return {
         arweaveId: id,
         MATIC: '0',
-        wei: '0',
+        ETH: '0',
       };
     }
   }
-  const maticBundlr = await getMaticBundlr();
-  const priceAtomic = await maticBundlr.getPrice(fileSize);
-  const priceConverted = maticBundlr.utils.fromAtomic(priceAtomic);
+  const [maticBundlr, ethereumBundlr] = await Promise.all([getMaticBundlr(), getEthereumBundlr()]);
+  const [maticPriceAtomic, ethereumPriceAtomic]: BigNumber[] = await Promise.all([
+    maticBundlr.getPrice(fileSize),
+    ethereumBundlr.getPrice(fileSize),
+  ]);
+  const maticPriceConverted: BigNumber = maticBundlr.utils.fromAtomic(maticPriceAtomic);
+  const ethereumPriceConverted: BigNumber = ethereumBundlr.utils.fromAtomic(ethereumPriceAtomic);
   return {
-    MATIC: priceConverted.toFixed(),
-    wei: priceAtomic.toFixed(),
+    MATIC: maticPriceConverted.toFixed(),
+    ETH: ethereumPriceConverted.toFixed(),
   };
 }
 
