@@ -137,7 +137,6 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
   const paymentPayload: any = {
     isPaid: true,
     isPendingClaim: true,
-    hasShipping,
     status: 'paid',
     email,
   };
@@ -170,6 +169,7 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
   }
   if (phone) paymentPayload.phone = phone;
   if (hasShipping) {
+    paymentPayload.hasShipping = true;
     paymentPayload.shippingStatus = 'pending';
     if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
     if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;

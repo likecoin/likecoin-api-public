@@ -4,20 +4,21 @@ import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
 import { IS_TESTNET } from '../../constant';
 
 // eslint-disable-next-line no-underscore-dangle
-let _maticBundlr;
+let _maticIrys;
 
 export async function getMaticBundlr() {
-  if (!_maticBundlr) {
-    // eslint-disable-next-line global-require
-    if (!global.crypto) global.crypto = require('crypto'); // hack for bundlr
-    const { NodeBundlr } = await (import('@bundlr-network/client'));
-    _maticBundlr = new NodeBundlr(
-      IS_TESTNET ? 'http://node2.bundlr.network' : 'http://node1.bundlr.network',
-      'matic',
-      BUNDLR_MATIC_WALLET_PRIVATE_KEY,
-    );
+  if (!_maticIrys) {
+    const { NodeIrys } = await (import('@irys/sdk'));
+    _maticIrys = new NodeIrys({
+      network: IS_TESTNET ? 'devnet' : 'mainnet',
+      token: 'matic',
+      key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
+      config: {
+        providerUrl: IS_TESTNET ? 'https://rpc-amoy.polygon.technology' : 'https://polygon-rpc.com/',
+      },
+    });
   }
-  return _maticBundlr;
+  return _maticIrys;
 }
 
 let signer: TypedEthereumSigner | null = null;

@@ -36,10 +36,10 @@
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "dependencies": {
-    "@bundlr-network/client": "^0.11.2",
     "@cosmjs/stargate": "^0.30.1",
     "@google-cloud/pubsub": "^3.1.1",
     "@google-cloud/retail": "^3.6.0",
+    "@irys/sdk": "^0.2.11",
     "@likecoin/edm": "^8.3.0-beta.0",
     "@likecoin/iscn-js": "^0.6.9",
     "@likecoin/secretd-js": "^0.4.4",

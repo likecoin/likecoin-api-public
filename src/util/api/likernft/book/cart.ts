@@ -515,7 +515,7 @@ export async function processNFTBookCartStripePurchase(
             stripeFeeAmount,
             stripeFeeCurrency: 'USD',
             shippingCostAmount: hasShipping ? shippingCostAmount : 0,
-            shippingCountry: hasShipping ? shippingDetails?.address?.country : '',
+            shippingCountry: hasShipping ? shippingDetails?.address?.country : null,
             from,
             quantity,
             feeInfo,

@@ -983,7 +983,7 @@ export function sendNFTBookSalesEmail({
   originalPrice,
   phone,
   shippingDetails,
-  shippingCostAmount,
+  shippingCostAmount = 0,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `You have sold a Book for $${amount}`;
