@@ -903,18 +903,19 @@ export async function formatCartItemInfosFromSession(session) {
     if (!classId && !collectionId) {
       throw new ValidationError('ITEM_ID_NOT_SET');
     }
+    const quantity = lineItem.quantity || 1;
     if (tippingFor) {
       // assume tipping always follow the parent item
-      const { priceInDecimal = 0} = items[items.length - 1];
+      const { priceInDecimal = 0 } = items[items.length - 1];
       items[items.length - 1].customPriceInDecimal = priceInDecimal
-        + Math.round(lineItem.amount_total / conversionRate);
+        + Math.round(lineItem.amount_total / conversionRate / quantity);
     } else {
       items.push({
         classId,
         collectionId,
         priceIndex: parseInt(priceIndex, 10),
-        priceInDecimal: Math.round(lineItem.amount_total / conversionRate),
-        quantity: lineItem.quantity || 1,
+        priceInDecimal: Math.round(lineItem.amount_total / conversionRate / quantity),
+        quantity,
       });
     }
   }
