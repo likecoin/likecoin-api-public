@@ -309,7 +309,7 @@ export async function processNFTBookCartStripePurchase(
   } = session;
   const {
     metadata: {
-      cartId,
+      cartId = uuidv4(),
       userAgent,
       clientIp,
       referrer,
@@ -435,6 +435,7 @@ export async function processNFTBookCartStripePurchase(
         giftInfo,
         feeInfo,
         hasShipping,
+        from: itemFrom,
       } = txData;
       const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
       const isOutOfStock = stock <= 0;
@@ -476,7 +477,7 @@ export async function processNFTBookCartStripePurchase(
           channelCommission,
           likerLandArtFee,
         },
-        { connectedWallets, from },
+        { connectedWallets, from: itemFrom },
       );
 
       const notifications: Promise<any>[] = [
@@ -538,6 +539,7 @@ export async function processNFTBookCartStripePurchase(
             referrer,
             gaClientId,
             gaSessionId,
+            coupon,
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
@@ -681,6 +683,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceIndex: inputPriceIndex,
       collectionId,
       customPriceInDecimal,
+      priceInDecimal: inputPriceInDecimal,
       quantity = 1,
       from: itemFrom,
     } = item;
@@ -826,7 +829,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       description = undefined;
     } // stripe does not like empty string
 
-    let priceInDecimal = originalPriceInDecimal;
+    let priceInDecimal = inputPriceInDecimal ?? originalPriceInDecimal;
     let customPriceDiffInDecimal = 0;
     if (isAllowCustomPrice
         && customPriceInDecimal
@@ -874,7 +877,7 @@ export async function formatCartItemInfosFromSession(session) {
   } = session;
   const conversionRate = Number(currencyConversion?.fx_rate || 1);
 
-  const items: (CartItem & any)[] = [];
+  const items: CartItem[] = [];
   const lineItems: Stripe.LineItem[] = [];
   const stripeFeeAmount = await getStripeFeeFromCheckoutSession(session);
   for await (const lineItem of stripe.checkout.sessions.listLineItems(
@@ -899,7 +902,7 @@ export async function formatCartItemInfosFromSession(session) {
     }
     if (tippingFor) {
       // assume tipping always follow the parent item
-      const { priceInDecimal } = items[items.length - 1];
+      const { priceInDecimal = 0} = items[items.length - 1];
       items[items.length - 1].customPriceInDecimal = priceInDecimal
         + Math.round(lineItem.amount_total / conversionRate);
     } else {
@@ -915,7 +918,7 @@ export async function formatCartItemInfosFromSession(session) {
   if (fromListString) {
     const fromList = fromListString.split(',');
     fromList.forEach((f: string, index) => {
-      items[index].from = f || items[index].from;
+      items[index].from = f || items[index].from || from;
     });
   }
   const itemInfos = await formatCartItemsWithInfo(items);

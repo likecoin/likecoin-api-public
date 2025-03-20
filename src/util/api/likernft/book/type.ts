@@ -3,6 +3,7 @@ export type CartItem = {
   classId?: string
   priceIndex?: number
   customPriceInDecimal?: number
+  priceInDecimal?: number
   quantity?: number
   from?: string
 }
