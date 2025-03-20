@@ -4,7 +4,7 @@ import { ISCNSigningClient } from '@likecoin/iscn-js';
 import {
   estimateARPrices,
   convertARPricesToLIKE,
-  estimateARV2MaticPrice,
+  estimateARV2Price,
   convertMATICPriceToLIKE,
   uploadFilesToArweave,
 } from '../../arweave';
@@ -59,12 +59,12 @@ export async function estimateUploadToArweaveV2(
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
   const {
-    MATIC, wei, arweaveId,
-  } = await estimateARV2MaticPrice(fileSize, ipfsHash, { checkDuplicate });
+    MATIC, ETH, arweaveId,
+  } = await estimateARV2Price(fileSize, ipfsHash, { checkDuplicate });
   const { LIKE } = await convertMATICPriceToLIKE(MATIC, { margin });
   if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
   return {
-    LIKE, MATIC, wei, arweaveId, isExists: !!arweaveId,
+    LIKE, MATIC, ETH, arweaveId, isExists: !!arweaveId,
   };
 }
 
@@ -236,8 +236,8 @@ export async function processTxUploadToArweaveV2({
   );
   const {
     LIKE,
+    ETH,
     MATIC,
-    wei,
     arweaveId,
     isExists,
   } = estimate;
@@ -253,7 +253,7 @@ export async function processTxUploadToArweaveV2({
     ipfsHash,
     arweaveId,
     MATIC,
-    wei,
+    ETH,
     LIKE,
     signature,
   };
