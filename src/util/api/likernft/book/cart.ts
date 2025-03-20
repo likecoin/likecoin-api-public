@@ -310,7 +310,7 @@ export async function processNFTBookCartStripePurchase(
   } = session;
   const {
     metadata: {
-      cartId,
+      cartId = uuidv4(),
       userAgent,
       clientIp,
       referrer,
