@@ -607,7 +607,7 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
         originalPriceInDecimal - priceInDecimal,
         0,
       );
-      const likerLandFeeAmount = Math.ceil(
+      const likerLandFeeAmount = isFree ? 0 : Math.ceil(
         originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
       const likerLandTipFeeAmount = Math.ceil(
