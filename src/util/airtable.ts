@@ -345,8 +345,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const customPriceDiff = (Number(customPriceDiffRaw) / 100) || 0;
 
-  const likerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100
-    || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
+  const likerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100 || 0;
 
   let likerLandFee = 0;
   if (hasTransferGroup) {
