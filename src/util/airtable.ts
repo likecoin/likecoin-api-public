@@ -305,7 +305,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
       }
       stripeFee = stripeFeeAmount / 100;
 
-      balanceTxAmount = (feeInfo.priceInDecimal || balanceTx.amount) / 100;
+      balanceTxAmount = (feeInfo.priceInDecimal ?? balanceTx.amount) / 100;
       balanceTxNetAmount = balanceTxAmount - stripeFee;
 
       feeTotal = balanceTx.fee / 100;
