@@ -306,6 +306,7 @@ export async function processNFTBookCartStripePurchase(
 ) {
   const {
     amount_total: amountTotal,
+    subscription: subscriptionId,
   } = session;
   const {
     metadata: {
@@ -333,6 +334,7 @@ export async function processNFTBookCartStripePurchase(
     shipping_details: shippingDetails,
     id: sessionId,
   } = session;
+  if (subscriptionId) return;
   const paymentId = cartId;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
 
@@ -360,6 +362,8 @@ export async function processNFTBookCartStripePurchase(
     coupon,
   // eslint-disable-next-line no-use-before-define
   } = await formatCartItemInfosFromSession(session);
+
+  if (!itemInfos?.length) return;
 
   await createNewNFTBookCartPayment(cartId, paymentId, {
     type: 'stripe',
