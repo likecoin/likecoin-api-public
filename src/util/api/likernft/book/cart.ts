@@ -966,7 +966,7 @@ export async function formatCartItemInfosFromSession(session) {
   };
 }
 
-export async function handleNewCartStripeCheckout(items: CartItem[], {
+export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   gaClientId,
   gaSessionId,
   gadClickId,
@@ -1012,6 +1012,15 @@ export async function handleNewCartStripeCheckout(items: CartItem[], {
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
 } = {}) {
+  const items: CartItem[] = inputItems.map((item) => ({
+    collectionId: item.collectionId,
+    classId: item.classId,
+    priceIndex: item.priceIndex,
+    customPriceInDecimal: item.customPriceInDecimal,
+    quantity: item.quantity,
+    from: item.from,
+    priceInDecimal: item.customPriceInDecimal,
+  }));
   const itemInfos = await formatCartItemsWithInfo(items);
   const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
   if (itemsWithShipping.length > 1) {
