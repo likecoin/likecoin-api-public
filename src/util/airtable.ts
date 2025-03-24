@@ -9,6 +9,7 @@ import {
 
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 import { parseImageURLFromMetadata } from './api/likernft/metadata';
+import { TransactionFeeInfo } from './api/likernft/book/purchase';
 
 const BOOK_SALES_TABLE_NAME = 'Sales (Book)';
 const PUBLICATIONS_TABLE_NAME = 'Publications';
@@ -242,7 +243,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     classId?: string,
     collectionId?: string,
     priceIndex?: number,
-    feeInfo: any,
+    feeInfo: TransactionFeeInfo,
     pi: Stripe.PaymentIntent,
     transfers: Stripe.Transfer[],
     from?: string,
@@ -262,7 +263,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     likerLandArtFee: likerLandArtFeeRaw = 0,
     likerLandFeeAmount: calculatedLikerLandFeeRaw = 0,
     likerLandTipFeeAmount: likerLandTipFeeRaw = 0,
-    customPriceDiff: customPriceDiffRaw = 0,
+    customPriceDiffInDecimal: customPriceDiffRaw = 0,
     channelCommission: channelCommissionRaw = 0,
     likerLandCommission: likerLandCommissionRaw = 0,
   } = feeInfo;
@@ -304,7 +305,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
       }
       stripeFee = stripeFeeAmount / 100;
 
-      balanceTxAmount = (feeInfo.priceInDecimal || balanceTx.amount) / 100;
+      balanceTxAmount = (feeInfo.priceInDecimal ?? balanceTx.amount) / 100;
       balanceTxNetAmount = balanceTxAmount - stripeFee;
 
       feeTotal = balanceTx.fee / 100;
@@ -344,8 +345,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
 
   const customPriceDiff = (Number(customPriceDiffRaw) / 100) || 0;
 
-  const likerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100
-    || balanceTxAmount * NFT_BOOK_LIKER_LAND_FEE_RATIO;
+  const likerLandFeeAmount = Number(calculatedLikerLandFeeRaw) / 100 || 0;
 
   let likerLandFee = 0;
   if (hasTransferGroup) {
@@ -466,7 +466,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   itemIndex?: number,
   transfers: Stripe.Transfer[],
   quantity?: number,
-  feeInfo: any,
+  feeInfo: TransactionFeeInfo,
   shippingCountry?: string | null,
   shippingCostAmount?: number,
   stripeFeeAmount: number,
@@ -563,6 +563,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   referrer,
   gaClientId,
   gaSessionId,
+  coupon,
 }: {
   classId?: string,
   collectionId?: string,
@@ -578,6 +579,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   referrer,
   gaClientId,
   gaSessionId,
+  coupon?: string,
 }): Promise<void> {
   try {
     const date = new Date();
@@ -621,6 +623,9 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     const publicationRecord = await queryAirtablePublicationRecordById(productId);
     if (publicationRecord) {
       fields.Product = [publicationRecord.id];
+    }
+    if (coupon) {
+      fields.Coupon = coupon;
     }
     await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
   } catch (err) {

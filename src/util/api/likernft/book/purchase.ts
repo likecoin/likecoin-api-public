@@ -17,7 +17,7 @@ import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction 
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe, { getStripePromotionFromCode, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
+import stripe, { getStripePromotionFromCode } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -74,7 +74,7 @@ export type TransactionFeeInfo = {
   likerLandCommission: number
   channelCommission: number
   likerLandArtFee: number
-  customPriceDiff: number
+  customPriceDiffInDecimal: number
 }
 
 export async function handleStripeConnectedAccount({
@@ -595,27 +595,35 @@ export async function processNFTBookPurchase({
   return data;
 }
 
-function calculateItemPrices(items: CartItemWithInfo[], from) {
+export function calculateItemPrices(items: CartItemWithInfo[], from) {
   const itemPrices: ItemPriceInfo[] = items.map(
     (item) => {
       const isFromLikerLand = checkIsFromLikerLand(item.from || from);
+      const isFree = !item.priceInDecimal && !item.customPriceDiffInDecimal;
       const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
       const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
-      const { priceInDecimal } = item;
-      const originalPriceInDecimal = priceInDecimal - customPriceDiffInDecimal;
-      const likerLandFeeAmount = Math.ceil(
+      const { priceInDecimal, originalPriceInDecimal } = item;
+      const priceDiscountInDecimal = Math.max(
+        originalPriceInDecimal - priceInDecimal,
+        0,
+      );
+      const likerLandFeeAmount = isFree ? 0 : Math.ceil(
         originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
       const likerLandTipFeeAmount = Math.ceil(
         customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
       );
-      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand)
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand && !isFree)
+        ? Math.max(Math.ceil(
+          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
+        ), 0)
         : 0;
-      const likerLandCommission = isFromLikerLand
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
+      const likerLandCommission = (isFromLikerLand && !isFree)
+        ? Math.max(Math.ceil(
+          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
+        ), 0)
         : 0;
-      const likerLandArtFee = item.isLikerLandArt
+      const likerLandArtFee = (item.isLikerLandArt && !isFree)
         ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
         : 0;
 
@@ -633,7 +641,6 @@ function calculateItemPrices(items: CartItemWithInfo[], from) {
       };
       if (item.classId) payload.classId = item.classId;
       if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.iscnPrefix) payload.iscnPrefix = item.iscnPrefix;
       if (item.collectionId) payload.collectionId = item.collectionId;
       if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
       return payload;
@@ -654,6 +661,7 @@ export async function formatStripeCheckoutSession({
   customerId,
   from,
   coupon,
+  claimToken,
   gaClientId,
   gaSessionId,
   gadClickId,
@@ -677,6 +685,7 @@ export async function formatStripeCheckoutSession({
   customerId?: string,
   from?: string,
   coupon?: string,
+  claimToken: string,
   gaClientId?: string,
   gaSessionId?: string,
   gadClickId?: string,
@@ -706,7 +715,7 @@ export async function formatStripeCheckoutSession({
   cancelUrl: string,
   paymentMethods?: string[],
 }) {
-  let sessionMetadata: Stripe.MetadataParam = {
+  const sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
     paymentId,
   };
@@ -715,10 +724,19 @@ export async function formatStripeCheckoutSession({
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
   if (collectionId) sessionMetadata.collectionId = collectionId;
+  if (claimToken) sessionMetadata.claimToken = claimToken;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
+  if (gadClickId) sessionMetadata.gadClickId = gadClickId;
+  if (gadSource) sessionMetadata.gadSource = gadSource;
   if (from) sessionMetadata.from = from;
-  if (giftInfo) sessionMetadata.giftInfo = giftInfo.toEmail;
+  if (giftInfo) {
+    sessionMetadata.giftInfo = giftInfo.toEmail;
+    sessionMetadata.giftToEmail = giftInfo.toEmail;
+    sessionMetadata.giftFromName = giftInfo.fromName;
+    sessionMetadata.giftToName = giftInfo.toName;
+    if (giftInfo.message) sessionMetadata.giftMessage = giftInfo.message;
+  }
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
@@ -728,6 +746,9 @@ export async function formatStripeCheckoutSession({
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
+  if (items.length) {
+    sessionMetadata.fromList = items.map((item) => item.from).join(',');
+  }
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'automatic',
@@ -774,20 +795,6 @@ export async function formatStripeCheckoutSession({
     0,
   );
   paymentIntentData.transfer_group = paymentId;
-  sessionMetadata = {
-    ...sessionMetadata,
-    stripeFeeAmount,
-    likerLandTipFeeAmount,
-    likerLandFeeAmount,
-    likerLandCommission,
-    channelCommission,
-    likerLandArtFee,
-  };
-
-  if (totalCustomPriceDiffInDecimal) {
-    sessionMetadata.customPriceDiff = totalCustomPriceDiffInDecimal;
-  }
-
   paymentIntentData.metadata = sessionMetadata;
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
@@ -922,7 +929,7 @@ export async function formatStripeCheckoutSession({
       likerLandCommission,
       channelCommission,
       likerLandArtFee,
-      customPriceDiff: totalCustomPriceDiffInDecimal,
+      customPriceDiffInDecimal: totalCustomPriceDiffInDecimal,
     },
   };
 }
@@ -998,104 +1005,6 @@ export async function sendNFTBookPurchaseEmail({
     amount: amountTotal,
     quantity,
   });
-}
-
-export const DISCOUNTED_FEE_TYPES = [
-  'priceInDecimal',
-  'likerLandTipFeeAmount',
-  'customPriceDiff',
-];
-
-export function calculateCommissionWithDiscount({
-  paymentId,
-  commission,
-  originalPriceInDecimal,
-  discountRate,
-}) {
-  const originalRate = commission / originalPriceInDecimal;
-  const discountedRate = originalRate - (1 - discountRate);
-  if (discountedRate < 0) {
-    // eslint-disable-next-line no-console
-    console.error(`Negative commission rate ${discountedRate} for paymentId: ${paymentId}`);
-    return 0;
-  }
-  return Math.floor(originalPriceInDecimal * discountedRate);
-}
-
-export function calculateFeeAndDiscountFromBalanceTx({
-  paymentId,
-  amountSubtotal,
-  amountTotal,
-  shippingCostAmount,
-  balanceTx,
-  feeInfo,
-}) {
-  const {
-    stripeFeeAmount: docStripeFeeAmount,
-    channelCommission,
-    likerLandCommission,
-    priceInDecimal,
-    originalPriceInDecimal,
-  } = feeInfo as TransactionFeeInfo;
-  let newFeeInfo = { ...feeInfo };
-  let stripeFeeAmount = docStripeFeeAmount;
-  let stripeFeeCurrency = 'USD';
-  if (balanceTx) {
-    const stripeFeeDetails = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-    stripeFeeCurrency = stripeFeeDetails?.currency || 'USD';
-    stripeFeeAmount = stripeFeeDetails?.amount || docStripeFeeAmount || 0;
-  } else {
-    stripeFeeAmount = 0;
-  }
-  const isStripeFeeUpdated = stripeFeeAmount !== docStripeFeeAmount;
-  if (isStripeFeeUpdated) {
-    newFeeInfo = {
-      ...newFeeInfo,
-      stripeFeeAmount,
-    };
-  }
-  const productAmountTotal = amountTotal - (shippingCostAmount * 100);
-  const isAmountFeeUpdated = priceInDecimal !== productAmountTotal
-    && productAmountTotal !== amountSubtotal;
-  const discountRate = isAmountFeeUpdated ? (productAmountTotal / amountSubtotal) : 1;
-  const totalDiscountAmount = amountSubtotal - productAmountTotal;
-  const originalPriceDiscountAmount = Math.ceil(discountRate * originalPriceInDecimal);
-  if (isAmountFeeUpdated) {
-    DISCOUNTED_FEE_TYPES.forEach((key) => {
-      if (typeof newFeeInfo[key] === 'number') {
-        newFeeInfo[key] = Math.round(newFeeInfo[key] * discountRate);
-      }
-    });
-    if (channelCommission) {
-      newFeeInfo.channelCommission = calculateCommissionWithDiscount({
-        paymentId,
-        commission: channelCommission,
-        originalPriceInDecimal,
-        discountRate,
-      });
-    } else if (likerLandCommission) {
-      newFeeInfo.likerLandCommission = calculateCommissionWithDiscount({
-        paymentId,
-        commission: likerLandCommission,
-        originalPriceInDecimal,
-        discountRate,
-      });
-    } else {
-      // eslint-disable-next-line no-console
-      console.error(`Discount amount ${totalDiscountAmount} but no commission found for paymentId: ${paymentId}`);
-    }
-  }
-  return {
-    newFeeInfo,
-    stripeFeeCurrency,
-    totalDiscountAmount,
-    originalPriceDiscountAmount,
-    discountRate,
-    isStripeFeeUpdated,
-    isAmountFeeUpdated,
-    priceInDecimal: newFeeInfo.priceInDecimal,
-    originalPriceInDecimal,
-  };
 }
 
 export async function sendNFTBookClaimedEmailNotification(

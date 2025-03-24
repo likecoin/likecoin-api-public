@@ -55,20 +55,19 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       return;
     }
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
           metadata: {
-            store, collectionId, classId, cartId, likeWallet,
+            store, likeWallet,
           } = {} as any,
         } = session;
-        if (store === 'book') {
-          if (cartId) {
-            await processNFTBookCartStripePurchase(session, req);
-          }
-          if (likeWallet) await handleNFTBookStripeSessionCustomer(session, req);
-        } else {
+        if (store === 'wnft') {
           await processStripeFiatNFTPurchase(session, req);
+        } else {
+          await processNFTBookCartStripePurchase(session, req);
+          if (likeWallet) await handleNFTBookStripeSessionCustomer(session, req);
         }
         // Do not send substack email, spammy
         // await handlePromotionalEmails(session, req);
@@ -132,7 +131,7 @@ router.post(
       ) as any[];
 
       const sessionMetadata: any = {
-        store: 'likerland',
+        store: 'wnft',
         wallet: wallet as string,
         memo,
         gaClientId,
