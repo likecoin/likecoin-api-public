@@ -764,6 +764,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       connectedWallets,
       isAutoDeliver,
       autoMemo,
+      recommendedClassIds,
     } = payload;
     const publicInfo = {
       priceInDecimal,
@@ -774,6 +775,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       hasShipping,
       shippingRates,
       isPhysicalOnly,
+      recommendedClassIds,
     };
     if (!isOwner) {
       return publicInfo;
