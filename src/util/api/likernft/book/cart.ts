@@ -321,7 +321,7 @@ export async function processNFTBookCartStripePurchase(
       utmMedium,
       gaClientId,
       gaSessionId,
-      claimToken,
+      claimToken = uuidv4(),
       from,
       giftToEmail,
       giftToName,
