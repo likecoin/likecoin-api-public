@@ -78,12 +78,13 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        fileSize, ipfsHash, txHash, signatureData,
+        fileSize, ipfsHash, txHash, signatureData, txToken = 'LIKE',
       } = req.body;
       if (!txHash) throw new Error('MISSING_TX_HASH');
       if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
+      if (!['LIKE', 'OPETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
       const {
         arweaveId,
         MATIC,
@@ -91,7 +92,7 @@ router.post(
         LIKE,
         signature,
       } = await processTxUploadToArweaveV2({
-        fileSize, ipfsHash, txHash, signatureData,
+        fileSize, ipfsHash, txHash, signatureData, txToken,
       });
       const signatureHex = signature && signature.toString('base64');
       const { token } = await createNewArweaveTx(txHash, {
