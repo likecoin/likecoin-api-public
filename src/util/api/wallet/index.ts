@@ -16,32 +16,54 @@ export async function findLikeWalletByEvmWallet(evmWallet: string) {
   return userQuery.docs[0].data()?.likeWallet;
 }
 
+export async function checkBookUserEvmWallet(likeWallet: string) {
+  const userQuery = await likeNFTBookUserCollection.doc(likeWallet).get();
+  if (!userQuery.exists) {
+    return null;
+  }
+  return userQuery.data()?.evmWallet || null;
+}
+
 async function migrateBookUser(likeWallet: string, evmWallet: string) {
   try {
-    const userExists = await db.runTransaction(async (t) => {
-      const [evmQuery, userDoc, bookQuery] = await Promise.all([
+    const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
+      const [evmQuery, userDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).limit(1)),
         t.get(likeNFTBookUserCollection.doc(likeWallet).get()),
-        t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet).limit(1)),
       ]);
       if (evmQuery.docs.length > 0) {
-        throw new Error('EVM_WALLET_ALREADY_EXIST');
+        if (evmQuery.docs[0].id !== userDoc?.id) {
+          throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
+        }
+        return {
+          userExists: true,
+          alreadyMigrated: true,
+        };
       }
       if (!userDoc.exists) {
         t.create(likeNFTBookUserCollection.doc(likeWallet), {
           evmWallet,
           likeWallet,
+          migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
         });
       } else {
-        t.update(userDoc, { evmWallet, likeWallet });
+        const { evmWallet: existingEvmWallet } = userDoc.data();
+        if (existingEvmWallet && existingEvmWallet !== evmWallet) {
+          throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
+        }
+        t.update(userDoc, {
+          evmWallet,
+          likeWallet,
+          migrateTimestamp: FieldValue.serverTimestamp(),
+        });
       }
-      bookQuery.docs.forEach((doc) => {
-        t.update(doc.ref, { ownerWallet: evmWallet });
-      });
-      return userDoc.exists;
+      return {
+        userExists: userDoc.exists,
+        alreadyMigrated: false,
+      };
     });
-    return { error: null };
+    return { error: null, userExists, alreadyMigrated };
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
@@ -98,7 +120,7 @@ async function migrateLikerId(likeWallet:string, evmWallet: string) {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
-    return { error: (error as Error).message };
+    return { likerId: null, error: (error as Error).message };
   }
 }
 
@@ -150,6 +172,19 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
 }
 
 export async function migrateLikeUserToEvmUser(likeWallet: string, evmWallet: string) {
+  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet);
+  if (migrateBookUserError) {
+    return {
+      isMigratedBookUser: false,
+      isMigratedLikerId: false,
+      isMigratedLikerLand: false,
+      migratedLikerId: null,
+      migratedLikerLandUser: null,
+      migrateBookUserError,
+      migrateLikerIdError: null,
+      migrateLikerLandError: null,
+    };
+  }
   const [
     { error: migrateLikerIdError, likerId },
     { error: migrateLikerLandError, user: likerLandUser },
@@ -158,23 +193,38 @@ export async function migrateLikeUserToEvmUser(likeWallet: string, evmWallet: st
     migrateLikerLandEvmWallet(likeWallet, evmWallet),
   ]);
   return {
+    isMigratedBookUser: !migrateBookUserError,
     isMigratedLikerId: !migrateLikerIdError,
     isMigratedLikerLand: !migrateLikerLandError,
     migratedLikerId: likerId,
     migratedLikerLandUser: likerLandUser,
+    migrateBookUserError,
     migrateLikerIdError,
     migrateLikerLandError,
   };
 }
 
 export async function migrateLikeWalletToEvmWallet(likeWallet: string, evmWallet: string) {
+  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet);
+  if (migrateBookUserError) {
+    return {
+      isMigratedBookUser: false,
+      isMigratedBookOwner: false,
+      isMigratedLikerId: false,
+      isMigratedLikerLand: false,
+      migratedLikerId: null,
+      migratedLikerLandUser: null,
+      migrateBookUserError,
+      migrateBookOwnerError: null,
+      migrateLikerIdError: null,
+      migrateLikerLandError: null,
+    };
+  }
   const [
-    { error: migrateBookUserError },
     { error: migrateBookOwnerError },
     { error: migrateLikerIdError, likerId },
     { error: migrateLikerLandError, user: likerLandUser },
   ] = await Promise.all([
-    migrateBookUser(likeWallet, evmWallet),
     migrateBookOwner(likeWallet, evmWallet),
     migrateLikerId(likeWallet, evmWallet),
     migrateLikerLandEvmWallet(likeWallet, evmWallet),
