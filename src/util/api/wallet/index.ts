@@ -29,7 +29,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
       const [evmQuery, userDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).limit(1)),
-        t.get(likeNFTBookUserCollection.doc(likeWallet).get()),
+        t.get(likeNFTBookUserCollection.doc(likeWallet)),
       ]);
       if (evmQuery.docs.length > 0) {
         if (evmQuery.docs[0].id !== userDoc?.id) {
@@ -52,7 +52,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
         if (existingEvmWallet && existingEvmWallet !== evmWallet) {
           throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
         }
-        t.update(userDoc, {
+        t.update(userDoc.ref, {
           evmWallet,
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
@@ -131,7 +131,7 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
       const migratedClassIds: string[] = [];
       const migratedCollectionIds: string[] = [];
       const [bookListingDoc, collectionQuery] = await Promise.all([
-        t.get(likeNFTBookCollection.doc(likeClassId).get()),
+        t.get(likeNFTBookCollection.doc(likeClassId)),
         t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
       ]);
       if (bookListingDoc.exists) {
