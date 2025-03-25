@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/users';
+import { checkCosmosSignPayload, checkEvmSignPayload, getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 import {
   findLikeWalletByEvmWallet,
+  checkBookUserEvmWallet,
   migrateBookClassId,
   migrateLikeUserToEvmUser,
   migrateLikeWalletToEvmWallet,
 } from '../../util/api/wallet';
+import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -78,6 +80,22 @@ router.post('/evm/migrate/book', async (req, res, next) => {
   }
 });
 
+router.get('/evm/migrate/user/addr/:likeWallet', async (req, res, next) => {
+  try {
+    const { likeWallet } = req.params;
+    if (!likeWallet || !checkCosmosAddressValid(likeWallet, 'like')) {
+      throw new ValidationError('INVALID_PAYLOAD');
+    }
+    const [likerIdInfo, evmWallet] = await Promise.all([
+      getUserWithCivicLikerPropertiesByWallet(likeWallet),
+      checkBookUserEvmWallet(likeWallet),
+    ]);
+    res.json({ likerIdInfo, evmWallet });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/evm/migrate/user', async (req, res, next) => {
   try {
     const {
@@ -95,22 +113,26 @@ router.post('/evm/migrate/user', async (req, res, next) => {
       throw new ValidationError('INVALID_SIGN');
     }
     const { evm_wallet: evmWallet } = signed;
-    if (!evmWallet) {
+    if (!evmWallet || !checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
     const {
+      isMigratedBookUser,
       isMigratedLikerId,
       isMigratedLikerLand,
       migratedLikerId,
       migratedLikerLandUser,
+      migrateBookUserError,
       migrateLikerIdError,
       migrateLikerLandError,
     } = await migrateLikeUserToEvmUser(likeWallet, evmWallet);
     res.json({
+      isMigratedBookUser,
       isMigratedLikerId,
       isMigratedLikerLand,
       migratedLikerId,
       migratedLikerLandUser,
+      migrateBookUserError,
       migrateLikerIdError,
       migrateLikerLandError,
     });
@@ -136,7 +158,7 @@ router.post('/evm/migrate/all', async (req, res, next) => {
       throw new ValidationError('INVALID_SIGN');
     }
     const { evm_wallet: evmWallet } = signed;
-    if (!evmWallet) {
+    if (!evmWallet || !checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
     const {
