@@ -1,3 +1,4 @@
+import { getNFTClassDataById } from '../../evm/nft';
 import {
   db,
   FieldValue,
@@ -126,7 +127,10 @@ async function migrateLikerId(likeWallet:string, evmWallet: string) {
 
 export async function migrateBookClassId(likeClassId:string, evmClassId: string) {
   try {
-    // TODO: verify evmClassId contains information about likeClassId
+    const evmData = await getNFTClassDataById(evmClassId);
+    if (evmData?.likecoin?.classId !== likeClassId) {
+      throw new Error('EVM_CLASS_ID_NOT_MATCH_LIKE_CLASS_ID');
+    }
     const res = await db.runTransaction(async (t) => {
       const migratedClassIds: string[] = [];
       const migratedCollectionIds: string[] = [];
