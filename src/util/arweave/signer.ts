@@ -39,7 +39,7 @@ export async function getEthereumBundlr() {
       token: 'ethereum',
       key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
       config: {
-        providerUrl: IS_TESTNET ? 'https://ethereum-sepolia-rpc.publicnode.com' : 'https://polygon-rpc.com/',
+        providerUrl: IS_TESTNET ? 'https://ethereum-sepolia-rpc.publicnode.com' : 'https://ethereum-rpc.publicnode.com',
       },
     });
   }
