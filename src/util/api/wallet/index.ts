@@ -235,7 +235,7 @@ export async function migrateLikeWalletToEvmWallet(likeWallet: string, evmWallet
     isMigratedLikerId: !migrateLikerIdError,
     isMigratedLikerLand: !migrateLikerLandError,
     migratedLikerId: likerId,
-    migratedLikerLandUser: likerLandUser,
+    migratedLikerLandUser: likerLandUser.id,
     migrateBookUserError,
     migrateBookOwnerError,
     migrateLikerIdError,
