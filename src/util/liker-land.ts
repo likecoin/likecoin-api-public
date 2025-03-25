@@ -442,9 +442,14 @@ export async function migrateLikerLandEvmWallet(likeWallet: string, evmWallet: s
     });
     return { user: data, error: null };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
     if (axios.isAxiosError(error)) {
-      return { error: new Error((error as AxiosError).response?.data as string) };
+      const axiosError = error as AxiosError;
+      const errorBody = axiosError.response?.data;
+      const errorMessage = errorBody || error.message;
+      return { user: null, error: errorMessage };
     }
-    return { user: null, error: null };
+    return { user: null, error: (error as Error).message };
   }
 }
