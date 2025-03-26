@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { STRIPE_KEY } from '../../config/config';
 import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
-const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2024-06-20', typescript: true });
+const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-02-24.acacia', typescript: true });
 
 export async function getStripePromotionFromCode(code: string) {
   const promotionCode = await stripe.promotionCodes.list({
