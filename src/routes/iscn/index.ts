@@ -179,7 +179,7 @@ router.post(
         return;
       }
       const { files } = req;
-      const { deduplicate = '1', estimate } = req.query;
+      const { deduplicate = '0', estimate } = req.query;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
 
