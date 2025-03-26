@@ -51,7 +51,7 @@ router.get('/circulating/erc20', async (req, res) => {
     address: LIKE_COIN_ADDRESS,
     abi: LIKE_COIN_ABI,
     functionName: 'totalSupply',
-  });
+  }) as number;
   const amounts = await Promise.all(reservedEthWallets
     .map((w) => readContract(publicClient, {
       address: LIKE_COIN_ADDRESS,
