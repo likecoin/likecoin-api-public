@@ -1,16 +1,20 @@
 import { Router } from 'express';
 import { BigNumber } from 'bignumber.js';
-import { ethers } from 'ethers';
+import { mainnet, sepolia } from 'viem/chains';
+import { createPublicClient, http } from 'viem';
+import { readContract } from 'viem/actions';
 import {
-  INFURA_HOST, IS_TESTNET, ONE_DAY_IN_S, ONE_HOUR_IN_S,
+  IS_TESTNET, ONE_DAY_IN_S, ONE_HOUR_IN_S,
 } from '../../constant';
 import { LIKE_COIN_ABI, LIKE_COIN_ADDRESS } from '../../constant/contract/likecoin';
 import { getCosmosTotalSupply, getCosmosAccountLIKE } from '../../util/cosmos';
 
 const router = Router();
 
-const provider = new ethers.JsonRpcProvider(INFURA_HOST);
-const LikeCoin = new ethers.Contract(LIKE_COIN_ADDRESS, LIKE_COIN_ABI, provider);
+const publicClient = createPublicClient({
+  chain: IS_TESTNET ? sepolia : mainnet,
+  transport: http(),
+});
 
 const reservedEthWallets = IS_TESTNET ? [
 ] : [
@@ -28,7 +32,11 @@ const reservedCosmosWallets = IS_TESTNET ? [
 ];
 
 router.get('/totalsupply/erc20', async (req, res) => {
-  let rawSupply = new BigNumber(await LikeCoin.totalSupply());
+  let rawSupply = new BigNumber(await readContract(publicClient, {
+    address: LIKE_COIN_ADDRESS,
+    abi: LIKE_COIN_ABI,
+    functionName: 'totalSupply',
+  }) as number);
   if (req.query.raw !== '1') {
     rawSupply = rawSupply.div(new BigNumber(10).pow(18));
   }
@@ -39,13 +47,22 @@ router.get('/totalsupply/erc20', async (req, res) => {
 });
 
 router.get('/circulating/erc20', async (req, res) => {
-  const rawSupply = await LikeCoin.totalSupply();
+  const rawSupply = await readContract(publicClient, {
+    address: LIKE_COIN_ADDRESS,
+    abi: LIKE_COIN_ABI,
+    functionName: 'totalSupply',
+  }) as number;
   const amounts = await Promise.all(reservedEthWallets
-    .map((w) => LikeCoin.balanceOf(w).catch((err) => {
+    .map((w) => readContract(publicClient, {
+      address: LIKE_COIN_ADDRESS,
+      abi: LIKE_COIN_ABI,
+      functionName: 'balanceOf',
+      args: [w],
+    }).catch((err) => {
       // eslint-disable-next-line no-console
       console.error(err);
       return 0;
-    })));
+    }))) as number[];
   let actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
   if (req.query.raw !== '1') {
     actualValue = actualValue.div(new BigNumber(10).pow(18));
