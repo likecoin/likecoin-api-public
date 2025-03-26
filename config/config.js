@@ -92,7 +92,7 @@ config.ECDSA_JWT_PUBLIC_CERT_PATH = '';
 config.ECDSA_JWT_PRIVATE_KEY_PATH = '';
 config.PROVIDER_JWT_COMMON_SECRET = '';
 
-config.STRIPE_KEY = '';
+config.STRIPE_KEY = 'sk_test_51J1ZQvJ8'; // random dummy key
 config.STRIPE_WEBHOOK_SECRET = '';
 
 config.CRISP_USER_HASH_SECRET = '';

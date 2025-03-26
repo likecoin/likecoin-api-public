@@ -11,4 +11,6 @@ config.LIKER_NFT_MIN_USD_PRICE = 0.5;
 config.LIKER_NFT_STRIPE_FEE_USD_INTERCEPT = 0.3;
 config.LIKER_NFT_STRIPE_FEE_USD_SLOPE = 0.054;
 
+config.STRIPE_KEY = 'sk_test_51J1ZQvJ8'; // random dummy key
+
 module.exports = config;
