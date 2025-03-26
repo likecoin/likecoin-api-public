@@ -149,6 +149,7 @@ export function getSendMessagesSigningFunction({
     messages,
     {
       accountNumber,
+      gasPrice: DEFAULT_GAS_PRICE,
       sequence,
       chainId: COSMOS_CHAIN_ID,
       broadcast: false,

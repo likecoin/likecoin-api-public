@@ -220,7 +220,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
-      const { deduplicate = '1' } = req.query;
+      const { deduplicate = '0' } = req.query;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
       const {
@@ -264,7 +264,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
-      const { deduplicate = '1' } = req.query;
+      const { deduplicate = '0' } = req.query;
       const { txHash } = req.query;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);

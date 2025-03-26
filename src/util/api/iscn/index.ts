@@ -53,7 +53,7 @@ export async function processCreateAndTransferISCN(
   });
 
   const [iscnGasFee, iscnRes] = await Promise.all([
-    signingClient.esimateISCNTxGasAndFee(ISCNPayload),
+    signingClient.esimateISCNTxGasAndFee(ISCNPayload, { gasPrice: DEFAULT_GAS_PRICE }),
     sendTransactionWithSequence(address, signingFunction),
   ]);
   const {

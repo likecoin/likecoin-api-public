@@ -61,7 +61,6 @@
     "crisp-api": "^9.0.0",
     "disposable-email-domains": "^1.0.56",
     "eth-sig-util": "^2.5.4",
-    "ethers": "^6.13.4",
     "express": "^4.21.0",
     "express-http-proxy": "^1.6.0",
     "express-jwt": "^6.0.0",
