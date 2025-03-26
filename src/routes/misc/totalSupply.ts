@@ -31,73 +31,89 @@ const reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1rr8km790vqdgl6h97hz7ghlatad87jnyrh2qka', // ecosystem development pool 2
 ];
 
-router.get('/totalsupply/erc20', async (req, res) => {
-  let rawSupply = new BigNumber(await readContract(publicClient, {
-    address: LIKE_COIN_ADDRESS,
-    abi: LIKE_COIN_ABI,
-    functionName: 'totalSupply',
-  }) as number);
-  if (req.query.raw !== '1') {
-    rawSupply = rawSupply.div(new BigNumber(10).pow(18));
-  }
-  const apiValue = rawSupply.toFixed();
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue);
-});
-
-router.get('/circulating/erc20', async (req, res) => {
-  const rawSupply = await readContract(publicClient, {
-    address: LIKE_COIN_ADDRESS,
-    abi: LIKE_COIN_ABI,
-    functionName: 'totalSupply',
-  }) as number;
-  const amounts = await Promise.all(reservedEthWallets
-    .map((w) => readContract(publicClient, {
+router.get('/totalsupply/erc20', async (req, res, next) => {
+  try {
+    let rawSupply = new BigNumber(await readContract(publicClient, {
       address: LIKE_COIN_ADDRESS,
       abi: LIKE_COIN_ABI,
-      functionName: 'balanceOf',
-      args: [w],
-    }).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      return 0;
-    }))) as number[];
-  let actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
-  if (req.query.raw !== '1') {
-    actualValue = actualValue.div(new BigNumber(10).pow(18));
+      functionName: 'totalSupply',
+    }) as number);
+    if (req.query.raw !== '1') {
+      rawSupply = rawSupply.div(new BigNumber(10).pow(18));
+    }
+    const apiValue = rawSupply.toFixed();
+    res.set('Content-Type', 'text/plain');
+    res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.send(apiValue);
+  } catch (err) {
+    next(err);
   }
-  const apiValue = actualValue.toFixed();
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue);
 });
 
-router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res) => {
-  let rawSupply = new BigNumber(await getCosmosTotalSupply());
-  if (req.query.raw === '1') {
-    rawSupply = rawSupply.times(new BigNumber(10).pow(9));
+router.get('/circulating/erc20', async (req, res, next) => {
+  try {
+    const rawSupply = await readContract(publicClient, {
+      address: LIKE_COIN_ADDRESS,
+      abi: LIKE_COIN_ABI,
+      functionName: 'totalSupply',
+    }) as number;
+    const amounts = await Promise.all(reservedEthWallets
+      .map((w) => readContract(publicClient, {
+        address: LIKE_COIN_ADDRESS,
+        abi: LIKE_COIN_ABI,
+        functionName: 'balanceOf',
+        args: [w],
+      }).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        return 0;
+      }))) as number[];
+    let actualValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+    if (req.query.raw !== '1') {
+      actualValue = actualValue.div(new BigNumber(10).pow(18));
+    }
+    const apiValue = actualValue.toFixed();
+    res.set('Content-Type', 'text/plain');
+    res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.send(apiValue);
+  } catch (err) {
+    next(err);
   }
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(rawSupply.toFixed());
 });
 
-router.get(['/circulating', '/circulating/likecoinchain'], async (req, res) => {
-  const rawSupply = await getCosmosTotalSupply();
-  const amounts = await Promise.all(reservedCosmosWallets
-    .map((w) => getCosmosAccountLIKE(w).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      return 0;
-    })));
-  let apiValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
-  if (req.query.raw === '1') {
-    apiValue = apiValue.times(new BigNumber(10).pow(9));
+router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res, next) => {
+  try {
+    let rawSupply = new BigNumber(await getCosmosTotalSupply());
+    if (req.query.raw === '1') {
+      rawSupply = rawSupply.times(new BigNumber(10).pow(9));
+    }
+    res.set('Content-Type', 'text/plain');
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.send(rawSupply.toFixed());
+  } catch (err) {
+    next(err);
   }
-  res.set('Content-Type', 'text/plain');
-  res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send(apiValue.toFixed());
+});
+
+router.get(['/circulating', '/circulating/likecoinchain'], async (req, res, next) => {
+  try {
+    const rawSupply = await getCosmosTotalSupply();
+    const amounts = await Promise.all(reservedCosmosWallets
+      .map((w) => getCosmosAccountLIKE(w).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        return 0;
+      })));
+    let apiValue = amounts.reduce((acc, a) => acc.minus(a), new BigNumber(rawSupply));
+    if (req.query.raw === '1') {
+      apiValue = apiValue.times(new BigNumber(10).pow(9));
+    }
+    res.set('Content-Type', 'text/plain');
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.send(apiValue.toFixed());
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
