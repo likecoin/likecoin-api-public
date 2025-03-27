@@ -65,8 +65,10 @@ export async function upsertCrispProfile(
     });
   }
   await CrispClient.website.updatePeopleData(CRISP_WEBSITE_ID, email, {
-    like_wallet: wallet,
-    login_method: loginMethod,
+    data: {
+      like_wallet: wallet,
+      login_method: loginMethod,
+    }
   });
 }
 
