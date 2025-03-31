@@ -60,7 +60,7 @@ export async function upsertCrispProfile(
       person: {
         nickname: displayName || wallet || email.split('@')[0],
       },
-      segments,
+      segments: Array.from(new Set(segments || [])),
       active: Date.now(),
     });
   }
@@ -68,7 +68,7 @@ export async function upsertCrispProfile(
     data: {
       like_wallet: wallet,
       login_method: loginMethod,
-    }
+    },
   });
 }
 
