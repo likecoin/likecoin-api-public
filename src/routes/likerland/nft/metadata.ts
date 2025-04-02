@@ -2,7 +2,7 @@ import { Router } from 'express';
 import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
 
-import { ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
+import { INTERNAL_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -17,8 +17,6 @@ const classChainMetadataCache = new LRUCache({
 const axios = Axios.create({
   timeout: 60000,
 });
-
-const { HOST, PORT } = process.env;
 
 const router = Router();
 
@@ -122,7 +120,7 @@ async function getNFTClassOwnerInfo(classId) {
 async function getNFTClassPurchaseInfo(classId) {
   try {
     const { data } = await axios.get(
-      `http://${HOST}:${PORT}/likernft/purchase?class_id=${classId}`,
+      `http://${INTERNAL_HOSTNAME}/likernft/purchase?class_id=${classId}`,
     );
     return data || null;
   } catch (err) {
@@ -137,7 +135,7 @@ async function getNFTClassPurchaseInfo(classId) {
 async function getNFTClassBookstoreInfo(classId) {
   try {
     const { data } = await axios.get(
-      `http://${HOST}:${PORT}/likernft/book/store/${classId}`,
+      `http://${INTERNAL_HOSTNAME}/likernft/book/store/${classId}`,
     );
     return data || null;
   } catch (err) {
