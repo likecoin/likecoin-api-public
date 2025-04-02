@@ -125,7 +125,11 @@ async function generateManifestFile(files, { stub = false } = {}) {
   };
 }
 
-export async function estimateARV2Price(fileSize, ipfsHash, { checkDuplicate = true } = {}) {
+export async function estimateARV2Price(
+  fileSize,
+  ipfsHash,
+  { checkDuplicate = true, margin = 0 } = {},
+) {
   if (ipfsHash && checkDuplicate) {
     const id = await getArweaveIdFromHashes(ipfsHash);
     if (id) {
@@ -144,8 +148,8 @@ export async function estimateARV2Price(fileSize, ipfsHash, { checkDuplicate = t
   const maticPriceConverted: BigNumber = maticBundlr.utils.fromAtomic(maticPriceAtomic);
   const ethereumPriceConverted: BigNumber = ethereumBundlr.utils.fromAtomic(ethereumPriceAtomic);
   return {
-    MATIC: maticPriceConverted.toFixed(),
-    ETH: ethereumPriceConverted.toFixed(),
+    MATIC: maticPriceConverted.multipliedBy(1 + margin).toFixed(),
+    ETH: ethereumPriceConverted.multipliedBy(1 + margin).toFixed(),
   };
 }
 
@@ -240,13 +244,12 @@ export function convertARPriceToLIKE(ar, {
 }
 
 export async function convertMATICPriceToLIKE(matic, {
-  margin = 0.05, decimal = 0,
+  decimal = 0,
 } = {}) {
   const priceRatioBigNumber = await getMATICPriceRatioBigNumber();
   const res = new BigNumber(matic)
     .multipliedBy(priceRatioBigNumber)
     .multipliedBy(LIKE_PRICE_MULTIPLIER || 1)
-    .multipliedBy(1 + margin)
     .toFixed(decimal, BigNumber.ROUND_UP);
   return {
     LIKE: res,

@@ -65,8 +65,8 @@ export async function estimateUploadToArweaveV2(
   }
   const {
     MATIC, ETH, arweaveId,
-  } = await estimateARV2Price(fileSize, ipfsHash, { checkDuplicate });
-  const { LIKE } = await convertMATICPriceToLIKE(MATIC, { margin });
+  } = await estimateARV2Price(fileSize, ipfsHash, { checkDuplicate, margin });
+  const { LIKE } = await convertMATICPriceToLIKE(MATIC);
   if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
   return {
     LIKE, MATIC, ETH, arweaveId, isExists: !!arweaveId,
@@ -281,7 +281,7 @@ async function checkTxV2({
 
 export async function processTxUploadToArweaveV2({
   fileSize, ipfsHash, txHash, signatureData, txToken,
-}, { margin = 0.03 } = {}) {
+}, { margin = 0 } = {}) {
   const estimate = await estimateUploadToArweaveV2(
     fileSize,
     ipfsHash,
