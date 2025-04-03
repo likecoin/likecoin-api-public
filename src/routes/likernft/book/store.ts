@@ -15,6 +15,7 @@ import {
   checkIsAuthorized,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
+import { getNFTClassDataById as getEVMNFTClassDataById, getNFTClassOwner as getEVMNFTClassOwner, isEVMClassId } from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
@@ -452,12 +453,36 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       tableOfContents,
       autoDeliverNFTsTxHash,
     } = req.body;
-    const [iscnInfo, metadata] = await Promise.all([
-      getISCNFromNFTClassId(classId),
-      getNFTClassDataById(classId),
-    ]);
-    if (!iscnInfo) throw new ValidationError('CLASS_ID_NOT_FOUND');
-    const { owner: ownerWallet, iscnIdPrefix } = iscnInfo;
+
+    let metadata;
+    let ownerWallet = '';
+    let iscnInfo: any = null;
+
+    if (isEVMClassId(classId)) {
+      const [classData, classOwner] = await Promise.all([
+        getEVMNFTClassDataById(classId),
+        getEVMNFTClassOwner(classId),
+      ]);
+      metadata = classData;
+      ownerWallet = classOwner;
+    } else {
+      const [info, classData] = await Promise.all([
+        getISCNFromNFTClassId(classId),
+        getNFTClassDataById(classId),
+      ]);
+      if (!info) throw new ValidationError('CLASS_ID_NOT_FOUND');
+      const { owner: iscnOwner, iscnIdPrefix } = info;
+      const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
+      const iscnContentMetadata = iscnData?.contentMetadata || {};
+      const image = classData?.data?.metadata?.image;
+      metadata = {
+        ...iscnContentMetadata,
+        image,
+        iscnIdPrefix,
+      };
+      ownerWallet = iscnOwner;
+      iscnInfo = info;
+    }
 
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
@@ -483,9 +508,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     );
     const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
-
-    const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
-    const iscnContentMetadata = iscnData?.contentMetadata || {};
     const {
       inLanguage,
       name,
@@ -496,12 +518,12 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       publisher: iscnPublisher,
       usageInfo,
       isbn,
-    } = iscnContentMetadata;
-    const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
-    const image = metadata?.data?.metadata?.image;
+      image,
+    } = metadata;
+    const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
     await newNftBookInfo(classId, {
-      iscnIdPrefix,
+      iscnIdPrefix: metadata.iscnIdPrefix,
       ownerWallet,
       successUrl,
       cancelUrl,
@@ -542,9 +564,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         timestamp: new Date(),
         name: className,
         description: metadata?.description || '',
-        iscnIdPrefix: iscnInfo.iscnIdPrefix,
+        iscnIdPrefix: metadata.iscnIdPrefix,
         iscnObject: iscnInfo,
-        iscnContentMetadata,
+        iscnContentMetadata: metadata,
         metadata,
         ownerWallet,
         type: metadata?.data?.metadata?.nft_meta_collection_id,

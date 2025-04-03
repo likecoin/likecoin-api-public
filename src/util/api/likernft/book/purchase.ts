@@ -5,7 +5,7 @@ import { firestore } from 'firebase-admin';
 import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import BigNumber from 'bignumber.js';
-import { getNFTClassDataById } from '../../../cosmos/nft';
+import { getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   LIST_OF_BOOK_SHIPPING_COUNTRY,
