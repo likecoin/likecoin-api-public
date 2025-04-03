@@ -31,3 +31,32 @@ export async function logISCNTx(payload) {
     console.error(err);
   }
 }
+
+export async function logEVMMintNFTsTx(payload) {
+  const {
+    txHash,
+    chainId,
+    rawSignedTx,
+    from,
+    nonce,
+    to,
+    ...otherPayload
+  } = payload;
+  try {
+    await dbRef.doc(txHash).create({
+      type: 'evmMintNFTs',
+      status: 'pending',
+      ts: Date.now(),
+      chainId,
+      rawSignedTx,
+      from,
+      nonce,
+      to,
+      delegatorAddress: from,
+      ...otherPayload,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
