@@ -17,8 +17,18 @@ import {
   NFT_BOOK_TEXT_LOCALES,
   NFT_BOOKSTORE_HOSTNAME,
 } from '../../../../constant';
+
 import {
-  getISCNFromNFTClassId, getNFTBalance, getNFTClassDataById, getNFTISCNData, getNFTsByClassId,
+  getNFTClassDataById as getEvmNftClassDataById,
+  isEVMClassId,
+  getNFTClassBalanceOf,
+} from '../../../evm/nft';
+import {
+  getISCNFromNFTClassId,
+  getNFTBalance,
+  getNFTClassDataById as getLikeNFTClassDataById,
+  getNFTISCNData,
+  getNFTsByClassId,
 } from '../../../cosmos/nft';
 import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
@@ -26,6 +36,29 @@ import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
+
+export async function getNFTClassDataById(classId) {
+  if (isEVMClassId(classId)) {
+    return getEvmNftClassDataById(classId);
+  }
+  const data = await getLikeNFTClassDataById(classId);
+  if (!data) return data;
+  const {
+    name,
+    description,
+    uri,
+    uriHash,
+    data: { metadata = {}, parent } = {},
+  } = data;
+  return {
+    name,
+    description,
+    uri,
+    uriHash,
+    ...metadata,
+    iscnIdPrefix: parent?.iscnIdPrefix,
+  };
+}
 
 export function checkIsAuthorized({
   ownerWallet,
@@ -243,15 +276,19 @@ export async function getNftBookInfo(classId) {
 }
 
 export async function syncNFTBookInfoWithISCN(classId) {
-  const [iscnInfo, metadata, bookInfo] = await Promise.all([
-    getISCNFromNFTClassId(classId),
+  const [iscnInfo, classData, bookInfo] = await Promise.all([
+    isEVMClassId(classId) ? {} as any : getISCNFromNFTClassId(classId),
     getNFTClassDataById(classId),
     getNftBookInfo(classId),
   ]);
+  let metadata = { ...classData };
   if (!iscnInfo) throw new ValidationError('ISCN_NOT_FOUND');
   const { iscnIdPrefix } = iscnInfo;
+  if (iscnIdPrefix) {
   const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
   const iscnContentMetadata = iscnData?.contentMetadata || {};
+    metadata = { ...metadata, ...iscnContentMetadata };
+  }
   const {
     inLanguage,
     name,
@@ -262,12 +299,12 @@ export async function syncNFTBookInfoWithISCN(classId) {
     publisher,
     usageInfo,
     isbn,
-  } = iscnContentMetadata;
+    image,
+  } = metadata;
   const {
     prices,
   } = bookInfo;
   const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
-  const image = metadata?.data?.metadata?.image;
 
   const payload: any = {};
   if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
