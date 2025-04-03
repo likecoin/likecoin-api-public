@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
-import HttpAgent, { HttpsAgent } from 'agentkeepalive';
 
-import { API_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
+import { INTERNAL_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -16,8 +15,6 @@ const classChainMetadataCache = new LRUCache({
 });
 
 const axios = Axios.create({
-  httpAgent: new HttpAgent(),
-  httpsAgent: new HttpsAgent(),
   timeout: 60000,
 });
 
@@ -74,16 +71,6 @@ async function getISCNMetadata(iscnId) {
   }
 }
 
-function isValidHttpUrl(string) {
-  try {
-    const url = new URL(string);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    // no op
-  }
-  return false;
-}
-
 async function getNFTClassAndISCNMetadata(classId) {
   const chainMetadata = await getNFTClassChainMetadata(classId);
 
@@ -133,7 +120,7 @@ async function getNFTClassOwnerInfo(classId) {
 async function getNFTClassPurchaseInfo(classId) {
   try {
     const { data } = await axios.get(
-      `https://${API_HOSTNAME}/likernft/purchase?class_id=${classId}`,
+      `http://${INTERNAL_HOSTNAME}/likernft/purchase?class_id=${classId}`,
     );
     return data || null;
   } catch (err) {
@@ -148,7 +135,7 @@ async function getNFTClassPurchaseInfo(classId) {
 async function getNFTClassBookstoreInfo(classId) {
   try {
     const { data } = await axios.get(
-      `https://${API_HOSTNAME}/likernft/book/store/${classId}`,
+      `http://${INTERNAL_HOSTNAME}/likernft/book/store/${classId}`,
     );
     return data || null;
   } catch (err) {

@@ -1,5 +1,8 @@
 export const { IS_TESTNET } = process.env;
 
+export const HOST = process.env.HOST || '127.0.0.1';
+export const PORT = process.env.PORT || '3000';
+
 export const TEST_MODE = process.env.NODE_ENV !== 'production' || process.env.CI;
 
 export const ETH_NETWORK_NAME = IS_TESTNET ? 'rinkeby' : 'mainnet';
@@ -18,6 +21,8 @@ export const PUBSUB_TOPIC_WNFT = 'wnft';
 export const LOGIN_MESSAGE = 'Login - Reinventing the Like';
 
 export const EXTERNAL_HOSTNAME = process.env.EXTERNAL_HOSTNAME || (IS_TESTNET ? 'rinkeby.like.co' : 'like.co');
+
+export const INTERNAL_HOSTNAME = `${HOST}:${PORT}`;
 
 export const API_HOSTNAME = IS_TESTNET ? 'api.rinkeby.like.co' : 'api.like.co';
 
