@@ -12,7 +12,11 @@ import {
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
 import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
-import { ARWEAVE_LIKE_TARGET_ADDRESS, ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../config/config';
+import {
+  ARWEAVE_LIKE_TARGET_ADDRESS,
+  ARWEAVE_EVM_TARGET_ADDRESS,
+  ARWEAVE_LINK_INTERNAL_TOKEN,
+} from '../../../config/config';
 import { getPublicKey } from '../../util/arweave/signer';
 import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
 import { jwtOptionalAuth } from '../../middleware/jwt';
@@ -42,7 +46,7 @@ router.post(
         LIKE,
         arweaveId,
         MATIC,
-        wei,
+        ETH,
       } = await estimateUploadToArweaveV2(fileSize, ipfsHash);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -50,15 +54,17 @@ router.post(
         ipfsHash,
         arweaveId,
         MATIC,
+        ETH,
         LIKE: Number(LIKE),
       });
       res.json({
         LIKE,
         arweaveId,
         MATIC,
-        wei,
+        ETH,
         memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
         address: ARWEAVE_LIKE_TARGET_ADDRESS,
+        evmAddress: ARWEAVE_EVM_TARGET_ADDRESS,
       });
     } catch (error) {
       next(error);
@@ -72,20 +78,21 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        fileSize, ipfsHash, txHash, signatureData,
+        fileSize, ipfsHash, txHash, signatureData, txToken = 'LIKE',
       } = req.body;
       if (!txHash) throw new Error('MISSING_TX_HASH');
       if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
+      if (!['LIKE', 'OPETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
       const {
         arweaveId,
         MATIC,
-        wei,
+        ETH,
         LIKE,
         signature,
       } = await processTxUploadToArweaveV2({
-        fileSize, ipfsHash, txHash, signatureData,
+        fileSize, ipfsHash, txHash, signatureData, txToken,
       });
       const signatureHex = signature && signature.toString('base64');
       const { token } = await createNewArweaveTx(txHash, {
@@ -104,7 +111,7 @@ router.post(
         ipfsHash,
         arweaveId,
         MATIC,
-        wei,
+        ETH,
         LIKE: Number(LIKE),
         txHash,
       });
