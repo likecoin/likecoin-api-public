@@ -212,7 +212,7 @@ export const SYSTEM_EMAIL = '"Liker Land Bookstore" <noreply@liker.land>';
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
-export const ARWEAVE_GATEWAY = IS_TESTNET ? 'https://gateway.irys.xyz' : 'https://arweave.net';
+export const ARWEAVE_GATEWAY = 'https://gateway.irys.xyz';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
