@@ -83,13 +83,10 @@ export async function handleUserRegistration({
     avatarURL: avatarURLInput,
     referrer,
     platform,
-    platformUserId,
     authCoreUserId,
     isEmailVerified = false,
     isPhoneVerified,
     locale = 'en',
-    accessToken,
-    secret,
     email,
     phone,
     utmSource,
@@ -119,7 +116,6 @@ export async function handleUserRegistration({
     evmWallet,
     email,
     platform,
-    platformUserId,
     authCoreUserId,
   });
 

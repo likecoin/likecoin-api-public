@@ -14,7 +14,6 @@ import {
 import {
   userCollection as dbRef,
   configCollection,
-  FieldValue,
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
@@ -311,7 +310,6 @@ async function userInfoQuery({
   evmWallet,
   email,
   platform,
-  platformUserId,
   authCoreUserId,
 }: {
   user: string;
@@ -320,7 +318,6 @@ async function userInfoQuery({
   evmWallet?: string;
   email?: string;
   platform?: string;
-  platformUserId?: string;
   authCoreUserId?: string;
 }) {
   const userNameQuery = dbRef.doc(user).get().then((doc) => {
@@ -398,7 +395,6 @@ export async function checkUserInfoUniqueness({
   evmWallet,
   email,
   platform,
-  platformUserId,
   authCoreUserId,
 }: {
   user: string;
@@ -407,7 +403,6 @@ export async function checkUserInfoUniqueness({
   evmWallet?: string;
   email?: string;
   platform?: string;
-  platformUserId?: string;
   authCoreUserId?: string;
 }) {
   const userDoc = await dbRef.doc(user).get();
@@ -419,7 +414,6 @@ export async function checkUserInfoUniqueness({
     evmWallet,
     email,
     platform,
-    platformUserId,
     authCoreUserId,
   });
 }
