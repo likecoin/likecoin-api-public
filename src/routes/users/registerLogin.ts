@@ -8,13 +8,11 @@ import {
 } from '../../constant';
 import {
   userCollection as dbRef,
-  userAuthCollection as authDbRef,
 } from '../../util/firebase';
 import {
   getAuthCoreUser,
   updateAuthCoreUserById,
   createAuthCoreCosmosWalletViaUserToken,
-  getAuthCoreUserOAuthFactors,
 } from '../../util/authcore';
 import {
   checkSignPayload,
@@ -449,8 +447,7 @@ router.post('/login', async (req, res, next) => {
     } = req.body;
 
     switch (platform) {
-      case 'wallet': {
-        /* for migration only */
+      case 'evmWallet': {
         const {
           from,
           payload: stringPayload,
@@ -458,32 +455,31 @@ router.post('/login', async (req, res, next) => {
         } = req.body;
         wallet = from;
         checkSignPayload(wallet, stringPayload, sign);
-        const query = await dbRef.where('wallet', '==', wallet).limit(1).get();
-        if (query.docs.length > 0) {
-          const [userDoc] = query.docs;
+        const userQuery = await (
+          dbRef
+            .where('evmWallet', '==', wallet)
+            .get()
+        );
+        if (userQuery.docs.length > 0) {
+          const [userDoc] = userQuery.docs;
           user = userDoc.id;
-          if (userDoc.data().authCoreUserId) {
-            throw new ValidationError('USE_AUTHCORE_LOGIN');
-          }
         }
         break;
       }
-      case 'likeWallet':
-      case 'cosmosWallet': {
+      case 'likeWallet': {
         const {
           from: inputWallet, signature, publicKey, message, signMethod,
         } = req.body;
         if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
         if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
-        if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
         if (!checkCosmosSignPayload({
           signature, publicKey, message, inputWallet, signMethod,
         })) {
           throw new ValidationError('INVALID_SIGN');
         }
         const userQuery = await (
-          authDbRef
-            .where(`${platform}.userId`, '==', inputWallet)
+          dbRef
+            .where('likeWallet', '==', inputWallet)
             .get()
         );
         if (userQuery.docs.length > 0) {
@@ -502,8 +498,8 @@ router.post('/login', async (req, res, next) => {
           preferred_username: authCoreUserName,
         } = authCoreUser);
         const userQuery = await (
-          authDbRef
-            .where(`${platform}.userId`, '==', authCoreUserId)
+          dbRef
+            .where('authCoreUserId', '==', authCoreUserId)
             .get()
         );
         if (userQuery.docs.length > 0) {
@@ -551,14 +547,6 @@ router.post('/login', async (req, res, next) => {
           if (!likeWallet && cosmosWallet) {
             const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
             await dbRef.doc(user).update({ likeWallet: newLikeWallet });
-          }
-          const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
-          if (oAuthFactors && oAuthFactors.length) {
-            const payload = oAuthFactors.reduce((acc, f) => {
-              acc[f.service] = { userId: f.userId };
-              return acc;
-            }, {});
-            await authDbRef.doc(user).update(payload);
           }
           if (!authCoreUserName) {
             try {

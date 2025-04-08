@@ -13,7 +13,6 @@ import {
 } from '../../../constant';
 import {
   userCollection as dbRef,
-  userAuthCollection as authDbRef,
   configCollection,
   FieldValue,
 } from '../../firebase';
@@ -362,21 +361,6 @@ async function userInfoQuery({
 
   const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
-  const authQuery = (platform && platformUserId) ? (
-    authDbRef
-      .where(`${platform}.userId`, '==', platformUserId)
-      .get()
-      .then((snapshot) => {
-        snapshot.forEach((doc) => {
-          const docUser = doc.id;
-          if (user !== docUser) {
-            throw new ValidationError(`${platform.toUpperCase()}_USER_DUPLICATED`);
-          }
-        });
-        return true;
-      })
-  ) : Promise.resolve();
-
   const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
     dbRef
       .where('authCoreUserId', '==', authCoreUserId)
@@ -401,7 +385,6 @@ async function userInfoQuery({
     likeWalletQuery,
     evmWalletQuery,
     emailQuery,
-    authQuery,
     authCoreQuery,
   ]);
 
