@@ -16,7 +16,6 @@ import { autoGenerateUserTokenForClient } from '../../util/api/oauth';
 import {
   handleClaimPlatformDelegatedUser,
   handleTransferPlatformDelegatedUser,
-  handlePlatformOAuthBind,
 } from '../../util/api/users/platforms';
 import { createAuthCoreUserAndWallet } from '../../util/api/users/authcore';
 import { fetchMattersUser } from '../../util/oauth/matters';
@@ -333,17 +332,6 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
                 throw err;
               }));
             if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
-            const {
-              userId,
-              displayName,
-            } = await handlePlatformOAuthBind(platform, user, platformToken);
-            publisher.publish(PUBSUB_TOPIC_MISC, req, {
-              logType: 'eventMattersBindUser',
-              platform,
-              mattersUserId: userId,
-              mattersDisplayName: displayName,
-              user,
-            });
             res.sendStatus(200);
             break;
           }
