@@ -7,23 +7,16 @@ import {
   MAX_USER_ID_LENGTH,
   IS_TESTNET,
   EXTERNAL_HOSTNAME,
-  TEST_MODE,
 } from '../../../constant';
 import {
   userCollection as dbRef,
-  userAuthCollection as authDbRef,
-  db,
 } from '../../firebase';
-import {
-  getAuthCoreUserOAuthFactors,
-} from '../../authcore';
 import {
   normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
   getUserAgentIsApp,
 } from '.';
-import { addDefaultFollowers } from './follow';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
 import {
@@ -90,13 +83,10 @@ export async function handleUserRegistration({
     avatarURL: avatarURLInput,
     referrer,
     platform,
-    platformUserId,
     authCoreUserId,
     isEmailVerified = false,
     isPhoneVerified,
     locale = 'en',
-    accessToken,
-    secret,
     email,
     phone,
     utmSource,
@@ -126,7 +116,6 @@ export async function handleUserRegistration({
     evmWallet,
     email,
     platform,
-    platformUserId,
     authCoreUserId,
   });
 
@@ -262,56 +251,13 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-  const batch = db.batch();
-  batch.create(dbRef.doc(user), createObj);
+  await dbRef.doc(user).create(createObj);
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,
       isEmailVerified,
     });
   }
-
-  if (authCoreUserId || (platform && platformUserId)) {
-    const doc: any = {};
-    if (authCoreUserId) {
-      doc.authcore = { userId: authCoreUserId };
-      if (platform === 'authcore' && accessToken && !TEST_MODE) {
-        try {
-          const oAuthFactors = await getAuthCoreUserOAuthFactors(accessToken);
-          if (oAuthFactors && oAuthFactors.length) {
-            oAuthFactors.forEach((f) => {
-              doc[f.service] = { userId: f.userId };
-            });
-          }
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }
-    }
-    if (platform && platformUserId) {
-      doc[platform] = {
-        userId: platformUserId,
-      };
-    }
-    if (cosmosWallet) {
-      doc.cosmosWallet = {
-        userId: cosmosWallet,
-      };
-    }
-    if (likeWallet) {
-      doc.likeWallet = {
-        userId: likeWallet,
-      };
-    }
-    if (evmWallet) {
-      doc.evmWallet = {
-        userId: evmWallet,
-      };
-    }
-    batch.create(authDbRef.doc(user), doc);
-  }
-  await batch.commit();
 
   return {
     userPayload: {

@@ -13,9 +13,7 @@ import {
 } from '../../../constant';
 import {
   userCollection as dbRef,
-  userAuthCollection as authDbRef,
   configCollection,
-  FieldValue,
 } from '../../firebase';
 import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
@@ -312,7 +310,6 @@ async function userInfoQuery({
   evmWallet,
   email,
   platform,
-  platformUserId,
   authCoreUserId,
 }: {
   user: string;
@@ -321,7 +318,6 @@ async function userInfoQuery({
   evmWallet?: string;
   email?: string;
   platform?: string;
-  platformUserId?: string;
   authCoreUserId?: string;
 }) {
   const userNameQuery = dbRef.doc(user).get().then((doc) => {
@@ -362,21 +358,6 @@ async function userInfoQuery({
 
   const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
-  const authQuery = (platform && platformUserId) ? (
-    authDbRef
-      .where(`${platform}.userId`, '==', platformUserId)
-      .get()
-      .then((snapshot) => {
-        snapshot.forEach((doc) => {
-          const docUser = doc.id;
-          if (user !== docUser) {
-            throw new ValidationError(`${platform.toUpperCase()}_USER_DUPLICATED`);
-          }
-        });
-        return true;
-      })
-  ) : Promise.resolve();
-
   const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
     dbRef
       .where('authCoreUserId', '==', authCoreUserId)
@@ -401,7 +382,6 @@ async function userInfoQuery({
     likeWalletQuery,
     evmWalletQuery,
     emailQuery,
-    authQuery,
     authCoreQuery,
   ]);
 
@@ -415,7 +395,6 @@ export async function checkUserInfoUniqueness({
   evmWallet,
   email,
   platform,
-  platformUserId,
   authCoreUserId,
 }: {
   user: string;
@@ -424,7 +403,6 @@ export async function checkUserInfoUniqueness({
   evmWallet?: string;
   email?: string;
   platform?: string;
-  platformUserId?: string;
   authCoreUserId?: string;
 }) {
   const userDoc = await dbRef.doc(user).get();
@@ -436,7 +414,6 @@ export async function checkUserInfoUniqueness({
     evmWallet,
     email,
     platform,
-    platformUserId,
     authCoreUserId,
   });
 }
