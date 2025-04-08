@@ -1,10 +1,8 @@
 import {
   userCollection as dbRef,
-  userAuthCollection as authDbRef,
   FieldValue,
   db,
 } from '../../firebase';
-import { socialLinkMatters } from '../social';
 import { ValidationError } from '../../ValidationError';
 import { handleAvatarLinkAndGetURL } from '../../fileupload';
 
@@ -42,14 +40,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
       console.error(err);
     }
   }
-  const batch = db.batch();
-  batch.update(userRef, payload);
-  batch.set(
-    authDbRef.doc(user),
-    { authcore: { userId: authCoreUserId } },
-    { merge: true },
-  );
-  await batch.commit();
+  await userRef.update(payload);
 }
 
 export function handleTransferPlatformDelegatedUser(platform, user, target) {
@@ -57,20 +48,14 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     const userRef = dbRef.doc(user);
     const userSocialRef = userRef.collection('social').doc(platform);
     const targetRef = dbRef.doc(target);
-    const userAuthRef = authDbRef.doc(user);
-    const targetAuthRef = authDbRef.doc(target);
     const [
       userDoc,
       userSocialDoc,
       targetDoc,
-      userAuthDoc,
-      targetAuthDoc,
     ] = await Promise.all([
       t.get(userRef),
       t.get(userSocialRef),
       t.get(targetRef),
-      t.get(userAuthRef),
-      t.get(targetAuthRef),
     ]);
     if (!userDoc.exists) throw new ValidationError('USER_NOT_FOUND');
     if (!targetDoc.exists) throw new ValidationError('TARGET_NOT_FOUND');
@@ -88,17 +73,6 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     }
     if (!isPlatformDelegated || delegatedPlatform !== platform) {
       throw new ValidationError('USER_NOT_DELEGATED');
-    }
-    if (userAuthDoc.exists) {
-      const { [platform]: { userId: sourceUserId } } = userAuthDoc.data();
-      if (targetAuthDoc.exists) {
-        const { [platform]: { userId: targetUserId = '' } = {} } = targetAuthDoc.data();
-        if (targetUserId && targetUserId !== sourceUserId) {
-          throw new ValidationError('TARGET_USER_ALREADY_BINDED');
-        }
-      }
-      t.set(targetAuthRef, { [platform]: { userId: sourceUserId } }, { merge: true });
-      t.update(userAuthRef, { [platform]: FieldValue.delete() });
     }
     let pendingLIKE;
     if (sourcePendingLike) {
@@ -123,19 +97,4 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     // TODO: actually delete the id?
     return { pendingLIKE };
   });
-}
-
-export async function handlePlatformOAuthBind(platform, user, platformToken) {
-  if (platform === 'matters') { // TODO: switch case
-    const {
-      userId,
-      displayName,
-    } = await socialLinkMatters(user, { accessToken: platformToken });
-    await authDbRef.doc(user).set({ [platform]: { userId } }, { merge: true });
-    return {
-      userId,
-      displayName,
-    };
-  }
-  throw new ValidationError('UNKNOWN_ERROR');
 }
