@@ -255,7 +255,7 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-  dbRef.doc(user).create(createObj);
+  await dbRef.doc(user).create(createObj);
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,
