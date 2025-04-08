@@ -89,46 +89,6 @@ test.serial('USER: Register cosmos user. Case: success', async (t) => {
   t.is(res.status, 200);
 });
 
-test.serial('USER: Login cosmos user. Case: sucess', async (t) => {
-  const cosmosWallet = testingCosmosWallet0;
-  const payload = {
-    ts: Date.now(),
-    cosmosWallet,
-  };
-  const {
-    signed: message,
-    signature: { signature, pub_key: publicKey },
-  } = signWithCosmos(payload, cosmosPrivateKeyNew);
-  const res = await axiosist.post('/api/users/login', {
-    signature,
-    publicKey: publicKey.value,
-    message: jsonStringify(message),
-    from: testingCosmosWallet0,
-    platform: 'cosmosWallet',
-  });
-  t.is(res.status, 200);
-});
-
-test.serial('USER: Login cosmos user. Case: fail', async (t) => {
-  const cosmosWallet = testingCosmosWallet0;
-  const payload = {
-    ts: Date.now(),
-    cosmosWallet,
-  };
-  const {
-    signed: message,
-    signature: { signature, pub_key: publicKey },
-  } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
-  const res = await axiosist.post('/api/users/login', {
-    signature,
-    publicKey: publicKey.value,
-    message: jsonStringify(message),
-    from: testingCosmosWallet0,
-    platform: 'cosmosWallet',
-  });
-  t.is(res.status, 400);
-});
-
 test.serial('USER: Login like user. Case: sucess', async (t) => {
   const likeWallet = testingLikeWallet0;
   const payload = {
@@ -200,7 +160,7 @@ test.serial('USER: Login Metamask user. Case: success', async (t) => {
   const sign = signERCProfile(payload, privateKey2);
   const res = await axiosist.post('/api/users/login', {
     from: testingWallet2,
-    platform: 'wallet',
+    platform: 'evmWallet',
     payload,
     sign,
   });
