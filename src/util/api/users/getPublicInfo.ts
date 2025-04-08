@@ -81,7 +81,7 @@ export async function getUserAvatar(id) {
 export async function getUserWithCivicLikerPropertiesByWallet(addr) {
   let field;
   if (checkAddressValid(addr)) {
-    field = 'wallet';
+    field = 'evmWallet';
   } else if (checkCosmosAddressValid(addr, 'like')) {
     field = 'likeWallet';
   } else if (checkCosmosAddressValid(addr, 'cosmos')) {
