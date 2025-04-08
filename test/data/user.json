@@ -103,6 +103,7 @@
             "email": "testuser@likecoin.store",
             "wallet": "0x76ECdE1CC1D2D87D7f20c2C6EAe7529a7379920c",
             "cosmosWallet": "cosmos1q6hag67dl53wl99vzg42z8eyzfz2xlkvsrxukv",
+            "evmWallet": "0x76ECdE1CC1D2D87D7f20c2C6EAe7529a7379920c",
             "verificationUUID": "00000000-0000-0000-0000-000000000000",
             "referrer": "testing",
             "collection": {
