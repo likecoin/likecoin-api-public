@@ -22,7 +22,7 @@ async function processLikerId(req, res, { parsedURL }) {
   // (1) /(user_id)
   // (2) /in/like/(user_id)
   // (3) /user/(user_id)
-  const userUrlRegexp = /^\/(?:in\/like\/|user\/)?([-_a-z0-9]+)$/;
+  const userUrlRegexp = /^\/(?:in\/like\/|user\/)?([-_a-z0-9]+)\/?$/;
 
   const { pathname } = parsedURL;
   const pathnameMatch = userUrlRegexp.exec(pathname);
