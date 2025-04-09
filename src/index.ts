@@ -45,6 +45,10 @@ app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 
+app.get('/', (req, res) => {
+  res.redirect('https://api.docs.like.co/');
+});
+
 app.use(errorHandler);
 
 app.listen(port, host);
