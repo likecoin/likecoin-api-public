@@ -1130,8 +1130,13 @@ export async function claimNFTBook(
     const msgSendNftIds = nftIds || [nftId];
     try {
       if (isEVMClassId(classId)) {
-        // TODO: add memo to mintNFTs
-        txHash = await mintNFT(classId, wallet, msgSendNftIds.length);
+        const metadata = await getNFTClassDataById(classId);
+        txHash = await mintNFT(
+          classId,
+          wallet,
+          metadata,
+          { count: msgSendNftIds.length, memo: autoMemo },
+        );
       } else {
         const txMessages = msgSendNftIds
           .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
