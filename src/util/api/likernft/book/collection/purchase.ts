@@ -27,6 +27,7 @@ import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../../config/config';
 import { isEVMClassId, mintNFT } from '../../../../evm/nft';
+import { getNFTClassDataById } from '..';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -385,8 +386,8 @@ export async function claimNFTBookCollection(
     if (isEVMClassId(classIds[0])) {
       for (const classId of classIds) {
         const nftIds: string[] = nftIdMap[classId];
-        // TODO: add memo to mintNFTs
-        txHash = await mintNFT(classId, wallet, nftIds.length);
+        const metadata = await getNFTClassDataById(classId);
+        txHash = await mintNFT(classId, wallet, metadata, { count: nftIds.length, memo: autoMemo });
       }
     } else {
       const txMessages: any[] = [];

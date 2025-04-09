@@ -70,7 +70,7 @@ export async function checkNFTClassIsBookNFT(classId) {
   return res as boolean;
 }
 
-export async function mintNFT(classId, wallet, metadata, { count = 1, simulate = false } = {}) {
+export async function mintNFT(classId, wallet, metadata, { count = 1, memo = '' } = {}) {
   const account = getEvmWalletAccount();
   const walletClient = getEvmWalletClient();
   const isBookNFT = await checkNFTClassIsBookNFT(classId);
@@ -83,6 +83,7 @@ export async function mintNFT(classId, wallet, metadata, { count = 1, simulate =
     functionName: 'batchMint',
     args: [
       Array(count).fill(getAddress(wallet)),
+      Array(count).fill(memo),
       Array(count).fill(0).map(() => JSON.stringify({
         image: metadata.image,
         image_data: '',
@@ -93,7 +94,7 @@ export async function mintNFT(classId, wallet, metadata, { count = 1, simulate =
         background_color: '',
         animation_url: '',
         youtube_url: '',
-      })),
+      })), // TODO: format metadata according to NFT Book spec
     ],
   });
   await logEvmMintNFTsTx({
