@@ -1035,6 +1035,11 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
       {
         internalType: 'string[]',
+        name: 'memos',
+        type: 'string[]',
+      },
+      {
+        internalType: 'string[]',
         name: 'metadataList',
         type: 'string[]',
       },
@@ -1316,6 +1321,11 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
       },
       {
         internalType: 'string[]',
+        name: 'memos',
+        type: 'string[]',
+      },
+      {
+        internalType: 'string[]',
         name: 'metadataList',
         type: 'string[]',
       },
@@ -1421,9 +1431,14 @@ export const LIKE_NFT_CLASS_ABI: Abi = [
         type: 'uint256',
       },
       {
-        internalType: 'address',
-        name: 'to',
-        type: 'address',
+        internalType: 'address[]',
+        name: 'tos',
+        type: 'address[]',
+      },
+      {
+        internalType: 'string[]',
+        name: 'memos',
+        type: 'string[]',
       },
       {
         internalType: 'string[]',
