@@ -319,22 +319,6 @@ router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
             });
             break;
           }
-          case 'bind': {
-            const {
-              platformToken,
-              userToken,
-            } = payload;
-            ({ user } = await getJwtInfo(userToken)
-              .catch((err) => {
-                if (err.name === 'TokenExpiredError') {
-                  throw new ValidationError('USER_TOKEN_EXPIRED');
-                }
-                throw err;
-              }));
-            if (!user) throw new ValidationError('TOKEN_USER_NOT_FOUND');
-            res.sendStatus(200);
-            break;
-          }
           default:
             throw new ValidationError('UNKNOWN_ACTION');
         }

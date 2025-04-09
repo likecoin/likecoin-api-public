@@ -83,13 +83,10 @@ export async function handleUserRegistration({
     avatarURL: avatarURLInput,
     referrer,
     platform,
-    platformUserId,
     authCoreUserId,
     isEmailVerified = false,
     isPhoneVerified,
     locale = 'en',
-    accessToken,
-    secret,
     email,
     phone,
     utmSource,
@@ -119,7 +116,6 @@ export async function handleUserRegistration({
     evmWallet,
     email,
     platform,
-    platformUserId,
     authCoreUserId,
   });
 
@@ -255,7 +251,7 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-  dbRef.doc(user).create(createObj);
+  await dbRef.doc(user).create(createObj);
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,

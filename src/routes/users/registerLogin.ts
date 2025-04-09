@@ -99,7 +99,6 @@ router.post(
     let email;
     try {
       let payload;
-      let platformUserId;
 
       switch (platform) {
         case 'authcore': {
@@ -159,7 +158,6 @@ router.post(
             payload.phone = authCorePhone;
             payload.isPhoneVerified = isAuthCorePhoneVerified;
           }
-          platformUserId = authCoreUserId;
           break;
         }
         case 'likeWallet':
@@ -182,7 +180,6 @@ router.post(
           payload.displayName = displayName || user;
           payload.email = email;
           payload.isEmailVerified = false;
-          platformUserId = inputWallet;
           break;
         }
         default:
@@ -195,7 +192,6 @@ router.post(
           ...payload,
           description,
           platform,
-          platformUserId,
         },
         req,
         res,
