@@ -37,9 +37,11 @@ export async function getNFTCollectionsByOwner(
   wallet: string,
   isOwner: boolean,
   type?: CollectionType,
+  chain?: string,
 ) {
   let query: any = likeNFTCollectionCollection.where('ownerWallet', '==', wallet);
   if (type) query = query.where('type', '==', type);
+  if (chain) query = query.where('chain', '==', chain);
   const res = await query.get();
   return res.docs.map((doc) => {
     const docData = doc.data();
@@ -51,6 +53,7 @@ export async function getNFTCollectionsByClassId(
   classId: string,
   wallet?: string,
   type?: CollectionType,
+  chain?: string,
 ) {
   let query: any = likeNFTCollectionCollection.where(
     'classIds',
@@ -58,6 +61,7 @@ export async function getNFTCollectionsByClassId(
     classId,
   );
   if (type) query = query.where('type', '==', type);
+  if (chain) query = query.where('chain', '==', chain);
   const res = await query.get();
   return res.docs.map((doc) => {
     const docData = doc.data();
