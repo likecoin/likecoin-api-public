@@ -3,6 +3,8 @@ import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/user
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 import { findLikeWalletByEvmWallet } from '../../util/api/wallet';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -45,6 +47,16 @@ router.post('/authorize', async (req, res, next) => {
       payload.likeWallet = inputWallet;
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'walletAuthorize',
+      wallet: inputWallet,
+      jwtid,
+      permissions,
+      signMethod,
+      expiresIn,
+      isEvmWallet,
+    });
+
     res.json({ jwtid, token });
   } catch (err) {
     next(err);
