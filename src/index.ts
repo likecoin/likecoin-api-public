@@ -4,12 +4,14 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
+import logger from 'pino-http';
 import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
 import allRoutes from './routes/all';
 
 const app = express();
+app.use(logger());
 
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 3000);
