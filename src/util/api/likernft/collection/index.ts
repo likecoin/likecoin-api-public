@@ -227,6 +227,7 @@ export async function createNFTCollectionByType(
       stripePriceId,
       ...typePayload,
     },
+    chain: 'like',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
