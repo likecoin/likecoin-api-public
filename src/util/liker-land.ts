@@ -490,14 +490,16 @@ export async function migrateLikerLandEVMWallet(likeWallet: string, evmWallet: s
     });
     return { user: data, error: null };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(error);
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError;
       const errorBody = axiosError.response?.data;
       const errorMessage = errorBody || error.message;
+      // eslint-disable-next-line no-console
+      console.error(`Error migrating Liker Land EVM wallet: ${errorMessage}`);
       return { user: null, error: errorMessage };
     }
+    // eslint-disable-next-line no-console
+    console.error(error);
     return { user: null, error: (error as Error).message };
   }
 }
