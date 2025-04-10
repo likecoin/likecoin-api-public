@@ -215,6 +215,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     prices: newPrices,
     ownerWallet,
     timestamp,
+    chain: isEVMClassId(classId) ? 'evm' : 'like',
   };
   if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (image) payload.image = image;

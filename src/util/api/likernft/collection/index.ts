@@ -11,6 +11,7 @@ import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant'
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { importGoogleRetailProductFromCollection } from '../../../googleRetail';
+import { isEVMClassId } from '../../../evm/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
 export const COLLECTION_TYPES: CollectionType[] = ['book', 'reader', 'creator'];
@@ -227,6 +228,9 @@ export async function createNFTCollectionByType(
       stripePriceId,
       ...typePayload,
     },
+    chain: classIds.every((classId) => isEVMClassId(classId))
+      ? 'evm'
+      : 'like',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
