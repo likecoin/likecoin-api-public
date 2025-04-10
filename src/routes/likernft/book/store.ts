@@ -54,6 +54,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const {
       wallet,
+      chain,
       exclude_wallet: excludedWallet,
       before: beforeString,
       limit: limitString,
@@ -61,6 +62,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
     } = req.query;
     const conditions = {
       ownerWallet: wallet as string,
+      chain: chain as string,
       excludedOwnerWallet: excludedWallet as string,
       before: beforeString ? Number(beforeString) : undefined,
       limit: limitString ? Number(limitString) : 10,
@@ -102,9 +104,12 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
 
 router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {
   try {
-    const { wallet } = req.query;
+    const { wallet, chain } = req.query;
     if (!wallet) throw new ValidationError('INVALID_WALLET');
-    const moderatedBookInfos = await listNftBookInfoByModeratorWallet(req.user.wallet);
+    const moderatedBookInfos = await listNftBookInfoByModeratorWallet(
+      req.user.wallet,
+      { chain: chain as string },
+    );
     const list = moderatedBookInfos.map((b) => {
       const {
         prices: docPrices = [],

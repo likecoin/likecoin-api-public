@@ -23,7 +23,9 @@ const router = Router();
 router.get('/collection', jwtOptionalAuth('read:nftcollection'), async (req, res, next) => {
   try {
     const userWallet = req.user?.wallet;
-    const { wallet, class_id: classId, type } = req.query;
+    const {
+      wallet, class_id: classId, type, chain,
+    } = req.query;
     if (type && !COLLECTION_TYPES.includes(type as any)) {
       throw new ValidationError('INVALID_COLLECTION_TYPE');
     }
@@ -33,6 +35,7 @@ router.get('/collection', jwtOptionalAuth('read:nftcollection'), async (req, res
         wallet as string,
         userWallet === wallet,
         type as CollectionType,
+        chain as string,
       );
       res.json({ list });
       return;
@@ -42,6 +45,7 @@ router.get('/collection', jwtOptionalAuth('read:nftcollection'), async (req, res
         classId as string,
         userWallet,
         type as CollectionType,
+        chain as string,
       );
       res.json({ list });
       return;
