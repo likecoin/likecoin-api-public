@@ -16,6 +16,7 @@ import {
 import { filterNFTCollection } from '../../../util/ValidationHelper';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { createAirtablePublicationRecord } from '../../../util/airtable';
+import { isValidEVMAddress } from '../../../util/evm';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/collection', jwtOptionalAuth('read:nftcollection'), async (req, res
       throw new ValidationError('INVALID_COLLECTION_TYPE');
     }
     if (wallet) {
-      if (!isValidLikeAddress(wallet)) throw new ValidationError('INVALID_WALLET');
+      if (!isValidLikeAddress(wallet) && !isValidEVMAddress(wallet)) throw new ValidationError('INVALID_WALLET');
       const list = await getNFTCollectionsByOwner(
         wallet as string,
         userWallet === wallet,
