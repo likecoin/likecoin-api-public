@@ -79,11 +79,24 @@ router.post('/evm/migrate/book', async (req, res, next) => {
       evm_class_id: evmClassId,
     } = req.body;
     if (!likeClassId || !evmClassId) throw new ValidationError('INVALID_PAYLOAD');
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateBookClassIdBegin',
+      likeClassId,
+      evmClassId,
+    });
     const {
       error,
       migratedClassIds,
       migratedCollectionIds,
     } = await migrateBookClassId(likeClassId, evmClassId);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateBookClassIdEnd',
+      likeClassId,
+      evmClassId,
+      migratedClassIds,
+      migratedCollectionIds,
+      error,
+    });
     res.json({
       migratedClassIds,
       migratedCollectionIds,
@@ -120,6 +133,10 @@ router.post('/evm/migrate/user', async (req, res, next) => {
     } = req.body;
     if (!likeWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
     if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeUserToEVMUserRequested',
+      likeWallet,
+    });
     const signed = checkCosmosSignPayload({
       signature, publicKey, message, inputWallet: likeWallet, signMethod, action: 'migrate',
     });
@@ -130,6 +147,11 @@ router.post('/evm/migrate/user', async (req, res, next) => {
     if (!evmWallet || !checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeUserToEVMUserBegin',
+      likeWallet,
+      evmWallet,
+    });
     const {
       isMigratedBookUser,
       isMigratedLikerId,
@@ -140,6 +162,19 @@ router.post('/evm/migrate/user', async (req, res, next) => {
       migrateLikerIdError,
       migrateLikerLandError,
     } = await migrateLikeUserToEVMUser(likeWallet, evmWallet);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeUserToEVMUserEnd',
+      likeWallet,
+      evmWallet,
+      isMigratedBookUser,
+      isMigratedLikerId,
+      isMigratedLikerLand,
+      migratedLikerId,
+      migratedLikerLandUser,
+      migrateBookUserError,
+      migrateLikerIdError,
+      migrateLikerLandError,
+    });
     res.json({
       isMigratedBookUser,
       isMigratedLikerId,
@@ -165,6 +200,10 @@ router.post('/evm/migrate/all', async (req, res, next) => {
     } = req.body;
     if (!likeWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
     if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeWalletToEVMWalletRequested',
+      likeWallet,
+    });
     const signed = checkCosmosSignPayload({
       signature, publicKey, message, inputWallet: likeWallet, signMethod, action: 'migrate',
     });
@@ -175,6 +214,11 @@ router.post('/evm/migrate/all', async (req, res, next) => {
     if (!evmWallet || !checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeWalletToEVMWalletBegin',
+      likeWallet,
+      evmWallet,
+    });
     const {
       isMigratedBookUser,
       isMigratedBookOwner,
@@ -187,6 +231,21 @@ router.post('/evm/migrate/all', async (req, res, next) => {
       migrateLikerIdError,
       migrateLikerLandError,
     } = await migrateLikeWalletToEVMWallet(evmWallet, likeWallet);
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'migrateLikeWalletToEVMWalletEnd',
+      likeWallet,
+      evmWallet,
+      isMigratedBookUser,
+      isMigratedBookOwner,
+      isMigratedLikerId,
+      isMigratedLikerLand,
+      migratedLikerId,
+      migratedLikerLandUser,
+      migrateBookUserError,
+      migrateBookOwnerError,
+      migrateLikerIdError,
+      migrateLikerLandError,
+    });
     res.json({
       isMigratedBookUser,
       isMigratedBookOwner,
