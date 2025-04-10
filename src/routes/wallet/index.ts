@@ -10,6 +10,8 @@ import {
   migrateLikeWalletToEvmWallet,
 } from '../../util/api/wallet';
 import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -52,6 +54,16 @@ router.post('/authorize', async (req, res, next) => {
       payload.likeWallet = inputWallet;
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'walletAuthorize',
+      wallet: inputWallet,
+      jwtid,
+      permissions,
+      signMethod,
+      expiresIn,
+      isEvmWallet,
+    });
+
     res.json({ jwtid, token });
   } catch (err) {
     next(err);
