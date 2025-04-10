@@ -384,12 +384,14 @@ export async function updateNftBookInfo(classId: string, {
 export async function listLatestNFTBookInfo({
   ownerWallet,
   excludedOwnerWallet,
+  chain,
   before,
   limit,
   key,
 }: {
   ownerWallet?: string;
   excludedOwnerWallet?: string;
+  chain?: string;
   before?: number;
   limit?: number;
   key?: number;
@@ -397,6 +399,7 @@ export async function listLatestNFTBookInfo({
   let snapshot = likeNFTBookCollection.orderBy('timestamp', 'desc');
   if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
   if (excludedOwnerWallet) snapshot = snapshot.where('ownerWallet', '!=', excludedOwnerWallet);
+  if (chain) snapshot = snapshot.where('chain', '==', chain);
   const tsNumber = before || key;
   if (tsNumber) {
     // HACK: bypass startAfter() type check
@@ -411,11 +414,20 @@ export async function listLatestNFTBookInfo({
   });
 }
 
-export async function listNftBookInfoByModeratorWallet(moderatorWallet: string) {
+export async function listNftBookInfoByModeratorWallet(
+  moderatorWallet: string,
+  { chain = '' } = {},
+) {
   const MAX_BOOK_ITEMS_LIMIT = 256;
-  const query = LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)
-    ? await likeNFTBookCollection.limit(MAX_BOOK_ITEMS_LIMIT).get()
-    : await likeNFTBookCollection.where('moderatorWallets', 'array-contains', moderatorWallet).limit(MAX_BOOK_ITEMS_LIMIT).get();
+  let queryRef: any = likeNFTBookCollection;
+  if (!LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)) {
+    queryRef = queryRef
+      .where('moderatorWallets', 'array-contains', moderatorWallet);
+  }
+  if (chain) {
+    queryRef = queryRef.where('chain', '==', chain);
+  }
+  const query = await queryRef.limit(MAX_BOOK_ITEMS_LIMIT).get();
   return query.docs.map((doc) => {
     const docData = doc.data();
     return { id: doc.id, ...docData };
