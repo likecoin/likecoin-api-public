@@ -1,4 +1,4 @@
-import { getNFTClassDataById } from '../../evm/nft';
+import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
 import {
   db,
   FieldValue,
@@ -28,10 +28,17 @@ export async function checkBookUserEvmWallet(likeWallet: string) {
 async function migrateBookUser(likeWallet: string, evmWallet: string) {
   try {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
-      const [evmQuery, userDoc] = await Promise.all([
+      const [evmQuery, userDoc, evmUserDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).limit(1)),
         t.get(likeNFTBookUserCollection.doc(likeWallet)),
+        t.get(likeNFTBookUserCollection.doc(evmWallet)),
       ]);
+      if (evmUserDoc.exists) {
+        return {
+          userExists: true,
+          alreadyMigrated: true,
+        };
+      }
       if (evmQuery.docs.length > 0) {
         if (evmQuery.docs[0].id !== userDoc?.id) {
           throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
@@ -44,17 +51,26 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
       if (!userDoc.exists) {
         t.create(likeNFTBookUserCollection.doc(likeWallet), {
           evmWallet,
+          migrateTimestamp: FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
+        });
+        t.create(likeNFTBookUserCollection.doc(evmWallet), {
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
         });
       } else {
-        const { evmWallet: existingEvmWallet } = userDoc.data();
+        const userData = userDoc.data();
+        const { evmWallet: existingEvmWallet } = userData;
         if (existingEvmWallet && existingEvmWallet !== evmWallet) {
           throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
         }
         t.update(userDoc.ref, {
           evmWallet,
+          migrateTimestamp: FieldValue.serverTimestamp(),
+        });
+        t.create(likeNFTBookUserCollection.doc(evmWallet), {
+          ...userData,
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
@@ -142,6 +158,12 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         const { evmClassId: existingEvmClassId } = bookListingDoc.data();
         if (!existingEvmClassId) {
           t.update(bookListingDoc.ref, { evmClassId });
+          t.create(likeNFTBookCollection.doc(evmClassId), {
+            ...bookListingDoc.data(),
+            chain: 'evm',
+            likeClassId,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+          });
           migratedClassIds.push(likeClassId);
         }
       }
@@ -150,7 +172,10 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         const index = classIds.indexOf(likeClassId);
         if (index >= 0) {
           classIds[index] = evmClassId;
-          t.update(doc.ref, { classIds });
+          t.update(doc.ref, {
+            classIds,
+            chain: classIds.every((id) => isEVMClassId(id)) ? 'evm' : 'like',
+          });
           migratedCollectionIds.push(doc.id);
         }
       });
