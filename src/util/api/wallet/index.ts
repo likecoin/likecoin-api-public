@@ -1,4 +1,4 @@
-import { getNFTClassDataById } from '../../evm/nft';
+import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
 import {
   db,
   FieldValue,
@@ -142,6 +142,12 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         const { evmClassId: existingEvmClassId } = bookListingDoc.data();
         if (!existingEvmClassId) {
           t.update(bookListingDoc.ref, { evmClassId });
+          t.create(likeNFTBookCollection.doc(evmClassId), {
+            ...bookListingDoc.data(),
+            chain: 'evm',
+            likeClassId,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+          });
           migratedClassIds.push(likeClassId);
         }
       }
@@ -150,7 +156,10 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         const index = classIds.indexOf(likeClassId);
         if (index >= 0) {
           classIds[index] = evmClassId;
-          t.update(doc.ref, { classIds });
+          t.update(doc.ref, {
+            classIds,
+            chain: classIds.every((id) => isEVMClassId(id)) ? 'evm' : 'like',
+          });
           migratedCollectionIds.push(doc.id);
         }
       });
