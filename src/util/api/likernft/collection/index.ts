@@ -239,7 +239,9 @@ export async function createNFTCollectionByType(
       stripePriceId,
       ...typePayload,
     },
-    chain: 'like',
+    chain: classIds.every((classId) => isEVMClassId(classId))
+      ? 'evm'
+      : 'like',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
