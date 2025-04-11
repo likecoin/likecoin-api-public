@@ -28,6 +28,8 @@ import {
 } from '../../../../../../config/config';
 import { getClassCurrentTokenId, isEVMClassId, mintNFT } from '../../../../evm/nft';
 import { getNFTClassDataById } from '..';
+import { isValidEVMAddress } from '../../../../evm';
+import { isValidLikeAddress } from '../../../../cosmos';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
@@ -357,7 +359,15 @@ export async function claimNFTBookCollection(
     const {
       claimToken,
       status,
+      classIds: docClassIds,
     } = docData;
+    if (isEVMClassId(docClassIds[0])) {
+      if (!isValidEVMAddress(wallet)) {
+        throw new ValidationError('INVALID_WALLET_ADDRESS', 400);
+      }
+    } else if (!isValidLikeAddress(wallet)) {
+      throw new ValidationError('INVALID_WALLET_ADDRESS', 400);
+    }
     if (token !== claimToken) {
       throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
