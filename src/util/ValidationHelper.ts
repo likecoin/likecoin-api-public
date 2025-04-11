@@ -682,7 +682,9 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
   const {
     id: inputId,
     classId,
+    likeClassId,
     evmClassId,
+    chain,
     prices: inputPrices = [],
     shippingRates,
     pendingNFTCount,
@@ -713,7 +715,9 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
   const payload: any = {
     id,
     classId: id,
+    likeClassId,
     evmClassId,
+    chain,
     prices,
     shippingRates,
     isSoldOut: stock <= 0,
@@ -804,6 +808,7 @@ export function filterNFTCollection({
   classIds,
   name,
   description,
+  chain,
   image,
   type,
   typePayload,
@@ -814,6 +819,7 @@ export function filterNFTCollection({
     classIds,
     name,
     description,
+    chain,
     image,
     type,
     typePayload: {
