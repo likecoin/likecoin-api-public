@@ -224,7 +224,9 @@ export async function createNFTCollectionByType(
   });
   const stripeProductId = stripeProduct.id;
   const stripePriceId = stripeProduct.default_price;
-
+  const chain = classIds.every((classId) => isEVMClassId(classId))
+    ? 'evm'
+    : 'like';
   let batch = db.batch();
   batch.create(docRef, {
     ownerWallet: wallet,
@@ -239,9 +241,7 @@ export async function createNFTCollectionByType(
       stripePriceId,
       ...typePayload,
     },
-    chain: classIds.every((classId) => isEVMClassId(classId))
-      ? 'evm'
-      : 'like',
+    chain,
     timestamp: FieldValue.serverTimestamp(),
     lastUpdatedTimestamp: FieldValue.serverTimestamp(),
   });
@@ -313,6 +313,7 @@ export async function createNFTCollectionByType(
   }
   return {
     id: collectionId,
+    chain,
     ownerWallet: wallet,
     classIds,
     name,

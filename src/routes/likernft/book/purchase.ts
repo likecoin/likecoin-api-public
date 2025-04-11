@@ -32,6 +32,9 @@ import {
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import logPixelEvents from '../../../util/fbq';
 import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
+import { isEVMClassId } from '../../../util/evm/nft';
+import { isValidEVMAddress } from '../../../util/evm';
+import { isValidLikeAddress } from '../../../util/cosmos';
 
 const router = Router();
 
@@ -512,6 +515,13 @@ router.post(
       const { token } = req.query;
       const { wallet, message, loginMethod } = req.body;
 
+      if (isEVMClassId(classId)) {
+        if (!isValidEVMAddress(wallet)) {
+          throw new ValidationError('INVALID_WALLET_ADDRESS');
+        }
+      } else if (!isValidLikeAddress(wallet)) {
+        throw new ValidationError('INVALID_WALLET_ADDRESS');
+      }
       if (!token) throw new ValidationError('MISSING_TOKEN');
       if (!wallet) throw new ValidationError('MISSING_WALLET');
 
