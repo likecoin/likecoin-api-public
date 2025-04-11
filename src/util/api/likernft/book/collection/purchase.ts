@@ -26,7 +26,7 @@ import { getBookCollectionInfoById } from '../../collection/book';
 import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../../config/config';
-import { isEVMClassId, mintNFT } from '../../../../evm/nft';
+import { getClassCurrentTokenId, isEVMClassId, mintNFT } from '../../../../evm/nft';
 import { getNFTClassDataById } from '..';
 import { isValidEvmAddress } from '../../../../evm';
 import { isValidLikeAddress } from '../../../../cosmos';
@@ -396,8 +396,16 @@ export async function claimNFTBookCollection(
     if (isEVMClassId(classIds[0])) {
       for (const classId of classIds) {
         const nftIds: string[] = nftIdMap[classId];
-        const metadata = await getNFTClassDataById(classId);
-        txHash = await mintNFT(classId, wallet, metadata, { count: nftIds.length, memo: autoMemo });
+        const [metadata, fromTokenId] = await Promise.all([
+          getNFTClassDataById(classId),
+          getClassCurrentTokenId(classId),
+        ]);
+        txHash = await mintNFT(
+          classId,
+          wallet,
+          metadata,
+          { count: nftIds.length, memo: autoMemo, fromTokenId },
+        );
       }
     } else {
       const txMessages: any[] = [];

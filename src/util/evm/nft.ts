@@ -60,6 +60,15 @@ export async function getNFTClassTokenIdByOwnerIndex(classId, wallet, index) {
   return tokenId as number;
 }
 
+export async function getClassCurrentTokenId(classId) {
+  const tokenId = await readContract(getEvmClient(), {
+    address: getAddress(classId),
+    abi: LIKE_NFT_CLASS_ABI,
+    functionName: 'getCurrentIndex',
+  });
+  return tokenId as number;
+}
+
 export async function checkNFTClassIsBookNFT(classId) {
   const res = await readContract(getEvmClient(), {
     address: LIKE_NFT_CONTRACT_ADDRESS,
@@ -70,32 +79,42 @@ export async function checkNFTClassIsBookNFT(classId) {
   return res as boolean;
 }
 
-export async function mintNFT(classId, wallet, metadata, { count = 1, memo = '' } = {}) {
+export async function mintNFT(
+  classId,
+  wallet,
+  metadata,
+  { count = 1, memo = '', fromTokenId }: {
+    count?: number,
+    memo?: string,
+    fromTokenId?: number,
+  } = {},
+) {
   const account = getEvmWalletAccount();
   const walletClient = getEvmWalletClient();
   const isBookNFT = await checkNFTClassIsBookNFT(classId);
   if (!isBookNFT) { throw new Error(`Class ${classId} is not a book NFT`); }
+  const isMintFromTokenId = fromTokenId !== undefined;
+  const args: any[] = [
+    Array(count).fill(getAddress(wallet)),
+    Array(count).fill(memo),
+    Array(count).fill(0).map((_, index) => {
+      let { name } = metadata;
+      if (isMintFromTokenId) {
+        name = `${name} #${Number(fromTokenId) + index + 1}`;
+      }
+      return JSON.stringify({ ...metadata, name });
+    }),
+  ];
+  if (isMintFromTokenId) {
+    args.unshift(fromTokenId);
+  }
   const res = await sendWriteContractWithNonce(walletClient, {
     chain: walletClient.chain,
     address: classId,
     abi: LIKE_NFT_CLASS_ABI,
     account,
-    functionName: 'batchMint',
-    args: [
-      Array(count).fill(getAddress(wallet)),
-      Array(count).fill(memo),
-      Array(count).fill(0).map(() => JSON.stringify({
-        image: metadata.image,
-        image_data: '',
-        external_url: metadata.external_url || '',
-        description: metadata.description || '',
-        name: metadata.name || '',
-        attributes: metadata.attributes || [],
-        background_color: '',
-        animation_url: '',
-        youtube_url: '',
-      })), // TODO: format metadata according to NFT Book spec
-    ],
+    functionName: fromTokenId ? 'safeMintWithTokenId' : 'batchMint',
+    args,
   });
   await logEvmMintNFTsTx({
     txHash: res.transactionHash,

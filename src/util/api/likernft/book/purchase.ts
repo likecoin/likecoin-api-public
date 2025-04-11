@@ -46,7 +46,7 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { CartItemWithInfo } from './type';
-import { isEVMClassId, mintNFT } from '../../../evm/nft';
+import { getClassCurrentTokenId, isEVMClassId, mintNFT } from '../../../evm/nft';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1130,12 +1130,15 @@ export async function claimNFTBook(
     const msgSendNftIds = nftIds || [nftId];
     try {
       if (isEVMClassId(classId)) {
-        const metadata = await getNFTClassDataById(classId);
+        const [metadata, fromTokenId] = await Promise.all([
+          getNFTClassDataById(classId),
+          getClassCurrentTokenId(classId),
+        ]);
         txHash = await mintNFT(
           classId,
           wallet,
           metadata,
-          { count: msgSendNftIds.length, memo: autoMemo },
+          { count: msgSendNftIds.length, memo: autoMemo, fromTokenId },
         );
       } else {
         const txMessages = msgSendNftIds
