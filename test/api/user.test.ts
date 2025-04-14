@@ -42,7 +42,7 @@ import { jwtSign } from './jwt';
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
-  return sigUtil.personalSign(privKey, { data: signData });
+  return sigUtil.personalSign(privKey, { data: web3Utils.utf8ToHex(signData) });
 }
 
 test.serial('USER: Register cosmos user. Case: fail', async (t) => {
@@ -67,11 +67,11 @@ test.serial('USER: Register cosmos user. Case: fail', async (t) => {
   t.is(res.status, 400);
 });
 
-test.serial('USER: Register cosmos user. Case: success', async (t) => {
-  const cosmosWallet = testingCosmosWallet0;
+test.serial('USER: Register like user. Case: success', async (t) => {
+  const likeWallet = testingLikeWallet0;
   const payload = {
     ts: Date.now(),
-    cosmosWallet,
+    likeWallet,
   };
   const {
     signed: message,
@@ -81,15 +81,15 @@ test.serial('USER: Register cosmos user. Case: success', async (t) => {
     signature,
     publicKey: publicKey.value,
     message: jsonStringify(message),
-    from: testingCosmosWallet0,
-    platform: 'cosmosWallet',
+    from: testingLikeWallet0,
+    platform: 'likeWallet',
     user: 'testing-new-user',
-    email: 'test@cosmos.user',
+    email: 'test@like.user',
   });
   t.is(res.status, 200);
 });
 
-test.serial('USER: Login like user. Case: sucess', async (t) => {
+test.serial('USER: Login like user. Case: success', async (t) => {
   const likeWallet = testingLikeWallet0;
   const payload = {
     ts: Date.now(),
@@ -153,10 +153,11 @@ test.serial('USER: Login like user. Case: fail, wrong platform', async (t) => {
 // serial will run first
 //
 test.serial('USER: Login Metamask user. Case: success', async (t) => {
-  const payload = web3Utils.utf8ToHex(JSON.stringify({
+  const payload = JSON.stringify({
     ts: Date.now(),
-    wallet: testingWallet2,
-  }));
+    evmWallet: testingWallet2,
+    action: 'login',
+  });
   const sign = signERCProfile(payload, privateKey2);
   const res = await axiosist.post('/api/users/login', {
     from: testingWallet2,
@@ -356,7 +357,7 @@ const userCases = [
       user: testingUser1,
       displayName: testingDisplayName1,
       ts: Date.now(),
-      wallet: testingWallet1,
+      evmWallet: testingWallet1,
       email: testingEmail1,
     },
     from: testingWallet2,
@@ -489,7 +490,7 @@ for (let i = 0; i < userCases.length; i += 1) {
     privateKey,
   } = userCases[i];
   test(name, async (t) => {
-    const formatedPayload = web3Utils.utf8ToHex(JSON.stringify(payload));
+    const formatedPayload = JSON.stringify(payload);
     const sign = signERCProfile(formatedPayload, privateKey);
     const res = await axiosist.post('/api/users/new', {
       from,

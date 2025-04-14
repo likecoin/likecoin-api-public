@@ -15,13 +15,13 @@ import {
   createAuthCoreCosmosWalletViaUserToken,
 } from '../../util/authcore';
 import {
-  checkSignPayload,
   checkCosmosSignPayload,
   setAuthCookies,
   clearAuthCookies,
   userByEmailQuery,
   normalizeUserEmail,
   getUserAgentIsApp,
+  checkEvmSignPayload,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
@@ -36,7 +36,6 @@ import {
 } from '../../../config/config';
 
 import {
-  isValidCosmosAddress,
   isValidLikeAddress,
 } from '../../util/cosmos';
 
@@ -101,6 +100,25 @@ router.post(
       let payload;
 
       switch (platform) {
+        case 'evmWallet': {
+          const {
+            from: inputWallet,
+            payload: stringPayload,
+            sign,
+          } = req.body;
+          checkEvmSignPayload({
+            signature: sign,
+            message: stringPayload,
+            inputWallet,
+            action: 'register',
+          });
+          payload = req.body;
+          payload.evmWallet = inputWallet;
+          payload.displayName = displayName || user;
+          payload.email = email;
+          payload.isEmailVerified = false;
+          break;
+        }
         case 'authcore': {
           const {
             idToken,
@@ -160,15 +178,13 @@ router.post(
           }
           break;
         }
-        case 'likeWallet':
-        case 'cosmosWallet': {
+        case 'likeWallet': {
           const {
             from: inputWallet, signature, publicKey, message, signMethod,
           } = req.body;
           ({ email } = req.body);
           if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
           if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
-          if (platform === 'cosmosWallet' && !isValidCosmosAddress(inputWallet)) throw new ValidationError('INVALID_COSMOS_ADDRESS');
           if (!checkCosmosSignPayload({
             signature, publicKey, message, inputWallet, signMethod,
           })) {
@@ -450,7 +466,12 @@ router.post('/login', async (req, res, next) => {
           sign,
         } = req.body;
         wallet = from;
-        checkSignPayload(wallet, stringPayload, sign);
+        checkEvmSignPayload({
+          signature: sign,
+          message: stringPayload,
+          inputWallet: wallet,
+          action: 'login',
+        });
         const userQuery = await (
           dbRef
             .where('evmWallet', '==', wallet)

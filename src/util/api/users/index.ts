@@ -106,32 +106,6 @@ export async function setAuthCookies(req, res, { user, platform }) {
   });
 }
 
-export function checkSignPayload(from, payload, sign) {
-  const recovered = sigUtil.recoverPersonalSignature({ data: payload, sig: sign });
-  if (recovered.toLowerCase() !== from.toLowerCase()) {
-    throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
-  }
-
-  // trims away sign message header before JSON
-  const message = web3Utils.hexToUtf8(payload);
-  const actualPayload = JSON.parse(message.substr(message.indexOf('{')));
-  const {
-    wallet,
-    ts,
-  } = actualPayload;
-
-  // check address match
-  if (from !== wallet || !checkAddressValid(wallet)) {
-    throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
-  }
-
-  // Check ts expire
-  if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
-    throw new ValidationError('PAYLOAD_EXPIRED');
-  }
-  return actualPayload;
-}
-
 function parseActualLoginPayload(message, signMethod) {
   try {
     const parsedMessage = JSON.parse(message);
