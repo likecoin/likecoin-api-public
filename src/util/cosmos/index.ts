@@ -11,6 +11,8 @@ import {
   QueryClient,
   setupAuthExtension,
   setupBankExtension,
+  setupStakingExtension,
+  StakingExtension,
 } from '@cosmjs/stargate';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
@@ -44,7 +46,7 @@ export async function getCosmosTotalSupply() {
   return amountToLIKE(data.amount);
 }
 
-let cosmosQueryClient: QueryClient & AuthExtension & BankExtension | null = null;
+let cosmosQueryClient: QueryClient & AuthExtension & BankExtension & StakingExtension | null = null;
 
 export async function getQueryClient(rpc = cosmosRpcEndpoint) {
   if (!cosmosQueryClient) {
@@ -53,6 +55,7 @@ export async function getQueryClient(rpc = cosmosRpcEndpoint) {
       tendermint34Client,
       setupAuthExtension,
       setupBankExtension,
+      setupStakingExtension,
     );
     cosmosQueryClient = queryClient;
   }
