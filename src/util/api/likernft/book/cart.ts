@@ -1019,7 +1019,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     customPriceInDecimal: item.customPriceInDecimal,
     quantity: item.quantity,
     from: item.from,
-    priceInDecimal: item.customPriceInDecimal,
   }));
   const itemInfos = await formatCartItemsWithInfo(items);
   const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
