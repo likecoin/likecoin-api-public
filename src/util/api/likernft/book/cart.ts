@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 
-import { getNftBookInfo } from '.';
+import { getNFTClassDataById, getNftBookInfo } from '.';
 import {
   NFT_BOOK_SALE_DESCRIPTION,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
@@ -12,7 +12,6 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
-import { getNFTClassDataById } from '../../../cosmos/nft';
 import { getLikerLandCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
@@ -55,6 +54,7 @@ import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
 } from '../../../../../config/config';
 import { CartItem, CartItemWithInfo } from './type';
+import { isEVMClassId } from '../../../evm/nft';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -717,8 +717,13 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         ownerWallet,
         shippingRates,
         isLikerLandArt,
+        chain,
+        evmClassId,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+      if (chain === 'like' && evmClassId) {
+        throw new ValidationError('NFT_MIGRATED_TO_EVM');
+      }
       const {
         priceInDecimal: originalPriceInDecimal,
         stock,
@@ -730,8 +735,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         stripePriceId,
       } = prices[priceIndex];
       let { name = '', description = '' } = metadata;
-      const classMetadata = metadata.data.metadata;
-      const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
+      const { image, iscnPrefix } = metadata;
       const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
       const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
       if (priceName) {
@@ -743,7 +747,6 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         description = `${description} - ${priceDescription}`;
       }
       if (itemFrom) description = `[${itemFrom}] ${description}`;
-      const { image } = classMetadata;
       const images = [parseImageURLFromMetadata(image)];
       info = {
         stock,
@@ -761,6 +764,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         iscnPrefix,
         priceName,
         stripePriceId,
+        chain,
       };
     } else if (collectionId) {
       const collectionData = await getBookCollectionInfoById(collectionId);
@@ -779,14 +783,19 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         name: collectionNameObj,
         description: collectionDescriptionObj,
         stripePriceId,
+        chain,
       } = collectionData;
+      if (!classIds[0]) throw new ValidationError('NFT_NOT_FOUND');
+      if (chain === 'like' && classIds.find((id) => isEVMClassId(id))) {
+        throw new ValidationError('NFT_COLLECTION_MIGRATING');
+      }
       const classDataList = await Promise.all(classIds.map((id) => getNFTClassDataById(id)));
 
       const images: string[] = [];
       if (image) images.push(parseImageURLFromMetadata(image));
       classDataList.forEach((data) => {
-        if (data?.data?.metadata?.image) {
-          images.push(parseImageURLFromMetadata(data.data.metadata.image));
+        if (data?.image) {
+          images.push(parseImageURLFromMetadata(data.image));
         }
       });
       const name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
@@ -806,6 +815,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         originalPriceInDecimal,
         collectionId,
         stripePriceId,
+        chain,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -826,6 +836,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       isLikerLandArt,
       priceName = '',
       stripePriceId,
+      chain,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -868,6 +879,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceIndex,
       quantity,
       stripePriceId,
+      chain,
     };
   }));
   return itemInfos;
@@ -1024,6 +1036,10 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
   if (itemsWithShipping.length > 1) {
     throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
+  }
+  const { chain } = itemInfos[0];
+  if (!itemInfos.every((item) => item.chain === chain)) {
+    throw new ValidationError('DIFFERENT_CHAIN_NOT_SUPPORTED');
   }
   let customerEmail = email;
   let customerId;
