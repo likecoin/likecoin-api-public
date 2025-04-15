@@ -64,7 +64,7 @@ export async function getClassCurrentTokenId(classId) {
   const tokenId = await readContract(getEvmClient(), {
     address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
-    functionName: 'currentTokenId',
+    functionName: 'getCurrentIndex',
   });
   return tokenId as number;
 }
