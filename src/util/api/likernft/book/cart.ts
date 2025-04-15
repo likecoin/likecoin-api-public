@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 
-import { getNftBookInfo } from '.';
+import { getNFTClassDataById, getNftBookInfo } from '.';
 import {
   NFT_BOOK_SALE_DESCRIPTION,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
@@ -12,7 +12,6 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
-import { getNFTClassDataById } from '../../../cosmos/nft';
 import { getLikerLandCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
@@ -730,8 +729,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         stripePriceId,
       } = prices[priceIndex];
       let { name = '', description = '' } = metadata;
-      const classMetadata = metadata.data.metadata;
-      const iscnPrefix = metadata.data.parent.iscnIdPrefix || undefined;
+      const { image, iscnPrefix } = metadata;
       const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
       const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
       if (priceName) {
@@ -743,7 +741,6 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         description = `${description} - ${priceDescription}`;
       }
       if (itemFrom) description = `[${itemFrom}] ${description}`;
-      const { image } = classMetadata;
       const images = [parseImageURLFromMetadata(image)];
       info = {
         stock,
@@ -785,8 +782,8 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       const images: string[] = [];
       if (image) images.push(parseImageURLFromMetadata(image));
       classDataList.forEach((data) => {
-        if (data?.data?.metadata?.image) {
-          images.push(parseImageURLFromMetadata(data.data.metadata.image));
+        if (data?.image) {
+          images.push(parseImageURLFromMetadata(data.image));
         }
       });
       const name = typeof collectionNameObj === 'object' ? collectionNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : collectionNameObj || '';
