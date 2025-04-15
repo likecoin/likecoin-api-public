@@ -100,7 +100,7 @@ export async function mintNFT(
     Array(count).fill(0).map((_, index) => {
       let { name } = metadata;
       if (isMintFromTokenId) {
-        name = `${name} #${fromTokenId + index + 1}`;
+        name = `${name} #${Number(fromTokenId) + index + 1}`;
       }
       return JSON.stringify({ ...metadata, name });
     }),
