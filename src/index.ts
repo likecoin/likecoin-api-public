@@ -4,12 +4,30 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
+import logger from 'pino-http';
 import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
 import allRoutes from './routes/all';
 
 const app = express();
+app.use(logger(
+  {
+    level: process.env.LOG_LEVEL || 'info',
+    autoLogging: {
+      ignore: (req): boolean => req.url === '/healthz',
+    },
+    transport: process.env.NODE_ENV === 'production' ? undefined : {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    },
+  },
+));
+
 
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 3000);
