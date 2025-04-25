@@ -6,6 +6,7 @@ import { INTERNAL_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constan
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
+  LIKE_NFT_EVM_INDEXER_API,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../config/config';
 import { isEVMClassId, getNFTClassDataById as getEVMNFTClassDataById } from '../../../util/evm/nft';
@@ -122,8 +123,19 @@ function formatOwnerInfo(owners) {
 
 async function getNFTClassOwnerInfo(classId) {
   if (isEVMClassId(classId)) {
-    // TODO: Implement EVM owner info via indexer
-    return null;
+    // TODO: iterate all pages or change to another owner API
+    const { data } = await axios.get(
+      `${LIKE_NFT_EVM_INDEXER_API}/booknft/${classId}/tokens?limit=100`,
+    );
+    const ownersInfo = {};
+    data.data.forEach((item) => {
+      const { owner_address: owner, token_id: tokenId } = item;
+      if (!ownersInfo[owner]) {
+        ownersInfo[owner] = [];
+      }
+      ownersInfo[owner].push(tokenId);
+    });
+    return ownersInfo;
   }
   const { data } = await axios.get(
     `${COSMOS_LCD_INDEXER_ENDPOINT}/likechain/likenft/v1/owner?class_id=${classId}`,
