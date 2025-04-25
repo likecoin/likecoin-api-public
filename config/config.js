@@ -35,6 +35,8 @@ config.NFT_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.NFT_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.NFT_COSMOS_DENOM = 'nanoekil';
 
+config.LIKE_NFT_EVM_INDEXER_API = 'https://likenft-indexer.pandawork.com/api';
+
 config.ARWEAVE_LIKE_TARGET_ADDRESS = '';
 config.ARWEAVE_EVM_TARGET_ADDRESS = '';
 config.LIKE_PRICE_MULTIPLIER = 1;
