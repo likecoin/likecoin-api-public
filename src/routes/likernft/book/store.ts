@@ -520,7 +520,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       isbn,
       image,
     } = metadata;
-    const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+    const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
     await newNftBookInfo(classId, {
       iscnIdPrefix: metadata.iscnIdPrefix,

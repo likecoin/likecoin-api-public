@@ -305,7 +305,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const {
     prices,
   } = bookInfo;
-  const keywords = keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+  const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
   const payload: any = {};
   if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
