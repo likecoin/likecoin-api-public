@@ -33,34 +33,28 @@ export async function checkBookUserEVMWallet(likeWallet: string) {
 async function migrateBookUser(likeWallet: string, evmWallet: string) {
   try {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
-      const [evmQuery, userDoc, evmUserDoc] = await Promise.all([
-        t.get(likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).limit(1)),
+      const [userDoc, evmUserDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.doc(likeWallet)),
         t.get(likeNFTBookUserCollection.doc(evmWallet)),
       ]);
       if (evmUserDoc.exists) {
-        return {
-          userExists: true,
-          alreadyMigrated: true,
-        };
-      }
-      if (evmQuery.docs.length > 0) {
-        if (evmQuery.docs[0].id !== userDoc?.id) {
-          throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
+        const {
+          likeWallet: evmLikeWallet,
+        } = evmUserDoc.data();
+        if (evmLikeWallet) {
+          if (evmLikeWallet !== likeWallet) {
+            throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
+          } else {
+            return {
+              userExists: true,
+              alreadyMigrated: true,
+            };
+          }
         }
-        return {
-          userExists: true,
-          alreadyMigrated: true,
-        };
       }
       if (!userDoc.exists) {
         t.create(likeNFTBookUserCollection.doc(likeWallet), {
           evmWallet,
-          migrateTimestamp: FieldValue.serverTimestamp(),
-          timestamp: FieldValue.serverTimestamp(),
-        });
-        t.create(likeNFTBookUserCollection.doc(evmWallet), {
-          likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
         });
@@ -74,8 +68,15 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           evmWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
+      }
+      if (!evmUserDoc.exists) {
         t.create(likeNFTBookUserCollection.doc(evmWallet), {
-          ...userData,
+          likeWallet,
+          migrateTimestamp: FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
+        });
+      } else {
+        t.update(likeNFTBookUserCollection.doc(evmWallet), {
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
