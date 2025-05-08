@@ -113,7 +113,7 @@ export async function mintNFT(
     address: classId,
     abi: LIKE_NFT_CLASS_ABI,
     account,
-    functionName: fromTokenId ? 'safeMintWithTokenId' : 'batchMint',
+    functionName: isMintFromTokenId ? 'safeMintWithTokenId' : 'batchMint',
     args,
   });
   await logEvmMintNFTsTx({
