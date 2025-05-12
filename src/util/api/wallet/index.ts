@@ -1,3 +1,4 @@
+import { isValidLikeAddress } from '../../cosmos';
 import { likeNFTBookUserCollection } from '../../firebase';
 
 export async function findLikeWalletByEvmWallet(evmWallet: string) {
@@ -5,7 +6,11 @@ export async function findLikeWalletByEvmWallet(evmWallet: string) {
   if (userQuery.docs.length === 0) {
     return null;
   }
-  return userQuery.docs[0].data()?.likeWallet;
+  const docId = userQuery.docs[0].id;
+  if (isValidLikeAddress(docId)) {
+    return docId;
+  }
+  return null;
 }
 
 export default findLikeWalletByEvmWallet;

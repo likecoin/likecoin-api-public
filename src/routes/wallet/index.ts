@@ -5,6 +5,7 @@ import { jwtSign } from '../../util/jwt';
 import { findLikeWalletByEvmWallet } from '../../util/api/wallet';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { isValidLikeAddress } from '../../util/cosmos';
 
 const router = Router();
 
@@ -25,11 +26,13 @@ router.post('/authorize', async (req, res, next) => {
       signed = checkEvmSignPayload({
         signature, message, inputWallet, signMethod, action: 'authorize',
       });
-    } else {
+    } else if (isValidLikeAddress(inputWallet)) {
       if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
       signed = checkCosmosSignPayload({
         signature, publicKey, message, inputWallet, signMethod, action: 'authorize',
       });
+    } else {
+      throw new ValidationError('INVALID_WALLET');
     }
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
