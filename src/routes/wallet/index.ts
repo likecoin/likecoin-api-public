@@ -132,7 +132,6 @@ router.post('/evm/migrate/user', async (req, res, next) => {
       cosmos_signature_content: message, signMethod,
     } = req.body;
     if (!likeWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-    if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'migrateLikeUserToEVMUserRequested',
       likeWallet,
