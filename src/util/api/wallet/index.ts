@@ -1,3 +1,4 @@
+import { isValidLikeAddress } from '../../cosmos';
 import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
 import {
   db,
@@ -8,7 +9,6 @@ import {
   userCollection,
 } from '../../firebase';
 import { migrateLikerLandEvmWallet } from '../../liker-land';
-import { isValidLikeAddress } from '../../cosmos';
 
 export async function findLikeWalletByEvmWallet(evmWallet: string) {
   const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).get();
