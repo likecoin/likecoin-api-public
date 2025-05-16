@@ -4,38 +4,30 @@ import { CACHE_BUCKET } from '../../../../constant';
 const storage = new Storage();
 const bucket = storage.bucket(CACHE_BUCKET);
 
-export default async function uploadSignatureAndMemoImages({ classId, signFile, memoFile }) {
-  if (!classId) {
-    throw new Error('classId is required');
+export default async function uploadFile({
+  path,
+  file,
+  contentType = 'image/png',
+}: {
+  path: string
+  file: Buffer | Uint8Array
+  contentType?: string
+}): Promise<boolean> {
+  if (!path || !file) {
+    throw new Error('path and file are required');
   }
 
-  if (signFile) {
-    try {
-      const signPath = `${classId}/sign.png`;
-      await bucket.file(signPath).save(signFile.data, {
-        public: true,
-        contentType: signFile.type || 'image/png',
-      });
-      // eslint-disable-next-line no-console
-      console.log('sign.png uploaded');
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to upload sign.png for ${classId}`, err);
-    }
-  }
-
-  if (memoFile) {
-    try {
-      const memoPath = `${classId}/memo.png`;
-      await bucket.file(memoPath).save(memoFile.data, {
-        public: true,
-        contentType: memoFile.type || 'image/png',
-      });
-      // eslint-disable-next-line no-console
-      console.log('memo.png uploaded');
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to upload memo.png for ${classId}`, err);
-    }
+  try {
+    await bucket.file(path).save(file, {
+      public: true,
+      contentType,
+    });
+    // eslint-disable-next-line no-console
+    console.log(`Uploaded ${path}`);
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload ${path}`, err);
+    return false;
   }
 }

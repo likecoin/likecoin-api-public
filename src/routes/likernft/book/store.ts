@@ -27,7 +27,7 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import uploadSignatureAndMemoImages from '../../../util/api/likernft/book/upload';
+import uploadFile from '../../../util/api/likernft/book/upload';
 
 const router = Router();
 
@@ -227,24 +227,25 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     });
     let enableSignatureImage;
     let signedMessageText;
+
     if (signImg || memoImg) {
-      await uploadSignatureAndMemoImages({
-        classId,
-        signFile: signImg,
-        memoFile: memoImg,
-      });
-      if (signImg) {
+      const [signSuccess, memoSuccess] = await Promise.all([
+        signImg ? uploadFile({ path: `${classId}/signature`, file: signImg }) : Promise.resolve(null),
+        memoImg ? uploadFile({ path: `${classId}/memo`, file: memoImg }) : Promise.resolve(null),
+      ]);
+
+      if (signSuccess) {
         enableSignatureImage = true;
-      } if (memoImg) {
-        const autoMemo = prices.find((p) => p.autoMemo)?.autoMemo;
-        if (autoMemo) {
-          signedMessageText = autoMemo;
-        } else {
-          // eslint-disable-next-line no-console
-          console.warn('No autoMemo found for this book');
+      }
+
+      if (memoSuccess) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
         }
       }
     }
+
     const newPrice: any = {
       stripeProductId,
       stripePriceId,
@@ -357,21 +358,21 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     }
     let enableSignatureImage;
     let signedMessageText;
+
     if (signImg || memoImg) {
-      await uploadSignatureAndMemoImages({
-        classId,
-        signFile: signImg,
-        memoFile: memoImg,
-      });
-      if (signImg) {
+      const [signSuccess, memoSuccess] = await Promise.all([
+        signImg ? uploadFile({ path: `${classId}/signature`, file: signImg }) : Promise.resolve(null),
+        memoImg ? uploadFile({ path: `${classId}/memo`, file: memoImg }) : Promise.resolve(null),
+      ]);
+
+      if (signSuccess) {
         enableSignatureImage = true;
-      } if (memoImg) {
-        const autoMemo = prices.find((p) => p.autoMemo)?.autoMemo;
-        if (autoMemo) {
-          signedMessageText = autoMemo;
-        } else {
-          // eslint-disable-next-line no-console
-          console.warn('No autoMemo found for this book');
+      }
+
+      if (memoSuccess) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
         }
       }
     }
@@ -579,21 +580,21 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
     let enableSignatureImage;
     let signedMessageText;
+
     if (signImg || memoImg) {
-      await uploadSignatureAndMemoImages({
-        classId,
-        signFile: signImg,
-        memoFile: memoImg,
-      });
-      if (signImg) {
+      const [signSuccess, memoSuccess] = await Promise.all([
+        signImg ? uploadFile({ path: `${classId}/signature`, file: signImg }) : Promise.resolve(null),
+        memoImg ? uploadFile({ path: `${classId}/memo`, file: memoImg }) : Promise.resolve(null),
+      ]);
+
+      if (signSuccess) {
         enableSignatureImage = true;
-      } if (memoImg) {
-        const autoMemo = prices.find((p) => p.autoMemo)?.autoMemo;
-        if (autoMemo) {
-          signedMessageText = autoMemo;
-        } else {
-          // eslint-disable-next-line no-console
-          console.warn('No autoMemo found for this book');
+      }
+
+      if (memoSuccess) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
         }
       }
     }
