@@ -32,6 +32,7 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
+import uploadSignatureAndMemoImages from '../../../util/api/likernft/book/upload';
 
 const router = Router();
 
@@ -232,6 +233,26 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       price,
       site,
     });
+    let enableSignatureImage;
+    let signedMessageText;
+    if (signImg || memoImg) {
+      await uploadSignatureAndMemoImages({
+        classId,
+        signFile: signImg,
+        memoFile: memoImg,
+      });
+      if (signImg) {
+        enableSignatureImage = true;
+      } if (memoImg) {
+        const autoMemo = prices.find((p) => p.autoMemo)?.autoMemo;
+        if (autoMemo) {
+          signedMessageText = autoMemo;
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn('No autoMemo found for this book');
+        }
+      }
+    }
     const newPrice: any = {
       stripeProductId,
       stripePriceId,
@@ -250,7 +271,11 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
         price.stock,
       );
     }
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableSignatureImage, signedMessageText },
+      newNFTIds,
+    );
     res.json({
       index: prices.length - 1,
     });
@@ -262,7 +287,9 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const {
+      price: inputPrice, autoDeliverNFTsTxHash, signImg, memoImg,
+    } = req.body;
     const price = validatePrice(inputPrice);
 
     const priceIndex = Number(priceIndexString);
@@ -336,9 +363,33 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
         }
       }
     }
+    let enableSignatureImage;
+    let signedMessageText;
+    if (signImg || memoImg) {
+      await uploadSignatureAndMemoImages({
+        classId,
+        signFile: signImg,
+        memoFile: memoImg,
+      });
+      if (signImg) {
+        enableSignatureImage = true;
+      } if (memoImg) {
+        const autoMemo = prices.find((p) => p.autoMemo)?.autoMemo;
+        if (autoMemo) {
+          signedMessageText = autoMemo;
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn('No autoMemo found for this book');
+        }
+      }
+    }
     prices[priceIndex] = newPriceInfo;
 
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableSignatureImage, signedMessageText },
+      newNFTIds,
+    );
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -547,6 +598,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
+      enableSignatureImage,
+      signedMessageText,
       tableOfContents,
       hideDownload,
 
