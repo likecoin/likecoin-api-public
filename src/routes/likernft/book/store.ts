@@ -32,6 +32,7 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
+import { uploadBase64Image } from '../../../util/api/likernft/book/upload';
 
 const router = Router();
 
@@ -232,6 +233,27 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       price,
       site,
     });
+    let enableSignatureImage;
+    let signedMessageText;
+
+    if (signImg || memoImg) {
+      const [signSuccess, memoSuccess] = await Promise.all([
+        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
+      ]);
+
+      if (signSuccess) {
+        enableSignatureImage = true;
+      }
+
+      if (memoSuccess) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
+        }
+      }
+    }
+
     const newPrice: any = {
       stripeProductId,
       stripePriceId,
@@ -267,7 +289,9 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const {
+      price: inputPrice, autoDeliverNFTsTxHash, signImg, memoImg,
+    } = req.body;
     const price = validatePrice(inputPrice);
 
     const priceIndex = Number(priceIndexString);
@@ -338,6 +362,26 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
             { active: false },
           );
           newPriceInfo.stripePriceId = newStripePrice.id;
+        }
+      }
+    }
+    let enableSignatureImage;
+    let signedMessageText;
+
+    if (signImg || memoImg) {
+      const [signSuccess, memoSuccess] = await Promise.all([
+        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
+      ]);
+
+      if (signSuccess) {
+        enableSignatureImage = true;
+      }
+
+      if (memoSuccess) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
         }
       }
     }
@@ -556,6 +600,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
+      enableSignatureImage,
+      signedMessageText,
       tableOfContents,
       hideDownload,
 
