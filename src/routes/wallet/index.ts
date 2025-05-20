@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { checkCosmosSignPayload, checkEvmSignPayload } from '../../util/api/users';
+import { checkCosmosSignPayload, checkEVMSignPayload } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
-import { findLikeWalletByEvmWallet } from '../../util/api/wallet';
+import { findLikeWalletByEVMWallet } from '../../util/api/wallet';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { isValidLikeAddress } from '../../util/cosmos';
@@ -20,10 +20,10 @@ router.post('/authorize', async (req, res, next) => {
     }
     const inputWallet = wallet || from;
     if (!inputWallet || !signature || !message) throw new ValidationError('INVALID_PAYLOAD');
-    const isEvmWallet = signMethod === 'personal_sign';
+    const isEVMWallet = signMethod === 'personal_sign';
     let signed;
-    if (isEvmWallet) {
-      signed = checkEvmSignPayload({
+    if (isEVMWallet) {
+      signed = checkEVMSignPayload({
         signature, message, inputWallet, signMethod, action: 'authorize',
       });
     } else if (isValidLikeAddress(inputWallet)) {
@@ -40,9 +40,9 @@ router.post('/authorize', async (req, res, next) => {
     const { permissions } = signed;
     const payload: any = { permissions };
     payload.wallet = inputWallet;
-    if (isEvmWallet) {
+    if (isEVMWallet) {
       payload.evmWallet = inputWallet;
-      const likeWallet = await findLikeWalletByEvmWallet(inputWallet);
+      const likeWallet = await findLikeWalletByEVMWallet(inputWallet);
       if (likeWallet) {
         payload.likeWallet = likeWallet;
       }
@@ -57,7 +57,7 @@ router.post('/authorize', async (req, res, next) => {
       permissions,
       signMethod,
       expiresIn,
-      isEvmWallet,
+      isEVMWallet,
     });
 
     res.json({ jwtid, token });

@@ -26,7 +26,7 @@ import {
   ARWEAVE_EVM_TARGET_ADDRESS,
 } from '../../../../config/config';
 import { ARWEAVE_GATEWAY } from '../../../constant';
-import { getEvmClient } from '../../evm/client';
+import { getEVMClient } from '../../evm/client';
 
 export const ARWEAVE_MAX_SIZE_V1 = 100 * 1024 * 1024; // 100 MB
 export const ARWEAVE_MAX_SIZE_V2 = 200 * 1024 * 1024; // 200 MB
@@ -234,7 +234,7 @@ async function checkTxV2({
       break;
     }
     case 'OPETH': {
-      const client = getEvmClient();
+      const client = getEVMClient();
       const tx = await client.getTransaction({ hash: txHash });
       if (!tx) {
         throw new ValidationError('TX_NOT_FOUND');

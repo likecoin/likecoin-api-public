@@ -164,7 +164,7 @@ export function checkCosmosSignPayload({
   return actualPayload;
 }
 
-export function checkEvmSignPayload({
+export function checkEVMSignPayload({
   signature,
   message,
   inputWallet,
@@ -178,13 +178,13 @@ export function checkEvmSignPayload({
   const actualPayload = parseActualLoginPayload(message, signMethod);
   const {
     action: payloadAction,
-    evmWallet: payloadEvmWallet,
+    evmWallet: payloadEVMWallet,
     ts,
   } = actualPayload;
   if (action && action !== payloadAction) {
     throw new ValidationError('PAYLOAD_ACTION_NOT_MATCH');
   }
-  if (payloadEvmWallet !== inputWallet) {
+  if (payloadEVMWallet !== inputWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
   }
   if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
