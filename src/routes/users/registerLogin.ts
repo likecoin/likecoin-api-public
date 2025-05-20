@@ -21,7 +21,7 @@ import {
   userByEmailQuery,
   normalizeUserEmail,
   getUserAgentIsApp,
-  checkEvmSignPayload,
+  checkEVMSignPayload,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
@@ -106,7 +106,7 @@ router.post(
             payload: stringPayload,
             sign,
           } = req.body;
-          checkEvmSignPayload({
+          checkEVMSignPayload({
             signature: sign,
             message: stringPayload,
             inputWallet,
@@ -466,7 +466,7 @@ router.post('/login', async (req, res, next) => {
           sign,
         } = req.body;
         wallet = from;
-        checkEvmSignPayload({
+        checkEVMSignPayload({
           signature: sign,
           message: stringPayload,
           inputWallet: wallet,

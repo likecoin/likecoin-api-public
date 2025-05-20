@@ -10,7 +10,7 @@ import { optimism, optimismSepolia } from 'viem/chains';
 import { IS_TESTNET } from '../../constant';
 
 let client: PublicClient<HttpTransport, Chain, undefined>;
-export function getEvmClient(): PublicClient<HttpTransport, Chain, undefined> {
+export function getEVMClient(): PublicClient<HttpTransport, Chain, undefined> {
   if (!client) {
     client = createPublicClient({
       chain: IS_TESTNET ? optimismSepolia : optimism,
@@ -20,4 +20,4 @@ export function getEvmClient(): PublicClient<HttpTransport, Chain, undefined> {
   return client;
 }
 
-export default getEvmClient;
+export default getEVMClient;
