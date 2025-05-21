@@ -99,11 +99,12 @@ export async function mintNFT(
     Array(count).fill(getAddress(wallet)),
     Array(count).fill(memo),
     Array(count).fill(0).map((_, index) => {
-      let { name } = metadata;
+      let { name, description } = metadata;
       if (isMintFromTokenId) {
-        name = `${name} #${Number(fromTokenId) + index + 1}`;
+        name = `${name} #${Number(fromTokenId) + index}`;
+        description = `Copy #${Number(fromTokenId) + index} of ${name}`;
       }
-      return JSON.stringify({ ...metadata, name });
+      return JSON.stringify({ ...metadata, name, description });
     }),
   ];
   if (isMintFromTokenId) {
