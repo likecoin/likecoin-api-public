@@ -1,7 +1,8 @@
 import { Storage } from '@google-cloud/storage';
+import serviceAccount from '../../../../../config/serviceAccountKey.json';
 import { CACHE_BUCKET } from '../../../../constant';
 
-const storage = new Storage();
+const storage = new Storage({ credentials: serviceAccount });
 const bucket = storage.bucket(CACHE_BUCKET);
 
 export async function uploadFile({
@@ -19,7 +20,6 @@ export async function uploadFile({
 
   try {
     await bucket.file(path).save(file, {
-      public: true,
       contentType,
     });
     // eslint-disable-next-line no-console
