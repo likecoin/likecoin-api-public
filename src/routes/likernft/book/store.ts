@@ -229,8 +229,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 
     if (signImg || memoImg) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
+        signImg ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImg }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
@@ -360,8 +360,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     if (signImg || memoImg) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
+        signImg ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImg }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
@@ -561,8 +561,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
     if (signImg || memoImg) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
+        signImg ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImg }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
