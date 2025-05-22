@@ -32,7 +32,7 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import uploadFile from '../../../util/api/likernft/book/upload';
+import { uploadBase64Image } from '../../../util/api/likernft/book/upload';
 
 const router = Router();
 
@@ -238,8 +238,8 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 
     if (signImg || memoImg) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadFile({ path: `${classId}/signature`, file: signImg }) : Promise.resolve(null),
-        memoImg ? uploadFile({ path: `${classId}/memo`, file: memoImg }) : Promise.resolve(null),
+        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
@@ -369,8 +369,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     if (signImg || memoImg) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadFile({ path: `${classId}/signature`, file: signImg }) : Promise.resolve(null),
-        memoImg ? uploadFile({ path: `${classId}/memo`, file: memoImg }) : Promise.resolve(null),
+        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
+        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
