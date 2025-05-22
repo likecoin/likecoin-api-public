@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import {
   validateStocks,
   formatPriceInfo,
@@ -32,9 +33,10 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import { uploadBase64Image } from '../../../util/api/likernft/book/upload';
+import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
+const upload = multer();
 
 router.get('/search', async (req, res, next) => {
   try {
@@ -233,26 +235,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       price,
       site,
     });
-    let enableSignatureImage;
-    let signedMessageText;
-
-    if (signImg || memoImg) {
-      const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
-      ]);
-
-      if (signSuccess) {
-        enableSignatureImage = true;
-      }
-
-      if (memoSuccess) {
-        const priceWithMemo = prices.find((p) => p.autoMemo);
-        if (priceWithMemo?.autoMemo) {
-          signedMessageText = priceWithMemo.autoMemo;
-        }
-      }
-    }
 
     const newPrice: any = {
       stripeProductId,
@@ -290,7 +272,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const {
-      price: inputPrice, autoDeliverNFTsTxHash, signImg, memoImg,
+      price: inputPrice,
+      autoDeliverNFTsTxHash,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -365,26 +348,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
         }
       }
     }
-    let enableSignatureImage;
-    let signedMessageText;
 
-    if (signImg || memoImg) {
-      const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/signature`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo`, base64: memoImg }) : Promise.resolve(null),
-      ]);
-
-      if (signSuccess) {
-        enableSignatureImage = true;
-      }
-
-      if (memoSuccess) {
-        const priceWithMemo = prices.find((p) => p.autoMemo);
-        if (priceWithMemo?.autoMemo) {
-          signedMessageText = priceWithMemo.autoMemo;
-        }
-      }
-    }
     prices[priceIndex] = newPriceInfo;
     const enableCustomMessagePage = prices.some((p) => !p.isAutoDeliver);
     await updateNftBookInfo(
@@ -600,8 +564,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
-      enableSignatureImage,
-      signedMessageText,
       tableOfContents,
       hideDownload,
 
@@ -723,5 +685,63 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     next(err);
   }
 });
+
+router.post(
+  '/:classId/image/upload',
+  jwtAuth('write:nftbook'),
+  upload.fields([
+    { name: 'signImage', maxCount: 1 },
+    { name: 'memoImage', maxCount: 1 },
+  ]),
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const signedMessageText = req.body.signedMessageText || '';
+      const files = req.files as unknown as { [fieldname: string]: any[] };
+      const signFile = files?.signImage?.[0];
+      const memoFile = files?.memoImage?.[0];
+
+      if (!signFile && !memoFile) {
+        throw new ValidationError('NO_IMAGE_PROVIDED', 400);
+      }
+
+      let enableSignatureImage = false;
+      let signedTextToSave = '';
+
+      const [signResult, memoResult] = await Promise.all([
+        signFile
+          ? uploadImageBufferToCache({
+            buffer: signFile.buffer,
+            path: `${classId}/sign.png`,
+          })
+          : Promise.resolve(false),
+        memoFile
+          ? uploadImageBufferToCache({
+            buffer: memoFile.buffer,
+            path: `${classId}/memo.png`,
+          })
+          : Promise.resolve(false),
+      ]);
+
+      if (signResult) enableSignatureImage = true;
+      if (memoResult && signedMessageText) {
+        signedTextToSave = signedMessageText;
+      }
+
+      await updateNftBookInfo(classId, {
+        enableSignatureImage,
+        signedMessageText: signedTextToSave,
+      });
+
+      res.json({
+        message: 'Images uploaded successfully',
+        enableSignatureImage,
+        signedMessageText: signedTextToSave,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 export default router;

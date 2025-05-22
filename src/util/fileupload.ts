@@ -3,14 +3,21 @@ import sharp from 'sharp';
 import fileType from 'file-type';
 import { sha256 } from 'js-sha256';
 import md5 from 'md5-hex';
+import { Storage } from '@google-cloud/storage';
 import { ValidationError } from './ValidationError';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
+  CACHE_BUCKET,
 } from '../constant';
 import {
   bucket as fbBucket,
 } from './firebase';
+
+import serviceAccount from '../../config/serviceAccountKey.json';
+
+const storage = new Storage({ credentials: serviceAccount });
+const bucket = storage.bucket(CACHE_BUCKET);
 
 export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<string[]> {
   const isStream = file && typeof file.pipe === 'function';
@@ -88,6 +95,59 @@ export async function handleAvatarLinkAndGetURL(user, url) {
     mimetype: type.mime,
   });
   return avatarUrl;
+}
+
+export async function uploadFileToBookCache({
+  path,
+  file,
+  contentType = 'image/png',
+}: {
+  path: string
+  file: Buffer | Uint8Array
+  contentType?: string
+}): Promise<boolean> {
+  if (!path || !file) {
+    throw new Error('path and file are required');
+  }
+
+  try {
+    await bucket.file(path).save(file, {
+      contentType,
+    });
+    // eslint-disable-next-line no-console
+    console.log(`Uploaded ${path}`);
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload ${path}`, err);
+    return false;
+  }
+}
+
+export async function uploadImageBufferToCache({
+  buffer,
+  path,
+}: {
+  buffer: Buffer | Uint8Array
+  path: string
+}): Promise<boolean> {
+  try {
+    if (buffer.length > 1 * 1024 * 1024) {
+      throw new ValidationError('File size exceeds 1MB');
+    }
+
+    const type = fileType(buffer);
+    if (!type || type.ext !== 'png') {
+      throw new ValidationError(`Unsupported image format: ${type?.ext || 'unknown'}`);
+    }
+
+    await uploadFileToBookCache({ path, file: buffer });
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload image to ${path}`, err);
+    return false;
+  }
 }
 
 export default uploadFileAndGetLink;

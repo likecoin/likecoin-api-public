@@ -56,4 +56,30 @@ export async function handleAvatarLinkAndGetURL(user, url) {
   return avatarUrl;
 }
 
+export async function uploadFileToBookCache({
+  path,
+  file,
+  contentType = 'image/png',
+}: {
+  path: string
+  file: Buffer | Uint8Array
+  contentType?: string
+}): Promise<boolean> {
+  return true; // Simulating successful upload
+}
+
+export async function uploadImageBufferToCache({
+  buffer,
+  path,
+}: {
+  buffer: Buffer | Uint8Array
+  path: string
+}): Promise<boolean> {
+  return uploadFileToBookCache({
+    path,
+    file: buffer,
+    contentType: 'image/png',
+  });
+}
+
 export default uploadFileAndGetLink;
