@@ -1137,7 +1137,13 @@ export async function claimNFTBook(
         txHash = await mintNFT(
           classId,
           wallet,
-          metadata,
+          {
+            image: metadata.image,
+            external_url: metadata.external_link || '',
+            description: metadata.description,
+            name: metadata.name,
+            attributes: metadata.attributes || [],
+          },
           { count: msgSendNftIds.length, memo: autoMemo, fromTokenId },
         );
       } else {

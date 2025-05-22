@@ -403,7 +403,13 @@ export async function claimNFTBookCollection(
         txHash = await mintNFT(
           classId,
           wallet,
-          metadata,
+          {
+            image: metadata.image,
+            external_url: metadata.external_link || '',
+            description: metadata.description,
+            name: metadata.name,
+            attributes: metadata.attributes || [],
+          },
           { count: nftIds.length, memo: autoMemo, fromTokenId },
         );
       }
