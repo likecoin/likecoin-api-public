@@ -4,7 +4,7 @@ import { CACHE_BUCKET } from '../../../../constant';
 const storage = new Storage();
 const bucket = storage.bucket(CACHE_BUCKET);
 
-export default async function uploadFile({
+export async function uploadFile({
   path,
   file,
   contentType = 'image/png',
@@ -28,6 +28,28 @@ export default async function uploadFile({
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`Failed to upload ${path}`, err);
+    return false;
+  }
+}
+
+export async function uploadBase64Image({
+  base64,
+  path,
+}: {
+  base64: string;
+  path: string;
+}): Promise<boolean> {
+  if (!base64) return false;
+  try {
+    const matches = base64.match(/^data:(.+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
+    const contentType = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+
+    return await uploadFile({ path, file: buffer, contentType });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload image to ${path}`, err);
     return false;
   }
 }
