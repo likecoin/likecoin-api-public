@@ -12,6 +12,7 @@ import {
   PUBSUB_TOPIC_MISC,
   LIKER_LAND_WAIVED_CHANNEL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  BOOK3_HOSTNAME,
 } from '../../../../constant';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
 import {
@@ -1139,7 +1140,7 @@ export async function claimNFTBook(
           wallet,
           {
             image: metadata.image,
-            external_url: metadata.external_link || '',
+            external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
             description: metadata.description,
             name: metadata.name,
             attributes: metadata.attributes || [],

@@ -4,6 +4,7 @@ import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client'
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 import { sendWriteContractWithNonce } from './tx';
 import { logEVMMintNFTsTx } from '../txLogger';
+import { BOOK3_HOSTNAME } from '../../constant';
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -99,12 +100,18 @@ export async function mintNFT(
     Array(count).fill(getAddress(wallet)),
     Array(count).fill(memo),
     Array(count).fill(0).map((_, index) => {
-      let { name, description } = metadata;
+      let { name, description, external_url: externalUrl } = metadata;
       if (isMintFromTokenId) {
         name = `${name} #${Number(fromTokenId) + index}`;
         description = `Copy #${Number(fromTokenId) + index} of ${name}`;
+        externalUrl = `https://${BOOK3_HOSTNAME}/store/${classId}/${fromTokenId + index}`;
       }
-      return JSON.stringify({ ...metadata, name, description });
+      return JSON.stringify({
+        ...metadata,
+        name,
+        description,
+        external_url: externalUrl,
+      });
     }),
   ];
   if (isMintFromTokenId) {
