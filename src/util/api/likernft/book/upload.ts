@@ -5,7 +5,7 @@ import { CACHE_BUCKET } from '../../../../constant';
 const storage = new Storage({ credentials: serviceAccount });
 const bucket = storage.bucket(CACHE_BUCKET);
 
-export async function uploadFile({
+export async function uploadFileToBookCache({
   path,
   file,
   contentType = 'image/png',
@@ -46,7 +46,7 @@ export async function uploadBase64Image({
     const contentType = matches[1];
     const buffer = Buffer.from(matches[2], 'base64');
 
-    return await uploadFile({ path, file: buffer, contentType });
+    return await uploadFileToBookCache({ path, file: buffer, contentType });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`Failed to upload image to ${path}`, err);
