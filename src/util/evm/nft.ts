@@ -102,9 +102,10 @@ export async function mintNFT(
     Array(count).fill(0).map((_, index) => {
       let { name, description, external_url: externalUrl } = metadata;
       if (isMintFromTokenId) {
-        name = `${name} #${Number(fromTokenId) + index}`;
-        description = `Copy #${Number(fromTokenId) + index} of ${name}`;
-        externalUrl = `https://${BOOK3_HOSTNAME}/store/${classId}/${fromTokenId + index}`;
+        const tokenId = Number(fromTokenId) + index;
+        name = `${name} #${tokenId}`;
+        description = `Copy #${tokenId} of ${name}`;
+        externalUrl = `https://${BOOK3_HOSTNAME}/store/${classId}/${tokenId}`;
       }
       return JSON.stringify({
         ...metadata,
