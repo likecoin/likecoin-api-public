@@ -236,10 +236,10 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     let enableSignatureImage;
     let signedMessageText;
 
-    if (signImg || memoImg) {
+    if (signImage || memoImage) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImg }) : Promise.resolve(null),
+        signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
+        memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
@@ -289,7 +289,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const {
-      price: inputPrice, autoDeliverNFTsTxHash, signImg, memoImg,
+      price: inputPrice, autoDeliverNFTsTxHash, signImage, memoImage,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -367,10 +367,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     let enableSignatureImage;
     let signedMessageText;
 
-    if (signImg || memoImg) {
+    if (signImage || memoImage) {
       const [signSuccess, memoSuccess] = await Promise.all([
-        signImg ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImg }) : Promise.resolve(null),
-        memoImg ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImg }) : Promise.resolve(null),
+        signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
+        memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
       ]);
 
       if (signSuccess) {
