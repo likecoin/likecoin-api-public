@@ -5,6 +5,7 @@ import { ValidationError } from '../../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  BOOK3_HOSTNAME,
 } from '../../../../../constant';
 import {
   TransactionFeeInfo,
@@ -405,7 +406,7 @@ export async function claimNFTBookCollection(
           wallet,
           {
             image: metadata.image,
-            external_url: metadata.external_link || '',
+            external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
             description: metadata.description,
             name: metadata.name,
             attributes: metadata.attributes || [],
