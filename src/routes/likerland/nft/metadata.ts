@@ -6,10 +6,9 @@ import { INTERNAL_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constan
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
-  LIKE_NFT_EVM_INDEXER_API,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../config/config';
-import { isEVMClassId, getNFTClassDataById as getEVMNFTClassDataById } from '../../../util/evm/nft';
+import { isEVMClassId, getNFTClassDataById as getEVMNFTClassDataById, listNFTTokenOwner } from '../../../util/evm/nft';
 
 const classChainMetadataCache = new LRUCache({
   max: 1000,
@@ -124,9 +123,7 @@ function formatOwnerInfo(owners) {
 async function getNFTClassOwnerInfo(classId) {
   if (isEVMClassId(classId)) {
     // TODO: iterate all pages or change to another owner API
-    const { data } = await axios.get(
-      `${LIKE_NFT_EVM_INDEXER_API}/booknft/${classId}/tokens?limit=100`,
-    );
+    const data = await listNFTTokenOwner(classId);
     const ownersInfo = {};
     data.data.forEach((item) => {
       const { owner_address: owner, token_id: tokenId } = item;
