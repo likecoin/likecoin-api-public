@@ -32,7 +32,7 @@ import {
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import logPixelEvents from '../../../util/fbq';
 import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
-import { isEVMClassId } from '../../../util/evm/nft';
+import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
 
@@ -600,6 +600,15 @@ router.post(
         txHash,
         isGift,
       });
+
+      if (isEVMClassId(classId)) {
+        try {
+          await triggerNFTIndexerUpdate({ classId });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+        }
+      }
 
       res.sendStatus(200);
     } catch (err) {

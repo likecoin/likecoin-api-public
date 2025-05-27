@@ -27,7 +27,9 @@ import { getBookCollectionInfoById } from '../../collection/book';
 import {
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../../../config/config';
-import { getClassCurrentTokenId, isEVMClassId, mintNFT } from '../../../../evm/nft';
+import {
+  getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
+} from '../../../../evm/nft';
 import { getNFTClassDataById } from '..';
 import { isValidEVMAddress } from '../../../../evm';
 import { isValidLikeAddress } from '../../../../cosmos';
@@ -493,6 +495,17 @@ export async function claimNFTBookCollection(
       txHash,
       isGift,
     });
+
+    for (const classId of classIds) {
+      if (isEVMClassId(classId)) {
+        try {
+          await triggerNFTIndexerUpdate({ classId });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+        }
+      }
+    }
   } else {
     try {
       await sendNFTBookCollectionClaimedEmailNotification(

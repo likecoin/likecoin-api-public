@@ -1,10 +1,15 @@
 import { readContract } from 'viem/actions';
 import { getAddress } from 'viem';
+import axios from 'axios';
 import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client';
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 import { sendWriteContractWithNonce } from './tx';
 import { logEVMMintNFTsTx } from '../txLogger';
 import { BOOK3_HOSTNAME } from '../../constant';
+import {
+  LIKE_NFT_EVM_INDEXER_API,
+  LIKE_NFT_EVM_INDEXER_API_KEY,
+} from '../../../config/config';
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -79,6 +84,34 @@ export async function checkNFTClassIsBookNFT(classId) {
     args: [classId],
   });
   return res as boolean;
+}
+
+export async function listNFTTokenOwner(classId, {
+  limit = 100,
+  key = '',
+} = {}) {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/booknft/${classId}/tokens?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function triggerNFTIndexerUpdate({ classId = '' } = {}) {
+  if (!LIKE_NFT_EVM_INDEXER_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn('LIKE_NFT_EVM_INDEXER_API_KEY is not set, skipping indexer update');
+    return null;
+  }
+  const path = classId ? `/index-action/book-nft/${classId}` : '/index-action/like-protocol';
+  const { data } = await axios.post(`${LIKE_NFT_EVM_INDEXER_API}${path}`, {}, {
+    headers: {
+      'X-Index-Action-Api-Key': LIKE_NFT_EVM_INDEXER_API_KEY,
+    },
+  });
+  return data;
 }
 
 export async function mintNFT(

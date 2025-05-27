@@ -47,7 +47,9 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { CartItemWithInfo } from './type';
-import { getClassCurrentTokenId, isEVMClassId, mintNFT } from '../../../evm/nft';
+import {
+  getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
+} from '../../../evm/nft';
 
 export type ItemPriceInfo = {
   quantity: number;
@@ -1213,6 +1215,15 @@ export async function claimNFTBook(
       txHash,
       isGift,
     });
+
+    if (isEVMClassId(classId)) {
+      try {
+        await triggerNFTIndexerUpdate({ classId });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+      }
+    }
   } else {
     try {
       await sendNFTBookClaimedEmailNotification(
