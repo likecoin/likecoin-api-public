@@ -29,6 +29,7 @@ import logPixelEvents from '../../../../util/fbq';
 import { checkIsAuthorized } from '../../../../util/api/likernft/book';
 import { handleNewCartStripeCheckout } from '../../../../util/api/likernft/book/cart';
 import { getLikerLandNFTCollectionPageURL } from '../../../../util/liker-land';
+import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../../util/evm/nft';
 
 const router = Router();
 
@@ -342,7 +343,9 @@ router.post(
       quantity = parseInt(quantity, 10) || 1;
       const collectionDoc = await likeNFTCollectionCollection.doc(collectionId).get();
       if (!collectionDoc.exists) throw new ValidationError('COLLECTION_ID_NOT_FOUND', 404);
-      const { name, ownerWallet, moderatorWallets = [] } = collectionDoc.data();
+      const {
+        name, ownerWallet, moderatorWallets = [], classIds = [],
+      } = collectionDoc.data();
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       // TODO: check tx content contains valid nft info and address
@@ -385,6 +388,17 @@ router.post(
         txHash,
         isGift,
       });
+
+      for (const classId of classIds) {
+        if (isEVMClassId(classId)) {
+          try {
+            await triggerNFTIndexerUpdate({ classId });
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+          }
+        }
+      }
 
       res.sendStatus(200);
     } catch (err) {

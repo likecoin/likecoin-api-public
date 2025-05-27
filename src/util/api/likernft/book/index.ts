@@ -22,6 +22,7 @@ import {
   getNFTClassDataById as getEVMNftClassDataById,
   isEVMClassId,
   getNFTClassBalanceOf,
+  triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
 import {
   getISCNFromNFTClassId,
@@ -332,6 +333,16 @@ export async function syncNFTBookInfoWithISCN(classId) {
       });
     }
   }));
+
+  if (isEVMClassId(classId)) {
+    try {
+      await triggerNFTIndexerUpdate({ classId });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+    }
+  }
+
   try {
     await importGoogleRetailProductFromBookListing(
       filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload }),

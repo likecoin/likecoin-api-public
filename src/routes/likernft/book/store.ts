@@ -15,7 +15,12 @@ import {
   checkIsAuthorized,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
-import { getNFTClassDataById as getEVMNFTClassDataById, getNFTClassOwner as getEVMNFTClassOwner, isEVMClassId } from '../../../util/evm/nft';
+import {
+  getNFTClassDataById as getEVMNFTClassDataById,
+  getNFTClassOwner as getEVMNFTClassOwner,
+  isEVMClassId,
+  triggerNFTIndexerUpdate,
+} from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
@@ -592,6 +597,15 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       enableCustomMessagePage,
       tableOfContents,
     });
+
+    if (isEVMClassId(classId)) {
+      try {
+        await triggerNFTIndexerUpdate();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
+      }
+    }
 
     res.json({
       classId,
