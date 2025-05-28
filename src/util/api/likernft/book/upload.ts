@@ -42,11 +42,14 @@ export async function uploadBase64Image({
   if (!base64) return false;
   try {
     const matches = base64.match(/^data:image\/png;base64,(.+)$/);
-    if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
-    const contentType = matches[1];
-    const buffer = Buffer.from(matches[2], 'base64');
+    if (!matches || matches.length !== 2) throw new Error('Invalid base64 string');
+    const buffer = Buffer.from(matches[1], 'base64');
 
-    return await uploadFileToBookCache({ path, file: buffer, contentType });
+    if (buffer.length > 1 * 1024 * 1024) {
+      throw new Error('File size exceeds 1MB');
+    }
+
+    return await uploadFileToBookCache({ path, file: buffer });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`Failed to upload image to ${path}`, err);
