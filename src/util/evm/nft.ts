@@ -35,7 +35,7 @@ export async function getNFTClassDataById(classId) {
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'contractURI',
   }) as string;
-  const dataUriPattern = /^data:application\/json(;charset=utf-8|;utf8)?,/i;
+  const dataUriPattern = /^data:application\/json(; ?charset=utf-8|; ?utf8)?,/i;
   if (!dataUriPattern.test(dataString)) {
     throw new Error('Invalid data');
   }
