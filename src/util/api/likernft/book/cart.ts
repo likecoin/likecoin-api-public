@@ -1221,7 +1221,7 @@ export async function claimNFTBookCart(
   }
 
   const allItemsAutoClaimed = newClaimedNFTs.filter(
-    (nft) => !!(nft.nftIds?.length || nft.nftId),
+    (nft) => !!(nft.nftIds?.length || nft.nftId !== undefined),
   ).length === (unclaimedClassIds.length + unclaimedCollectionIds.length);
   if (!errors.length) {
     await cartRef.update({
