@@ -41,7 +41,7 @@ export async function uploadBase64Image({
 }): Promise<boolean> {
   if (!base64) return false;
   try {
-    const matches = base64.match(/^data:(.+);base64,(.+)$/);
+    const matches = base64.match(/^data:image\/png;base64,(.+)$/);
     if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
     const contentType = matches[1];
     const buffer = Buffer.from(matches[2], 'base64');
