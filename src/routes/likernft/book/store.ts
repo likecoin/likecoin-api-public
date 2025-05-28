@@ -237,16 +237,16 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     let signedMessageText;
 
     if (signImage || memoImage) {
-      const [signSuccess, memoSuccess] = await Promise.all([
+      const [signImageUploaded, memoImageUploaded] = await Promise.all([
         signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
         memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
       ]);
 
-      if (signSuccess) {
+      if (signImageUploaded) {
         enableSignatureImage = true;
       }
 
-      if (memoSuccess) {
+      if (memoImageUploaded) {
         const priceWithMemo = prices.find((p) => p.autoMemo);
         if (priceWithMemo?.autoMemo) {
           signedMessageText = priceWithMemo.autoMemo;
@@ -368,16 +368,16 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     let signedMessageText;
 
     if (signImage || memoImage) {
-      const [signSuccess, memoSuccess] = await Promise.all([
+      const [signImageUploaded, memoImageUploaded] = await Promise.all([
         signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
         memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
       ]);
 
-      if (signSuccess) {
+      if (signImageUploaded) {
         enableSignatureImage = true;
       }
 
-      if (memoSuccess) {
+      if (memoImageUploaded) {
         const priceWithMemo = prices.find((p) => p.autoMemo);
         if (priceWithMemo?.autoMemo) {
           signedMessageText = priceWithMemo.autoMemo;
