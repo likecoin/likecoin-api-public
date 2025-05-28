@@ -236,10 +236,10 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     let enableSignatureImage;
     let signedMessageText;
 
-    if (signImage || memoImage) {
+    if (signImageBase64 || memoImageBase64) {
       const [signImageUploaded, memoImageUploaded] = await Promise.all([
-        signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
-        memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
+        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
+        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
       ]);
 
       if (signImageUploaded) {
@@ -289,7 +289,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const {
-      price: inputPrice, autoDeliverNFTsTxHash, signImage, memoImage,
+      price: inputPrice,
+      autoDeliverNFTsTxHash,
+      signImage: signImageBase64,
+      memoImage: memoImageBase64,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -367,10 +370,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     let enableSignatureImage;
     let signedMessageText;
 
-    if (signImage || memoImage) {
+    if (signImageBase64 || memoImageBase64) {
       const [signImageUploaded, memoImageUploaded] = await Promise.all([
-        signImage ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImage }) : Promise.resolve(null),
-        memoImage ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImage }) : Promise.resolve(null),
+        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
+        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
       ]);
 
       if (signImageUploaded) {
