@@ -32,6 +32,7 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
+import { uploadBase64Image } from '../../../util/api/likernft/book/upload';
 
 const router = Router();
 
@@ -203,7 +204,12 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const {
+      price: inputPrice,
+      autoDeliverNFTsTxHash,
+      signImage: signImageBase64,
+      memoImage: memoImageBase64,
+    } = req.body;
     const price = validatePrice(inputPrice);
 
     const bookInfo = await getNftBookInfo(classId);
@@ -227,6 +233,27 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       bookInfo,
       price,
     });
+    let enableSignatureImage;
+    let signedMessageText;
+
+    if (signImageBase64 || memoImageBase64) {
+      const [signImageUploaded, memoImageUploaded] = await Promise.all([
+        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
+        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
+      ]);
+
+      if (signImageUploaded) {
+        enableSignatureImage = true;
+      }
+
+      if (memoImageUploaded) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
+        }
+      }
+    }
+
     const newPrice: any = {
       stripeProductId,
       stripePriceId,
@@ -245,7 +272,11 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
         price.stock,
       );
     }
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableSignatureImage, signedMessageText },
+      newNFTIds,
+    );
     res.json({
       index: prices.length - 1,
     });
@@ -257,7 +288,12 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const {
+      price: inputPrice,
+      autoDeliverNFTsTxHash,
+      signImage: signImageBase64,
+      memoImage: memoImageBase64,
+    } = req.body;
     const price = validatePrice(inputPrice);
 
     const priceIndex = Number(priceIndexString);
@@ -331,9 +367,33 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
         }
       }
     }
+    let enableSignatureImage;
+    let signedMessageText;
+
+    if (signImageBase64 || memoImageBase64) {
+      const [signImageUploaded, memoImageUploaded] = await Promise.all([
+        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
+        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
+      ]);
+
+      if (signImageUploaded) {
+        enableSignatureImage = true;
+      }
+
+      if (memoImageUploaded) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
+        }
+      }
+    }
     prices[priceIndex] = newPriceInfo;
 
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableSignatureImage, signedMessageText },
+      newNFTIds,
+    );
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -457,6 +517,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       enableCustomMessagePage = false,
       tableOfContents,
       autoDeliverNFTsTxHash,
+      signImage: signImageBase64,
+      memoImage: memoImageBase64,
     } = req.body;
 
     let metadata;
@@ -527,6 +589,27 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     } = metadata;
     const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
+    let enableSignatureImage;
+    let signedMessageText;
+
+    if (signImageBase64 || memoImageBase64) {
+      const [signImageUploaded, memoImageUploaded] = await Promise.all([
+        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
+        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
+      ]);
+
+      if (signImageUploaded) {
+        enableSignatureImage = true;
+      }
+
+      if (memoImageUploaded) {
+        const priceWithMemo = prices.find((p) => p.autoMemo);
+        if (priceWithMemo?.autoMemo) {
+          signedMessageText = priceWithMemo.autoMemo;
+        }
+      }
+    }
+
     await newNftBookInfo(classId, {
       iscnIdPrefix: metadata.iscnIdPrefix,
       ownerWallet,
@@ -539,6 +622,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
+      enableSignatureImage,
+      signedMessageText,
       tableOfContents,
       hideDownload,
 
