@@ -132,6 +132,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       items = [],
       coupon,
       giftInfo,
+      isV3 = false,
     } = req.body;
 
     if (!items?.length) {
@@ -181,7 +182,9 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gaSessionId,
         gadClickId,
         gadSource,
+        isV3,
       }),
+      isV3,
     });
     res.json({ paymentId, url });
 
@@ -243,7 +246,9 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       coupon,
       fbclid: fbClickId = '',
       payment_method: paymentMethodQs,
+      v3 = undefined,
     } = req.query;
+    const isV3 = v3 === '1';
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
@@ -303,7 +308,9 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gaSessionId: gaSessionId as string,
         gadClickId: gadClickId as string,
         gadSource: gadSource as string,
+        isV3,
       }),
+      isV3,
     });
     res.redirect(url);
 
@@ -372,6 +379,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       utmMedium,
       referrer: inputReferrer,
       customPriceInDecimal,
+      isV3 = false,
     } = req.body;
     let {
       quantity = 1,
@@ -429,7 +437,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gaSessionId,
         gadClickId,
         gadSource,
+        isV3,
       }),
+      isV3,
     });
     res.json({ paymentId, url });
 
@@ -623,6 +633,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
+      const { isV3 = false } = req.body;
       const { wallet } = req.user;
       const [listingDoc, paymentDoc] = await Promise.all([
         likeNFTBookCollection.doc(classId).get(),
@@ -681,6 +692,7 @@ router.post(
           claimToken,
           from,
           isResend: true,
+          isV3,
         });
       }
 
@@ -709,7 +721,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const { message } = req.body;
+      const { message, isV3 = false } = req.body;
       // TODO: check tx content contains valid nft info and address
       const bookRef = likeNFTBookCollection.doc(classId);
       const bookDoc = await bookRef.get();
@@ -760,6 +772,7 @@ router.post(
           classId,
           bookName: className,
           message,
+          isV3,
         });
       }
 

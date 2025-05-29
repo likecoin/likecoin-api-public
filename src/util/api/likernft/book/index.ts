@@ -11,7 +11,6 @@ import {
 import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import {
   FIRESTORE_BATCH_SIZE,
-  LIKER_LAND_HOSTNAME,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   NFT_BOOK_TEXT_LOCALES,
@@ -37,6 +36,7 @@ import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
+import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 
 export async function getNFTClassDataById(classId) {
   if (isEVMClassId(classId)) {
@@ -133,6 +133,7 @@ export function formatShippingRateInfo(shippingRate) {
 export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   bookInfo,
   price,
+  isV3,
 }) {
   const {
     name,
@@ -153,7 +154,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
     },
-    url: `https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}?price_index=${priceIndex}`,
+    url: getLikerLandNFTClassPageURL({ classId, priceIndex, isV3 }),
     metadata: {
       classId,
       iscnIdPrefix,
@@ -166,7 +167,12 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   };
 }
 
-export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string[] = []) {
+export async function newNftBookInfo(
+  classId,
+  data,
+  apiWalletOwnedNFTIds: string[] = [],
+  isV3 = false,
+) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
   const {
@@ -201,6 +207,7 @@ export async function newNftBookInfo(classId, data, apiWalletOwnedNFTIds: string
     .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
       bookInfo: data,
       price: p,
+      isV3,
     })));
   const newPrices = prices.map((p, order) => ({
     order,

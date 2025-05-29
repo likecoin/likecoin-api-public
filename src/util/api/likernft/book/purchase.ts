@@ -684,6 +684,7 @@ export async function formatStripeCheckoutSession({
   httpMethod,
   userAgent,
   clientIp,
+  isV3 = false,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -717,6 +718,7 @@ export async function formatStripeCheckoutSession({
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
   clientIp?: string,
+  isV3?: boolean,
 }, items: CartItemWithInfo[], {
   successUrl,
   cancelUrl,
@@ -759,6 +761,9 @@ export async function formatStripeCheckoutSession({
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
+  }
+  if (isV3) {
+    sessionMetadata.isV3 = '1';
   }
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
@@ -965,6 +970,7 @@ export async function sendNFTBookPurchaseEmail({
   shippingCostAmount = 0,
   originalPrice = amountTotal,
   from,
+  isV3 = false,
 }) {
   if (isPhysicalOnly) {
     await sendNFTBookPhysicalOnlyEmail({
@@ -972,6 +978,7 @@ export async function sendNFTBookPurchaseEmail({
       classId,
       bookName,
       priceName,
+      isV3,
     });
   } else if (isGift && giftInfo) {
     const {
@@ -990,6 +997,7 @@ export async function sendNFTBookPurchaseEmail({
       bookName,
       paymentId,
       claimToken,
+      isV3,
     });
   } else if (email) {
     await sendNFTBookPendingClaimEmail({
@@ -1000,6 +1008,7 @@ export async function sendNFTBookPurchaseEmail({
       paymentId,
       claimToken,
       from,
+      isV3,
     });
   }
   await sendNFTBookSalesEmail({

@@ -1,19 +1,31 @@
 import axios from 'axios';
-import { LIKER_LAND_HOSTNAME } from '../constant';
+import { LIKER_LAND_HOSTNAME, BOOK3_HOSTNAME } from '../constant';
 import {
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../config/config';
 
-export const getLikerLandURL = (path = '', { language = '' }: { language?: string } = {}) => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
+export const getLikerLandURL = (path = '', { language = '' }: { language?: string } = {}): string => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
+
+export const getBook3URL = (path = '', { language = '' }: { language?: string } = {}): string => {
+  const locale = language.startsWith('zh') ? '' : 'en';
+  return `https://${BOOK3_HOSTNAME}${locale ? `/${locale}` : ''}${path}`;
+};
 
 interface GetLikerLandNFTPageURLParams {
   type?: 'nft_book' | 'writing_nft',
-  language?: string
+  language?: string,
+  isV3?: boolean,
 }
 export const getLikerLandPortfolioPageURL = ({
   type = 'nft_book',
   language = '',
-}: GetLikerLandNFTPageURLParams = {}): string => getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
+  isV3 = false,
+}: GetLikerLandNFTPageURLParams = {}): string => {
+  if (isV3) {
+    return getBook3URL('/shelf', { language });
+  }
+  return getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
+};
 
 export const getLikerLandCartURL = ({
   language,
@@ -25,6 +37,7 @@ export const getLikerLandCartURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
+  isV3 = false,
 }: {
   language?: string,
   type?: 'book' | 'wnft',
@@ -35,7 +48,8 @@ export const getLikerLandCartURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-}) => {
+  isV3?: boolean,
+}): string => {
   const qsPayload: any = {};
   if (utmCampaign) {
     qsPayload.utm_campaign = utmCampaign;
@@ -59,11 +73,15 @@ export const getLikerLandCartURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  if (isV3 && type === 'book') {
+    return getBook3URL(`/cart/?${qs}`, { language });
+  }
   return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
 };
 
 export const getLikerLandNFTClassPageURL = ({
   classId,
+  priceIndex,
   language,
   utmCampaign,
   utmSource,
@@ -72,8 +90,10 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
+  isV3 = false,
 }: {
   classId: string,
+  priceIndex?: number;
   language?: string,
   utmCampaign?: string;
   utmSource?: string;
@@ -82,8 +102,12 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-}) => {
-  const qsPayload: any = {};
+  isV3?: boolean;
+}): string => {
+  const qsPayload: Record<string, string> = {};
+  if (priceIndex) {
+    qsPayload.price_index = priceIndex.toString();
+  }
   if (utmCampaign) {
     qsPayload.utm_campaign = utmCampaign;
   }
@@ -106,6 +130,9 @@ export const getLikerLandNFTClassPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  if (isV3) {
+    return getBook3URL(`/store/${classId}?${qs}`, { language });
+  }
   return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
 };
 
@@ -175,6 +202,7 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
+  isV3 = false,
 }: {
   classId?: string;
   collectionId?: string;
@@ -194,7 +222,8 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-}) => {
+  isV3?: boolean;
+}): string => {
   const qsPayload: any = {
     payment_id: paymentId,
     claiming_token: token,
@@ -249,6 +278,9 @@ export const getLikerLandNFTClaimPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  if (isV3) {
+    return getBook3URL(`/store/claim?${qs}`, { language });
+  }
   return getLikerLandURL(`/nft/claim?${qs}`, { language });
 };
 
