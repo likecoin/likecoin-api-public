@@ -26,10 +26,12 @@ export async function handleGiftBook(
     defaultToName,
     defaultFromName,
     defaultMessage,
+    site,
   }: {
     defaultToName?: string;
     defaultFromName?: string;
     defaultMessage?: string;
+    site?: string;
   },
   req,
 ) {
@@ -135,6 +137,7 @@ export async function handleGiftBook(
         isPhysicalOnly,
         shippingDetails: null,
         from: '',
+        site,
       }),
       sendNFTBookSalesSlackNotification({
         classId,
