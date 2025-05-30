@@ -547,7 +547,7 @@ export function sendNFTBookPhysicalOnlyEmail({
   collectionId = '',
   bookName,
   priceName = '',
-  site,
+  site = '',
 }) {
   if (TEST_MODE) return Promise.resolve();
   const titleEn = 'Thank you for your purchase!';
