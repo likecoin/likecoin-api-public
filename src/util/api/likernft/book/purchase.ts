@@ -91,6 +91,7 @@ export async function handleStripeConnectedAccount({
   buyerEmail,
   paymentIntentId,
   shippingCostAmountInDecimal,
+  site,
 }: {
   classId?: string,
   collectionId?: string,
@@ -101,6 +102,7 @@ export async function handleStripeConnectedAccount({
   buyerEmail: string | null,
   paymentIntentId: string,
   shippingCostAmountInDecimal?: number,
+  site?: string,
 }, {
   chargeId = '',
   amountTotal,
@@ -388,6 +390,7 @@ export async function handleStripeConnectedAccount({
       paymentId,
       bookName,
       payments,
+      site,
     // eslint-disable-next-line no-console
     }).catch(console.error)));
   return { transfers };
@@ -684,6 +687,7 @@ export async function formatStripeCheckoutSession({
   httpMethod,
   userAgent,
   clientIp,
+  site,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -717,6 +721,7 @@ export async function formatStripeCheckoutSession({
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
   clientIp?: string,
+  site?: string,
 }, items: CartItemWithInfo[], {
   successUrl,
   cancelUrl,
@@ -759,6 +764,9 @@ export async function formatStripeCheckoutSession({
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
+  }
+  if (site) {
+    sessionMetadata.site = site;
   }
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
@@ -965,6 +973,7 @@ export async function sendNFTBookPurchaseEmail({
   shippingCostAmount = 0,
   originalPrice = amountTotal,
   from,
+  site,
 }) {
   if (isPhysicalOnly) {
     await sendNFTBookPhysicalOnlyEmail({
@@ -972,6 +981,7 @@ export async function sendNFTBookPurchaseEmail({
       classId,
       bookName,
       priceName,
+      site,
     });
   } else if (isGift && giftInfo) {
     const {
@@ -990,6 +1000,7 @@ export async function sendNFTBookPurchaseEmail({
       bookName,
       paymentId,
       claimToken,
+      site,
     });
   } else if (email) {
     await sendNFTBookPendingClaimEmail({
@@ -1000,6 +1011,7 @@ export async function sendNFTBookPurchaseEmail({
       paymentId,
       claimToken,
       from,
+      site,
     });
   }
   await sendNFTBookSalesEmail({

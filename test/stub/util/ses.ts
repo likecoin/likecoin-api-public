@@ -41,6 +41,7 @@ export function sendNFTBookCartPendingClaimEmail({
   paymentId,
   claimToken,
   isResend = false,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -49,6 +50,7 @@ export function sendNFTBookListingEmail({
   classId = '',
   collectionId = '',
   bookName,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -65,6 +67,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   paymentId,
   claimToken,
   isResend = false,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -80,6 +83,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   paymentId,
   claimToken,
   isResend = false,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -91,6 +95,7 @@ export function sendNFTBookPhysicalOnlyEmail({
   collectionId = '',
   bookName,
   priceName = '',
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -102,6 +107,7 @@ export function sendNFTBookShippedEmail({
   collectionId = '',
   bookName,
   message,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -138,6 +144,7 @@ export function sendNFTBookPendingClaimEmail({
   claimToken,
   from = '',
   isResend = false,
+  site = '',
 }) {
   return Promise.resolve();
 }
@@ -167,6 +174,7 @@ export function sendNFTBookSalePaymentsEmail({
   email,
   bookName,
   payments,
+  site = '',
 }) {
   return Promise.resolve();
 }

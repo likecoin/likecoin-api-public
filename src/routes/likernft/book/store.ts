@@ -203,7 +203,11 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const { price: inputPrice, autoDeliverNFTsTxHash } = req.body;
+    const {
+      price: inputPrice,
+      autoDeliverNFTsTxHash,
+      site,
+    } = req.body;
     const price = validatePrice(inputPrice);
 
     const bookInfo = await getNftBookInfo(classId);
@@ -226,6 +230,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     } = await createStripeProductFromNFTBookPrice(classId, priceIndex, {
       bookInfo,
       price,
+      site,
     });
     const newPrice: any = {
       stripeProductId,
@@ -402,6 +407,7 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
         fromName: defaultFromName,
         message: defaultMessage,
       },
+      site,
     } = req.body;
     if (!receivers || !Array.isArray(receivers) || receivers.length === 0) {
       throw new ValidationError('INVALID_RECEIVERS', 400);
@@ -430,6 +436,7 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
         defaultToName,
         defaultFromName,
         defaultMessage,
+        site,
       },
       req,
     );
@@ -457,6 +464,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       enableCustomMessagePage = false,
       tableOfContents,
       autoDeliverNFTsTxHash,
+      site,
     } = req.body;
 
     let metadata;
@@ -553,11 +561,11 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
-    }, apiWalletOwnedNFTIds);
+    }, apiWalletOwnedNFTIds, site);
 
     const className = metadata?.name || classId;
     await Promise.all([
-      sendNFTBookListingEmail({ classId, bookName: className }),
+      sendNFTBookListingEmail({ classId, bookName: className, site }),
       sendNFTBookNewListingSlackNotification({
         wallet: ownerWallet,
         classId,

@@ -132,6 +132,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       items = [],
       coupon,
       giftInfo,
+      site = undefined,
     } = req.body;
 
     if (!items?.length) {
@@ -181,7 +182,9 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gaSessionId,
         gadClickId,
         gadSource,
+        site,
       }),
+      site,
     });
     res.json({ paymentId, url });
 
@@ -243,6 +246,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       coupon,
       fbclid: fbClickId = '',
       payment_method: paymentMethodQs,
+      site: siteQs,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
@@ -261,6 +265,15 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       }
       paymentMethods.filter((pm) => (['link', 'card', 'crypto'].includes(pm)));
       if (paymentMethods.length === 0) paymentMethods = undefined;
+    }
+
+    let site: string | undefined;
+    if (siteQs) {
+      if (Array.isArray(siteQs)) {
+        [site] = siteQs as string[];
+      } else {
+        site = siteQs as string;
+      }
     }
 
     const {
@@ -303,7 +316,9 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gaSessionId: gaSessionId as string,
         gadClickId: gadClickId as string,
         gadSource: gadSource as string,
+        site,
       }),
+      site,
     });
     res.redirect(url);
 
@@ -372,6 +387,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       utmMedium,
       referrer: inputReferrer,
       customPriceInDecimal,
+      site,
     } = req.body;
     let {
       quantity = 1,
@@ -429,7 +445,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gaSessionId,
         gadClickId,
         gadSource,
+        site,
       }),
+      site,
     });
     res.json({ paymentId, url });
 
@@ -623,6 +641,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
+      const { site } = req.body;
       const { wallet } = req.user;
       const [listingDoc, paymentDoc] = await Promise.all([
         likeNFTBookCollection.doc(classId).get(),
@@ -670,6 +689,7 @@ router.post(
             paymentId,
             claimToken,
             isResend: true,
+            site,
           });
         }
       } else {
@@ -681,6 +701,7 @@ router.post(
           claimToken,
           from,
           isResend: true,
+          site,
         });
       }
 
@@ -709,7 +730,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const { message } = req.body;
+      const { message, site } = req.body;
       // TODO: check tx content contains valid nft info and address
       const bookRef = likeNFTBookCollection.doc(classId);
       const bookDoc = await bookRef.get();
@@ -760,6 +781,7 @@ router.post(
           classId,
           bookName: className,
           message,
+          site,
         });
       }
 
