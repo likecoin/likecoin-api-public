@@ -133,7 +133,7 @@ export function formatShippingRateInfo(shippingRate) {
 export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   bookInfo,
   price,
-  isV3,
+  site,
 }) {
   const {
     name,
@@ -154,7 +154,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
     },
-    url: getLikerLandNFTClassPageURL({ classId, priceIndex, isV3 }),
+    url: getLikerLandNFTClassPageURL({ classId, priceIndex, site }),
     metadata: {
       classId,
       iscnIdPrefix,
@@ -171,7 +171,7 @@ export async function newNftBookInfo(
   classId,
   data,
   apiWalletOwnedNFTIds: string[] = [],
-  isV3 = false,
+  site = undefined,
 ) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (doc.exists) throw new ValidationError('CLASS_ID_ALREADY_EXISTS', 409);
@@ -207,7 +207,7 @@ export async function newNftBookInfo(
     .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
       bookInfo: data,
       price: p,
-      isV3,
+      site,
     })));
   const newPrices = prices.map((p, order) => ({
     order,
