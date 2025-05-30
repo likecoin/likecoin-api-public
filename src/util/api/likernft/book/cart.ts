@@ -327,7 +327,7 @@ export async function processNFTBookCartStripePurchase(
       giftToName,
       giftMessage,
       giftFromName,
-      isV3: isV3Value,
+      site,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -336,7 +336,6 @@ export async function processNFTBookCartStripePurchase(
     shipping_details: shippingDetails,
     id: sessionId,
   } = session;
-  const isV3 = isV3Value === '1';
   if (subscriptionId) return;
   const paymentId = cartId;
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
@@ -473,6 +472,7 @@ export async function processNFTBookCartStripePurchase(
           buyerEmail: email,
           shippingCostAmountInDecimal,
           paymentIntentId: paymentIntent as string,
+          site,
         },
         {
           amountTotal: amountWithShipping,
@@ -634,7 +634,7 @@ export async function processNFTBookCartStripePurchase(
         bookNames,
         paymentId,
         claimToken,
-        isV3,
+        site,
       });
     } else {
       await sendNFTBookCartPendingClaimEmail({
@@ -643,7 +643,7 @@ export async function processNFTBookCartStripePurchase(
         bookNames,
         paymentId,
         claimToken,
-        isV3,
+        site,
       });
     }
     await logPixelEvents('Purchase', {
@@ -1000,7 +1000,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   paymentMethods,
   httpMethod = 'POST',
   cancelUrl,
-  isV3 = false,
+  site,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -1028,7 +1028,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   paymentMethods?: string[],
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
-  isV3?: boolean,
+  site?: string,
 } = {}) {
   const items: CartItem[] = inputItems.map((item) => ({
     collectionId: item.collectionId,
@@ -1085,7 +1085,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gaSessionId,
     gadClickId,
     gadSource,
-    isV3,
+    site,
   });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
@@ -1116,7 +1116,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     userAgent,
     clientIp,
     httpMethod,
-    isV3,
+    site,
   }, itemInfos, {
     successUrl,
     cancelUrl: cancelUrl || getLikerLandCartURL({

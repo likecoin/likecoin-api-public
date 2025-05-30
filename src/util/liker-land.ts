@@ -14,17 +14,20 @@ export const getBook3URL = (path = '', { language = '' }: { language?: string } 
 interface GetLikerLandNFTPageURLParams {
   type?: 'nft_book' | 'writing_nft',
   language?: string,
-  isV3?: boolean,
+  site?: string,
 }
 export const getLikerLandPortfolioPageURL = ({
   type = 'nft_book',
   language = '',
-  isV3 = false,
+  site,
 }: GetLikerLandNFTPageURLParams = {}): string => {
-  if (isV3) {
-    return getBook3URL('/shelf', { language });
+  switch (site) {
+    case '3ook.com':
+      return getBook3URL('/shelf', { language });
+    case 'liker.land':
+    default:
+      return getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
   }
-  return getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
 };
 
 export const getLikerLandCartURL = ({
@@ -37,7 +40,7 @@ export const getLikerLandCartURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  isV3 = false,
+  site,
 }: {
   language?: string,
   type?: 'book' | 'wnft',
@@ -48,7 +51,7 @@ export const getLikerLandCartURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  isV3?: boolean,
+  site?: string,
 }): string => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -73,10 +76,17 @@ export const getLikerLandCartURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
-  if (isV3 && type === 'book') {
-    return getBook3URL(`/cart/?${qs}`, { language });
+  switch (site) {
+    case '3ook.com':
+      if (type !== 'book') {
+        // eslint-disable-next-line no-console
+        console.warn(`Unsupported type "${type}" for 3ook.com site`);
+      }
+      return getBook3URL(`/cart/?${qs}`, { language });
+    case 'liker.land':
+    default:
+      return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
   }
-  return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
 };
 
 export const getLikerLandNFTClassPageURL = ({
@@ -90,7 +100,7 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  isV3 = false,
+  site,
 }: {
   classId: string,
   priceIndex?: number;
@@ -102,7 +112,7 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  isV3?: boolean;
+  site?: string;
 }): string => {
   const qsPayload: Record<string, string> = {};
   if (priceIndex) {
@@ -130,10 +140,13 @@ export const getLikerLandNFTClassPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
-  if (isV3) {
-    return getBook3URL(`/store/${classId}?${qs}`, { language });
+  switch (site) {
+    case '3ook.com':
+      return getBook3URL(`/store/${classId}?${qs}`, { language });
+    case 'liker.land':
+    default:
+      return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
   }
-  return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
 };
 
 export const getLikerLandNFTCollectionPageURL = ({
@@ -202,7 +215,7 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  isV3 = false,
+  site,
 }: {
   classId?: string;
   collectionId?: string;
@@ -222,7 +235,7 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  isV3?: boolean;
+  site?: string;
 }): string => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -278,10 +291,13 @@ export const getLikerLandNFTClaimPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
-  if (isV3) {
-    return getBook3URL(`/store/claim?${qs}`, { language });
+  switch (site) {
+    case '3ook-com':
+      return getBook3URL(`/store/claim?${qs}`, { language });
+    case 'liker.land':
+    default:
+      return getLikerLandURL(`/nft/claim?${qs}`, { language });
   }
-  return getLikerLandURL(`/nft/claim?${qs}`, { language });
 };
 
 export const getLikerLandNFTGiftPageURL = ({

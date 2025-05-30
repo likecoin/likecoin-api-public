@@ -206,7 +206,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const {
       price: inputPrice,
       autoDeliverNFTsTxHash,
-      isV3 = false,
+      site,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -230,7 +230,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     } = await createStripeProductFromNFTBookPrice(classId, priceIndex, {
       bookInfo,
       price,
-      isV3,
+      site,
     });
     const newPrice: any = {
       stripeProductId,
@@ -407,7 +407,7 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
         fromName: defaultFromName,
         message: defaultMessage,
       },
-      isV3 = false,
+      site,
     } = req.body;
     if (!receivers || !Array.isArray(receivers) || receivers.length === 0) {
       throw new ValidationError('INVALID_RECEIVERS', 400);
@@ -436,7 +436,7 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
         defaultToName,
         defaultFromName,
         defaultMessage,
-        isV3,
+        site,
       },
       req,
     );
@@ -464,7 +464,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       enableCustomMessagePage = false,
       tableOfContents,
       autoDeliverNFTsTxHash,
-      isV3,
+      site,
     } = req.body;
 
     let metadata;
@@ -561,11 +561,11 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
-    }, apiWalletOwnedNFTIds, isV3);
+    }, apiWalletOwnedNFTIds, site);
 
     const className = metadata?.name || classId;
     await Promise.all([
-      sendNFTBookListingEmail({ classId, bookName: className, isV3 }),
+      sendNFTBookListingEmail({ classId, bookName: className, site }),
       sendNFTBookNewListingSlackNotification({
         wallet: ownerWallet,
         classId,
