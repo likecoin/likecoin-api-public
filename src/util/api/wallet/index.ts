@@ -1,3 +1,4 @@
+import { createAirtablePublicationRecord } from '../../airtable';
 import { isValidLikeAddress } from '../../cosmos';
 import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
 import {
@@ -155,6 +156,7 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
     }
     const res = await db.runTransaction(async (t) => {
       const migratedClassIds: string[] = [];
+      const migratedClassDatas: any[] = [];
       const migratedCollectionIds: string[] = [];
       const [bookListingDoc, collectionQuery] = await Promise.all([
         t.get(likeNFTBookCollection.doc(likeClassId)),
@@ -171,6 +173,12 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
             migrateTimestamp: FieldValue.serverTimestamp(),
           });
           migratedClassIds.push(likeClassId);
+          migratedClassDatas.push({
+            id: evmClassId,
+            ...bookListingDoc.data(),
+            chain: 'evm',
+            likeClassId,
+          });
         }
       }
       collectionQuery.docs.forEach((doc) => {
@@ -187,9 +195,50 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
       });
       return {
         migratedClassIds,
+        migratedClassDatas,
         migratedCollectionIds,
       };
     });
+    for (const classData of res.migratedClassDatas) {
+      const {
+        id: classId,
+        ownerWallet,
+        hideDownload,
+        prices,
+      } = classData;
+      const metadata = await getNFTClassDataById(classId);
+      const {
+        inLanguage,
+        name,
+        description,
+        author,
+        publisher,
+        usageInfo,
+        isbn,
+        image,
+        keywords,
+      } = metadata;
+      await createAirtablePublicationRecord({
+        id: classId,
+        timestamp: new Date(),
+        name,
+        description,
+        metadata,
+        ownerWallet,
+        type: metadata?.nft_meta_collection_id,
+        minPrice: prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100,
+        maxPrice: prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100,
+        imageURL: image,
+        language: inLanguage,
+        keywords,
+        author: typeof author === 'string' ? author : author?.name || '',
+        publisher,
+        usageInfo,
+        isbn,
+        isDRMFree: !hideDownload,
+      });
+    }
+
     const {
       migratedClassIds,
       migratedCollectionIds,
