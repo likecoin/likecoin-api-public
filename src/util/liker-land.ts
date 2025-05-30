@@ -292,7 +292,7 @@ export const getLikerLandNFTClaimPageURL = ({
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   switch (site) {
-    case '3ook-com':
+    case '3ook.com':
       return getBook3URL(`/store/claim?${qs}`, { language });
     case 'liker.land':
     default:
