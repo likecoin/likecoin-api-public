@@ -173,6 +173,7 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
             ...bookListingDoc.data(),
             chain: 'evm',
             likeClassId,
+            classId: evmClassId,
             migrateTimestamp: FieldValue.serverTimestamp(),
           });
           migratedClassIds.push(likeClassId);
