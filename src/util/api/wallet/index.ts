@@ -10,6 +10,8 @@ import {
   userCollection,
 } from '../../firebase';
 import { migrateLikerLandEVMWallet } from '../../liker-land';
+import { createStripeProductFromNFTBookPrice } from '../likernft/book';
+import stripe from '../../stripe';
 
 export async function findLikeWalletByEVMWallet(evmWallet: string) {
   const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).get();
@@ -218,6 +220,25 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         image,
         keywords,
       } = metadata;
+      const stripeProducts = await Promise.all(prices
+        .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
+          bookInfo: classData,
+          price: p,
+        })));
+      await likeNFTBookCollection.doc(classId).update({
+        prices: prices.map((p, index) => ({
+          ...p,
+          ...stripeProducts[index],
+        })),
+      });
+      await Promise.all(prices.map((p) => {
+        if (p.stripeProductId) {
+          return stripe.products.update(p.stripeProductId, {
+            active: false,
+          });
+        }
+        return Promise.resolve();
+      }));
       await createAirtablePublicationRecord({
         id: classId,
         timestamp: new Date(),
