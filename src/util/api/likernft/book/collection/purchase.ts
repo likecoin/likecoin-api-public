@@ -411,7 +411,7 @@ export async function claimNFTBookCollection(
             external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
             description: metadata.description,
             name: metadata.name,
-            attributes: metadata.attributes || [],
+            attributes: metadata.attributes,
           },
           { count: nftIds.length, memo: autoMemo, fromTokenId },
         );
