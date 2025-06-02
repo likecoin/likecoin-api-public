@@ -162,37 +162,76 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
       ]);
       if (bookListingDoc.exists) {
-        const { evmClassId: existingEVMClassId } = bookListingDoc.data();
+        const {
+          evmClassId: existingEVMClassId,
+          ownerWallet,
+          connectedWallets,
+        } = bookListingDoc.data();
         if (!existingEVMClassId) {
-          t.update(bookListingDoc.ref, { evmClassId });
-          t.create(likeNFTBookCollection.doc(evmClassId), {
+          let newOwnerWallet = ownerWallet;
+          if (ownerWallet && isValidLikeAddress(ownerWallet)) {
+            const evmWallet = await findLikeWalletByEVMWallet(ownerWallet);
+            if (evmWallet) {
+              const ratio = connectedWallets?.[ownerWallet];
+              if (ratio) {
+                delete connectedWallets[ownerWallet];
+                connectedWallets[evmWallet] = ratio;
+              }
+              newOwnerWallet = evmWallet;
+            }
+          }
+          const migratedData = {
             ...bookListingDoc.data(),
             chain: 'evm',
             likeClassId,
             classId: evmClassId,
+            ownerWallet: newOwnerWallet,
+          };
+          if (connectedWallets) {
+            migratedData.connectedWallets = connectedWallets;
+          }
+
+          t.update(bookListingDoc.ref, { evmClassId });
+          t.create(likeNFTBookCollection.doc(evmClassId), ({
+            ...migratedData,
             migrateTimestamp: FieldValue.serverTimestamp(),
-          });
+          }));
           migratedClassIds.push(likeClassId);
-          migratedClassDatas.push({
-            id: evmClassId,
-            ...bookListingDoc.data(),
-            chain: 'evm',
-            likeClassId,
-          });
+          migratedClassDatas.push(migratedData);
         }
       }
-      collectionQuery.docs.forEach((doc) => {
-        const { classIds } = doc.data();
+      for (let i = 0; i < collectionQuery.docs.length; i += 1) {
+        const doc = collectionQuery.docs[i];
+        const {
+          classIds,
+          ownerWallet,
+          connectedWallets,
+        } = doc.data();
         const index = classIds.indexOf(likeClassId);
         if (index >= 0) {
           classIds[index] = evmClassId;
-          t.update(doc.ref, {
+          let newOwnerWallet = ownerWallet;
+          if (ownerWallet && isValidLikeAddress(ownerWallet)) {
+            newOwnerWallet = await findLikeWalletByEVMWallet(ownerWallet);
+            const ratio = connectedWallets?.[ownerWallet];
+            if (ratio) {
+              delete connectedWallets[ownerWallet];
+              connectedWallets[newOwnerWallet] = ratio;
+            }
+            newOwnerWallet = newOwnerWallet || ownerWallet;
+          }
+          const migrateData: any = {
             classIds,
+            ownerWallet,
             chain: classIds.every((id) => isEVMClassId(id)) ? 'evm' : 'like',
-          });
+          };
+          if (connectedWallets) {
+            migrateData.connectedWallets = connectedWallets;
+          }
+          t.update(doc.ref, migrateData);
           migratedCollectionIds.push(doc.id);
         }
-      });
+      }
       return {
         migratedClassIds,
         migratedClassDatas,
@@ -201,12 +240,11 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
     });
     for (const classData of res.migratedClassDatas) {
       const {
-        id: classId,
         ownerWallet,
         hideDownload,
         prices,
       } = classData;
-      const metadata = await getNFTClassDataById(classId);
+      const metadata = await getNFTClassDataById(evmClassId);
       const {
         inLanguage,
         name,
@@ -219,12 +257,12 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         keywords,
       } = metadata;
       const stripeProducts = await Promise.all(prices
-        .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
+        .map((p, index) => createStripeProductFromNFTBookPrice(evmClassId, index, {
           bookInfo: classData,
           price: p,
           site: '3ook.com',
         })));
-      await likeNFTBookCollection.doc(classId).update({
+      await likeNFTBookCollection.doc(evmClassId).update({
         prices: prices.map((p, index) => ({
           ...p,
           ...stripeProducts[index],
@@ -239,7 +277,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         return Promise.resolve();
       }));
       await createAirtablePublicationRecord({
-        id: classId,
+        id: evmClassId,
         timestamp: new Date(),
         name,
         description,
