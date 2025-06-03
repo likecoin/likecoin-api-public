@@ -12,6 +12,7 @@ import {
 import { migrateLikerLandEVMWallet } from '../../liker-land';
 import { createStripeProductFromNFTBookPrice } from '../likernft/book';
 import stripe from '../../stripe';
+import { bookCacheBucket } from '../../gcloudStorage';
 
 export async function findLikeWalletByEVMWallet(evmWallet: string) {
   const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).get();
@@ -295,6 +296,21 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         isbn,
         isDRMFree: !hideDownload,
       });
+      try {
+        const oldSignImagePath = `${likeClassId}/sign.png`;
+        const oldMemoImagePath = `${likeClassId}/memo.png`;
+        if ((await bookCacheBucket.file(oldSignImagePath).exists())[0]) {
+          const newSignImagePath = `${evmClassId}/sign.png`;
+          await bookCacheBucket.file(oldSignImagePath).copy(bookCacheBucket.file(newSignImagePath));
+        }
+        if ((await bookCacheBucket.file(oldMemoImagePath).exists())[0]) {
+          const newMemoImagePath = `${evmClassId}/memo.png`;
+          await bookCacheBucket.file(oldMemoImagePath).copy(bookCacheBucket.file(newMemoImagePath));
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error migrating book cache files:', error);
+      }
     }
 
     const {
