@@ -35,16 +35,22 @@ export async function getNFTOwner(classId, tokenId: number) {
 }
 
 export async function getNFTClassDataById(classId) {
-  const dataString = await readContract(getEVMClient(), {
+  let dataString = await readContract(getEVMClient(), {
     address: getAddress(classId),
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'contractURI',
   }) as string;
-  const dataUriPattern = /^data:application\/json(; ?charset=utf-8|; ?utf8)?,/i;
-  if (!dataUriPattern.test(dataString)) {
+  const dataUriPattern = /^data:application\/json(?:; ?charset=utf-8|; ?utf8)?(;base64)?,/i;
+  const match = dataString.match(dataUriPattern);
+  if (!match) {
     throw new Error('Invalid data');
   }
-  return JSON.parse(dataString.replace(dataUriPattern, ''));
+  const isBase64 = !!match[1];
+  dataString = dataString.replace(dataUriPattern, '');
+  if (isBase64) {
+    dataString = Buffer.from(dataString, 'base64').toString('utf-8');
+  }
+  return JSON.parse(dataString);
 }
 
 export async function getNFTClassBalanceOf(classId, wallet) {
