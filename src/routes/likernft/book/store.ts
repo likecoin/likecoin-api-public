@@ -235,26 +235,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       price,
       site,
     });
-    let enableSignatureImage;
-    let signedMessageText;
-
-    if (signImageBase64 || memoImageBase64) {
-      const [signImageUploaded, memoImageUploaded] = await Promise.all([
-        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
-        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
-      ]);
-
-      if (signImageUploaded) {
-        enableSignatureImage = true;
-      }
-
-      if (memoImageUploaded) {
-        const priceWithMemo = prices.find((p) => p.autoMemo);
-        if (priceWithMemo?.autoMemo) {
-          signedMessageText = priceWithMemo.autoMemo;
-        }
-      }
-    }
 
     const newPrice: any = {
       stripeProductId,
@@ -276,7 +256,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     }
     await updateNftBookInfo(
       classId,
-      { prices, enableSignatureImage, signedMessageText },
+      { prices },
       newNFTIds,
     );
     res.json({
@@ -293,8 +273,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const {
       price: inputPrice,
       autoDeliverNFTsTxHash,
-      signImage: signImageBase64,
-      memoImage: memoImageBase64,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -369,31 +347,12 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
         }
       }
     }
-    let enableSignatureImage;
-    let signedMessageText;
 
-    if (signImageBase64 || memoImageBase64) {
-      const [signImageUploaded, memoImageUploaded] = await Promise.all([
-        signImageBase64 ? uploadBase64Image({ path: `${classId}/sign.png`, base64: signImageBase64 }) : Promise.resolve(null),
-        memoImageBase64 ? uploadBase64Image({ path: `${classId}/memo.png`, base64: memoImageBase64 }) : Promise.resolve(null),
-      ]);
-
-      if (signImageUploaded) {
-        enableSignatureImage = true;
-      }
-
-      if (memoImageUploaded) {
-        const priceWithMemo = prices.find((p) => p.autoMemo);
-        if (priceWithMemo?.autoMemo) {
-          signedMessageText = priceWithMemo.autoMemo;
-        }
-      }
-    }
     prices[priceIndex] = newPriceInfo;
 
     await updateNftBookInfo(
       classId,
-      { prices, enableSignatureImage, signedMessageText },
+      { prices },
       newNFTIds,
     );
     res.sendStatus(200);
@@ -604,8 +563,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
-      enableSignatureImage,
-      signedMessageText,
       tableOfContents,
       hideDownload,
 
