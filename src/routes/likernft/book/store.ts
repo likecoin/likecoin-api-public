@@ -696,8 +696,9 @@ router.post(
     try {
       const { classId } = req.params;
       const signedMessageText = req.body.signedMessageText || '';
-      const signFile = req.files?.signImage?.[0];
-      const memoFile = req.files?.memoImage?.[0];
+      const files = req.files as unknown as { [fieldname: string]: any[] };
+      const signFile = files?.signImage?.[0];
+      const memoFile = files?.memoImage?.[0];
 
       if (!signFile && !memoFile) {
         throw new ValidationError('NO_IMAGE_PROVIDED', 400);
@@ -712,13 +713,13 @@ router.post(
             buffer: signFile.buffer,
             path: `${classId}/sign.png`,
           })
-          : Promise.resolve({ success: false }),
+          : Promise.resolve(false),
         memoFile
           ? uploadImageBufferToCache({
             buffer: memoFile.buffer,
             path: `${classId}/memo.png`,
           })
-          : Promise.resolve({ success: false }),
+          : Promise.resolve(false),
       ]);
 
       if (signResult) enableSignatureImage = true;
