@@ -40,15 +40,15 @@ export async function getNFTClassDataById(classId) {
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'contractURI',
   }) as string;
-  if (dataString.startsWith('data:application/json;base64,')) {
-    const base64Data = dataString.replace('data:application/json;base64,', '');
-    dataString = Buffer.from(base64Data, 'base64').toString('utf-8');
-  } else {
-    const dataUriPattern = /^data:application\/json(; ?charset=utf-8|;utf8)?,/i;
-    if (!dataUriPattern.test(dataString)) {
-      throw new Error('Invalid data');
-    }
-    dataString = dataString.replace(dataUriPattern, '');
+  const dataUriPattern = /^data:application\/json(?:; ?charset=utf-8|; ?utf8)?(;base64)?,/i;
+  const match = dataString.match(dataUriPattern);
+  if (!match) {
+    throw new Error('Invalid data');
+  }
+  const isBase64 = !!match[1];
+  dataString = dataString.replace(dataUriPattern, '');
+  if (isBase64) {
+    dataString = Buffer.from(dataString, 'base64').toString('utf-8');
   }
   return JSON.parse(dataString);
 }
