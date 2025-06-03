@@ -244,12 +244,11 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
     });
     for (const classData of res.migratedClassDatas) {
       const {
-        id: classId,
         ownerWallet,
         hideDownload,
         prices,
       } = classData;
-      const metadata = await getNFTClassDataById(classId);
+      const metadata = await getNFTClassDataById(evmClassId);
       const {
         inLanguage,
         name,
@@ -262,12 +261,12 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         keywords,
       } = metadata;
       const stripeProducts = await Promise.all(prices
-        .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
+        .map((p, index) => createStripeProductFromNFTBookPrice(evmClassId, index, {
           bookInfo: classData,
           price: p,
           site: '3ook.com',
         })));
-      await likeNFTBookCollection.doc(classId).update({
+      await likeNFTBookCollection.doc(evmClassId).update({
         prices: prices.map((p, index) => ({
           ...p,
           ...stripeProducts[index],
@@ -282,7 +281,7 @@ export async function migrateBookClassId(likeClassId:string, evmClassId: string)
         return Promise.resolve();
       }));
       await createAirtablePublicationRecord({
-        id: classId,
+        id: evmClassId,
         timestamp: new Date(),
         name,
         description,
