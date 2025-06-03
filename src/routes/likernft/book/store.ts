@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import {
   validateStocks,
   formatPriceInfo,
@@ -32,9 +33,10 @@ import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import { uploadBase64Image } from '../../../util/api/likernft/book/upload';
+import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
+const upload = multer();
 
 router.get('/search', async (req, res, next) => {
   try {
@@ -725,5 +727,62 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     next(err);
   }
 });
+
+router.post(
+  '/:classId/image/upload',
+  jwtAuth('write:nftbook'),
+  upload.fields([
+    { name: 'signImage', maxCount: 1 },
+    { name: 'memoImage', maxCount: 1 },
+  ]),
+  async (req, res, next) => {
+    try {
+      const { classId } = req.params;
+      const signedMessageText = req.body.signedMessageText || '';
+      const signFile = req.files?.signImage?.[0];
+      const memoFile = req.files?.memoImage?.[0];
+
+      if (!signFile && !memoFile) {
+        throw new ValidationError('NO_IMAGE_PROVIDED', 400);
+      }
+
+      let enableSignatureImage = false;
+      let signedTextToSave = '';
+
+      const [signResult, memoResult] = await Promise.all([
+        signFile
+          ? uploadImageBufferToCache({
+            buffer: signFile.buffer,
+            path: `${classId}/sign.png`,
+          })
+          : Promise.resolve({ success: false }),
+        memoFile
+          ? uploadImageBufferToCache({
+            buffer: memoFile.buffer,
+            path: `${classId}/memo.png`,
+          })
+          : Promise.resolve({ success: false }),
+      ]);
+
+      if (signResult) enableSignatureImage = true;
+      if (memoResult && signedMessageText) {
+        signedTextToSave = signedMessageText;
+      }
+
+      await updateNftBookInfo(classId, {
+        enableSignatureImage,
+        signedMessageText: signedTextToSave,
+      });
+
+      res.json({
+        message: 'Images uploaded successfully',
+        enableSignatureImage,
+        signedMessageText: signedTextToSave,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 export default router;
