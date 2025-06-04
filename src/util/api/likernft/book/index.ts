@@ -144,6 +144,11 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   const images: string[] = [];
   if (image) images.push(parseImageURLFromMetadata(image));
   // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+  const metadata: Record<string, string> = {
+    classId,
+    priceIndex,
+  };
+  if (iscnIdPrefix) metadata.iscnIdPrefix = bookInfo.iscnIdPrefix;
   const stripeProduct = await stripe.products.create({
     name: [name, getLocalizedTextWithFallback(price.name, 'zh')].filter(Boolean).join(' - '),
     description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n') || undefined,
@@ -155,11 +160,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
       unit_amount: price.priceInDecimal,
     },
     url: getLikerLandNFTClassPageURL({ classId, priceIndex, site }),
-    metadata: {
-      classId,
-      iscnIdPrefix,
-      priceIndex,
-    },
+    metadata,
   });
   return {
     stripeProductId: stripeProduct.id,
