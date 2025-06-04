@@ -250,7 +250,12 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
         price.stock,
       );
     }
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    const enableCustomMessagePage = prices.some((p) => !p.isAutoDeliver);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableCustomMessagePage },
+      newNFTIds,
+    );
     res.json({
       index: prices.length - 1,
     });
@@ -337,8 +342,12 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       }
     }
     prices[priceIndex] = newPriceInfo;
-
-    await updateNftBookInfo(classId, { prices }, newNFTIds);
+    const enableCustomMessagePage = prices.some((p) => !p.isAutoDeliver);
+    await updateNftBookInfo(
+      classId,
+      { prices, enableCustomMessagePage },
+      newNFTIds,
+    );
     res.sendStatus(200);
   } catch (err) {
     next(err);
