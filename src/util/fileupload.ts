@@ -3,21 +3,16 @@ import sharp from 'sharp';
 import fileType from 'file-type';
 import { sha256 } from 'js-sha256';
 import md5 from 'md5-hex';
-import { Storage } from '@google-cloud/storage';
 import { ValidationError } from './ValidationError';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
-  CACHE_BUCKET,
 } from '../constant';
 import {
   bucket as fbBucket,
 } from './firebase';
 
-import serviceAccount from '../../config/serviceAccountKey.json';
-
-const storage = new Storage({ credentials: serviceAccount });
-const bucket = storage.bucket(CACHE_BUCKET);
+import { bookCacheBucket } from './gcloudStorage';
 
 export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<string[]> {
   const isStream = file && typeof file.pipe === 'function';
@@ -111,7 +106,7 @@ export async function uploadFileToBookCache({
   }
 
   try {
-    await bucket.file(path).save(file, {
+    await bookCacheBucket.file(path).save(file, {
       contentType,
     });
     // eslint-disable-next-line no-console
