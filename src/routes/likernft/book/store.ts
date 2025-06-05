@@ -696,6 +696,13 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
+      const bookInfo = await getNftBookInfo(classId);
+      if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const {
+        ownerWallet,
+      } = bookInfo;
+      const isAuthorized = checkIsAuthorized({ ownerWallet }, req);
+      if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       const signedMessageText = req.body.signedMessageText || '';
       const files = req.files as unknown as { [fieldname: string]: any[] };
       const signFile = files?.signImage?.[0];
