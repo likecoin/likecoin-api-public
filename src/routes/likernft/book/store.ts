@@ -711,8 +711,9 @@ router.post(
       if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const {
         ownerWallet,
+        moderatorWallets = [],
       } = bookInfo;
-      const isAuthorized = checkIsAuthorized({ ownerWallet }, req);
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       const signedMessageText = req.body.signedMessageText || '';
       const files = req.files as unknown as { [fieldname: string]: any[] };
