@@ -7,10 +7,13 @@ import { ValidationError } from './ValidationError';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
+  MAX_PNG_FILE_SIZE,
 } from '../constant';
 import {
   bucket as fbBucket,
 } from './firebase';
+
+import { bookCacheBucket } from './gcloudStorage';
 
 export function uploadFileAndGetLink(file, { filename, mimetype }): Promise<string[]> {
   const isStream = file && typeof file.pipe === 'function';
@@ -88,6 +91,59 @@ export async function handleAvatarLinkAndGetURL(user, url) {
     mimetype: type.mime,
   });
   return avatarUrl;
+}
+
+export async function uploadFileToBookCache({
+  path,
+  file,
+  contentType,
+}: {
+  path: string
+  file: Buffer | Uint8Array
+  contentType?: string
+}): Promise<boolean> {
+  if (!path || !file) {
+    throw new Error('path and file are required');
+  }
+
+  try {
+    await bookCacheBucket.file(path).save(file, {
+      contentType,
+    });
+    // eslint-disable-next-line no-console
+    console.log(`Uploaded ${path}`);
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload ${path}`, err);
+    return false;
+  }
+}
+
+export async function uploadImageBufferToCache({
+  buffer,
+  path,
+}: {
+  buffer: Buffer | Uint8Array
+  path: string
+}): Promise<boolean> {
+  try {
+    if (buffer.length > MAX_PNG_FILE_SIZE) {
+      throw new ValidationError('File size exceeds 1MB');
+    }
+
+    const type = fileType(buffer);
+    if (!type || type.ext !== 'png') {
+      throw new ValidationError(`Unsupported image format: ${type?.ext || 'unknown'}`);
+    }
+
+    await uploadFileToBookCache({ path, file: buffer, contentType: 'image/png' });
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to upload image to ${path}`, err);
+    return false;
+  }
 }
 
 export default uploadFileAndGetLink;
