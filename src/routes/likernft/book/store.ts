@@ -28,7 +28,7 @@ import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
-import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../constant';
 import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
@@ -36,7 +36,18 @@ import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
-const upload = multer();
+const pngUpload = multer({
+  limits: {
+    fileSize: MAX_PNG_FILE_SIZE,
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/png') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG files are allowed'), false);
+    }
+  },
+});
 
 router.get('/search', async (req, res, next) => {
   try {
@@ -689,7 +700,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
 router.post(
   '/:classId/image/upload',
   jwtAuth('write:nftbook'),
-  upload.fields([
+  pngUpload.fields([
     { name: 'signImage', maxCount: 1 },
     { name: 'memoImage', maxCount: 1 },
   ]),
@@ -741,7 +752,6 @@ router.post(
       });
 
       res.json({
-        message: 'Images uploaded successfully',
         enableSignatureImage,
         signedMessageText: signedTextToSave,
       });

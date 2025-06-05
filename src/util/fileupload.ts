@@ -7,6 +7,7 @@ import { ValidationError } from './ValidationError';
 import {
   IS_TESTNET,
   SUPPORTED_AVATAR_TYPE,
+  MAX_PNG_FILE_SIZE,
 } from '../constant';
 import {
   bucket as fbBucket,
@@ -95,7 +96,7 @@ export async function handleAvatarLinkAndGetURL(user, url) {
 export async function uploadFileToBookCache({
   path,
   file,
-  contentType = 'image/png',
+  contentType,
 }: {
   path: string
   file: Buffer | Uint8Array
@@ -127,7 +128,7 @@ export async function uploadImageBufferToCache({
   path: string
 }): Promise<boolean> {
   try {
-    if (buffer.length > 1 * 1024 * 1024) {
+    if (buffer.length > MAX_PNG_FILE_SIZE) {
       throw new ValidationError('File size exceeds 1MB');
     }
 
@@ -136,7 +137,7 @@ export async function uploadImageBufferToCache({
       throw new ValidationError(`Unsupported image format: ${type?.ext || 'unknown'}`);
     }
 
-    await uploadFileToBookCache({ path, file: buffer });
+    await uploadFileToBookCache({ path, file: buffer, contentType: 'image/png' });
     return true;
   } catch (err) {
     // eslint-disable-next-line no-console

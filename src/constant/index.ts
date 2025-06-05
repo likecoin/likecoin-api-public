@@ -221,3 +221,4 @@ export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export const CACHE_BUCKET = IS_TESTNET ? 'liker-land-ebook-cache-dev' : 'liker-land-ebook-cache-main';
+export const MAX_PNG_FILE_SIZE = 1 * 1024 * 1024; // 1MB
