@@ -1043,8 +1043,11 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   if (itemsWithShipping.length > 1) {
     throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
   }
-  const { chain } = itemInfos[0];
-  if (!itemInfos.every((item) => item.chain === chain)) {
+  const { chain } = itemInfos.find((item) => item.chain) || {};
+  if (!chain) {
+    // eslint-disable-next-line no-console
+    console.warn(`${itemInfos[0].classId} does not have chain id set`);
+  } else if (!itemInfos.every((item) => !item.chain || item.chain === chain)) {
     throw new ValidationError('DIFFERENT_CHAIN_NOT_SUPPORTED');
   }
   let customerEmail = email;
