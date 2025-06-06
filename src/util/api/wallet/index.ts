@@ -98,7 +98,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
 async function migrateBookOwner(likeWallet: string, evmWallet: string) {
   try {
     await db.runTransaction(async (t) => {
-      const bookQuery = await t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet));
+      const bookQuery = await t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet).where('chain', '==', 'evm'));
       bookQuery.docs.forEach((doc) => {
         t.update(doc.ref, { ownerWallet: evmWallet });
       });
@@ -106,13 +106,16 @@ async function migrateBookOwner(likeWallet: string, evmWallet: string) {
     await db.runTransaction(async (t) => {
       const bookQuery = await t.get(likeNFTBookCollection.where(`connectedWallets.${likeWallet}`, '>', 0));
       bookQuery.docs.forEach((doc) => {
-        const {
-          connectedWallets,
-        } = doc.data();
-        const ratio = connectedWallets[likeWallet];
-        delete connectedWallets[likeWallet];
-        connectedWallets[evmWallet] = ratio;
-        t.update(doc.ref, { connectedWallets });
+        // TODO: change .where to filter evm class id
+        if (isEVMClassId(doc.id)) {
+          const {
+            connectedWallets,
+          } = doc.data();
+          const ratio = connectedWallets[likeWallet];
+          delete connectedWallets[likeWallet];
+          connectedWallets[evmWallet] = ratio;
+          t.update(doc.ref, { connectedWallets });
+        }
       });
     });
     return { error: null };
