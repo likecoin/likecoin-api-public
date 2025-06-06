@@ -179,8 +179,11 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
       const migratedClassIds: string[] = [];
       const migratedClassDatas: any[] = [];
       const migratedCollectionIds: string[] = [];
-      const [bookListingDoc, collectionQuery] = await Promise.all([
+      const [bookListingDoc, bookTransactionQuery, collectionQuery] = await Promise.all([
         t.get(likeNFTBookCollection.doc(likeClassId)),
+        t.get(likeNFTBookCollection.doc(likeClassId)
+          .collection('transactions')
+          .where('status', '==', 'pendingNFT')),
         t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
       ]);
       if (bookListingDoc.exists) {
@@ -218,6 +221,16 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
             ...migratedData,
             migrateTimestamp: FieldValue.serverTimestamp(),
           }));
+          bookTransactionQuery.docs.forEach((doc) => {
+            t.create(likeNFTBookCollection.doc(evmClassId)
+              .collection('transactions')
+              .doc(doc.id), {
+              ...doc.data(),
+              classId: evmClassId,
+              likeClassId,
+              migrateTimestamp: FieldValue.serverTimestamp(),
+            });
+          });
           migratedClassIds.push(likeClassId);
           migratedClassDatas.push(migratedData);
         }
