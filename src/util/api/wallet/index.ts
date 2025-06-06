@@ -192,7 +192,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         if (!existingEVMClassId) {
           let newOwnerWallet = ownerWallet;
           if (ownerWallet && isValidLikeAddress(ownerWallet)) {
-            const evmWallet = await findLikeWalletByEVMWallet(ownerWallet);
+            const evmWallet = await checkBookUserEVMWallet(ownerWallet);
             if (evmWallet) {
               const ratio = connectedWallets?.[ownerWallet];
               if (ratio) {
@@ -234,7 +234,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
           classIds[index] = evmClassId;
           let newOwnerWallet = ownerWallet;
           if (ownerWallet && isValidLikeAddress(ownerWallet)) {
-            newOwnerWallet = await findLikeWalletByEVMWallet(ownerWallet);
+            newOwnerWallet = await checkBookUserEVMWallet(ownerWallet);
             const ratio = connectedWallets?.[ownerWallet];
             if (ratio) {
               delete connectedWallets[ownerWallet];
