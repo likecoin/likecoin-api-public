@@ -118,6 +118,24 @@ async function migrateBookOwner(likeWallet: string, evmWallet: string) {
         }
       });
     });
+    await db.runTransaction(async (t) => {
+      const collectionQuery = await t.get(likeNFTCollectionCollection.where('ownerWallet', '==', likeWallet));
+      collectionQuery.docs.forEach((doc) => {
+        t.update(doc.ref, { ownerWallet: evmWallet });
+      });
+    });
+    await db.runTransaction(async (t) => {
+      const collectionQuery = await t.get(likeNFTCollectionCollection.where(`connectedWallets.${likeWallet}`, '>', 0));
+      collectionQuery.docs.forEach((doc) => {
+        const {
+          connectedWallets,
+        } = doc.data();
+        const ratio = connectedWallets[likeWallet];
+        delete connectedWallets[likeWallet];
+        connectedWallets[evmWallet] = ratio;
+        t.update(doc.ref, { connectedWallets });
+      });
+    });
     return { error: null };
   } catch (error) {
   // eslint-disable-next-line no-console
