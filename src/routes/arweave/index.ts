@@ -95,11 +95,22 @@ router.post(
         fileSize, ipfsHash, txHash, signatureData, txToken,
       });
       const signatureHex = signature && signature.toString('base64');
-      const { token } = await createNewArweaveTx(txHash, {
-        ipfsHash,
-        fileSize,
-        ownerWallet: req.user?.wallet || '',
-      });
+      let token;
+      try {
+        ({ token } = await createNewArweaveTx(txHash, {
+          ipfsHash,
+          fileSize,
+          ownerWallet: req.user?.wallet || '',
+        }));
+      } catch (error) {
+        if ((error as Error)?.message.includes('ALREADY_EXISTS')) {
+          // eslint-disable-next-line no-console
+          console.warn(error);
+          res.status(429).send('TX_HASH_ALREADY_USED');
+          return;
+        }
+        throw error;
+      }
       res.json({
         token,
         id: txHash,
