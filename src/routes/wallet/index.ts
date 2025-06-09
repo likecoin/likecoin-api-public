@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { checksumAddress } from 'viem';
 import { checkCosmosSignPayload, checkEVMSignPayload, getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
@@ -46,7 +47,8 @@ router.post('/authorize', async (req, res, next) => {
     const payload: any = { permissions };
     payload.wallet = inputWallet;
     if (isEVMWallet) {
-      payload.evmWallet = inputWallet;
+      payload.wallet = checksumAddress(inputWallet);
+      payload.evmWallet = checksumAddress(inputWallet);
       const likeWallet = await findLikeWalletByEVMWallet(inputWallet);
       if (likeWallet) {
         payload.likeWallet = likeWallet;
@@ -75,9 +77,10 @@ router.post('/evm/migrate/book', async (req, res, next) => {
   try {
     const {
       like_class_id: likeClassId,
-      evm_class_id: evmClassId,
+      evm_class_id: rawEvmClassId,
     } = req.body;
-    if (!likeClassId || !evmClassId) throw new ValidationError('INVALID_PAYLOAD');
+    if (!likeClassId || !rawEvmClassId) throw new ValidationError('INVALID_PAYLOAD');
+    const evmClassId = rawEvmClassId.toLowerCase();
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'migrateBookClassIdBegin',
       likeClassId,
@@ -141,7 +144,8 @@ router.post(['/evm/migrate/user', '/evm/migrate/all'], async (req, res, next) =>
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
     }
-    const { evm_wallet: evmWallet } = signed;
+    const { evm_wallet: rawEvmWallet } = signed;
+    const evmWallet = checksumAddress(rawEvmWallet);
     if (!evmWallet || !checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_PAYLOAD');
     }
