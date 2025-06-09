@@ -56,6 +56,8 @@ export function filterUserData(u) {
     isHonorCivicLiker,
     civicLikerSince,
     civicLikerVersion,
+    likerPlusSince,
+    isLikerPlus,
     locale,
     creatorPitch,
   } = u;
@@ -87,6 +89,8 @@ export function filterUserData(u) {
     isHonorCivicLiker,
     civicLikerSince,
     civicLikerVersion,
+    likerPlusSince,
+    isLikerPlus,
     locale,
     creatorPitch,
   };
@@ -104,6 +108,8 @@ export function filterUserDataMin(userObject, types: string[] = []) {
     isSubscribedCivicLiker,
     isCivicLikerTrial,
     civicLikerSince,
+    likerPlusSince,
+    isLikerPlus,
     description,
   } = userObject;
   const output: any = {
@@ -117,6 +123,8 @@ export function filterUserDataMin(userObject, types: string[] = []) {
     isCivicLikerTrial,
     isSubscribedCivicLiker,
     civicLikerSince,
+    likerPlusSince,
+    isLikerPlus,
     description,
   };
   if (types.includes('payment')) {
