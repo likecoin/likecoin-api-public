@@ -37,8 +37,9 @@ export async function checkBookUserEVMWallet(likeWallet: string) {
 async function migrateBookUser(likeWallet: string, evmWallet: string) {
   try {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
-      const [userDoc, evmUserDoc] = await Promise.all([
+      const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.doc(likeWallet)),
+        t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions').limit(450)),
         t.get(likeNFTBookUserCollection.doc(evmWallet)),
       ]);
       if (evmUserDoc.exists) {
@@ -63,6 +64,9 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
+        });
+        userCommissionCollection.docs.forEach((doc) => {
+          t.create(likeNFTBookUserCollection.doc(evmWallet).collection('commissions').doc(doc.id), doc.data());
         });
       }
       if (!userDoc.exists) {
@@ -183,7 +187,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         t.get(likeNFTBookCollection.doc(likeClassId)),
         t.get(likeNFTBookCollection.doc(likeClassId)
           .collection('transactions')
-          .where('status', '==', 'pendingNFT')),
+          .where('status', '!=', 'new')),
         t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
       ]);
       if (bookListingDoc.exists) {
