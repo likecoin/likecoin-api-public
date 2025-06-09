@@ -338,7 +338,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       await stripe.products.update(oldPriceInfo.stripeProductId, {
         name: [name, getLocalizedTextWithFallback(newPriceInfo.name, 'zh')].filter(Boolean).join(' - '),
         description: [getLocalizedTextWithFallback(newPriceInfo.description, 'zh'), description].filter(Boolean).join('\n'),
-        shippable: newPriceInfo.hasShipping,
+        shippable: !!newPriceInfo.hasShipping,
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {

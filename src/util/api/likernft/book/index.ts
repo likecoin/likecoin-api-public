@@ -154,7 +154,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
     description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n') || undefined,
     id: `${classId}-${priceIndex}`,
     images,
-    shippable: price.hasShipping,
+    shippable: !!price.hasShipping,
     default_price_data: {
       currency: 'usd',
       unit_amount: price.priceInDecimal,

@@ -212,7 +212,7 @@ export async function createNFTCollectionByType(
     description: getLocalizedTextWithFallback(description, 'zh') || undefined,
     id: collectionId,
     images,
-    shippable: hasShipping,
+    shippable: !!hasShipping,
     default_price_data: {
       currency: 'usd',
       unit_amount: typePayload.priceInDecimal,
