@@ -31,6 +31,7 @@ import {
 import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL } from '../../../util/liker-land';
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
+import { processStripeSubscriptionInvoice } from '../../../util/api/plus';
 
 const router = Router();
 
@@ -59,21 +60,32 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'checkout.session.async_payment_succeeded': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
+          subscription: subscriptionId,
           metadata: {
-            store, likeWallet,
+            store, likeWallet, evmWallet,
           } = {} as any,
         } = session;
+        if (evmWallet || likeWallet) {
+          await handleNFTBookStripeSessionCustomer(session, req);
+        }
+        if (subscriptionId) break;
         if (store === 'wnft') {
           await processStripeFiatNFTPurchase(session, req);
         } else {
           await processNFTBookCartStripePurchase(session, req);
-          if (likeWallet) await handleNFTBookStripeSessionCustomer(session, req);
         }
         // Do not send substack email, spammy
         // await handlePromotionalEmails(session, req);
         break;
       }
-      case 'invoice.paid':
+      case 'invoice.paid': {
+        const invoice: Stripe.Invoice = event.data.object;
+        const { subscription: subscriptionId } = invoice;
+        if (subscriptionId) {
+          await processStripeSubscriptionInvoice(invoice, req);
+        }
+        break;
+      }
       default: {
         res.sendStatus(415);
         return;
