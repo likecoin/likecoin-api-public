@@ -39,7 +39,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
       const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
         t.get(likeNFTBookUserCollection.doc(likeWallet)),
-        t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions').limit(450)),
+        t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions')),
         t.get(likeNFTBookUserCollection.doc(evmWallet)),
       ]);
       if (evmUserDoc.exists) {
