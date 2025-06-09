@@ -28,7 +28,7 @@ function isValidUserDoc(userDoc) {
 export function formatUserCivicLikerProperies(userDoc) {
   const { id } = userDoc;
   const data = userDoc.data();
-  const { civicLiker, avatarHash } = data;
+  const { civicLiker, avatarHash, likerPlus } = data;
   const payload = data;
   payload.user = id;
   let avatarUrl = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
@@ -60,6 +60,22 @@ export function formatUserCivicLikerProperies(userDoc) {
       payload.isExpiredCivicLiker = true;
     }
   }
+
+  if (likerPlus) {
+    const {
+      currentPeriodStart: start,
+      currentPeriodEnd: end,
+      since,
+    } = likerPlus;
+    const now = Date.now();
+    const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
+    if (start <= now && now <= renewalLast) {
+      payload.likerPlusSince = since;
+      payload.isLikerPlus = true;
+      payload.isSubscribedCivicLiker = true;
+    }
+  }
+
   return payload;
 }
 
