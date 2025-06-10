@@ -99,10 +99,13 @@ export async function handleUserRegistration({
   }
 
   if (!checkUserNameValid(user)) throw new ValidationError('INVALID_USER_ID');
-  if (!checkCosmosAddressValid(cosmosWallet, 'cosmos')) {
+  if (!cosmosWallet && !likeWallet && !evmWallet) {
+    throw new ValidationError('WALLET_NOT_PROVIDED');
+  }
+  if (cosmosWallet && !checkCosmosAddressValid(cosmosWallet, 'cosmos')) {
     throw new ValidationError('INVALID_COSMOS_WALLET');
   }
-  if (!checkCosmosAddressValid(likeWallet, 'like')) {
+  if (likeWallet && !checkCosmosAddressValid(likeWallet, 'like')) {
     throw new ValidationError('INVALID_LIKE_WALLET');
   }
   if (evmWallet && !checkAddressValid(evmWallet)) {
