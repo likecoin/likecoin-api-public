@@ -294,14 +294,14 @@ async function userInfoQuery({
   platform?: string;
   authCoreUserId?: string;
 }) {
-  const userNameQuery = dbRef.doc(user).get().then((doc) => {
+  const userNameQuery = user ? dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
     let oldUserObj;
     if (isOldUser) {
       oldUserObj = doc.data();
     }
     return { isOldUser, oldUserObj };
-  });
+  }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
@@ -379,8 +379,10 @@ export async function checkUserInfoUniqueness({
   platform?: string;
   authCoreUserId?: string;
 }) {
-  const userDoc = await dbRef.doc(user).get();
-  if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
+  if (user) {
+    const userDoc = await dbRef.doc(user).get();
+    if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
+  }
   await userInfoQuery({
     user,
     cosmosWallet,

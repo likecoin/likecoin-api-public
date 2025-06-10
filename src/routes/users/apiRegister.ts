@@ -30,16 +30,18 @@ router.post('/new/check', async (req, res, next) => {
     const {
       user,
       email,
+      evmWallet,
     } = req.body;
     // let { email } = req.body;
     try {
       // if (email) email = handleEmailBlackList(email);
-      if (!checkUserNameValid(user)) {
+      if (user && !checkUserNameValid(user)) {
         throw new ValidationError('INVALID_USER_NAME');
       }
       await checkUserInfoUniqueness({
         user,
         email,
+        evmWallet,
       });
     } catch (err) {
       if (err instanceof ValidationError) {
