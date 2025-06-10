@@ -32,11 +32,8 @@ const getBundlr = async () => {
   if (!_irys) {
     const { NodeIrys } = await (import('@irys/sdk'));
     _irys = new NodeIrys({
-      network: IS_TESTNET ? 'devnet' : 'mainnet',
+      network: 'mainnet',
       token: 'arweave',
-      config: {
-        providerUrl: IS_TESTNET ? 'https://arweave.dev' : 'https://arweave.net',
-      },
       key: jwk,
     });
   }
