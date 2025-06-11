@@ -284,6 +284,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         ownerWallet,
         hideDownload,
         prices,
+        isHidden = false,
       } = classData;
       const metadata = await getNFTClassDataById(evmClassId);
       const {
@@ -335,6 +336,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         usageInfo,
         isbn,
         isDRMFree: !hideDownload,
+        isHidden,
       });
       try {
         const oldSignImagePath = `${likeClassId}/sign.png`;
