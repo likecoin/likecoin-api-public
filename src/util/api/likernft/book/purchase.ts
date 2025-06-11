@@ -161,7 +161,7 @@ export async function handleStripeConnectedAccount({
       if (isStripeConnectReady) fromStripeConnectAccountId = stripeConnectAccountId;
       if (fromStripeConnectAccountId) {
         const currency = 'usd'; // stripe balance are setteled in USD in source tx
-        const fromLikeWallet = fromUser.likeWallet;
+        const fromWallet = fromUser.wallet;
         transfer = await stripe.transfers.create({
           amount: channelCommission,
           currency,
@@ -176,14 +176,14 @@ export async function handleStripeConnectedAccount({
           },
         }).catch((e) => {
           // eslint-disable-next-line no-console
-          console.error(`Failed to create transfer for ${fromLikeWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
+          console.error(`Failed to create transfer for ${fromWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
           // eslint-disable-next-line no-console
           console.error(e);
           return null;
         });
         if (transfer) {
           transfers.push(transfer);
-          await likeNFTBookUserCollection.doc(fromLikeWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+          await likeNFTBookUserCollection.doc(fromWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
             type: 'channelCommission',
             ownerWallet,
             classId,

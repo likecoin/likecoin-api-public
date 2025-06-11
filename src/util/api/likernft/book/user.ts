@@ -20,19 +20,22 @@ export async function getBookUserInfoFromWallet(wallet: string) {
     getBookUserInfo(wallet),
     getUserWithCivicLikerPropertiesByWallet(wallet),
   ]);
-  return { likeWallet: wallet, bookUserInfo, likerUserInfo };
+  return { wallet, bookUserInfo, likerUserInfo };
 }
 
 export async function getBookUserInfoFromLikerId(likerId: string) {
   const userInfo = await getUserWithCivicLikerProperties(likerId);
   if (!userInfo) return null;
-  const { likeWallet } = userInfo;
-  const user = await getBookUserInfo(likeWallet);
-  return { likeWallet, bookUserInfo: user, likerUserInfo: userInfo };
+  const { likeWallet, evmWallet } = userInfo;
+  const wallet = evmWallet || likeWallet;
+  const user = await getBookUserInfo(wallet);
+  return {
+    wallet, bookUserInfo: user, likerUserInfo: userInfo,
+  };
 }
 
 export async function getBookUserInfoFromLegacyString(from: string) {
-  const userQuery = await likeNFTBookUserCollection.where('fromString', '==', from).limit(1).get();
+  const userQuery = await likeNFTBookUserCollection.where('fromString', '==', from).limit(2).get();
   const userDoc = userQuery.docs[0];
   if (!userDoc) {
     return null;
@@ -41,9 +44,9 @@ export async function getBookUserInfoFromLegacyString(from: string) {
   if (!userData) {
     return null;
   }
-  const likeWallet = userDoc.id;
-  const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(likeWallet);
-  return { likeWallet: userDoc.id, bookUserInfo: userData, likerUserInfo };
+  const wallet = userDoc.id;
+  const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+  return { wallet: userDoc.id, bookUserInfo: userData, likerUserInfo };
 }
 
 export async function validateConnectedWallets(connectedWallets: {[key: string]: number}) {
