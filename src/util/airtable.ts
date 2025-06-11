@@ -43,6 +43,7 @@ export async function createAirtablePublicationRecord({
   iscnContentMetadata,
   metadata,
   isDRMFree = false,
+  isHidden = false,
 }: {
   timestamp: Date;
   name: string | { zh: string, en: string };
@@ -64,6 +65,7 @@ export async function createAirtablePublicationRecord({
   iscnContentMetadata?: any;
   metadata?: any;
   isDRMFree?: boolean;
+  isHidden?: boolean;
 }): Promise<void> {
   if (!base) return;
 
@@ -118,6 +120,10 @@ export async function createAirtablePublicationRecord({
       } catch {
         // No-op
       }
+    }
+
+    if (isHidden) {
+      fields.Hidden = true;
     }
 
     const ownerData = await getUserWithCivicLikerPropertiesByWallet(ownerWallet);
