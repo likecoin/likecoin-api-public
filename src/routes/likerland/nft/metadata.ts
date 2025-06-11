@@ -229,6 +229,12 @@ router.get('/nft/metadata', async (req, res, next) => {
 
     const results = await Promise.allSettled(promises);
 
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        // eslint-disable-next-line no-console
+        console.error(`Promise at index ${index} rejected with reason:`, result.reason);
+      }
+    });
     const hasAnyError = results.some((result) => result.status === 'rejected');
 
     const [
