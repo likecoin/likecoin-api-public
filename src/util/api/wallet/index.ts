@@ -60,7 +60,9 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
       } else {
+        const oldUserData = userDoc.exists ? userDoc.data() : {};
         t.create(likeNFTBookUserCollection.doc(evmWallet), {
+          ...oldUserData,
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
