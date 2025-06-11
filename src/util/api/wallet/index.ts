@@ -42,6 +42,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
         t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions')),
         t.get(likeNFTBookUserCollection.doc(evmWallet)),
       ]);
+      const oldUserData = userDoc.exists ? userDoc.data() : {};
       if (evmUserDoc.exists) {
         const {
           likeWallet: evmLikeWallet,
@@ -56,11 +57,12 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           };
         }
         t.update(likeNFTBookUserCollection.doc(evmWallet), {
+          ...oldUserData,
+          ...evmUserDoc.data(),
           likeWallet,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
       } else {
-        const oldUserData = userDoc.exists ? userDoc.data() : {};
         t.create(likeNFTBookUserCollection.doc(evmWallet), {
           ...oldUserData,
           likeWallet,
@@ -78,8 +80,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           timestamp: FieldValue.serverTimestamp(),
         });
       } else {
-        const userData = userDoc.data();
-        const { evmWallet: existingEVMWallet } = userData;
+        const { evmWallet: existingEVMWallet } = oldUserData;
         if (existingEVMWallet && existingEVMWallet !== evmWallet) {
           throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
         }
