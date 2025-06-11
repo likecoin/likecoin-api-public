@@ -115,6 +115,7 @@ router.post(
           payload = req.body;
           payload.evmWallet = inputWallet;
           payload.displayName = displayName || user;
+          ({ email } = req.body);
           payload.email = email;
           payload.isEmailVerified = false;
           break;
