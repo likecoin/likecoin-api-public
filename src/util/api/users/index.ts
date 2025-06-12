@@ -22,6 +22,7 @@ import {
   CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
+import { maskString } from '../../misc';
 
 const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 
@@ -200,8 +201,8 @@ export function userByEmailQuery(user, email) {
       if (user !== docUser) {
         const { evmWallet, likeWallet } = doc.data();
         throw new ValidationError('EMAIL_ALREADY_USED', 400, {
-          evmWallet: evmWallet ? `${evmWallet.slice(0, 8)}*****${evmWallet.slice(-4)}` : undefined,
-          likeWallet: likeWallet ? `${likeWallet.slice(0, 11)}*****${likeWallet.slice(-4)}` : undefined,
+          evmWallet: maskString(evmWallet),
+          likeWallet: maskString(likeWallet, { start: 11 }),
         });
       }
     });

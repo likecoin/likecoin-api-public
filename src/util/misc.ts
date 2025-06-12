@@ -9,3 +9,14 @@ export function removeUndefinedObjectKey(obj) {
     return a;
   }, {});
 }
+
+export function maskString(
+  str: string | undefined,
+  {
+    start = 8,
+    end = 4,
+  } = {},
+): string | undefined {
+  if (!str || str.length <= start + end) return str;
+  return `${str.slice(0, start)}*****${str.slice(-end)}`;
+}
