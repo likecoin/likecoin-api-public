@@ -119,6 +119,7 @@ export async function handleUserRegistration({
     likeWallet,
     evmWallet,
     email,
+    isEmailVerified,
     platform,
     authCoreUserId,
     magicUserId,

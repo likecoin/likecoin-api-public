@@ -194,16 +194,17 @@ export function checkEVMSignPayload({
   return actualPayload;
 }
 
-export function userByEmailQuery(user, email) {
+export function userByEmailQuery(user, email, isEmailVerified = false) {
   return dbRef.where('email', '==', email).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
       if (user !== docUser) {
         const { evmWallet, likeWallet } = doc.data();
-        throw new ValidationError('EMAIL_ALREADY_USED', 400, {
+        const payload = isEmailVerified ? {
           evmWallet: maskString(evmWallet),
           likeWallet: maskString(likeWallet, { start: 11 }),
-        });
+        } : null;
+        throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
       }
     });
     return true;
@@ -288,6 +289,7 @@ async function userInfoQuery({
   likeWallet,
   evmWallet,
   email,
+  isEmailVerified = false,
   platform,
   authCoreUserId,
   magicUserId,
@@ -297,6 +299,7 @@ async function userInfoQuery({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
+  isEmailVerified?: boolean;
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
@@ -337,7 +340,7 @@ async function userInfoQuery({
     return true;
   }) : Promise.resolve();
 
-  const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
+  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
 
   const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
     dbRef
@@ -391,6 +394,7 @@ export async function checkUserInfoUniqueness({
   likeWallet,
   evmWallet,
   email,
+  isEmailVerified = false,
   platform,
   authCoreUserId,
   magicUserId,
@@ -400,6 +404,7 @@ export async function checkUserInfoUniqueness({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
+  isEmailVerified?: boolean;
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
@@ -414,6 +419,7 @@ export async function checkUserInfoUniqueness({
     likeWallet,
     evmWallet,
     email,
+    isEmailVerified,
     platform,
     authCoreUserId,
     magicUserId,

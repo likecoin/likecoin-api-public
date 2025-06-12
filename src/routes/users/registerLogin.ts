@@ -38,7 +38,7 @@ import {
 import {
   isValidLikeAddress,
 } from '../../util/cosmos';
-import { getMagicUserMetadataById } from '../../util/magic';
+import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
 
 export const THIRTY_S_IN_MS = 30000;
 
@@ -97,9 +97,8 @@ router.post(
       description,
     } = req.body;
     let email;
+    let payload;
     try {
-      let payload;
-
       switch (platform) {
         case 'evmWallet': {
           const {
@@ -107,6 +106,7 @@ router.post(
             payload: stringPayload,
             sign,
             magicUserId,
+            magicDIDToken,
           } = req.body;
           checkEVMSignPayload({
             signature: sign,
@@ -119,15 +119,13 @@ router.post(
           payload.displayName = displayName || user;
           ({ email } = req.body);
           payload.isEmailVerified = false;
-          if (magicUserId) {
-            const magicUserMetadata = await getMagicUserMetadataById(magicUserId);
-            if (magicUserMetadata.email) {
-              if (email !== magicUserMetadata.email) {
-                throw new ValidationError('MAGIC_EMAIL_MISMATCH');
-              }
-              payload.isEmailVerified = true;
+          if (magicDIDToken && magicUserId) {
+            const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
+            if (magicUserMetadata.issuer !== magicUserId) {
+              throw new ValidationError('MAGIC_USER_ID_MISMATCH');
             }
             payload.magicUserId = magicUserId;
+            payload.isEmailVerified = verifyEmailByMagicUserMetadata(email, magicUserMetadata);
           }
           payload.email = email;
           break;
@@ -260,9 +258,9 @@ router.post(
         }
       }
     } catch (err) {
-      if (err instanceof ValidationError && err.message === 'EMAIL_ALREADY_USED') {
-        const payload = { ...err.payload, error: err.message };
-        res.status(400).json(payload);
+      if (err instanceof ValidationError && err.message === 'EMAIL_ALREADY_USED' && payload.isEmailVerified) {
+        const errorData = { ...err.payload, error: err.message };
+        res.status(400).json(errorData);
         return;
       }
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

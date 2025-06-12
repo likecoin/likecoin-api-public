@@ -22,6 +22,7 @@ import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
+import { verifyEmailByMagicDIDToken } from '../../util/magic';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.post('/new/check', async (req, res, next) => {
       user,
       email,
       evmWallet,
+      magicDIDToken,
     } = req.body;
     // let { email } = req.body;
     try {
@@ -38,9 +40,14 @@ router.post('/new/check', async (req, res, next) => {
       if (user && !checkUserNameValid(user)) {
         throw new ValidationError('INVALID_USER_NAME');
       }
+      let isEmailVerified = false;
+      if (magicDIDToken) {
+        isEmailVerified = await verifyEmailByMagicDIDToken(email, magicDIDToken);
+      }
       await checkUserInfoUniqueness({
         user,
         email,
+        isEmailVerified,
         evmWallet,
       });
     } catch (err) {
