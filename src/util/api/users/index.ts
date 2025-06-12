@@ -285,14 +285,16 @@ async function userInfoQuery({
   email,
   platform,
   authCoreUserId,
+  magicUserId,
 }: {
-  user: string;
+  user?: string;
   cosmosWallet?: string;
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
   platform?: string;
   authCoreUserId?: string;
+  magicUserId?: string;
 }) {
   const userNameQuery = user ? dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
@@ -347,6 +349,21 @@ async function userInfoQuery({
       })
   ) : Promise.resolve();
 
+  const magicQuery = magicUserId ? (
+    dbRef
+      .where('magicUserId', '==', magicUserId)
+      .get()
+      .then((snapshot) => {
+        snapshot.forEach((doc) => {
+          const docUser = doc.id;
+          if (user !== docUser) {
+            throw new ValidationError('MAGIC_USER_DUPLICATED');
+          }
+        });
+        return true;
+      })
+  ) : Promise.resolve();
+
   const [{
     isOldUser,
     oldUserObj,
@@ -357,6 +374,7 @@ async function userInfoQuery({
     evmWalletQuery,
     emailQuery,
     authCoreQuery,
+    magicQuery,
   ]);
 
   return { isOldUser, oldUserObj };
@@ -370,14 +388,16 @@ export async function checkUserInfoUniqueness({
   email,
   platform,
   authCoreUserId,
+  magicUserId,
 }: {
-  user: string;
+  user?: string;
   cosmosWallet?: string;
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
   platform?: string;
   authCoreUserId?: string;
+  magicUserId?: string;
 }) {
   if (user) {
     const userDoc = await dbRef.doc(user).get();
@@ -391,6 +411,7 @@ export async function checkUserInfoUniqueness({
     email,
     platform,
     authCoreUserId,
+    magicUserId,
   });
 }
 
