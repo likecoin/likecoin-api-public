@@ -198,7 +198,11 @@ export function userByEmailQuery(user, email) {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
       if (user !== docUser) {
-        throw new ValidationError('EMAIL_ALREADY_USED');
+        const { evmWallet, likeWallet } = doc.data();
+        throw new ValidationError('EMAIL_ALREADY_USED', 400, {
+          evmWallet: evmWallet ? `${evmWallet.slice(0, 8)}*****${evmWallet.slice(-4)}` : undefined,
+          likeWallet: likeWallet ? `${likeWallet.slice(0, 11)}*****${likeWallet.slice(-4)}` : undefined,
+        });
       }
     });
     return true;

@@ -260,6 +260,11 @@ router.post(
         }
       }
     } catch (err) {
+      if (err instanceof ValidationError && err.message === 'EMAIL_ALREADY_USED') {
+        const payload = { ...err.payload, error: err.message };
+        res.status(400).json(payload);
+        return;
+      }
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventRegisterError',
         platform,

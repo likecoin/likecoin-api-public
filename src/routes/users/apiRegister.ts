@@ -45,7 +45,7 @@ router.post('/new/check', async (req, res, next) => {
       });
     } catch (err) {
       if (err instanceof ValidationError) {
-        const payload: any = { error: (err as Error).message };
+        const payload: any = { ...err.payload, error: (err as Error).message };
         if ((err as Error).message === 'USER_ALREADY_EXIST' || (err as Error).message === 'INVALID_USER_NAME') {
           const suggestName = await suggestAvailableUserName(user);
           payload.alternative = suggestName;
