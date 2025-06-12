@@ -148,4 +148,6 @@ config.WALLET_ALLOWED_USER_IDS = '';
 config.WALLET_ALLOWED_CHANNEL_IDS = '';
 config.TEAM_WALLET_TABLE = {};
 
+config.MAGIC_SECRET_API_KEY = process.env.MAGIC_SECRET_API_KEY;
+
 module.exports = config;

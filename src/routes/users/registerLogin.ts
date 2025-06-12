@@ -38,6 +38,7 @@ import {
 import {
   isValidLikeAddress,
 } from '../../util/cosmos';
+import { getMagicUserMetadataById } from '../../util/magic';
 
 export const THIRTY_S_IN_MS = 30000;
 
@@ -105,6 +106,7 @@ router.post(
             from: inputWallet,
             payload: stringPayload,
             sign,
+            magicUserId,
           } = req.body;
           checkEVMSignPayload({
             signature: sign,
@@ -116,8 +118,18 @@ router.post(
           payload.evmWallet = inputWallet;
           payload.displayName = displayName || user;
           ({ email } = req.body);
-          payload.email = email;
           payload.isEmailVerified = false;
+          if (magicUserId) {
+            const magicUserMetadata = await getMagicUserMetadataById(magicUserId);
+            if (magicUserMetadata.email) {
+              if (email !== magicUserMetadata.email) {
+                throw new ValidationError('MAGIC_EMAIL_MISMATCH');
+              }
+              payload.isEmailVerified = true;
+            }
+            payload.magicUserId = magicUserId;
+          }
+          payload.email = email;
           break;
         }
         case 'authcore': {

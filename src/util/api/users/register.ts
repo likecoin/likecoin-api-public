@@ -84,6 +84,7 @@ export async function handleUserRegistration({
     referrer,
     platform,
     authCoreUserId,
+    magicUserId,
     isEmailVerified = false,
     isPhoneVerified,
     locale = 'en',
@@ -120,6 +121,7 @@ export async function handleUserRegistration({
     email,
     platform,
     authCoreUserId,
+    magicUserId,
   });
 
   // upload avatar
@@ -232,6 +234,10 @@ export async function handleUserRegistration({
   if (isPlatformDelegated) {
     createObj.delegatedPlatform = platform;
     createObj.isPlatformDelegated = false;
+  }
+
+  if (magicUserId) {
+    createObj.magicUserId = magicUserId;
   }
 
   const timestampObj: any = { timestamp: Date.now() };
