@@ -227,12 +227,28 @@ router.get('/nft/metadata', async (req, res, next) => {
       promises.push(Promise.resolve(null));
     }
 
+    const results = await Promise.allSettled(promises);
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        // eslint-disable-next-line no-console
+        console.error(`Promise at index ${index} rejected with reason:`, result.reason);
+      }
+    });
+    const hasAnyError = results.some((result) => result.status === 'rejected');
+
     const [
-      [classData, iscnData],
-      ownerInfo,
-      purchaseInfo,
-      bookstoreInfo,
-    ] = await Promise.all(promises);
+      classAndIscnResult,
+      ownerInfoResult,
+      purchaseInfoResult,
+      bookstoreInfoResult,
+    ] = results.map((result) => (result.status === 'fulfilled' ? result.value : null));
+
+    const classData = classAndIscnResult ? classAndIscnResult[0] : null;
+    const iscnData = classAndIscnResult ? classAndIscnResult[1] : null;
+    const ownerInfo = ownerInfoResult;
+    const purchaseInfo = purchaseInfoResult;
+    const bookstoreInfo = bookstoreInfoResult;
 
     const result: any = {};
     if (['all', 'class_chain', 'class_api'].some((s) => selectedSet.has(s))) {
@@ -251,7 +267,9 @@ router.get('/nft/metadata', async (req, res, next) => {
       result.bookstoreInfo = bookstoreInfo;
     }
 
-    res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);
+    if (!hasAnyError) {
+      res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);
+    }
     res.json(result);
   } catch (err) {
     const error = err as AxiosError;
