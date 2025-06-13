@@ -292,7 +292,6 @@ async function userInfoQuery({
   likeWallet,
   evmWallet,
   email,
-  isEmailVerified = false,
   platform,
   authCoreUserId,
   magicUserId,
@@ -302,11 +301,12 @@ async function userInfoQuery({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
-  isEmailVerified?: boolean;
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
-}) {
+}, {
+  isEmailVerified = false,
+} = {}) {
   const userNameQuery = user ? dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
     let oldUserObj;
@@ -397,7 +397,6 @@ export async function checkUserInfoUniqueness({
   likeWallet,
   evmWallet,
   email,
-  isEmailVerified = false,
   platform,
   authCoreUserId,
   magicUserId,
@@ -407,11 +406,12 @@ export async function checkUserInfoUniqueness({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
-  isEmailVerified?: boolean;
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
-}) {
+}, {
+  isEmailVerified = false,
+} = {}) {
   if (user) {
     const userDoc = await dbRef.doc(user).get();
     if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
@@ -422,11 +422,10 @@ export async function checkUserInfoUniqueness({
     likeWallet,
     evmWallet,
     email,
-    isEmailVerified,
     platform,
     authCoreUserId,
     magicUserId,
-  });
+  }, { isEmailVerified });
 }
 
 export async function checkReferrerExists(referrer) {

@@ -47,9 +47,8 @@ router.post('/new/check', async (req, res, next) => {
       await checkUserInfoUniqueness({
         user,
         email,
-        isEmailVerified,
         evmWallet,
-      });
+      }, { isEmailVerified });
     } catch (err) {
       if (err instanceof ValidationError) {
         const payload: any = { ...err.payload, error: (err as Error).message };
