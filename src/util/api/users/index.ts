@@ -199,11 +199,14 @@ export function userByEmailQuery(user, email, isEmailVerified = false) {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
       if (user !== docUser) {
-        const { evmWallet, likeWallet } = doc.data();
-        const payload = isEmailVerified ? {
-          evmWallet: maskString(evmWallet),
-          likeWallet: maskString(likeWallet, { start: 11 }),
-        } : null;
+        let payload: any = null;
+        if (isEmailVerified) {
+          const { evmWallet, likeWallet } = doc.data();
+          payload = {
+            evmWallet: maskString(evmWallet),
+            likeWallet: maskString(likeWallet, { start: 11 }),
+          };
+        }
         throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
       }
     });
