@@ -1,6 +1,5 @@
 import { Magic, MagicUserMetadata } from '@magic-sdk/admin';
 
-import { ValidationError } from './ValidationError';
 import { MAGIC_SECRET_API_KEY } from '../../config/config';
 
 let magicInstance: Magic;
@@ -21,13 +20,7 @@ export function verifyEmailByMagicUserMetadata(
   email: string,
   magicUserMetadata: MagicUserMetadata,
 ): boolean {
-  if (!magicUserMetadata.email) {
-    return false;
-  }
-  if (email !== magicUserMetadata.email) {
-    throw new ValidationError('MAGIC_EMAIL_MISMATCH');
-  }
-  return true;
+  return email === magicUserMetadata.email;
 }
 
 export async function verifyEmailByMagicDIDToken(

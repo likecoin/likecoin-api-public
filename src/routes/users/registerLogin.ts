@@ -125,7 +125,10 @@ router.post(
               throw new ValidationError('MAGIC_USER_ID_MISMATCH');
             }
             payload.magicUserId = magicUserId;
-            payload.isEmailVerified = verifyEmailByMagicUserMetadata(email, magicUserMetadata);
+            if (!verifyEmailByMagicUserMetadata(email, magicUserMetadata)) {
+              throw new ValidationError('MAGIC_EMAIL_MISMATCH');
+            }
+            payload.isEmailVerified = true;
           }
           payload.email = email;
           break;
