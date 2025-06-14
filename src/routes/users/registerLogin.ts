@@ -105,7 +105,6 @@ router.post(
             from: inputWallet,
             payload: stringPayload,
             sign,
-            magicUserId,
             magicDIDToken,
           } = req.body;
           checkEVMSignPayload({
@@ -119,12 +118,9 @@ router.post(
           payload.displayName = displayName || user;
           ({ email } = req.body);
           payload.isEmailVerified = false;
-          if (magicDIDToken && magicUserId) {
+          if (magicDIDToken) {
             const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
-            if (magicUserMetadata.issuer !== magicUserId) {
-              throw new ValidationError('MAGIC_USER_ID_MISMATCH');
-            }
-            payload.magicUserId = magicUserId;
+            payload.magicUserId = magicUserMetadata.issuer;
             if (!verifyEmailByMagicUserMetadata(email, magicUserMetadata)) {
               throw new ValidationError('MAGIC_EMAIL_MISMATCH');
             }
