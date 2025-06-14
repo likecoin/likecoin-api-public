@@ -315,6 +315,9 @@ async function userInfoQuery({
     }
     return { isOldUser, oldUserObj };
   }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
+
+  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
+
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
@@ -342,8 +345,6 @@ async function userInfoQuery({
     });
     return true;
   }) : Promise.resolve();
-
-  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
 
   const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
     dbRef
