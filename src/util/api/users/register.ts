@@ -122,7 +122,7 @@ export async function handleUserRegistration({
     platform,
     authCoreUserId,
     magicUserId,
-  });
+  }, { isEmailVerified });
 
   // upload avatar
   const { file } = req;

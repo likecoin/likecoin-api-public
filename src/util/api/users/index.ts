@@ -22,6 +22,7 @@ import {
   CRISP_USER_HASH_SECRET,
 } from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
+import { maskString } from '../../misc';
 
 const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
 
@@ -193,12 +194,20 @@ export function checkEVMSignPayload({
   return actualPayload;
 }
 
-export function userByEmailQuery(user, email) {
+export function userByEmailQuery(user, email, isEmailVerified = false) {
   return dbRef.where('email', '==', email).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
       if (user !== docUser) {
-        throw new ValidationError('EMAIL_ALREADY_USED');
+        let payload: any = null;
+        if (isEmailVerified) {
+          const { evmWallet, likeWallet } = doc.data();
+          payload = {
+            evmWallet: maskString(evmWallet),
+            likeWallet: maskString(likeWallet, { start: 11 }),
+          };
+        }
+        throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
       }
     });
     return true;
@@ -295,7 +304,9 @@ async function userInfoQuery({
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
-}) {
+}, {
+  isEmailVerified = false,
+} = {}) {
   const userNameQuery = user ? dbRef.doc(user).get().then((doc) => {
     const isOldUser = doc.exists;
     let oldUserObj;
@@ -304,6 +315,9 @@ async function userInfoQuery({
     }
     return { isOldUser, oldUserObj };
   }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
+
+  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
+
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
@@ -331,8 +345,6 @@ async function userInfoQuery({
     });
     return true;
   }) : Promise.resolve();
-
-  const emailQuery = email ? userByEmailQuery(user, email) : Promise.resolve();
 
   const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
     dbRef
@@ -398,7 +410,9 @@ export async function checkUserInfoUniqueness({
   platform?: string;
   authCoreUserId?: string;
   magicUserId?: string;
-}) {
+}, {
+  isEmailVerified = false,
+} = {}) {
   if (user) {
     const userDoc = await dbRef.doc(user).get();
     if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
@@ -412,7 +426,7 @@ export async function checkUserInfoUniqueness({
     platform,
     authCoreUserId,
     magicUserId,
-  });
+  }, { isEmailVerified });
 }
 
 export async function checkReferrerExists(referrer) {

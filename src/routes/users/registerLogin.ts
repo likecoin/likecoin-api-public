@@ -38,7 +38,7 @@ import {
 import {
   isValidLikeAddress,
 } from '../../util/cosmos';
-import { getMagicUserMetadataById } from '../../util/magic';
+import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
 
 export const THIRTY_S_IN_MS = 30000;
 
@@ -99,14 +99,13 @@ router.post(
     let email;
     try {
       let payload;
-
       switch (platform) {
         case 'evmWallet': {
           const {
             from: inputWallet,
             payload: stringPayload,
             sign,
-            magicUserId,
+            magicDIDToken,
           } = req.body;
           checkEVMSignPayload({
             signature: sign,
@@ -119,15 +118,13 @@ router.post(
           payload.displayName = displayName || user;
           ({ email } = req.body);
           payload.isEmailVerified = false;
-          if (magicUserId) {
-            const magicUserMetadata = await getMagicUserMetadataById(magicUserId);
-            if (magicUserMetadata.email) {
-              if (email !== magicUserMetadata.email) {
-                throw new ValidationError('MAGIC_EMAIL_MISMATCH');
-              }
-              payload.isEmailVerified = true;
+          if (magicDIDToken) {
+            const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
+            payload.magicUserId = magicUserMetadata.issuer;
+            if (!verifyEmailByMagicUserMetadata(email, magicUserMetadata)) {
+              throw new ValidationError('MAGIC_EMAIL_MISMATCH');
             }
-            payload.magicUserId = magicUserId;
+            payload.isEmailVerified = true;
           }
           payload.email = email;
           break;

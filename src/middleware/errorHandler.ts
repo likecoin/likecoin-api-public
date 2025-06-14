@@ -28,7 +28,13 @@ export default function errorHandler(err, req, res, next) {
   }
   res.set('Content-Type', 'text/plain');
   if (err instanceof ValidationError) {
-    return res.status(err.status).send((err as Error).message);
+    if (err.payload) {
+      return res.status(err.status).json({
+        ...err.payload,
+        error: err.message,
+      });
+    }
+    return res.status(err.status).send(err.message);
   }
   if (err.type === 'entity.parse.failed') {
     return res.status(400).send('BODY_PARSE_FAILED');
