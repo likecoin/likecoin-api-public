@@ -20,7 +20,7 @@ export function verifyEmailByMagicUserMetadata(
   email: string,
   magicUserMetadata: MagicUserMetadata,
 ): boolean {
-  return email === magicUserMetadata.email;
+  return !!magicUserMetadata.email && email === magicUserMetadata.email;
 }
 
 export async function verifyEmailByMagicDIDToken(
