@@ -97,8 +97,8 @@ router.post(
       description,
     } = req.body;
     let email;
-    let payload;
     try {
+      let payload;
       switch (platform) {
         case 'evmWallet': {
           const {
@@ -257,11 +257,6 @@ router.post(
         }
       }
     } catch (err) {
-      if (err instanceof ValidationError && err.message === 'EMAIL_ALREADY_USED' && payload.isEmailVerified) {
-        const errorData = { ...err.payload, error: err.message };
-        res.status(400).json(errorData);
-        return;
-      }
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventRegisterError',
         platform,
