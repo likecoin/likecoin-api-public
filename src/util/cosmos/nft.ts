@@ -19,6 +19,10 @@ let signingClient: ISCNSigningClient | null = null;
 let signingWallet: AccountData | null = null;
 let signingAccountNumber: number | null = null;
 
+export function isLikeNFTClassId(classId: string) {
+  return classId.startsWith('likenft1');
+}
+
 export async function getNFTQueryClient() {
   if (!queryClient) {
     const client = new ISCNQueryClient();

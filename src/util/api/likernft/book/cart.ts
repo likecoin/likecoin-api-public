@@ -55,6 +55,7 @@ import {
 } from '../../../../../config/config';
 import { CartItem, CartItemWithInfo } from './type';
 import { isEVMClassId } from '../../../evm/nft';
+import { isLikeNFTClassId } from '../../../cosmos/nft';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -723,7 +724,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         evmClassId,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      if (chain === 'like' && evmClassId) {
+      if ((chain === 'like' || isLikeNFTClassId(classId)) && evmClassId) {
         throw new ValidationError('NFT_MIGRATED_TO_EVM');
       }
       const {
@@ -1043,11 +1044,19 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   if (itemsWithShipping.length > 1) {
     throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
   }
-  const { chain } = itemInfos.find((item) => item.chain) || {};
+  let { chain } = itemInfos[0];
   if (!chain) {
     // eslint-disable-next-line no-console
     console.warn(`${itemInfos[0].classId} does not have chain id set`);
-  } else if (!itemInfos.every((item) => !item.chain || item.chain === chain)) {
+    chain = isLikeNFTClassId(itemInfos[0].classId as string) ? 'like' : 'evm';
+  }
+  if (!itemInfos.every((item) => {
+    let itemChain = item.chain;
+    if (!itemChain) {
+      itemChain = isLikeNFTClassId(item.classId as string) ? 'like' : 'evm';
+    }
+    return itemChain === chain;
+  })) {
     throw new ValidationError('DIFFERENT_CHAIN_NOT_SUPPORTED');
   }
   let customerEmail = email;
