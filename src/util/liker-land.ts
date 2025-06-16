@@ -6,7 +6,7 @@ import {
 
 export const getLikerLandURL = (path = '', { language = '' }: { language?: string } = {}): string => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
 
-export const getBook3URL = (path = '', { language = '' }: { language?: string } = {}): string => {
+export const getBook3URL = (path = '', { language = 'zh' }: { language?: string } = {}): string => {
   const locale = language.startsWith('zh') ? '' : 'en';
   return `https://${BOOK3_HOSTNAME}${locale ? `/${locale}` : ''}${path}`;
 };

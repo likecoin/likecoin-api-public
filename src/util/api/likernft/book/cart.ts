@@ -999,6 +999,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   httpMethod = 'POST',
   cancelUrl,
   site,
+  language,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -1027,6 +1028,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
   site?: string,
+  language?: string,
 } = {}) {
   const items: CartItem[] = inputItems.map((item) => ({
     collectionId: item.collectionId,
@@ -1087,6 +1089,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gadClickId,
     gadSource,
     site,
+    language,
   });
   let from: string = inputFrom as string || '';
   if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {

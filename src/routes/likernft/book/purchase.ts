@@ -133,6 +133,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       coupon,
       giftInfo,
       site = undefined,
+      language,
     } = req.body;
 
     if (!items?.length) {
@@ -183,8 +184,10 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gadClickId,
         gadSource,
         site,
+        language,
       }),
       site,
+      language,
     });
     res.json({ paymentId, url });
 
