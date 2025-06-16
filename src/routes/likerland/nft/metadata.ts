@@ -231,8 +231,13 @@ router.get('/nft/metadata', async (req, res, next) => {
 
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
+        const error: Error = result.reason;
+        let errorMessage = error.message;
+        if (Axios.isAxiosError(error) && error.response) {
+          errorMessage = JSON.stringify(error.response.data) || error.response.statusText;
+        }
         // eslint-disable-next-line no-console
-        console.error(`Promise at index ${index} rejected with reason:`, result.reason);
+        console.error(`Promise at index ${index} rejected:`, errorMessage);
       }
     });
     const hasAnyError = results.some((result) => result.status === 'rejected');
