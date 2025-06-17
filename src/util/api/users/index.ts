@@ -214,6 +214,25 @@ export function userByEmailQuery(user, email, isEmailVerified = false) {
   });
 }
 
+export function walletByEmailQuery(wallet, email, isEmailVerified = false) {
+  return dbRef.where('email', '==', email).get().then((snapshot) => {
+    snapshot.forEach((doc) => {
+      const { evmWallet, likeWallet } = doc.data();
+      if (wallet !== evmWallet && wallet !== likeWallet) {
+        let payload: any = null;
+        if (isEmailVerified) {
+          payload = {
+            evmWallet: maskString(evmWallet),
+            likeWallet: maskString(likeWallet, { start: 11 }),
+          };
+        }
+        throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
+      }
+    });
+    return true;
+  });
+}
+
 export function queryNormalizedEmailExists(user, email) {
   return dbRef.where('normalizedEmail', '==', email).get().then((snapshot) => {
     const isExists = snapshot.docs.some((doc) => {
@@ -316,7 +335,17 @@ async function userInfoQuery({
     return { isOldUser, oldUserObj };
   }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
 
-  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
+  let emailQuery: Promise<boolean | void>;
+  if (email) {
+    if (user) {
+      emailQuery = userByEmailQuery(user, email, isEmailVerified);
+    } else {
+      const wallet = evmWallet || likeWallet;
+      emailQuery = walletByEmailQuery(wallet, email, isEmailVerified);
+    }
+  } else {
+    emailQuery = Promise.resolve();
+  }
 
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {
