@@ -686,8 +686,8 @@ export async function processNFTBookCartStripePurchase(
 
 export async function formatCartItemsWithInfo(items: CartItem[]) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
+    let { classId } = item;
     const {
-      classId,
       priceIndex: inputPriceIndex,
       collectionId,
       customPriceInDecimal,
@@ -709,24 +709,30 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       throw new ValidationError('PRICE_INDEX_INVALID');
     }
     if (classId) {
-      const [metadata, bookInfo] = await Promise.all([
+      let [metadata, bookInfo] = await Promise.all([
         getNFTClassDataById(classId),
         getNftBookInfo(classId),
       ]);
       if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
       if (!metadata) throw new ValidationError('NFT_NOT_FOUND');
+      const { evmClassId } = bookInfo;
+      if (evmClassId && isLikeNFTClassId(classId)) {
+        classId = evmClassId as string;
+        [metadata, bookInfo] = await Promise.all([
+          getNFTClassDataById(classId),
+          getNftBookInfo(classId),
+        ]);
+        if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
+        if (!metadata) throw new ValidationError('NFT_NOT_FOUND');
+      }
       const {
         prices,
         ownerWallet,
         shippingRates,
         isLikerLandArt,
         chain,
-        evmClassId,
       } = bookInfo;
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
-      if ((chain === 'like' || isLikeNFTClassId(classId)) && evmClassId) {
-        throw new ValidationError('NFT_MIGRATED_TO_EVM');
-      }
       const {
         priceInDecimal: originalPriceInDecimal,
         stock,

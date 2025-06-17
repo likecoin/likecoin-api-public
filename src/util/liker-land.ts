@@ -22,11 +22,11 @@ export const getLikerLandPortfolioPageURL = ({
   site,
 }: GetLikerLandNFTPageURLParams = {}): string => {
   switch (site) {
-    case '3ook.com':
-      return getBook3URL('/shelf', { language });
     case 'liker.land':
-    default:
       return getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
+    case '3ook.com':
+    default:
+      return getBook3URL('/shelf', { language });
   }
 };
 
@@ -77,15 +77,15 @@ export const getLikerLandCartURL = ({
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   switch (site) {
+    case 'liker.land':
+      return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
     case '3ook.com':
+    default:
       if (type !== 'book') {
         // eslint-disable-next-line no-console
         console.warn(`Unsupported type "${type}" for 3ook.com site`);
       }
       return getBook3URL(`/cart/?${qs}`, { language });
-    case 'liker.land':
-    default:
-      return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
   }
 };
 
@@ -141,11 +141,11 @@ export const getLikerLandNFTClassPageURL = ({
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   switch (site) {
-    case '3ook.com':
-      return getBook3URL(`/store/${classId}?${qs}`, { language });
     case 'liker.land':
-    default:
       return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
+    case '3ook.com':
+    default:
+      return getBook3URL(`/store/${classId}?${qs}`, { language });
   }
 };
 
@@ -292,11 +292,11 @@ export const getLikerLandNFTClaimPageURL = ({
   }
   const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
   switch (site) {
-    case '3ook.com':
-      return getBook3URL(`/store/claim?${qs}`, { language });
     case 'liker.land':
-    default:
       return getLikerLandURL(`/nft/claim?${qs}`, { language });
+    case '3ook.com':
+    default:
+      return getBook3URL(`/store/claim?${qs}`, { language });
   }
 };
 
