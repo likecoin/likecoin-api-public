@@ -194,14 +194,26 @@ export function checkEVMSignPayload({
   return actualPayload;
 }
 
-export function userByEmailQuery(user, email, isEmailVerified = false) {
+export async function userOrWalletByEmailQuery({
+  user,
+  evmWallet,
+  likeWallet,
+}: {
+  user?: string,
+  evmWallet?: string,
+  likeWallet?: string,
+}, email: string, isEmailVerified = false): Promise<boolean> {
   return dbRef.where('email', '==', email).get().then((snapshot) => {
     snapshot.forEach((doc) => {
       const docUser = doc.id;
-      if (user !== docUser) {
+      const docData = doc.data();
+      if (
+        (user && user !== docUser)
+        || (evmWallet && evmWallet !== docData.evmWallet)
+        || (likeWallet && likeWallet !== docData.likeWallet)
+      ) {
         let payload: any = null;
         if (isEmailVerified) {
-          const { evmWallet, likeWallet } = doc.data();
           payload = {
             evmWallet: maskString(evmWallet),
             likeWallet: maskString(likeWallet, { start: 11 }),
@@ -316,7 +328,9 @@ async function userInfoQuery({
     return { isOldUser, oldUserObj };
   }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
 
-  const emailQuery = email ? userByEmailQuery(user, email, isEmailVerified) : Promise.resolve();
+  const emailQuery = email
+    ? userOrWalletByEmailQuery({ user, evmWallet, likeWallet }, email, isEmailVerified)
+    : Promise.resolve();
 
   const cosmosWalletQuery = cosmosWallet ? dbRef.where('cosmosWallet', '==', cosmosWallet).get().then((snapshot) => {
     snapshot.forEach((doc) => {

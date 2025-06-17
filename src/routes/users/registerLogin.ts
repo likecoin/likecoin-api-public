@@ -18,7 +18,7 @@ import {
   checkCosmosSignPayload,
   setAuthCookies,
   clearAuthCookies,
-  userByEmailQuery,
+  userOrWalletByEmailQuery,
   normalizeUserEmail,
   getUserAgentIsApp,
   checkEVMSignPayload,
@@ -308,7 +308,7 @@ router.post(
 
       if (email) {
         if (authCoreUserId && oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
-        await userByEmailQuery(user, email);
+        await userOrWalletByEmailQuery({ user }, email);
         const {
           normalizedEmail,
           isEmailBlacklisted,
