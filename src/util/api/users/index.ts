@@ -215,8 +215,8 @@ export async function userOrWalletByEmailQuery({
         let payload: any = null;
         if (isEmailVerified) {
           payload = {
-            evmWallet: maskString(evmWallet),
-            likeWallet: maskString(likeWallet, { start: 11 }),
+            evmWallet: maskString(docData.evmWallet),
+            likeWallet: maskString(docData.likeWallet, { start: 11 }),
           };
         }
         throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
