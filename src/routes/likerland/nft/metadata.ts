@@ -8,7 +8,12 @@ import {
   COSMOS_LCD_INDEXER_ENDPOINT,
   LIKER_NFT_TARGET_ADDRESS,
 } from '../../../../config/config';
-import { isEVMClassId, getNFTClassDataById as getEVMNFTClassDataById, listNFTTokenOwner } from '../../../util/evm/nft';
+import {
+  isEVMClassId,
+  getNFTClassDataById as getEVMNFTClassDataById,
+  listNFTTokenOwner,
+  getNFTClassOwner,
+} from '../../../util/evm/nft';
 
 const classChainMetadataCache = new LRUCache({
   max: 1000,
@@ -28,7 +33,14 @@ async function getNFTClassChainMetadata(classId) {
     }
     let result;
     if (isEVMClassId(classId)) {
-      result = await getEVMNFTClassDataById(classId);
+      const [metadata, owner] = await Promise.all([
+        getEVMNFTClassDataById(classId),
+        getNFTClassOwner(classId),
+      ]);
+      result = {
+        ...metadata,
+        owner_address: owner,
+      };
     } else {
       const { data } = await axios.get(
         `${COSMOS_LCD_INDEXER_ENDPOINT}/cosmos/nft/v1beta1/classes/${classId}`,
