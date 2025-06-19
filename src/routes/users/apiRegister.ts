@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { checksumAddress } from 'viem';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
@@ -31,7 +32,7 @@ router.post('/new/check', async (req, res, next) => {
     const {
       user,
       email,
-      evmWallet,
+      evmWallet: rawEvmWallet,
       magicDIDToken,
     } = req.body;
     // let { email } = req.body;
@@ -44,6 +45,7 @@ router.post('/new/check', async (req, res, next) => {
       if (magicDIDToken) {
         isEmailVerified = await verifyEmailByMagicDIDToken(email, magicDIDToken);
       }
+      const evmWallet = rawEvmWallet && checksumAddress(rawEvmWallet);
       await checkUserInfoUniqueness({
         user,
         email,

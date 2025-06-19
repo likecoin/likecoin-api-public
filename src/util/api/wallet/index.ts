@@ -1,3 +1,4 @@
+import { checksumAddress } from 'viem';
 import { createAirtablePublicationRecord } from '../../airtable';
 import { isValidLikeAddress } from '../../cosmos';
 import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
@@ -15,7 +16,7 @@ import stripe from '../../stripe';
 import { bookCacheBucket } from '../../gcloudStorage';
 
 export async function findLikeWalletByEVMWallet(evmWallet: string) {
-  const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', evmWallet).get();
+  const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', checksumAddress(evmWallet as `0x${string}`)).get();
   if (userQuery.docs.length === 0) {
     return null;
   }

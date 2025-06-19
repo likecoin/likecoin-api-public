@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import Multer from 'multer';
 import RateLimit from 'express-rate-limit';
+import { checksumAddress } from 'viem';
 import {
   PUBSUB_TOPIC_MISC,
   TEST_MODE,
@@ -114,7 +115,7 @@ router.post(
             action: 'register',
           });
           payload = req.body;
-          payload.evmWallet = inputWallet;
+          payload.evmWallet = checksumAddress(inputWallet);
           payload.displayName = displayName || user;
           ({ email } = req.body);
           payload.isEmailVerified = false;
@@ -475,7 +476,7 @@ router.post('/login', async (req, res, next) => {
           payload: stringPayload,
           sign,
         } = req.body;
-        wallet = from;
+        wallet = checksumAddress(from);
         checkEVMSignPayload({
           signature: sign,
           message: stringPayload,

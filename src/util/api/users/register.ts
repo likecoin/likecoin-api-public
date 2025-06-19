@@ -1,5 +1,6 @@
 import uuidv4 from 'uuid/v4';
 
+import { checksumAddress } from 'viem';
 import { sendVerificationEmail } from '../../sendgrid';
 import {
   PUBSUB_TOPIC_MISC,
@@ -78,7 +79,7 @@ export async function handleUserRegistration({
     description,
     cosmosWallet,
     likeWallet,
-    evmWallet,
+    evmWallet: rawEvmWallet,
     avatarSHA256,
     avatarURL: avatarURLInput,
     referrer,
@@ -100,7 +101,7 @@ export async function handleUserRegistration({
   }
 
   if (!checkUserNameValid(user)) throw new ValidationError('INVALID_USER_ID');
-  if (!cosmosWallet && !likeWallet && !evmWallet) {
+  if (!cosmosWallet && !likeWallet && !rawEvmWallet) {
     throw new ValidationError('WALLET_NOT_PROVIDED');
   }
   if (cosmosWallet && !checkCosmosAddressValid(cosmosWallet, 'cosmos')) {
@@ -109,9 +110,10 @@ export async function handleUserRegistration({
   if (likeWallet && !checkCosmosAddressValid(likeWallet, 'like')) {
     throw new ValidationError('INVALID_LIKE_WALLET');
   }
-  if (evmWallet && !checkAddressValid(evmWallet)) {
+  if (rawEvmWallet && !checkAddressValid(rawEvmWallet)) {
     throw new ValidationError('INVALID_EVM_WALLET');
   }
+  const evmWallet = rawEvmWallet && checksumAddress(rawEvmWallet);
 
   await checkUserInfoUniqueness({
     user,
@@ -178,7 +180,7 @@ export async function handleUserRegistration({
     if (avatarHash) createObj.avatarHash = avatarHash;
   }
   if (likeWallet) createObj.likeWallet = likeWallet;
-  if (evmWallet) createObj.evmWallet = evmWallet;
+  if (evmWallet) createObj.evmWallet = checksumAddress(evmWallet);
   if (hasReferrer) createObj.referrer = referrer;
   if (description) createObj.description = description;
 

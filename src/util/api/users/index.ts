@@ -1,9 +1,9 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import disposableDomains from 'disposable-email-domains';
-import web3Utils from 'web3-utils';
 import sigUtil from 'eth-sig-util';
 import LRU from 'lru-cache';
+import { checksumAddress } from 'viem';
 import {
   AUTH_COOKIE_OPTION,
   BUTTON_COOKIE_OPTION,
@@ -15,7 +15,6 @@ import {
   userCollection as dbRef,
   configCollection,
 } from '../../firebase';
-import { checkAddressValid } from '../../ValidationHelper';
 import { ValidationError } from '../../ValidationError';
 import { jwtSign } from '../../jwt';
 import {
@@ -302,7 +301,7 @@ async function userInfoQuery({
   user,
   cosmosWallet,
   likeWallet,
-  evmWallet,
+  evmWallet: rawEvmWallet,
   email,
   platform,
   authCoreUserId,
@@ -328,6 +327,7 @@ async function userInfoQuery({
     return { isOldUser, oldUserObj };
   }) : Promise.resolve({ isOldUser: false, oldUserObj: null });
 
+  const evmWallet = rawEvmWallet && checksumAddress(rawEvmWallet as `0x${string}`);
   const emailQuery = email
     ? userOrWalletByEmailQuery({ user, evmWallet, likeWallet }, email, isEmailVerified)
     : Promise.resolve();
