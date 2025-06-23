@@ -90,7 +90,7 @@ export async function createNewPlusCheckoutSession(period: 'monthly' | 'yearly',
     metadata,
     mode: 'subscription',
     subscription_data: { metadata },
-    success_url: `https://${BOOK3_HOSTNAME}/plus/success`,
+    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
   };
   if (customerId) {
