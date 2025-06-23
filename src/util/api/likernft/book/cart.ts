@@ -52,6 +52,7 @@ import logPixelEvents from '../../../fbq';
 import { getBookUserInfoFromWallet } from './user';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
+  LIKER_PLUS_20_COUPON_ID,
 } from '../../../../../config/config';
 import { CartItem, CartItemWithInfo } from './type';
 import { isEVMClassId } from '../../../evm/nft';
@@ -1037,7 +1038,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   site?: string,
   language?: string,
 } = {}) {
-  const items: CartItem[] = inputItems.map((item) => ({
+  let items: CartItem[] = inputItems.map((item) => ({
     collectionId: item.collectionId,
     classId: item.classId,
     priceIndex: item.priceIndex,
@@ -1045,7 +1046,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     quantity: item.quantity,
     from: item.from,
   }));
-  const itemInfos = await formatCartItemsWithInfo(items);
+  let itemInfos = await formatCartItemsWithInfo(items);
   const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
   if (itemsWithShipping.length > 1) {
     throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
@@ -1067,12 +1068,24 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   }
   let customerEmail = email;
   let customerId;
+  let couponId;
   if (likeWallet) {
     const res = await getBookUserInfoFromWallet(likeWallet);
     const { bookUserInfo, likerUserInfo } = res || {};
-    const { email: userEmail, isEmailVerified } = likerUserInfo || {};
+    const { email: userEmail, isEmailVerified, isLikerPlus } = likerUserInfo || {};
     customerId = bookUserInfo?.stripeCustomerId;
     customerEmail = isEmailVerified ? userEmail : email;
+    if (isLikerPlus) {
+      couponId = LIKER_PLUS_20_COUPON_ID;
+      items = items.map((item) => ({
+        ...item,
+        from: undefined,
+      }));
+      itemInfos = itemInfos.map((item) => ({
+        ...item,
+        from: undefined,
+      }));
+    }
   }
   const paymentId = uuidv4();
   const cartId = paymentId;
@@ -1120,6 +1133,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     paymentId,
     from,
     coupon,
+    couponId,
     claimToken,
     gaClientId,
     gaSessionId,
