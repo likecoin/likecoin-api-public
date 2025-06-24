@@ -11,12 +11,49 @@ const router = Router();
 
 router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
   let { period = 'monthly' } = req.query;
+  const { from } = req.query;
+  const {
+    gaClientId,
+    gaSessionId,
+    gadClickId,
+    gadSource,
+    fbClickId,
+    referrer,
+    userAgent,
+    clientIp,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+  } = req.body;
   try {
     // Ensure period is either 'monthly' or 'yearly'
     if (period !== 'monthly' && period !== 'yearly') {
       period = 'monthly'; // Default to monthly if invalid
     }
-    const session = await createNewPlusCheckoutSession(period as 'monthly' | 'yearly', req);
+    const session = await createNewPlusCheckoutSession(
+      period as 'monthly' | 'yearly',
+      {
+        from: from as string,
+        gaClientId,
+        gaSessionId,
+        gadClickId,
+        gadSource,
+        fbClickId,
+        referrer,
+        userAgent,
+        clientIp,
+        utm: {
+          campaign: utmCampaign,
+          source: utmSource,
+          medium: utmMedium,
+        },
+      },
+      req,
+    );
+    res.json({
+      sessionId: session.id,
+      url: session.url,
+    });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionCreated',
@@ -25,11 +62,14 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       wallet: req.user?.wallet,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
-    });
-
-    res.json({
-      sessionId: session.id,
-      url: session.url,
+      from,
+      gadClickId,
+      gadSource,
+      fbClickId,
+      utmCampaign,
+      utmSource,
+      utmMedium,
+      referrer,
     });
   } catch (error) {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
