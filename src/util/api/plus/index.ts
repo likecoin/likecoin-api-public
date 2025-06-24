@@ -71,7 +71,37 @@ export async function processStripeSubscriptionInvoice(
   });
 }
 
-export async function createNewPlusCheckoutSession(period: 'monthly' | 'yearly', req) {
+export async function createNewPlusCheckoutSession(
+  period: 'monthly' | 'yearly',
+  {
+    from,
+    gaClientId,
+    gaSessionId,
+    gadClickId,
+    gadSource,
+    fbClickId,
+    referrer,
+    userAgent,
+    clientIp,
+    utm,
+  }: {
+    from?: string,
+    gaClientId?: string,
+    gaSessionId?: string,
+    gadClickId?: string,
+    gadSource?: string,
+    fbClickId?: string,
+    referrer?: string,
+    userAgent?: string,
+    clientIp?: string,
+    utm?: {
+      campaign?: string,
+      source?: string,
+      medium?: string,
+    },
+  },
+  req,
+) {
   const {
     wallet,
     likeWallet,
@@ -87,9 +117,22 @@ export async function createNewPlusCheckoutSession(period: 'monthly' | 'yearly',
       if (bookUserInfo) customerId = bookUserInfo.stripeCustomerId;
     }
   }
-  const metadata: Stripe.MetadataParam = {};
-  if (likeWallet) metadata.likeWallet = likeWallet;
-  if (evmWallet) metadata.evmWallet = evmWallet;
+  const subscriptionMetadata: Stripe.MetadataParam = {};
+  if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
+  if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
+  if (from) subscriptionMetadata.from = from;
+  const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
+  if (gaClientId) metadata.gaClientId = gaClientId;
+  if (gaSessionId) metadata.gaSessionId = gaSessionId;
+  if (gadClickId) metadata.gadClickId = gadClickId;
+  if (gadSource) metadata.gadSource = gadSource;
+  if (utm?.campaign) metadata.utmCampaign = utm.campaign;
+  if (utm?.source) metadata.utmSource = utm.source;
+  if (utm?.medium) metadata.utmMedium = utm.medium;
+  if (referrer) metadata.referrer = referrer.substring(0, 500);
+  if (userAgent) metadata.userAgent = userAgent;
+  if (clientIp) metadata.clientIp = clientIp;
+  if (fbClickId) metadata.fbClickId = fbClickId;
   const payload: Stripe.Checkout.SessionCreateParams = {
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
@@ -101,7 +144,7 @@ export async function createNewPlusCheckoutSession(period: 'monthly' | 'yearly',
     ],
     metadata,
     mode: 'subscription',
-    subscription_data: { metadata },
+    subscription_data: { metadata: subscriptionMetadata },
     success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
   };
