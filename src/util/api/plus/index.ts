@@ -1,9 +1,10 @@
 import type Stripe from 'stripe';
 
-import { BOOK3_HOSTNAME } from '../../../constant';
+import { BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import stripe from '../../stripe';
 import { userCollection } from '../../firebase';
+import publisher from '../../gcloudPub';
 
 import {
   LIKER_PLUS_MONTHLY_PRICE_ID,
@@ -56,6 +57,17 @@ export async function processStripeSubscriptionInvoice(
       subscriptionId,
       customerId: subscription.customer as string,
     },
+  });
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'PlusSubscriptionInvoiceProcessed',
+    subscriptionId,
+    invoiceId: invoice.id,
+    likerId,
+    period: item.plan.interval,
+    customerId: subscription.customer as string,
+    evmWallet,
+    likeWallet,
   });
 }
 
