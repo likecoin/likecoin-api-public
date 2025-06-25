@@ -675,6 +675,7 @@ export async function formatStripeCheckoutSession({
   customerId,
   from,
   coupon,
+  couponId,
   claimToken,
   gaClientId,
   gaSessionId,
@@ -700,6 +701,7 @@ export async function formatStripeCheckoutSession({
   customerId?: string,
   from?: string,
   coupon?: string,
+  couponId?: string,
   claimToken: string,
   gaClientId?: string,
   gaSessionId?: string,
@@ -868,14 +870,20 @@ export async function formatStripeCheckoutSession({
     }
   });
 
-  let promotion: Stripe.PromotionCode | null = null;
+  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
   if (coupon) {
     try {
-      promotion = await getStripePromotionFromCode(coupon);
+      const promotion = await getStripePromotionFromCode(coupon);
+      if (promotion) {
+        discounts.push({ promotion_code: promotion.id });
+      }
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(e);
     }
+  }
+  if (!discounts.length && couponId) {
+    discounts.push({ coupon: couponId });
   }
 
   const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
@@ -893,8 +901,8 @@ export async function formatStripeCheckoutSession({
     checkoutPayload.payment_method_types = paymentMethods as
       Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
   }
-  if (promotion) {
-    checkoutPayload.discounts = [{ promotion_code: promotion.id }];
+  if (discounts.length) {
+    checkoutPayload.discounts = discounts;
   } else {
     checkoutPayload.allow_promotion_codes = true;
   }
