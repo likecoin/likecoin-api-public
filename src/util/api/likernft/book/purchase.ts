@@ -871,9 +871,7 @@ export async function formatStripeCheckoutSession({
   });
 
   const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (couponId) {
-    discounts.push({ coupon: couponId });
-  } else if (coupon) {
+  if (coupon) {
     try {
       const promotion = await getStripePromotionFromCode(coupon);
       if (promotion) {
@@ -883,6 +881,9 @@ export async function formatStripeCheckoutSession({
       // eslint-disable-next-line no-console
       console.error(e);
     }
+  }
+  if (!discounts.length && couponId) {
+    discounts.push({ coupon: couponId });
   }
 
   const checkoutPayload: Stripe.Checkout.SessionCreateParams = {
