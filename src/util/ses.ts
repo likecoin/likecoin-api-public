@@ -490,8 +490,8 @@ export async function sendNFTBookCartPendingClaimEmail({
       },
     ],
     Destination: {
-      ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
+      ToAddresses: [SALES_EMAIL], // send to SALES_EMAIL instead of email before revamp
+      // BccAddresses: [SALES_EMAIL],
     },
     Message: {
       Subject: {
