@@ -75,7 +75,7 @@ export const getLikerLandCartURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   switch (site) {
     case 'liker.land':
       return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
@@ -139,7 +139,7 @@ export const getLikerLandNFTClassPageURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   switch (site) {
     case 'liker.land':
       return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
@@ -192,7 +192,7 @@ export const getLikerLandNFTCollectionPageURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   return getLikerLandURL(`/nft/collection/${collectionId}?${qs}`, { language });
 };
 
@@ -290,7 +290,7 @@ export const getLikerLandNFTClaimPageURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   switch (site) {
     case 'liker.land':
       return getLikerLandURL(`/nft/claim?${qs}`, { language });
@@ -387,7 +387,7 @@ export const getLikerLandNFTGiftPageURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   return getLikerLandURL(`/nft/gift?${qs}`, { language });
 };
 
@@ -444,7 +444,7 @@ export const getLikerLandNFTFiatStripePurchasePageURL = ({
   if (gadSource) {
     qsPayload.gad_source = gadSource;
   }
-  const qs = Object.entries(qsPayload).map(([key, value]) => `${key}=${value}`).join('&');
+  const qs = new URLSearchParams(qsPayload).toString();
   return getLikerLandURL(`/nft/fiat/stripe?${qs}`, { language });
 };
 
