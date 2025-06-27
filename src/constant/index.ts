@@ -208,9 +208,9 @@ export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
 ];
 
 export const CUSTOMER_SERVICE_URL = 'https://go.crisp.chat/chat/embed/?website_id=5c009125-5863-4059-ba65-43f177ca33f7';
-export const CUSTOMER_SERVICE_EMAIL = '"Liker Land Bookstore" <cs@liker.land>';
-export const SALES_EMAIL = '"Liker Land Bookstore" <sales@liker.land>';
-export const SYSTEM_EMAIL = '"Liker Land Bookstore" <noreply@liker.land>';
+export const CUSTOMER_SERVICE_EMAIL = '"3ook.com Bookstore" <cs@3ook.com>';
+export const SALES_EMAIL = '"3ook.com Bookstore" <sales@3ook.com>';
+export const SYSTEM_EMAIL = '"3ook.com Bookstore" <noreply@3ook.com>';
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
