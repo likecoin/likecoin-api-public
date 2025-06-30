@@ -88,38 +88,7 @@ async function getUserInfo(req, res, query) {
     Object.assign(userInfo, userData, civicInfo);
   }
 
-  const attachments: any = [{
-    text: Object.keys(userInfo)
-      .map((key) => ({ key, value: userInfo[key]}))
-      .map(({ key, value }) => {
-        let formattedValue = value;
-        switch (typeof value) {
-          case 'object':
-            if (Array.isArray(value)) {
-              formattedValue = value.join(', ');
-            } else if (value instanceof Timestamp) {
-              formattedValue = value.toDate().toISOString();
-            } else if (value === null) {
-              formattedValue = 'null';
-            } else {
-              formattedValue = JSON.stringify(value, null, 2);
-            }
-            break;
-          case 'number':
-            if (value > new Date(0).getTime()) {
-              formattedValue = new Date(value).toISOString();
-            }
-            break;
-          default:
-        }
-        return {
-          key,
-          value: formattedValue,
-        };
-      })
-      .map(({ key, value }) => `*${key}*: ${value}`)
-      .join('\n'),
-  }];
+  const attachments = [getSlackAttachmentForMap('User Info', userInfo)];
   if (userInfo.authcoreInfo) {
     attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
     delete userInfo.authcoreInfo;

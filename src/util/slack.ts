@@ -14,6 +14,7 @@ import {
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
+import { Timestamp } from './firebase';
 
 export async function sendStripeFiatPurchaseSlackNotification({
   metadataWallet,
@@ -326,13 +327,44 @@ export function getSlackAttachmentFromSubscriptionInfo(id, info) {
   };
 }
 
+function formatValueRecursively(value, depth = 0): string {
+  const indent = '  '.repeat(depth);
+
+  switch (typeof value) {
+    case 'object': {
+      if (Array.isArray(value)) {
+        return value.map((item) => formatValueRecursively(item, depth)).join(', ');
+      } if (value instanceof Timestamp) {
+        return value.toDate().toISOString();
+      } if (value === null) {
+        return 'null';
+      }
+      const entries = Object.entries(value);
+      if (entries.length === 0) return '{}';
+
+      const formattedEntries = entries.map(([key, val]) => `${indent}  ${key}: ${formatValueRecursively(val, depth + 1)}`);
+      return `{\n${formattedEntries.join('\n')}\n${indent}}`;
+    }
+    case 'number':
+      if (value > new Date('2020-01-01').getTime()) {
+        return new Date(value).toISOString();
+      }
+      return String(value);
+    default:
+      return String(value);
+  }
+}
+
 export function getSlackAttachmentForMap(title, map) {
   const fields = Object.entries(
     map,
-  ).map(([key, value]) => ({
-    title: key,
-    value: JSON.stringify(value, null, 2),
-  }));
+  ).map(([key, value]) => {
+    const formattedValue = formatValueRecursively(value);
+    return {
+      title: key,
+      value: formattedValue,
+    };
+  });
   return {
     color: '#40bfa5',
     pretext: `*${title}*`,
