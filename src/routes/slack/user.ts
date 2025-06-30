@@ -11,6 +11,7 @@ import {
 } from '../../util/slack';
 import {
   userCollection,
+  Timestamp
 } from '../../util/firebase';
 import { formatUserCivicLikerProperies } from '../../util/api/users';
 import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
@@ -88,7 +89,36 @@ async function getUserInfo(req, res, query) {
   }
 
   const attachments: any = [{
-    text: Object.keys(userInfo).map((key) => `${key}: ${userInfo[key]}`).join('\n'),
+    text: Object.keys(userInfo)
+      .map((key) => ({ key, value: userInfo[key]}))
+      .map(({ key, value }) => {
+        let formattedValue = value;
+        switch (typeof value) {
+          case 'object':
+            if (Array.isArray(value)) {
+              formattedValue = value.join(', ');
+            } else if (value instanceof Timestamp) {
+              formattedValue = value.toDate().toISOString();
+            } else if (value === null) {
+              formattedValue = 'null';
+            } else {
+              formattedValue = JSON.stringify(value, null, 2);
+            }
+            break;
+          case 'number':
+            if (value > new Date(0).getTime()) {
+              formattedValue = new Date(value).toISOString();
+            }
+            break;
+          default:
+        }
+        return {
+          key,
+          value: formattedValue,
+        };
+      })
+      .map(({ key, value }) => `*${key}*: ${value}`)
+      .join('\n'),
   }];
   if (userInfo.authcoreInfo) {
     attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
