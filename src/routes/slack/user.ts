@@ -11,6 +11,7 @@ import {
 } from '../../util/slack';
 import {
   userCollection,
+  Timestamp
 } from '../../util/firebase';
 import { formatUserCivicLikerProperies } from '../../util/api/users';
 import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
@@ -87,9 +88,7 @@ async function getUserInfo(req, res, query) {
     Object.assign(userInfo, userData, civicInfo);
   }
 
-  const attachments: any = [{
-    text: Object.keys(userInfo).map((key) => `${key}: ${userInfo[key]}`).join('\n'),
-  }];
+  const attachments = [getSlackAttachmentForMap('User Info', userInfo)];
   if (userInfo.authcoreInfo) {
     attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
     delete userInfo.authcoreInfo;
