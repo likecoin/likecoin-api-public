@@ -1,3 +1,5 @@
+import { checksumAddress } from 'viem';
+
 import {
   API_EXTERNAL_HOSTNAME,
   AVATAR_DEFAULT_PATH,
@@ -94,10 +96,12 @@ export async function getUserAvatar(id) {
   return avatar || AVATAR_DEFAULT_PATH;
 }
 
-export async function getUserWithCivicLikerPropertiesByWallet(addr) {
+export async function getUserWithCivicLikerPropertiesByWallet(walletAddress: string) {
   let field;
+  let addr = walletAddress;
   if (checkAddressValid(addr)) {
     field = 'evmWallet';
+    addr = checksumAddress(addr as `0x${string}`);
   } else if (checkCosmosAddressValid(addr, 'like')) {
     field = 'likeWallet';
   } else if (checkCosmosAddressValid(addr, 'cosmos')) {
