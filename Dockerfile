@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:20
 
 RUN apt update && apt install -y fonts-roboto && rm -rf /var/lib/apt/lists/*
 RUN cd /usr/local/share/fonts/ \
