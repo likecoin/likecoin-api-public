@@ -229,6 +229,9 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const {
       ownerWallet,
       moderatorWallets = [],
+      enableCustomMessagePage: docEnableCustomMessagePage,
+      enableSignatureImage,
+      signedMessageText,
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
@@ -265,7 +268,10 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
         price.stock,
       );
     }
-    const enableCustomMessagePage = prices.some((p) => !p.isAutoDeliver);
+    const enableCustomMessagePage = docEnableCustomMessagePage
+      || enableSignatureImage
+      || !!signedMessageText
+      || prices.some((p) => !p.isAutoDeliver);
     await updateNftBookInfo(
       classId,
       { prices, enableCustomMessagePage },
@@ -298,6 +304,9 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       description,
       ownerWallet,
       moderatorWallets = [],
+      enableCustomMessagePage: docEnableCustomMessagePage,
+      enableSignatureImage,
+      signedMessageText,
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
@@ -361,7 +370,10 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     }
 
     prices[priceIndex] = newPriceInfo;
-    const enableCustomMessagePage = prices.some((p) => !p.isAutoDeliver);
+    const enableCustomMessagePage = docEnableCustomMessagePage
+      || enableSignatureImage
+      || !!signedMessageText
+      || prices.some((p) => !p.isAutoDeliver);
     await updateNftBookInfo(
       classId,
       { prices, enableCustomMessagePage },
@@ -755,6 +767,7 @@ router.post(
       await updateNftBookInfo(classId, {
         enableSignatureImage,
         signedMessageText: signedTextToSave,
+        enableCustomMessagePage: enableSignatureImage || !!signedMessageText,
       });
 
       res.json({

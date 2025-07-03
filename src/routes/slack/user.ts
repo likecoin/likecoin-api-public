@@ -11,7 +11,7 @@ import {
 } from '../../util/slack';
 import {
   userCollection,
-  Timestamp
+  Timestamp,
 } from '../../util/firebase';
 import { formatUserCivicLikerProperies } from '../../util/api/users';
 import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
