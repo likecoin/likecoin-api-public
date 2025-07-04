@@ -11,7 +11,6 @@ import {
 } from '../../util/slack';
 import {
   userCollection,
-  Timestamp,
 } from '../../util/firebase';
 import { formatUserCivicLikerProperies } from '../../util/api/users';
 import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
@@ -20,6 +19,7 @@ import {
   findLikerLandWalletUserWithVerifiedEmail,
   fetchLikerLandWalletUserInfo,
 } from '../../util/liker-land';
+import { getBookUserInfo } from '../../util/api/likernft/book/user';
 
 const router = Router();
 
@@ -40,15 +40,20 @@ async function getUserInfo(req, res, query) {
   if (queryType !== 'user') {
     const userQuery = await userCollection.where(queryType, '==', query).limit(1).get();
     let likerLandUser;
+    let bookUser;
     if (queryType === 'email') {
       likerLandUser = await findLikerLandWalletUserWithVerifiedEmail(query);
-    } else if (queryType === 'likeWallet') {
-      likerLandUser = await fetchLikerLandWalletUserInfo(query);
+    } else if (queryType === 'likeWallet' || queryType === 'evmWallet') {
+      if (queryType === 'likeWallet') likerLandUser = await fetchLikerLandWalletUserInfo(query);
+      bookUser = await getBookUserInfo(query);
     } else if (!userQuery.docs.length) {
       throw new Error('Invalid query, user not found');
     }
     if (likerLandUser?.wallet) {
       userInfo.likerlandInfo = likerLandUser;
+    }
+    if (bookUser) {
+      userInfo.bookInfo = bookUser;
     }
     [userDoc] = userQuery.docs;
   } else {
@@ -87,8 +92,7 @@ async function getUserInfo(req, res, query) {
     }
     Object.assign(userInfo, userData, civicInfo);
   }
-
-  const attachments = [getSlackAttachmentForMap('User Info', userInfo)];
+  const attachments: Array<ReturnType<typeof getSlackAttachmentForMap>> = [];
   if (userInfo.authcoreInfo) {
     attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
     delete userInfo.authcoreInfo;
@@ -101,6 +105,15 @@ async function getUserInfo(req, res, query) {
     attachments.push(getSlackAttachmentForMap('CivicLiker Info', userInfo.civicLiker));
     delete userInfo.civicLiker;
   }
+  if (userInfo.likerPlus) {
+    attachments.push(getSlackAttachmentForMap('Liker Plus Info', userInfo.likerPlus));
+    delete userInfo.likerPlus;
+  }
+  if (userInfo.bookInfo) {
+    attachments.push(getSlackAttachmentForMap('Book Press User Info', userInfo.bookInfo));
+    delete userInfo.bookInfo;
+  }
+  attachments.unshift(getSlackAttachmentForMap('User Info', userInfo));
 
   res.json({
     response_type: 'ephemeral',
