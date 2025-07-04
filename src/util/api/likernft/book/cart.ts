@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 
 import { getNFTClassDataById, getNftBookInfo } from '.';
 import {
-  NFT_BOOK_SALE_DESCRIPTION,
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
@@ -751,9 +750,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       if (priceName) {
         name = `${name} - ${priceName}`;
       }
-      if (NFT_BOOK_SALE_DESCRIPTION[classId]) {
-        description = NFT_BOOK_SALE_DESCRIPTION[classId];
-      } else if (priceDescription) {
+      if (priceDescription) {
         description = `${description} - ${priceDescription}`;
       }
       if (itemFrom) description = `[${itemFrom}] ${description}`;
