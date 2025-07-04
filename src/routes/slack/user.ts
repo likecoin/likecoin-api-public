@@ -45,7 +45,7 @@ async function getUserInfo(req, res, query) {
       likerLandUser = await findLikerLandWalletUserWithVerifiedEmail(query);
     } else if (queryType === 'likeWallet' || queryType === 'evmWallet') {
       if (queryType === 'likeWallet') likerLandUser = await fetchLikerLandWalletUserInfo(query);
-      bookUser = getBookUserInfo(query);
+      bookUser = await getBookUserInfo(query);
     } else if (!userQuery.docs.length) {
       throw new Error('Invalid query, user not found');
     }
@@ -110,7 +110,7 @@ async function getUserInfo(req, res, query) {
     delete userInfo.likerPlus;
   }
   if (userInfo.bookInfo) {
-    attachments.push(getSlackAttachmentForMap('LikerNFT Book Info', userInfo.bookInfo));
+    attachments.push(getSlackAttachmentForMap('Book Press User Info', userInfo.bookInfo));
     delete userInfo.bookInfo;
   }
   attachments.unshift(getSlackAttachmentForMap('User Info', userInfo));
