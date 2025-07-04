@@ -39,37 +39,33 @@ async function getUserInfo(req, res, query) {
   let userInfo: any = {};
   if (queryType !== 'user') {
     const userQuery = await userCollection.where(queryType, '==', query).limit(1).get();
-    let likerLandUser;
-    let bookUser;
-    if (queryType === 'email') {
-      likerLandUser = await findLikerLandWalletUserWithVerifiedEmail(query);
-    } else if (queryType === 'likeWallet' || queryType === 'evmWallet') {
-      if (queryType === 'likeWallet') likerLandUser = await fetchLikerLandWalletUserInfo(query);
-      bookUser = await getBookUserInfo(query);
+    if (queryType === 'likeWallet' || queryType === 'evmWallet') {
+      const bookUser = await getBookUserInfo(query);
+      if (bookUser) {
+        userInfo.bookInfo = bookUser;
+      }
     } else if (!userQuery.docs.length) {
       throw new Error('Invalid query, user not found');
-    }
-    if (likerLandUser?.wallet) {
-      userInfo.likerlandInfo = likerLandUser;
-    }
-    if (bookUser) {
-      userInfo.bookInfo = bookUser;
     }
     [userDoc] = userQuery.docs;
   } else {
     userDoc = await userCollection.doc(query).get();
-    if (!userDoc.exists) {
-      // try displayName
-      queryType = 'displayName';
-      const userQuery = await userCollection.where('displayName', '==', query).limit(1).get();
-      if (!userQuery.docs.length) throw new Error('Invalid query, user not found');
-      [userDoc] = userQuery.docs;
-    }
   }
   if (userDoc) {
     const user = userDoc.id;
     userInfo = { user, ...userInfo };
     const userData = userDoc.data();
+    const {
+      evmWallet,
+      likeWallet,
+    } = userData;
+    const walletQuery = evmWallet || likeWallet;
+    if (walletQuery && !userInfo.bookInfo) {
+      const bookUser = await getBookUserInfo(walletQuery);
+      if (bookUser) {
+        userInfo.bookInfo = bookUser;
+      }
+    }
     const civicInfo = formatUserCivicLikerProperies(userDoc);
     if (userData.authCoreUserId) {
       userData.authcoreInfo = {};
@@ -96,10 +92,6 @@ async function getUserInfo(req, res, query) {
   if (userInfo.authcoreInfo) {
     attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
     delete userInfo.authcoreInfo;
-  }
-  if (userInfo.likerlandInfo) {
-    attachments.push(getSlackAttachmentForMap('LikerLand Info', userInfo.likerlandInfo));
-    delete userInfo.likerlandInfo;
   }
   if (userInfo.civicLiker) {
     attachments.push(getSlackAttachmentForMap('CivicLiker Info', userInfo.civicLiker));
