@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getLikerLandNFTClassPageURL, getLikerLandNFTCollectionPageURL } from './liker-land';
 import { getNFTBookStoreCollectionSendPageURL, getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
+  BOOK3_HOSTNAME,
   IS_TESTNET,
   LIKER_LAND_HOSTNAME,
 } from '../constant';
@@ -327,13 +328,19 @@ export function getSlackAttachmentFromSubscriptionInfo(id, info) {
   };
 }
 
-function formatValueRecursively(value, depth = 0): string {
+function formatValueRecursively(key, value, depth = 0): string {
   const indent = '  '.repeat(depth);
-
+  switch (key) {
+    case 'evmWallet':
+      return `<https://${BOOK3_HOSTNAME}/shelf/${value}|${value}>`;
+    case 'likeWallet':
+      return `<https://${LIKER_LAND_HOSTNAME}/${value}|${value}>`;
+    default:
+  }
   switch (typeof value) {
     case 'object': {
       if (Array.isArray(value)) {
-        return value.map((item) => formatValueRecursively(item, depth)).join(', ');
+        return value.map((item) => formatValueRecursively(key, item, depth)).join(', ');
       } if (value instanceof Timestamp) {
         return value.toDate().toISOString();
       } if (value === null) {
@@ -342,7 +349,7 @@ function formatValueRecursively(value, depth = 0): string {
       const entries = Object.entries(value);
       if (entries.length === 0) return '{}';
 
-      const formattedEntries = entries.map(([key, val]) => `${indent}  ${key}: ${formatValueRecursively(val, depth + 1)}`);
+      const formattedEntries = entries.map(([subKey, val]) => `${indent}  ${subKey}: ${formatValueRecursively(subKey, val, depth + 1)}`);
       return `{\n${formattedEntries.join('\n')}\n${indent}}`;
     }
     case 'number':
@@ -356,15 +363,26 @@ function formatValueRecursively(value, depth = 0): string {
 }
 
 export function getSlackAttachmentForMap(title, map) {
-  const fields = Object.entries(
-    map,
-  ).map(([key, value]) => {
-    const formattedValue = formatValueRecursively(value);
+  const orderedKeys = [
+    'user',
+    'evmWallet',
+    'email',
+    'isEmailVerified',
+    'isLikerPlus',
+    'likerPlusSince',
+    'civicLikerStatus',
+  ];
+
+  const orderedValues = orderedKeys.filter((key) => key in map);
+  const otherValues = Object.keys(map).filter((key) => !orderedKeys.includes(key));
+  const fields = orderedValues.concat(otherValues).map((key) => {
+    const formattedValue = formatValueRecursively(key, map[key]);
     return {
       title: key,
       value: formattedValue,
     };
   });
+
   return {
     color: '#40bfa5',
     pretext: `*${title}*`,
