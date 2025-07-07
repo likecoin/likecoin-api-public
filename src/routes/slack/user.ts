@@ -49,7 +49,10 @@ async function getUserInfo(req, res, query) {
     }
     [userDoc] = userQuery.docs;
   } else {
-    userDoc = await userCollection.doc(query).get();
+    const queryDoc = await userCollection.doc(query).get();
+    if (queryDoc.exists) {
+      userDoc = queryDoc;
+    }
   }
   if (userDoc) {
     const user = userDoc.id;
