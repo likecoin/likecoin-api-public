@@ -672,6 +672,7 @@ export async function formatStripeCheckoutSession({
   priceIndex,
   email,
   likeWallet,
+  evmWallet,
   customerId,
   from,
   coupon,
@@ -698,6 +699,7 @@ export async function formatStripeCheckoutSession({
   paymentId: string,
   email?: string,
   likeWallet?: string,
+  evmWallet?: string,
   customerId?: string,
   from?: string,
   coupon?: string,
@@ -764,6 +766,7 @@ export async function formatStripeCheckoutSession({
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
+  if (evmWallet) sessionMetadata.evmWallet = evmWallet;
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
   }
@@ -906,7 +909,7 @@ export async function formatStripeCheckoutSession({
   } else {
     checkoutPayload.allow_promotion_codes = true;
   }
-  if (likeWallet) {
+  if (likeWallet || evmWallet) {
     if (customerId) {
       checkoutPayload.customer = customerId;
     } else {

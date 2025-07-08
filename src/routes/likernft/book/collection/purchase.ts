@@ -88,7 +88,8 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       gadClickId: gadClickId as string,
       gadSource: gadSource as string,
       fbClickId: fbClickId as string,
-      likeWallet: req.user?.wallet,
+      likeWallet: req.user?.likeWallet,
+      evmWallet: req.user?.evmWallet,
       from: from as string,
       coupon: coupon as string,
       utm: {
@@ -207,7 +208,8 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (
       fbClickId: fbClickId as string,
       from: from as string,
       giftInfo,
-      likeWallet: req.user?.wallet,
+      likeWallet: req.user?.likeWallet,
+      evmWallet: req.user?.evmWallet,
       email,
       coupon,
       utm: {
