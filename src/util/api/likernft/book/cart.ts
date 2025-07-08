@@ -992,6 +992,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   gadSource,
   fbClickId,
   likeWallet,
+  evmWallet,
   email,
   from: inputFrom,
   coupon,
@@ -1013,6 +1014,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   fbClickId?: string,
   email?: string,
   likeWallet?: string,
+  evmWallet?: string,
   from?: string,
   coupon?: string,
   giftInfo?: {
@@ -1138,6 +1140,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gadSource,
     fbClickId,
     likeWallet,
+    evmWallet,
     customerId,
     email: customerEmail,
     giftInfo,
