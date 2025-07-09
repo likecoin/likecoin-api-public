@@ -366,6 +366,7 @@ export function getSlackAttachmentForMap(title, map) {
   const orderedKeys = [
     'user',
     'evmWallet',
+    'magicUserId',
     'email',
     'isEmailVerified',
     'isLikerPlus',
