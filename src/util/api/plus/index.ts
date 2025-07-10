@@ -72,7 +72,15 @@ export async function processStripeSubscriptionInvoice(
 }
 
 export async function createNewPlusCheckoutSession(
-  period: 'monthly' | 'yearly',
+  {
+    period,
+    hasFreeTrial = false,
+    mustCollectPaymentMethod = true,
+  }: {
+    period: 'monthly' | 'yearly',
+    hasFreeTrial?: boolean,
+    mustCollectPaymentMethod?: boolean,
+  },
   {
     from,
     gaClientId,
@@ -133,6 +141,20 @@ export async function createNewPlusCheckoutSession(
   if (userAgent) metadata.userAgent = userAgent;
   if (clientIp) metadata.clientIp = clientIp;
   if (fbClickId) metadata.fbClickId = fbClickId;
+
+  const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+    metadata: subscriptionMetadata,
+  };
+  if (hasFreeTrial) {
+    subscriptionData.trial_period_days = 3;
+    if (!mustCollectPaymentMethod) {
+      subscriptionData.trial_settings = {
+        end_behavior: {
+          missing_payment_method: 'cancel',
+        },
+      };
+    }
+  }
   const payload: Stripe.Checkout.SessionCreateParams = {
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
@@ -144,9 +166,10 @@ export async function createNewPlusCheckoutSession(
     ],
     metadata,
     mode: 'subscription',
-    subscription_data: { metadata: subscriptionMetadata },
+    subscription_data: subscriptionData,
     success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
+    payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
   if (customerId) {
     payload.customer = customerId;
