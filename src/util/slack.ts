@@ -188,6 +188,44 @@ export async function sendNFTBookSalesSlackNotification({
   }
 }
 
+export async function sendPlusSubscriptionSlackNotification({
+  subscriptionId,
+  email,
+  priceWithCurrency,
+  isNew,
+  userId,
+  stripeCustomerId,
+  method = 'stripe',
+} : {
+  subscriptionId: string;
+  email: string;
+  priceWithCurrency: string;
+  isNew: boolean;
+  userId?: string;
+  stripeCustomerId?: string;
+  method?: string;
+}) {
+  if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
+  try {
+    const subscriptionType = isNew ? 'New Plus subscription' : 'Plus subscription renewal';
+    const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
+
+    await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      subscriptionType,
+      subscriptionId,
+      email,
+      userId: userLink,
+      stripeCustomerId: stripeCustomerId || 'N/A',
+      priceWithCurrency,
+      method,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
 export async function sendNFTBookInvalidChannelIdSlackNotification({
   classId = '',
   collectionId,
