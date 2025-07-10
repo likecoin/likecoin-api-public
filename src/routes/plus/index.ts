@@ -24,6 +24,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmCampaign,
     utmSource,
     utmMedium,
+    hasFreeTrial,
+    mustCollectPaymentMethod,
   } = req.body;
   try {
     // Ensure period is either 'monthly' or 'yearly'
@@ -31,7 +33,11 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       period = 'monthly'; // Default to monthly if invalid
     }
     const session = await createNewPlusCheckoutSession(
-      period as 'monthly' | 'yearly',
+      {
+        period: period as 'monthly' | 'yearly',
+        hasFreeTrial,
+        mustCollectPaymentMethod,
+      },
       {
         from: from as string,
         gaClientId,
