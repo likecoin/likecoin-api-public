@@ -14,6 +14,7 @@ import {
   NFT_MESSAGE_SLACK_USER,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
+  PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
 
@@ -181,6 +182,56 @@ export async function sendNFTBookSalesSlackNotification({
       priceWithCurrency,
       method,
       from,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendPlusSubscriptionSlackNotification({
+  subscriptionId,
+  email,
+  priceWithCurrency,
+  isNew,
+  userId,
+  stripeCustomerId,
+  method = 'stripe',
+  isTrial = false,
+} : {
+  subscriptionId: string;
+  email: string;
+  priceWithCurrency: string;
+  isNew: boolean;
+  userId?: string;
+  stripeCustomerId?: string;
+  method?: string;
+  isTrial?: boolean;
+}) {
+  if (!PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK) return;
+  try {
+    let subscriptionType = '';
+    if (isTrial) {
+      subscriptionType = 'New Plus trial subscription';
+    } else if (isNew) {
+      subscriptionType = 'New Plus subscription';
+    } else {
+      subscriptionType = 'Plus subscription renewal';
+    }
+    const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
+    const stripeEnvironment = IS_TESTNET ? 'test' : '';
+    const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
+    const subscriptionLink = `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`;
+
+    await axios.post(PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      subscriptionType,
+      subscriptionId: subscriptionLink,
+      email,
+      userId: userLink,
+      stripeCustomerId: customerLink,
+      priceWithCurrency,
+      method,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

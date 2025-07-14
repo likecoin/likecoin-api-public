@@ -12,6 +12,7 @@ import {
   LIKER_PLUS_PRODUCT_ID,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import { sendPlusSubscriptionSlackNotification } from '../../slack';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -48,6 +49,9 @@ export async function processStripeSubscriptionInvoice(
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return;
   }
+  const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
+  const priceWithCurrency = `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}`;
+
   await userCollection.doc(likerId).update({
     likerPlus: {
       period: item.plan.interval,
@@ -57,6 +61,17 @@ export async function processStripeSubscriptionInvoice(
       subscriptionId,
       customerId: subscription.customer as string,
     },
+  });
+
+  await sendPlusSubscriptionSlackNotification({
+    subscriptionId: subscriptionId as string,
+    email: user.email || 'N/A',
+    priceWithCurrency,
+    isNew: isNewSubscription,
+    userId: likerId,
+    stripeCustomerId: subscription.customer as string,
+    method: 'stripe',
+    isTrial: false,
   });
 
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
