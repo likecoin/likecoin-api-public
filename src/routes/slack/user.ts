@@ -15,10 +15,6 @@ import {
 import { formatUserCivicLikerProperies } from '../../util/api/users';
 import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
 import { authCoreJwtSignToken } from '../../util/jwt';
-import {
-  findLikerLandWalletUserWithVerifiedEmail,
-  fetchLikerLandWalletUserInfo,
-} from '../../util/liker-land';
 import { getBookUserInfo } from '../../util/api/likernft/book/user';
 
 const router = Router();
@@ -66,7 +62,10 @@ async function getUserInfo(req, res, query) {
     if (walletQuery && !userInfo.bookInfo) {
       const bookUser = await getBookUserInfo(walletQuery);
       if (bookUser) {
-        userInfo.bookInfo = bookUser;
+        userInfo.bookInfo = {
+          id: walletQuery,
+          ...bookUser,
+        };
       }
     }
     const civicInfo = formatUserCivicLikerProperies(userDoc);
