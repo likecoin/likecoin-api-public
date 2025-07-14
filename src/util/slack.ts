@@ -14,6 +14,7 @@ import {
   NFT_MESSAGE_SLACK_USER,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
+  PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
 
@@ -207,7 +208,7 @@ export async function sendPlusSubscriptionSlackNotification({
   method?: string;
   isTrial?: boolean;
 }) {
-  if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
+  if (!PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK) return;
   try {
     let subscriptionType = '';
     if (isTrial) {
@@ -222,7 +223,7 @@ export async function sendPlusSubscriptionSlackNotification({
     const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
     const subscriptionLink = `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`;
 
-    await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
+    await axios.post(PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       subscriptionType,
       subscriptionId: subscriptionLink,
