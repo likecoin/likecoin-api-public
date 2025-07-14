@@ -196,6 +196,7 @@ export async function sendPlusSubscriptionSlackNotification({
   userId,
   stripeCustomerId,
   method = 'stripe',
+  isTrial = false,
 } : {
   subscriptionId: string;
   email: string;
@@ -204,10 +205,18 @@ export async function sendPlusSubscriptionSlackNotification({
   userId?: string;
   stripeCustomerId?: string;
   method?: string;
+  isTrial?: boolean;
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
-    const subscriptionType = isNew ? 'New Plus subscription' : 'Plus subscription renewal';
+    let subscriptionType = '';
+    if (isTrial) {
+      subscriptionType = 'New Plus trial subscription';
+    } else if (isNew) {
+      subscriptionType = 'New Plus subscription';
+    } else {
+      subscriptionType = 'Plus subscription renewal';
+    }
     const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
     const stripeEnvironment = IS_TESTNET ? 'test' : '';
     const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';

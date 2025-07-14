@@ -71,6 +71,7 @@ export async function processStripeSubscriptionInvoice(
     userId: likerId,
     stripeCustomerId: subscription.customer as string,
     method: 'stripe',
+    isTrial: false,
   });
 
   publisher.publish(PUBSUB_TOPIC_MISC, req, {

@@ -32,6 +32,8 @@ import { getLikerLandNFTClassPageURL, getLikerLandNFTFiatStripePurchasePageURL }
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
 import { processStripeSubscriptionInvoice } from '../../../util/api/plus';
+import { sendPlusSubscriptionSlackNotification } from '../../../util/slack';
+import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 
 const router = Router();
 
@@ -83,6 +85,31 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         const { subscription: subscriptionId } = invoice;
         if (subscriptionId) {
           await processStripeSubscriptionInvoice(invoice, req);
+        }
+        break;
+      }
+      case 'customer.subscription.created': {
+        const subscription: Stripe.Subscription = event.data.object;
+        const {
+          id: subscriptionId, status, trial_end: trialEnd, metadata,
+        } = subscription;
+        const { evmWallet, likeWallet } = metadata || {};
+
+        // Only send notification for trial subscriptions
+        if (status === 'trialing' && trialEnd && (evmWallet || likeWallet)) {
+          const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
+          if (user) {
+            await sendPlusSubscriptionSlackNotification({
+              subscriptionId,
+              email: user.email || 'N/A',
+              priceWithCurrency: '0.00 USD',
+              isNew: true,
+              userId: user.user,
+              stripeCustomerId: subscription.customer as string,
+              method: 'stripe',
+              isTrial: true,
+            });
+          }
         }
         break;
       }
