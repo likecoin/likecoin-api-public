@@ -209,14 +209,17 @@ export async function sendPlusSubscriptionSlackNotification({
   try {
     const subscriptionType = isNew ? 'New Plus subscription' : 'Plus subscription renewal';
     const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
+    const stripeEnvironment = IS_TESTNET ? 'test' : '';
+    const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
+    const subscriptionLink = `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`;
 
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       subscriptionType,
-      subscriptionId,
+      subscriptionId: subscriptionLink,
       email,
       userId: userLink,
-      stripeCustomerId: stripeCustomerId || 'N/A',
+      stripeCustomerId: customerLink,
       priceWithCurrency,
       method,
     });
