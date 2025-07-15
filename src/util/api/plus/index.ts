@@ -182,7 +182,7 @@ export async function createNewPlusCheckoutSession(
     metadata,
     mode: 'subscription',
     subscription_data: subscriptionData,
-    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}`,
+    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&trial=${hasFreeTrial ? '1' : '0'}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
