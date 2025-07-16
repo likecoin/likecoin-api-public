@@ -14,6 +14,7 @@ import {
   getLocalizedTextWithFallback,
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
+  syncNFTBookInfoWithISCN,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import {
@@ -483,6 +484,24 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
     res.json({
       result,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const bookInfo = await getNftBookInfo(classId);
+    if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+    const {
+      ownerWallet,
+      moderatorWallets = [],
+    } = bookInfo;
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    await syncNFTBookInfoWithISCN(classId);
+    res.sendStatus(200);
   } catch (err) {
     next(err);
   }
