@@ -1068,8 +1068,9 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   let customerEmail = email;
   let customerId;
   let couponId;
-  if (likeWallet) {
-    const res = await getBookUserInfoFromWallet(likeWallet);
+  const walletAddress = evmWallet || likeWallet;
+  if (walletAddress) {
+    const res = await getBookUserInfoFromWallet(walletAddress);
     const { bookUserInfo, likerUserInfo } = res || {};
     const { email: userEmail, isEmailVerified, isLikerPlus } = likerUserInfo || {};
     customerId = bookUserInfo?.stripeCustomerId;
