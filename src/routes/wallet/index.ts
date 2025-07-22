@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { checksumAddress } from 'viem';
-import { checkCosmosSignPayload, checkEVMSignPayload, getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
+import {
+  checkCosmosSignPayload,
+  checkEVMSignPayload,
+  getUserWithCivicLikerPropertiesByWallet,
+  queryUserByEmail,
+} from '../../util/api/users';
+import { verifyEmailByMagicDIDToken } from '../../util/magic';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 import {
@@ -18,7 +24,14 @@ const router = Router();
 router.post('/authorize', async (req, res, next) => {
   try {
     const {
-      wallet, from, signature, publicKey, message, signMethod,
+      wallet,
+      from,
+      email: inputEmail,
+      magicDIDToken: inputMagicDIDToken,
+      signature,
+      publicKey,
+      message,
+      signMethod,
     } = req.body;
     let { expiresIn } = req.body;
     if (!expiresIn || !['1h', '1d', '7d', '30d'].includes(expiresIn)) {
@@ -30,7 +43,13 @@ router.post('/authorize', async (req, res, next) => {
     let signed;
     if (isEVMWallet) {
       signed = checkEVMSignPayload({
-        signature, message, inputWallet, signMethod, action: 'authorize',
+        signature,
+        message,
+        inputWallet,
+        inputEmail,
+        inputMagicDIDToken,
+        signMethod,
+        action: 'authorize',
       });
     } else if (checkCosmosAddressValid(inputWallet, 'like')) {
       if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
@@ -43,13 +62,59 @@ router.post('/authorize', async (req, res, next) => {
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
     }
-    const { permissions } = signed;
+    const { permissions, email, magicDIDToken } = signed;
     const payload: any = { permissions };
     payload.wallet = inputWallet;
+    let isAutoMigrated: boolean | undefined;
     if (isEVMWallet) {
       payload.wallet = checksumAddress(inputWallet);
       payload.evmWallet = checksumAddress(inputWallet);
-      const likeWallet = await findLikeWalletByEVMWallet(inputWallet);
+      let likeWallet = await findLikeWalletByEVMWallet(inputWallet);
+      if (!likeWallet && email && magicDIDToken) {
+        const isEmailVerified = await verifyEmailByMagicDIDToken(email, magicDIDToken);
+        if (isEmailVerified) {
+          // Find likeWallet by email
+          const userData = await queryUserByEmail(email);
+          if (userData && userData.likeWallet) {
+            likeWallet = userData.likeWallet;
+            isAutoMigrated = true;
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'migrateLikeUserToEVMUserBegin',
+              likeWallet,
+              evmWallet: payload.evmWallet,
+              isAutoMigrated,
+            });
+            const {
+              isMigratedBookUser,
+              isMigratedBookOwner,
+              isMigratedLikerId,
+              isMigratedLikerLand,
+              migratedLikerId,
+              migratedLikerLandUser,
+              migrateBookUserError,
+              migrateBookOwnerError,
+              migrateLikerIdError,
+              migrateLikerLandError,
+            } = await migrateLikeWalletToEVMWallet(likeWallet, payload.evmWallet);
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'migrateLikeWalletToEVMUserEnd',
+              likeWallet,
+              evmWallet: payload.evmWallet,
+              isMigratedBookUser,
+              isMigratedBookOwner,
+              isMigratedLikerId,
+              isMigratedLikerLand,
+              migratedLikerId,
+              migratedLikerLandUser,
+              migrateBookUserError,
+              migrateBookOwnerError,
+              migrateLikerIdError,
+              migrateLikerLandError,
+              isAutoMigrated,
+            });
+          }
+        }
+      }
       if (likeWallet) {
         payload.likeWallet = likeWallet;
       }
@@ -65,9 +130,14 @@ router.post('/authorize', async (req, res, next) => {
       signMethod,
       expiresIn,
       isEVMWallet,
+      isAutoMigrated,
     });
 
-    res.json({ jwtid, token });
+    res.json({
+      jwtid,
+      token,
+      isAutoMigrated,
+    });
   } catch (err) {
     next(err);
   }

@@ -168,9 +168,19 @@ export function checkEVMSignPayload({
   signature,
   message,
   inputWallet,
+  inputEmail,
+  inputMagicDIDToken,
   signMethod = 'personal_sign',
   action = '',
-}) {
+}: {
+  signature: string;
+  message: string;
+  inputWallet: string;
+  inputEmail?: string;
+  inputMagicDIDToken?: string;
+  signMethod?: string;
+  action?: string;
+}): any {
   const recovered = sigUtil.recoverPersonalSignature({ data: message, sig: signature });
   if (recovered.toLowerCase() !== inputWallet.toLowerCase()) {
     throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
@@ -179,6 +189,8 @@ export function checkEVMSignPayload({
   const {
     action: payloadAction,
     evmWallet: payloadEVMWallet,
+    email: payloadEmail,
+    magicDIDToken: payloadMagicDIDToken,
     ts,
   } = actualPayload;
   if (action && action !== payloadAction) {
@@ -187,10 +199,27 @@ export function checkEVMSignPayload({
   if (payloadEVMWallet !== inputWallet) {
     throw new ValidationError('PAYLOAD_WALLET_NOT_MATCH');
   }
+  if (inputEmail && payloadEmail && inputEmail !== payloadEmail) {
+    throw new ValidationError('PAYLOAD_EMAIL_NOT_MATCH');
+  }
+  if (inputMagicDIDToken && payloadMagicDIDToken && inputMagicDIDToken !== payloadMagicDIDToken) {
+    throw new ValidationError('PAYLOAD_MAGIC_DID_TOKEN_NOT_MATCH');
+  }
   if (Math.abs(ts - Date.now()) > FIVE_MIN_IN_MS) {
     throw new ValidationError('PAYLOAD_EXPIRED');
   }
   return actualPayload;
+}
+
+export async function queryUserByEmail(email: string): Promise<{
+  user: string,
+  [key: string]: unknown
+} | undefined> {
+  if (!email) return undefined;
+  const snapshot = await dbRef.where('email', '==', email).get();
+  if (!snapshot.docs.length) return undefined;
+  const [doc] = snapshot.docs;
+  return { user: doc.id, ...doc.data() };
 }
 
 export async function userOrWalletByEmailQuery({
