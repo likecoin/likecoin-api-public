@@ -8,10 +8,12 @@ import {
   checkBookUserEVMWallet,
   migrateBookClassId,
   migrateLikeWalletToEVMWallet,
+  findLikerByEmail,
 } from '../../util/api/wallet';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
+import { verifyEmailByMagicDIDToken } from '../../util/magic';
 
 const router = Router();
 
@@ -120,6 +122,85 @@ router.get('/evm/migrate/user/addr/:likeWallet', async (req, res, next) => {
       checkBookUserEVMWallet(likeWallet),
     ]);
     res.json({ likerIdInfo, evmWallet });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/evm/migrate/email/magic', async (req, res, next) => {
+  try {
+    const {
+      wallet: evmWallet,
+      signature,
+      message,
+    } = req.body;
+    if (!evmWallet || !signature || !message) {
+      throw new ValidationError('INVALID_PAYLOAD');
+    }
+    if (!checkAddressValid(evmWallet)) {
+      throw new ValidationError('INVALID_WALLET');
+    }
+    const signed = await checkEVMSignPayload({
+      signature,
+      message,
+      inputWallet: evmWallet,
+      signMethod: 'personal_sign',
+      action: 'migrate',
+    });
+    const { email, magicDIDToken } = signed;
+    const isEmailVerified = await verifyEmailByMagicDIDToken(email, magicDIDToken);
+    if (isEmailVerified) {
+      // Find likeWallet by email
+      const userInfo = await findLikerByEmail(email);
+      if (!userInfo) {
+        throw new ValidationError('USER_NOT_FOUND');
+      }
+      const { likeWallet, evmWallet: docEvmWallet } = userInfo;
+      if (docEvmWallet && docEvmWallet !== evmWallet) {
+        throw new ValidationError('EVM_WALLET_MISMATCH');
+      }
+      const {
+        isMigratedBookUser,
+        isMigratedBookOwner,
+        isMigratedLikerId,
+        isMigratedLikerLand,
+        migratedLikerId,
+        migratedLikerLandUser,
+        migrateBookUserError,
+        migrateBookOwnerError,
+        migrateLikerIdError,
+        migrateLikerLandError,
+      } = await migrateLikeWalletToEVMWallet(likeWallet as string, evmWallet);
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'migrateLikeWalletToEVMUserEnd',
+        likeWallet,
+        evmWallet,
+        isMigratedBookUser,
+        isMigratedBookOwner,
+        isMigratedLikerId,
+        isMigratedLikerLand,
+        migratedLikerId,
+        migratedLikerLandUser,
+        migrateBookUserError,
+        migrateBookOwnerError,
+        migrateLikerIdError,
+        migrateLikerLandError,
+      });
+      res.json({
+        isMigratedBookUser,
+        isMigratedBookOwner,
+        isMigratedLikerId,
+        isMigratedLikerLand,
+        migratedLikerId,
+        migratedLikerLandUser,
+        migrateBookUserError,
+        migrateBookOwnerError,
+        migrateLikerIdError,
+        migrateLikerLandError,
+      });
+    } else {
+      throw new ValidationError('INVALID_EMAIL');
+    }
   } catch (err) {
     next(err);
   }
