@@ -15,17 +15,6 @@ import { createStripeProductFromNFTBookPrice } from '../likernft/book';
 import stripe from '../../stripe';
 import { bookCacheBucket } from '../../gcloudStorage';
 
-export async function findLikerByEmail(email: string): Promise<{
-  user: string,
-  [key: string]: unknown
-} | undefined> {
-  if (!email) return undefined;
-  const snapshot = await userCollection.where('email', '==', email).limit(1).get();
-  if (!snapshot.docs.length) return undefined;
-  const [doc] = snapshot.docs;
-  return { user: doc.id, ...doc.data() };
-}
-
 export async function findLikeWalletByEVMWallet(evmWallet: string) {
   const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', checksumAddress(evmWallet as `0x${string}`)).get();
   if (userQuery.docs.length === 0) {

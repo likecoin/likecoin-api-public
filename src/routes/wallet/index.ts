@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { checksumAddress } from 'viem';
-import { checkCosmosSignPayload, checkEVMSignPayload, getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
+import {
+  checkCosmosSignPayload,
+  checkEVMSignPayload,
+  findLikerByEmail,
+  getUserWithCivicLikerPropertiesByWallet,
+} from '../../util/api/users';
 import { ValidationError } from '../../util/ValidationError';
 import { jwtSign } from '../../util/jwt';
 import {
@@ -8,7 +13,6 @@ import {
   checkBookUserEVMWallet,
   migrateBookClassId,
   migrateLikeWalletToEVMWallet,
-  findLikerByEmail,
 } from '../../util/api/wallet';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
