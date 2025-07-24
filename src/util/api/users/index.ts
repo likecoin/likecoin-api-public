@@ -193,6 +193,17 @@ export function checkEVMSignPayload({
   return actualPayload;
 }
 
+export async function findLikerByEmail(email: string): Promise<{
+  user: string,
+  [key: string]: unknown
+} | undefined> {
+  if (!email) return undefined;
+  const snapshot = await dbRef.where('email', '==', email).limit(1).get();
+  if (!snapshot.docs.length) return undefined;
+  const [doc] = snapshot.docs;
+  return { user: doc.id, ...doc.data() };
+}
+
 export async function userOrWalletByEmailQuery({
   user,
   evmWallet,
