@@ -35,7 +35,7 @@ export async function checkBookUserEVMWallet(likeWallet: string) {
   return userQuery.data()?.evmWallet || null;
 }
 
-async function migrateBookUser(likeWallet: string, evmWallet: string) {
+async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
   try {
     const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
       const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
@@ -61,12 +61,14 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
           ...oldUserData,
           ...evmUserDoc.data(),
           likeWallet,
+          migrateMethod: method,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
       } else {
         t.create(likeNFTBookUserCollection.doc(evmWallet), {
           ...oldUserData,
           likeWallet,
+          migrateMethod: method,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
         });
@@ -77,6 +79,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
       if (!userDoc.exists) {
         t.create(likeNFTBookUserCollection.doc(likeWallet), {
           evmWallet,
+          migrateMethod: method,
           migrateTimestamp: FieldValue.serverTimestamp(),
           timestamp: FieldValue.serverTimestamp(),
         });
@@ -87,6 +90,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string) {
         }
         t.update(userDoc.ref, {
           evmWallet,
+          migrateMethod: method,
           migrateTimestamp: FieldValue.serverTimestamp(),
         });
       }
@@ -152,7 +156,7 @@ async function migrateBookOwner(likeWallet: string, evmWallet: string) {
   }
 }
 
-async function migrateLikerId(likeWallet:string, evmWallet: string) {
+async function migrateLikerId(likeWallet:string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
   try {
     const likerId = await db.runTransaction(async (t) => {
       const [evmQuery, userQuery] = await Promise.all([
@@ -166,7 +170,10 @@ async function migrateLikerId(likeWallet:string, evmWallet: string) {
         throw new Error('LIKE_WALLET_NOT_FOUND');
       }
       const userDoc = userQuery.docs[0];
-      t.update(userDoc.ref, { evmWallet });
+      t.update(userDoc.ref, {
+        evmWallet,
+        migrateMethod: method,
+      });
       return userDoc.id;
     });
     return { likerId, error: null };
@@ -373,8 +380,8 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
   }
 }
 
-export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: string) {
-  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet);
+export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
+  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet, method);
   if (migrateBookUserError) {
     return {
       isMigratedBookUser: false,
@@ -391,7 +398,7 @@ export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: st
     { error: migrateLikerIdError, likerId },
     { error: migrateLikerLandError, user: likerLandUser },
   ] = await Promise.all([
-    migrateLikerId(likeWallet, evmWallet),
+    migrateLikerId(likeWallet, evmWallet, method),
     migrateLikerLandEVMWallet(likeWallet, evmWallet),
   ]);
   return {
@@ -406,8 +413,8 @@ export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: st
   };
 }
 
-export async function migrateLikeWalletToEVMWallet(likeWallet: string, evmWallet: string) {
-  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet);
+export async function migrateLikeWalletToEVMWallet(likeWallet: string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
+  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet, method);
   if (migrateBookUserError) {
     return {
       isMigratedBookUser: false,
@@ -428,7 +435,7 @@ export async function migrateLikeWalletToEVMWallet(likeWallet: string, evmWallet
     { error: migrateLikerLandError, user: likerLandUser },
   ] = await Promise.all([
     migrateBookOwner(likeWallet, evmWallet),
-    migrateLikerId(likeWallet, evmWallet),
+    migrateLikerId(likeWallet, evmWallet, method),
     migrateLikerLandEVMWallet(likeWallet, evmWallet),
   ]);
   return {
