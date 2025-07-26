@@ -80,6 +80,7 @@ export async function processStripeSubscriptionInvoice(
     invoiceId: invoice.id,
     likerId,
     period: item.plan.interval,
+    price: invoice.amount_paid / 100,
     customerId: subscription.customer as string,
     evmWallet,
     likeWallet,
