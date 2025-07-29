@@ -240,14 +240,24 @@ export async function claimNFTBookCart(
     claimedCollectionIds = [],
     claimToken,
     status,
+    wallet: claimedWallet,
   } = cartData;
 
+  if (claimedWallet && claimedWallet !== wallet) {
+    throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
+  }
+
   if (status !== 'paid') {
+    if (claimedWallet) {
+      throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
+    }
     throw new ValidationError('CART_ALREADY_CLAIMED', 403);
   }
+
   if (token !== claimToken) {
     throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
   }
+
   const unclaimedClassIds: string[] = classIds.filter((id) => !claimedClassIds.includes(id));
   const unclaimedCollectionIds: string[] = collectionIds
     .filter((id) => !claimedCollectionIds.includes(id));
@@ -296,6 +306,7 @@ export async function claimNFTBookCart(
   if (!errors.length) {
     await cartRef.update({
       status: allItemsAutoClaimed ? 'completed' : 'pending',
+      wallet,
       isPendingClaim: false,
       errors: FieldValue.delete(),
       loginMethod: loginMethod || '',
