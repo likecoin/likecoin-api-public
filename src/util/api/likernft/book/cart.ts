@@ -46,7 +46,6 @@ import {
   sendNFTBookOutOfStockEmail,
   sendNFTBookSalesEmail,
 } from '../../../ses';
-import { getReaderSegmentNameFromAuthorWallet, upsertCrispProfile } from '../../../crisp';
 import logPixelEvents from '../../../fbq';
 import { getBookUserInfoFromWallet } from './user';
 import {
@@ -717,22 +716,6 @@ export async function processNFTBookCartStripePurchase(
         }).catch((err) => console.error(err)));
       }
       await Promise.all(notifications);
-    }
-
-    if (email) {
-      const segments = isFree ? ['free book'] : ['purchaser'];
-      if (totalFeeInfo.customPriceDiffInDecimal) segments.push('tipper');
-      infoList.forEach((info) => {
-        const { ownerWallet } = info.listingData;
-        const readerSegment = getReaderSegmentNameFromAuthorWallet(ownerWallet);
-        if (readerSegment) segments.push(readerSegment);
-      });
-      try {
-        await upsertCrispProfile(email, { segments });
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
     }
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

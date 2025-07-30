@@ -105,12 +105,6 @@ config.PROVIDER_JWT_COMMON_SECRET = '';
 config.STRIPE_KEY = 'sk_test_51J1ZQvJ8'; // random dummy key
 config.STRIPE_WEBHOOK_SECRET = '';
 
-config.CRISP_USER_HASH_SECRET = '';
-config.CRISP_PLUGIN_IDENTIFIER = '';
-config.CRISP_PLUGIN_KEY = '';
-config.CRISP_WEBSITE_ID = '';
-config.CRISP_WALLET_TO_SEGMENT_MAPPING = {};
-
 config.FB_PIXEL_ID = '';
 config.FB_ACCESS_TOKEN = '';
 

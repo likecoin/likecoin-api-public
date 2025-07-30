@@ -17,9 +17,6 @@ import {
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { jwtSign } from '../../jwt';
-import {
-  CRISP_USER_HASH_SECRET,
-} from '../../../../config/config';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 import { maskString } from '../../misc';
 
@@ -67,13 +64,6 @@ export function getUserAgentPlatform(req) {
     if (userAgent.includes('iOS')) return 'ios';
   }
   return 'web';
-}
-
-export function getCrispUserHash(email) {
-  if (!CRISP_USER_HASH_SECRET) return undefined;
-  return crypto.createHmac('sha256', CRISP_USER_HASH_SECRET)
-    .update(email)
-    .digest('hex');
 }
 
 export function clearAuthCookies(req, res) {
