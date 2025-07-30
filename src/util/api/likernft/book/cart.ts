@@ -230,33 +230,47 @@ export async function claimNFTBookCart(
   req,
 ) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
-  const cartDoc = await cartRef.get();
-  const cartData = cartDoc.data();
+
+  const cartData = await db.runTransaction(async (t) => {
+    const cartDoc = await t.get(cartRef);
+    if (!cartDoc.exists) throw new ValidationError('CART_ID_NOT_FOUND');
+    const docData = cartDoc.data();
+    if (!docData) throw new ValidationError('CART_ID_NOT_FOUND');
+    const {
+      claimToken,
+      status,
+      wallet: claimedWallet,
+    } = docData;
+
+    if (claimedWallet && claimedWallet !== wallet) {
+      throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
+    }
+
+    if (status !== 'paid') {
+      if (claimedWallet) {
+        throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
+      }
+      throw new ValidationError('CART_ALREADY_CLAIMED', 403);
+    }
+
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+
+    t.update(cartRef, {
+      status: 'pending',
+    });
+    return docData;
+  });
+
   const {
+    status: oldStatus,
     email,
     classIds,
     collectionIds,
     claimedClassIds = [],
     claimedCollectionIds = [],
-    claimToken,
-    status,
-    wallet: claimedWallet,
   } = cartData;
-
-  if (claimedWallet && claimedWallet !== wallet) {
-    throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
-  }
-
-  if (status !== 'paid') {
-    if (claimedWallet) {
-      throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
-    }
-    throw new ValidationError('CART_ALREADY_CLAIMED', 403);
-  }
-
-  if (token !== claimToken) {
-    throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
-  }
 
   const unclaimedClassIds: string[] = classIds.filter((id) => !claimedClassIds.includes(id));
   const unclaimedCollectionIds: string[] = collectionIds
@@ -313,6 +327,7 @@ export async function claimNFTBookCart(
     });
   } else {
     await cartRef.update({
+      status: oldStatus,
       errors,
       loginMethod: loginMethod || '',
     });
