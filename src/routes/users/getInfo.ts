@@ -7,7 +7,6 @@ import {
   filterUserData,
 } from '../../util/ValidationHelper';
 import {
-  getCrispUserHash,
   getUserWithCivicLikerProperties,
   getUserAgentIsApp,
 } from '../../util/api/users';
@@ -29,7 +28,6 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         console.log(`Locked user: ${username}`);
         throw new Error('USER_LOCKED');
       }
-      if (payload.email) payload.crispToken = getCrispUserHash(payload.email);
       res.json(filterUserData(payload));
       await dbRef.doc(username).collection('session').doc(req.user.jti).set({
         lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
