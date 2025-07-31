@@ -56,6 +56,7 @@ export function filterUserData(u) {
     civicLikerVersion,
     likerPlusSince,
     isLikerPlus,
+    likerPlus,
     locale,
     creatorPitch,
   } = u;
@@ -87,6 +88,7 @@ export function filterUserData(u) {
     civicLikerVersion,
     likerPlusSince,
     isLikerPlus,
+    likerPlus,
     locale,
     creatorPitch,
   };
