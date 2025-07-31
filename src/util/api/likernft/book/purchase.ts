@@ -946,7 +946,15 @@ export async function formatStripeCheckoutSession({
         });
     }
   }
-  const session = await stripe.checkout.sessions.create(checkoutPayload);
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(checkoutPayload);
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+      throw new ValidationError(error.message, 400);
+    }
+    throw error;
+  }
   return {
     session,
     itemPrices,
