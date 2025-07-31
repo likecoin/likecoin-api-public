@@ -105,9 +105,18 @@ export async function syncUserSubscription(data: { evmWallet?: string; subscript
 
     // Update book user collection
     if (userEvmWallet) {
-      await likeNFTBookUserCollection.doc(userEvmWallet).set({
+      const bookUserDocRef = likeNFTBookUserCollection.doc(userEvmWallet);
+      const bookUserDoc = await bookUserDocRef.get();
+      const {
+        stripeCustomerId: oldStripeCustomerId,
+      } = bookUserDoc.data() || {};
+      const updateData: Record<string, string> = {
         stripeCustomerId: subscriptionDetails.customerId,
-      }, { merge: true });
+      };
+      if (oldStripeCustomerId && oldStripeCustomerId !== subscriptionDetails.customerId) {
+        updateData.oldStripeCustomerId = oldStripeCustomerId;
+      }
+      await bookUserDocRef.set(updateData, { merge: true });
     }
 
     // Update Stripe subscription metadata
