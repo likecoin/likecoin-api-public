@@ -37,6 +37,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { updateAirtablePublicationRecord } from '../../../airtable';
 
 export async function getNFTClassDataById(classId) {
   if (isEVMClassId(classId)) {
@@ -364,6 +365,35 @@ export async function syncNFTBookInfoWithISCN(classId) {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
+  }
+
+  try {
+    const { ownerWallet } = bookInfo;
+    const minPrice = prices?.[0]?.priceInDecimal || 0;
+    const maxPrice = prices?.[prices.length - 1]?.priceInDecimal || 0;
+    await updateAirtablePublicationRecord({
+      id: classId,
+      name,
+      description,
+      iscnIdPrefix,
+      ownerWallet,
+      type: 'book',
+      minPrice,
+      maxPrice,
+      imageURL: image,
+      author,
+      publisher,
+      language: inLanguage,
+      keywords,
+      usageInfo,
+      isbn,
+      iscnObject: iscnInfo,
+      iscnContentMetadata: metadata,
+      metadata: classData,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to update Airtable publication record:', err);
   }
 }
 

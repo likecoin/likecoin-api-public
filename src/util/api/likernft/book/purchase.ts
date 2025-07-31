@@ -46,40 +46,10 @@ import {
   sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
-import { CartItemWithInfo } from './type';
+import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
-
-export type ItemPriceInfo = {
-  quantity: number;
-  currency: string;
-  priceInDecimal: number;
-  customPriceDiffInDecimal: number;
-  originalPriceInDecimal: number;
-  likerLandTipFeeAmount: number;
-  likerLandFeeAmount: number;
-  likerLandCommission: number;
-  channelCommission: number;
-  likerLandArtFee: number;
-  classId?: string;
-  priceIndex?: number;
-  iscnPrefix?: string;
-  collectionId?: string;
-  stripePriceId?: string;
-}
-
-export type TransactionFeeInfo = {
-  priceInDecimal: number
-  originalPriceInDecimal: number
-  stripeFeeAmount: number
-  likerLandTipFeeAmount: number
-  likerLandFeeAmount: number
-  likerLandCommission: number
-  channelCommission: number
-  likerLandArtFee: number
-  customPriceDiffInDecimal: number
-}
 
 export async function handleStripeConnectedAccount({
   classId = '',

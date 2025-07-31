@@ -9,7 +9,7 @@ import {
 
 import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 import { parseImageURLFromMetadata } from './api/likernft/metadata';
-import { TransactionFeeInfo } from './api/likernft/book/purchase';
+import { TransactionFeeInfo } from './api/likernft/book/type';
 
 const BOOK_SALES_TABLE_NAME = 'Sales (Book)';
 const PUBLICATIONS_TABLE_NAME = 'Publications';
@@ -232,6 +232,130 @@ async function queryAirtablePublicationRecordById(id: string) {
     console.error(`Record with ID ${id} not found in ${PUBLICATIONS_TABLE_NAME} table.`);
   }
   return record;
+}
+
+export async function updateAirtablePublicationRecord({
+  id,
+  name,
+  description,
+  iscnIdPrefix,
+  ownerWallet,
+  type,
+  minPrice,
+  maxPrice,
+  imageURL,
+  author,
+  publisher,
+  language,
+  keywords = [],
+  usageInfo,
+  isbn,
+  iscnObject,
+  iscnContentMetadata,
+  metadata,
+  isDRMFree = false,
+  isHidden = false,
+}: {
+  id: string;
+  name?: string | { zh: string, en: string };
+  description?: string | { zh: string, en: string };
+  ownerWallet?: string;
+  type?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  imageURL?: string;
+  author?: string;
+  publisher?: string;
+  language?: string;
+  keywords?: string[];
+  usageInfo?: string;
+  isbn?: string;
+  iscnIdPrefix?: string;
+  iscnObject?: any;
+  iscnContentMetadata?: any;
+  metadata?: any;
+  isDRMFree?: boolean;
+  isHidden?: boolean;
+}): Promise<void> {
+  if (!base) return;
+
+  try {
+    const record = await queryAirtablePublicationRecordById(id);
+    if (!record) {
+      // eslint-disable-next-line no-console
+      console.error(`Cannot update: Record with ID ${id} not found in ${PUBLICATIONS_TABLE_NAME} table.`);
+      return;
+    }
+
+    const fields: any = { ...record.fields };
+
+    if (ownerWallet) fields['Owner Wallet'] = ownerWallet;
+    if (type) fields.Type = type;
+    if (name) fields.Name = typeof name === 'string' ? name : name.zh;
+    if (description) fields.Description = typeof description === 'string' ? description : description.zh;
+    if (imageURL) {
+      const normalizedImageURL = parseImageURLFromMetadata(imageURL);
+      fields.Image = [{ url: normalizedImageURL }];
+      fields['Image URL'] = normalizedImageURL;
+    }
+    if (minPrice !== undefined) fields['Min Price'] = minPrice;
+    if (maxPrice !== undefined) fields['Max Price'] = maxPrice;
+    if (isDRMFree !== undefined) fields['DRM-free'] = isDRMFree;
+
+    if (author) fields.Author = author;
+    if (publisher) fields.Publisher = publisher;
+    if (language) fields.Language = language;
+    if (keywords?.length) fields.Keywords = keywords;
+    if (usageInfo) fields['Usage Info'] = usageInfo;
+    if (isbn) fields.ISBN = isbn;
+
+    if (iscnIdPrefix) {
+      fields['ISCN Id Prefix'] = iscnIdPrefix;
+    }
+
+    if (iscnObject) {
+      try {
+        fields['ISCN Object'] = JSON.stringify(iscnObject);
+      } catch {
+        // No-op
+      }
+    }
+
+    if (iscnContentMetadata) {
+      try {
+        fields['ISCN Content Metadata'] = JSON.stringify(iscnContentMetadata);
+      } catch {
+        // No-op
+      }
+    }
+
+    if (metadata) {
+      try {
+        fields.Metadata = JSON.stringify(metadata);
+      } catch {
+        // No-op
+      }
+    }
+
+    if (isHidden !== undefined) {
+      fields.Hidden = isHidden;
+    }
+
+    if (ownerWallet) {
+      const ownerData = await getUserWithCivicLikerPropertiesByWallet(ownerWallet);
+      if (ownerData) {
+        fields['Owner Liker Id'] = ownerData.user;
+        fields['Owner Name'] = ownerData.displayName;
+      }
+    }
+
+    if (Object.keys(fields).length > 0) {
+      await base(PUBLICATIONS_TABLE_NAME).update(record.id, fields, { typecast: true });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
 }
 
 function normalizeStripePaymentIntentForAirtableBookSalesRecord(
