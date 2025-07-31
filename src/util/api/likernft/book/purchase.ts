@@ -1134,12 +1134,20 @@ export async function claimNFTBook(
       claimToken,
       isPhysicalOnly,
       status,
+      wallet: claimedWallet,
     } = docData;
     if (token !== claimToken) {
       throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
+    if (claimedWallet && claimedWallet !== wallet) {
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_OTHER', 403);
+    }
+
     if (status !== 'paid') {
-      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
+      if (claimedWallet) {
+        throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_WALLET', 409);
+      }
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
     }
     if (isPhysicalOnly) {
       throw new ValidationError('CANNOT_CLAIM_PHYSICAL_ONLY', 409);

@@ -214,6 +214,135 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   }));
 }
 
+export async function claimNFTBookCart(
+  cartId: string,
+  {
+    message,
+    wallet,
+    token,
+    loginMethod,
+  }: {
+    message: string,
+    wallet: string,
+    token: string,
+    loginMethod?: string,
+  },
+  req,
+) {
+  const cartRef = likeNFTBookCartCollection.doc(cartId);
+
+  const cartData = await db.runTransaction(async (t) => {
+    const cartDoc = await t.get(cartRef);
+    if (!cartDoc.exists) throw new ValidationError('CART_ID_NOT_FOUND');
+    const docData = cartDoc.data();
+    if (!docData) throw new ValidationError('CART_ID_NOT_FOUND');
+    const {
+      claimToken,
+      status,
+      wallet: claimedWallet,
+    } = docData;
+
+    if (claimedWallet && claimedWallet !== wallet) {
+      throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
+    }
+
+    if (status !== 'paid') {
+      if (claimedWallet) {
+        throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
+      }
+      throw new ValidationError('CART_ALREADY_CLAIMED', 403);
+    }
+
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+
+    t.update(cartRef, {
+      status: 'pending',
+    });
+    return docData;
+  });
+
+  const {
+    status: oldStatus,
+    email,
+    classIds,
+    collectionIds,
+    claimedClassIds = [],
+    claimedCollectionIds = [],
+  } = cartData;
+
+  const unclaimedClassIds: string[] = classIds.filter((id) => !claimedClassIds.includes(id));
+  const unclaimedCollectionIds: string[] = collectionIds
+    .filter((id) => !claimedCollectionIds.includes(id));
+  const errors: any = [];
+  const newClaimedNFTs: any = [];
+  for (const classId of unclaimedClassIds) {
+    try {
+      const { nftId } = await claimNFTBook(
+        classId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
+      newClaimedNFTs.push({ classId, nftId });
+      await cartRef.update({ claimedClassIds: FieldValue.arrayUnion(classId) });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      errors.push({ classId, error: (err as Error).toString() });
+    }
+  }
+  for (const collectionId of unclaimedCollectionIds) {
+    try {
+      const { nftIds } = await claimNFTBookCollection(
+        collectionId,
+        cartId,
+        {
+          message, wallet, token, loginMethod,
+        },
+        req,
+      );
+      newClaimedNFTs.push({ collectionId, nftIds });
+      await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      errors.push({ collectionId, error: (err as Error).toString() });
+    }
+  }
+
+  const allItemsAutoClaimed = newClaimedNFTs.filter(
+    (nft) => !!(nft.nftIds?.length || nft.nftId !== undefined),
+  ).length === (unclaimedClassIds.length + unclaimedCollectionIds.length);
+  if (!errors.length) {
+    await cartRef.update({
+      status: allItemsAutoClaimed ? 'completed' : 'pending',
+      wallet,
+      isPendingClaim: false,
+      errors: FieldValue.delete(),
+      loginMethod: loginMethod || '',
+    });
+  } else {
+    await cartRef.update({
+      status: oldStatus,
+      errors,
+      loginMethod: loginMethod || '',
+    });
+  }
+
+  return {
+    email,
+    classIds: claimedClassIds,
+    collectionIds: claimedCollectionIds,
+    newClaimedNFTs,
+    allItemsAutoClaimed,
+    errors,
+  };
+}
+
 export async function processNFTBookCartPurchase({
   cartId,
   email,
@@ -328,6 +457,7 @@ export async function processNFTBookCartStripePurchase(
       giftMessage,
       giftFromName,
       site,
+      evmWallet,
     } = {} as any,
     customer_details: customer,
     payment_intent: paymentIntent,
@@ -660,6 +790,31 @@ export async function processNFTBookCartStripePurchase(
       referrer,
       fbClickId,
     });
+
+    // Attempt to claim the cart immediately if the user is logged in
+    if (evmWallet) {
+      const {
+        allItemsAutoClaimed,
+      } = await claimNFTBookCart(
+        cartId,
+        {
+          message: '',
+          wallet: evmWallet,
+          token: claimToken,
+          loginMethod: 'autoClaim',
+        },
+        req,
+      );
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookCartClaimed',
+        cartId,
+        wallet: evmWallet,
+        email,
+        loginMethod: 'autoClaim',
+        allItemsAutoClaimed,
+      });
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -1183,108 +1338,5 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     priceInDecimal,
     originalPriceInDecimal,
     customPriceDiffInDecimal,
-  };
-}
-
-export async function claimNFTBookCart(
-  cartId: string,
-  {
-    message,
-    wallet,
-    token,
-    loginMethod,
-  }: {
-    message: string,
-    wallet: string,
-    token: string,
-    loginMethod?: string,
-  },
-  req,
-) {
-  const cartRef = likeNFTBookCartCollection.doc(cartId);
-  const cartDoc = await cartRef.get();
-  const cartData = cartDoc.data();
-  const {
-    email,
-    classIds,
-    collectionIds,
-    claimedClassIds = [],
-    claimedCollectionIds = [],
-    claimToken,
-    status,
-  } = cartData;
-
-  if (status !== 'paid') {
-    throw new ValidationError('CART_ALREADY_CLAIMED', 403);
-  }
-  if (token !== claimToken) {
-    throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
-  }
-  const unclaimedClassIds: string[] = classIds.filter((id) => !claimedClassIds.includes(id));
-  const unclaimedCollectionIds: string[] = collectionIds
-    .filter((id) => !claimedCollectionIds.includes(id));
-  const errors: any = [];
-  const newClaimedNFTs: any = [];
-  for (const classId of unclaimedClassIds) {
-    try {
-      const { nftId } = await claimNFTBook(
-        classId,
-        cartId,
-        {
-          message, wallet, token, loginMethod,
-        },
-        req,
-      );
-      newClaimedNFTs.push({ classId, nftId });
-      await cartRef.update({ claimedClassIds: FieldValue.arrayUnion(classId) });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      errors.push({ classId, error: (err as Error).toString() });
-    }
-  }
-  for (const collectionId of unclaimedCollectionIds) {
-    try {
-      const { nftIds } = await claimNFTBookCollection(
-        collectionId,
-        cartId,
-        {
-          message, wallet, token, loginMethod,
-        },
-        req,
-      );
-      newClaimedNFTs.push({ collectionId, nftIds });
-      await cartRef.update({ claimedCollectionIds: FieldValue.arrayUnion(collectionId) });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      errors.push({ collectionId, error: (err as Error).toString() });
-    }
-  }
-
-  const allItemsAutoClaimed = newClaimedNFTs.filter(
-    (nft) => !!(nft.nftIds?.length || nft.nftId !== undefined),
-  ).length === (unclaimedClassIds.length + unclaimedCollectionIds.length);
-  if (!errors.length) {
-    await cartRef.update({
-      status: allItemsAutoClaimed ? 'completed' : 'pending',
-      isPendingClaim: false,
-      errors: FieldValue.delete(),
-      loginMethod: loginMethod || '',
-    });
-  } else {
-    await cartRef.update({
-      errors,
-      loginMethod: loginMethod || '',
-    });
-  }
-
-  return {
-    email,
-    classIds: claimedClassIds,
-    collectionIds: claimedCollectionIds,
-    newClaimedNFTs,
-    allItemsAutoClaimed,
-    errors,
   };
 }

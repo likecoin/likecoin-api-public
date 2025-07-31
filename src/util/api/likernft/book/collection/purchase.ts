@@ -363,6 +363,7 @@ export async function claimNFTBookCollection(
       claimToken,
       status,
       classIds: docClassIds,
+      wallet: claimedWallet,
     } = docData;
     if (isEVMClassId(docClassIds[0])) {
       if (!isValidEVMAddress(wallet)) {
@@ -374,8 +375,15 @@ export async function claimNFTBookCollection(
     if (token !== claimToken) {
       throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
+    if (claimedWallet && claimedWallet !== wallet) {
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_OTHER', 403);
+    }
+
     if (status !== 'paid') {
-      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 409);
+      if (claimedWallet) {
+        throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_WALLET', 409);
+      }
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
     }
     t.update(docRef, {
       isPendingClaim: false,
