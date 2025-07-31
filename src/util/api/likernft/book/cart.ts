@@ -16,9 +16,7 @@ import { getBookCollectionInfoById } from '../collection/book';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
   formatStripeCheckoutSession,
-  TransactionFeeInfo,
   createNewNFTBookPayment,
-  ItemPriceInfo,
   processNFTBookPurchaseTxUpdate,
   handleStripeConnectedAccount,
   processNFTBookPurchaseTxGet,
@@ -52,7 +50,9 @@ import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
   LIKER_PLUS_20_COUPON_ID,
 } from '../../../../../config/config';
-import { CartItem, CartItemWithInfo } from './type';
+import {
+  CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
+} from './type';
 import { isEVMClassId } from '../../../evm/nft';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 

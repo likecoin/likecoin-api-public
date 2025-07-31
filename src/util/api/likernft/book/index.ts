@@ -37,6 +37,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { updateAirtablePublicationRecord } from '../../../airtable';
 
 export async function getNFTClassDataById(classId) {
   if (isEVMClassId(classId)) {
@@ -365,6 +366,35 @@ export async function syncNFTBookInfoWithISCN(classId) {
     // eslint-disable-next-line no-console
     console.error(err);
   }
+
+  try {
+    const { ownerWallet } = bookInfo;
+    const minPrice = prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100;
+    const maxPrice = prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100;
+    await updateAirtablePublicationRecord({
+      id: classId,
+      name,
+      description,
+      iscnIdPrefix,
+      ownerWallet,
+      type: 'book',
+      minPrice,
+      maxPrice,
+      imageURL: image,
+      author,
+      publisher,
+      language: inLanguage,
+      keywords,
+      usageInfo,
+      isbn,
+      iscnObject: iscnInfo,
+      iscnContentMetadata: metadata,
+      metadata: classData,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to update Airtable publication record:', err);
+  }
 }
 
 export async function updateNftBookInfo(classId: string, {
@@ -394,8 +424,6 @@ export async function updateNftBookInfo(classId: string, {
   signedMessageText?: string;
   tableOfContents?: string;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
-  await syncNFTBookInfoWithISCN(classId);
-
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     lastUpdateTimestamp: timestamp,
@@ -449,6 +477,7 @@ export async function updateNftBookInfo(classId: string, {
     }
   }
   await batch.commit();
+  await syncNFTBookInfoWithISCN(classId);
 }
 
 export async function listLatestNFTBookInfo({
