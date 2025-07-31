@@ -11,6 +11,44 @@ import { getUserWithCivicLikerPropertiesByWallet } from './api/users';
 import { parseImageURLFromMetadata } from './api/likernft/metadata';
 import { TransactionFeeInfo } from './api/likernft/book/type';
 
+interface AirtablePublicationRecordParams {
+  name?: string | { zh: string, en: string };
+  description?: string | { zh: string, en: string };
+  iscnIdPrefix?: string;
+  ownerWallet?: string;
+  type?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  imageURL?: string;
+  author?: string;
+  publisher?: string;
+  language?: string;
+  keywords?: string[];
+  usageInfo?: string;
+  isbn?: string;
+  iscnObject?: any;
+  iscnContentMetadata?: any;
+  metadata?: any;
+  isDRMFree?: boolean;
+  isHidden?: boolean;
+}
+
+interface CreateAirtablePublicationRecordParams extends AirtablePublicationRecordParams {
+  timestamp: Date;
+  id: string;
+  name: string | { zh: string, en: string };
+  description: string | { zh: string, en: string };
+  ownerWallet: string;
+  type: string;
+  minPrice: number;
+  maxPrice: number;
+  imageURL: string;
+}
+
+interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecordParams {
+  id: string;
+}
+
 const BOOK_SALES_TABLE_NAME = 'Sales (Book)';
 const PUBLICATIONS_TABLE_NAME = 'Publications';
 
@@ -44,29 +82,7 @@ export async function createAirtablePublicationRecord({
   metadata,
   isDRMFree = false,
   isHidden = false,
-}: {
-  timestamp: Date;
-  name: string | { zh: string, en: string };
-  description: string | { zh: string, en: string };
-  id: string;
-  ownerWallet: string;
-  type: string;
-  minPrice: number;
-  maxPrice: number;
-  imageURL: string;
-  author?: string;
-  publisher?: string;
-  language?: string;
-  keywords?: string[];
-  usageInfo?: string;
-  isbn?: string;
-  iscnIdPrefix?: string;
-  iscnObject?: any;
-  iscnContentMetadata?: any;
-  metadata?: any;
-  isDRMFree?: boolean;
-  isHidden?: boolean;
-}): Promise<void> {
+}: CreateAirtablePublicationRecordParams): Promise<void> {
   if (!base) return;
 
   const normalizedImageURL = parseImageURLFromMetadata(imageURL);
@@ -255,28 +271,7 @@ export async function updateAirtablePublicationRecord({
   metadata,
   isDRMFree = false,
   isHidden = false,
-}: {
-  id: string;
-  name?: string | { zh: string, en: string };
-  description?: string | { zh: string, en: string };
-  ownerWallet?: string;
-  type?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  imageURL?: string;
-  author?: string;
-  publisher?: string;
-  language?: string;
-  keywords?: string[];
-  usageInfo?: string;
-  isbn?: string;
-  iscnIdPrefix?: string;
-  iscnObject?: any;
-  iscnContentMetadata?: any;
-  metadata?: any;
-  isDRMFree?: boolean;
-  isHidden?: boolean;
-}): Promise<void> {
+}: UpdateAirtablePublicationRecordParams): Promise<void> {
   if (!base) return;
 
   try {
