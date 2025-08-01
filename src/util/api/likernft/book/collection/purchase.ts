@@ -7,9 +7,6 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   BOOK3_HOSTNAME,
 } from '../../../../../constant';
-import {
-  TransactionFeeInfo,
-} from '../purchase';
 import { handleNFTPurchaseTransaction } from '../../purchase';
 import { likeNFTCollectionCollection, FieldValue, db } from '../../../../firebase';
 import publisher from '../../../../gcloudPub';
@@ -33,6 +30,7 @@ import {
 import { getNFTClassDataById } from '..';
 import { isValidEVMAddress } from '../../../../evm';
 import { isValidLikeAddress } from '../../../../cosmos';
+import { TransactionFeeInfo } from '../type';
 
 export async function createNewNFTBookCollectionPayment(collectionId, paymentId, {
   type,
