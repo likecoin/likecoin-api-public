@@ -68,6 +68,7 @@ export function formatUserCivicLikerProperies(userDoc) {
       currentPeriodStart: start,
       currentPeriodEnd: end,
       since,
+      period,
     } = likerPlus;
     const now = Date.now();
     const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
@@ -75,6 +76,7 @@ export function formatUserCivicLikerProperies(userDoc) {
       payload.likerPlusSince = since;
       payload.isLikerPlus = true;
       payload.isSubscribedCivicLiker = true;
+      payload.likerPlusPeriod = period;
     }
   }
 
