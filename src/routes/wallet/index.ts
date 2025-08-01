@@ -66,9 +66,6 @@ router.post('/authorize', async (req, res, next) => {
     const likerIdInfo = await getUserWithCivicLikerPropertiesByWallet(inputWallet);
     if (likerIdInfo) {
       payload.user = likerIdInfo.user;
-      if (!permissions.includes('read')) {
-        permissions.push('read');
-      }
     }
     const { token, jwtid } = jwtSign(payload, { expiresIn });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

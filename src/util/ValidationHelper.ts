@@ -58,7 +58,7 @@ export function filterUserData(u) {
     civicLikerVersion,
     likerPlusSince,
     isLikerPlus,
-    likerPlus,
+    likerPlusPeriod,
     locale,
     creatorPitch,
   } = u;
@@ -92,7 +92,7 @@ export function filterUserData(u) {
     civicLikerVersion,
     likerPlusSince,
     isLikerPlus,
-    likerPlus,
+    likerPlusPeriod,
     locale,
     creatorPitch,
   };
@@ -141,6 +141,9 @@ export function filterUserDataMin(userObject, types: string[] = []) {
 export function filterUserDataScoped(u, scope: string[] = []) {
   const user = filterUserData(u);
   let output = filterUserDataMin(u);
+  if (user.isLikerPlus) {
+    output.likerPlusPeriod = user.likerPlusPeriod;
+  }
   if (scope.includes('email')) output.email = user.email;
   if (scope.includes('read:civic_liker')) {
     const {
