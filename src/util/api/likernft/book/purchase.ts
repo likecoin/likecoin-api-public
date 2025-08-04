@@ -1266,6 +1266,46 @@ export async function claimNFTBook(
   };
 }
 
+export async function setNFTBookBuyerMessage(
+  classId: string,
+  paymentId: string,
+  message: string,
+  wallet: string,
+  token: string,
+  req,
+) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const docRef = bookRef.collection('transactions').doc(paymentId);
+  await db.runTransaction(async (t) => {
+    const doc = await t.get(docRef);
+    const docData = doc.data();
+    if (!docData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    const {
+      claimToken,
+      wallet: claimedWallet,
+      message: existingMessage = '',
+    } = docData;
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+    if (existingMessage && existingMessage !== message) {
+      throw new ValidationError('PAYMENT_MESSAGE_ALREADY_SET', 409);
+    }
+    if (claimedWallet && claimedWallet !== wallet) {
+      throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_OTHER', 409);
+    }
+    t.update(docRef, { message });
+  });
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'BookNFTBuyerMessageUpdated',
+    paymentId,
+    classId,
+    wallet,
+    buyerMessage: message,
+  });
+}
+
 export async function updateNFTBookPostDeliveryData({
   classId,
   paymentId,
