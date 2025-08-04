@@ -27,6 +27,7 @@ import {
 } from '../../../../config/config';
 import {
   claimNFTBook,
+  setNFTBookBuyerMessage,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
@@ -565,6 +566,34 @@ router.post(
       );
 
       res.json({ nftId });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/class/:classId/memo/:paymentId',
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params;
+      const { token } = req.query;
+      const { wallet, message } = req.body;
+
+      if (!token) throw new ValidationError('MISSING_TOKEN');
+      if (!wallet) throw new ValidationError('MISSING_WALLET');
+      if (!message) throw new ValidationError('MISSING_MESSAGE');
+
+      await setNFTBookBuyerMessage(
+        classId,
+        paymentId,
+        message,
+        wallet,
+        token as string,
+        req,
+      );
+
+      res.sendStatus(200);
     } catch (err) {
       next(err);
     }
