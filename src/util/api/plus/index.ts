@@ -42,7 +42,9 @@ export async function processStripeSubscriptionInvoice(
   const {
     start_date: startDate,
     items: { data: [item] },
+    metadata: subscriptionMetadata,
   } = subscription;
+  const { utmCampaign, utmSource, utmMedium } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
     // eslint-disable-next-line no-console
@@ -84,6 +86,9 @@ export async function processStripeSubscriptionInvoice(
     customerId: subscription.customer as string,
     evmWallet,
     likeWallet,
+    utmCampaign,
+    utmSource,
+    utmMedium,
   });
 }
 
@@ -145,14 +150,14 @@ export async function createNewPlusCheckoutSession(
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;
+  if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
+  if (utm?.source) subscriptionMetadata.utmSource = utm.source;
+  if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
   if (gaClientId) metadata.gaClientId = gaClientId;
   if (gaSessionId) metadata.gaSessionId = gaSessionId;
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
-  if (utm?.campaign) metadata.utmCampaign = utm.campaign;
-  if (utm?.source) metadata.utmSource = utm.source;
-  if (utm?.medium) metadata.utmMedium = utm.medium;
   if (referrer) metadata.referrer = referrer.substring(0, 500);
   if (userAgent) metadata.userAgent = userAgent;
   if (clientIp) metadata.clientIp = clientIp;
