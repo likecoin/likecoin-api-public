@@ -424,8 +424,6 @@ export async function updateNftBookInfo(classId: string, {
   signedMessageText?: string;
   tableOfContents?: string;
 } = {}, newAPIWalletOwnedNFTIds: string[] = []) {
-  await syncNFTBookInfoWithISCN(classId);
-
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     lastUpdateTimestamp: timestamp,
@@ -479,6 +477,7 @@ export async function updateNftBookInfo(classId: string, {
     }
   }
   await batch.commit();
+  await syncNFTBookInfoWithISCN(classId);
 }
 
 export async function listLatestNFTBookInfo({
