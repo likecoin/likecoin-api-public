@@ -14,7 +14,8 @@ router.get('/profile', jwtAuth('profile'), async (req, res, next) => {
     const username = req.user.user;
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
-      res.json(filterUserDataScoped(payload, req.user.scope));
+      const scopes = (req.user.scope || []).concat(req.user.permissions || []);
+      res.json(filterUserDataScoped(payload, scopes));
     } else {
       res.sendStatus(404);
     }

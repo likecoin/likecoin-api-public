@@ -137,7 +137,7 @@ export function filterUserDataMin(userObject, types: string[] = []) {
 export function filterUserDataScoped(u, scope: string[] = []) {
   const user = filterUserData(u);
   let output = filterUserDataMin(u);
-  if (user.isLikerPlus) {
+  if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
   }
   if (scope.includes('email')) output.email = user.email;
