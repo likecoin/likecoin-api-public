@@ -673,6 +673,7 @@ export async function processNFTBookCartStripePurchase(
             gaClientId,
             gaSessionId,
             coupon,
+            cartId,
             rawData: JSON.stringify(session),
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
