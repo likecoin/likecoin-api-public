@@ -436,8 +436,6 @@ export async function processNFTBookCartStripePurchase(
 ) {
   const {
     amount_total: amountTotal,
-  } = session;
-  const {
     metadata: {
       cartId = uuidv4(),
       userAgent,
@@ -653,6 +651,7 @@ export async function processNFTBookCartStripePurchase(
             shippingCostAmount: hasShipping ? shippingCostAmount : 0,
             shippingCountry: hasShipping ? shippingDetails?.address?.country : null,
             from,
+            evmWallet,
             quantity,
             feeInfo,
             transfers,
@@ -668,6 +667,7 @@ export async function processNFTBookCartStripePurchase(
             quantity,
             from,
             email: email || undefined,
+            evmWallet,
             utmSource,
             utmCampaign,
             utmMedium,
@@ -675,6 +675,8 @@ export async function processNFTBookCartStripePurchase(
             gaClientId,
             gaSessionId,
             coupon,
+            cartId,
+            rawData: JSON.stringify(session),
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
