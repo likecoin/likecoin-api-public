@@ -579,6 +579,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount,
   stripeFeeCurrency,
   from,
+  evmWallet,
   coupon,
   cartId,
   isGift,
@@ -597,6 +598,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   stripeFeeAmount: number,
   stripeFeeCurrency: string,
   from?: string,
+  evmWallet?: string,
   coupon?: string,
   cartId?: string,
   isGift?: boolean,
@@ -650,9 +652,17 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'Raw Data': record.rawData,
       Gifting: !!isGift,
     };
-    const publicationRecord = await queryAirtablePublicationRecordById(record.productId);
+    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(record.productId)];
+    if (evmWallet) {
+      fields['Customer Wallet'] = evmWallet;
+      queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
+    }
+    const [publicationRecord, user] = await Promise.all(queries);
     if (publicationRecord) {
       fields.Product = [publicationRecord.id];
+    }
+    if (user) {
+      fields['Customer User ID'] = user.user;
     }
     if (shippingCountry) {
       fields['Shipping Country'] = shippingCountry;
@@ -682,6 +692,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   quantity = 1,
   from,
   email,
+  evmWallet,
   utmSource,
   utmCampaign,
   utmMedium,
@@ -700,6 +711,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   quantity?: number,
   from?: string,
   email?: string,
+  evmWallet?: string,
   utmSource,
   utmCampaign,
   utmMedium,
@@ -749,9 +761,17 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
       'Raw Data': rawData || '',
     };
     const productId = classId || collectionId || '';
-    const publicationRecord = await queryAirtablePublicationRecordById(productId);
+    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(productId)];
+    if (evmWallet) {
+      fields['Customer Wallet'] = evmWallet;
+      queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
+    }
+    const [publicationRecord, user] = await Promise.all(queries);
     if (publicationRecord) {
       fields.Product = [publicationRecord.id];
+    }
+    if (user) {
+      fields['Customer User ID'] = user.user;
     }
     if (coupon) {
       fields.Coupon = coupon;
