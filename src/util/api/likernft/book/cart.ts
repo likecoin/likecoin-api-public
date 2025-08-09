@@ -436,8 +436,6 @@ export async function processNFTBookCartStripePurchase(
 ) {
   const {
     amount_total: amountTotal,
-  } = session;
-  const {
     metadata: {
       cartId = uuidv4(),
       userAgent,
@@ -675,6 +673,7 @@ export async function processNFTBookCartStripePurchase(
             gaClientId,
             gaSessionId,
             coupon,
+            rawData: JSON.stringify(session),
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
