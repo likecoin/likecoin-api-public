@@ -353,6 +353,15 @@ export async function updateAirtablePublicationRecord({
   }
 }
 
+export function convertObjectToAirtableLongText(object: any): string {
+  try {
+    // Convert object to JSON string and limit the length to 100,000 characters
+    return JSON.stringify(object).slice(0, 100000);
+  } catch {
+    return '';
+  }
+}
+
 function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   {
     classId,
@@ -560,7 +569,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     gaClientId,
     gaSessionId,
 
-    rawData: JSON.stringify(pi),
+    rawData: convertObjectToAirtableLongText(pi),
   };
 }
 

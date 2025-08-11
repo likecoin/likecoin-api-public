@@ -35,7 +35,11 @@ import {
   processNFTBookCollectionPurchaseTxUpdate,
 } from './collection/purchase';
 import stripe, { getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
-import { createAirtableBookSalesRecordFromFreePurchase, createAirtableBookSalesRecordFromStripePaymentIntent } from '../../../airtable';
+import {
+  convertObjectToAirtableLongText,
+  createAirtableBookSalesRecordFromFreePurchase,
+  createAirtableBookSalesRecordFromStripePaymentIntent,
+} from '../../../airtable';
 import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
 import {
@@ -676,7 +680,7 @@ export async function processNFTBookCartStripePurchase(
             gaSessionId,
             coupon,
             cartId,
-            rawData: JSON.stringify(session),
+            rawData: convertObjectToAirtableLongText(session),
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
