@@ -51,6 +51,7 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
 
 const BOOK_SALES_TABLE_NAME = 'Sales (Book)';
 const PUBLICATIONS_TABLE_NAME = 'Publications';
+const SUBSCRIPTION_TABLE_NAME = 'Subscriptions';
 
 let airtable: Airtable;
 let base: Airtable.Base;
@@ -792,5 +793,79 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
+  }
+}
+
+export async function createAirtableSubscriptionRecord({
+  id,
+  customerId,
+  customerEmail,
+  customerUserId,
+  customerWallet,
+  productId,
+  priceId,
+  priceName,
+  price,
+  currency,
+  since,
+  periodInterval,
+  periodStartAt,
+  periodEndAt,
+  isNew,
+  isTrial,
+  channel,
+  utmMedium,
+  utmSource,
+  utmCampaign,
+}: {
+  id: string;
+  customerId: string;
+  customerEmail: string;
+  customerUserId: string;
+  customerWallet: string;
+  productId?: string;
+  periodInterval: string;
+  since: number;
+  periodStartAt: number;
+  periodEndAt: number;
+  priceId?: string;
+  priceName?: string;
+  price?: number;
+  currency?: string;
+  isNew?: boolean;
+  isTrial?: boolean;
+  channel?: string;
+  utmCampaign?: string;
+  utmMedium?: string;
+  utmSource?: string;
+}): Promise<void> {
+  try {
+    const fields: Partial<FieldSet> = {
+      Date: new Date().toISOString(),
+      ID: id,
+      'Customer ID': customerId,
+      'Customer Email': customerEmail,
+      'Customer User ID': customerUserId,
+      'Customer Wallet': customerWallet,
+      Since: new Date(since).toISOString(),
+      'Product ID': productId,
+      'Price ID': priceId || '',
+      'Price Name': priceName || '',
+      Price: price || 0,
+      Currency: currency || 'USD',
+      'Period Interval': periodInterval,
+      'Period Start Date': new Date(periodStartAt).toISOString(),
+      'Period End Date': new Date(periodEndAt).toISOString(),
+      'Is New': isNew || false,
+      'Is Trial': isTrial || false,
+      Channel: channel || '',
+      'UTM Campaign': utmCampaign || '',
+      'UTM Medium': utmMedium || '',
+      'UTM Source': utmSource || '',
+    };
+    await base(SUBSCRIPTION_TABLE_NAME).create([{ fields }], { typecast: true });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
   }
 }
