@@ -13,6 +13,7 @@ import {
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
+import { createAirtableSubscriptionRecord } from '../../airtable';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -44,7 +45,9 @@ export async function processStripeSubscriptionInvoice(
     items: { data: [item] },
     metadata: subscriptionMetadata,
   } = subscription;
-  const { utmCampaign, utmSource, utmMedium } = subscriptionMetadata || {};
+  const {
+    from, utmCampaign, utmSource, utmMedium,
+  } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
     // eslint-disable-next-line no-console
@@ -52,29 +55,61 @@ export async function processStripeSubscriptionInvoice(
     return;
   }
   const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
-  const priceWithCurrency = `${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency.toUpperCase()}`;
+  const price = invoice.amount_paid / 100;
+  const priceName = item.price.nickname || '';
+  const currency = invoice.currency.toUpperCase();
+  const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
 
+  const customerId = subscription.customer as string;
+  const period = item.plan.interval;
+  const since = startDate * 1000; // Convert to milliseconds
+  const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
+  const currentPeriodEnd = subscription.current_period_end * 1000; // Convert to milliseconds
   await userCollection.doc(likerId).update({
     likerPlus: {
-      period: item.plan.interval,
-      since: startDate * 1000, // Convert to milliseconds
-      currentPeriodStart: subscription.current_period_start * 1000, // Convert to milliseconds
-      currentPeriodEnd: subscription.current_period_end * 1000, // Convert to milliseconds
+      period,
+      since,
+      currentPeriodStart,
+      currentPeriodEnd,
       subscriptionId,
-      customerId: subscription.customer as string,
+      customerId,
     },
   });
 
-  await sendPlusSubscriptionSlackNotification({
-    subscriptionId: subscriptionId as string,
-    email: user.email || 'N/A',
-    priceWithCurrency,
-    isNew: isNewSubscription,
-    userId: likerId,
-    stripeCustomerId: subscription.customer as string,
-    method: 'stripe',
-    isTrial: false,
-  });
+  await Promise.all([
+    sendPlusSubscriptionSlackNotification({
+      subscriptionId: subscriptionId as string,
+      email: user.email || 'N/A',
+      priceWithCurrency,
+      isNew: isNewSubscription,
+      userId: likerId,
+      stripeCustomerId: subscription.customer as string,
+      method: 'stripe',
+      isTrial: false,
+    }),
+    createAirtableSubscriptionRecord({
+      id: subscriptionId as string,
+      customerId,
+      customerEmail: user.email || '',
+      customerUserId: likerId,
+      customerWallet: user.evmWallet,
+      productId,
+      priceId: item.price.id,
+      priceName,
+      price,
+      currency,
+      since,
+      periodInterval: period,
+      periodStartAt: currentPeriodStart,
+      periodEndAt: currentPeriodEnd,
+      isNew: isNewSubscription,
+      isTrial: false,
+      channel: from,
+      utmCampaign,
+      utmMedium,
+      utmSource,
+    }),
+  ]);
 
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
     logType: 'PlusSubscriptionInvoiceProcessed',

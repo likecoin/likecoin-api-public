@@ -34,6 +34,7 @@ import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/b
 import { processStripeSubscriptionInvoice } from '../../../util/api/plus';
 import { sendPlusSubscriptionSlackNotification } from '../../../util/slack';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
+import { createAirtableSubscriptionRecord } from '../../../util/airtable';
 
 const router = Router();
 
@@ -91,24 +92,56 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'customer.subscription.created': {
         const subscription: Stripe.Subscription = event.data.object;
         const {
-          id: subscriptionId, status, trial_end: trialEnd, metadata,
+          id: subscriptionId,
+          status,
+          trial_start: trialStart,
+          trial_end: trialEnd,
+          items: { data: [item] },
+          metadata,
         } = subscription;
-        const { evmWallet, likeWallet } = metadata || {};
+        const {
+          evmWallet, likeWallet, from, utmCampaign, utmMedium, utmSource,
+        } = metadata || {};
 
         // Only send notification for trial subscriptions
         if (status === 'trialing' && trialEnd && (evmWallet || likeWallet)) {
           const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
           if (user) {
-            await sendPlusSubscriptionSlackNotification({
-              subscriptionId,
-              email: user.email || 'N/A',
-              priceWithCurrency: '0.00 USD',
-              isNew: true,
-              userId: user.user,
-              stripeCustomerId: subscription.customer as string,
-              method: 'stripe',
-              isTrial: true,
-            });
+            const periodStart = trialStart ? trialStart * 1000 : Date.now();
+            await Promise.all([
+              sendPlusSubscriptionSlackNotification({
+                subscriptionId,
+                email: user.email || 'N/A',
+                priceWithCurrency: '0.00 USD',
+                isNew: true,
+                userId: user.user,
+                stripeCustomerId: subscription.customer as string,
+                method: 'stripe',
+                isTrial: true,
+              }),
+              createAirtableSubscriptionRecord({
+                id: subscriptionId as string,
+                customerId: subscription.customer as string,
+                customerEmail: user.email || '',
+                customerUserId: user.user as string,
+                customerWallet: user.evmWallet as string,
+                productId: item.price.product as string,
+                priceId: item.price.id,
+                priceName: item.price.nickname || '',
+                price: 0,
+                currency: 'USD',
+                since: periodStart,
+                periodInterval: item.plan.interval,
+                periodStartAt: periodStart,
+                periodEndAt: trialEnd * 1000,
+                isNew: true,
+                isTrial: true,
+                channel: from,
+                utmCampaign,
+                utmMedium,
+                utmSource,
+              }),
+            ]);
           }
         }
         break;
