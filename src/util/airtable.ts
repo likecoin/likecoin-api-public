@@ -807,6 +807,8 @@ export async function createAirtableSubscriptionRecord({
   priceName,
   price,
   currency,
+  couponId,
+  couponName,
   since,
   periodInterval,
   periodStartAt,
@@ -832,6 +834,8 @@ export async function createAirtableSubscriptionRecord({
   priceName?: string;
   price?: number;
   currency?: string;
+  couponId?: string;
+  couponName?: string;
   isNew?: boolean;
   isTrial?: boolean;
   channel?: string;
@@ -853,6 +857,8 @@ export async function createAirtableSubscriptionRecord({
       'Price Name': priceName || '',
       Price: price || 0,
       Currency: currency || 'USD',
+      'Coupon ID': couponId || '',
+      'Coupon Name': couponName || '',
       'Period Interval': periodInterval,
       'Period Start Date': new Date(periodStartAt).toISOString(),
       'Period End Date': new Date(periodEndAt).toISOString(),
