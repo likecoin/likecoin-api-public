@@ -346,162 +346,91 @@ export async function claimNFTBookCart(
   };
 }
 
-export async function processNFTBookCartPurchase({
-  cartId,
-  email,
-  phone,
-  paymentId,
-  shippingDetails,
-  shippingCostAmount,
-}) {
-  const cartRef = likeNFTBookCartCollection.doc(cartId);
-  const infos = await db.runTransaction(async (t) => {
-    const cartDoc = await t.get(cartRef);
-    const cartData = cartDoc.data();
-    if (!cartData) throw new ValidationError('CART_ID_NOT_FOUND');
-    const {
-      status,
-      classIds,
-      collectionIds,
-    } = cartData;
-    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_PROCESSED');
+type ProcessNFTBookCartInput = {
+  itemInfos: CartItemWithInfo[];
+  itemPrices: ItemPriceInfo[];
+  totalFeeInfo: TransactionFeeInfo;
+  coupon?: string;
+};
 
-    const classInfos = await Promise.all(classIds.map(async (classId) => {
-      const { listingData, txData } = await processNFTBookPurchaseTxGet(
-        t,
-        classId,
-        paymentId,
-        {
-          email,
-          phone,
-          shippingDetails,
-          shippingCostAmount,
-          execGrantTxHash: '',
-        },
-      );
-      return {
-        classId,
-        listingData,
-        txData,
-      };
-    }));
-    const collectionInfos = await Promise.all(collectionIds.map(async (collectionId) => {
-      const data = await processNFTBookCollectionPurchaseTxGet(
-        t,
-        collectionId,
-        paymentId,
-        {
-          email,
-          phone,
-          shippingDetails,
-          shippingCostAmount,
-          execGrantTxHash: '',
-        },
-      );
-      return {
-        collectionId,
-        ...data,
-        listingData: { ...data.listingData, ...data.typePayload },
-      };
-    }));
+type ProcessNFTBookCartMeta = {
+  cartId: string;
+  paymentId: string;
+  sessionId?: string;
+  userAgent?: string;
+  clientIp?: string;
+  referrer?: string;
+  fbClickId?: string;
+  utmSource?: string;
+  utmCampaign?: string;
+  utmMedium?: string;
+  gaClientId?: string;
+  gaSessionId?: string;
+  claimToken: string;
+  from?: string;
+  giftToEmail?: string;
+  giftToName?: string;
+  giftMessage?: string;
+  giftFromName?: string;
+  site: string;
+  evmWallet?: string;
+};
 
-    await Promise.all(classInfos.map(async (info, index) => {
-      await processNFTBookPurchaseTxUpdate(t, classIds[index], paymentId, info);
-    }));
+type ProcessNFTBookCartPayment = {
+  amountTotal: number | null;
+  email: string | null;
+  phone: string | null;
+  shippingDetails?: any;
+  shippingCostAmount?: number;
+  paymentIntent?: string;
+  session?: Stripe.Checkout.Session;
+};
 
-    await Promise.all(collectionInfos.map(async (info, index) => {
-      await processNFTBookCollectionPurchaseTxUpdate(t, collectionIds[index], paymentId, info);
-    }));
-    const updatePayload = {
-      status: 'paid',
-      isPaid: true,
-      isPendingClaim: true,
-      email,
-      hasShipping: classInfos.some((info) => info.txData.hasShipping)
-        || collectionInfos.some((info) => info.txData.hasShipping),
-    };
-    t.update(cartRef, updatePayload);
-
-    return {
-      txData: {
-        ...cartData,
-        ...updatePayload,
-      },
-      classInfos,
-      collectionInfos,
-    };
-  });
-  return infos;
-}
-
-export async function processNFTBookCartStripePurchase(
-  session: Stripe.Checkout.Session,
-  req: Express.Request,
-) {
-  const {
-    amount_total: amountTotal,
-    metadata: {
-      cartId = uuidv4(),
-      userAgent,
-      clientIp,
-      referrer,
-      fbClickId,
-      utmSource,
-      utmCampaign,
-      utmMedium,
-      gaClientId,
-      gaSessionId,
-      claimToken = uuidv4(),
-      from,
-      giftToEmail,
-      giftToName,
-      giftMessage,
-      giftFromName,
-      site,
-      evmWallet,
-    } = {} as any,
-    customer_details: customer,
-    payment_intent: paymentIntent,
-    currency_conversion: currencyConversion,
-    shipping_cost: shippingCost,
-    shipping_details: shippingDetails,
-    id: sessionId,
-  } = session;
-  const paymentId = cartId;
-  if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
-
-  const isFree = amountTotal === 0;
-  if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
-
-  const { email, phone } = customer;
-
-  let shippingCostAmount = 0;
-  if (shippingCost) {
-    shippingCostAmount = shippingCost.amount_total / 100;
-  }
-  if (currencyConversion) {
-    if (currencyConversion.fx_rate !== undefined && shippingCost?.amount_total) {
-      shippingCostAmount = Math.round(
-        shippingCost.amount_total / Number(currencyConversion.fx_rate),
-      ) / 100;
-    }
-  }
-
-  const {
+export async function processNFTBookCart(
+  {
     itemInfos,
     itemPrices,
-    feeInfo: totalFeeInfo,
-    coupon,
-  // eslint-disable-next-line no-use-before-define
-  } = await formatCartItemInfosFromSession(session);
-
-  if (!itemInfos?.length) return;
-
+    totalFeeInfo,
+    coupon = '',
+  }: ProcessNFTBookCartInput,
+  {
+    cartId,
+    paymentId,
+    sessionId,
+    userAgent,
+    clientIp,
+    referrer,
+    fbClickId,
+    utmSource,
+    utmCampaign,
+    utmMedium,
+    gaClientId,
+    gaSessionId,
+    claimToken,
+    from,
+    giftToEmail,
+    giftToName,
+    giftMessage,
+    giftFromName,
+    site,
+    evmWallet,
+  }: ProcessNFTBookCartMeta,
+  {
+    amountTotal,
+    email,
+    phone,
+    shippingDetails,
+    shippingCostAmount,
+    paymentIntent,
+    session,
+  }: ProcessNFTBookCartPayment,
+  req: any,
+) {
   await createNewNFTBookCartPayment(cartId, paymentId, {
     type: 'stripe',
     claimToken,
     sessionId,
-    giftInfo: giftToEmail ? {
+    giftInfo: (giftToEmail && giftToName && giftMessage && giftFromName) ? {
       toEmail: giftToEmail,
       toName: giftToName,
       message: giftMessage,
@@ -515,6 +444,7 @@ export async function processNFTBookCartStripePurchase(
   });
 
   try {
+    // eslint-disable-next-line no-use-before-define
     const infos = await processNFTBookCartPurchase({
       cartId,
       email,
@@ -589,7 +519,8 @@ export async function processNFTBookCartStripePurchase(
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
       const bookName = bookData?.name?.[NFT_BOOK_TEXT_DEFAULT_LOCALE] || bookData?.name || bookId;
       bookNames.push(bookName);
-      const shippingCostAmountInDecimal = hasShipping ? shippingCostAmount * 100 : 0;
+      const shippingCostAmountInDecimal = (hasShipping && shippingCostAmount)
+        ? shippingCostAmount * 100 : 0;
       const amountWithShipping = priceInDecimal + shippingCostAmountInDecimal;
       const { transfers } = await handleStripeConnectedAccount(
         {
@@ -694,7 +625,7 @@ export async function processNFTBookCartStripePurchase(
           quantity,
           email,
           fromChannel: from,
-          sessionId: session.id,
+          sessionId,
           stripeFeeAmount,
           coupon,
           isGift,
@@ -731,7 +662,7 @@ export async function processNFTBookCartStripePurchase(
       cartId,
       price: (amountTotal || 0) / 100,
       customPriceDiff: totalFeeInfo.customPriceDiffInDecimal / 100,
-      sessionId: session.id,
+      sessionId,
       numberOfItems: infoList.length,
       quantity: infoList.reduce((acc, item) => acc + item.txData.quantity, 0),
       isGift: cartIsGift,
@@ -827,6 +758,232 @@ export async function processNFTBookCartStripePurchase(
       });
     }
   }
+}
+
+export async function processNFTBookCartPurchase({
+  cartId,
+  email,
+  phone,
+  paymentId,
+  shippingDetails,
+  shippingCostAmount,
+}) {
+  const cartRef = likeNFTBookCartCollection.doc(cartId);
+  const infos = await db.runTransaction(async (t) => {
+    const cartDoc = await t.get(cartRef);
+    const cartData = cartDoc.data();
+    if (!cartData) throw new ValidationError('CART_ID_NOT_FOUND');
+    const {
+      status,
+      classIds,
+      collectionIds,
+    } = cartData;
+    if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_PROCESSED');
+
+    const classInfos = await Promise.all(classIds.map(async (classId) => {
+      const { listingData, txData } = await processNFTBookPurchaseTxGet(
+        t,
+        classId,
+        paymentId,
+        {
+          email,
+          phone,
+          shippingDetails,
+          shippingCostAmount,
+          execGrantTxHash: '',
+        },
+      );
+      return {
+        classId,
+        listingData,
+        txData,
+      };
+    }));
+    const collectionInfos = await Promise.all(collectionIds.map(async (collectionId) => {
+      const data = await processNFTBookCollectionPurchaseTxGet(
+        t,
+        collectionId,
+        paymentId,
+        {
+          email,
+          phone,
+          shippingDetails,
+          shippingCostAmount,
+          execGrantTxHash: '',
+        },
+      );
+      return {
+        collectionId,
+        ...data,
+        listingData: { ...data.listingData, ...data.typePayload },
+      };
+    }));
+
+    await Promise.all(classInfos.map(async (info, index) => {
+      await processNFTBookPurchaseTxUpdate(t, classIds[index], paymentId, info);
+    }));
+
+    await Promise.all(collectionInfos.map(async (info, index) => {
+      await processNFTBookCollectionPurchaseTxUpdate(t, collectionIds[index], paymentId, info);
+    }));
+    const updatePayload = {
+      status: 'paid',
+      isPaid: true,
+      isPendingClaim: true,
+      email,
+      hasShipping: classInfos.some((info) => info.txData.hasShipping)
+        || collectionInfos.some((info) => info.txData.hasShipping),
+    };
+    t.update(cartRef, updatePayload);
+
+    return {
+      txData: {
+        ...cartData,
+        ...updatePayload,
+      },
+      classInfos,
+      collectionInfos,
+    };
+  });
+  return infos;
+}
+
+export async function processNFTBookCartStripePurchase(
+  session: Stripe.Checkout.Session,
+  req: Express.Request,
+) {
+  const {
+    amount_total: amountTotal,
+  } = session;
+  const {
+    customer_details: customer,
+    payment_intent: paymentIntent,
+    currency_conversion: currencyConversion,
+    shipping_cost: shippingCost,
+    shipping_details: shippingDetails,
+    id: sessionId,
+  } = session;
+
+  const metadata: any = session.metadata || {};
+  if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
+
+  const isFree = amountTotal === 0;
+  if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+
+  const { email, phone } = customer;
+
+  let shippingCostAmount = 0;
+  if (shippingCost) {
+    shippingCostAmount = shippingCost.amount_total / 100;
+  }
+  if (currencyConversion) {
+    if (currencyConversion.fx_rate !== undefined && shippingCost?.amount_total) {
+      shippingCostAmount = Math.round(
+        shippingCost.amount_total / Number(currencyConversion.fx_rate),
+      ) / 100;
+    }
+  }
+
+  const {
+    itemInfos,
+    itemPrices,
+    feeInfo: totalFeeInfo,
+    coupon,
+  // eslint-disable-next-line no-use-before-define
+  } = await formatCartItemInfosFromSession(session);
+
+  if (!itemInfos?.length) return;
+
+  const cartId = metadata.cartId || uuidv4();
+  const paymentId = cartId;
+  const claimToken = metadata.claimToken || uuidv4();
+
+  await processNFTBookCart(
+    {
+      itemInfos,
+      itemPrices,
+      totalFeeInfo,
+      coupon,
+    },
+    {
+      ...metadata,
+      sessionId,
+      cartId,
+      paymentId,
+      claimToken,
+    },
+    {
+      amountTotal,
+      email,
+      phone,
+      shippingDetails,
+      shippingCostAmount,
+      paymentIntent: paymentIntent as string,
+      session,
+    },
+    req,
+  );
+}
+
+export async function createFreeBookCartFromSubscription({
+  classId,
+  cartId,
+  priceIndex,
+  amountPaid,
+}, {
+  evmWallet,
+  email,
+  phone,
+}) {
+  const paymentId = cartId;
+  const claimToken = uuidv4();
+  const cartItems = [{
+    classId,
+    priceIndex,
+    priceInDecimal: 0,
+  }];
+  // eslint-disable-next-line no-use-before-define
+  const itemInfos = await formatCartItemsWithInfo(cartItems);
+  const itemPrices = await calculateItemPrices(itemInfos, NFT_BOOK_DEFAULT_FROM_CHANNEL);
+  if (itemInfos[0].originalPriceInDecimal >= amountPaid * 100) {
+    // eslint-disable-next-line no-console
+    console.warn('Free book cart item price is not less than the amount paid, skipping cart creation.');
+    return null;
+  }
+  const totalFeeInfo: TransactionFeeInfo = {
+    priceInDecimal: 0,
+    originalPriceInDecimal: itemPrices[0].originalPriceInDecimal,
+    stripeFeeAmount: 0,
+    likerLandTipFeeAmount: 0,
+    likerLandFeeAmount: 0,
+    likerLandCommission: 0,
+    channelCommission: 0,
+    likerLandArtFee: 0,
+    customPriceDiffInDecimal: 0,
+  };
+  await processNFTBookCart({
+    itemInfos,
+    itemPrices,
+    totalFeeInfo,
+  }, {
+    cartId,
+    paymentId,
+    evmWallet,
+    claimToken,
+    utmCampaign: 'liker-plus',
+    utmSource: 'liker-plus',
+    utmMedium: 'subscription',
+    site: '3ook.com',
+  }, {
+    amountTotal: 0,
+    email,
+    phone,
+  }, null);
+  return {
+    cartId,
+    paymentId,
+    claimToken,
+  };
 }
 
 export async function formatCartItemsWithInfo(items: CartItem[]) {
