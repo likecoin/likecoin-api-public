@@ -778,6 +778,7 @@ export async function processNFTBookCartStripePurchase(
       paymentId,
       referrer,
       fbClickId,
+      evmWallet,
     });
 
     // Attempt to claim the cart immediately if the user is logged in

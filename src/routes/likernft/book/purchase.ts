@@ -224,6 +224,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         paymentId,
         referrer,
         fbClickId,
+        evmWallet: req.user?.evmWallet,
       });
     }
   } catch (err) {
@@ -358,6 +359,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       paymentId,
       referrer,
       fbClickId: fbClickId as string,
+      evmWallet: req.user?.evmWallet,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -490,6 +492,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       paymentId,
       referrer,
       fbClickId,
+      evmWallet: req.user?.evmWallet,
     });
   } catch (err) {
     next(err);
