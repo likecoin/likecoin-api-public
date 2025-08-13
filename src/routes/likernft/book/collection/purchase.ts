@@ -143,6 +143,7 @@ router.get('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (r
       paymentId,
       referrer,
       fbClickId: fbClickId as string,
+      evmWallet: req.user?.evmWallet,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -264,6 +265,7 @@ router.post('/:collectionId/new', jwtOptionalAuth('read:nftcollection'), async (
       paymentId,
       referrer,
       fbClickId,
+      evmWallet: req.user?.evmWallet,
     });
   } catch (err) {
     next(err);

@@ -13,10 +13,10 @@ export default async function logPixelEvents(event, {
   clientIp,
   value,
   currency,
-  likeWallet,
   paymentId,
   referrer,
   fbClickId,
+  evmWallet,
 }: {
   email?: string;
   items: { productId: string; priceIndex?: number; quantity?: number }[];
@@ -28,6 +28,7 @@ export default async function logPixelEvents(event, {
   paymentId?: string;
   referrer?: string;
   fbClickId?: string;
+  evmWallet?: string;
 }) {
   if (!FB_PIXEL_ID || !FB_ACCESS_TOKEN) {
     return;
@@ -52,7 +53,7 @@ export default async function logPixelEvents(event, {
               em: email ? [sha256(email)] : undefined,
               client_user_agent: userAgent,
               client_ip_address: clientIp,
-              external_id: likeWallet ? [sha256(likeWallet)] : undefined,
+              external_id: evmWallet ? [sha256(evmWallet)] : undefined,
               fbc: fbClickId,
             },
             custom_data: {
