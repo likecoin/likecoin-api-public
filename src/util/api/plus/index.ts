@@ -22,6 +22,7 @@ export async function processStripeSubscriptionInvoice(
   const {
     subscription: subscriptionId,
     subscription_details: subscriptionDetails,
+    discount,
   } = invoice;
   const {
     evmWallet,
@@ -98,6 +99,8 @@ export async function processStripeSubscriptionInvoice(
       priceName,
       price,
       currency,
+      couponId: discount?.coupon.id || '',
+      couponName: discount?.coupon.name || '',
       since,
       periodInterval: period,
       periodStartAt: currentPeriodStart,
