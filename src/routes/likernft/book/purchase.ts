@@ -573,7 +573,7 @@ router.post(
 );
 
 router.post(
-  '/class/:classId/memo/:paymentId',
+  '/class/:classId/message/:paymentId',
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
