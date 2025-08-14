@@ -807,6 +807,7 @@ export async function createAirtableSubscriptionRecord({
   priceName,
   price,
   currency,
+  invoiceId,
   couponId,
   couponName,
   since,
@@ -834,6 +835,7 @@ export async function createAirtableSubscriptionRecord({
   priceName?: string;
   price?: number;
   currency?: string;
+  invoiceId?: string;
   couponId?: string;
   couponName?: string;
   isNew?: boolean;
@@ -846,7 +848,7 @@ export async function createAirtableSubscriptionRecord({
   try {
     const fields: Partial<FieldSet> = {
       Date: new Date().toISOString(),
-      ID: id,
+      'Subscription ID': id,
       'Customer ID': customerId,
       'Customer Email': customerEmail,
       'Customer User ID': customerUserId,
@@ -857,6 +859,7 @@ export async function createAirtableSubscriptionRecord({
       'Price Name': priceName || '',
       Price: price || 0,
       Currency: currency || 'USD',
+      'Invoice ID': invoiceId || '',
       'Coupon ID': couponId || '',
       'Coupon Name': couponName || '',
       'Period Interval': periodInterval,
