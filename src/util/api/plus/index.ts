@@ -99,6 +99,7 @@ export async function processStripeSubscriptionInvoice(
       priceName,
       price,
       currency,
+      invoiceId: invoice.id,
       couponId: discount?.coupon.id || '',
       couponName: discount?.coupon.name || '',
       since,

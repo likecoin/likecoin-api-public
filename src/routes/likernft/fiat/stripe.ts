@@ -130,6 +130,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
                 priceName: item.price.nickname || '',
                 price: 0,
                 currency: 'USD',
+                invoiceId: subscription.latest_invoice as string,
                 since: periodStart,
                 periodInterval: item.plan.interval,
                 periodStartAt: periodStart,
