@@ -50,6 +50,7 @@ export async function processStripeSubscriptionInvoice(
     metadata: subscriptionMetadata,
     customer,
   } = subscription;
+  const stripeCustomer = customer as Stripe.Customer;
   const {
     from,
     giftClassId,
@@ -95,8 +96,8 @@ export async function processStripeSubscriptionInvoice(
         amountPaid,
       }, {
         evmWallet,
-        email: (customer as Stripe.Customer).email,
-        phone: (customer as Stripe.Customer).phone,
+        email: stripeCustomer.email,
+        phone: stripeCustomer.phone,
       });
       if (result) {
         const {
@@ -120,7 +121,7 @@ export async function processStripeSubscriptionInvoice(
     }
   }
 
-  const customerId = (customer as Stripe.Customer).id;
+  const customerId = stripeCustomer.id;
   const period = item.plan.interval;
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
