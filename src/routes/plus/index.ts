@@ -6,6 +6,7 @@ import stripe from '../../util/stripe';
 import { BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../constant';
 import { createNewPlusCheckoutSession } from '../../util/api/plus';
 import publisher from '../../util/gcloudPub';
+import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 
 const router = Router();
 
@@ -26,17 +27,24 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmMedium,
     hasFreeTrial,
     mustCollectPaymentMethod,
+    giftClassId,
+    giftPriceIndex = '0',
   } = req.body;
   try {
     // Ensure period is either 'monthly' or 'yearly'
     if (period !== 'monthly' && period !== 'yearly') {
       period = 'monthly'; // Default to monthly if invalid
     }
+    if (period !== 'yearly' && giftClassId) {
+      throw new ValidationError('Gift subscriptions are only available for yearly plans.', 400);
+    }
     const session = await createNewPlusCheckoutSession(
       {
         period: period as 'monthly' | 'yearly',
         hasFreeTrial,
         mustCollectPaymentMethod,
+        giftClassId,
+        giftPriceIndex,
       },
       {
         from: from as string,
@@ -86,6 +94,33 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       evmWallet: req.user?.evmWallet,
       error: (error as Error).message,
     });
+    next(error);
+  }
+});
+
+router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
+  try {
+    const { wallet } = req.user;
+    const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    const { subscriptionId } = userInfo.likerPlus;
+    if (!subscriptionId) {
+      throw new ValidationError('No subscription found for this user.', 404);
+    }
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const metadata = subscription.metadata || {};
+    const {
+      giftClassId,
+      giftCartId,
+      giftPaymentId,
+      giftClaimToken,
+    } = metadata;
+    res.json({
+      giftClassId,
+      giftCartId,
+      giftPaymentId,
+      giftClaimToken,
+    });
+  } catch (error) {
     next(error);
   }
 });

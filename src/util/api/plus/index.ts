@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import { v4 as uuidv4 } from 'uuid';
 
 import { BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
@@ -14,15 +15,17 @@ import {
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionRecord } from '../../airtable';
+import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
   req: Express.Request,
 ) {
   const {
+    billing_reason: billingReason,
+    discount,
     subscription: subscriptionId,
     subscription_details: subscriptionDetails,
-    discount,
   } = invoice;
   const {
     evmWallet,
@@ -40,14 +43,22 @@ export async function processStripeSubscriptionInvoice(
     return;
   }
   const likerId = user.user;
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId as string);
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, { expand: ['customer'] });
   const {
     start_date: startDate,
     items: { data: [item] },
     metadata: subscriptionMetadata,
+    customer,
   } = subscription;
+  const stripeCustomer = customer as Stripe.Customer;
   const {
-    from, utmCampaign, utmSource, utmMedium,
+    from,
+    giftClassId,
+    giftPriceIndex = '0',
+    giftCartId: existingGiftCartId,
+    utmCampaign,
+    utmSource,
+    utmMedium,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -55,13 +66,62 @@ export async function processStripeSubscriptionInvoice(
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return;
   }
+  if (existingGiftCartId) {
+    // eslint-disable-next-line no-console
+    console.warn('Gift cart already exists, skipping cart creation.');
+    return;
+  }
+
   const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
   const price = invoice.amount_paid / 100;
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
   const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
+  const isSubscriptionCreation = billingReason === 'subscription_create';
+  const isYearlySubscription = item.plan.interval === 'year';
+  const amountPaid = invoice.amount_paid / 100;
 
-  const customerId = subscription.customer as string;
+  if (isSubscriptionCreation && isYearlySubscription && giftClassId) {
+    try {
+      const giftCartId = uuidv4();
+      await stripe.subscriptions.update(subscriptionId as string, {
+        metadata: {
+          giftCartId,
+        },
+      });
+      const result = await createFreeBookCartFromSubscription({
+        cartId: giftCartId,
+        classId: giftClassId,
+        priceIndex: parseInt(giftPriceIndex, 10) || 0,
+        amountPaid,
+      }, {
+        evmWallet,
+        email: stripeCustomer.email,
+        phone: stripeCustomer.phone,
+      });
+      if (result) {
+        const {
+          cartId,
+          paymentId,
+          claimToken,
+        } = result;
+        await stripe.subscriptions.update(subscriptionId as string, {
+          metadata: {
+            ...subscriptionMetadata,
+            giftClassId,
+            giftCartId: cartId,
+            giftPaymentId: paymentId,
+            giftClaimToken: claimToken,
+          },
+        });
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error creating gift cart from subscription:', error);
+    }
+  }
+
+  const customerId = stripeCustomer.id;
   const period = item.plan.interval;
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
@@ -84,7 +144,7 @@ export async function processStripeSubscriptionInvoice(
       priceWithCurrency,
       isNew: isNewSubscription,
       userId: likerId,
-      stripeCustomerId: subscription.customer as string,
+      stripeCustomerId: customerId,
       method: 'stripe',
       isTrial: false,
     }),
@@ -121,8 +181,8 @@ export async function processStripeSubscriptionInvoice(
     invoiceId: invoice.id,
     likerId,
     period: item.plan.interval,
-    price: invoice.amount_paid / 100,
-    customerId: subscription.customer as string,
+    price: amountPaid,
+    customerId,
     evmWallet,
     likeWallet,
     utmCampaign,
@@ -136,10 +196,14 @@ export async function createNewPlusCheckoutSession(
     period,
     hasFreeTrial = false,
     mustCollectPaymentMethod = true,
+    giftClassId,
+    giftPriceIndex,
   }: {
     period: 'monthly' | 'yearly',
     hasFreeTrial?: boolean,
     mustCollectPaymentMethod?: boolean,
+    giftClassId?: string,
+    giftPriceIndex?: string,
   },
   {
     from,
@@ -189,6 +253,8 @@ export async function createNewPlusCheckoutSession(
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;
+  if (giftClassId) subscriptionMetadata.giftClassId = giftClassId;
+  if (giftPriceIndex !== undefined) subscriptionMetadata.giftPriceIndex = giftPriceIndex;
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
