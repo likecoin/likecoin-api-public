@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { sha256 } from 'js-sha256';
+import { sha256 as viemSHA256 } from 'viem';
 
 import {
   FB_PIXEL_ID,
@@ -53,7 +54,9 @@ export default async function logPixelEvents(event, {
               em: email ? [sha256(email)] : undefined,
               client_user_agent: userAgent,
               client_ip_address: clientIp,
-              external_id: evmWallet ? [sha256(evmWallet)] : undefined,
+              external_id: evmWallet && evmWallet.startsWith('0x')
+                ? [viemSHA256(evmWallet as `0x${string}`)]
+                : undefined,
               fbc: fbClickId,
             },
             custom_data: {
