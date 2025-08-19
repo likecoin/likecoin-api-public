@@ -16,6 +16,7 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo'
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
+import { ValidationError } from '../../ValidationError';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -245,7 +246,18 @@ export async function createNewPlusCheckoutSession(
     const userInfo = await getBookUserInfoFromWallet(wallet);
     if (userInfo) {
       const { bookUserInfo, likerUserInfo } = userInfo;
-      if (likerUserInfo) userEmail = likerUserInfo.email;
+      if (likerUserInfo) {
+        userEmail = likerUserInfo.email;
+        if (likerUserInfo.isLikerPlus) {
+          if (likerUserInfo.likerPlusPeriod === 'year') {
+            throw new ValidationError('User already has a yearly Liker Plus subscription.', 429);
+          }
+          if (period !== 'yearly') {
+            throw new ValidationError('User can only upgrade to yearly Liker Plus subscription.', 400);
+          }
+          // User is trying to upgrade to yearly Liker Plus subscription
+        }
+      }
       if (bookUserInfo) customerId = bookUserInfo.stripeCustomerId;
     }
   }
