@@ -1,6 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import Stripe from 'stripe';
 
+import { IS_TESTNET } from '../constant';
 import {
   AIRTABLE_API_KEY,
   AIRTABLE_BASE_ID,
@@ -49,9 +50,9 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
   id: string;
 }
 
-const BOOK_SALES_TABLE_NAME = 'Sales (Book)';
-const PUBLICATIONS_TABLE_NAME = 'Publications';
-const SUBSCRIPTION_TABLE_NAME = 'Subscriptions';
+const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblgXqb89EtLtmaKw';
+const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblZT0hgK3VYOiHpE';
+const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
 
 let airtable: Airtable;
 let base: Airtable.Base;
@@ -149,7 +150,7 @@ export async function createAirtablePublicationRecord({
       fields['Owner Name'] = ownerData.displayName;
     }
 
-    await base(PUBLICATIONS_TABLE_NAME).create([{ fields }], { typecast: true });
+    await base(PUBLICATIONS_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -173,7 +174,7 @@ export async function queryAirtableForPublication({ query, fields }) {
       (field) => `IF(SEARCH(LOWER("${formattedQueryString}"), LOWER({${field}})), 1)`,
     );
     const formula = `OR(${formulas.join(', ')})`;
-    const res = await base(PUBLICATIONS_TABLE_NAME).select({
+    const res = await base(PUBLICATIONS_TABLE_ID).select({
       fields: [
         'ID',
         'Description',
@@ -237,7 +238,7 @@ export async function queryAirtableForPublication({ query, fields }) {
 }
 
 async function queryAirtablePublicationRecordById(id: string) {
-  const [record] = await base(PUBLICATIONS_TABLE_NAME).select({
+  const [record] = await base(PUBLICATIONS_TABLE_ID).select({
     maxRecords: 1,
     pageSize: 1,
     view: 'All',
@@ -246,7 +247,7 @@ async function queryAirtablePublicationRecordById(id: string) {
   }).firstPage();
   if (!record) {
     // eslint-disable-next-line no-console
-    console.error(`Record with ID ${id} not found in ${PUBLICATIONS_TABLE_NAME} table.`);
+    console.error(`Record with ID ${id} not found in ${PUBLICATIONS_TABLE_ID} table.`);
   }
   return record;
 }
@@ -279,7 +280,7 @@ export async function updateAirtablePublicationRecord({
     const record = await queryAirtablePublicationRecordById(id);
     if (!record) {
       // eslint-disable-next-line no-console
-      console.error(`Cannot update: Record with ID ${id} not found in ${PUBLICATIONS_TABLE_NAME} table.`);
+      console.error(`Cannot update: Record with ID ${id} not found in ${PUBLICATIONS_TABLE_ID} table.`);
       return;
     }
 
@@ -346,7 +347,7 @@ export async function updateAirtablePublicationRecord({
     }
 
     if (Object.keys(fields).length > 0) {
-      await base(PUBLICATIONS_TABLE_NAME).update(record.id, fields, { typecast: true });
+      await base(PUBLICATIONS_TABLE_ID).update(record.id, fields, { typecast: true });
     }
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -686,7 +687,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
+    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -789,15 +790,15 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_NAME).create([{ fields }], { typecast: true });
+    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
   }
 }
 
-export async function createAirtableSubscriptionRecord({
-  id,
+export async function createAirtableSubscriptionPaymentRecord({
+  subscriptionId,
   customerId,
   customerEmail,
   customerUserId,
@@ -821,7 +822,7 @@ export async function createAirtableSubscriptionRecord({
   utmSource,
   utmCampaign,
 }: {
-  id: string;
+  subscriptionId: string;
   customerId: string;
   customerEmail: string;
   customerUserId: string;
@@ -848,7 +849,7 @@ export async function createAirtableSubscriptionRecord({
   try {
     const fields: Partial<FieldSet> = {
       Date: new Date().toISOString(),
-      'Subscription ID': id,
+      'Subscription ID': subscriptionId,
       'Customer ID': customerId,
       'Customer Email': customerEmail,
       'Customer User ID': customerUserId,
@@ -872,7 +873,7 @@ export async function createAirtableSubscriptionRecord({
       'UTM Medium': utmMedium || '',
       'UTM Source': utmSource || '',
     };
-    await base(SUBSCRIPTION_TABLE_NAME).create([{ fields }], { typecast: true });
+    await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);

@@ -34,7 +34,7 @@ import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/b
 import { processStripeSubscriptionInvoice } from '../../../util/api/plus';
 import { sendPlusSubscriptionSlackNotification } from '../../../util/slack';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
-import { createAirtableSubscriptionRecord } from '../../../util/airtable';
+import { createAirtableSubscriptionPaymentRecord } from '../../../util/airtable';
 
 const router = Router();
 
@@ -63,11 +63,11 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'checkout.session.async_payment_succeeded': {
         const session: Stripe.Checkout.Session = event.data.object;
         const {
-          subscription: subscriptionId,
           metadata: {
             store, likeWallet, evmWallet,
           } = {} as any,
         } = session;
+        const subscriptionId = session.subscription as string;
         if (evmWallet || likeWallet) {
           await handleNFTBookStripeSessionCustomer(session, req);
         }
@@ -119,8 +119,8 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
                 method: 'stripe',
                 isTrial: true,
               }),
-              createAirtableSubscriptionRecord({
-                id: subscriptionId as string,
+              createAirtableSubscriptionPaymentRecord({
+                subscriptionId,
                 customerId: subscription.customer as string,
                 customerEmail: user.email || '',
                 customerUserId: user.user as string,
