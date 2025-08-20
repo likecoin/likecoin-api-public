@@ -35,7 +35,6 @@ import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { filterNFTBookListingInfo } from '../../../ValidationHelper';
-import { importGoogleRetailProductFromBookListing } from '../../../googleRetail';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 
@@ -356,15 +355,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
       // eslint-disable-next-line no-console
       console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
     }
-  }
-
-  try {
-    await importGoogleRetailProductFromBookListing(
-      filterNFTBookListingInfo({ id: classId, ...bookInfo, ...payload }),
-    );
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(err);
   }
 
   try {

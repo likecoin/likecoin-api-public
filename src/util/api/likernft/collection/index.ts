@@ -13,7 +13,6 @@ import { sleep } from '../../../misc';
 import { FIRESTORE_BATCH_SIZE, LIKER_LAND_HOSTNAME } from '../../../../constant';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
-import { importGoogleRetailProductFromCollection } from '../../../googleRetail';
 import { getNFTClassBalanceOf, isEVMClassId } from '../../../evm/nft';
 
 export type CollectionType = 'book' | 'reader' | 'creator';
@@ -302,15 +301,6 @@ export async function createNFTCollectionByType(
   const createdDoc = await docRef.get();
   const createdDocData = createdDoc.data();
 
-  try {
-    await importGoogleRetailProductFromCollection(filterNFTCollection({
-      id: collectionId,
-      ...createdDocData,
-    }));
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(err);
-  }
   return {
     id: collectionId,
     chain,
@@ -431,15 +421,6 @@ export async function patchNFTCollectionById(
 
   let batch = db.batch();
   batch.update(likeNFTCollectionCollection.doc(collectionId), updatePayload);
-
-  try {
-    await importGoogleRetailProductFromCollection(
-      filterNFTCollection({ id: collectionId, ...docData, ...updatePayload }),
-    );
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(err);
-  }
 
   if (newIsAutoDeliver && !isEVMCollection) {
     const expectedNFTCountMap = calculateExpectedNFTCountMap(
