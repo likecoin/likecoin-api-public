@@ -14,7 +14,7 @@ import {
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
-import { createAirtableSubscriptionRecord } from '../../airtable';
+import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 
@@ -25,9 +25,9 @@ export async function processStripeSubscriptionInvoice(
   const {
     billing_reason: billingReason,
     discount,
-    subscription: subscriptionId,
     subscription_details: subscriptionDetails,
   } = invoice;
+  const subscriptionId = invoice.subscription as string;
   const {
     evmWallet,
     likeWallet,
@@ -44,7 +44,7 @@ export async function processStripeSubscriptionInvoice(
     return;
   }
   const likerId = user.user;
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, { expand: ['customer'] });
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer'] });
   const {
     start_date: startDate,
     items: { data: [item] },
@@ -85,7 +85,7 @@ export async function processStripeSubscriptionInvoice(
   if (isSubscriptionCreation && isYearlySubscription && giftClassId) {
     try {
       const giftCartId = uuidv4();
-      await stripe.subscriptions.update(subscriptionId as string, {
+      await stripe.subscriptions.update(subscriptionId, {
         metadata: {
           giftCartId,
         },
@@ -106,7 +106,7 @@ export async function processStripeSubscriptionInvoice(
           paymentId,
           claimToken,
         } = result;
-        await stripe.subscriptions.update(subscriptionId as string, {
+        await stripe.subscriptions.update(subscriptionId, {
           metadata: {
             ...subscriptionMetadata,
             giftClassId,
@@ -140,7 +140,7 @@ export async function processStripeSubscriptionInvoice(
 
   await Promise.all([
     sendPlusSubscriptionSlackNotification({
-      subscriptionId: subscriptionId as string,
+      subscriptionId,
       email: user.email || 'N/A',
       priceWithCurrency,
       isNew: isNewSubscription,
@@ -149,8 +149,8 @@ export async function processStripeSubscriptionInvoice(
       method: 'stripe',
       isTrial: false,
     }),
-    createAirtableSubscriptionRecord({
-      id: subscriptionId as string,
+    createAirtableSubscriptionPaymentRecord({
+      subscriptionId,
       customerId,
       customerEmail: user.email || '',
       customerUserId: likerId,
