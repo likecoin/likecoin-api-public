@@ -50,8 +50,8 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
   id: string;
 }
 
-const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblgXqb89EtLtmaKw';
-const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblZT0hgK3VYOiHpE';
+const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHpE';
+const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
 
 let airtable: Airtable;
