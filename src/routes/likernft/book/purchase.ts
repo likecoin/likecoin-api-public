@@ -35,6 +35,7 @@ import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/
 import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
+import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
 
 const router = Router();
 
@@ -531,6 +532,38 @@ router.get(
     }
   },
 );
+
+router.get('/free', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+  try {
+    const freeBooks = await getFreeBooksForUser(req.user?.evmWallet);
+    res.json(freeBooks);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/free', jwtAuth('write:nftbook'), async (req, res, next) => {
+  try {
+    const { user } = req;
+    if (!user) throw new ValidationError('UNAUTHORIZED', 401);
+    const { class_id: classId } = req.body;
+
+    const {
+      classIds,
+      cartId,
+      paymentId,
+      claimToken,
+    } = await claimFreeBooks(user.evmWallet, classId);
+    res.json({
+      classIds,
+      cartId,
+      paymentId,
+      claimToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post(
   ['/:classId/claim/:paymentId', '/class/:classId/claim/:paymentId'],
