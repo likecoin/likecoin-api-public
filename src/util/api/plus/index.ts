@@ -1,7 +1,9 @@
 import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import {
+  BOOK3_HOSTNAME, PLUS_BETA_MONTHLY_PRICE, PLUS_BETA_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+} from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import stripe from '../../stripe';
 import { userCollection } from '../../firebase';
@@ -17,6 +19,7 @@ import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
+import logPixelEvents from '../../fbq';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -60,6 +63,7 @@ export async function processStripeSubscriptionInvoice(
     utmCampaign,
     utmSource,
     utmMedium,
+    paymentId,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -103,7 +107,7 @@ export async function processStripeSubscriptionInvoice(
       if (result) {
         const {
           cartId,
-          paymentId,
+          paymentId: giftPaymentId,
           claimToken,
         } = result;
         await stripe.subscriptions.update(subscriptionId, {
@@ -111,7 +115,7 @@ export async function processStripeSubscriptionInvoice(
             ...subscriptionMetadata,
             giftClassId,
             giftCartId: cartId,
-            giftPaymentId: paymentId,
+            giftPaymentId,
             giftClaimToken: claimToken,
           },
         });
@@ -137,6 +141,20 @@ export async function processStripeSubscriptionInvoice(
       customerId,
     },
   });
+
+  if (isSubscriptionCreation) {
+    await logPixelEvents('Purchase', {
+      email: stripeCustomer.email || undefined,
+      items: [{
+        productId: `plus-beta-${period}ly`,
+        quantity: 1,
+      }],
+      value: period === 'year' ? PLUS_BETA_YEARLY_PRICE : PLUS_BETA_MONTHLY_PRICE,
+      currency: 'USD',
+      paymentId,
+      evmWallet: req.user?.evmWallet,
+    });
+  }
 
   await Promise.all([
     sendPlusSubscriptionSlackNotification({
@@ -235,6 +253,7 @@ export async function createNewPlusCheckoutSession(
   },
   req,
 ) {
+  const paymentId = uuidv4();
   const {
     wallet,
     likeWallet,
@@ -305,7 +324,7 @@ export async function createNewPlusCheckoutSession(
     metadata,
     mode: 'subscription',
     subscription_data: subscriptionData,
-    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&trial=${hasFreeTrial ? '1' : '0'}`,
+    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&payment_id=${paymentId}&trial=${hasFreeTrial ? '1' : '0'}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
@@ -315,5 +334,9 @@ export async function createNewPlusCheckoutSession(
     payload.customer_email = userEmail;
   }
   const session = await stripe.checkout.sessions.create(payload);
-  return session;
+  return {
+    session,
+    paymentId,
+    email: userEmail,
+  };
 }
