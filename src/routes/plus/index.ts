@@ -3,10 +3,13 @@ import { jwtAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
 import stripe from '../../util/stripe';
-import { BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../constant';
+import {
+  BOOK3_HOSTNAME, PLUS_BETA_MONTHLY_PRICE, PLUS_BETA_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+} from '../../constant';
 import { createNewPlusCheckoutSession } from '../../util/api/plus';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
+import logPixelEvents from '../../util/fbq';
 
 const router = Router();
 
@@ -38,7 +41,11 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (period !== 'yearly' && giftClassId) {
       throw new ValidationError('Gift subscriptions are only available for yearly plans.', 400);
     }
-    const session = await createNewPlusCheckoutSession(
+    const {
+      session,
+      paymentId,
+      email,
+    } = await createNewPlusCheckoutSession(
       {
         period: period as 'monthly' | 'yearly',
         hasFreeTrial,
@@ -69,6 +76,21 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       url: session.url,
     });
 
+    await logPixelEvents('InitiateCheckout', {
+      email,
+      items: [{
+        productId: `plus-beta-${period}`,
+        quantity: 1,
+      }],
+      userAgent,
+      clientIp,
+      value: period === 'yearly' ? PLUS_BETA_YEARLY_PRICE : PLUS_BETA_MONTHLY_PRICE,
+      currency: 'USD',
+      paymentId,
+      referrer,
+      fbClickId,
+      evmWallet: req.user?.evmWallet,
+    });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionCreated',
       sessionId: session.id,
