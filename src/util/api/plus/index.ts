@@ -64,6 +64,7 @@ export async function processStripeSubscriptionInvoice(
     utmSource,
     utmMedium,
     paymentId,
+    isUpgradingPrice,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -82,13 +83,18 @@ export async function processStripeSubscriptionInvoice(
   const amountPaid = invoice.amount_paid / 100;
 
   let giftCartId = '';
-  if (isSubscriptionCreation && isYearlySubscription && giftClassId && !existingGiftCartId) {
+  if ((isSubscriptionCreation || isUpgradingPrice)
+      && isYearlySubscription
+      && giftClassId
+      && !existingGiftCartId) {
     try {
       giftCartId = uuidv4();
+      const metadata: Stripe.MetadataParam = {
+        giftCartId,
+      };
+      if (isUpgradingPrice) metadata.isUpgradingPrice = '';
       await stripe.subscriptions.update(subscriptionId, {
-        metadata: {
-          giftCartId,
-        },
+        metadata,
       });
       const result = await createFreeBookCartFromSubscription({
         cartId: giftCartId,
@@ -336,4 +342,34 @@ export async function createNewPlusCheckoutSession(
     paymentId,
     email: userEmail,
   };
+}
+
+export async function updateSubscriptionPeriod(
+  subscriptionId: string,
+  period: 'monthly' | 'yearly',
+  {
+    giftClassId,
+    giftPriceIndex,
+  }: {
+    giftClassId?: string;
+    giftPriceIndex?: string;
+  },
+) {
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const { metadata } = subscription;
+  if (giftClassId) metadata.giftClassId = giftClassId;
+  if (giftPriceIndex) metadata.giftPriceIndex = giftPriceIndex;
+  if (period === 'yearly') metadata.isUpgradingPrice = 'true';
+  await stripe.subscriptions.update(
+    subscriptionId,
+    {
+      items: [
+        {
+          id: subscription.items.data[0].id,
+          price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+        },
+      ],
+      metadata,
+    },
+  );
 }
