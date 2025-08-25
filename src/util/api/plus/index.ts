@@ -71,11 +71,6 @@ export async function processStripeSubscriptionInvoice(
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return;
   }
-  if (existingGiftCartId) {
-    // eslint-disable-next-line no-console
-    console.warn('Gift cart already exists, skipping cart creation.');
-    return;
-  }
 
   const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
   const price = invoice.amount_paid / 100;
@@ -86,7 +81,7 @@ export async function processStripeSubscriptionInvoice(
   const isYearlySubscription = item.plan.interval === 'year';
   const amountPaid = invoice.amount_paid / 100;
 
-  if (isSubscriptionCreation && isYearlySubscription && giftClassId) {
+  if (isSubscriptionCreation && isYearlySubscription && giftClassId && !existingGiftCartId) {
     try {
       const giftCartId = uuidv4();
       await stripe.subscriptions.update(subscriptionId, {
