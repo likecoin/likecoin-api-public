@@ -124,9 +124,12 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
   try {
     const { wallet } = req.user;
     const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    if (!userInfo?.likerPlus) {
+      throw new ValidationError('No Liker Plus subscription found for this user.', 404);
+    }
     const { subscriptionId } = userInfo.likerPlus;
     if (!subscriptionId) {
-      throw new ValidationError('No subscription found for this user.', 404);
+      throw new ValidationError('No subscription Id found for this user.', 404);
     }
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const metadata = subscription.metadata || {};
