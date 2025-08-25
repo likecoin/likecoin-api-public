@@ -6,7 +6,7 @@ import stripe from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_BETA_MONTHLY_PRICE, PLUS_BETA_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../constant';
-import { createNewPlusCheckoutSession } from '../../util/api/plus';
+import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logPixelEvents from '../../util/fbq';
@@ -116,6 +116,39 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       evmWallet: req.user?.evmWallet,
       error: (error as Error).message,
     });
+    next(error);
+  }
+});
+
+router.post('/price', jwtAuth('write:plus'), async (req, res, next) => {
+  const {
+    period,
+    giftClassId,
+    giftPriceIndex = '0',
+  } = req.body;
+  try {
+    // Validate and update the subscription plan
+    if (period !== 'monthly' && period !== 'yearly') {
+      throw new ValidationError('Invalid subscription period.', 400);
+    }
+    if (giftClassId && period !== 'yearly') {
+      throw new ValidationError('Gift books are only available for yearly plans.', 400);
+    }
+    const { wallet } = req.user;
+    const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    const { subscriptionId, period: existingPeriod } = userInfo.likerPlus;
+    if (!subscriptionId) {
+      throw new ValidationError('No subscription found for this user.', 404);
+    }
+    if (period === `${existingPeriod}ly`) {
+      throw new ValidationError('Subscription period is already set to this value.', 400);
+    }
+    await updateSubscriptionPeriod(subscriptionId, period, {
+      giftClassId,
+      giftPriceIndex,
+    });
+    res.sendStatus(200);
+  } catch (error) {
     next(error);
   }
 });
