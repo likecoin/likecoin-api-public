@@ -371,7 +371,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       minPrice,
       maxPrice,
       imageURL: image,
-      author,
+      author: typeof author === 'string' ? author : author?.name || '',
       publisher,
       language: inLanguage,
       keywords,
