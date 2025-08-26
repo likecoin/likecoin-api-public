@@ -961,6 +961,9 @@ export async function createFreeBookCartFromSubscription({
     likerLandArtFee: 0,
     customPriceDiffInDecimal: 0,
   };
+  const utmCampaign = 'liker-plus';
+  const utmSource = 'liker-plus';
+  const utmMedium = 'subscription';
   await processNFTBookCart({
     itemInfos,
     itemPrices,
@@ -970,15 +973,25 @@ export async function createFreeBookCartFromSubscription({
     paymentId,
     evmWallet,
     claimToken,
-    utmCampaign: 'liker-plus',
-    utmSource: 'liker-plus',
-    utmMedium: 'subscription',
+    utmCampaign,
+    utmSource,
+    utmMedium,
     site: '3ook.com',
   }, {
     amountTotal: 0,
     email,
     phone,
   }, null);
+  publisher.publish(PUBSUB_TOPIC_MISC, null, {
+    logType: 'FreeBookCartCreated',
+    cartId,
+    paymentId,
+    evmWallet,
+    email,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+  });
   return {
     cartId,
     paymentId,
