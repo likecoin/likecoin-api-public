@@ -862,6 +862,79 @@ export async function createFreeBookCartFromSubscription({
   };
 }
 
+export async function createFreeBookCartForFreeIds({
+  evmWallet,
+  classIds,
+  email,
+}) {
+  const cartId = uuidv4();
+  const paymentId = cartId;
+  const claimToken = uuidv4();
+  const cartItems = classIds.map((classId) => ({
+    classId,
+    priceIndex: 0,
+    priceInDecimal: 0,
+  }));
+  // eslint-disable-next-line no-use-before-define
+  const itemInfos = await formatCartItemsWithInfo(cartItems);
+  const itemPrices = await calculateItemPrices(itemInfos, NFT_BOOK_DEFAULT_FROM_CHANNEL);
+  if (itemInfos.some((item) => item.originalPriceInDecimal > 0)) {
+    throw new ValidationError('FREE_BOOK_CART_ITEM_PRICE_NOT_FREE');
+  }
+  const totalFeeInfo: TransactionFeeInfo = {
+    priceInDecimal: 0,
+    originalPriceInDecimal:
+      itemPrices.reduce((acc, item) => acc + item.originalPriceInDecimal * item.quantity, 0),
+    stripeFeeAmount: 0,
+    likerLandTipFeeAmount: 0,
+    likerLandFeeAmount: 0,
+    likerLandCommission: 0,
+    channelCommission: 0,
+    likerLandArtFee: 0,
+    customPriceDiffInDecimal: 0,
+  };
+  await db.runTransaction(async (t) => {
+    const query = await t.get(likeNFTBookCartCollection.where('classIds', '==', classIds));
+    if (!query.empty) {
+      throw new ValidationError('CART_ALREADY_EXISTS');
+    }
+    t.create(likeNFTBookCartCollection.doc(`${cartId}-lock`), {
+      classIds,
+      status: 'pending',
+      timestamp: FieldValue.serverTimestamp(),
+    });
+  });
+  try {
+    await processNFTBookCart({
+      itemInfos,
+      itemPrices,
+      totalFeeInfo,
+    }, {
+      cartId,
+      paymentId,
+      evmWallet,
+      claimToken,
+      utmCampaign: 'free-books',
+      utmSource: 'free-books',
+      utmMedium: 'free-books',
+      site: '3ook.com',
+    }, {
+      amountTotal: 0,
+      email,
+    }, null);
+    return {
+      cartId,
+      paymentId,
+      claimToken,
+    };
+  } finally {
+    likeNFTBookCartCollection.doc(`${cartId}-lock`).delete().catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to release cart lock:', error);
+    });
+  }
+}
+
 export async function formatCartItemsWithInfo(items: CartItem[]) {
   const itemInfos: CartItemWithInfo[] = await Promise.all(items.map(async (item) => {
     let { classId } = item;
