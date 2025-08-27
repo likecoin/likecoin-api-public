@@ -821,6 +821,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmMedium,
   utmSource,
   utmCampaign,
+  giftCartId,
 }: {
   subscriptionId: string;
   customerId: string;
@@ -845,6 +846,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmCampaign?: string;
   utmMedium?: string;
   utmSource?: string;
+  giftCartId?: string;
 }): Promise<void> {
   try {
     const fields: Partial<FieldSet> = {
@@ -872,6 +874,7 @@ export async function createAirtableSubscriptionPaymentRecord({
       'UTM Campaign': utmCampaign || '',
       'UTM Medium': utmMedium || '',
       'UTM Source': utmSource || '',
+      'Gift Cart ID': giftCartId || '',
     };
     await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (error) {
