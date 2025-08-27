@@ -81,9 +81,10 @@ export async function processStripeSubscriptionInvoice(
   const isYearlySubscription = item.plan.interval === 'year';
   const amountPaid = invoice.amount_paid / 100;
 
+  let giftCartId = '';
   if (isSubscriptionCreation && isYearlySubscription && giftClassId && !existingGiftCartId) {
     try {
-      const giftCartId = uuidv4();
+      giftCartId = uuidv4();
       await stripe.subscriptions.update(subscriptionId, {
         metadata: {
           giftCartId,
@@ -186,6 +187,7 @@ export async function processStripeSubscriptionInvoice(
       utmCampaign,
       utmMedium,
       utmSource,
+      giftCartId,
     }),
   ]);
 
