@@ -219,5 +219,5 @@ export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 export const CACHE_BUCKET = IS_TESTNET ? 'liker-land-ebook-cache-dev' : 'liker-land-ebook-cache-main';
 export const MAX_PNG_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
-export const PLUS_BETA_MONTHLY_PRICE = 6.99;
-export const PLUS_BETA_YEARLY_PRICE = 69.99;
+export const PLUS_MONTHLY_PRICE = 9.99;
+export const PLUS_YEARLY_PRICE = 99.99;

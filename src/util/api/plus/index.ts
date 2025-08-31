@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  BOOK3_HOSTNAME, PLUS_BETA_MONTHLY_PRICE, PLUS_BETA_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import stripe from '../../stripe';
@@ -148,10 +148,10 @@ export async function processStripeSubscriptionInvoice(
     await logPixelEvents('Purchase', {
       email: stripeCustomer.email || undefined,
       items: [{
-        productId: `plus-beta-${period}ly`,
+        productId: `plus-${period}ly`,
         quantity: 1,
       }],
-      value: period === 'year' ? PLUS_BETA_YEARLY_PRICE : PLUS_BETA_MONTHLY_PRICE,
+      value: period === 'year' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
       currency: 'USD',
       paymentId,
       evmWallet: req.user?.evmWallet,
