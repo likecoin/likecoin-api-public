@@ -4,7 +4,7 @@ import { ValidationError } from '../../util/ValidationError';
 import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
 import stripe from '../../util/stripe';
 import {
-  BOOK3_HOSTNAME, PLUS_BETA_MONTHLY_PRICE, PLUS_BETA_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../constant';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import publisher from '../../util/gcloudPub';
@@ -79,12 +79,12 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     await logPixelEvents('InitiateCheckout', {
       email,
       items: [{
-        productId: `plus-beta-${period}`,
+        productId: `plus-${period}`,
         quantity: 1,
       }],
       userAgent,
       clientIp,
-      value: period === 'yearly' ? PLUS_BETA_YEARLY_PRICE : PLUS_BETA_MONTHLY_PRICE,
+      value: period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
       currency: 'USD',
       paymentId,
       referrer,
