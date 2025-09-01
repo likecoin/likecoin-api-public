@@ -12,6 +12,10 @@ const router = Router();
 router.get('/profile', jwtAuth('profile'), async (req, res, next) => {
   try {
     const username = req.user.user;
+    if (!username) {
+      res.sendStatus(400);
+      return;
+    }
     const payload = await getUserWithCivicLikerProperties(username);
     if (payload) {
       const scopes = (req.user.scope || []).concat(req.user.permissions || []);
