@@ -351,7 +351,7 @@ export async function updateAirtablePublicationRecord({
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(err);
+    console.error('Failed to update Airtable publication record:', err);
   }
 }
 
