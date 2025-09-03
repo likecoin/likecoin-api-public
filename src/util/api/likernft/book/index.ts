@@ -383,7 +383,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     });
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('Failed to update Airtable publication record:', err);
+    console.error('Failed to sync NFT Book info with Airtable publication record:', err);
   }
 }
 
