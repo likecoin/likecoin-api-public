@@ -13,7 +13,6 @@ import {
   FIRESTORE_CONFIG_ROOT,
   FIRESTORE_OAUTH_CLIENT_ROOT,
   FIRESTORE_LIKER_NFT_ROOT,
-  FIRESTORE_LIKER_NFT_FIAT_ROOT,
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
   FIRESTORE_NFT_FREE_MINT_TX_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
@@ -52,7 +51,6 @@ export const couponCollection = getCollectionIfDefined(FIRESTORE_COUPON_ROOT);
 export const configCollection = getCollectionIfDefined(FIRESTORE_CONFIG_ROOT);
 export const oAuthClientCollection = getCollectionIfDefined(FIRESTORE_OAUTH_CLIENT_ROOT);
 export const likeNFTCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_ROOT);
-export const likeNFTFiatCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_FIAT_ROOT);
 export const likeNFTSubscriptionUserCollection = getCollectionIfDefined(
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
 );

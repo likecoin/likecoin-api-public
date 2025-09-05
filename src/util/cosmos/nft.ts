@@ -10,7 +10,6 @@ import { getISCNPrefix } from './iscn';
 import {
   LIKER_NFT_PRIVATE_KEY,
   LIKER_NFT_FIAT_PRIVATE_KEY,
-  LIKER_NFT_PENDING_CLAIM_PRIVATE_KEY,
 } from '../../../config/secret';
 import { NFT_RPC_ENDPOINT, NFT_SIGNING_RPC_ENDPOINT } from '../../../config/config';
 
@@ -135,13 +134,6 @@ export async function getLikerNFTFiatSigningClientAndWallet() {
   if (!LIKER_NFT_FIAT_PRIVATE_KEY) throw new Error('PRIVATE_KEY_NOT_SET');
   const { client, wallet } = await createNFTSigningClient(LIKER_NFT_FIAT_PRIVATE_KEY);
   return { client, wallet };
-}
-
-export async function getLikerNFTPendingClaimSigningClientAndWallet() {
-  if (!LIKER_NFT_PENDING_CLAIM_PRIVATE_KEY) throw new Error('PRIVATE_KEY_NOT_SET');
-  const { client, wallet } = await createNFTSigningClient(LIKER_NFT_PENDING_CLAIM_PRIVATE_KEY);
-  const { accountNumber } = await getNFTAccountInfo(wallet.address);
-  return { client, wallet, accountNumber: accountNumber.toNumber() };
 }
 
 export async function getLikerNFTSigningAddressInfo() {
