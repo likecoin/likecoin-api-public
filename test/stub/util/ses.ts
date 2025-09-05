@@ -16,24 +16,6 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
   return Promise.resolve();
 }
 
-/* istanbul ignore next */
-export function sendAutoClaimEmail({
-  email, classIds, firstClassName, wallet,
-}) {
-  return Promise.resolve();
-}
-
-/* istanbul ignore next */
-export function sendPendingClaimEmail({
-  email,
-  classIds,
-  firstClassName,
-  paymentId,
-  claimToken,
-}) {
-  return Promise.resolve();
-}
-
 export function sendNFTBookCartPendingClaimEmail({
   email,
   cartId,

@@ -216,7 +216,6 @@ export const payoutCollection = createCollection([]);
 export const configCollection = createCollection([]);
 export const oAuthClientCollection = createCollection([]);
 export const likeNFTCollection = createCollection(likerNftData);
-export const likeNFTFiatCollection = createCollection([]);
 export const likeNFTSubscriptionUserCollection = createCollection([]);
 export const likeNFTSubscriptionTxCollection = createCollection([]);
 export const likeNFTFreeMintTxCollection = createCollection([]);

@@ -391,63 +391,6 @@ export const getLikerLandNFTGiftPageURL = ({
   return getLikerLandURL(`/nft/gift?${qs}`, { language });
 };
 
-export const getLikerLandNFTFiatStripePurchasePageURL = ({
-  classId,
-  paymentId,
-  token,
-  language,
-  utmCampaign,
-  utmSource,
-  utmMedium,
-  gaClientId,
-  gaSessionId,
-  gadClickId,
-  gadSource,
-}: {
-  classId: string;
-  paymentId: string;
-  token: string;
-  language?: string;
-  utmCampaign?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  gaClientId?: string;
-  gaSessionId?: string;
-  gadClickId?: string;
-  gadSource?: string;
-}) => {
-  const qsPayload: any = {
-    payment_id: paymentId,
-    class_id: classId,
-  };
-  if (token) {
-    qsPayload.claiming_token = token;
-  }
-  if (utmCampaign) {
-    qsPayload.utm_campaign = utmCampaign;
-  }
-  if (utmSource) {
-    qsPayload.utm_source = utmSource;
-  }
-  if (utmMedium) {
-    qsPayload.utm_medium = utmMedium;
-  }
-  if (gaClientId) {
-    qsPayload.ga_client_id = gaClientId;
-  }
-  if (gaSessionId) {
-    qsPayload.ga_session_id = gaSessionId;
-  }
-  if (gadClickId) {
-    qsPayload.gclid = gadClickId;
-  }
-  if (gadSource) {
-    qsPayload.gad_source = gadSource;
-  }
-  const qs = new URLSearchParams(qsPayload).toString();
-  return getLikerLandURL(`/nft/fiat/stripe?${qs}`, { language });
-};
-
 export async function findLikerLandWalletUserWithVerifiedEmail(email) {
   try {
     const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
