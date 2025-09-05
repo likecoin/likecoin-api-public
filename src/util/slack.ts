@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-import { getLikerLandNFTClassPageURL, getLikerLandNFTCollectionPageURL } from './liker-land';
-import { getNFTBookStoreCollectionSendPageURL, getNFTBookStoreSendPageURL } from './api/likernft/book';
+import { getLikerLandNFTClassPageURL } from './liker-land';
+import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
   IS_TESTNET,
@@ -145,7 +145,6 @@ export async function sendNFTBookNewListingSlackNotification({
 
 export async function sendNFTBookSalesSlackNotification({
   classId = '',
-  collectionId,
   bookName,
   paymentId,
   email,
@@ -155,7 +154,6 @@ export async function sendNFTBookSalesSlackNotification({
   from = '',
 } : {
   classId?: string;
-  collectionId?: string;
   bookName: string;
   paymentId: string;
   email: string | null;
@@ -166,12 +164,8 @@ export async function sendNFTBookSalesSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = collectionId
-      ? getLikerLandNFTCollectionPageURL({ collectionId })
-      : getLikerLandNFTClassPageURL({ classId });
-    const paymentLink = collectionId
-      ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
-      : getNFTBookStoreSendPageURL(classId, paymentId);
+    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const paymentLink = getNFTBookStoreSendPageURL(classId, paymentId);
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       className: bookName,
@@ -241,7 +235,6 @@ export async function sendPlusSubscriptionSlackNotification({
 
 export async function sendNFTBookInvalidChannelIdSlackNotification({
   classId = '',
-  collectionId,
   bookName,
   email,
   from = '',
@@ -252,7 +245,6 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
   paymentIntentId,
 } : {
   classId?: string;
-  collectionId?: string;
   bookName: string;
   email: string | null;
   from?: string;
@@ -264,9 +256,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = collectionId
-      ? getLikerLandNFTCollectionPageURL({ collectionId })
-      : getLikerLandNFTClassPageURL({ classId });
+    const classLink = getLikerLandNFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
 
@@ -291,7 +281,6 @@ export async function sendNFTBookOutOfStockSlackNotification({
   priceIndex,
   notificationEmails,
   classId = '',
-  collectionId = '',
   wallet,
   className,
   stock,
@@ -299,7 +288,6 @@ export async function sendNFTBookOutOfStockSlackNotification({
 }: {
   wallet: string;
   classId?: string;
-  collectionId?: string;
   className: string;
   priceIndex: number;
   notificationEmails: string[];
@@ -308,9 +296,7 @@ export async function sendNFTBookOutOfStockSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = collectionId
-      ? getLikerLandNFTCollectionPageURL({ collectionId })
-      : getLikerLandNFTClassPageURL({ classId });
+    const classLink = getLikerLandNFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       priceIndex,
@@ -518,7 +504,6 @@ export function createPaymentSlackBlocks({
   transactions,
   emailOrWallet = '',
   classId = '',
-  collectionId = '',
   cartId = '',
   paymentId = '',
   status = '',
@@ -526,7 +511,6 @@ export function createPaymentSlackBlocks({
   const contextArray = [
     emailOrWallet && `for ${emailOrWallet}`,
     classId && `in class ${classId}`,
-    collectionId && `in collection ${collectionId}`,
     cartId && `in cart ${cartId}`,
     paymentId && `for payment ${paymentId}`,
     status && `with status ${status}`,
