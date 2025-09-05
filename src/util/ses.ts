@@ -390,70 +390,6 @@ export async function sendNFTBookCartPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookPhysicalOnlyEmail({
-  email,
-  classId = '',
-  collectionId = '',
-  bookName,
-  priceName = '',
-  site = '',
-}) {
-  if (TEST_MODE) return Promise.resolve();
-  const titleEn = 'Thank you for your purchase!';
-  const titleZh = '購買成功';
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'en', site });
-  const nftPageURLZh = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
-  const params = {
-    Source: SYSTEM_EMAIL,
-    ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
-    ConfigurationSetName: 'likeco_ses',
-    Tags: [
-      {
-        Name: 'Function',
-        Value: 'sendNFTBookPendingClaimEmail',
-      },
-    ],
-    Destination: {
-      ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
-    },
-    Message: {
-      Subject: {
-        Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
-      },
-      Body: {
-        Html: {
-          Charset: 'UTF-8',
-          Data: getNFTTwoContentWithMessageAndButtonTemplate({
-            title1: titleZh,
-            content1: `<p>親愛的讀者：</p>
-            <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》- ${priceName}</a>。
-            <br>我們會安排寄送，所需大約 3-5 天時間。感謝支持！</p>
-            <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
-            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>3ook.com 書店</p>`,
-
-            // English version
-            title2: titleEn,
-            content2: `<p>Dear reader,</p>
-            <p>Thank you for your support and purchasing "<a href="${nftPageURLEn}">"${bookName}"- ${priceName}</a>".
-            <br>We will arrange delivery, which will take about 3-5 days. Thank you for your support!</p>
-            <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
-            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>3ook.com Bookstore</p>`,
-          }).body,
-        },
-      },
-    },
-  };
-  return ses.sendEmail(params).promise();
-}
-
 export function sendNFTBookGiftPendingClaimEmail({
   fromName,
   toName,
@@ -658,80 +594,6 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookShippedEmail({
-  email,
-  classId = '',
-  collectionId = '',
-  bookName,
-  message,
-  site,
-}: {
-  email: string;
-  classId?: string;
-  collectionId?: string;
-  bookName: string;
-  message: string;
-  site?: string;
-}) {
-  if (TEST_MODE) return Promise.resolve();
-  const titleEn = 'Your NFT Book physical merch has been shipped';
-  const titleZh = '你的 NFT 書實體商品已發送';
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'en', site });
-  const nftPageURLZh = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
-  const params = {
-    Source: SYSTEM_EMAIL,
-    ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
-    ConfigurationSetName: 'likeco_ses',
-    Tags: [
-      {
-        Name: 'Function',
-        Value: 'sendNFTBookShippedEmail',
-      },
-    ],
-    Destination: {
-      ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
-    },
-    Message: {
-      Subject: {
-        Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
-      },
-      Body: {
-        Html: {
-          Charset: 'UTF-8',
-          Data: getNFTTwoContentWithMessageAndButtonTemplate({
-            title1: titleZh,
-            content1: `<p>親愛的讀者：</p>
-            <p>感謝購買<a href="${nftPageURLZh}">《${bookName}》</a>。
-            <br>你的實體商品已發送，以下是作者提供的資訊：</p>`,
-            messageContent1: message,
-            append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
-            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>3ook.com 書店</p>`,
-
-            // English version
-            title2: titleEn,
-            content2: `<p>Dear reader,</p>
-            <p>Thank you for your support and purchasing "<a href="${nftPageURLEn}">"${bookName}"</a>".
-            <br>The physical merchanise that come with your book has been shipped,
-            following is the message provided by author.</p>`,
-            messageContent2: message,
-            append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
-            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>3ook.com Bookstore</p>`,
-          }).body,
-        },
-      },
-    },
-  };
-  return ses.sendEmail(params).promise();
-}
-
 export function sendNFTBookGiftClaimedEmail({
   bookName,
   fromEmail,
@@ -852,9 +714,6 @@ export function sendNFTBookSalesEmail({
   amount,
   quantity,
   originalPrice,
-  phone,
-  shippingDetails,
-  shippingCostAmount = 0,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `You have sold a Book for $${amount}`;
@@ -865,21 +724,7 @@ export function sendNFTBookSalesEmail({
   const hasTipping = amount > (originalPrice * quantity);
   content += `<p>Price: $${originalPrice} x ${quantity}</p>`;
   if (hasTipping) {
-    content += `<p>Tip: $${amount - originalPrice * quantity - shippingCostAmount}</p>`;
-  }
-  if (shippingCostAmount) {
-    content += `<p>Shipping paid: $${shippingCostAmount}</p>`;
-  }
-  if (shippingDetails) {
-    content += `<p>Shipping details: <pre>
-${shippingDetails.name}
-${['line1', 'line2', 'city', 'state', 'country', 'postal_code']
-    .map((key) => shippingDetails.address[key])
-    .filter(Boolean)
-    .join(',\n')
-}
-</pre></p>`;
-    content += `<p>Phone: ${phone}</p>`;
+    content += `<p>Tip: $${amount - originalPrice * quantity}</p>`;
   }
   content += `<p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
   <br/>
@@ -938,8 +783,6 @@ export function sendNFTBookSalePaymentsEmail({
         return `Royalty: ${roundedCurrency}`;
       case 'channelCommission':
         return `Commission: ${roundedCurrency}`;
-      case 'shipping':
-        return `Shipping: ${roundedCurrency}`;
       default:
         return `Unknown: ${roundedCurrency}`;
     }
