@@ -18,6 +18,7 @@ import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
 import { verifyEmailByMagicDIDToken } from '../../util/magic';
+import { createIntercomToken } from '../../util/intercom';
 
 const router = Router();
 
@@ -77,8 +78,21 @@ router.post('/authorize', async (req, res, next) => {
       expiresIn,
       isEVMWallet,
     });
+    let intercomToken: string | undefined;
+    if (payload.user) {
+      intercomToken = createIntercomToken({
+        user_id: payload.user,
+        email: likerIdInfo.email,
+        evm_wallet: payload.evmWallet,
+        is_liker_plus: Boolean(likerIdInfo.isLikerPlus),
+      });
+    }
 
-    res.json({ jwtid, token });
+    res.json({
+      jwtid,
+      token,
+      intercomToken,
+    });
   } catch (err) {
     next(err);
   }
