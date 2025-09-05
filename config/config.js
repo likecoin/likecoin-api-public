@@ -104,6 +104,8 @@ config.STRIPE_WEBHOOK_SECRET = '';
 config.FB_PIXEL_ID = '';
 config.FB_ACCESS_TOKEN = '';
 
+config.INTERCOM_API_SECRET = '';
+
 config.MATTERS_APP_ID = '';
 config.MATTERS_APP_SECRET = '';
 
