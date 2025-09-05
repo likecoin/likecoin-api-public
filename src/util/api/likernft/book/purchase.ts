@@ -53,7 +53,6 @@ import {
 
 export async function handleStripeConnectedAccount({
   classId = '',
-  collectionId = '',
   priceIndex = -1,
   paymentId,
   ownerWallet,
@@ -64,7 +63,6 @@ export async function handleStripeConnectedAccount({
   site,
 }: {
   classId?: string,
-  collectionId?: string,
   priceIndex?: number,
   paymentId: string,
   ownerWallet: string,
@@ -98,7 +96,6 @@ export async function handleStripeConnectedAccount({
     ownerWallet,
   };
   if (classId) metadata.classId = classId;
-  if (collectionId) metadata.collectionId = collectionId;
   if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
   const emailMap = {};
   if (channelCommission) {
@@ -158,7 +155,6 @@ export async function handleStripeConnectedAccount({
             ownerWallet,
             classId,
             priceIndex,
-            collectionId,
             transferId: transfer.id,
             chargeId,
             stripeConnectAccountId,
@@ -263,7 +259,6 @@ export async function handleStripeConnectedAccount({
               ownerWallet,
               classId,
               priceIndex,
-              collectionId,
               transferId: transfer.id,
               chargeId,
               stripeConnectAccountId,
@@ -334,7 +329,6 @@ export async function handleStripeConnectedAccount({
           ownerWallet,
           classId,
           priceIndex,
-          collectionId,
           transferId: transfer.id,
           chargeId,
           stripeConnectAccountId,
@@ -356,7 +350,6 @@ export async function handleStripeConnectedAccount({
     .map(([email, payments]) => sendNFTBookSalePaymentsEmail({
       email,
       classId,
-      collectionId,
       paymentId,
       bookName,
       payments,
@@ -625,7 +618,6 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
       };
       if (item.classId) payload.classId = item.classId;
       if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.collectionId) payload.collectionId = item.collectionId;
       if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
       return payload;
     },
@@ -637,7 +629,6 @@ export async function formatStripeCheckoutSession({
   classId,
   iscnPrefix,
   cartId,
-  collectionId,
   paymentId,
   priceIndex,
   email,
@@ -664,7 +655,6 @@ export async function formatStripeCheckoutSession({
   classId?: string,
   iscnPrefix?: string,
   cartId?: string,
-  collectionId?: string,
   priceIndex?: number,
   paymentId: string,
   email?: string,
@@ -713,7 +703,6 @@ export async function formatStripeCheckoutSession({
   if (classId) sessionMetadata.classId = classId;
   if (iscnPrefix) sessionMetadata.iscnPrefix = iscnPrefix;
   if (priceIndex !== undefined) sessionMetadata.priceIndex = priceIndex.toString();
-  if (collectionId) sessionMetadata.collectionId = collectionId;
   if (claimToken) sessionMetadata.claimToken = claimToken;
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
@@ -796,7 +785,6 @@ export async function formatStripeCheckoutSession({
     const productMetadata: Stripe.MetadataParam = {};
     if (item.classId) productMetadata.classId = item.classId;
     if (item.iscnPrefix) productMetadata.iscnPrefix = item.iscnPrefix;
-    if (item.collectionId) productMetadata.collectionId = item.collectionId;
 
     if (item.stripePriceId) {
       lineItems.push({
@@ -832,7 +820,7 @@ export async function formatStripeCheckoutSession({
             name: 'Extra Tip',
             description: 'Fund will be distributed to stakeholders and creators',
             metadata: {
-              tippingFor: item.collectionId || item.classId || 'unknown',
+              tippingFor: item.classId || 'unknown',
               ...productMetadata,
             },
           },
@@ -946,7 +934,6 @@ export async function sendNFTBookPurchaseEmail({
   email,
   notificationEmails,
   classId = '',
-  collectionId = '',
   bookName,
   priceName,
   paymentId,
@@ -985,7 +972,6 @@ export async function sendNFTBookPurchaseEmail({
       toEmail,
       message,
       classId,
-      collectionId,
       bookName,
       paymentId,
       claimToken,
@@ -995,7 +981,6 @@ export async function sendNFTBookPurchaseEmail({
     await sendNFTBookPendingClaimEmail({
       email,
       classId,
-      collectionId,
       bookName,
       paymentId,
       claimToken,

@@ -423,8 +423,6 @@ export function filterBookPurchaseData({
   quantity = 1,
   classIds,
   classIdsWithPrice,
-  collectionIds,
-  collectionIdsWithPrice,
 }) {
   return {
     id,
@@ -459,8 +457,6 @@ export function filterBookPurchaseData({
     quantity,
     classIds,
     classIdsWithPrice,
-    collectionIds,
-    collectionIdsWithPrice,
   };
 }
 
