@@ -1,5 +1,4 @@
 export type CartItem = {
-  collectionId?: string
   classId?: string
   priceIndex?: number
   customPriceInDecimal?: number
@@ -22,7 +21,6 @@ export type CartItemWithInfo = CartItem & {
   shippingRates: any[],
   isLikerLandArt: boolean;
   originalPriceInDecimal: number,
-  collectionId?: string,
   classId?: string,
   priceIndex?: number,
   iscnPrefix?: string,
@@ -46,7 +44,6 @@ export type ItemPriceInfo = {
   classId?: string;
   priceIndex?: number;
   iscnPrefix?: string;
-  collectionId?: string;
   stripePriceId?: string;
 }
 
