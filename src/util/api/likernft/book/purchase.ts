@@ -8,10 +8,8 @@ import BigNumber from 'bignumber.js';
 import { getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
-  LIST_OF_BOOK_SHIPPING_COUNTRY,
   PUBSUB_TOPIC_MISC,
   LIKER_LAND_WAIVED_CHANNEL,
-  NFT_BOOK_TEXT_DEFAULT_LOCALE,
   BOOK3_HOSTNAME,
 } from '../../../../constant';
 import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
@@ -39,7 +37,6 @@ import {
   sendNFTBookPendingClaimEmail,
   sendNFTBookSalesEmail,
   sendNFTBookClaimedEmail,
-  sendNFTBookPhysicalOnlyEmail,
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
@@ -59,7 +56,6 @@ export async function handleStripeConnectedAccount({
   bookName,
   buyerEmail,
   paymentIntentId,
-  shippingCostAmountInDecimal,
   site,
 }: {
   classId?: string,
@@ -69,7 +65,6 @@ export async function handleStripeConnectedAccount({
   bookName: string,
   buyerEmail: string | null,
   paymentIntentId: string,
-  shippingCostAmountInDecimal?: number,
   site?: string,
 }, {
   chargeId = '',
@@ -233,16 +228,13 @@ export async function handleStripeConnectedAccount({
             } = userInfo;
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
-            const shippingCostSplit = Math.floor(
-              ((shippingCostAmountInDecimal || 0) * connectedWallets[wallet]) / totalSplit,
-            );
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
               currency,
               destination: userInfo.stripeConnectAccountId,
               transfer_group: paymentId,
               source_transaction: chargeId,
-              description: `Connected commission${shippingCostSplit ? ' and shipping' : ''} for ${bookName}`,
+              description: `Connected commission for ${bookName}`,
               metadata: {
                 type: 'connectedWallet',
                 ...metadata,
@@ -277,18 +269,11 @@ export async function handleStripeConnectedAccount({
               && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
-              const shippingAmount = shippingCostSplit / 100;
-              const walletAmount = amountSplit / 100 - shippingAmount;
+              const walletAmount = amountSplit / 100;
               emailMap[email].push({
                 amount: walletAmount,
                 type: 'connectedWallet',
               });
-              if (shippingAmount) {
-                emailMap[email].push({
-                  amount: shippingAmount,
-                  type: 'shipping',
-                });
-              }
             }
             return transfer;
           }),
@@ -373,7 +358,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceIndex,
   giftInfo,
   from = '',
-  isPhysicalOnly = false,
   itemPrices,
   feeInfo,
 }: {
@@ -389,7 +373,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceName: string;
   priceIndex: number;
   from?: string;
-  isPhysicalOnly?: boolean,
   giftInfo?: {
     toName: string,
     toEmail: string,
@@ -404,7 +387,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
     email,
     isPaid: false,
     isPendingClaim: false,
-    isPhysicalOnly,
     claimToken,
     sessionId,
     classId,
@@ -446,9 +428,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 
 export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   email,
-  phone,
-  shippingDetails,
-  shippingCostAmount,
   execGrantTxHash,
 }) {
   const bookRef = likeNFTBookCollection.doc(classId);
@@ -469,7 +448,6 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     stock,
     isAutoDeliver,
     autoMemo = '',
-    hasShipping,
   } = priceInfo;
   if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
   priceInfo.stock -= quantity;
@@ -481,7 +459,6 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     status: 'paid',
     email,
   };
-  if (phone) paymentPayload.phone = phone;
   if (isAutoDeliver) {
     let nftIds: string[];
     if (isEVMClassId(classId)) {
@@ -500,12 +477,6 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     paymentPayload.nftIds = nftIds;
     paymentPayload.isAutoDeliver = true;
     paymentPayload.autoMemo = autoMemo;
-  }
-  if (hasShipping) {
-    paymentPayload.hasShipping = true;
-    paymentPayload.shippingStatus = 'pending';
-    if (shippingDetails) paymentPayload.shippingDetails = shippingDetails;
-    if (shippingCostAmount) paymentPayload.shippingCost = shippingCostAmount;
   }
   if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
 
@@ -543,10 +514,7 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
 export async function processNFTBookPurchase({
   classId,
   email,
-  phone,
   paymentId,
-  shippingDetails,
-  shippingCostAmount,
   execGrantTxHash = '',
 }) {
   const data = await db.runTransaction(async (t) => {
@@ -555,9 +523,6 @@ export async function processNFTBookPurchase({
       listingData,
     } = await processNFTBookPurchaseTxGet(t, classId, paymentId, {
       email,
-      phone,
-      shippingDetails,
-      shippingCostAmount,
       execGrantTxHash,
     });
     await processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
@@ -878,32 +843,6 @@ export async function formatStripeCheckoutSession({
     };
   }
   if (email && !customerId) checkoutPayload.customer_email = email;
-  const itemWithShipping = itemWithPrices.find((item) => item.hasShipping);
-
-  if (itemWithShipping) {
-    checkoutPayload.shipping_address_collection = {
-      // eslint-disable-next-line max-len
-      allowed_countries: LIST_OF_BOOK_SHIPPING_COUNTRY as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
-    };
-    checkoutPayload.phone_number_collection = { enabled: true };
-    if (itemWithShipping.shippingRates) {
-      checkoutPayload.shipping_options = itemWithShipping.shippingRates
-        .filter((s) => s?.name && s?.priceInDecimal >= 0)
-        .map((s) => {
-          const { name: shippingName, priceInDecimal: shippingPriceInDecimal } = s;
-          return {
-            shipping_rate_data: {
-              display_name: shippingName[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-              type: 'fixed_amount',
-              fixed_amount: {
-                amount: shippingPriceInDecimal,
-                currency: 'usd',
-              },
-            },
-          };
-        });
-    }
-  }
   let session;
   try {
     session = await stripe.checkout.sessions.create(checkoutPayload);
@@ -943,23 +882,11 @@ export async function sendNFTBookPurchaseEmail({
   isGift = false,
   giftInfo,
   mustClaimToView = false,
-  isPhysicalOnly = false,
-  shippingDetails,
-  phone = '',
-  shippingCostAmount = 0,
   originalPrice = amountTotal,
   from,
   site,
 }) {
-  if (isPhysicalOnly) {
-    await sendNFTBookPhysicalOnlyEmail({
-      email,
-      classId,
-      bookName,
-      priceName,
-      site,
-    });
-  } else if (isGift && giftInfo) {
+  if (isGift && giftInfo) {
     const {
       fromName,
       toName,
@@ -994,9 +921,6 @@ export async function sendNFTBookPurchaseEmail({
     giftToEmail: (giftInfo as any)?.toEmail,
     giftToName: (giftInfo as any)?.toName,
     emails: notificationEmails,
-    phone,
-    shippingDetails,
-    shippingCostAmount,
     originalPrice,
     bookName,
     amount: amountTotal,
@@ -1087,7 +1011,6 @@ export async function claimNFTBook(
     }
     const {
       claimToken,
-      isPhysicalOnly,
       status,
       wallet: claimedWallet,
     } = docData;
@@ -1104,9 +1027,6 @@ export async function claimNFTBook(
       }
       throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
     }
-    if (isPhysicalOnly) {
-      throw new ValidationError('CANNOT_CLAIM_PHYSICAL_ONLY', 409);
-    }
     t.update(docRef, {
       isPendingClaim: false,
       status: 'pendingNFT',
@@ -1114,7 +1034,7 @@ export async function claimNFTBook(
       message: message || '',
       loginMethod: loginMethod || '',
     });
-    if (!docData.isAutoDeliver || docData.hasShipping) {
+    if (!docData.isAutoDeliver) {
       t.update(bookRef, {
         pendingNFTCount: FieldValue.increment(1),
       });
@@ -1312,22 +1232,18 @@ export async function updateNFTBookPostDeliveryData({
   if (!paymentDocData) {
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
-  const { status, isPhysicalOnly, quantity: docQuantity = 1 } = paymentDocData;
+  const { status, quantity: docQuantity = 1 } = paymentDocData;
   if (quantity !== docQuantity) {
     throw new ValidationError('INVALID_QUANTITY', 400);
   }
   if (status === 'completed') {
     throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
   }
-  if (isPhysicalOnly) {
-    throw new ValidationError('CANNOT_SEND_PHYSICAL_ONLY', 409);
-  }
   t.update(paymentDocRef, {
     status: 'completed',
     txHash,
   });
-  const isPendingShipping = paymentDocData.hasShipping && paymentDocData.shippingStatus !== 'completed';
-  if (status === 'pendingNFT' && !isAutoDeliver && !isPendingShipping) {
+  if (status === 'pendingNFT' && !isAutoDeliver) {
     t.update(bookDocRef, {
       pendingNFTCount: FieldValue.increment(-1),
     });

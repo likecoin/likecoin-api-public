@@ -48,7 +48,6 @@ export async function handleGiftBook(
     priceInDecimal,
     stock,
     name: priceNameObj,
-    isPhysicalOnly = false,
   } = prices[priceIndex];
   const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
   if (stock <= 0 || stock < receivers.length) throw new ValidationError('OUT_OF_STOCK');
@@ -95,16 +94,12 @@ export async function handleGiftBook(
         fromName,
         message,
       },
-      isPhysicalOnly,
     });
 
     await processNFTBookPurchase({
       classId,
       email: gifterEmail,
-      phone: null,
       paymentId,
-      shippingDetails: null,
-      shippingCostAmount: 0,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -134,8 +129,6 @@ export async function handleGiftBook(
         amountTotal: 0,
         quantity: 1,
         mustClaimToView,
-        isPhysicalOnly,
-        shippingDetails: null,
         from: '',
         site,
       }),

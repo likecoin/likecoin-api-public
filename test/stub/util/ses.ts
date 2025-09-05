@@ -69,28 +69,6 @@ export function sendNFTBookCartGiftPendingClaimEmail({
 }
 
 /* istanbul ignore next */
-export function sendNFTBookPhysicalOnlyEmail({
-  email,
-  classId = '',
-  bookName,
-  priceName = '',
-  site = '',
-}) {
-  return Promise.resolve();
-}
-
-/* istanbul ignore next */
-export function sendNFTBookShippedEmail({
-  email,
-  classId = '',
-  bookName,
-  message,
-  site = '',
-}) {
-  return Promise.resolve();
-}
-
-/* istanbul ignore next */
 export function sendNFTBookGiftClaimedEmail({
   bookName,
   fromEmail,
@@ -137,9 +115,6 @@ export function sendNFTBookSalesEmail({
   amount,
   quantity,
   originalPrice,
-  phone,
-  shippingDetails,
-  shippingCostAmount,
 }) {
   return Promise.resolve();
 }
