@@ -620,7 +620,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       name,
       description,
       stock: isUnlisted ? 0 : pStock,
-      isSoldOut: pStock <= 0,
+      isSoldOut: isAutoDeliver ? false : pStock <= 0,
       isAutoDeliver,
       isUnlisted,
       autoMemo,
