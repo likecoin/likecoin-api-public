@@ -133,7 +133,6 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
     const list = moderatedBookInfos.map((b) => {
       const {
         prices: docPrices = [],
-        shippingRates,
         pendingNFTCount,
         id,
         ownerWallet,
@@ -142,7 +141,6 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
       const result: any = {
         classId: id,
         prices,
-        shippingRates,
         pendingNFTCount,
         stock,
         sold,
@@ -193,7 +191,6 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     }
     const {
       prices = [],
-      shippingRates,
       ownerWallet,
       moderatorWallets = [],
     } = bookInfo;
@@ -206,7 +203,6 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     }], isAuthorized);
     res.json({
       ownerWallet,
-      shippingRates,
       ...price,
     });
   } catch (err) {
@@ -348,7 +344,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       await stripe.products.update(oldPriceInfo.stripeProductId, {
         name: [name, getLocalizedTextWithFallback(newPriceInfo.name, 'zh')].filter(Boolean).join(' - '),
         description: [getLocalizedTextWithFallback(newPriceInfo.description, 'zh'), description].filter(Boolean).join('\n'),
-        shippable: !!newPriceInfo.hasShipping,
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
@@ -517,7 +512,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
-      shippingRates,
       mustClaimToView = false,
       hideDownload = false,
       hideAudio = false,
@@ -604,7 +598,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       notificationEmails,
       moderatorWallets,
       connectedWallets,
-      shippingRates,
       mustClaimToView,
       enableCustomMessagePage,
       tableOfContents,
@@ -692,7 +685,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       notificationEmails,
       moderatorWallets,
       connectedWallets,
-      shippingRates,
       mustClaimToView,
       hideDownload,
       hideAudio,
@@ -711,7 +703,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       notificationEmails,
       moderatorWallets,
       connectedWallets,
-      shippingRates,
       mustClaimToView,
       hideDownload,
       hideAudio,

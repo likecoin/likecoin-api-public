@@ -87,8 +87,6 @@ export function formatPriceInfo(price) {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
-    hasShipping = false,
-    isPhysicalOnly = false,
     isAllowCustomPrice = false,
     stock,
     isAutoDeliver = false,
@@ -105,28 +103,11 @@ export function formatPriceInfo(price) {
     name,
     description,
     priceInDecimal,
-    hasShipping,
-    isPhysicalOnly,
     isAllowCustomPrice,
     stock,
     isAutoDeliver,
     isUnlisted,
     autoMemo,
-  };
-}
-
-export function formatShippingRateInfo(shippingRate) {
-  const {
-    name: nameInput,
-    priceInDecimal,
-  } = shippingRate;
-  const name = {};
-  NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
-    name[locale] = nameInput[locale];
-  });
-  return {
-    name,
-    priceInDecimal,
   };
 }
 
@@ -154,7 +135,6 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
     description: [getLocalizedTextWithFallback(price.description, 'zh'), description].filter(Boolean).join('\n') || undefined,
     id: `${classId}-${priceIndex}`,
     images,
-    shippable: !!price.hasShipping,
     default_price_data: {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
@@ -184,7 +164,6 @@ export async function newNftBookInfo(
     notificationEmails,
     moderatorWallets,
     connectedWallets,
-    shippingRates,
     mustClaimToView,
     hideDownload,
     hideAudio,
@@ -245,7 +224,6 @@ export async function newNftBookInfo(
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
   if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
-  if (shippingRates) payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   if (hideAudio !== undefined) payload.hideAudio = hideAudio;
@@ -392,7 +370,6 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails,
   moderatorWallets,
   connectedWallets,
-  shippingRates,
   mustClaimToView,
   hideDownload,
   hideAudio,
@@ -405,7 +382,6 @@ export async function updateNftBookInfo(classId: string, {
   notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
-  shippingRates?: any[];
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   hideAudio?: boolean;
@@ -426,9 +402,6 @@ export async function updateNftBookInfo(classId: string, {
   if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
-  if (shippingRates !== undefined) {
-    payload.shippingRates = shippingRates.map((s) => formatShippingRateInfo(s));
-  }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
   if (hideAudio !== undefined) { payload.hideAudio = hideAudio; }
@@ -530,8 +503,6 @@ export function validatePrice(price: any) {
     stock,
     name = {},
     description = {},
-    hasShipping,
-    isPhysicalOnly,
     isAllowCustomPrice,
     isAutoDeliver,
     isUnlisted,
@@ -555,9 +526,6 @@ export function validatePrice(price: any) {
     && Object.values(description).every((n) => typeof n === 'string'))) {
     throw new ValidationError('INVALID_PRICE_DESCRIPTION');
   }
-  if (!hasShipping && isPhysicalOnly) {
-    throw new ValidationError('PHYSICAL_ONLY_BUT_NO_SHIPPING');
-  }
   return {
     autoMemo,
     order,
@@ -565,10 +533,8 @@ export function validatePrice(price: any) {
     stock,
     name,
     description,
-    isPhysicalOnly,
     isAutoDeliver,
     isUnlisted,
-    hasShipping,
     isAllowCustomPrice,
   };
 }

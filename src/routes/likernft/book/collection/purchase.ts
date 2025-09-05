@@ -16,7 +16,6 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookPendingClaimEmail,
-  sendNFTBookShippedEmail,
 } from '../../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
@@ -488,80 +487,6 @@ router.post(
         email,
         fromWallet: req.user.wallet,
         isGift,
-      });
-
-      res.sendStatus(200);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.post(
-  '/:collectionId/shipping/sent/:paymentId',
-  jwtAuth('write:nftcollection'),
-  async (req, res, next) => {
-    try {
-      const { collectionId, paymentId } = req.params;
-      const { message } = req.body;
-      // TODO: check tx content contains valid nft info and address
-      const collectionRef = likeNFTCollectionCollection.doc(collectionId);
-      const collectionDoc = await collectionRef.get();
-      const collectionDocData = collectionDoc.data();
-      if (!collectionDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet, moderatorWallets = [], name } = collectionDocData;
-      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-      if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
-      const paymentDocRef = likeNFTCollectionCollection.doc(collectionId).collection('transactions').doc(paymentId);
-
-      const { email } = await db.runTransaction(async (t) => {
-        const doc = await t.get(paymentDocRef);
-        const docData = doc.data();
-        if (!docData) {
-          throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-        }
-        const {
-          shippingStatus,
-          status,
-          isPhysicalOnly,
-          hasShipping,
-        } = docData;
-        if (!hasShipping) {
-          throw new ValidationError('PAYMENT_DOES_NOT_HAS_SHIPPING', 409);
-        }
-        if (shippingStatus === 'shipped') {
-          throw new ValidationError('STATUS_IS_ALREADY_SENT', 409);
-        }
-        const updatePayload: any = {
-          shippingStatus: 'shipped',
-          shippingMessage: message,
-        };
-        if (isPhysicalOnly) updatePayload.status = 'completed';
-        if (isPhysicalOnly || status === 'completed') {
-          t.update(collectionRef, {
-            'typePayload.pendingNFTCount': FieldValue.increment(-1),
-          });
-        }
-        t.update(paymentDocRef, updatePayload);
-        return docData;
-      });
-
-      if (email) {
-        await sendNFTBookShippedEmail({
-          email,
-          collectionId,
-          bookName: name[NFT_BOOK_TEXT_DEFAULT_LOCALE],
-          message,
-        });
-      }
-
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookNFTShippingUpdate',
-        paymentId,
-        collectionId,
-        email,
-        ownerWallet: req.user.wallet,
-        shippingMessage: message,
       });
 
       res.sendStatus(200);

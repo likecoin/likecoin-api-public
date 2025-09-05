@@ -95,9 +95,6 @@ async function validateCollectionTypeData(
       moderatorWallets,
       connectedWallets,
       isAllowCustomPrice,
-      isPhysicalOnly,
-      hasShipping,
-      shippingRates,
       isAutoDeliver,
       isUnlisted,
     } = data;
@@ -107,8 +104,6 @@ async function validateCollectionTypeData(
       name,
       description,
       isAllowCustomPrice,
-      isPhysicalOnly,
-      hasShipping,
     });
     await Promise.all(
       classIds.map(async (classId) => {
@@ -140,9 +135,6 @@ async function validateCollectionTypeData(
         moderatorWallets,
         connectedWallets,
         isAllowCustomPrice,
-        isPhysicalOnly,
-        hasShipping,
-        shippingRates,
         autoMemo,
         isAutoDeliver,
         isUnlisted,
@@ -191,7 +183,6 @@ export async function createNFTCollectionByType(
     isAutoDeliver,
     autoDeliverNFTsTxHash,
     stock,
-    hasShipping,
   } = payload;
 
   const isEVMCollection = classIds.every((classId) => isEVMClassId(classId));
@@ -211,7 +202,6 @@ export async function createNFTCollectionByType(
     description: getLocalizedTextWithFallback(description, 'zh') || undefined,
     id: collectionId,
     images,
-    shippable: !!hasShipping,
     default_price_data: {
       currency: 'usd',
       unit_amount: typePayload.priceInDecimal,
