@@ -114,19 +114,16 @@ router.post('/evm/migrate/book', async (req, res, next) => {
     const {
       error,
       migratedClassIds,
-      migratedCollectionIds,
     } = await migrateBookClassId(likeClassId, evmClassId);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'migrateBookClassIdEnd',
       likeClassId,
       evmClassId,
       migratedClassIds,
-      migratedCollectionIds,
       error,
     });
     res.json({
       migratedClassIds,
-      migratedCollectionIds,
       error,
     });
   } catch (err) {

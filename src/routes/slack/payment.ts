@@ -13,7 +13,6 @@ import {
 import {
   likeNFTBookCollection,
   likeNFTBookCartCollection,
-  likeNFTCollectionCollection,
 } from '../../util/firebase';
 
 const router = Router();
@@ -30,7 +29,7 @@ const classIdRegex = /^likenft1[ac-hj-np-z02-9]+$/;
 const paymentIdRegex = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
 
 async function handleTxsQuery({
-  email, wallet, classId, collectionId, status, cartId, paymentId, res,
+  email, wallet, classId, status, cartId, paymentId, res,
 }) {
   try {
     let transactions: any[] = [];
@@ -48,10 +47,8 @@ async function handleTxsQuery({
         throw new Error('Invalid query, email or wallet is required');
       }
 
-      if (classId || collectionId) {
-        const bookRef = classId
-          ? likeNFTBookCollection.doc(classId)
-          : likeNFTCollectionCollection.doc(collectionId);
+      if (classId) {
+        const bookRef = likeNFTBookCollection.doc(classId);
         const transactionQuery = await bookRef
           .collection('transactions')
           .where(queryType, '==', emailOrWallet)
@@ -74,7 +71,7 @@ async function handleTxsQuery({
 
         transactions = transactionQuery.docs;
       }
-    } else if (cartId || classId || collectionId) {
+    } else if (cartId || classId) {
       if (cartId) {
         const transactionDoc = await likeNFTBookCartCollection.doc(cartId).get();
 
@@ -83,19 +80,17 @@ async function handleTxsQuery({
         }
 
         transactions = [transactionDoc];
-      } else if (classId || collectionId) {
+      } else if (classId) {
         if (!paymentId) {
           throw new Error('Invalid query, paymentId is required');
         }
 
-        const bookRef = classId
-          ? likeNFTBookCollection.doc(classId)
-          : likeNFTCollectionCollection.doc(collectionId);
+        const bookRef = likeNFTBookCollection.doc(classId);
 
         const transactionDoc = await bookRef.collection('transactions').doc(paymentId).get();
 
         if (!transactionDoc.exists) {
-          throw new Error(`Transaction with paymentId: ${paymentId} not found in ${collectionId}`);
+          throw new Error(`Transaction with paymentId: ${paymentId} not found in ${classId}`);
         }
 
         transactions = [transactionDoc];
@@ -109,7 +104,6 @@ async function handleTxsQuery({
         transactions: formattedTransactions,
         status,
         classId,
-        collectionId,
         cartId,
         paymentId,
       });
@@ -141,7 +135,6 @@ router.post(
       let email = '';
       let wallet = '';
       let classId = '';
-      let collectionId = '';
       let cartId = '';
       let paymentId = '';
       let status = '';
@@ -153,8 +146,6 @@ router.post(
           wallet = mainParam;
         } else if (classIdRegex.test(mainParam)) {
           classId = mainParam;
-        } else if (mainParam.includes('col_book')) {
-          collectionId = mainParam;
         } else if (paymentIdRegex.test(mainParam)) {
           cartId = mainParam;
         }
@@ -163,8 +154,6 @@ router.post(
       if (additionalFilter) {
         if (classIdRegex.test(additionalFilter)) {
           classId = additionalFilter;
-        } else if (additionalFilter.includes('col_book')) {
-          collectionId = additionalFilter;
         } else if (paymentIdRegex.test(additionalFilter)) {
           paymentId = additionalFilter;
         } else if (Object.values(PAYMENT_STATUS).includes(mainParam)) {
@@ -175,7 +164,7 @@ router.post(
       switch (command) {
         case 'txs':
           return await handleTxsQuery({
-            email, wallet, classId, collectionId, status, cartId, paymentId, res,
+            email, wallet, classId, status, cartId, paymentId, res,
           });
         case 'help': {
           res.json({
@@ -195,14 +184,14 @@ router.post(
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜collectionId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` or `collectionId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
+                  text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
                 },
               },
               {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId｜collectionId+paymentId}`\n- Retrieve transaction details for a specific cart, class, or collection item using the `cartId` or `classId/collectionId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
+                  text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId}`\n- Retrieve transaction details for a specific cart or class item using the `cartId` or `classId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
                 },
               },
             ],

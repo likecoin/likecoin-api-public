@@ -18,7 +18,6 @@ import {
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
-  FIRESTORE_NFT_COLLECTION_ROOT,
   FIRESTORE_LIKE_URL_ROOT,
   FIRESTORE_ISCN_INFO_ROOT,
   FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
@@ -62,7 +61,6 @@ export const likeNFTBookCollection = getCollectionIfDefined(FIRESTORE_LIKER_NFT_
 export const likeNFTBookUserCollection = getCollectionIfDefined(
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
 );
-export const likeNFTCollectionCollection = getCollectionIfDefined(FIRESTORE_NFT_COLLECTION_ROOT);
 export const likeButtonUrlCollection = getCollectionIfDefined(FIRESTORE_LIKE_URL_ROOT);
 export const iscnInfoCollection = getCollectionIfDefined(FIRESTORE_ISCN_INFO_ROOT);
 export const iscnArweaveTxCollection = getCollectionIfDefined(FIRESTORE_ISCN_ARWEAVE_TX_ROOT);

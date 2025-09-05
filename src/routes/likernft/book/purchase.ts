@@ -78,7 +78,6 @@ router.post(
       const {
         email,
         classIds,
-        collectionIds,
         newClaimedNFTs,
         allItemsAutoClaimed,
         errors,
@@ -104,7 +103,6 @@ router.post(
       });
       res.json({
         classIds,
-        collectionIds,
         newClaimedNFTs,
         allItemsAutoClaimed,
         errors,
@@ -213,7 +211,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       await logPixelEvents('InitiateCheckout', {
         email,
         items: items.map((item) => ({
-          productId: item.classId || item.collectionId,
+          productId: item.classId,
           priceIndex: item.priceIndex,
           quantity: item.quantity,
         })),

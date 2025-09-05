@@ -149,56 +149,8 @@ export const getLikerLandNFTClassPageURL = ({
   }
 };
 
-export const getLikerLandNFTCollectionPageURL = ({
-  collectionId,
-  language,
-  utmCampaign,
-  utmSource,
-  utmMedium,
-  gaClientId,
-  gaSessionId,
-  gadClickId,
-  gadSource,
-}: {
-  collectionId: string,
-  language?: string,
-  utmCampaign?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  gaClientId?: string;
-  gaSessionId?: string;
-  gadClickId?: string;
-  gadSource?: string;
-}) => {
-  const qsPayload: any = {};
-  if (utmCampaign) {
-    qsPayload.utm_campaign = utmCampaign;
-  }
-  if (utmSource) {
-    qsPayload.utm_source = utmSource;
-  }
-  if (utmMedium) {
-    qsPayload.utm_medium = utmMedium;
-  }
-  if (gaClientId) {
-    qsPayload.ga_client_id = gaClientId;
-  }
-  if (gaSessionId) {
-    qsPayload.ga_session_id = gaSessionId;
-  }
-  if (gadClickId) {
-    qsPayload.gclid = gadClickId;
-  }
-  if (gadSource) {
-    qsPayload.gad_source = gadSource;
-  }
-  const qs = new URLSearchParams(qsPayload).toString();
-  return getLikerLandURL(`/nft/collection/${collectionId}?${qs}`, { language });
-};
-
 export const getLikerLandNFTClaimPageURL = ({
   classId,
-  collectionId,
   cartId,
   paymentId,
   free = false,
@@ -218,7 +170,6 @@ export const getLikerLandNFTClaimPageURL = ({
   site,
 }: {
   classId?: string;
-  collectionId?: string;
   cartId?: string;
   paymentId: string;
   free?: boolean,
@@ -244,10 +195,6 @@ export const getLikerLandNFTClaimPageURL = ({
 
   if (classId) {
     qsPayload.class_id = classId;
-  }
-
-  if (collectionId) {
-    qsPayload.collection_id = collectionId;
   }
 
   if (cartId) {
@@ -302,7 +249,6 @@ export const getLikerLandNFTClaimPageURL = ({
 
 export const getLikerLandNFTGiftPageURL = ({
   classId,
-  collectionId,
   cartId,
   paymentId,
   token,
@@ -320,7 +266,6 @@ export const getLikerLandNFTGiftPageURL = ({
   gadSource,
 }: {
   classId?: string;
-  collectionId?: string;
   cartId?: string;
   paymentId: string;
   token: string
@@ -344,10 +289,6 @@ export const getLikerLandNFTGiftPageURL = ({
 
   if (classId) {
     qsPayload.class_id = classId;
-  }
-
-  if (collectionId) {
-    qsPayload.collection_id = collectionId;
   }
 
   if (cartId) {
