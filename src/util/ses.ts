@@ -11,13 +11,10 @@ import {
 import {
   getLikerLandNFTClaimPageURL,
   getLikerLandNFTClassPageURL,
-  getLikerLandNFTCollectionPageURL,
   getLikerLandPortfolioPageURL,
 } from './liker-land';
 import {
   getNFTBookStoreClassPageURL,
-  getNFTBookStoreCollectionPageURL,
-  getNFTBookStoreCollectionSendPageURL,
   getNFTBookStoreSendPageURL,
 } from './api/likernft/book';
 import { fetchUserDisplayNameByEmail } from './api/users';
@@ -141,15 +138,12 @@ export async function sendInvitationEmail(res, { email, referrerId, referrer }) 
 
 export function sendNFTBookListingEmail({
   classId = '',
-  collectionId = '',
   bookName,
   site,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `New NFT Book listing: ${bookName}`;
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId })
-    : getLikerLandNFTClassPageURL({ classId, site });
+  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, site });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -185,7 +179,6 @@ export function sendNFTBookListingEmail({
 export async function sendNFTBookPendingClaimEmail({
   email,
   classId = '',
-  collectionId = '',
   bookName,
   paymentId,
   claimToken,
@@ -203,16 +196,10 @@ export async function sendNFTBookPendingClaimEmail({
   }
   const titleEn = `${isResend ? '(Reminder) ' : ''}Read your ebook`;
   const titleZh = `${isResend ? '（提示）' : ''}閱讀你的電子書`;
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'en', site });
-
-  const nftPageURLZh = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
+  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en', site });
+  const nftPageURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     classId,
-    collectionId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
@@ -221,7 +208,6 @@ export async function sendNFTBookPendingClaimEmail({
   });
   const claimPageURLZh = getLikerLandNFTClaimPageURL({
     classId,
-    collectionId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
@@ -396,7 +382,6 @@ export function sendNFTBookGiftPendingClaimEmail({
   toEmail,
   message,
   classId = '',
-  collectionId = '',
   bookName,
   paymentId,
   claimToken,
@@ -406,15 +391,10 @@ export function sendNFTBookGiftPendingClaimEmail({
   if (TEST_MODE) return Promise.resolve();
   const titleEn = `${isResend ? '(Reminder) ' : ''} ${fromName} has sent you an ebook gift from 3ook.com`;
   const titleZh = `${isResend ? '（提示）' : ''} ${fromName} 送了一本電子書禮物給你`;
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'en' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'en', site });
-  const nftPageURLZh = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId, language: 'zh-Hant' })
-    : getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
+  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en', site });
+  const nftPageURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant', site });
   const claimPageURLEn = getLikerLandNFTClaimPageURL({
     classId,
-    collectionId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
@@ -423,7 +403,6 @@ export function sendNFTBookGiftPendingClaimEmail({
   });
   const claimPageURLZh = getLikerLandNFTClaimPageURL({
     classId,
-    collectionId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
@@ -766,7 +745,6 @@ export function sendNFTBookSalesEmail({
 
 export function sendNFTBookSalePaymentsEmail({
   classId = '',
-  collectionId = '',
   paymentId,
   email,
   bookName,
@@ -787,9 +765,7 @@ export function sendNFTBookSalePaymentsEmail({
         return `Unknown: ${roundedCurrency}`;
     }
   });
-  const nftPageURLEn = collectionId
-    ? getLikerLandNFTCollectionPageURL({ collectionId })
-    : getLikerLandNFTClassPageURL({ classId, site });
+  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, site });
   const title = `You received US$${totalAmount.toFixed(2)} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: SYSTEM_EMAIL,
@@ -833,13 +809,11 @@ export function sendNFTBookSalePaymentsEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId = '', collectionId = '', bookName, paymentId, wallet, message, claimerEmail,
+  emails, classId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `A user has claimed an ebook ${bookName}`;
-  const url = collectionId
-    ? getNFTBookStoreCollectionSendPageURL(collectionId, paymentId)
-    : getNFTBookStoreSendPageURL(classId, paymentId);
+  const url = getNFTBookStoreSendPageURL(classId, paymentId);
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -883,16 +857,13 @@ export function sendNFTBookClaimedEmail({
 export function sendNFTBookOutOfStockEmail({
   emails,
   classId = '',
-  collectionId = '',
   bookName,
   priceName,
 }) {
   if (TEST_MODE) return Promise.resolve();
   if (!emails.length) return Promise.resolve();
   const title = `Your book ${bookName} ${priceName} is sold out`;
-  const url = collectionId
-    ? getNFTBookStoreCollectionPageURL(collectionId)
-    : getNFTBookStoreClassPageURL(classId);
+  const url = getNFTBookStoreClassPageURL(classId);
   const content = `<p>Dear Creator,</p>
   <br/>
   <p>Congratulation!</p>

@@ -367,7 +367,6 @@ export function convertObjectToAirtableLongText(object: any): string {
 function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   {
     classId,
-    collectionId,
     priceIndex,
     feeInfo,
     pi,
@@ -377,7 +376,6 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     stripeFeeCurrency,
   }: {
     classId?: string,
-    collectionId?: string,
     priceIndex?: number,
     feeInfo: TransactionFeeInfo,
     pi: Stripe.PaymentIntent,
@@ -523,7 +521,7 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     payableAmount = balanceTxAmount
       - stripeFee - likerLandFee - likerLandCommission - likerLandArtFee - likerLandTipFee;
   }
-  const productId = classId || collectionId || '';
+  const productId = classId || '';
 
   return {
     paymentIntentId: pi.id,
@@ -579,7 +577,6 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
   paymentId,
   classId,
-  collectionId,
   priceIndex,
   itemIndex = 0,
   transfers,
@@ -596,7 +593,6 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi: Stripe.PaymentIntent,
   paymentId: string,
   classId?: string,
-  collectionId?: string,
   priceIndex?: number,
   itemIndex?: number,
   transfers: Stripe.Transfer[],
@@ -614,7 +610,6 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
       classId,
       priceIndex,
-      collectionId,
       feeInfo,
       pi,
       transfers,
@@ -686,7 +681,6 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
 
 export async function createAirtableBookSalesRecordFromFreePurchase({
   classId,
-  collectionId,
   priceIndex,
   paymentId,
   itemIndex = 0,
@@ -705,7 +699,6 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   rawData,
 }: {
   classId?: string,
-  collectionId?: string,
   priceIndex?: number,
   paymentId: string,
   itemIndex?: number,
@@ -761,7 +754,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
       'GA Session ID': gaSessionId,
       'Raw Data': rawData || '',
     };
-    const productId = classId || collectionId || '';
+    const productId = classId || '';
     const queries: Promise<any>[] = [queryAirtablePublicationRecordById(productId)];
     if (evmWallet) {
       fields['Customer Wallet'] = evmWallet;

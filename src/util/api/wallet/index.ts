@@ -7,7 +7,6 @@ import {
   FieldValue,
   likeNFTBookCollection,
   likeNFTBookUserCollection,
-  likeNFTCollectionCollection,
   userCollection,
 } from '../../firebase';
 import { migrateLikerLandEVMWallet } from '../../liker-land';
@@ -130,24 +129,6 @@ async function migrateBookOwner(likeWallet: string, evmWallet: string) {
         }
       });
     });
-    await db.runTransaction(async (t) => {
-      const collectionQuery = await t.get(likeNFTCollectionCollection.where('ownerWallet', '==', likeWallet));
-      collectionQuery.docs.forEach((doc) => {
-        t.update(doc.ref, { ownerWallet: evmWallet });
-      });
-    });
-    await db.runTransaction(async (t) => {
-      const collectionQuery = await t.get(likeNFTCollectionCollection.where(`connectedWallets.${likeWallet}`, '>', 0));
-      collectionQuery.docs.forEach((doc) => {
-        const {
-          connectedWallets,
-        } = doc.data();
-        const ratio = connectedWallets[likeWallet];
-        delete connectedWallets[likeWallet];
-        connectedWallets[evmWallet] = ratio;
-        t.update(doc.ref, { connectedWallets });
-      });
-    });
     return { error: null };
   } catch (error) {
   // eslint-disable-next-line no-console
@@ -193,13 +174,11 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
     const res = await db.runTransaction(async (t) => {
       const migratedClassIds: string[] = [];
       const migratedClassDatas: any[] = [];
-      const migratedCollectionIds: string[] = [];
-      const [bookListingDoc, bookTransactionQuery, collectionQuery] = await Promise.all([
+      const [bookListingDoc, bookTransactionQuery] = await Promise.all([
         t.get(likeNFTBookCollection.doc(likeClassId)),
         t.get(likeNFTBookCollection.doc(likeClassId)
           .collection('transactions')
           .where('status', '!=', 'new')),
-        t.get(likeNFTCollectionCollection.where('classIds', 'array-contains', likeClassId).limit(100)),
       ]);
       if (bookListingDoc.exists) {
         const {
@@ -250,42 +229,9 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
           migratedClassDatas.push(migratedData);
         }
       }
-      for (let i = 0; i < collectionQuery.docs.length; i += 1) {
-        const doc = collectionQuery.docs[i];
-        const {
-          classIds,
-          ownerWallet,
-          connectedWallets,
-        } = doc.data();
-        const index = classIds.indexOf(likeClassId);
-        if (index >= 0) {
-          classIds[index] = evmClassId;
-          let newOwnerWallet = ownerWallet;
-          if (ownerWallet && isValidLikeAddress(ownerWallet)) {
-            newOwnerWallet = await checkBookUserEVMWallet(ownerWallet);
-            const ratio = connectedWallets?.[ownerWallet];
-            if (ratio) {
-              delete connectedWallets[ownerWallet];
-              connectedWallets[newOwnerWallet] = ratio;
-            }
-            newOwnerWallet = newOwnerWallet || ownerWallet;
-          }
-          const migrateData: any = {
-            classIds,
-            ownerWallet,
-            chain: classIds.every((id) => isEVMClassId(id)) ? 'evm' : 'like',
-          };
-          if (connectedWallets) {
-            migrateData.connectedWallets = connectedWallets;
-          }
-          t.update(doc.ref, migrateData);
-          migratedCollectionIds.push(doc.id);
-        }
-      }
       return {
         migratedClassIds,
         migratedClassDatas,
-        migratedCollectionIds,
       };
     });
     for (const classData of res.migratedClassDatas) {
@@ -366,12 +312,10 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
 
     const {
       migratedClassIds,
-      migratedCollectionIds,
     } = res;
     return {
       error: null,
       migratedClassIds,
-      migratedCollectionIds,
     };
   } catch (error) {
     // eslint-disable-next-line no-console
