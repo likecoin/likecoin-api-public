@@ -104,7 +104,6 @@ export async function processStripeSubscriptionInvoice(
       }, {
         evmWallet,
         email: stripeCustomer.email,
-        phone: stripeCustomer.phone,
       });
       if (result) {
         const {

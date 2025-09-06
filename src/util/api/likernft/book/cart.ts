@@ -379,9 +379,6 @@ type ProcessNFTBookCartMeta = {
 type ProcessNFTBookCartPayment = {
   amountTotal: number | null;
   email: string | null;
-  phone: string | null;
-  shippingDetails?: any;
-  shippingCostAmount?: number;
   paymentIntent?: string;
   session?: Stripe.Checkout.Session;
 };
@@ -418,9 +415,6 @@ export async function processNFTBookCart(
   {
     amountTotal,
     email,
-    phone,
-    shippingDetails,
-    shippingCostAmount,
     paymentIntent,
     session,
   }: ProcessNFTBookCartPayment,
@@ -448,10 +442,7 @@ export async function processNFTBookCart(
     const infos = await processNFTBookCartPurchase({
       cartId,
       email,
-      phone,
       paymentId,
-      shippingDetails,
-      shippingCostAmount,
     });
     const {
       classInfos,
@@ -500,7 +491,6 @@ export async function processNFTBookCart(
         isGift,
         giftInfo,
         feeInfo,
-        hasShipping,
         from: itemFrom,
       } = txData;
       const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
@@ -519,9 +509,6 @@ export async function processNFTBookCart(
         ? getBookCollectionInfoById(collectionId) : getNftBookInfo(classId));
       const bookName = bookData?.name?.[NFT_BOOK_TEXT_DEFAULT_LOCALE] || bookData?.name || bookId;
       bookNames.push(bookName);
-      const shippingCostAmountInDecimal = (hasShipping && shippingCostAmount)
-        ? shippingCostAmount * 100 : 0;
-      const amountWithShipping = priceInDecimal + shippingCostAmountInDecimal;
       const { transfers } = await handleStripeConnectedAccount(
         {
           classId,
@@ -531,12 +518,11 @@ export async function processNFTBookCart(
           ownerWallet,
           bookName,
           buyerEmail: email,
-          shippingCostAmountInDecimal,
           paymentIntentId: paymentIntent as string,
           site,
         },
         {
-          amountTotal: amountWithShipping,
+          amountTotal: priceInDecimal,
           chargeId,
           stripeFeeAmount,
           likerLandFeeAmount,
@@ -556,11 +542,8 @@ export async function processNFTBookCart(
           giftToName: (giftInfo as any)?.toName,
           emails: notificationEmails,
           bookName,
-          amount: amountWithShipping / 100,
+          amount: priceInDecimal / 100,
           quantity,
-          phone,
-          shippingDetails: hasShipping ? shippingDetails : null,
-          shippingCostAmount: hasShipping ? shippingCostAmount : 0,
           originalPrice: originalPriceInDecimal / 100,
         }),
         sendNFTBookSalesSlackNotification({
@@ -583,8 +566,6 @@ export async function processNFTBookCart(
             itemIndex,
             stripeFeeAmount,
             stripeFeeCurrency: 'USD',
-            shippingCostAmount: hasShipping ? shippingCostAmount : 0,
-            shippingCountry: hasShipping ? shippingDetails?.address?.country : null,
             from,
             evmWallet,
             quantity,
@@ -763,10 +744,7 @@ export async function processNFTBookCart(
 export async function processNFTBookCartPurchase({
   cartId,
   email,
-  phone,
   paymentId,
-  shippingDetails,
-  shippingCostAmount,
 }) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
   const infos = await db.runTransaction(async (t) => {
@@ -787,9 +765,6 @@ export async function processNFTBookCartPurchase({
         paymentId,
         {
           email,
-          phone,
-          shippingDetails,
-          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -806,9 +781,6 @@ export async function processNFTBookCartPurchase({
         paymentId,
         {
           email,
-          phone,
-          shippingDetails,
-          shippingCostAmount,
           execGrantTxHash: '',
         },
       );
@@ -831,8 +803,6 @@ export async function processNFTBookCartPurchase({
       isPaid: true,
       isPendingClaim: true,
       email,
-      hasShipping: classInfos.some((info) => info.txData.hasShipping)
-        || collectionInfos.some((info) => info.txData.hasShipping),
     };
     t.update(cartRef, updatePayload);
 
@@ -858,9 +828,6 @@ export async function processNFTBookCartStripePurchase(
   const {
     customer_details: customer,
     payment_intent: paymentIntent,
-    currency_conversion: currencyConversion,
-    shipping_cost: shippingCost,
-    shipping_details: shippingDetails,
     id: sessionId,
   } = session;
 
@@ -870,19 +837,7 @@ export async function processNFTBookCartStripePurchase(
   const isFree = amountTotal === 0;
   if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
 
-  const { email, phone } = customer;
-
-  let shippingCostAmount = 0;
-  if (shippingCost) {
-    shippingCostAmount = shippingCost.amount_total / 100;
-  }
-  if (currencyConversion) {
-    if (currencyConversion.fx_rate !== undefined && shippingCost?.amount_total) {
-      shippingCostAmount = Math.round(
-        shippingCost.amount_total / Number(currencyConversion.fx_rate),
-      ) / 100;
-    }
-  }
+  const { email } = customer;
 
   const {
     itemInfos,
@@ -915,9 +870,6 @@ export async function processNFTBookCartStripePurchase(
     {
       amountTotal,
       email,
-      phone,
-      shippingDetails,
-      shippingCostAmount,
       paymentIntent: paymentIntent as string,
       session,
     },
@@ -933,7 +885,6 @@ export async function createFreeBookCartFromSubscription({
 }, {
   evmWallet,
   email,
-  phone,
 }) {
   const paymentId = cartId;
   const claimToken = uuidv4();
@@ -980,7 +931,6 @@ export async function createFreeBookCartFromSubscription({
   }, {
     amountTotal: 0,
     email,
-    phone,
   }, null);
   publisher.publish(PUBSUB_TOPIC_MISC, null, {
     logType: 'FreeBookCartCreated',
@@ -1043,7 +993,6 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       const {
         prices,
         ownerWallet,
-        shippingRates,
         isLikerLandArt,
         chain,
       } = bookInfo;
@@ -1051,8 +1000,6 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       const {
         priceInDecimal: originalPriceInDecimal,
         stock,
-        hasShipping,
-        isPhysicalOnly,
         isAllowCustomPrice,
         name: priceNameObj,
         description: pricDescriptionObj,
@@ -1072,14 +1019,11 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       const images = [parseImageURLFromMetadata(image)];
       info = {
         stock,
-        hasShipping,
-        isPhysicalOnly,
         isAllowCustomPrice,
         name,
         description,
         images,
         ownerWallet,
-        shippingRates,
         isLikerLandArt,
         originalPriceInDecimal,
         classId,
@@ -1095,13 +1039,10 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         classIds,
         image,
         ownerWallet,
-        shippingRates,
-        isPhysicalOnly,
         isLikerLandArt,
         priceInDecimal: originalPriceInDecimal,
         isAllowCustomPrice,
         stock,
-        hasShipping,
         name: collectionNameObj,
         description: collectionDescriptionObj,
         stripePriceId,
@@ -1125,14 +1066,11 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       if (itemFrom) description = `[${itemFrom}] ${description}`;
       info = {
         stock,
-        hasShipping,
-        isPhysicalOnly,
         isAllowCustomPrice,
         name,
         description,
         images,
         ownerWallet,
-        shippingRates,
         isLikerLandArt,
         originalPriceInDecimal,
         collectionId,
@@ -1150,11 +1088,8 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       isAllowCustomPrice,
       originalPriceInDecimal,
       stock,
-      hasShipping,
-      isPhysicalOnly,
       images,
       ownerWallet,
-      shippingRates,
       isLikerLandArt,
       priceName = '',
       stripePriceId,
@@ -1186,14 +1121,11 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceInDecimal,
       customPriceDiffInDecimal,
       stock,
-      hasShipping,
-      isPhysicalOnly,
       isAllowCustomPrice,
       name,
       description,
       images,
       ownerWallet,
-      shippingRates,
       isLikerLandArt,
       originalPriceInDecimal,
       collectionId,
@@ -1361,10 +1293,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     from: item.from,
   }));
   let itemInfos = await formatCartItemsWithInfo(items);
-  const itemsWithShipping = itemInfos.filter((item) => item.hasShipping);
-  if (itemsWithShipping.length > 1) {
-    throw new ValidationError('MORE_THAN_ONE_SHIPPING_NOT_SUPPORTED');
-  }
   let { chain } = itemInfos[0];
   if (!chain) {
     // eslint-disable-next-line no-console

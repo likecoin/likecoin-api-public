@@ -12,14 +12,11 @@ export type CartItemWithInfo = CartItem & {
   priceInDecimal: number;
   customPriceDiffInDecimal: number;
   stock: number;
-  hasShipping: boolean;
-  isPhysicalOnly: boolean;
   isAllowCustomPrice: boolean;
   name: string,
   description: string,
   images: string[],
   ownerWallet: string,
-  shippingRates: any[],
   isLikerLandArt: boolean;
   originalPriceInDecimal: number,
   collectionId?: string,
