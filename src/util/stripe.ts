@@ -4,6 +4,13 @@ import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
 const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-02-24.acacia', typescript: true });
 
+export function calculateStripeFee(inputAmount: number) {
+  if (inputAmount === 0) return 0;
+  // 2.9% + 30 cents, 1.5% for international cards
+  const flatFee = 30;
+  return Math.ceil(inputAmount * (0.029 + 0.015) + flatFee);
+}
+
 export async function getStripePromotionFromCode(code: string) {
   const promotionCode = await stripe.promotionCodes.list({
     limit: 1,

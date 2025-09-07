@@ -2,31 +2,27 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 
-import { formatMsgExecSendAuthorization } from '@likecoin/iscn-js/dist/messages/authz';
 import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
-import BigNumber from 'bignumber.js';
 import { getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
   LIKER_LAND_WAIVED_CHANNEL,
   BOOK3_HOSTNAME,
+  NFT_BOOK_DEFAULT_FROM_CHANNEL,
 } from '../../../../constant';
-import { calculateStripeFee, checkIsFromLikerLand, handleNFTPurchaseTransaction } from '../purchase';
+import { handleNFTPurchaseTransaction } from '../purchase';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
 } from './user';
-import stripe, { getStripePromotionFromCode } from '../../../stripe';
+import stripe, { calculateStripeFee, getStripePromotionFromCode } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
-import { calculateTxGasFee } from '../../../cosmos/tx';
 import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
 import {
-  NFT_COSMOS_DENOM,
   LIKER_NFT_TARGET_ADDRESS,
-  LIKER_NFT_FEE_ADDRESS,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
@@ -47,6 +43,10 @@ import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
+
+export function checkIsFromLikerLand(from: string) {
+  return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
+}
 
 export async function handleStripeConnectedAccount({
   classId = '',
@@ -435,7 +435,6 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 
 export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   email,
-  execGrantTxHash,
 }) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const doc = await t.get(bookRef);
@@ -485,7 +484,6 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     paymentPayload.isAutoDeliver = true;
     paymentPayload.autoMemo = autoMemo;
   }
-  if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
 
   return {
     listingData: docData,
@@ -522,7 +520,6 @@ export async function processNFTBookPurchase({
   classId,
   email,
   paymentId,
-  execGrantTxHash = '',
 }) {
   const data = await db.runTransaction(async (t) => {
     const {
@@ -530,7 +527,6 @@ export async function processNFTBookPurchase({
       listingData,
     } = await processNFTBookPurchaseTxGet(t, classId, paymentId, {
       email,
-      execGrantTxHash,
     });
     await processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
       listingData,
@@ -1264,55 +1260,4 @@ export async function updateNFTBookPostDeliveryData({
     });
   }
   return paymentDocData;
-}
-
-export async function execGrant(
-  granterWallet: string,
-  toWallet: string,
-  LIKEAmount: number,
-  from: string,
-) {
-  const isFromLikerLand = checkIsFromLikerLand(from);
-  const msgCount = 3;
-  const gasFeeAmount = calculateTxGasFee(msgCount).amount[0].amount;
-  const distributedAmountBigNum = new BigNumber(LIKEAmount).shiftedBy(9).minus(gasFeeAmount);
-  if (distributedAmountBigNum.lt(0)) throw new ValidationError('LIKE_AMOUNT_IS_NOT_SUFFICIENT_FOR_GAS_FEE');
-  const likerLandFeeAmount = distributedAmountBigNum
-    .times(NFT_BOOK_LIKER_LAND_FEE_RATIO)
-    .toFixed(0, BigNumber.ROUND_CEIL);
-  const likerLandCommission = isFromLikerLand
-    ? distributedAmountBigNum
-      .times(NFT_BOOK_LIKER_LAND_COMMISSION_RATIO)
-      .toFixed(0, BigNumber.ROUND_CEIL)
-    : '0';
-  const commissionAndFeeAmount = new BigNumber(likerLandFeeAmount)
-    .plus(likerLandCommission)
-    .toFixed();
-  const profitAmount = distributedAmountBigNum
-    .minus(likerLandFeeAmount)
-    .minus(likerLandCommission)
-    .toFixed();
-  const txMessages = [
-    formatMsgExecSendAuthorization(
-      LIKER_NFT_TARGET_ADDRESS,
-      granterWallet,
-      LIKER_NFT_TARGET_ADDRESS,
-      [{ denom: NFT_COSMOS_DENOM, amount: gasFeeAmount }],
-    ),
-    formatMsgExecSendAuthorization(
-      LIKER_NFT_TARGET_ADDRESS,
-      granterWallet,
-      LIKER_NFT_FEE_ADDRESS,
-      [{ denom: NFT_COSMOS_DENOM, amount: commissionAndFeeAmount }],
-    ),
-    formatMsgExecSendAuthorization(
-      LIKER_NFT_TARGET_ADDRESS,
-      granterWallet,
-      toWallet,
-      [{ denom: NFT_COSMOS_DENOM, amount: profitAmount }],
-    ),
-  ];
-  const memo = '';
-  const txHash = await handleNFTPurchaseTransaction(txMessages, memo);
-  return txHash;
 }

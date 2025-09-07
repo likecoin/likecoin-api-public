@@ -763,10 +763,7 @@ export async function processNFTBookCartPurchase({
         t,
         classId,
         paymentId,
-        {
-          email,
-          execGrantTxHash: '',
-        },
+        { email },
       );
       return {
         classId,
@@ -779,10 +776,7 @@ export async function processNFTBookCartPurchase({
         t,
         collectionId,
         paymentId,
-        {
-          email,
-          execGrantTxHash: '',
-        },
+        { email },
       );
       return {
         collectionId,
