@@ -104,6 +104,7 @@ config.FB_PIXEL_ID = '';
 config.FB_ACCESS_TOKEN = '';
 
 config.INTERCOM_API_SECRET = '';
+config.INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN || '';
 
 config.MATTERS_APP_ID = '';
 config.MATTERS_APP_SECRET = '';

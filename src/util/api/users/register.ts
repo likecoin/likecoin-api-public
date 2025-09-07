@@ -28,6 +28,7 @@ import publisher from '../../gcloudPub';
 import {
   NEW_USER_BONUS_COOLDOWN,
 } from '../../../../config/config';
+import { createIntercomUser } from '../../intercom';
 
 function getBool(value = false) {
   if (typeof value === 'string') {
@@ -269,6 +270,15 @@ export async function handleUserRegistration({
       isEmailVerified,
     });
   }
+
+  await createIntercomUser({
+    userId: user,
+    email,
+    name: displayName,
+    signedUpAt: createObj.timestamp,
+    avatar: avatarURL,
+    evmWallet,
+  });
 
   return {
     userPayload: {
