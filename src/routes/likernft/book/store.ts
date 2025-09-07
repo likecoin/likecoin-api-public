@@ -274,6 +274,17 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       { prices, enableCustomMessagePage },
       newNFTIds,
     );
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPriceCreate',
+      wallet: req.user.wallet,
+      classId,
+      priceIndex: prices.length - 1,
+      priceInDecimal: price.priceInDecimal,
+      stock: price.stock,
+      isAutoDeliver: price.isAutoDeliver,
+    });
+
     res.json({
       index: prices.length - 1,
     });
@@ -375,6 +386,20 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       { prices, enableCustomMessagePage },
       newNFTIds,
     );
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPriceUpdate',
+      wallet: req.user.wallet,
+      classId,
+      priceIndex,
+      priceInDecimal: price.priceInDecimal,
+      stock: price.stock,
+      isAutoDeliver: price.isAutoDeliver,
+      stockChanged: price.stock !== oldPriceInfo.stock,
+      priceChanged: price.priceInDecimal !== oldPriceInfo.priceInDecimal,
+      newNFTsAdded: newNFTIds.length,
+    });
+
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -426,6 +451,15 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
 
     await updateNftBookInfo(classId, { prices: reorderedPrices });
 
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTPriceReorder',
+      wallet: req.user.wallet,
+      classId,
+      priceIndex,
+      newOrder,
+      totalPrices: prices.length,
+    });
+
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -476,6 +510,15 @@ router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIn
       },
       req,
     );
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTGift',
+      wallet: req.user.wallet,
+      classId,
+      priceIndex,
+      receiverCount: receivers.length,
+    });
+
     res.json({
       result,
     });
@@ -496,6 +539,13 @@ router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     await syncNFTBookInfoWithISCN(classId);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTRefresh',
+      wallet: req.user.wallet,
+      classId,
+    });
+
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -658,7 +708,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideDownload,
       hideAudio,
       enableCustomMessagePage,
-      tableOfContents,
+      totalPrices: prices.length,
+      autoDeliverTotalStock,
+      manualDeliverTotalStock,
     });
 
     if (isEVMClassId(classId)) {
@@ -714,6 +766,13 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       logType: 'BookNFTListingUpdate',
       wallet: ownerWallet,
       classId,
+      mustClaimToView,
+      hideDownload,
+      hideAudio,
+      enableCustomMessagePage,
+      notificationEmailCount: notificationEmails ? notificationEmails.length : 0,
+      moderatorWalletCount: moderatorWallets ? moderatorWallets.length : 0,
+      connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });
 
     res.json({
@@ -778,6 +837,16 @@ router.post(
         enableSignatureImage,
         signedMessageText: signedTextToSave,
         enableCustomMessagePage: enableSignatureImage || !!signedMessageText,
+      });
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTImageUpload',
+        wallet: req.user.wallet,
+        classId,
+        enableSignatureImage,
+        hasSignedMessageText: !!signedTextToSave,
+        signImageUploaded: !!signResult,
+        memoImageUploaded: !!memoResult,
       });
 
       res.json({
