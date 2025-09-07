@@ -112,7 +112,6 @@ export async function createNewNFTBookCollectionPayment(collectionId, paymentId,
 
 export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, paymentId, {
   email,
-  execGrantTxHash,
 }) {
   const collectionRef = likeNFTCollectionCollection.doc(collectionId);
   const doc = await t.get(collectionRef);
@@ -164,7 +163,7 @@ export async function processNFTBookCollectionPurchaseTxGet(t, collectionId, pay
     paymentPayload.autoMemo = autoMemo;
     paymentPayload.nftIdMap = nftIdMap;
   }
-  if (execGrantTxHash) paymentPayload.execGrantTxHash = execGrantTxHash;
+
   return {
     listingData: docData,
     typePayload,
