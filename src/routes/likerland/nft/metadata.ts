@@ -154,21 +154,6 @@ async function getNFTClassOwnerInfo(classId) {
   return result;
 }
 
-async function getNFTClassPurchaseInfo(classId) {
-  try {
-    const { data } = await axios.get(
-      `http://${INTERNAL_HOSTNAME}/likernft/purchase?class_id=${classId}`,
-    );
-    return data || null;
-  } catch (err) {
-    const error = err as AxiosError;
-    if (error.response && error.response.status === 404) {
-      return null;
-    }
-    throw err;
-  }
-}
-
 async function getNFTClassBookstoreInfo(classId) {
   try {
     const { data } = await axios.get(
@@ -204,7 +189,6 @@ router.get('/nft/metadata', async (req, res, next) => {
         'class_api',
         'iscn',
         'owner',
-        'purchase',
         'bookstore',
       ].some((s) => selectedSet.has(s))
     ) {
@@ -223,12 +207,6 @@ router.get('/nft/metadata', async (req, res, next) => {
 
     if (['all', 'owner'].some((s) => selectedSet.has(s))) {
       promises.push(getNFTClassOwnerInfo(classId));
-    } else {
-      promises.push(Promise.resolve(null));
-    }
-
-    if (['all', 'purchase'].some((s) => selectedSet.has(s))) {
-      promises.push(getNFTClassPurchaseInfo(classId));
     } else {
       promises.push(Promise.resolve(null));
     }
@@ -257,14 +235,12 @@ router.get('/nft/metadata', async (req, res, next) => {
     const [
       classAndIscnResult,
       ownerInfoResult,
-      purchaseInfoResult,
       bookstoreInfoResult,
     ] = results.map((result) => (result.status === 'fulfilled' ? result.value : null));
 
     const classData = classAndIscnResult ? classAndIscnResult[0] : null;
     const iscnData = classAndIscnResult ? classAndIscnResult[1] : null;
     const ownerInfo = ownerInfoResult;
-    const purchaseInfo = purchaseInfoResult;
     const bookstoreInfo = bookstoreInfoResult;
 
     const result: any = {};
@@ -276,9 +252,6 @@ router.get('/nft/metadata', async (req, res, next) => {
     }
     if (['all', 'owner'].some((s) => selectedSet.has(s))) {
       result.ownerInfo = ownerInfo;
-    }
-    if (['all', 'purchase'].some((s) => selectedSet.has(s))) {
-      result.purchaseInfo = purchaseInfo;
     }
     if (['all', 'bookstore'].some((s) => selectedSet.has(s))) {
       result.bookstoreInfo = bookstoreInfo;
