@@ -448,10 +448,6 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     isAutoDeliver,
     autoMemo = '',
   } = priceInfo;
-  if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
-  priceInfo.stock -= quantity;
-  priceInfo.sold += quantity;
-  priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
   const paymentPayload: any = {
     isPaid: true,
     isPendingClaim: true,
@@ -476,7 +472,13 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     paymentPayload.nftIds = nftIds;
     paymentPayload.isAutoDeliver = true;
     paymentPayload.autoMemo = autoMemo;
+  } else {
+    if (stock - quantity < 0) throw new ValidationError('OUT_OF_STOCK');
+    priceInfo.stock -= quantity;
   }
+
+  priceInfo.sold += quantity;
+  priceInfo.lastSaleTimestamp = firestore.Timestamp.now();
 
   return {
     listingData: docData,
