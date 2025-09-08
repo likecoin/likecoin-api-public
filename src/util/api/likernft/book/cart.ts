@@ -916,6 +916,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         name: priceNameObj,
         description: pricDescriptionObj,
         stripePriceId,
+        isAutoDeliver,
       } = prices[priceIndex];
       let { name = '', description = '' } = metadata;
       const { image, iscnPrefix } = metadata;
@@ -943,6 +944,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         priceName,
         stripePriceId,
         chain,
+        isAutoDeliver,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -961,6 +963,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceName = '',
       stripePriceId,
       chain,
+      isAutoDeliver,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -981,7 +984,9 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceInDecimal = customPriceInDecimal;
     }
     if (priceInDecimal < 0) throw new ValidationError('PRICE_INVALID');
-    if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
+    if (!isAutoDeliver) {
+      if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
+    }
     return {
       ...item,
       priceName,
