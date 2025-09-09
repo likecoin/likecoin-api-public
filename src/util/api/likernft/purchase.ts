@@ -8,38 +8,8 @@ import {
 } from '../../cosmos/tx';
 import {
   NFT_COSMOS_DENOM,
-  LIKER_NFT_DECAY_START_BATCH,
-  LIKER_NFT_STARTING_PRICE,
-  LIKER_NFT_PRICE_MULTIPLY,
-  LIKER_NFT_DECAY_END_BATCH,
-  LIKER_NFT_PRICE_DECAY,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
-
-export function getNFTBatchInfo(batchNumber) {
-  if (batchNumber === -1) { // free wnft
-    return {
-      price: 0,
-      count: -1,
-    };
-  }
-  const count = batchNumber + 1;
-  const baseMultiplier = Math.min(batchNumber, LIKER_NFT_DECAY_START_BATCH);
-  let price = LIKER_NFT_STARTING_PRICE * (LIKER_NFT_PRICE_MULTIPLY ** baseMultiplier);
-  const decayMultiplier = Math.min(
-    LIKER_NFT_DECAY_END_BATCH - LIKER_NFT_DECAY_START_BATCH,
-    Math.max(batchNumber - LIKER_NFT_DECAY_START_BATCH, 0),
-  );
-  let lastPrice = price;
-  for (let i = 1; i <= decayMultiplier; i += 1) {
-    price += Math.round(lastPrice * (1 - LIKER_NFT_PRICE_DECAY * i));
-    lastPrice = price;
-  }
-  return {
-    price,
-    count,
-  };
-}
 
 export async function handleNFTPurchaseTransaction(txMessages, memo) {
   let res;
@@ -85,3 +55,5 @@ export async function handleNFTPurchaseTransaction(txMessages, memo) {
 
   return transactionHash;
 }
+
+export default handleNFTPurchaseTransaction;
