@@ -93,8 +93,6 @@ export const SUPPORTED_AVATAR_TYPE = new Set([
 
 export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.jpg';
 
-export const WNFT_DEFAULT_PATH = 'https://static.like.co/writing-nft.jpg';
-
 export const DEFAULT_AVATAR_SIZE = 400;
 
 export const DEFAULT_FOLLOW_IDS = [
@@ -161,8 +159,6 @@ export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
 export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,matic-network,likecoin&vs_currencies=usd';
 
-export const LIKECOIN_DARK_GREEN_THEME_COLOR = '#28646E';
-
 export const WRITING_NFT_COLLECTION_ID = 'likerland_writing_nft';
 
 export const NFT_GEM_COLOR = [
@@ -183,8 +179,6 @@ export const NFT_GEM_COLOR = [
   '#FF6464',
   '#C0E1FF',
 ];
-
-export const APP_LIKE_CO_ISCN_VIEW_URL = `https://app.${IS_TESTNET ? 'rinkeby.' : ''}like.co/view/`;
 
 export const FIRESTORE_IN_QUERY_LIMIT = 10;
 

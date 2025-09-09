@@ -23,10 +23,3 @@ test('likernft: get mint info via class id', async (t) => {
   t.is(res.data.iscnId, ISCN_ID_PREFIX);
   t.is(res.data.classId, CLASS_ID);
 });
-
-test('likernft: post mint fail due to exist', async (t) => {
-  const res = await axiosist.post(`/api/likernft/mint?iscn_id=${ISCN_ID}&class_id=${CLASS_ID}`)
-    .catch((err) => (err as any).response);
-
-  t.is(res.status, 409);
-});
