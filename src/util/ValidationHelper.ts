@@ -587,6 +587,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       description,
       priceInDecimal,
       isAllowCustomPrice,
+      isTippingEnabled,
       isUnlisted,
       sold: pSold = 0,
       stock: pStock = 0,
@@ -607,6 +608,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       isUnlisted,
       autoMemo,
       isAllowCustomPrice,
+      isTippingEnabled: !priceInDecimal || isTippingEnabled,
       order: order ?? index,
     };
     if (isOwner) {
@@ -708,6 +710,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       sold,
       pendingNFTCount,
       isAllowCustomPrice,
+      isTippingEnabled,
       isUnlisted,
       notificationEmails,
       moderatorWallets,
@@ -720,6 +723,7 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       priceInDecimal,
       stock: isUnlisted ? 0 : stock,
       isAllowCustomPrice,
+      isTippingEnabled: !priceInDecimal || isTippingEnabled,
       isUnlisted,
       isAutoDeliver,
       recommendedClassIds,
