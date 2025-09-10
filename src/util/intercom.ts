@@ -8,6 +8,19 @@ import {
 
 let intercomClient: IntercomClient | null = null;
 
+/* eslint-disable camelcase */
+interface IntercomUserCustomAttributes {
+  evm_wallet?: string;
+  like_wallet?: string;
+  login_method?: string;
+  is_liker_plus?: boolean;
+  liker_plus_period?: string;
+  liker_plus_since?: number;
+  liker_plus_current_period_end?: number;
+  [key: string]: unknown;
+}
+/* eslint-enable camelcase */
+
 function getIntercomClient(): IntercomClient | null {
   if (!INTERCOM_ACCESS_TOKEN) return null;
   if (!intercomClient) {
@@ -68,7 +81,7 @@ export async function createIntercomUser({
   }
 }
 
-async function findIntercomContactByUserId(userId: string): Promise<string | null> {
+async function findIntercomContactIdByUserId(userId: string): Promise<string | null> {
   const client = getIntercomClient();
   if (!client) return null;
   const searchResult = await client.contacts.search({
@@ -85,7 +98,7 @@ async function findIntercomContactByUserId(userId: string): Promise<string | nul
 
 async function updateIntercomContact(
   contactId: string,
-  customAttributes: Record<string, unknown>,
+  customAttributes: IntercomUserCustomAttributes,
 ): Promise<boolean> {
   const client = getIntercomClient();
   if (!client) return false;
@@ -104,7 +117,7 @@ export async function updateIntercomUserEvmWallet({
   evmWallet: string;
 }): Promise<boolean> {
   try {
-    const contactId = await findIntercomContactByUserId(userId);
+    const contactId = await findIntercomContactIdByUserId(userId);
     if (!contactId) {
       throw new Error(`Contact with external_id ${userId} not found for EVM wallet update`);
     }
@@ -132,7 +145,7 @@ export async function updateIntercomUserLikerPlusStatus({
   likerPlusCurrentPeriodEnd?: number;
 }): Promise<boolean> {
   try {
-    const contactId = await findIntercomContactByUserId(userId);
+    const contactId = await findIntercomContactIdByUserId(userId);
     if (!contactId) {
       throw new Error(`Contact with external_id ${userId} not found for LikerPlus status update`);
     }
