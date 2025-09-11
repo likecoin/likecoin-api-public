@@ -355,7 +355,7 @@ export function formatTransactionDetailsForBlockKit(data) {
     },
     {
       type: 'mrkdwn',
-      text: `*Email*\n${email}`,
+      text: `*Email*\n<https://dashboard.stripe.com/search?query=${email}|${email}>`,
     },
     {
       type: 'mrkdwn',
@@ -418,8 +418,13 @@ export function createPaymentSlackBlocks({
   paymentId = '',
   status = '',
 }) {
+  const isEmail = emailOrWallet && emailOrWallet.includes('@') && emailOrWallet.includes('.');
+  const emailOrWalletDisplay = isEmail ? 
+    `<https://dashboard.stripe.com/search?query=${emailOrWallet}|${emailOrWallet}>` : 
+    emailOrWallet;
+  
   const contextArray = [
-    emailOrWallet && `for ${emailOrWallet}`,
+    emailOrWallet && `for ${emailOrWalletDisplay}`,
     classId && `in class ${classId}`,
     cartId && `in cart ${cartId}`,
     paymentId && `for payment ${paymentId}`,
