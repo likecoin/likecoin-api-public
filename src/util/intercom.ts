@@ -8,6 +8,19 @@ import {
 
 let intercomClient: IntercomClient | null = null;
 
+/* eslint-disable camelcase */
+interface IntercomUserCustomAttributes {
+  evm_wallet?: string;
+  like_wallet?: string;
+  login_method?: string;
+  is_liker_plus?: boolean;
+  liker_plus_period?: string;
+  liker_plus_since?: number;
+  liker_plus_current_period_end?: number;
+  [key: string]: unknown;
+}
+/* eslint-enable camelcase */
+
 function getIntercomClient(): IntercomClient | null {
   if (!INTERCOM_ACCESS_TOKEN) return null;
   if (!intercomClient) {
@@ -68,6 +81,56 @@ export async function createIntercomUser({
   }
 }
 
+async function findIntercomContactIdByUserId(userId: string): Promise<string | null> {
+  const client = getIntercomClient();
+  if (!client) return null;
+  const searchResult = await client.contacts.search({
+    query: {
+      field: 'external_id',
+      operator: '=',
+      value: userId,
+    },
+  });
+
+  const contact = searchResult.data?.[0];
+  return contact?.id || null;
+}
+
+async function updateIntercomContact(
+  contactId: string,
+  customAttributes: IntercomUserCustomAttributes,
+): Promise<boolean> {
+  const client = getIntercomClient();
+  if (!client) return false;
+  await client.contacts.update({
+    contact_id: contactId,
+    custom_attributes: customAttributes,
+  });
+  return true;
+}
+
+export async function updateIntercomUserEvmWallet({
+  userId,
+  evmWallet,
+}: {
+  userId: string;
+  evmWallet: string;
+}): Promise<boolean> {
+  try {
+    const contactId = await findIntercomContactIdByUserId(userId);
+    if (!contactId) {
+      throw new Error(`Contact with external_id ${userId} not found for EVM wallet update`);
+    }
+    return await updateIntercomContact(contactId, {
+      evm_wallet: evmWallet,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error updating Intercom user EVM wallet:', error);
+    return false;
+  }
+}
+
 export async function updateIntercomUserLikerPlusStatus({
   userId,
   isLikerPlus,
@@ -81,10 +144,12 @@ export async function updateIntercomUserLikerPlusStatus({
   likerPlusSince?: number;
   likerPlusCurrentPeriodEnd?: number;
 }): Promise<boolean> {
-  const client = getIntercomClient();
-  if (!client) return false;
-
   try {
+    const contactId = await findIntercomContactIdByUserId(userId);
+    if (!contactId) {
+      throw new Error(`Contact with external_id ${userId} not found for LikerPlus status update`);
+    }
+
     const customAttributes: Record<string, unknown> = {
       is_liker_plus: isLikerPlus,
     };
@@ -99,26 +164,7 @@ export async function updateIntercomUserLikerPlusStatus({
       }
     }
 
-    // Find the contact by external_id to get contact_id
-    const searchResult = await client.contacts.search({
-      query: {
-        field: 'external_id',
-        operator: '=',
-        value: userId,
-      },
-    });
-
-    const contact = searchResult.data?.[0];
-    if (!contact || !contact.id) {
-      throw new Error(`Contact with external_id ${userId} not found`);
-    }
-
-    await client.contacts.update({
-      contact_id: contact.id,
-      custom_attributes: customAttributes,
-    });
-
-    return true;
+    return await updateIntercomContact(contactId, customAttributes);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error updating Intercom user LikerPlus status:', error);
