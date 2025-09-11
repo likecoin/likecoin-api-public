@@ -95,11 +95,12 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
       .filter((b) => {
         const {
           isHidden,
+          redirectClassId,
           moderatorWallets = [],
           ownerWallet,
         } = b;
         const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        return isAuthorized || !isHidden;
+        return (isAuthorized || !isHidden) && !redirectClassId;
       })
       .map((b) => {
         const {
@@ -130,24 +131,26 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
       req.user.wallet,
       { chain: chain as string },
     );
-    const list = moderatedBookInfos.map((b) => {
-      const {
-        prices: docPrices = [],
-        pendingNFTCount,
-        id,
-        ownerWallet,
-      } = b;
-      const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
-      const result: any = {
-        classId: id,
-        prices,
-        pendingNFTCount,
-        stock,
-        sold,
-        ownerWallet,
-      };
-      return result;
-    });
+    const list = moderatedBookInfos
+      .filter((b) => !b.redirectClassId)
+      .map((b) => {
+        const {
+          prices: docPrices = [],
+          pendingNFTCount,
+          id,
+          ownerWallet,
+        } = b;
+        const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
+        const result: any = {
+          classId: id,
+          prices,
+          pendingNFTCount,
+          stock,
+          sold,
+          ownerWallet,
+        };
+        return result;
+      });
     res.json({ list });
   } catch (err) {
     next(err);
