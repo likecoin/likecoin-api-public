@@ -14,9 +14,6 @@ interface IntercomUserCustomAttributes {
   like_wallet?: string;
   login_method?: string;
   is_liker_plus?: boolean;
-  liker_plus_period?: string;
-  liker_plus_since?: number;
-  liker_plus_current_period_end?: number;
   [key: string]: unknown;
 }
 /* eslint-enable camelcase */
@@ -134,15 +131,9 @@ export async function updateIntercomUserEvmWallet({
 export async function updateIntercomUserLikerPlusStatus({
   userId,
   isLikerPlus,
-  likerPlusPeriod,
-  likerPlusSince,
-  likerPlusCurrentPeriodEnd,
 }: {
   userId: string;
   isLikerPlus: boolean;
-  likerPlusPeriod?: string;
-  likerPlusSince?: number;
-  likerPlusCurrentPeriodEnd?: number;
 }): Promise<boolean> {
   try {
     const contactId = await findIntercomContactIdByUserId(userId);
@@ -153,16 +144,6 @@ export async function updateIntercomUserLikerPlusStatus({
     const customAttributes: Record<string, unknown> = {
       is_liker_plus: isLikerPlus,
     };
-
-    if (isLikerPlus) {
-      if (likerPlusPeriod) customAttributes.liker_plus_period = likerPlusPeriod;
-      if (likerPlusSince) customAttributes.liker_plus_since = Math.floor(likerPlusSince / 1000);
-      if (likerPlusCurrentPeriodEnd) {
-        customAttributes.liker_plus_current_period_end = Math.floor(
-          likerPlusCurrentPeriodEnd / 1000,
-        );
-      }
-    }
 
     return await updateIntercomContact(contactId, customAttributes);
   } catch (error) {
