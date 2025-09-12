@@ -147,9 +147,6 @@ export async function processStripeSubscriptionInvoice(
   await updateIntercomUserLikerPlusStatus({
     userId: likerId,
     isLikerPlus: true,
-    likerPlusPeriod: period,
-    likerPlusSince: since,
-    likerPlusCurrentPeriodEnd: currentPeriodEnd,
   });
 
   if (isSubscriptionCreation) {
