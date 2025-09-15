@@ -203,7 +203,7 @@ export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 export const ARWEAVE_GATEWAY = 'https://gateway.irys.xyz';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
-export const NFT_BOOK_TEXT_LOCALES = ['en', 'zh'];
+export const NFT_BOOK_TEXT_LOCALES = ['zh', 'en'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];
 
 export const CACHE_BUCKET = IS_TESTNET ? 'liker-land-ebook-cache-dev' : 'liker-land-ebook-cache-main';
