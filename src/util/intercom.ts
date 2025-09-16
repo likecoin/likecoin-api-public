@@ -1,6 +1,6 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { IntercomClient } from 'intercom-client';
-import { CreateContactRequest } from 'intercom-client/api/types';
+import { Contact, CreateContactRequest, UpdateContactRequest } from 'intercom-client/api';
 import {
   INTERCOM_API_SECRET,
   INTERCOM_ACCESS_TOKEN,
@@ -29,6 +29,62 @@ function getIntercomClient(): IntercomClient | null {
 export function createIntercomToken(payload: JwtPayload): string | undefined {
   if (!INTERCOM_API_SECRET) return undefined;
   return jwt.sign(payload, INTERCOM_API_SECRET, { expiresIn: '1h' });
+}
+
+async function findIntercomLeadByEmail(
+  email: string,
+): Promise<Contact | null> {
+  const client = getIntercomClient();
+  if (!client) return null;
+
+  try {
+    const searchResult = await client.contacts.search({
+      query: {
+        operator: 'AND',
+        value: [{
+          field: 'email',
+          operator: '=',
+          value: email,
+        }, {
+          field: 'role',
+          operator: '=',
+          value: 'lead',
+        }],
+      },
+    });
+
+    const lead = searchResult.data?.[0];
+    return lead || null;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error searching for Intercom lead:', error);
+    return null;
+  }
+}
+
+async function promoteIntercomLead(
+  leadId: string,
+  userData: UpdateContactRequest,
+): Promise<boolean> {
+  const client = getIntercomClient();
+  if (!client) return false;
+
+  try {
+    await client.contacts.update({
+      contact_id: leadId,
+      role: 'user',
+      external_id: userData.external_id,
+      name: userData.name,
+      signed_up_at: userData.signed_up_at,
+      custom_attributes: userData.custom_attributes,
+      avatar: userData.avatar,
+    });
+    return true;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error promoting Intercom lead:', error);
+    return false;
+  }
 }
 
 export async function createIntercomUser({
@@ -61,6 +117,11 @@ export async function createIntercomUser({
     };
 
     if (email) {
+      // Search for existing lead with the same email and promote if found
+      const existingLead = await findIntercomLeadByEmail(email);
+      if (existingLead) {
+        return await promoteIntercomLead(existingLead.id, userData as UpdateContactRequest);
+      }
       (userData as any).email = email;
     }
 
