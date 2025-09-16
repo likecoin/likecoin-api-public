@@ -194,9 +194,9 @@ export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
 ];
 
 export const CUSTOMER_SERVICE_URL = 'mailto:cs@3ook.com';
-export const CUSTOMER_SERVICE_EMAIL = '"3ook.com Bookstore" <cs@3ook.com>';
-export const SALES_EMAIL = '"3ook.com Bookstore" <sales@3ook.com>';
-export const SYSTEM_EMAIL = '"3ook.com Bookstore" <noreply@3ook.com>';
+export const CUSTOMER_SERVICE_EMAIL = '"3ook.com" <cs@3ook.com>';
+export const SALES_EMAIL = '"3ook.com" <sales@3ook.com>';
+export const SYSTEM_EMAIL = '"3ook.com" <cs@3ook.com>';
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
