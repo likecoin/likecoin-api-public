@@ -535,8 +535,8 @@ router.get(
 
 router.get('/free', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
-    const freeBooks = await getFreeBooksForUser(req.user?.evmWallet);
-    res.json(freeBooks);
+    const freeBookNFTClassIds = await getFreeBooksForUser(req.user?.evmWallet);
+    res.json(freeBookNFTClassIds);
   } catch (err) {
     next(err);
   }
@@ -546,7 +546,7 @@ router.post('/free', jwtAuth('write:nftbook'), async (req, res, next) => {
   try {
     const { user } = req;
     if (!user) throw new ValidationError('UNAUTHORIZED', 401);
-    const { class_id: classId } = req.body;
+    const { classId } = req.body;
 
     const {
       classIds,

@@ -894,12 +894,15 @@ export async function createFreeBookCartForFreeIds({
     customPriceDiffInDecimal: 0,
   };
   await db.runTransaction(async (t) => {
-    const query = await t.get(likeNFTBookCartCollection.where('classIds', '==', classIds));
+    const query = await t.get(likeNFTBookCartCollection
+      .where('classIds', '==', classIds)
+      .where('wallet', '==', evmWallet));
     if (!query.empty) {
       throw new ValidationError('CART_ALREADY_EXISTS');
     }
     t.create(likeNFTBookCartCollection.doc(`${cartId}-lock`), {
       classIds,
+      wallet: evmWallet,
       status: 'pending',
       timestamp: FieldValue.serverTimestamp(),
     });
