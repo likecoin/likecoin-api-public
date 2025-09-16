@@ -8,7 +8,7 @@ import {
   FieldValue,
 } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
-import { sendVerificationEmail, sendVerificationWithCouponEmail } from '../../util/sendgrid';
+import { sendVerificationEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
 
 const THIRTY_S_IN_MS = 30000;
@@ -18,7 +18,7 @@ const router = Router();
 router.post('/verify/user/:id/', async (req, res, next) => {
   try {
     const username = req.params.id;
-    const { coupon, ref } = req.body;
+    const { ref } = req.body;
     const userRef = dbRef.doc(username);
     const doc = await userRef.get();
     let user: any = {};
@@ -40,11 +40,7 @@ router.post('/verify/user/:id/', async (req, res, next) => {
         verificationUUID,
       });
       try {
-        if (coupon && /[2-9A-HJ-NP-Za-km-z]{8}/.test(coupon)) {
-          await sendVerificationWithCouponEmail(res, user, coupon, ref);
-        } else {
-          await sendVerificationEmail(res, user, ref);
-        }
+        await sendVerificationEmail(res, user, ref);
       } catch (err) {
         await userRef.update({
           lastVerifyTs: FieldValue.delete(),
