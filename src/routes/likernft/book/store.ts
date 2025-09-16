@@ -325,10 +325,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_PRICE', 403);
     }
 
-    if (oldPriceInfo.isAutoDeliver && price.stock < oldPriceInfo.stock) {
-      throw new ValidationError('CANNOT_DECREASE_STOCK_OF_AUTO_DELIVERY_PRICE', 403);
-    }
-
     let expectedNFTCount = 0;
     if (price.isAutoDeliver) {
       expectedNFTCount = oldPriceInfo.isAutoDeliver
