@@ -13,6 +13,7 @@ import {
   getNFTClassDataById as getEVMNFTClassDataById,
   listNFTTokenOwner,
   getNFTClassOwner,
+  getTokenAccountsByBookNFT,
 } from '../../../util/evm/nft';
 
 const classChainMetadataCache = new LRUCache({
@@ -122,28 +123,15 @@ async function getNFTClassAndISCNMetadata(classId) {
 }
 
 function formatOwnerInfo(owners) {
-  const ownerInfo = {};
-  owners.forEach((o) => {
-    const { owner, nfts } = o;
-    if (owner !== LIKER_NFT_TARGET_ADDRESS) {
-      ownerInfo[owner] = nfts;
-    }
-  });
-  return ownerInfo;
+  return owners
+    .map((o) => o.owner)
+    .filter((owner) => owner !== LIKER_NFT_TARGET_ADDRESS);
 }
 
 async function getNFTClassOwnerInfo(classId) {
   if (isEVMClassId(classId)) {
-    // TODO: iterate all pages or change to another owner API
-    const data = await listNFTTokenOwner(classId);
-    const ownersInfo = {};
-    data.data.forEach((item) => {
-      const { owner_address: owner, token_id: tokenId } = item;
-      if (!ownersInfo[owner]) {
-        ownersInfo[owner] = [];
-      }
-      ownersInfo[owner].push(tokenId);
-    });
+    const { data } = await getTokenAccountsByBookNFT(classId);
+    const ownersInfo = data.map((item) => item.evm_address);
     return ownersInfo;
   }
   const { data } = await axios.get(
