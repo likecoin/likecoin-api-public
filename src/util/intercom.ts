@@ -111,7 +111,6 @@ export async function createIntercomUser({
       name: name || userId,
       signed_up_at: signedUpAt ? Math.floor(signedUpAt / 1000) : Math.floor(Date.now() / 1000),
       custom_attributes: {
-        user_id: userId,
         ...(evmWallet && { evm_wallet: evmWallet }),
       },
     };
