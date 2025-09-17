@@ -161,7 +161,6 @@ export async function newNftBookInfo(
     ownerWallet,
     successUrl,
     cancelUrl,
-    notificationEmails,
     moderatorWallets,
     connectedWallets,
     mustClaimToView,
@@ -222,7 +221,6 @@ export async function newNftBookInfo(
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
-  if (notificationEmails) payload.notificationEmails = notificationEmails;
   if (connectedWallets) payload.connectedWallets = connectedWallets;
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
@@ -367,7 +365,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
 
 export async function updateNftBookInfo(classId: string, {
   prices,
-  notificationEmails,
   moderatorWallets,
   connectedWallets,
   mustClaimToView,
@@ -379,7 +376,6 @@ export async function updateNftBookInfo(classId: string, {
   tableOfContents,
 }: {
   prices?: any[];
-  notificationEmails?: string[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
   mustClaimToView?: boolean;
@@ -399,7 +395,6 @@ export async function updateNftBookInfo(classId: string, {
     payload.stripeProductIds = prices.map((p) => p.stripeProductId).filter(Boolean);
     payload.stripePriceIds = prices.map((p) => p.stripePriceId).filter(Boolean);
   }
-  if (notificationEmails !== undefined) { payload.notificationEmails = notificationEmails; }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }

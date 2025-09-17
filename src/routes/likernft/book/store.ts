@@ -496,7 +496,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       successUrl,
       cancelUrl,
       prices: inputPrices = [],
-      notificationEmails = [],
       moderatorWallets = [],
       connectedWallets,
       mustClaimToView = false,
@@ -582,7 +581,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       successUrl,
       cancelUrl,
       prices,
-      notificationEmails,
       moderatorWallets,
       connectedWallets,
       mustClaimToView,
@@ -671,7 +669,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
   try {
     const { classId } = req.params;
     const {
-      notificationEmails,
       moderatorWallets,
       connectedWallets,
       mustClaimToView,
@@ -689,7 +686,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await updateNftBookInfo(classId, {
-      notificationEmails,
       moderatorWallets,
       connectedWallets,
       mustClaimToView,
@@ -707,7 +703,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideDownload,
       hideAudio,
       enableCustomMessagePage,
-      notificationEmailCount: notificationEmails ? notificationEmails.length : 0,
       moderatorWalletCount: moderatorWallets ? moderatorWallets.length : 0,
       connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });
