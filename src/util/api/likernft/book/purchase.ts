@@ -14,6 +14,7 @@ import {
 import { handleNFTPurchaseTransaction } from '../purchase';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
+  getBookUserInfoFromWallet,
 } from './user';
 import stripe, { calculateStripeFee, getStripePromotionFromCode } from '../../../stripe';
 import {
@@ -884,12 +885,16 @@ export async function sendNFTBookClaimedEmailNotification(
   const doc = await bookRef.get();
   const docData = doc.data();
   if (!docData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-  const { notificationEmails = [] } = docData;
+  const { ownerWallet } = docData;
+  const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
+  const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
+    ? ownerInfo?.likerUserInfo?.email
+    : undefined;
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
-  if (!nftId && notificationEmails && notificationEmails.length) {
+  if (!nftId && ownerEmail) {
     await sendNFTBookClaimedEmail({
-      emails: notificationEmails,
+      email: ownerEmail,
       classId,
       bookName: className,
       paymentId,

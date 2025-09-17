@@ -418,7 +418,6 @@ export async function processNFTBookCart(
         txData,
       } = info;
       const {
-        notificationEmails = [],
         connectedWallets,
         ownerWallet,
         prices,
@@ -474,13 +473,18 @@ export async function processNFTBookCart(
         { connectedWallets, from: itemFrom },
       );
 
+      const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
+      const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
+        ? ownerInfo?.likerUserInfo?.email
+        : undefined;
+
       const notifications: Promise<any>[] = [
         sendNFTBookSalesEmail({
           buyerEmail: email,
           isGift,
           giftToEmail: (giftInfo as any)?.toEmail,
           giftToName: (giftInfo as any)?.toName,
-          emails: notificationEmails,
+          email: ownerEmail,
           bookName,
           amount: priceInDecimal / 100,
           quantity,
@@ -556,14 +560,14 @@ export async function processNFTBookCart(
           className: bookName,
           priceName,
           priceIndex,
-          notificationEmails,
+          email: ownerEmail,
           wallet: ownerWallet,
           stock,
         }));
       }
       if (isOutOfStock) {
         notifications.push(sendNFTBookOutOfStockEmail({
-          emails: notificationEmails,
+          email: ownerEmail,
           classId,
           bookName,
           priceName,

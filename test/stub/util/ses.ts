@@ -96,7 +96,7 @@ export function sendNFTBookPendingClaimEmail({
 
 /* istanbul ignore next */
 export function sendNFTBookSalesEmail({
-  emails,
+  email,
   isGift,
   giftToName,
   giftToEmail,
@@ -121,13 +121,13 @@ export function sendNFTBookSalePaymentsEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId = '', bookName, paymentId, wallet, message, claimerEmail,
+  email, classId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
   return Promise.resolve();
 }
 
 export function sendNFTBookOutOfStockEmail({
-  emails,
+  email,
   classId = '',
   bookName,
   priceName,

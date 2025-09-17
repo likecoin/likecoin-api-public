@@ -639,7 +639,6 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     pendingNFTCount,
     ownerWallet,
     moderatorWallets = [],
-    notificationEmails,
     connectedWallets,
     mustClaimToView = false,
     hideDownload = false,
@@ -696,7 +695,6 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
     payload.sold = sold;
     payload.pendingNFTCount = pendingNFTCount;
     payload.moderatorWallets = moderatorWallets;
-    payload.notificationEmails = notificationEmails;
     payload.connectedWallets = connectedWallets;
   }
   return payload;
@@ -714,7 +712,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       isAllowCustomPrice,
       isTippingEnabled,
       isUnlisted,
-      notificationEmails,
       moderatorWallets,
       connectedWallets,
       isAutoDeliver,
@@ -740,7 +737,6 @@ export function filterNFTCollectionTypePayload(type, payload, isOwner = false) {
       cancelUrl,
       sold,
       pendingNFTCount,
-      notificationEmails,
       moderatorWallets,
       connectedWallets,
       autoMemo,

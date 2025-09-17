@@ -189,7 +189,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
 
 export async function sendNFTBookOutOfStockSlackNotification({
   priceIndex,
-  notificationEmails,
+  email,
   classId = '',
   wallet,
   className,
@@ -200,7 +200,7 @@ export async function sendNFTBookOutOfStockSlackNotification({
   classId?: string;
   className: string;
   priceIndex: number;
-  notificationEmails: string[];
+  email: string;
   stock: number;
   priceName: string;
 }) {
@@ -210,12 +210,12 @@ export async function sendNFTBookOutOfStockSlackNotification({
     await axios.post(NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       priceIndex,
-      email: notificationEmails.join(' '),
       classLink,
       wallet,
       className,
       stock,
       priceName,
+      email,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

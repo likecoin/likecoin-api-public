@@ -608,7 +608,7 @@ export function sendNFTBookGiftSentEmail({
 }
 
 export function sendNFTBookSalesEmail({
-  emails,
+  email,
   isGift,
   giftToName,
   giftToEmail,
@@ -661,8 +661,8 @@ export function sendNFTBookSalesEmail({
       },
     },
   };
-  if (emails && emails.length > 0) {
-    (params.Destination as any).ToAddresses = emails;
+  if (email) {
+    (params.Destination as any).ToAddresses = [email];
   }
   return ses.sendEmail(params).promise();
 }
@@ -733,7 +733,7 @@ export function sendNFTBookSalePaymentsEmail({
 }
 
 export function sendNFTBookClaimedEmail({
-  emails, classId = '', bookName, paymentId, wallet, message, claimerEmail,
+  email, classId = '', bookName, paymentId, wallet, message, claimerEmail,
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `A user has claimed an ebook ${bookName}`;
@@ -749,7 +749,7 @@ export function sendNFTBookClaimedEmail({
       },
     ],
     Destination: {
-      ToAddresses: emails,
+      ToAddresses: email ? [email] : [],
       BccAddresses: [SALES_EMAIL],
     },
     Message: {
@@ -779,13 +779,13 @@ export function sendNFTBookClaimedEmail({
 }
 
 export function sendNFTBookOutOfStockEmail({
-  emails,
+  email,
   classId = '',
   bookName,
   priceName,
 }) {
   if (TEST_MODE) return Promise.resolve();
-  if (!emails.length) return Promise.resolve();
+  if (!email) return Promise.resolve();
   const title = `Your book ${bookName} ${priceName} is sold out`;
   const url = getNFTBookStoreClassPageURL(classId);
   const content = `<p>Dear Creator,</p>
@@ -805,6 +805,7 @@ export function sendNFTBookOutOfStockEmail({
       },
     ],
     Destination: {
+      ToAddresses: [email],
       BccAddresses: [SALES_EMAIL],
     },
     Message: {
@@ -823,8 +824,5 @@ export function sendNFTBookOutOfStockEmail({
       },
     },
   };
-  if (emails && emails.length > 0) {
-    (params.Destination as any).ToAddresses = emails;
-  }
   return ses.sendEmail(params).promise();
 }
