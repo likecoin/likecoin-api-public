@@ -84,7 +84,6 @@ router.post('/authorize', async (req, res, next) => {
         user_id: payload.user,
         email: likerIdInfo.email,
         evm_wallet: payload.evmWallet,
-        is_liker_plus: Boolean(likerIdInfo.isLikerPlus),
       });
     }
 
