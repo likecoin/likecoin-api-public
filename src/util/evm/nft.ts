@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { readContract } from 'viem/actions';
 import { getAddress } from 'viem';
 import axios from 'axios';
@@ -10,6 +11,92 @@ import {
   LIKE_NFT_EVM_INDEXER_API,
   LIKE_NFT_EVM_INDEXER_API_KEY,
 } from '../../../config/config';
+
+interface PaginationResponse {
+  next_key: number;
+  count: number;
+}
+
+interface Account {
+  id: number;
+  cosmos_address?: string;
+  evm_address: string;
+  likeid?: string;
+}
+
+interface Erc721MetadataAttribute {
+  display_type?: 'number' | 'boost_number' | 'boost_percentage';
+  trait_type: string;
+  value: string;
+}
+
+interface NFT {
+  id: number;
+  contract_address: string;
+  token_id: string;
+  token_uri?: string;
+  image?: string;
+  image_data?: string;
+  external_url?: string;
+  description?: string;
+  name?: string;
+  attributes?: Erc721MetadataAttribute[];
+  background_color?: string;
+  animation_url?: string;
+  youtube_url?: string;
+  owner_address: string;
+  minted_at: string;
+  updated_at: string;
+}
+
+interface BookNFTTokensResponse {
+  pagination: PaginationResponse;
+  data: NFT[];
+}
+
+interface IndexerActionResponse {
+  message: string;
+  task_id?: string;
+}
+
+interface ContractLevelMetadata {
+  name?: string;
+  symbol?: string;
+  description?: string;
+  image?: string;
+  banner_image?: string;
+  featured_image?: string;
+  external_link?: string;
+  collaborators?: string[];
+  [key: string]: any;
+}
+
+interface BookNFT {
+  id: number;
+  address: string;
+  name: string;
+  symbol: string;
+  owner_address?: string;
+  total_supply: string;
+  max_supply: string;
+  metadata?: ContractLevelMetadata;
+  banner_image: string;
+  featured_image: string;
+  deployer_address: string;
+  deployed_block_number: string;
+  minted_at: string;
+  updated_at: string;
+  owner?: Account;
+}
+
+interface BookNFTResponse {
+  pagination: PaginationResponse;
+  data: BookNFT[];
+}
+
+interface AccountResponse {
+  account: Account;
+}
 
 export function isEVMClassId(classId) {
   return classId.startsWith('0x');
@@ -92,10 +179,13 @@ export async function checkNFTClassIsBookNFT(classId) {
   return res as boolean;
 }
 
-export async function listNFTTokenOwner(classId, {
+export async function listNFTTokenOwner(classId: string, {
   limit = 100,
   key = '',
-} = {}) {
+}: {
+  limit?: number;
+  key?: string;
+} = {}): Promise<BookNFTTokensResponse> {
   const queryParams = new URLSearchParams();
   if (limit) queryParams.append('pagination.limit', String(limit));
   if (key) queryParams.append('pagination.key', key);
@@ -105,7 +195,9 @@ export async function listNFTTokenOwner(classId, {
   return data;
 }
 
-export async function triggerNFTIndexerUpdate({ classId = '' } = {}) {
+export async function triggerNFTIndexerUpdate({ classId = '' }: {
+  classId?: string;
+} = {}): Promise<IndexerActionResponse | null> {
   if (!LIKE_NFT_EVM_INDEXER_API_KEY) {
     // eslint-disable-next-line no-console
     console.warn('LIKE_NFT_EVM_INDEXER_API_KEY is not set, skipping indexer update');
@@ -174,4 +266,125 @@ export async function mintNFT(
     to: LIKE_NFT_CONTRACT_ADDRESS,
   });
   return res.transactionHash;
+}
+
+export async function getBookNFTsByAccount(evmAddress: string, {
+  limit = 100,
+  key = '',
+  reverse = false,
+}: {
+  limit?: number;
+  key?: string;
+  reverse?: boolean;
+} = {}): Promise<BookNFTResponse> {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  if (reverse) queryParams.append('reverse', String(reverse));
+
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/account/${evmAddress}/booknfts?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function getTokensByAccount(evmAddress: string, {
+  limit = 100,
+  key = '',
+  reverse = false,
+}: {
+  limit?: number;
+  key?: string;
+  reverse?: boolean;
+} = {}): Promise<BookNFTTokensResponse> {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  if (reverse) queryParams.append('reverse', String(reverse));
+
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/account/${evmAddress}/tokens?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function getTokenBookNFTsByAccount(evmAddress: string, {
+  limit = 100,
+  key = '',
+  reverse = false,
+}: {
+  limit?: number;
+  key?: string;
+  reverse?: boolean;
+} = {}): Promise<BookNFTResponse> {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  if (reverse) queryParams.append('reverse', String(reverse));
+
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/account/${evmAddress}/token-booknfts?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function getAllBookNFTs({
+  limit = 100,
+  key = '',
+  reverse = false,
+}: {
+  limit?: number;
+  key?: string;
+  reverse?: boolean;
+} = {}): Promise<BookNFTResponse> {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  if (reverse) queryParams.append('reverse', String(reverse));
+
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/booknfts?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function getBookNFTById(id: string): Promise<BookNFT> {
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/booknft/${id}`,
+  );
+  return data;
+}
+
+export async function getTokenAccountsByBookNFT(id: string, {
+  limit = 100,
+  key = '',
+  reverse = false,
+}: {
+  limit?: number;
+  key?: string;
+  reverse?: boolean;
+} = {}): Promise<{ pagination: PaginationResponse; data: Account[] }> {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('pagination.limit', String(limit));
+  if (key) queryParams.append('pagination.key', key);
+  if (reverse) queryParams.append('reverse', String(reverse));
+
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/booknft/${id}/tokens/account?${queryParams.toString()}`,
+  );
+  return data;
+}
+
+export async function getAccountByBookNFT(id: string): Promise<AccountResponse> {
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/booknft/${id}/account`,
+  );
+  return data;
+}
+
+export async function getTokenById(booknftId: string, tokenId: string): Promise<NFT> {
+  const { data } = await axios.get(
+    `${LIKE_NFT_EVM_INDEXER_API}/token/${booknftId}/${tokenId}`,
+  );
+  return data;
 }
