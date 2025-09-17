@@ -30,10 +30,7 @@ import {
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
 } from '../../../../../config/config';
 import {
-  sendNFTBookPendingClaimEmail,
-  sendNFTBookSalesEmail,
   sendNFTBookClaimedEmail,
-  sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookSalePaymentsEmail,
@@ -865,65 +862,6 @@ export async function formatStripeCheckoutSession({
       customPriceDiffInDecimal: totalCustomPriceDiffInDecimal,
     },
   };
-}
-
-export async function sendNFTBookPurchaseEmail({
-  email,
-  notificationEmails,
-  classId = '',
-  bookName,
-  priceName,
-  paymentId,
-  claimToken,
-  amountTotal,
-  quantity,
-  isGift = false,
-  giftInfo,
-  mustClaimToView = false,
-  originalPrice = amountTotal,
-  from,
-  site,
-}) {
-  if (isGift && giftInfo) {
-    const {
-      fromName,
-      toName,
-      toEmail,
-      message,
-    } = giftInfo;
-    await sendNFTBookGiftPendingClaimEmail({
-      fromName,
-      toName,
-      toEmail,
-      message,
-      classId,
-      bookName,
-      paymentId,
-      claimToken,
-      site,
-    });
-  } else if (email) {
-    await sendNFTBookPendingClaimEmail({
-      email,
-      classId,
-      bookName,
-      paymentId,
-      claimToken,
-      from,
-      site,
-    });
-  }
-  await sendNFTBookSalesEmail({
-    buyerEmail: email,
-    isGift,
-    giftToEmail: (giftInfo as any)?.toEmail,
-    giftToName: (giftInfo as any)?.toName,
-    emails: notificationEmails,
-    originalPrice,
-    bookName,
-    amount: amountTotal,
-    quantity,
-  });
 }
 
 export async function sendNFTBookClaimedEmailNotification(
