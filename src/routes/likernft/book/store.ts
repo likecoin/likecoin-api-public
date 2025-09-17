@@ -30,7 +30,6 @@ import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../constant';
-import { handleGiftBook } from '../../../util/api/likernft/book/store';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
@@ -460,67 +459,6 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     });
 
     res.sendStatus(200);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post(['/:classId/price/:priceIndex/gift', '/class/:classId/price/:priceIndex/gift'], jwtAuth('write:nftbook'), async (req, res, next) => {
-  try {
-    const { classId } = req.params;
-    const priceIndex = Number(req.params.priceIndex);
-    const {
-      receivers,
-      giftInfo: {
-        toName: defaultToName,
-        fromName: defaultFromName,
-        message: defaultMessage,
-      },
-      site,
-    } = req.body;
-    if (!receivers || !Array.isArray(receivers) || receivers.length === 0) {
-      throw new ValidationError('INVALID_RECEIVERS', 400);
-    }
-    if (!defaultFromName || !defaultToName || !defaultMessage) {
-      throw new ValidationError('INVALID_GIFT_MESSAGE_INFO', 400);
-    }
-    const bookInfo = await getNftBookInfo(classId);
-
-    if (!bookInfo) {
-      throw new ValidationError('BOOK_NOT_FOUND', 404);
-    }
-    const {
-      ownerWallet,
-      moderatorWallets = [],
-    } = bookInfo;
-
-    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-    if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-
-    const result = await handleGiftBook(
-      classId,
-      priceIndex,
-      receivers,
-      {
-        defaultToName,
-        defaultFromName,
-        defaultMessage,
-        site,
-      },
-      req,
-    );
-
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'BookNFTGift',
-      wallet: req.user.wallet,
-      classId,
-      priceIndex,
-      receiverCount: receivers.length,
-    });
-
-    res.json({
-      result,
-    });
   } catch (err) {
     next(err);
   }
