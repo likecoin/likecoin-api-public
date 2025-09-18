@@ -39,7 +39,6 @@ import {
   sendNFTBookCartGiftPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
   sendNFTBookOutOfStockEmail,
-  sendNFTBookSalesEmail,
 } from '../../../ses';
 import logPixelEvents from '../../../fbq';
 import { getBookUserInfoFromWallet } from './user';
@@ -50,7 +49,6 @@ import {
 import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
-import { isEVMClassId } from '../../../evm/nft';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
@@ -149,9 +147,10 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       channelCommission,
       likerLandArtFee,
     } = item;
+    const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity)
+        / totalPriceInDecimal) || 0;
     const itemFeeInfo: TransactionFeeInfo = {
-      stripeFeeAmount: Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity)
-        / totalPriceInDecimal) || 0,
+      stripeFeeAmount,
       priceInDecimal: priceInDecimal * quantity,
       originalPriceInDecimal: originalPriceInDecimal * quantity,
       customPriceDiffInDecimal: customPriceDiffInDecimal * quantity,
@@ -160,6 +159,16 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       likerLandCommission: likerLandCommission * quantity,
       channelCommission: channelCommission * quantity,
       likerLandArtFee: likerLandArtFee * quantity,
+      royaltyToSplit: Math.max(
+        priceInDecimal
+        - stripeFeeAmount
+        - likerLandFeeAmount
+        - likerLandTipFeeAmount
+        - likerLandCommission
+        - channelCommission
+        - likerLandArtFee,
+        0,
+      ) * quantity,
     };
     if (classId && priceIndex !== undefined) {
       return createNewNFTBookPayment(classId, paymentId, {
@@ -444,6 +453,7 @@ export async function processNFTBookCart(
         likerLandCommission,
         channelCommission,
         likerLandArtFee,
+        royaltyToSplit,
       } = feeInfo as TransactionFeeInfo;
       const bookId = classId;
       const bookData = await getNftBookInfo(classId);
@@ -469,6 +479,7 @@ export async function processNFTBookCart(
           likerLandCommission,
           channelCommission,
           likerLandArtFee,
+          royaltyToSplit,
         },
         { connectedWallets, from: itemFrom },
       );
@@ -479,17 +490,6 @@ export async function processNFTBookCart(
         : undefined;
 
       const notifications: Promise<any>[] = [
-        sendNFTBookSalesEmail({
-          buyerEmail: email,
-          isGift,
-          giftToEmail: (giftInfo as any)?.toEmail,
-          giftToName: (giftInfo as any)?.toName,
-          email: ownerEmail,
-          bookName,
-          amount: priceInDecimal / 100,
-          quantity,
-          originalPrice: originalPriceInDecimal / 100,
-        }),
         sendNFTBookSalesSlackNotification({
           classId,
           bookName,
@@ -828,6 +828,7 @@ export async function createFreeBookCartFromSubscription({
     channelCommission: 0,
     likerLandArtFee: 0,
     customPriceDiffInDecimal: 0,
+    royaltyToSplit: 0,
   };
   const utmCampaign = 'liker-plus';
   const utmSource = 'liker-plus';
@@ -1083,6 +1084,16 @@ export async function formatCartItemInfosFromSession(session) {
       customPriceDiffInDecimal: acc.customPriceDiffInDecimal
         + item.customPriceDiffInDecimal * item.quantity,
       stripeFeeAmount: acc.stripeFeeAmount,
+      royaltyToSplit:
+        acc.royaltyToSplit
+        + (
+          item.priceInDecimal
+          - item.likerLandFeeAmount
+          - item.likerLandTipFeeAmount
+          - item.likerLandCommission
+          - item.channelCommission
+          - item.likerLandArtFee
+        ) * item.quantity,
     }),
     {
       priceInDecimal: 0,
@@ -1094,6 +1105,7 @@ export async function formatCartItemInfosFromSession(session) {
       channelCommission: 0,
       likerLandArtFee: 0,
       customPriceDiffInDecimal: 0,
+      royaltyToSplit: 0,
     },
   );
   const [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
