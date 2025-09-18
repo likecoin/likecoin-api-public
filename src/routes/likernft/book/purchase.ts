@@ -131,6 +131,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       coupon,
       giftInfo,
       site = undefined,
+      cancelPage,
       language,
     } = req.body;
 
@@ -183,6 +184,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gadClickId,
         gadSource,
         site,
+        page: cancelPage,
         language,
       }),
       site,

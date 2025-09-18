@@ -1,5 +1,9 @@
 import axios, { AxiosError } from 'axios';
-import { LIKER_LAND_HOSTNAME, BOOK3_HOSTNAME } from '../constant';
+import {
+  LIKER_LAND_HOSTNAME,
+  BOOK3_HOSTNAME,
+  BOOK3_CART_PAGES,
+} from '../constant';
 import {
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../config/config';
@@ -41,6 +45,7 @@ export const getLikerLandCartURL = ({
   gadClickId,
   gadSource,
   site,
+  page = 'list',
 }: {
   language?: string,
   type?: 'book' | 'wnft',
@@ -52,6 +57,7 @@ export const getLikerLandCartURL = ({
   gadClickId?: string;
   gadSource?: string;
   site?: string,
+  page?: 'list' | 'checkout';
 }): string => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -80,12 +86,17 @@ export const getLikerLandCartURL = ({
     case 'liker.land':
       return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
     case '3ook.com':
-    default:
+    default: {
       if (type !== 'book') {
         // eslint-disable-next-line no-console
         console.warn(`Unsupported type "${type}" for 3ook.com site`);
       }
-      return getBook3URL(`/cart/?${qs}`, { language });
+      let path = '';
+      if (BOOK3_CART_PAGES.includes(page)) {
+        path += `/${page}`;
+      }
+      return getBook3URL(`${path}?${qs}`, { language });
+    }
   }
 };
 
