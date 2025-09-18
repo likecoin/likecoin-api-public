@@ -54,4 +54,5 @@ export type TransactionFeeInfo = {
   channelCommission: number
   likerLandArtFee: number
   customPriceDiffInDecimal: number
+  royaltyToSplit: number
 }
