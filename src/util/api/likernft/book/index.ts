@@ -34,7 +34,6 @@ import { getClient } from '../../../cosmos/tx';
 import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
-import { filterNFTBookListingInfo } from '../../../ValidationHelper';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 

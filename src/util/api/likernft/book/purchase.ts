@@ -31,7 +31,8 @@ import {
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
 } from '../../../../../config/config';
 import {
-  sendNFTBookClaimedEmail,
+  sendAutoDeliverNFTBookSalesEmail,
+  sendManualNFTBookSalesEmail,
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookSalePaymentsEmail,
@@ -73,6 +74,7 @@ export async function handleStripeConnectedAccount({
   likerLandCommission = 0,
   likerLandArtFee = 0,
   channelCommission = 0,
+  royaltyToSplit = 0,
 }, { connectedWallets: connectedWalletsInput, from }) {
   const transfers: Stripe.Transfer[] = [];
   if (!amountTotal) return { transfers };
@@ -108,7 +110,8 @@ export async function handleStripeConnectedAccount({
     let fromStripeConnectAccountId;
     let transfer: Stripe.Response<Stripe.Transfer> | null = null;
     if (isValidChannelId) {
-      const { bookUserInfo, likerUserInfo } = fromUser;
+      const { bookUserInfo, likerUserInfo, wallet } = fromUser;
+      const isOwner = wallet === ownerWallet;
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
@@ -156,7 +159,9 @@ export async function handleStripeConnectedAccount({
             currency,
             timestamp: FieldValue.serverTimestamp(),
           });
-          const shouldSendNotificationEmail = email && isEmailVerified;
+          const shouldSendNotificationEmail = !isOwner
+            && email
+            && isEmailVerified;
           if (shouldSendNotificationEmail) {
             emailMap[email] ??= [];
             emailMap[email].push({
@@ -182,13 +187,7 @@ export async function handleStripeConnectedAccount({
     }
   }
   if (connectedWallets && Object.keys(connectedWallets).length) {
-    const amountToSplit = amountTotal
-      - channelCommission
-      - (stripeFeeAmount
-        + likerLandFeeAmount
-        + likerLandCommission
-        + likerLandArtFee
-        + likerLandTipFeeAmount);
+    const amountToSplit = royaltyToSplit;
     if (amountToSplit > 0) {
       const wallets = Object.keys(connectedWallets);
       const connectedUserInfos: any[] = await Promise.all(
@@ -257,7 +256,8 @@ export async function handleStripeConnectedAccount({
               email,
               isEmailVerified,
             } = likerUserInfo || {};
-            const shouldSendNotificationEmail = email && isEmailVerified;
+            const isOwner = wallet === ownerWallet;
+            const shouldSendNotificationEmail = !isOwner && email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
               const walletAmount = amountSplit / 100;
@@ -860,13 +860,18 @@ export async function formatStripeCheckoutSession({
 
 export async function sendNFTBookClaimedEmailNotification(
   classId: string,
-  nftId: string,
   paymentId: string,
+  isAutoDeliver: boolean,
+  feeInfo: TransactionFeeInfo,
   {
-    message, wallet, email, isGift, giftInfo,
-  }
-    : {
-      message: string, wallet: string, email: string, isGift?: boolean, giftInfo?: {
+    wallet, email, isGift, giftInfo, from, coupon,
+  } : {
+      wallet: string,
+      email: string,
+      isGift?: boolean,
+      from?: string,
+      coupon?: string,
+      giftInfo?: {
         fromName: string,
         toName: string,
         toEmail: string,
@@ -885,16 +890,34 @@ export async function sendNFTBookClaimedEmailNotification(
     : undefined;
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
-  if (!nftId && ownerEmail) {
-    await sendNFTBookClaimedEmail({
-      email: ownerEmail,
-      classId,
-      bookName: className,
-      paymentId,
-      wallet,
-      claimerEmail: giftInfo?.toEmail || email,
-      message,
-    });
+  if (ownerEmail) {
+    if (isAutoDeliver) {
+      await sendAutoDeliverNFTBookSalesEmail({
+        email: ownerEmail,
+        classId,
+        bookName: className,
+        paymentId,
+        wallet,
+        buyerEmail: email,
+        claimerEmail: giftInfo?.toEmail || email,
+        feeInfo,
+        coupon,
+        from,
+      });
+    } else {
+      await sendManualNFTBookSalesEmail({
+        email: ownerEmail,
+        classId,
+        bookName: className,
+        paymentId,
+        wallet,
+        buyerEmail: email,
+        claimerEmail: giftInfo?.toEmail || email,
+        feeInfo,
+        coupon,
+        from,
+      });
+    }
   }
   if (isGift && giftInfo) {
     const {
@@ -932,11 +955,14 @@ export async function claimNFTBook(
   const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
   const {
     email,
+    coupon,
     isAutoDeliver,
     nftId,
     nftIds,
     autoMemo = '',
     quantity,
+    feeInfo,
+    from,
   } = await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
@@ -1072,22 +1098,23 @@ export async function claimNFTBook(
         console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
       }
     }
-  } else {
-    try {
-      await sendNFTBookClaimedEmailNotification(
-        classId,
-        nftId,
-        paymentId,
-        {
-          message,
-          wallet,
-          email,
-        },
-      );
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to send email notification', e);
-    }
+  }
+  try {
+    await sendNFTBookClaimedEmailNotification(
+      classId,
+      paymentId,
+      isAutoDeliver,
+      feeInfo,
+      {
+        wallet,
+        email,
+        coupon,
+        from: checkIsFromLikerLand(from) ? undefined : from,
+      },
+    );
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to send email notification', e);
   }
 
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
