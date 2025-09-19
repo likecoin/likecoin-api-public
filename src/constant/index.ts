@@ -35,6 +35,7 @@ export const APP_LIKE_CO_HOSTNAME = IS_TESTNET ? 'app.rinkeby.like.co' : 'app.li
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;
 
 export const BOOK3_HOSTNAME = IS_TESTNET ? 'sepolia.3ook.com' : '3ook.com';
+export const BOOK3_CART_PAGES = ['list', 'checkout'];
 
 export const GETTING_STARTED_TASKS = ['taskSocial', 'taskOnepager', 'taskVideo', 'taskPaymentPage'];
 
