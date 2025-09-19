@@ -216,9 +216,7 @@ export async function handleStripeConnectedAccount({
       const connectedTransfers = await Promise.all(
         Object.entries(walletToUserMap)
           .map(async ([wallet, userInfo]) => {
-            const {
-              stripeConnectAccountId,
-            } = userInfo;
+            const { stripeConnectAccountId } = userInfo;
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
