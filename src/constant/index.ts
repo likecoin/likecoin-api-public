@@ -11,14 +11,9 @@ export const MIN_USER_ID_LENGTH = 5;
 
 export const MAX_USER_ID_LENGTH = 20;
 
-/* TEMP: reformat medium referrer into medium post */
-export const MEDIUM_REGEX = /^(?:https?:\/\/)?[^/]*\/media\/[a-zA-Z0-9_]+(?:\?postId=([a-zA-Z0-9_]+))?/;
-
 export const PUBSUB_TOPIC_MISC = 'misc';
 
 export const PUBSUB_TOPIC_WNFT = 'wnft';
-
-export const LOGIN_MESSAGE = 'Login - Reinventing the Like';
 
 export const EXTERNAL_HOSTNAME = process.env.EXTERNAL_HOSTNAME || (IS_TESTNET ? 'rinkeby.like.co' : 'like.co');
 
@@ -30,14 +25,10 @@ export const LIKER_LAND_HOSTNAME = IS_TESTNET ? 'rinkeby.liker.land' : 'liker.la
 
 export const NFT_BOOKSTORE_HOSTNAME = IS_TESTNET ? 'publish.sepolia.3ook.com' : 'publish.3ook.com';
 
-export const APP_LIKE_CO_HOSTNAME = IS_TESTNET ? 'app.rinkeby.like.co' : 'app.like.co';
-
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;
 
 export const BOOK3_HOSTNAME = IS_TESTNET ? 'sepolia.3ook.com' : '3ook.com';
 export const BOOK3_CART_PAGES = ['list', 'checkout'];
-
-export const GETTING_STARTED_TASKS = ['taskSocial', 'taskOnepager', 'taskVideo', 'taskPaymentPage'];
 
 export const TRANSACTION_QUERY_LIMIT = 10;
 
@@ -56,31 +47,6 @@ export const KNOWN_EMAIL_HOSTS = [
   '163.com',
   'privaterelay.appleid.com',
   'icloud.com',
-];
-
-export const EXTRA_EMAIL_BLACLIST = [
-  'tutye.com',
-];
-
-export const LOGIN_CONNECTION_LIST = [
-  'google',
-  'facebook',
-  'twitter',
-];
-
-export const OTHER_CONNECTION_LIST = [
-  'medium',
-  'flickr',
-];
-
-export const IS_LOGIN_SOCIAL = new Set(LOGIN_CONNECTION_LIST);
-
-export const LINK_ICON_TYPES = ['profile', 'blog', 'photo', 'mail', 'contact', 'link'];
-
-export const DISPLAY_SOCIAL_MEDIA_OPTIONS = [
-  'all', // default
-  'wp',
-  'medium',
 ];
 
 export const SUPPORTED_AVATAR_TYPE = new Set([
@@ -148,13 +114,6 @@ export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:
 export const EMAIL_REGEX = IS_TESTNET ? /.*/ : W3C_EMAIL_REGEX;
 
 export const API_DEFAULT_SIZE_LIMIT = 4096;
-
-export const TWITTER_USER_ID_STR = '913375304357339136'; // likecoin_fdn
-export const TWITTER_STATUS_ID_STR = '1126374337575972864';
-
-export const OICE_API_HOST = IS_TESTNET ? 'https://oice.com/api' : 'https://oicetest.lakoo.com/api';
-
-export const USD_TO_HKD_RATIO = 7.8;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
