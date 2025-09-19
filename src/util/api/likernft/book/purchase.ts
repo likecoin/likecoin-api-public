@@ -112,7 +112,6 @@ export async function handleStripeConnectedAccount({
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
-        isEnableNotificationEmails = true,
       } = bookUserInfo;
       const {
         email,
@@ -157,9 +156,7 @@ export async function handleStripeConnectedAccount({
             currency,
             timestamp: FieldValue.serverTimestamp(),
           });
-          const shouldSendNotificationEmail = isEnableNotificationEmails
-            && email
-            && isEmailVerified;
+          const shouldSendNotificationEmail = email && isEmailVerified;
           if (shouldSendNotificationEmail) {
             emailMap[email] ??= [];
             emailMap[email].push({
@@ -220,10 +217,7 @@ export async function handleStripeConnectedAccount({
       const connectedTransfers = await Promise.all(
         Object.entries(walletToUserMap)
           .map(async ([wallet, userInfo]) => {
-            const {
-              stripeConnectAccountId,
-              isEnableNotificationEmails = true,
-            } = userInfo;
+            const { stripeConnectAccountId } = userInfo;
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
             const transfer = await stripe.transfers.create({
@@ -263,8 +257,7 @@ export async function handleStripeConnectedAccount({
               email,
               isEmailVerified,
             } = likerUserInfo || {};
-            const shouldSendNotificationEmail = isEnableNotificationEmails
-              && email && isEmailVerified;
+            const shouldSendNotificationEmail = email && isEmailVerified;
             if (shouldSendNotificationEmail) {
               emailMap[email] ??= [];
               const walletAmount = amountSplit / 100;
