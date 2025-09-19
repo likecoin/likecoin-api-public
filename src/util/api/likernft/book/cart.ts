@@ -421,7 +421,6 @@ export async function processNFTBookCart(
         connectedWallets,
         ownerWallet,
         prices,
-        typePayload,
       } = listingData;
       const {
         price,
@@ -434,8 +433,8 @@ export async function processNFTBookCart(
         feeInfo,
         from: itemFrom,
       } = txData;
-      const stock = typePayload?.stock || prices?.[priceIndex]?.stock;
-      const isOutOfStock = stock <= 0;
+      const { stock, isAutoDeliver } = prices?.[priceIndex] || {};
+      const isOutOfStock = !isAutoDeliver && stock <= 0;
       const {
         priceInDecimal,
         stripeFeeAmount,
@@ -554,7 +553,7 @@ export async function processNFTBookCart(
           isGift,
         }),
       ];
-      if (stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
+      if (!isAutoDeliver && stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
         notifications.push(sendNFTBookOutOfStockSlackNotification({
           classId,
           className: bookName,
