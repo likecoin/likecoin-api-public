@@ -183,8 +183,8 @@ router.post(
       }
       const accountLink = await stripe.accountLinks.create({
         account: stripeConnectAccountId,
-        refresh_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/user/connect/refresh`,
-        return_url: `https://${NFT_BOOKSTORE_HOSTNAME}/nft-book-store/user/connect/return`,
+        refresh_url: `https://${NFT_BOOKSTORE_HOSTNAME}/my-books/user/connect/refresh`,
+        return_url: `https://${NFT_BOOKSTORE_HOSTNAME}/my-books/user/connect/return`,
         type: 'account_onboarding',
       });
       await likeNFTBookUserCollection.doc(wallet).set({
