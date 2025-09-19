@@ -29,7 +29,6 @@ router.get(
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
-        isEnableNotificationEmails = true,
       } = userData;
       const {
         email = null,
@@ -38,33 +37,10 @@ router.get(
       const payload = {
         stripeConnectAccountId,
         isStripeConnectReady,
-        isEnableNotificationEmails,
         notificationEmail: email,
         isEmailVerified,
       };
       res.json(payload);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.post(
-  '/profile',
-  jwtAuth('write:nftbook'),
-  async (req, res, next) => {
-    try {
-      const { wallet } = req.user;
-      if (!wallet) {
-        throw new ValidationError('WALLET_NOT_SET', 403);
-      }
-      const {
-        isEnableNotificationEmails,
-      } = req.body;
-      await likeNFTBookUserCollection.doc(wallet).update({
-        isEnableNotificationEmails,
-      });
-      res.sendStatus(200);
     } catch (err) {
       next(err);
     }
