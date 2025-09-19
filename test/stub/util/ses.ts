@@ -95,16 +95,17 @@ export function sendNFTBookPendingClaimEmail({
 }
 
 /* istanbul ignore next */
-export function sendNFTBookSalesEmail({
-  emails,
-  isGift,
-  giftToName,
-  giftToEmail,
+export function sendAutoDeliverNFTBookSalesEmail({
+  email,
+  classId,
+  paymentId,
+  claimerEmail,
   buyerEmail,
   bookName,
-  amount,
-  quantity,
-  originalPrice,
+  feeInfo,
+  wallet,
+  coupon,
+  from,
 }) {
   return Promise.resolve();
 }
@@ -120,14 +121,23 @@ export function sendNFTBookSalePaymentsEmail({
   return Promise.resolve();
 }
 
-export function sendNFTBookClaimedEmail({
-  emails, classId = '', bookName, paymentId, wallet, message, claimerEmail,
+export function sendManualNFTBookSalesEmail({
+  email,
+  classId,
+  paymentId,
+  claimerEmail,
+  buyerEmail,
+  bookName,
+  feeInfo,
+  wallet,
+  coupon,
+  from,
 }) {
   return Promise.resolve();
 }
 
 export function sendNFTBookOutOfStockEmail({
-  emails,
+  email,
   classId = '',
   bookName,
   priceName,
