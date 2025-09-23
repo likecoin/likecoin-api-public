@@ -39,6 +39,9 @@ export async function claimFreeBooks(evmWallet: string, classId?: string) {
     throw new ValidationError('User not found', 404);
   }
   const { email } = user;
+  if (!email) {
+    throw new ValidationError('User email not set', 400);
+  }
   const {
     cartId,
     paymentId,
