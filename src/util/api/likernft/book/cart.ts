@@ -896,6 +896,7 @@ export async function createFreeBookCartForFreeIds({
     channelCommission: 0,
     likerLandArtFee: 0,
     customPriceDiffInDecimal: 0,
+    royaltyToSplit: 0,
   };
   await db.runTransaction(async (t) => {
     const query = await t.get(likeNFTBookCartCollection
@@ -1161,13 +1162,14 @@ export async function formatCartItemInfosFromSession(session) {
       stripeFeeAmount: acc.stripeFeeAmount,
       royaltyToSplit:
         acc.royaltyToSplit
-        + (
+        + Math.max(
           item.priceInDecimal
           - item.likerLandFeeAmount
           - item.likerLandTipFeeAmount
           - item.likerLandCommission
           - item.channelCommission
-          - item.likerLandArtFee
+          - item.likerLandArtFee,
+          0,
         ) * item.quantity,
     }),
     {

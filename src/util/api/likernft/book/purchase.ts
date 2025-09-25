@@ -159,10 +159,10 @@ export async function handleStripeConnectedAccount({
             currency,
             timestamp: FieldValue.serverTimestamp(),
           });
-          const shouldSendNotificationEmail = !isOwner
+          const shouldSendNotificationEmailToChannel = !isOwner
             && email
             && isEmailVerified;
-          if (shouldSendNotificationEmail) {
+          if (shouldSendNotificationEmailToChannel) {
             emailMap[email] ??= [];
             emailMap[email].push({
               amount: channelCommission / 100,
@@ -257,8 +257,8 @@ export async function handleStripeConnectedAccount({
               isEmailVerified,
             } = likerUserInfo || {};
             const isOwner = wallet === ownerWallet;
-            const shouldSendNotificationEmail = !isOwner && email && isEmailVerified;
-            if (shouldSendNotificationEmail) {
+            const shouldSendNotificationEmailToChannel = !isOwner && email && isEmailVerified;
+            if (shouldSendNotificationEmailToChannel) {
               emailMap[email] ??= [];
               const walletAmount = amountSplit / 100;
               emailMap[email].push({
