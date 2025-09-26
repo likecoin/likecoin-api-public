@@ -18,10 +18,15 @@ import {
   getNFTBookStoreSendPageURL,
 } from './api/likernft/book';
 import { fetchUserDisplayNameByEmail } from './api/users';
+import { TransactionFeeInfo } from './api/likernft/book/type';
 
 if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
 
 const ses = new aws.SES();
+
+function formatEmailDecimalNumber(decimal: number) {
+  return (decimal / 100).toFixed(2);
+}
 
 export async function sendVerificationEmail(res, user, ref) {
   if (TEST_MODE) return Promise.resolve();
@@ -607,31 +612,53 @@ export function sendNFTBookGiftSentEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookSalesEmail({
+export function sendAutoDeliverNFTBookSalesEmail({
   email,
-  isGift,
-  giftToName,
-  giftToEmail,
+  classId,
+  claimerEmail,
   buyerEmail,
   bookName,
-  amount,
-  quantity,
-  originalPrice,
+  feeInfo,
+  wallet,
+  coupon,
+  from,
+}: {
+  email: string;
+  classId: string;
+  paymentId: string;
+  claimerEmail: string;
+  buyerEmail: string;
+  bookName: string;
+  feeInfo: TransactionFeeInfo;
+  wallet: string;
+  coupon?: string;
+  from?: string;
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const title = `You have sold a Book for $${amount}`;
-  let content = `<p>Dear Creator,</p>
-  <br/>
-  <p>Congratulation!</p>
-  <p>${buyerEmail} has bought your book ${bookName} for $${amount}${isGift ? ` as a gift to ${giftToName}<${giftToEmail}>` : ''}.</p>`;
-  const hasTipping = amount > (originalPrice * quantity);
-  content += `<p>Price: $${originalPrice} x ${quantity}</p>`;
-  if (hasTipping) {
-    content += `<p>Tip: $${amount - originalPrice * quantity}</p>`;
+  const {
+    priceInDecimal,
+    originalPriceInDecimal,
+    channelCommission,
+    customPriceDiffInDecimal,
+    royaltyToSplit,
+  } = feeInfo;
+  const title = `《${bookName}》訂單`;
+  let content = `<p>恭喜，收到《${bookName}》的訂單，作品已經自動發送。</p>`;
+  if (coupon) content += `<p>優惠碼：${coupon}</p>`;
+  content += '<table>';
+  content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
+  if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
+  content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffInDecimal)}（讀者額外支持）</td></tr>`;
+  content += `<tr><td>共：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal)}</td></tr>`;
+  content += '</table>';
+
+  if (buyerEmail !== claimerEmail) {
+    content += `<p>買家電郵：${buyerEmail}</p>`;
   }
-  content += `<p>Please deliver the book after the user has verified their wallet address. You will get another notification when they have done so.</p>
-  <br/>
-  <p>3ook.com Bookstore</p>`;
+  content += `<p>讀者電郵：${claimerEmail}</p>`;
+  content += `<p>讀者錢包：${wallet}</p>`;
+  content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[管理訂單]</a></p>`;
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -639,7 +666,7 @@ export function sendNFTBookSalesEmail({
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookSalesEmail',
+        Value: 'sendAutoDeliverNFTBookSalesEmail',
       },
     ],
     Destination: {
@@ -732,12 +759,54 @@ export function sendNFTBookSalePaymentsEmail({
   return ses.sendEmail(params).promise();
 }
 
-export function sendNFTBookClaimedEmail({
-  email, classId = '', bookName, paymentId, wallet, message, claimerEmail,
+export function sendManualNFTBookSalesEmail({
+  email,
+  classId,
+  paymentId,
+  claimerEmail,
+  buyerEmail,
+  bookName,
+  feeInfo,
+  wallet,
+  coupon,
+  from,
+}: {
+  email: string;
+  classId: string;
+  paymentId: string;
+  claimerEmail: string;
+  buyerEmail: string;
+  bookName: string;
+  feeInfo: TransactionFeeInfo;
+  wallet: string;
+  coupon?: string;
+  from?: string;
 }) {
   if (TEST_MODE) return Promise.resolve();
-  const title = `A user has claimed an ebook ${bookName}`;
-  const url = getNFTBookStoreSendPageURL(classId, paymentId);
+  const {
+    priceInDecimal,
+    originalPriceInDecimal,
+    channelCommission,
+    customPriceDiffInDecimal,
+    royaltyToSplit,
+  } = feeInfo;
+  const title = `收到訂單，請簽發《${bookName}》訂單`;
+  let content = `<p>恭喜，收到《${bookName}》的訂單，請到作者管理介面簽發。</p>`;
+  if (coupon) content += `<p>優惠碼：${coupon}</p>`;
+  content += '<table>';
+  content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
+  if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
+  content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffInDecimal)}（讀者額外支持）</td></tr>`;
+  content += `<tr><td>共：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal)}</td></tr>`;
+  content += '</table>';
+
+  if (buyerEmail !== claimerEmail) {
+    content += `<p>買家電郵：${buyerEmail}</p>`;
+  }
+  content += `<p>讀者電郵：${claimerEmail}</p>`;
+  content += `<p>讀者錢包：${wallet}</p>`;
+  content += `<p><a href="${getNFTBookStoreSendPageURL(classId, paymentId)}">[簽發作品]</a></p>`;
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -745,11 +814,10 @@ export function sendNFTBookClaimedEmail({
     Tags: [
       {
         Name: 'Function',
-        Value: 'sendNFTBookClaimedEmail',
+        Value: 'sendManualNFTBookSalesEmail',
       },
     ],
     Destination: {
-      ToAddresses: email ? [email] : [],
       BccAddresses: [SALES_EMAIL],
     },
     Message: {
@@ -762,19 +830,15 @@ export function sendNFTBookClaimedEmail({
           Charset: 'UTF-8',
           Data: getBasicV2Template({
             title,
-            content: `<p>Dear Creator,</p>
-            <br/>
-            <p>Congratulation. A reader has claimed your ebook${message ? ` with message: "${message}"` : ''}.</p>
-            <p>Reader email: ${claimerEmail}</p>
-            <p>Reader wallet address: ${wallet}</p>
-            <p>Please visit the <a href="${url}">NFT book management page</a> to deliver your book.</p>
-            <br>
-            <p>3ook.com Bookstore</p>`,
+            content,
           }).body,
         },
       },
     },
   };
+  if (email) {
+    (params.Destination as any).ToAddresses = [email];
+  }
   return ses.sendEmail(params).promise();
 }
 
