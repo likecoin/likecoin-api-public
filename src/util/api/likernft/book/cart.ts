@@ -1355,6 +1355,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     clientIp,
     httpMethod,
     site,
+    language,
   }, itemInfos, {
     successUrl,
     cancelUrl: cancelUrl || getLikerLandCartURL({

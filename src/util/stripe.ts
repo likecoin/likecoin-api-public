@@ -52,4 +52,21 @@ export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.S
   return stripeFee?.amount || 0;
 }
 
+export function normalizeLanguageForStripeLocale(
+  language?: string,
+): Stripe.Checkout.SessionCreateParams.Locale {
+  switch (language) {
+    case 'zh':
+    case 'zh-Hant':
+      return 'zh-TW';
+    case 'en':
+    case 'zh-HK':
+    case 'zh-TW':
+      return language;
+    default:
+      // Let Stripe detect language
+      return 'auto';
+  }
+}
+
 export default stripe;
