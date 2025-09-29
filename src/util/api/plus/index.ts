@@ -221,13 +221,13 @@ export async function processStripeSubscriptionInvoice(
 export async function createNewPlusCheckoutSession(
   {
     period,
-    hasFreeTrial = false,
+    trialPeriodDays = 0,
     mustCollectPaymentMethod = true,
     giftClassId,
     giftPriceIndex,
   }: {
     period: 'monthly' | 'yearly',
-    hasFreeTrial?: boolean,
+    trialPeriodDays?: number,
     mustCollectPaymentMethod?: boolean,
     giftClassId?: string,
     giftPriceIndex?: string,
@@ -304,8 +304,9 @@ export async function createNewPlusCheckoutSession(
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: subscriptionMetadata,
   };
+  const hasFreeTrial = trialPeriodDays > 0;
   if (hasFreeTrial) {
-    subscriptionData.trial_period_days = 3;
+    subscriptionData.trial_period_days = trialPeriodDays;
     if (!mustCollectPaymentMethod) {
       subscriptionData.trial_settings = {
         end_behavior: {

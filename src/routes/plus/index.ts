@@ -28,7 +28,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmCampaign,
     utmSource,
     utmMedium,
-    hasFreeTrial,
+    trialPeriodDays = 0,
     mustCollectPaymentMethod,
     giftClassId,
     giftPriceIndex = '0',
@@ -41,6 +41,9 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (period !== 'yearly' && giftClassId) {
       throw new ValidationError('Gift subscriptions are only available for yearly plans.', 400);
     }
+    if (![0, 1, 3, 5, 7].includes(trialPeriodDays)) {
+      throw new ValidationError('Invalid trial period days.', 400);
+    }
     const {
       session,
       paymentId,
@@ -48,7 +51,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     } = await createNewPlusCheckoutSession(
       {
         period: period as 'monthly' | 'yearly',
-        hasFreeTrial,
+        trialPeriodDays,
         mustCollectPaymentMethod,
         giftClassId,
         giftPriceIndex,
