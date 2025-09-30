@@ -41,6 +41,9 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (period !== 'yearly' && giftClassId) {
       throw new ValidationError('Gift subscriptions are only available for yearly plans.', 400);
     }
+    if (period === 'yearly' && trialPeriodDays > 0 && giftClassId) {
+      throw new ValidationError('Gift subscriptions cannot have a trial period.', 400);
+    }
     if (![0, 1, 3, 5, 7].includes(trialPeriodDays)) {
       throw new ValidationError('Invalid trial period days.', 400);
     }
