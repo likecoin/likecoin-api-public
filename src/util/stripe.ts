@@ -53,7 +53,7 @@ export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.S
 }
 
 export function normalizeLanguageForStripeLocale(
-  language?: string,
+  language: string | undefined,
 ): Stripe.Checkout.SessionCreateParams.Locale {
   switch (language) {
     case 'zh':
