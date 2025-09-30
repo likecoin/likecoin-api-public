@@ -34,7 +34,7 @@ export default async function logPixelEvents(event, {
   if (!FB_PIXEL_ID || !FB_ACCESS_TOKEN) {
     return;
   }
-  if (!['Purchase', 'InitiateCheckout'].includes(event)) {
+  if (!['Purchase', 'InitiateCheckout', 'StartTrial', 'Subscribe'].includes(event)) {
     // eslint-disable-next-line no-console
     console.warn('logPixelEvents: event not implemented', event);
     return;

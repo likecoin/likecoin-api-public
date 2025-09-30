@@ -61,61 +61,8 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         break;
       }
       case 'customer.subscription.created': {
-        const subscription: Stripe.Subscription = event.data.object;
-        const {
-          id: subscriptionId,
-          status,
-          trial_start: trialStart,
-          trial_end: trialEnd,
-          items: { data: [item] },
-          metadata,
-        } = subscription;
-        const {
-          evmWallet, likeWallet, from, utmCampaign, utmMedium, utmSource,
-        } = metadata || {};
-
-        // Only send notification for trial subscriptions
-        if (status === 'trialing' && trialEnd && (evmWallet || likeWallet)) {
-          const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
-          if (user) {
-            const periodStart = trialStart ? trialStart * 1000 : Date.now();
-            await Promise.all([
-              sendPlusSubscriptionSlackNotification({
-                subscriptionId,
-                email: user.email || 'N/A',
-                priceWithCurrency: '0.00 USD',
-                isNew: true,
-                userId: user.user,
-                stripeCustomerId: subscription.customer as string,
-                method: 'stripe',
-                isTrial: true,
-              }),
-              createAirtableSubscriptionPaymentRecord({
-                subscriptionId,
-                customerId: subscription.customer as string,
-                customerEmail: user.email || '',
-                customerUserId: user.user as string,
-                customerWallet: user.evmWallet as string,
-                productId: item.price.product as string,
-                priceId: item.price.id,
-                priceName: item.price.nickname || '',
-                price: 0,
-                currency: 'USD',
-                invoiceId: subscription.latest_invoice as string,
-                since: periodStart,
-                periodInterval: item.plan.interval,
-                periodStartAt: periodStart,
-                periodEndAt: trialEnd * 1000,
-                isNew: true,
-                isTrial: true,
-                channel: from,
-                utmCampaign,
-                utmMedium,
-                utmSource,
-              }),
-            ]);
-          }
-        }
+        // no op
+        res.sendStatus(200);
         break;
       }
       default: {

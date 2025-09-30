@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import stripe from '../../stripe';
@@ -54,6 +54,7 @@ export async function processStripeSubscriptionInvoice(
     items: { data: [item] },
     metadata: subscriptionMetadata,
     customer,
+    status,
   } = subscription;
   const stripeCustomer = customer as Stripe.Customer;
   const {
@@ -75,19 +76,25 @@ export async function processStripeSubscriptionInvoice(
   }
 
   const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
-  const price = invoice.amount_paid / 100;
+  const amountPaid = invoice.amount_paid / 100;
+  const isTrial = amountPaid === 0 && status === 'trialing';
+  const price = amountPaid;
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
   const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
   const isSubscriptionCreation = billingReason === 'subscription_create';
   const isYearlySubscription = item.plan.interval === 'year';
-  const amountPaid = invoice.amount_paid / 100;
 
   let giftCartId = '';
+  // TODO: Now we don't know if the user is upgrading from trial to paid
+  // since isSubscriptionCreation is false for first trial to paid invoice
+  // Might need to detect trial to paid upgrade as well
   if ((isSubscriptionCreation || isUpgradingPrice)
       && isYearlySubscription
       && giftClassId
-      && !existingGiftCartId) {
+      && !existingGiftCartId
+      && !isTrial
+      && amountPaid > 0) {
     try {
       giftCartId = uuidv4();
       const metadata: Stripe.MetadataParam = {
@@ -149,14 +156,16 @@ export async function processStripeSubscriptionInvoice(
     isLikerPlus: true,
   });
 
+  // TODO: we don't know trial to paid upgrade now
+  // should send subscribe for that as well
   if (isSubscriptionCreation) {
-    await logPixelEvents('Purchase', {
+    await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
-      value: period === 'year' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
+      value: amountPaid,
       currency: 'USD',
       paymentId,
       evmWallet: req.user?.evmWallet,
@@ -172,7 +181,7 @@ export async function processStripeSubscriptionInvoice(
       userId: likerId,
       stripeCustomerId: customerId,
       method: 'stripe',
-      isTrial: false,
+      isTrial,
     }),
     createAirtableSubscriptionPaymentRecord({
       subscriptionId,
@@ -193,7 +202,7 @@ export async function processStripeSubscriptionInvoice(
       periodStartAt: currentPeriodStart,
       periodEndAt: currentPeriodEnd,
       isNew: isNewSubscription,
-      isTrial: false,
+      isTrial,
       channel: from,
       utmCampaign,
       utmMedium,
