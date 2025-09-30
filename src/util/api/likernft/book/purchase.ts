@@ -16,7 +16,7 @@ import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
   getBookUserInfoFromWallet,
 } from './user';
-import stripe, { calculateStripeFee, getStripePromotionFromCode } from '../../../stripe';
+import stripe, { calculateStripeFee, getStripePromotionFromCode, normalizeLanguageForStripeLocale } from '../../../stripe';
 import {
   likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -605,6 +605,7 @@ export async function formatStripeCheckoutSession({
   userAgent,
   clientIp,
   site,
+  language,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -640,6 +641,7 @@ export async function formatStripeCheckoutSession({
   userAgent?: string,
   clientIp?: string,
   site?: string,
+  language?: string,
 }, items: CartItemWithInfo[], {
   successUrl,
   cancelUrl,
@@ -811,6 +813,7 @@ export async function formatStripeCheckoutSession({
     consent_collection: {
       promotions: 'auto',
     },
+    locale: normalizeLanguageForStripeLocale(language),
   };
   if (paymentMethods) {
     checkoutPayload.payment_method_types = paymentMethods as

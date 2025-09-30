@@ -396,6 +396,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       referrer: inputReferrer,
       customPriceInDecimal,
       site,
+      language,
     } = req.body;
     let {
       quantity = 1,
@@ -455,8 +456,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gadClickId,
         gadSource,
         site,
+        language,
       }),
       site,
+      language,
     });
     res.json({ paymentId, url });
 
