@@ -640,8 +640,12 @@ export function sendAutoDeliverNFTBookSalesEmail({
     originalPriceInDecimal,
     channelCommission,
     customPriceDiffInDecimal,
+    likerLandTipFeeAmount,
     royaltyToSplit,
   } = feeInfo;
+  let customPriceDiffAfterFee = customPriceDiffInDecimal - likerLandTipFeeAmount;
+  customPriceDiffAfterFee = Math.max(0, customPriceDiffAfterFee);
+  const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
   const title = `《${bookName}》訂單`;
   let content = `<p>恭喜，收到《${bookName}》的訂單，作品已經自動發送。</p>`;
   if (coupon) content += `<p>優惠碼：${coupon}</p>`;
@@ -649,8 +653,8 @@ export function sendAutoDeliverNFTBookSalesEmail({
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
   content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-  content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffInDecimal)}（讀者額外支持）</td></tr>`;
-  content += `<tr><td>共：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal)}</td></tr>`;
+  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
+  content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
 
   if (buyerEmail !== claimerEmail) {
@@ -788,8 +792,12 @@ export function sendManualNFTBookSalesEmail({
     originalPriceInDecimal,
     channelCommission,
     customPriceDiffInDecimal,
+    likerLandTipFeeAmount,
     royaltyToSplit,
   } = feeInfo;
+  let customPriceDiffAfterFee = customPriceDiffInDecimal - likerLandTipFeeAmount;
+  customPriceDiffAfterFee = Math.max(0, customPriceDiffAfterFee);
+  const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
   const title = `收到訂單，請簽發《${bookName}》訂單`;
   let content = `<p>恭喜，收到《${bookName}》的訂單，請到作者管理介面簽發。</p>`;
   if (coupon) content += `<p>優惠碼：${coupon}</p>`;
@@ -797,8 +805,8 @@ export function sendManualNFTBookSalesEmail({
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
   content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-  content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffInDecimal)}（讀者額外支持）</td></tr>`;
-  content += `<tr><td>共：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal)}</td></tr>`;
+  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
+  content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
 
   if (buyerEmail !== claimerEmail) {
