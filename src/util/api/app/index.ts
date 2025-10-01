@@ -10,12 +10,13 @@ import {
 } from '../users/app';
 import { addFollowUser } from '../users/follow';
 import publisher from '../../gcloudPub';
+import type { UserData } from '../users';
 
-export async function handleAddAppReferrer(req, username, appReferrer) {
+export async function handleAddAppReferrer(req, username: string, appReferrer: string) {
   const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');
   const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const userDoc = await dbRef.doc(username).get();
-  const user = userDoc.data();
+  const user = userDoc.data() as UserData;
   const {
     avatar,
     referrer,

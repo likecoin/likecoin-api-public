@@ -140,9 +140,9 @@ export async function handleUpdateAppMetaData(req, user) {
   });
 }
 
-export async function checkPhoneVerification(username) {
+export async function checkPhoneVerification(username: string) {
   const userDoc = await dbRef.doc(username).get();
-  const { authCoreUserId } = userDoc.data();
+  const { authCoreUserId } = userDoc.data() as import('./getPublicInfo').UserData;
   if (!authCoreUserId) return;
   const authCoreToken = await authCoreJwtSignToken();
   const user = await getAuthCoreUserById(authCoreUserId, authCoreToken);

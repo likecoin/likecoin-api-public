@@ -5,6 +5,7 @@ import {
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { handleAvatarLinkAndGetURL } from '../../fileupload';
+import type { UserData } from './getPublicInfo';
 
 export async function handleClaimPlatformDelegatedUser(platform, user, {
   email,
@@ -18,7 +19,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   const userRef = dbRef.doc(user);
   const userDoc = await userRef.get();
   if (!userDoc.exists) throw new ValidationError('USER_NOT_FOUND');
-  const { delegatedPlatform, isPlatformDelegated } = userDoc.data();
+  const { delegatedPlatform, isPlatformDelegated } = userDoc.data() as UserData;
   if (!isPlatformDelegated || delegatedPlatform !== platform) {
     throw new ValidationError('USER_NOT_DELEGATED');
   }
@@ -64,10 +65,10 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
       isPlatformDelegated,
       isDeleted,
       pendingLIKE: sourcePendingLike,
-    } = userDoc.data();
+    } = userDoc.data() as UserData;
     const {
       pendingLIKE: targetPendingLike,
-    } = targetDoc.data();
+    } = targetDoc.data() as UserData;
     if (isDeleted) {
       throw new ValidationError('USER_IS_DELETED');
     }
