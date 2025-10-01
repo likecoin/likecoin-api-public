@@ -142,6 +142,9 @@ router.post('/price', jwtAuth('write:plus'), async (req, res, next) => {
     }
     const { wallet } = req.user;
     const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    if (!userInfo?.likerPlus) {
+      throw new ValidationError('No Liker Plus subscription found for this user.', 404);
+    }
     const { subscriptionId, period: existingPeriod } = userInfo.likerPlus;
     if (!subscriptionId) {
       throw new ValidationError('No subscription found for this user.', 404);

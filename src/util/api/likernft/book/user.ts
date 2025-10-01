@@ -28,6 +28,7 @@ export async function getBookUserInfoFromLikerId(likerId: string) {
   if (!userInfo) return null;
   const { likeWallet, evmWallet } = userInfo;
   const wallet = evmWallet || likeWallet;
+  if (!wallet) return null;
   const user = await getBookUserInfo(wallet);
   return {
     wallet, bookUserInfo: user, likerUserInfo: userInfo,

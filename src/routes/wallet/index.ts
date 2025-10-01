@@ -79,9 +79,9 @@ router.post('/authorize', async (req, res, next) => {
       isEVMWallet,
     });
     let intercomToken: string | undefined;
-    if (payload.user) {
+    if (likerIdInfo) {
       intercomToken = createIntercomToken({
-        user_id: payload.user,
+        user_id: likerIdInfo.user,
         email: likerIdInfo.email,
         evm_wallet: payload.evmWallet,
       });

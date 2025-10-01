@@ -27,7 +27,7 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
     } = req.body;
     if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
     const userData = await getUserWithCivicLikerProperties(user);
-    if (userData.isDeleted) {
+    if (!userData || userData.isDeleted) {
       res.sendStatus(404);
       return;
     }

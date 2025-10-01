@@ -188,7 +188,7 @@ export async function processStripeSubscriptionInvoice(
       customerId,
       customerEmail: user.email || '',
       customerUserId: likerId,
-      customerWallet: user.evmWallet,
+      customerWallet: user.evmWallet || '',
       productId,
       priceId: item.price.id,
       priceName,
