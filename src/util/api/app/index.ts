@@ -16,7 +16,10 @@ export async function handleAddAppReferrer(req, username: string, appReferrer: s
   const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');
   const referrerAppRefCol = dbRef.doc(appReferrer).collection('appReferrals');
   const userDoc = await dbRef.doc(username).get();
-  const user = userDoc.data() as UserData;
+  const user: UserData | undefined = userDoc.data();
+  if (!user) {
+    throw new Error('USER_NOT_FOUND');
+  }
   const {
     avatar,
     referrer,

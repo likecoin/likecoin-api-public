@@ -21,9 +21,9 @@ router.get(
       if (nftId && txHash) {
         throw new ValidationError('CANNOT_DEFINE_BOTH_NFT_ID_AND_TX_HASH');
       }
-      let list = [];
+      let list: any[] = [];
       const doc = await getISCNDocByClassId(classId);
-      let queryObj = await doc.ref.collection('transaction');
+      let queryObj: any = await doc.ref.collection('transaction');
       if (txHash) queryObj = queryObj.where('txHash', '==', txHash);
       else if (nftId) queryObj = queryObj.where('nftId', '==', nftId);
       const query = await queryObj.orderBy('timestamp', 'desc').get();

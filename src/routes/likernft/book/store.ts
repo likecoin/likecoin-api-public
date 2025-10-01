@@ -91,7 +91,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
     const list = ownedBookInfos
-      .filter((b) => {
+      .filter((b: any) => {
         const {
           isHidden,
           redirectClassId,
@@ -101,7 +101,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
         return (isAuthorized || !isHidden) && !redirectClassId;
       })
-      .map((b) => {
+      .map((b: any) => {
         const {
           moderatorWallets = [],
           ownerWallet,

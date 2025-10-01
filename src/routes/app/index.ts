@@ -16,7 +16,7 @@ router.get('/meta', jwtAuth('read'), async (req, res, next) => {
     const { user } = req.user;
     const doc = await dbRef.doc(user).collection('app').doc('meta').get();
     const appMetaData = doc.data() || {};
-    res.json(filterAppMeta(appMetaData));
+    res.json(filterAppMeta(appMetaData as any));
   } catch (err) {
     next(err);
   }
@@ -34,7 +34,7 @@ router.post('/meta/referral', jwtAuth('write'), async (req, res, next) => {
       dbRef.doc(referrer).get(),
     ]);
     const data = doc.data() || {};
-    const { isNew } = filterAppMeta(data);
+    const { isNew } = filterAppMeta(data as any);
     const { referrer: existingReferrer } = data;
     if (!isNew) throw new ValidationError('NOT_NEW_APP_USER');
     if (existingReferrer) throw new ValidationError('REFERRER_ALREADY_SET');

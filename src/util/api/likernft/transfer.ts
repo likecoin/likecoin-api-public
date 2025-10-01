@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { db, likeNFTCollection } from '../../firebase';
+import { admin, db, likeNFTCollection } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { getISCNPrefixDocName } from '.';
 
@@ -41,10 +41,12 @@ export async function processNFTTransfer({
   const iscnRef = likeNFTCollection.doc(iscnPrefixDocName);
   const classRef = iscnRef.collection('class').doc(classId);
   const nftRef = classRef.collection('nft').doc(nftId);
-  await db.runTransaction(async (t) => {
+  await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const nftDoc = await t.get(nftRef);
     if (!nftDoc.exists) throw new ValidationError('NFT_NOT_FOUND');
-    const { lastUpdateTimestamp: dbTimestamp = 0 } = nftDoc.data();
+    const nftData = nftDoc.data();
+    if (!nftData) throw new ValidationError('NFT_DATA_NOT_FOUND');
+    const { lastUpdateTimestamp: dbTimestamp = 0 } = nftData;
     if (txTimestamp <= dbTimestamp) throw new ValidationError('OUTDATED_TRANSFER_DATA');
     t.update(nftRef, {
       ownerWallet: toAddress,

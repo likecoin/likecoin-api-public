@@ -190,8 +190,9 @@ export async function getUserWithCivicLikerProperties(
 export async function getUserAvatar(id: string): Promise<string | null> {
   const userDoc = await dbRef.doc(id).get();
   if (!isValidUserDoc(userDoc as DocumentSnapshot<UserData>)) return null;
-  const data = userDoc.data();
-  const { avatar } = data as UserData;
+  const data: UserData | undefined = userDoc.data();
+  if (!data) return AVATAR_DEFAULT_PATH;
+  const { avatar } = data;
   return avatar || AVATAR_DEFAULT_PATH;
 }
 

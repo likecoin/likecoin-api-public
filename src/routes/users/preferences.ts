@@ -10,7 +10,12 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
     const { user } = req.user;
     const doc = await dbRef.doc(user).get();
     if (doc.exists) {
-      const { locale, creatorPitch = '', paymentRedirectWhiteList = [] } = doc.data();
+      const data = doc.data();
+      if (!data) {
+        res.sendStatus(404);
+        return;
+      }
+      const { locale, creatorPitch = '', paymentRedirectWhiteList = [] } = data;
       res.json({ locale, creatorPitch, paymentRedirectWhiteList });
       return;
     }

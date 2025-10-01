@@ -56,7 +56,7 @@ router.get(
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
-      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
+      const userDoc = await likeNFTBookUserCollection.doc(wallet as string).get();
       const userData = userDoc.data();
       if (!userData) {
         throw new ValidationError('USER_NOT_FOUND', 404);
@@ -355,7 +355,7 @@ router.get(
         const data = doc.data();
         data.id = doc.id;
         return data;
-      }).map((data) => filterBookPurchaseCommission(data));
+      }).map((data) => filterBookPurchaseCommission(data as any));
       res.json({ commissions: list });
     } catch (err) {
       next(err);
@@ -378,7 +378,7 @@ router.get(
         .collection('commissions')
         .doc(id)
         .get();
-      res.json(filterBookPurchaseCommission(commissionDoc.data()));
+      res.json(filterBookPurchaseCommission(commissionDoc.data() as any));
     } catch (err) {
       next(err);
     }
