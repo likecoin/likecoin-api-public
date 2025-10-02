@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
+import * as admin from 'firebase-admin';
 import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
@@ -51,6 +52,26 @@ app.get('/', (req, res) => {
 
 app.use(errorHandler);
 
-app.listen(port, host);
+const server = app.listen(port, host);
 
 console.log(`Server listening on ${host}:${port}`); // eslint-disable-line no-console
+
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n${signal} received. Starting graceful shutdown...`); // eslint-disable-line no-console
+  server.close(async () => {
+    console.log('HTTP server closed'); // eslint-disable-line no-console
+    try {
+      if (!process.env.CI) {
+        await admin.app().delete();
+        console.log('Firebase connections closed'); // eslint-disable-line no-console
+      }
+    } catch (err) {
+      console.error('Error closing Firebase connections:', err); // eslint-disable-line no-console
+    }
+    console.log('Graceful shutdown completed'); // eslint-disable-line no-console
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
