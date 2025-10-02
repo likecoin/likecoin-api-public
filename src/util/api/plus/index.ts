@@ -20,7 +20,7 @@ import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import logPixelEvents from '../../fbq';
-import { updateIntercomUserLikerPlusStatus } from '../../intercom';
+import { updateIntercomUserLikerPlusStatus, sendIntercomEvent } from '../../intercom';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -155,6 +155,20 @@ export async function processStripeSubscriptionInvoice(
     userId: likerId,
     isLikerPlus: true,
   });
+
+  if (isSubscriptionCreation) {
+    if (isTrial) {
+      await sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_trial_start',
+      });
+    } else {
+      await sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_subscription_start',
+      });
+    }
+  }
 
   // TODO: we don't know trial to paid upgrade now
   // should send subscribe for that as well
@@ -351,6 +365,84 @@ export async function createNewPlusCheckoutSession(
     paymentId,
     email: userEmail,
   };
+}
+
+export async function processStripeSubscriptionUpdate(
+  subscription: Stripe.Subscription,
+  previousAttributes?: Partial<Stripe.Subscription>,
+) {
+  const subscriptionId = subscription.id;
+  const {
+    evmWallet,
+    likeWallet,
+  } = subscription.metadata || {};
+  if (!evmWallet && !likeWallet) {
+    // eslint-disable-next-line no-console
+    console.warn(`No evmWallet or likeWallet found in subscription: ${subscriptionId}`);
+    return;
+  }
+  const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
+  if (!user) {
+    // eslint-disable-next-line no-console
+    console.warn(`No likerId found for evmWallet: ${evmWallet}, likeWallet: ${likeWallet}, subscription: ${subscriptionId}`);
+    return;
+  }
+  const likerId = user.user;
+
+  if (previousAttributes?.status === 'trialing' && subscription.status === 'active') {
+    const { items: { data: [item] }, customer } = subscription;
+
+    const stripeCustomer = typeof customer === 'string'
+      ? await stripe.customers.retrieve(customer)
+      : customer;
+
+    const period = item.plan.interval;
+
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: 'plus_subscription_start',
+    });
+
+    const email = user.email || (stripeCustomer as Stripe.Customer)?.email;
+    await logPixelEvents('Subscribe', {
+      email: email || undefined,
+      items: [{
+        productId: `plus-${period}ly`,
+        quantity: 1,
+      }],
+      value: (item.plan.amount || 0) / 100,
+      currency: 'USD',
+      evmWallet,
+    });
+  }
+
+  if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
+    // Check if it was a trial cancellation using previousAttributes or trial_end
+    const wasTrial = previousAttributes?.status === 'trialing';
+    await userCollection.doc(likerId).update({
+      likerPlus: {
+        ...user.likerPlus,
+        currentPeriodEnd: Date.now(),
+      },
+    });
+
+    await updateIntercomUserLikerPlusStatus({
+      userId: likerId,
+      isLikerPlus: false,
+    });
+
+    if (wasTrial) {
+      await sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_trial_end',
+      });
+    } else {
+      await sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_subscription_end',
+      });
+    }
+  }
 }
 
 export async function updateSubscriptionPeriod(

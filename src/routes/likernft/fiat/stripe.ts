@@ -8,10 +8,7 @@ import {
 } from '../../../../config/config';
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
-import { processStripeSubscriptionInvoice } from '../../../util/api/plus';
-import { sendPlusSubscriptionSlackNotification } from '../../../util/slack';
-import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
-import { createAirtableSubscriptionPaymentRecord } from '../../../util/airtable';
+import { processStripeSubscriptionInvoice, processStripeSubscriptionUpdate } from '../../../util/api/plus';
 
 const router = Router();
 
@@ -24,7 +21,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       res.sendStatus(400);
       return;
     }
-    let event;
+    let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
@@ -63,6 +60,17 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       case 'customer.subscription.created': {
         // no op
         res.sendStatus(200);
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const subscription: Stripe.Subscription = event.data.object;
+        await processStripeSubscriptionUpdate(subscription);
+        break;
+      }
+      case 'customer.subscription.updated': {
+        const subscription: Stripe.Subscription = event.data.object;
+        const previousAttributes = event.data.previous_attributes;
+        await processStripeSubscriptionUpdate(subscription, previousAttributes);
         break;
       }
       default: {

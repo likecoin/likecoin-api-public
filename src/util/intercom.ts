@@ -212,4 +212,31 @@ export async function updateIntercomUserLikerPlusStatus({
   }
 }
 
+export async function sendIntercomEvent({
+  userId,
+  eventName,
+  metadata = {},
+}: {
+  userId: string;
+  eventName: string;
+  metadata?: Record<string, string | number>;
+}): Promise<boolean> {
+  const client = getIntercomClient();
+  if (!client) return false;
+
+  try {
+    await client.events.create({
+      event_name: eventName,
+      created_at: Math.floor(Date.now() / 1000),
+      user_id: userId,
+      metadata: metadata as Record<string, string>,
+    });
+    return true;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error sending Intercom event:', error);
+    return false;
+  }
+}
+
 export default createIntercomToken;
