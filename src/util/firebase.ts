@@ -42,12 +42,19 @@ if (!database && !process.env.CI) {
 export const db = database as admin.firestore.Firestore;
 
 function getCollection(root: string | undefined): admin.firestore.CollectionReference {
+  // In CI environment, allow undefined collections (they won't be used)
+  if (process.env.CI) {
+    return {} as admin.firestore.CollectionReference;
+  }
+
+  // In non-CI environments, validate configuration
   if (!root) {
     throw new Error('Firestore collection root not defined');
   }
   if (!database) {
     throw new Error('Firebase database not initialized');
   }
+
   return database.collection(root);
 }
 
@@ -76,6 +83,10 @@ export const iscnArweaveTxCollection = getCollection(FIRESTORE_ISCN_ARWEAVE_TX_R
 export const iscnMappingCollection = getCollection(FIRESTORE_ISCN_LIKER_URL_ROOT);
 
 function getBucket(): ReturnType<admin.storage.Storage['bucket']> {
+  // In CI environment, allow undefined bucket (it won't be used)
+  if (process.env.CI) {
+    return {} as ReturnType<admin.storage.Storage['bucket']>;
+  }
   if (!FIREBASE_STORAGE_BUCKET) {
     throw new Error('Firebase storage bucket not defined');
   }
