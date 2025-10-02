@@ -62,11 +62,6 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         res.sendStatus(200);
         break;
       }
-      case 'customer.subscription.deleted': {
-        const subscription: Stripe.Subscription = event.data.object;
-        await processStripeSubscriptionUpdate(subscription);
-        break;
-      }
       case 'customer.subscription.updated': {
         const subscription: Stripe.Subscription = event.data.object;
         const previousAttributes = event.data.previous_attributes;

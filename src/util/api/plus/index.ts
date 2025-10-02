@@ -414,17 +414,18 @@ export async function processStripeSubscriptionUpdate(
       currency: 'USD',
       evmWallet,
     });
-  }
-
-  if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-    // Check if it was a trial cancellation using previousAttributes or trial_end
+  } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
     const wasTrial = previousAttributes?.status === 'trialing';
-    await userCollection.doc(likerId).update({
-      likerPlus: {
-        ...user.likerPlus,
-        currentPeriodEnd: Date.now(),
-      },
-    });
+
+    const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
+    if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
+      await userCollection.doc(likerId).update({
+        likerPlus: {
+          ...user.likerPlus,
+          currentPeriodEnd: Date.now(),
+        },
+      });
+    }
 
     await updateIntercomUserLikerPlusStatus({
       userId: likerId,
