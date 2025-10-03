@@ -13,6 +13,7 @@ export default async function logPixelEvents(event, {
   userAgent,
   clientIp,
   value,
+  predictedLTV,
   currency,
   paymentId,
   referrer,
@@ -20,10 +21,11 @@ export default async function logPixelEvents(event, {
   evmWallet,
 }: {
   email?: string;
-  items: { productId: string; priceIndex?: number; quantity?: number }[];
+  items?: { productId: string; priceIndex?: number; quantity?: number }[];
   userAgent?: string;
   clientIp?: string;
   value: number;
+  predictedLTV?: number;
   currency: string;
   likeWallet?: string;
   paymentId?: string;
@@ -61,17 +63,18 @@ export default async function logPixelEvents(event, {
             },
             custom_data: {
               value,
+              predicted_ltv: predictedLTV,
               currency,
               order_id: paymentId,
               content_type: 'product',
-              content_ids: items.map((item) => {
+              content_ids: items ? items.map((item) => {
                 let id = item.productId;
                 if (item.priceIndex !== undefined) {
                   id = `${id}-${item.priceIndex}`;
                 }
                 return id;
-              }),
-              contents: items.map((item) => {
+              }): undefined,
+              contents: items ? items.map((item) => {
                 let id = item.productId;
                 if (item.priceIndex !== undefined) {
                   id = `${id}-${item.priceIndex}`;
@@ -80,7 +83,7 @@ export default async function logPixelEvents(event, {
                   id,
                   quantity: item.quantity || 1,
                 };
-              }),
+              }) : undefined,
             },
           },
         ],

@@ -170,11 +170,10 @@ export async function processStripeSubscriptionInvoice(
     }
   }
 
-  // TODO: we don't know trial to paid upgrade now
-  // should send subscribe for that as well
+  // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation) {
     await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
-      email: stripeCustomer.email || undefined,
+      email: user.email || stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
         quantity: 1,
@@ -309,6 +308,7 @@ export async function createNewPlusCheckoutSession(
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;
+  if (paymentId) subscriptionMetadata.paymentId = paymentId;
   if (giftClassId) subscriptionMetadata.giftClassId = giftClassId;
   if (giftPriceIndex !== undefined) subscriptionMetadata.giftPriceIndex = giftPriceIndex;
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
@@ -375,6 +375,7 @@ export async function processStripeSubscriptionUpdate(
   const {
     evmWallet,
     likeWallet,
+    paymentId,
   } = subscription.metadata || {};
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
@@ -388,8 +389,16 @@ export async function processStripeSubscriptionUpdate(
     return;
   }
   const likerId = user.user;
+  const wasInTrial = previousAttributes?.status === 'trialing';
 
-  if (previousAttributes?.status === 'trialing' && subscription.status === 'active') {
+  if (wasInTrial && subscription.status !== 'trialing') {
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: 'plus_trial_end',
+    });
+  }
+
+  if (wasInTrial && subscription.status === 'active') {
     const { items: { data: [item] }, customer } = subscription;
 
     const stripeCustomer = typeof customer === 'string'
@@ -412,11 +421,12 @@ export async function processStripeSubscriptionUpdate(
       }],
       value: (item.plan.amount || 0) / 100,
       currency: 'USD',
+      paymentId,
       evmWallet,
     });
-  } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-    const wasTrial = previousAttributes?.status === 'trialing';
+  }
 
+  if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
       await userCollection.doc(likerId).update({
@@ -432,12 +442,7 @@ export async function processStripeSubscriptionUpdate(
       isLikerPlus: false,
     });
 
-    if (wasTrial) {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_trial_end',
-      });
-    } else {
+    if (!wasInTrial) {
       await sendIntercomEvent({
         userId: likerId,
         eventName: 'plus_subscription_end',
