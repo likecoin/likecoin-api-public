@@ -67,6 +67,9 @@ export async function processStripeSubscriptionInvoice(
     utmMedium,
     paymentId,
     isUpgradingPrice,
+    userAgent,
+    clientIp,
+    fbClickId,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -180,6 +183,9 @@ export async function processStripeSubscriptionInvoice(
       }],
       value: amountPaid,
       currency: 'USD',
+      userAgent,
+      clientIp,
+      fbClickId,
       paymentId,
       evmWallet: req.user?.evmWallet,
     });
@@ -314,15 +320,15 @@ export async function createNewPlusCheckoutSession(
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
+  if (userAgent) subscriptionMetadata.userAgent = userAgent;
+  if (clientIp) subscriptionMetadata.clientIp = clientIp;
+  if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
   if (gaClientId) metadata.gaClientId = gaClientId;
   if (gaSessionId) metadata.gaSessionId = gaSessionId;
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
   if (referrer) metadata.referrer = referrer.substring(0, 500);
-  if (userAgent) metadata.userAgent = userAgent;
-  if (clientIp) metadata.clientIp = clientIp;
-  if (fbClickId) metadata.fbClickId = fbClickId;
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: subscriptionMetadata,
@@ -375,6 +381,9 @@ export async function processStripeSubscriptionUpdate(
   const {
     evmWallet,
     likeWallet,
+    userAgent,
+    clientIp,
+    fbClickId,
     paymentId,
   } = subscription.metadata || {};
   if (!evmWallet && !likeWallet) {
@@ -399,7 +408,7 @@ export async function processStripeSubscriptionUpdate(
   }
 
   if (wasInTrial && subscription.status === 'active') {
-    const { items: { data: [item] }, customer } = subscription;
+    const { items: { data: [item] }, customer, metadata } = subscription;
 
     const stripeCustomer = typeof customer === 'string'
       ? await stripe.customers.retrieve(customer)
@@ -421,6 +430,9 @@ export async function processStripeSubscriptionUpdate(
       }],
       value: (item.plan.amount || 0) / 100,
       currency: 'USD',
+      userAgent,
+      clientIp,
+      fbClickId,
       paymentId,
       evmWallet,
     });
