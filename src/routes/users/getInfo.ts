@@ -35,11 +35,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         lastAccessedTs: Date.now(),
       }, { merge: true });
       if (getUserAgentIsApp(req)) {
-        const user = {
-          user: username,
-          ...payload,
-        };
-        lazyUpdateAppMetaData(req, user);
+        lazyUpdateAppMetaData(req, payload);
       }
     } else {
       res.sendStatus(404);

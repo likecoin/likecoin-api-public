@@ -30,9 +30,9 @@ export async function getLikeWalletAndLikerIdFromId(id) {
   const res = id.match(/^https:\/\/like\.co\/([a-z0-9_-]{6,20})/);
   if (res) {
     [, likerId] = res;
-    const info = await getUserWithCivicLikerProperties(likerId);
+    const info = await getUserWithCivicLikerProperties(likerId as string);
     if (info) {
-      ({ likeWallet } = info);
+      likeWallet = info.likeWallet || null;
     }
   } else {
     likeWallet = getLikeWalletAddress(id);

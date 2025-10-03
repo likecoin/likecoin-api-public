@@ -1,4 +1,5 @@
 import { checksumAddress } from 'viem';
+import type { DocumentSnapshot } from '@google-cloud/firestore';
 
 import {
   API_EXTERNAL_HOSTNAME,
@@ -16,23 +17,117 @@ import {
   userCollection as dbRef,
 } from '../../firebase';
 
-function isValidUserDoc(userDoc) {
+interface CivicLikerData {
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  since: number;
+  currentType?: string;
+  civicLikerVersion?: number;
+}
+
+interface LikerPlusData {
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  since: number;
+  period?: string;
+  subscriptionId?: string;
+  customerId?: string;
+}
+
+export interface UserData {
+  // Identity fields
+  isDeleted?: boolean;
+  displayName?: string;
+  description?: string;
+
+  // Avatar fields
+  avatar?: string;
+  avatarHash?: string;
+
+  // Email fields
+  email?: string;
+  isEmailVerified?: boolean;
+  isEmailEnabled?: boolean;
+  normalizedEmail?: string;
+  isEmailInvalid?: boolean;
+  isEmailBlacklisted?: boolean;
+  isEmailDuplicated?: boolean;
+  lastVerifyTs?: number;
+  verificationUUID?: string;
+
+  // Phone fields
+  phone?: string;
+  isPhoneVerified?: boolean;
+
+  // Wallet fields
+  likeWallet?: string;
+  cosmosWallet?: string;
+  evmWallet?: string;
+
+  // Auth provider fields
+  authCoreUserId?: string;
+  magicUserId?: string;
+
+  // Platform fields
+  delegatedPlatform?: string;
+  isPlatformDelegated?: boolean;
+  mediaChannels?: string[];
+
+  // Subscription fields
+  civicLiker?: CivicLikerData;
+  likerPlus?: LikerPlusData;
+
+  // Metadata fields
+  locale?: string;
+  timestamp?: number;
+  bonusCooldown?: number;
+  referrer?: string;
+  isLocked?: boolean;
+  pendingLIKE?: Record<string, number>;
+  isPendingLIKE?: boolean;
+
+  // Allow additional fields
+  [key: string]: any;
+}
+
+export interface UserCivicLikerProperties extends UserData {
+  user: string;
+  avatar: string;
+  isCivicLikerRenewalPeriod?: boolean;
+  civicLikerSince?: number;
+  civicLikerRenewalPeriodLast?: number;
+  isHonorCivicLiker?: boolean;
+  civicLikerVersion?: number;
+  isCivicLikerTrial?: boolean;
+  isSubscribedCivicLiker?: boolean;
+  isExpiredCivicLiker?: boolean;
+  likerPlusSince?: number;
+  isLikerPlus?: boolean;
+  likerPlusPeriod?: string;
+}
+
+function isValidUserDoc(userDoc: DocumentSnapshot<UserData> | undefined): boolean {
   if (!userDoc || !userDoc.exists) {
     return false;
   }
   const userData = userDoc.data();
-  if (userData.isDeleted) {
+  if (userData?.isDeleted) {
     return false;
   }
   return true;
 }
 
-export function formatUserCivicLikerProperies(userDoc) {
+export function formatUserCivicLikerProperies(
+  userDoc: DocumentSnapshot<UserData>,
+): UserCivicLikerProperties {
   const { id } = userDoc;
-  const data = userDoc.data();
+  const data = userDoc.data() as UserData;
   const { civicLiker, avatarHash, likerPlus } = data;
-  const payload = data;
-  payload.user = id;
+  const payload: UserCivicLikerProperties = {
+    ...data,
+    user: id,
+    avatar: '',
+  };
   let avatarUrl = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
   if (avatarHash) avatarUrl += `&hash=${avatarHash}`;
   payload.avatar = avatarUrl;
@@ -83,23 +178,27 @@ export function formatUserCivicLikerProperies(userDoc) {
   return payload;
 }
 
-export async function getUserWithCivicLikerProperties(id) {
+export async function getUserWithCivicLikerProperties(
+  id: string,
+): Promise<UserCivicLikerProperties | null> {
   const userDoc = await dbRef.doc(id).get();
   if (!isValidUserDoc(userDoc)) return null;
-  const payload = formatUserCivicLikerProperies(userDoc);
+  const payload = formatUserCivicLikerProperies(userDoc as DocumentSnapshot<UserData>);
   return payload;
 }
 
-export async function getUserAvatar(id) {
+export async function getUserAvatar(id: string): Promise<string | null> {
   const userDoc = await dbRef.doc(id).get();
-  if (!isValidUserDoc(userDoc)) return null;
+  if (!isValidUserDoc(userDoc as DocumentSnapshot<UserData>)) return null;
   const data = userDoc.data();
-  const { avatar } = data;
+  const { avatar } = data as UserData;
   return avatar || AVATAR_DEFAULT_PATH;
 }
 
-export async function getUserWithCivicLikerPropertiesByWallet(walletAddress: string) {
-  let field;
+export async function getUserWithCivicLikerPropertiesByWallet(
+  walletAddress: string,
+): Promise<UserCivicLikerProperties | null> {
+  let field: 'evmWallet' | 'likeWallet' | 'cosmosWallet';
   let addr = walletAddress;
   if (checkAddressValid(addr)) {
     field = 'evmWallet';
@@ -115,7 +214,7 @@ export async function getUserWithCivicLikerPropertiesByWallet(walletAddress: str
   if (!query.docs.length) return null;
   const userDoc = query.docs[0];
   if (!isValidUserDoc(userDoc)) return null;
-  const payload = formatUserCivicLikerProperies(userDoc);
+  const payload = formatUserCivicLikerProperies(userDoc as DocumentSnapshot<UserData>);
   return payload;
 }
 

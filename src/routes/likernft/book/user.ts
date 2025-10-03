@@ -136,14 +136,16 @@ router.post(
       if (!stripeConnectAccountId) {
         const account = await stripe.accounts.create({
           type: 'express',
-          email,
+          ...(email && { email }),
           metadata: {
             wallet,
-            likerId,
+            ...(likerId && { likerId }),
           },
           business_profile: {
-            name: likerId ? `@${likerId}` : undefined,
-            url: likerId ? `https://${LIKER_LAND_HOSTNAME}/${likerId}` : undefined,
+            ...(likerId && {
+              name: `@${likerId}`,
+              url: `https://${LIKER_LAND_HOSTNAME}/${likerId}`,
+            }),
           },
           settings: {
             payouts: {

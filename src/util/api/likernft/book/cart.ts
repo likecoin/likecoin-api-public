@@ -559,7 +559,7 @@ export async function processNFTBookCart(
           className: bookName,
           priceName,
           priceIndex,
-          email: ownerEmail,
+          email: ownerEmail || '',
           wallet: ownerWallet,
           stock,
         }));
