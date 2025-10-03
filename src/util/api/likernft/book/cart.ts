@@ -1259,12 +1259,12 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   if (!chain) {
     // eslint-disable-next-line no-console
     console.warn(`${itemInfos[0].classId} does not have chain id set`);
-    chain = isLikeNFTClassId(itemInfos[0].classId as string) ? 'like' : 'evm';
+    chain = isLikeNFTClassId(itemInfos[0].classId as string) ? 'like' : 'base';
   }
   if (!itemInfos.every((item) => {
     let itemChain = item.chain;
     if (!itemChain) {
-      itemChain = isLikeNFTClassId(item.classId as string) ? 'like' : 'evm';
+      itemChain = isLikeNFTClassId(item.classId as string) ? 'like' : 'base';
     }
     return itemChain === chain;
   })) {

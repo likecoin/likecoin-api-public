@@ -115,7 +115,7 @@ async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'm
 async function migrateBookOwner(likeWallet: string, evmWallet: string) {
   try {
     await db.runTransaction(async (t: admin.firestore.Transaction) => {
-      const bookQuery = await t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet).where('chain', '==', 'evm'));
+      const bookQuery = await t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet).where('chain', '==', 'base'));
       bookQuery.docs.forEach((doc) => {
         t.update(doc.ref, { ownerWallet: evmWallet });
       });
@@ -218,7 +218,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
           }
           const migratedData: any = {
             ...bookListingData,
-            chain: 'evm',
+            chain: 'base',
             likeClassId,
             classId: evmClassId,
             ownerWallet: newOwnerWallet,

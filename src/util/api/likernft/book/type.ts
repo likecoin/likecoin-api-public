@@ -24,7 +24,7 @@ export type CartItemWithInfo = CartItem & {
   priceName?: string,
   stripePriceId?: string,
   quantity: number,
-  chain: 'like' | 'evm',
+  chain: 'like' | 'evm' | 'op' | 'base',
 }
 
 export type ItemPriceInfo = {

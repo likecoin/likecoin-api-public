@@ -84,7 +84,7 @@ router.post(
       if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
-      if (!['LIKE', 'OPETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
+      if (!['LIKE', 'OPETH', 'BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
       const {
         arweaveId,
         MATIC,
