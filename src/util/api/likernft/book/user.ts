@@ -57,8 +57,8 @@ export async function validateConnectedWallets(connectedWallets: {[key: string]:
   const connectedWalletsKeys = Object.keys(connectedWallets);
   const userDocs = await Promise.all(connectedWalletsKeys
     .map((wallet) => likeNFTBookUserCollection.doc(wallet).get()));
-  const userData = userDocs.map((u) => ({ id: u.id, ...(u.data() || {}) }));
-  const invalidData = userData.find((u) => !u.isStripeConnectReady);
+  const userData = userDocs.map((u: any) => ({ id: u.id, ...(u.data() || {}) }));
+  const invalidData = userData.find((u: any) => !u.isStripeConnectReady);
   if (invalidData) throw new ValidationError(`INVALID_CONNECTED_WALLETS: ${invalidData}`);
   return true;
 }

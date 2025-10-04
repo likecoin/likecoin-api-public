@@ -5,7 +5,7 @@ import {
   getNFTClassDataById,
 } from '../../../util/api/likernft/book';
 import {
-  db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
+  admin, db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
 } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
@@ -58,7 +58,7 @@ router.get(
         res.status(403).send('UNAUTHORIZED');
         return;
       }
-      res.json(filterBookPurchaseData(docData));
+      res.json(filterBookPurchaseData(docData as any));
     } catch (err) {
       next(err);
     }
@@ -519,7 +519,9 @@ router.get(
         return;
       }
       const docData = paymentDoc.data();
+      if (!docData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
       const bookDocData = listingDoc.data();
+      if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const { claimToken, wallet } = docData;
       const { ownerWallet, moderatorWallets = [] } = bookDocData;
       if (!token && !req.user) throw new ValidationError('MISSING_TOKEN', 401);
@@ -531,7 +533,7 @@ router.get(
       if (!isTokenValid && !isUserValid) {
         throw new ValidationError('UNAUTHORIZED', 403);
       }
-      res.json(filterBookPurchaseData(docData));
+      res.json(filterBookPurchaseData(docData as any));
     } catch (err) {
       next(err);
     }
@@ -646,12 +648,14 @@ router.post(
       quantity = parseInt(quantity, 10) || 1;
       const listingDoc = await likeNFTBookCollection.doc(classId).get();
       if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      const { ownerWallet, moderatorWallets = [] } = listingDoc.data();
+      const listingData = listingDoc.data();
+      if (!listingData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet, moderatorWallets = [] } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const {
         email, wallet: toWallet, isGift, giftInfo,
-      } = await db.runTransaction(async (t) => {
+      } = await db.runTransaction(async (t: admin.firestore.Transaction) => {
         const result = await updateNFTBookPostDeliveryData({
           classId,
           paymentId,
@@ -722,10 +726,14 @@ router.post(
       ]);
       if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       if (!paymentDoc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+      const listingData = listingDoc.data();
+      if (!listingData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const paymentData = paymentDoc.data();
+      if (!paymentData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
       const {
         ownerWallet,
         moderatorWallets = [],
-      } = listingDoc.data();
+      } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const {
@@ -736,7 +744,7 @@ router.post(
         claimToken,
         from,
         lastRemindTimestamp,
-      } = paymentDoc.data();
+      } = paymentData;
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
       if (lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
@@ -819,7 +827,7 @@ router.get(
         .get();
       const docDatas = query.docs.map((d) => ({ id: d.id, ...d.data() }));
       res.json({
-        orders: docDatas.map((d) => filterBookPurchaseData(d)),
+        orders: docDatas.map((d) => filterBookPurchaseData(d as any)),
       });
     } catch (err) {
       next(err);

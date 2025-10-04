@@ -37,9 +37,10 @@ async function fetchProviderClientInfo(clientId, req) {
   const spClient = await oAuthClientDbRef.doc(clientId).get();
   if (!spClient.exists) throw new Error('INVALID_AZP');
   const clientInfo = spClient.data();
+  if (!clientInfo) throw new Error('INVALID_AZP');
   const { secret } = clientInfo;
   const filteredClientInfo = {
-    ...filterOAuthClientInfo(clientInfo),
+    ...filterOAuthClientInfo(clientInfo as any),
     clientId,
     secret,
   };

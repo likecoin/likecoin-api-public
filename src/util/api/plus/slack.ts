@@ -193,6 +193,14 @@ export async function linkSubscriptionToUser(subscriptionId: string, evmWallet: 
 
     const userId = userDoc.id;
     const userData = userDoc.data();
+    if (!userData) {
+      return {
+        success: false,
+        message: 'User data not found',
+        subscriptionId,
+        evmWallet,
+      };
+    }
 
     // Check if user already has likerPlus info
     if (userData.likerPlus) {

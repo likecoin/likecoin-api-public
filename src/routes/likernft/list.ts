@@ -8,7 +8,7 @@ router.get(
   '/list/free',
   async (req, res, next) => {
     try {
-      let list = [];
+      let list: any[] = [];
       const query = await likeNFTCollection.where('currentPrice', '==', 0)
         .orderBy('timestamp', 'desc')
         .limit(20)

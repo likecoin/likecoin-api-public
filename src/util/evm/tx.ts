@@ -4,7 +4,7 @@ import {
   encodeFunctionData,
   SimulateContractParameters,
 } from 'viem';
-import { db, txCollection as txLogRef } from '../firebase';
+import { admin, db, txCollection as txLogRef } from '../firebase';
 import { getEVMClient } from './client';
 import publisher from '../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
@@ -26,14 +26,15 @@ export async function sendWriteContractWithNonce(
     await publicClient.simulateContract(params as SimulateContractParameters),
   ]);
   const counterRef = txLogRef.doc(`!counter_${address}`);
-  const pendingNonce = await db.runTransaction(async (t) => {
+  const pendingNonce = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const d = await t.get(counterRef);
-    if (!d.data()) {
+    const data = d.data();
+    if (!data) {
       const count = transactionCount;
       await t.create(counterRef, { value: count + 1 });
       return count;
     }
-    const v = d.data().value + 1;
+    const v = (data.value as number) + 1;
     await t.update(counterRef, { value: v });
     return v - 1;
   });
@@ -66,8 +67,9 @@ export async function sendWriteContractWithNonce(
         account: walletClient.account,
       });
     const hash = await walletClient.sendRawTransaction({ serializedTransaction });
-    await db.runTransaction((t) => t.get(counterRef).then((d) => {
-      if (pendingNonce + 1 > d.data().value) {
+    await db.runTransaction((t: admin.firestore.Transaction) => t.get(counterRef).then((d) => {
+      const data = d.data();
+      if (data && pendingNonce + 1 > (data.value as number)) {
         t.update(counterRef, {
           value: pendingNonce + 1,
         });

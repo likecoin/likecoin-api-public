@@ -18,9 +18,14 @@ router.get('/id/:id', async (req, res, next) => {
     const { address } = req.query;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
-      const payload = doc.data().toIds
-        ? filterMultipleTxData(doc.data(), { to: { addresses: address ? [address] : null } })
-        : doc.data();
+      const data = doc.data();
+      if (!data) {
+        res.sendStatus(404);
+        return;
+      }
+      const payload = data.toIds
+        ? filterMultipleTxData(data, { to: { addresses: address ? [address] : null } })
+        : data;
       res.json(filterTxData(payload));
       return;
     }
@@ -50,6 +55,10 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
       return;
     }
     const txData = txDoc.data();
+    if (!txData) {
+      res.sendStatus(404);
+      return;
+    }
     const {
       fromId,
       from,
@@ -69,6 +78,10 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
         return;
       }
       const userData = userDoc.data();
+      if (!userData) {
+        res.sendStatus(403);
+        return;
+      }
       const { cosmosWallet, likeWallet } = userData;
       if (user !== fromId && from !== cosmosWallet && from !== likeWallet) {
         res.sendStatus(403);

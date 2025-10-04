@@ -3,6 +3,7 @@ import { createAirtablePublicationRecord } from '../../airtable';
 import { isValidLikeAddress } from '../../cosmos';
 import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
 import {
+  admin,
   db,
   FieldValue,
   likeNFTBookCollection,
@@ -37,68 +38,72 @@ export async function checkBookUserEVMWallet(likeWallet: string) {
 
 async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
   try {
-    const { userExists, alreadyMigrated } = await db.runTransaction(async (t) => {
-      const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
-        t.get(likeNFTBookUserCollection.doc(likeWallet)),
-        t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions')),
-        t.get(likeNFTBookUserCollection.doc(evmWallet)),
-      ]);
-      const oldUserData = userDoc.exists ? userDoc.data() : {};
-      if (evmUserDoc.exists) {
-        const {
-          likeWallet: evmLikeWallet,
-        } = evmUserDoc.data();
-        if (evmLikeWallet) {
-          if (evmLikeWallet !== likeWallet) {
-            throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
+    const { userExists, alreadyMigrated } = await db.runTransaction(
+      async (t: admin.firestore.Transaction) => {
+        const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
+          t.get(likeNFTBookUserCollection.doc(likeWallet)),
+          t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions')),
+          t.get(likeNFTBookUserCollection.doc(evmWallet)),
+        ]);
+        const oldUserData = userDoc.exists ? userDoc.data() : {};
+        if (evmUserDoc.exists) {
+          const evmUserData = evmUserDoc.data();
+          if (!evmUserData) throw new Error('EVM_USER_DATA_NOT_FOUND');
+          const {
+            likeWallet: evmLikeWallet,
+          } = evmUserData;
+          if (evmLikeWallet) {
+            if (evmLikeWallet !== likeWallet) {
+              throw new Error('EVM_WALLET_USED_BY_OTHER_USER');
+            }
+            return {
+              userExists: true,
+              alreadyMigrated: true,
+            };
           }
-          return {
-            userExists: true,
-            alreadyMigrated: true,
-          };
+          t.update(likeNFTBookUserCollection.doc(evmWallet), {
+            ...oldUserData,
+            ...evmUserDoc.data(),
+            likeWallet,
+            migrateMethod: method,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+          });
+        } else {
+          t.create(likeNFTBookUserCollection.doc(evmWallet), {
+            ...oldUserData,
+            likeWallet,
+            migrateMethod: method,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
+          });
+          userCommissionCollection.docs.forEach((doc) => {
+            t.create(likeNFTBookUserCollection.doc(evmWallet).collection('commissions').doc(doc.id), doc.data());
+          });
         }
-        t.update(likeNFTBookUserCollection.doc(evmWallet), {
-          ...oldUserData,
-          ...evmUserDoc.data(),
-          likeWallet,
-          migrateMethod: method,
-          migrateTimestamp: FieldValue.serverTimestamp(),
-        });
-      } else {
-        t.create(likeNFTBookUserCollection.doc(evmWallet), {
-          ...oldUserData,
-          likeWallet,
-          migrateMethod: method,
-          migrateTimestamp: FieldValue.serverTimestamp(),
-          timestamp: FieldValue.serverTimestamp(),
-        });
-        userCommissionCollection.docs.forEach((doc) => {
-          t.create(likeNFTBookUserCollection.doc(evmWallet).collection('commissions').doc(doc.id), doc.data());
-        });
-      }
-      if (!userDoc.exists) {
-        t.create(likeNFTBookUserCollection.doc(likeWallet), {
-          evmWallet,
-          migrateMethod: method,
-          migrateTimestamp: FieldValue.serverTimestamp(),
-          timestamp: FieldValue.serverTimestamp(),
-        });
-      } else {
-        const { evmWallet: existingEVMWallet } = oldUserData;
-        if (existingEVMWallet && existingEVMWallet !== evmWallet) {
-          throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
+        if (!userDoc.exists) {
+          t.create(likeNFTBookUserCollection.doc(likeWallet), {
+            evmWallet,
+            migrateMethod: method,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
+          });
+        } else {
+          const { evmWallet: existingEVMWallet } = oldUserData as any;
+          if (existingEVMWallet && existingEVMWallet !== evmWallet) {
+            throw new Error('EVM_WALLET_NOT_MATCH_USER_RECORD');
+          }
+          t.update(userDoc.ref, {
+            evmWallet,
+            migrateMethod: method,
+            migrateTimestamp: FieldValue.serverTimestamp(),
+          });
         }
-        t.update(userDoc.ref, {
-          evmWallet,
-          migrateMethod: method,
-          migrateTimestamp: FieldValue.serverTimestamp(),
-        });
-      }
-      return {
-        userExists: userDoc.exists,
-        alreadyMigrated: false,
-      };
-    });
+        return {
+          userExists: userDoc.exists,
+          alreadyMigrated: false,
+        };
+      },
+    );
     return { error: null, userExists, alreadyMigrated };
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -109,13 +114,13 @@ async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'm
 
 async function migrateBookOwner(likeWallet: string, evmWallet: string) {
   try {
-    await db.runTransaction(async (t) => {
+    await db.runTransaction(async (t: admin.firestore.Transaction) => {
       const bookQuery = await t.get(likeNFTBookCollection.where('ownerWallet', '==', likeWallet).where('chain', '==', 'evm'));
       bookQuery.docs.forEach((doc) => {
         t.update(doc.ref, { ownerWallet: evmWallet });
       });
     });
-    await db.runTransaction(async (t) => {
+    await db.runTransaction(async (t: admin.firestore.Transaction) => {
       const bookQuery = await t.get(likeNFTBookCollection.where(`connectedWallets.${likeWallet}`, '>', 0));
       bookQuery.docs.forEach((doc) => {
         // TODO: change .where to filter evm class id
@@ -140,7 +145,7 @@ async function migrateBookOwner(likeWallet: string, evmWallet: string) {
 
 async function migrateLikerId(likeWallet:string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
   try {
-    const likerId = await db.runTransaction(async (t) => {
+    const likerId = await db.runTransaction(async (t: admin.firestore.Transaction) => {
       const [evmQuery, userQuery] = await Promise.all([
         t.get(userCollection.where('evmWallet', '==', evmWallet).limit(1)),
         t.get(userCollection.where('likeWallet', '==', likeWallet).limit(1)),
@@ -181,7 +186,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
     if (evmData?.likecoin?.classId !== likeClassId) {
       throw new Error('EVM_CLASS_ID_NOT_MATCH_LIKE_CLASS_ID');
     }
-    const res = await db.runTransaction(async (t) => {
+    const res = await db.runTransaction(async (t: admin.firestore.Transaction) => {
       const migratedClassIds: string[] = [];
       const migratedClassDatas: any[] = [];
       const [bookListingDoc, bookTransactionQuery] = await Promise.all([
@@ -191,11 +196,13 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
           .where('status', '!=', 'new')),
       ]);
       if (bookListingDoc.exists) {
+        const bookListingData = bookListingDoc.data();
+        if (!bookListingData) throw new Error('BOOK_LISTING_NOT_FOUND');
         const {
           evmClassId: existingEVMClassId,
           ownerWallet,
           connectedWallets,
-        } = bookListingDoc.data();
+        } = bookListingData;
         if (!existingEVMClassId) {
           let newOwnerWallet = ownerWallet;
           if (ownerWallet && isValidLikeAddress(ownerWallet)) {
@@ -209,8 +216,8 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
               newOwnerWallet = evmWallet;
             }
           }
-          const migratedData = {
-            ...bookListingDoc.data(),
+          const migratedData: any = {
+            ...bookListingData,
             chain: 'evm',
             likeClassId,
             classId: evmClassId,

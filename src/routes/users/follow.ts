@@ -38,7 +38,7 @@ router.get('/follow/users', jwtAuth('read:follow'), async (req, res, next) => {
     }
     const query = await queryRef.limit(Number(limit) || API_DEFAULT_SIZE_LIMIT).get();
     const list: any[] = [];
-    query.docs.forEach((d) => {
+    query.docs.forEach((d: any) => {
       list.push(filterFollow({ id: d.id, ...d.data() }));
     });
 
@@ -80,7 +80,7 @@ router.get('/follow/users/:id', jwtAuth('read:follow'), async (req, res, next) =
     res.json(filterFollow({
       id: doc.id,
       ...doc.data(),
-    }));
+    } as any));
   } catch (err) {
     next(err);
   }

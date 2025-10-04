@@ -109,7 +109,10 @@ router.get(
       let iscnImage = '';
       let title = 'Writing NFT';
       if (iscnData.exists) {
-        ({ image: iscnImage, title = 'Writing NFT' } = iscnData.data());
+        const data = iscnData.data();
+        if (data) {
+          ({ image: iscnImage, title = 'Writing NFT' } = data);
+        }
       }
       const {
         image: basicImage,

@@ -18,7 +18,7 @@ import {
 } from './user';
 import stripe, { calculateStripeFee, getStripePromotionFromCode, normalizeLanguageForStripeLocale } from '../../../stripe';
 import {
-  likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
+  admin, likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
@@ -280,6 +280,9 @@ export async function handleStripeConnectedAccount({
   }
   if (likerLandArtFee && NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET) {
     const bookUserInfo = await getBookUserInfo(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET);
+    if (!bookUserInfo) {
+      throw new Error('BOOK_USER_INFO_NOT_FOUND');
+    }
     const {
       stripeConnectAccountId,
       isStripeConnectReady,
@@ -507,7 +510,7 @@ export async function processNFTBookPurchase({
   email,
   paymentId,
 }) {
-  const data = await db.runTransaction(async (t) => {
+  const data = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const {
       txData,
       listingData,
@@ -966,7 +969,7 @@ export async function claimNFTBook(
     quantity,
     feeInfo,
     from,
-  } = await db.runTransaction(async (t) => {
+  } = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) {
@@ -1042,7 +1045,7 @@ export async function claimNFTBook(
       throw autoDeliverErr;
     }
 
-    const { isGift, giftInfo } = await db.runTransaction(async (t) => {
+    const { isGift, giftInfo } = await db.runTransaction(async (t: admin.firestore.Transaction) => {
       // eslint-disable-next-line no-use-before-define
       const paymentDocData = await updateNFTBookPostDeliveryData({
         classId,
@@ -1145,7 +1148,7 @@ export async function setNFTBookBuyerMessage(
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const docRef = bookRef.collection('transactions').doc(paymentId);
-  await db.runTransaction(async (t) => {
+  await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const doc = await t.get(docRef);
     const docData = doc.data();
     if (!docData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);

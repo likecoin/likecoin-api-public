@@ -23,6 +23,7 @@ import {
   calculateItemPrices,
 } from './purchase';
 import {
+  admin,
   db,
   FieldValue,
   likeNFTBookCartCollection,
@@ -210,7 +211,7 @@ export async function claimNFTBookCart(
 ) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
 
-  const cartData = await db.runTransaction(async (t) => {
+  const cartData = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const cartDoc = await t.get(cartRef);
     if (!cartDoc.exists) throw new ValidationError('CART_ID_NOT_FOUND');
     const docData = cartDoc.data();
@@ -404,7 +405,7 @@ export async function processNFTBookCart(
     const {
       isGift: cartIsGift,
       giftInfo: cartGiftInfo,
-    } = cartData;
+    } = cartData as any;
     let expandedPaymentIntent: Stripe.PaymentIntent | null = null;
     if (paymentIntent) {
       expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
@@ -687,7 +688,7 @@ export async function processNFTBookCartPurchase({
   paymentId,
 }) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
-  const infos = await db.runTransaction(async (t) => {
+  const infos = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const cartDoc = await t.get(cartRef);
     const cartData = cartDoc.data();
     if (!cartData) throw new ValidationError('CART_ID_NOT_FOUND');
@@ -898,7 +899,7 @@ export async function createFreeBookCartForFreeIds({
     customPriceDiffInDecimal: 0,
     royaltyToSplit: 0,
   };
-  await db.runTransaction(async (t) => {
+  await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const query = await t.get(likeNFTBookCartCollection
       .where('classIds', '==', classIds)
       .where('wallet', '==', evmWallet));

@@ -10,21 +10,32 @@ export const { FieldValue, Timestamp } = admin.firestore;
 
 console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
 
-const userData = require('../../test/data/user.json').users;
-const subscriptionData = require('../../test/data/subscription.json').subscriptions;
-const txData = require('../../test/data/tx.json').tx;
-const missionData = require('../../test/data/mission.json').missions;
-const likerNftData = require('../../test/data/likernft.json').likernft;
+interface StubData {
+  id: string;
+  collection?: Record<string, StubData[]>;
+  [key: string]: any;
+}
 
-function docData(obj) {
-  const res = {
+const userData: StubData[] = require('../../test/data/user.json').users;
+const subscriptionData: StubData[] = require('../../test/data/subscription.json').subscriptions;
+const txData: StubData[] = require('../../test/data/tx.json').tx;
+const missionData: StubData[] = require('../../test/data/mission.json').missions;
+const likerNftData: StubData[] = require('../../test/data/likernft.json').likernft;
+
+function docData(obj: StubData): any {
+  const res: any = {
     ...obj,
   };
   delete res.id;
   return res;
 }
 
-function docUpdate(data, id, obj, updateData) {
+function docUpdate(
+  data: StubData[],
+  id: string,
+  obj: StubData,
+  updateData: Partial<StubData>,
+): Promise<void> {
   if (Object.values(updateData).some((v) => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
@@ -35,12 +46,17 @@ function docUpdate(data, id, obj, updateData) {
   return global.Promise.resolve();
 }
 
-function docDelete(data, { id }) {
+function docDelete(data: StubData[], { id }: { id: string }): void {
   const index = data.findIndex((obj) => obj.id === id);
   data.splice(index, 1);
 }
 
-function docSet(data, id, setData, config: any = {}) {
+function docSet(
+  data: StubData[],
+  id: string,
+  setData: Partial<StubData>,
+  config: any = {},
+): Promise<void> {
   if (Object.values(setData).some((v) => typeof v === 'undefined')) {
     throw new Error('Some value is undefined.');
   }
@@ -48,26 +64,32 @@ function docSet(data, id, setData, config: any = {}) {
   if (obj && config && config.merge) {
     return docUpdate(data, id, obj, setData);
   }
-  const pushData = {
+  const pushData: StubData = {
     ...setData,
     id,
-  };
+  } as StubData;
   data.push(pushData);
   return global.Promise.resolve();
 }
 
-function querySnapshotDocs(inputData, originalData) {
+function querySnapshotDocs(inputData: StubData[], originalData: StubData[]): any[] {
   const data = inputData;
   return data.map((d) => {
     const docObj = {
       id: d.id,
       ref: {
-        set: async (setData, config = {}) => docSet(originalData, d.id, setData, config),
-        create: async (setData) => docSet(originalData, d.id, setData),
-        update: async (updateData) => docUpdate(originalData, d.id, d, updateData),
+        set: async (setData: Partial<StubData>, config = {}) => (
+          docSet(originalData, d.id, setData, config)
+        ),
+        create: async (setData: Partial<StubData>) => (
+          docSet(originalData, d.id, setData)
+        ),
+        update: async (updateData: Partial<StubData>) => (
+          docUpdate(originalData, d.id, d, updateData)
+        ),
         delete: async () => docDelete(originalData, { id: d.id }),
         // eslint-disable-next-line no-use-before-define
-        collection: (id) => createCollection(d.collection[id]),
+        collection: (id: string) => createCollection(d.collection?.[id] || []),
       },
       data: () => docData(d),
       exists: true,
@@ -76,12 +98,12 @@ function querySnapshotDocs(inputData, originalData) {
   });
 }
 
-function collectionWhere(data, field = '', op = '', value = '') {
+function collectionWhere(data: StubData[], field = '', op = '', value: any = ''): any {
   let whereData = data;
   if (op === '==') {
     if (field.includes('.')) {
       const fields = field.split('.');
-      whereData = data.filter((d) => fields.reduce((acc, f) => {
+      whereData = data.filter((d) => fields.reduce((acc: any, f) => {
         if (!acc) return acc;
         return acc[f];
       }, d));
@@ -101,8 +123,10 @@ function collectionWhere(data, field = '', op = '', value = '') {
   }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
-    where: (sField, sOp, sValue) => collectionWhere(whereData, sField, sOp, sValue),
-    orderBy: (sField, order = 'asc') => {
+    where: (sField: string, sOp: string, sValue: any) => (
+      collectionWhere(whereData, sField, sOp, sValue)
+    ),
+    orderBy: (sField: string, order: 'asc' | 'desc' = 'asc') => {
       if (sField in data[0] && (order === 'asc' || order === 'desc')) {
         return queryObj;
       }
@@ -111,7 +135,7 @@ function collectionWhere(data, field = '', op = '', value = '') {
     startAt: (_: number) => queryObj,
     startAfter: (_: number) => queryObj,
     endBefore: (_: number) => queryObj,
-    limit: (limit) => {
+    limit: (limit: number) => {
       if (Number.isInteger(limit)) {
         return queryObj;
       }
@@ -120,14 +144,15 @@ function collectionWhere(data, field = '', op = '', value = '') {
     get: () => global.Promise.resolve({
       size: docs.length,
       docs,
-      forEach: (f) => docs.forEach(f),
+      forEach: (f: (doc: any) => void) => docs.forEach(f),
     }),
   };
   return queryObj;
 }
 
-function collectionDoc(data, id) {
-  let docObj;
+/* eslint-disable no-use-before-define */
+function collectionDoc(data: StubData[], id: string): any {
+  let docObj: any;
   const obj = data.find((d) => d.id === id);
   if (obj) {
     // deep clone data object
@@ -153,9 +178,9 @@ function collectionDoc(data, id) {
         ref: this,
       });
     },
-    set: async (setData, config = {}) => docSet(data, id, setData, config),
-    create: async (setData) => docSet(data, id, setData),
-    update: async (updateData) => {
+    set: async (setData: Partial<StubData>, config = {}) => docSet(data, id, setData, config),
+    create: async (setData: Partial<StubData>) => docSet(data, id, setData),
+    update: async (updateData: Partial<StubData>) => {
       if (obj) {
         return docUpdate(data, id, obj, updateData);
       }
@@ -167,103 +192,132 @@ function collectionDoc(data, id) {
       }
       throw new Error('Doc not exists for deletion.');
     },
-    collection: (collectionId) => {
-      if (!obj.collection[collectionId]) {
-        obj.collection[collectionId] = [];
+    collection: (collectionId: string) => {
+      if (obj) {
+        if (!obj.collection) {
+          obj.collection = {};
+        }
+        if (!obj.collection[collectionId]) {
+          obj.collection[collectionId] = [];
+        }
+        return createCollection(obj.collection[collectionId]);
       }
-      /* eslint-disable no-use-before-define */
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      return createCollection(obj.collection[collectionId]);
-      /* eslint-enable no-use-before-define */
+      return createCollection([]);
     },
   };
 }
+/* eslint-enable no-use-before-define */
 
-function createCollection(data) {
+function createCollection(data: StubData[]): any {
   return {
-    where: (field, op, value) => collectionWhere(data, field, op, value),
-    doc: (id) => collectionDoc(data, id),
+    where: (field: string, op: string, value: any) => collectionWhere(data, field, op, value),
+    doc: (id: string) => collectionDoc(data, id),
     get: () => {
       const docs = querySnapshotDocs(data, data);
       return global.Promise.resolve({
         size: docs.length,
         docs,
-        forEach: (f) => docs.forEach(f),
+        forEach: (f: (doc: any) => void) => docs.forEach(f),
       });
     },
     startAt: (_: number) => collectionWhere(data),
     startAfter: (_: number) => collectionWhere(data),
     endBefore: (_: number) => collectionWhere(data),
     limit: (_: number) => collectionWhere(data),
-    orderBy: (sField, order = 'asc') => collectionWhere(data),
+    orderBy: (sField: string, order: 'asc' | 'desc' = 'asc') => collectionWhere(data),
   };
 }
 
-const dbData = [
+const dbData: StubData[][] = [
   userData,
   subscriptionData,
   txData,
   missionData,
   likerNftData,
 ];
-export const userCollection = createCollection(userData);
-export const userAuthCollection = createCollection([]);
-export const subscriptionUserCollection = createCollection(subscriptionData);
-export const txCollection = createCollection(txData);
-export const iapCollection = createCollection([]);
-export const missionCollection = createCollection(missionData);
-export const payoutCollection = createCollection([]);
-export const configCollection = createCollection([]);
-export const oAuthClientCollection = createCollection([]);
-export const likeNFTCollection = createCollection(likerNftData);
-export const likeNFTSubscriptionUserCollection = createCollection([]);
-export const likeNFTSubscriptionTxCollection = createCollection([]);
-export const likeNFTFreeMintTxCollection = createCollection([]);
-export const likeNFTBookCartCollection = createCollection([]);
-export const likeNFTBookCollection = createCollection([]);
-export const likeNFTBookUserCollection = createCollection([]);
-export const likeButtonUrlCollection = createCollection([]);
-export const iscnInfoCollection = createCollection([]);
-export const iscnArweaveTxCollection = createCollection([]);
-export const iscnMappingCollection = createCollection([]);
-export const superLikeTransferCollection = createCollection([]);
-export const superLikeUserCollection = createCollection([]);
-export const exchangeHubCollection = createCollection([]);
 
-function runTransaction(updateFunc) {
+export const userCollection = createCollection(userData) as
+  admin.firestore.CollectionReference;
+export const userAuthCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const subscriptionUserCollection = createCollection(
+  subscriptionData,
+) as admin.firestore.CollectionReference;
+export const txCollection = createCollection(txData) as
+  admin.firestore.CollectionReference;
+export const iapCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const missionCollection = createCollection(missionData) as
+  admin.firestore.CollectionReference;
+export const payoutCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const configCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const oAuthClientCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTCollection = createCollection(likerNftData) as
+  admin.firestore.CollectionReference;
+export const likeNFTSubscriptionUserCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTSubscriptionTxCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTFreeMintTxCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTBookCartCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTBookCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeNFTBookUserCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const likeButtonUrlCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const iscnInfoCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const iscnArweaveTxCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const iscnMappingCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const superLikeTransferCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const superLikeUserCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+export const exchangeHubCollection = createCollection([]) as
+  admin.firestore.CollectionReference;
+
+function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise<any> {
   return updateFunc({
-    get: (ref) => ref.get(),
-    create: (ref, data) => ref.create(data),
-    set: (ref, data, config = {}) => ref.create(data, config),
-    update: (ref, data) => ref.update(data),
+    get: (ref: any) => ref.get(),
+    create: (ref: any, data: any) => ref.create(data),
+    set: (ref: any, data: any, config = {}) => ref.create(data, config),
+    update: (ref: any, data: any) => ref.update(data),
   });
 }
 
-async function initDb() {
+async function initDb(): Promise<boolean> {
   return true;
 }
 
-function createDb() {
+function createDb(): admin.firestore.Firestore {
   return {
-    runTransaction: (updateFunc) => runTransaction(updateFunc),
+    runTransaction: (updateFunc: (transaction: any) => Promise<any>) => runTransaction(updateFunc),
     batch: () => ({
-      get: (ref) => ref.get(),
-      create: (ref, data) => ref.create(data),
-      set: (ref, data, config = {}) => ref.create(data, config),
-      update: (ref, data) => ref.update(data),
-      delete: (ref) => ref.delete(),
+      get: (ref: any) => ref.get(),
+      create: (ref: any, data: any) => ref.create(data),
+      set: (ref: any, data: any, config = {}) => ref.create(data, config),
+      update: (ref: any, data: any) => ref.update(data),
+      delete: (ref: any) => ref.delete(),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       commit: async () => {},
     }),
-    recursiveDelete: (ref) => ref.delete(),
-    collectionGroup: (group) => {
-      let data = [];
+    recursiveDelete: (ref: any) => ref.delete(),
+    collectionGroup: (group: string) => {
+      let data: StubData[] = [];
       dbData.forEach((root) => {
         root.forEach((d) => {
           if (d.collection) {
             if (d.collection[group]) data = data.concat(d.collection[group]);
             Object.values(d.collection).forEach((c: any) => {
-              c.forEach((cd) => {
+              c.forEach((cd: StubData) => {
                 if (cd.collection && cd.collection[group]) data = data.concat(cd.collection[group]);
               });
             });
@@ -272,9 +326,9 @@ function createDb() {
       });
       return collectionWhere(data);
     },
-  };
+  } as unknown as admin.firestore.Firestore;
 }
 
 initDb();
 export const db = createDb();
-export const bucket = {};
+export const bucket = {} as ReturnType<admin.storage.Storage['bucket']>;

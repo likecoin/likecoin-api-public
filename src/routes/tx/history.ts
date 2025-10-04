@@ -51,8 +51,8 @@ router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
       .limit(count)
       .get();
     const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
-    let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
-    results = results.map((d) => {
+    let results: any = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
+    results = results.map((d: any) => {
       const data = d.data().toIds
         ? filterMultipleTxData(d.data(), {
           to: { id },
@@ -60,7 +60,7 @@ router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
         : d.data();
       return { id: d.id, ...filterTxData(data) };
     });
-    results.sort((a, b) => (b.ts - a.ts));
+    results.sort((a: any, b: any) => (b.ts - a.ts));
     results.splice(count);
     res.json(results);
   } catch (err) {
@@ -114,8 +114,8 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
       .limit(count)
       .get();
     const [dataTo, dataToArray, dataFrom] = await Promise.all([queryTo, queryToArray, queryFrom]);
-    let results = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
-    results = results.map((d) => {
+    let results: any = dataTo.docs.concat(dataToArray.docs).concat(dataFrom.docs);
+    results = results.map((d: any) => {
       const data = d.data().toIds
         ? filterMultipleTxData(d.data(), {
           to: {
@@ -125,7 +125,7 @@ router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
         : d.data();
       return { id: d.id, ...filterTxData(data) };
     });
-    results.sort((a, b) => (b.ts - a.ts));
+    results.sort((a: any, b: any) => (b.ts - a.ts));
     results.splice(count);
     res.json(results);
   } catch (err) {

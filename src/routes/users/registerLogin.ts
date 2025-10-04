@@ -289,6 +289,10 @@ router.post(
         isEmailEnabled = isEmailEnabled !== 'false';
       }
       const oldUserObj = await dbRef.doc(user).get();
+      const oldUserData = oldUserObj.data();
+      if (!oldUserData) {
+        throw new ValidationError('USER_NOT_FOUND');
+      }
       const {
         wallet,
         referrer,
@@ -298,7 +302,7 @@ router.post(
         email: oldEmail,
         locale: oldLocale,
         authCoreUserId,
-      } = oldUserObj.data();
+      } = oldUserData;
 
       const updateObj: any = {
         displayName,
@@ -387,25 +391,28 @@ router.post(
       res.json({ avatar: avatarUrl });
 
       const oldUserObj = await dbRef.doc(user).get();
-      const {
-        wallet,
-        referrer,
-        timestamp,
-        displayName,
-        email,
-        locale,
-      } = oldUserObj.data();
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'eventUserAvatarUpdate',
-        user,
-        wallet,
-        referrer,
-        displayName,
-        email,
-        locale,
-        avatar: avatarUrl,
-        registerTime: timestamp,
-      });
+      const oldUserData = oldUserObj.data();
+      if (oldUserData) {
+        const {
+          wallet,
+          referrer,
+          timestamp,
+          displayName,
+          email,
+          locale,
+        } = oldUserData;
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'eventUserAvatarUpdate',
+          user,
+          wallet,
+          referrer,
+          displayName,
+          email,
+          locale,
+          avatar: avatarUrl,
+          registerTime: timestamp,
+        });
+      }
     } catch (err) {
       next(err);
     }
@@ -543,72 +550,78 @@ router.post('/login', async (req, res, next) => {
     if (user) {
       const doc = await dbRef.doc(user).get();
       if (doc.exists) {
-        const {
-          isLocked,
-        } = doc.data();
-        if (isLocked) {
-          // eslint-disable-next-line no-console
-          console.log(`Locked user: ${user}`);
-          throw new ValidationError('USER_LOCKED');
+        const docData = doc.data();
+        if (docData) {
+          const {
+            isLocked,
+          } = docData;
+          if (isLocked) {
+            // eslint-disable-next-line no-console
+            console.log(`Locked user: ${user}`);
+            throw new ValidationError('USER_LOCKED');
+          }
         }
       }
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
 
       if (doc.exists) {
-        const {
-          email,
-          displayName,
-          referrer,
-          locale,
-          cosmosWallet,
-          likeWallet,
-          timestamp: registerTime,
-        } = doc.data();
-        if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
-          const { accessToken } = req.body;
-          if (!cosmosWallet) {
-            const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-            const newLikeWallet = changeAddressPrefix(newWallet, 'like');
-            await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
-          }
-          if (!likeWallet && cosmosWallet) {
-            const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
-            await dbRef.doc(user).update({ likeWallet: newLikeWallet });
-          }
-          if (!authCoreUserName) {
-            try {
-              const authCoreToken = await authCoreJwtSignToken();
-              await updateAuthCoreUserById(
-                authCoreUserId,
-                {
-                  user,
-                  displayName,
-                },
-                authCoreToken,
-              );
-            } catch (err) {
+        const docData = doc.data();
+        if (docData) {
+          const {
+            email,
+            displayName,
+            referrer,
+            locale,
+            cosmosWallet,
+            likeWallet,
+            timestamp: registerTime,
+          } = docData;
+          if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
+            const { accessToken } = req.body;
+            if (!cosmosWallet) {
+              const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
+              const newLikeWallet = changeAddressPrefix(newWallet, 'like');
+              await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
+            }
+            if (!likeWallet && cosmosWallet) {
+              const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
+              await dbRef.doc(user).update({ likeWallet: newLikeWallet });
+            }
+            if (!authCoreUserName) {
+              try {
+                const authCoreToken = await authCoreJwtSignToken();
+                await updateAuthCoreUserById(
+                  authCoreUserId,
+                  {
+                    user,
+                    displayName,
+                  },
+                  authCoreToken,
+                );
+              } catch (err) {
               /* no update will return 400 error */
-              if (!(err as any).response || (err as any).response.status !== 400) {
+                if (!(err as any).response || (err as any).response.status !== 400) {
                 // eslint-disable-next-line no-console
-                console.error(err);
+                  console.error(err);
+                }
               }
             }
           }
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'eventUserLogin',
+            user,
+            email,
+            displayName,
+            wallet,
+            referrer,
+            locale,
+            registerTime,
+            platform,
+            sourceURL,
+            utmSource,
+          });
         }
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'eventUserLogin',
-          user,
-          email,
-          displayName,
-          wallet,
-          referrer,
-          locale,
-          registerTime,
-          platform,
-          sourceURL,
-          utmSource,
-        });
       }
       if (getUserAgentIsApp(req)) {
         const userObject = { user, ...doc.data() };
@@ -642,24 +655,27 @@ router.post('/logout', jwtAuth('read'), async (req, res, next) => {
       }
       const doc = await dbRef.doc(user).get();
       if (doc.exists) {
-        const {
-          wallet,
-          email,
-          displayName,
-          referrer,
-          locale,
-          timestamp: registerTime,
-        } = doc.data();
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'eventUserLogout',
-          user,
-          email,
-          displayName,
-          wallet,
-          referrer,
-          locale,
-          registerTime,
-        });
+        const docData = doc.data();
+        if (docData) {
+          const {
+            wallet,
+            email,
+            displayName,
+            referrer,
+            locale,
+            timestamp: registerTime,
+          } = docData;
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'eventUserLogout',
+            user,
+            email,
+            displayName,
+            wallet,
+            referrer,
+            locale,
+            registerTime,
+          });
+        }
       }
     }
   } catch (err) {

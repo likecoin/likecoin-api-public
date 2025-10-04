@@ -1,4 +1,5 @@
 import {
+  admin,
   userCollection as dbRef,
   FieldValue,
   db,
@@ -19,7 +20,9 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
   const userRef = dbRef.doc(user);
   const userDoc = await userRef.get();
   if (!userDoc.exists) throw new ValidationError('USER_NOT_FOUND');
-  const { delegatedPlatform, isPlatformDelegated } = userDoc.data() as UserData;
+  const userData: UserData | undefined = userDoc.data();
+  if (!userData) throw new ValidationError('USER_DATA_NOT_FOUND');
+  const { delegatedPlatform, isPlatformDelegated } = userData;
   if (!isPlatformDelegated || delegatedPlatform !== platform) {
     throw new ValidationError('USER_NOT_DELEGATED');
   }
@@ -45,7 +48,7 @@ export async function handleClaimPlatformDelegatedUser(platform, user, {
 }
 
 export function handleTransferPlatformDelegatedUser(platform, user, target) {
-  return db.runTransaction(async (t) => {
+  return db.runTransaction(async (t: admin.firestore.Transaction) => {
     const userRef = dbRef.doc(user);
     const userSocialRef = userRef.collection('social').doc(platform);
     const targetRef = dbRef.doc(target);
@@ -60,15 +63,19 @@ export function handleTransferPlatformDelegatedUser(platform, user, target) {
     ]);
     if (!userDoc.exists) throw new ValidationError('USER_NOT_FOUND');
     if (!targetDoc.exists) throw new ValidationError('TARGET_NOT_FOUND');
+    const userData: UserData | undefined = userDoc.data();
+    const targetData: UserData | undefined = targetDoc.data();
+    if (!userData) throw new ValidationError('USER_DATA_NOT_FOUND');
+    if (!targetData) throw new ValidationError('TARGET_DATA_NOT_FOUND');
     const {
       delegatedPlatform,
       isPlatformDelegated,
       isDeleted,
       pendingLIKE: sourcePendingLike,
-    } = userDoc.data() as UserData;
+    } = userData;
     const {
       pendingLIKE: targetPendingLike,
-    } = targetDoc.data() as UserData;
+    } = targetData;
     if (isDeleted) {
       throw new ValidationError('USER_IS_DELETED');
     }

@@ -6,7 +6,7 @@ import {
   PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import publisher from '../../gcloudPub';
-import { getUserAgentPlatform } from './index';
+import { getUserAgentPlatform, UserData } from './index';
 import { addFollowUser } from './follow';
 import { getAuthCoreUserById } from '../../authcore';
 import { authCoreJwtSignToken } from '../../jwt';
@@ -51,7 +51,8 @@ export async function handleAppReferrer(req, user, appReferrer) {
     dbRef.doc(appReferrer).get(),
   ]);
   if (!appReferrerDoc.exists) return;
-  if (userAppMetaDoc.exists && userAppMetaDoc.data().ts) {
+  const userAppMetaData = userAppMetaDoc.data();
+  if (userAppMetaDoc.exists && userAppMetaData && userAppMetaData.ts) {
     // user already have app first open log return;
     return;
   }
@@ -110,7 +111,8 @@ export async function handleUpdateAppMetaData(req, user) {
   const agentType = getUserAgentPlatform(req);
   const appMetaDocRef = dbRef.doc(username).collection('app').doc('meta');
   const appMetaDoc = await appMetaDocRef.get();
-  if (appMetaDoc.exists && appMetaDoc.data().ts) {
+  const appMetaData = appMetaDoc.data();
+  if (appMetaDoc.exists && appMetaData && appMetaData.ts) {
     // user already have app first open log return;
     return;
   }
@@ -142,7 +144,9 @@ export async function handleUpdateAppMetaData(req, user) {
 
 export async function checkPhoneVerification(username: string) {
   const userDoc = await dbRef.doc(username).get();
-  const { authCoreUserId } = userDoc.data() as import('./getPublicInfo').UserData;
+  const userData: UserData | undefined = userDoc.data();
+  if (!userData) return;
+  const { authCoreUserId } = userData;
   if (!authCoreUserId) return;
   const authCoreToken = await authCoreJwtSignToken();
   const user = await getAuthCoreUserById(authCoreUserId, authCoreToken);

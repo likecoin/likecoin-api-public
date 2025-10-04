@@ -9,7 +9,7 @@ import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import createHash from 'create-hash';
 import BigNumber from 'bignumber.js';
 import { COSMOS_CHAIN_ID, getAccountInfo } from './index';
-import { db, txCollection as txLogRef } from '../firebase';
+import { admin, db, txCollection as txLogRef } from '../firebase';
 import { sleep } from '../misc';
 import publisher from '../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
@@ -166,14 +166,15 @@ export async function sendTransactionWithSequence(
   let signedTx;
   const { sequence: seq1 } = await getAccountInfo(senderAddress);
   const counterRef = txLogRef.doc(`!counter_${senderAddress}`);
-  let pendingCount = await db.runTransaction(async (t) => {
+  let pendingCount = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const d = await t.get(counterRef);
-    if (!d.data()) {
+    const data = d.data();
+    if (!data) {
       const count = seq1.toNumber();
       await t.create(counterRef, { value: count + 1 });
       return count;
     }
-    const v = d.data().value + 1;
+    const v = (data.value as number) + 1;
     await t.update(counterRef, { value: v });
     return v - 1;
   });
@@ -199,14 +200,15 @@ export async function sendTransactionWithSequence(
     if (!res) {
       res = await internalSendTransaction(signedTx, client);
     }
-    await db.runTransaction((t) => t.get(counterRef).then((d) => {
-      if (pendingCount + 1 > d.data().value) {
-        return t.update(counterRef, {
+    await db.runTransaction(async (t: admin.firestore.Transaction) => {
+      const d = await t.get(counterRef);
+      const data = d.data();
+      if (data && pendingCount + 1 > (data.value as number)) {
+        await t.update(counterRef, {
           value: pendingCount + 1,
         });
       }
-      return Promise.resolve();
-    }));
+    });
     assertIsDeliverTxSuccess(res);
   } catch (err) {
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {

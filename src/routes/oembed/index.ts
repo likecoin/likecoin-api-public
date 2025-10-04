@@ -36,6 +36,10 @@ async function processLikerId(req, res, { parsedURL }) {
     return { error: 404 };
   }
   const payload = doc.data();
+  if (!payload) {
+    res.sendStatus(404);
+    return { error: 404 };
+  }
   if (!payload.avatar) payload.avatar = AVATAR_DEFAULT_PATH;
 
   const replyUrl = `https://${parsedURL.host}/${username}`;

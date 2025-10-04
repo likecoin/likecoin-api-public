@@ -292,6 +292,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
     isbn,
     image,
   } = metadata;
+  if (!bookInfo) {
+    throw new ValidationError('BOOK_INFO_NOT_FOUND');
+  }
   const {
     prices,
   } = bookInfo;
@@ -462,7 +465,9 @@ export async function listLatestNFTBookInfo({
     const timestamp = Timestamp.fromMillis(tsNumber) as unknown as number;
     snapshot = snapshot.startAfter(timestamp);
   }
-  snapshot = snapshot.limit(limit);
+  if (limit) {
+    snapshot = snapshot.limit(limit);
+  }
   const query = await snapshot.get();
   return query.docs.map((doc) => {
     const docData = doc.data();
