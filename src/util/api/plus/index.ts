@@ -67,6 +67,9 @@ export async function processStripeSubscriptionInvoice(
     utmMedium,
     paymentId,
     isUpgradingPrice,
+    userAgent,
+    clientIp,
+    fbClickId,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -170,17 +173,19 @@ export async function processStripeSubscriptionInvoice(
     }
   }
 
-  // TODO: we don't know trial to paid upgrade now
-  // should send subscribe for that as well
+  // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation) {
     await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
-      email: stripeCustomer.email || undefined,
+      email: user.email || stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
       value: amountPaid,
       currency: 'USD',
+      userAgent,
+      clientIp,
+      fbClickId,
       paymentId,
       evmWallet: req.user?.evmWallet,
     });
@@ -309,20 +314,21 @@ export async function createNewPlusCheckoutSession(
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;
+  if (paymentId) subscriptionMetadata.paymentId = paymentId;
   if (giftClassId) subscriptionMetadata.giftClassId = giftClassId;
   if (giftPriceIndex !== undefined) subscriptionMetadata.giftPriceIndex = giftPriceIndex;
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
+  if (userAgent) subscriptionMetadata.userAgent = userAgent;
+  if (clientIp) subscriptionMetadata.clientIp = clientIp;
+  if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
   if (gaClientId) metadata.gaClientId = gaClientId;
   if (gaSessionId) metadata.gaSessionId = gaSessionId;
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
   if (referrer) metadata.referrer = referrer.substring(0, 500);
-  if (userAgent) metadata.userAgent = userAgent;
-  if (clientIp) metadata.clientIp = clientIp;
-  if (fbClickId) metadata.fbClickId = fbClickId;
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: subscriptionMetadata,
@@ -375,6 +381,10 @@ export async function processStripeSubscriptionUpdate(
   const {
     evmWallet,
     likeWallet,
+    userAgent,
+    clientIp,
+    fbClickId,
+    paymentId,
   } = subscription.metadata || {};
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
@@ -388,9 +398,17 @@ export async function processStripeSubscriptionUpdate(
     return;
   }
   const likerId = user.user;
+  const wasInTrial = previousAttributes?.status === 'trialing';
 
-  if (previousAttributes?.status === 'trialing' && subscription.status === 'active') {
-    const { items: { data: [item] }, customer } = subscription;
+  if (wasInTrial && subscription.status !== 'trialing') {
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: 'plus_trial_end',
+    });
+  }
+
+  if (wasInTrial && subscription.status === 'active') {
+    const { items: { data: [item] }, customer, metadata } = subscription;
 
     const stripeCustomer = typeof customer === 'string'
       ? await stripe.customers.retrieve(customer)
@@ -412,11 +430,15 @@ export async function processStripeSubscriptionUpdate(
       }],
       value: (item.plan.amount || 0) / 100,
       currency: 'USD',
+      userAgent,
+      clientIp,
+      fbClickId,
+      paymentId,
       evmWallet,
     });
-  } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-    const wasTrial = previousAttributes?.status === 'trialing';
+  }
 
+  if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
       await userCollection.doc(likerId).update({
@@ -432,12 +454,7 @@ export async function processStripeSubscriptionUpdate(
       isLikerPlus: false,
     });
 
-    if (wasTrial) {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_trial_end',
-      });
-    } else {
+    if (!wasInTrial) {
       await sendIntercomEvent({
         userId: likerId,
         eventName: 'plus_subscription_end',
