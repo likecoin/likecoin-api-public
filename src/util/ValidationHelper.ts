@@ -565,6 +565,10 @@ export function filterNFTBookListingInfo(
     isbn,
     timestamp,
     isHidden,
+    isApprovedForSale,
+    isApprovedForIndexing,
+    isApprovedForAds,
+    approvalStatus,
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
@@ -597,12 +601,17 @@ export function filterNFTBookListingInfo(
     isbn,
     timestamp: timestamp?.toMillis(),
     isHidden,
+    // Approval flags - default to true for backward compatibility with existing books
+    isApprovedForSale: isApprovedForSale !== undefined ? isApprovedForSale : true,
+    isApprovedForIndexing: isApprovedForIndexing !== undefined ? isApprovedForIndexing : true,
+    isApprovedForAds: isApprovedForAds !== undefined ? isApprovedForAds : true,
   };
   if (isOwner) {
     payload.sold = sold;
     payload.pendingNFTCount = pendingNFTCount;
     payload.moderatorWallets = moderatorWallets;
     payload.connectedWallets = connectedWallets;
+    payload.approvalStatus = approvalStatus || 'approved';
   }
   return payload;
 }
