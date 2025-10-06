@@ -130,6 +130,10 @@ export interface NFTBookListingInfo {
   timestamp?: { toMillis: () => number };
   isHidden?: boolean;
   isLikerLandArt?: boolean;
+  isApprovedForSale?: boolean;
+  isApprovedForIndexing?: boolean;
+  isApprovedForAds?: boolean;
+  approvalStatus?: string;
 }
 
 export interface NFTBookListingInfoFiltered {
@@ -165,6 +169,10 @@ export interface NFTBookListingInfoFiltered {
   pendingNFTCount?: number;
   moderatorWallets?: string[];
   connectedWallets?: any;
+  isApprovedForSale: boolean;
+  isApprovedForIndexing: boolean;
+  isApprovedForAds: boolean;
+  approvalStatus?: string;
 }
 
 export interface NFTBookUserData {

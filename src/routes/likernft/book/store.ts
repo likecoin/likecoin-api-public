@@ -25,7 +25,7 @@ import {
 } from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
+import { validateConnectedWallets, checkIsTrustedPublisher } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
@@ -576,7 +576,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     } = metadata;
     const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
-    await newNftBookInfo(classId, {
+    const { isAutoApproved } = await newNftBookInfo(classId, {
       iscnIdPrefix: metadata.iscnIdPrefix,
       ownerWallet,
       successUrl,
@@ -611,6 +611,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         classId,
         className,
         prices,
+        isAutoApproved,
       }),
       createAirtablePublicationRecord({
         id: classId,
@@ -633,6 +634,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         usageInfo,
         isbn,
         isDRMFree: !hideDownload,
+        isHidden: false, // Don't hide new listing until hidden
       }),
     ]);
 
