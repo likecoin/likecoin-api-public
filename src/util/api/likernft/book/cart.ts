@@ -989,7 +989,13 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         ownerWallet,
         isLikerLandArt,
         chain,
+        isApprovedForSale,
       } = bookInfo;
+
+      if (isApprovedForSale === false) {
+        throw new ValidationError('BOOK_NOT_APPROVED_FOR_SALE');
+      }
+
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
       const {
         priceInDecimal: originalPriceInDecimal,
