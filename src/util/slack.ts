@@ -21,6 +21,7 @@ export async function sendNFTBookNewListingSlackNotification({
   classId,
   className,
   prices,
+  isAutoApproved = false,
 }: {
   wallet: string;
   classId: string;
@@ -30,6 +31,7 @@ export async function sendNFTBookNewListingSlackNotification({
     priceInDecimal: number;
     stock: number;
   }[];
+  isAutoApproved?: boolean;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
@@ -40,12 +42,75 @@ export async function sendNFTBookNewListingSlackNotification({
         return `Name: ${Object.values(p.name).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
       },
     ).join('\n');
-    await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
+
+    const approvalStatusText = isAutoApproved
+      ? '✅ Auto-approved (Trusted Publisher)'
+      : '⏳ Pending Approval';
+
+    const payload: any = {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       wallet,
       className,
       classLink,
       editions,
+      classId,
+      isAutoApproved,
+      approvalStatus: approvalStatusText,
+    };
+
+    if (!isAutoApproved) {
+      payload.approvalCommands = {
+        approveWithAds: `/book approve ${classId} approve_with_ads`,
+        approveNoAds: `/book approve ${classId} approve_no_ads`,
+        reject: `/book approve ${classId} reject`,
+      };
+    }
+
+    await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, payload);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+export async function sendNFTBookApprovalUpdateSlackNotification({
+  classId,
+  className,
+  action,
+  moderatorSlackUserId,
+}: {
+  classId: string;
+  className: string;
+  action: string;
+  moderatorSlackUserId: string;
+}) {
+  if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
+  try {
+    const classLink = getLikerLandNFTClassPageURL({ classId });
+
+    let actionText = '';
+    switch (action) {
+      case 'approve_with_ads':
+        actionText = '✅ Approved for Listing & Ads';
+        break;
+      case 'approve_no_ads':
+        actionText = '✓ Approved for Listing (No Ads)';
+        break;
+      case 'reject':
+        actionText = '❌ Rejected/Hidden';
+        break;
+      default:
+        actionText = action;
+    }
+
+    await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      classId,
+      className,
+      classLink,
+      action: actionText,
+      moderator: `<@${moderatorSlackUserId}>`,
+      isApprovalUpdate: true,
     });
   } catch (err) {
     // eslint-disable-next-line no-console

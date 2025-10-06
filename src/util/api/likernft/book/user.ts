@@ -15,6 +15,11 @@ export async function getBookUserInfo(wallet: string) {
   return userData;
 }
 
+export async function checkIsTrustedPublisher(wallet: string): Promise<boolean> {
+  const userInfo = await getBookUserInfo(wallet);
+  return userInfo?.isTrustedPublisher || false;
+}
+
 export async function getBookUserInfoFromWallet(wallet: string) {
   const [bookUserInfo, likerUserInfo] = await Promise.all([
     getBookUserInfo(wallet),

@@ -35,6 +35,7 @@ import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
+import { checkIsTrustedPublisher } from './user';
 
 export async function getNFTClassDataById(classId) {
   if (isEVMClassId(classId)) {
@@ -200,6 +201,8 @@ export async function newNftBookInfo(
     ...formatPriceInfo(p),
   }));
 
+  const isTrustedPublisher = await checkIsTrustedPublisher(ownerWallet);
+
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     classId,
@@ -208,6 +211,10 @@ export async function newNftBookInfo(
     ownerWallet,
     timestamp,
     chain: isEVMClassId(classId) ? 'base' : 'like',
+    isApprovedForSale: isTrustedPublisher,
+    isApprovedForIndexing: isTrustedPublisher,
+    isApprovedForAds: isTrustedPublisher,
+    approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
   };
   if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (image) payload.image = image;
@@ -261,6 +268,9 @@ export async function newNftBookInfo(
     }
   }
   await batch.commit();
+  return {
+    isAutoApproved: isTrustedPublisher,
+  };
 }
 
 export async function getNftBookInfo(classId: string) {
