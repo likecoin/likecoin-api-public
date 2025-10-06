@@ -54,6 +54,7 @@ async function getUserInfo(req, res, query) {
     const user = userDoc.id;
     userInfo = { user, ...userInfo };
     const userData = userDoc.data();
+    if (!userData) throw new Error('USER_DATA_NOT_FOUND');
     const {
       evmWallet,
       likeWallet,

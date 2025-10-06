@@ -24,6 +24,8 @@ import {
   FIRESTORE_ISCN_LIKER_URL_ROOT,
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
+import type { UserData } from '../types/user';
+import type { NFTBookListingInfo, BookPurchaseCartData } from '../types/validation';
 
 let database: admin.firestore.Firestore | undefined;
 if (!process.env.CI) {
@@ -41,10 +43,12 @@ if (!database && !process.env.CI) {
 
 export const db = database as admin.firestore.Firestore;
 
-function getCollection(root: string | undefined): admin.firestore.CollectionReference {
+function getCollection<T = admin.firestore.DocumentData>(
+  root: string | undefined,
+): admin.firestore.CollectionReference<T> {
   // In CI environment, allow undefined collections (they won't be used)
   if (process.env.CI) {
-    return {} as admin.firestore.CollectionReference;
+    return {} as admin.firestore.CollectionReference<T>;
   }
 
   // In non-CI environments, validate configuration
@@ -55,10 +59,10 @@ function getCollection(root: string | undefined): admin.firestore.CollectionRefe
     throw new Error('Firebase database not initialized');
   }
 
-  return database.collection(root);
+  return database.collection(root) as admin.firestore.CollectionReference<T>;
 }
 
-export const userCollection = getCollection(FIRESTORE_USER_ROOT);
+export const userCollection = getCollection<UserData>(FIRESTORE_USER_ROOT);
 export const userAuthCollection = getCollection(FIRESTORE_USER_AUTH_ROOT);
 export const subscriptionUserCollection = getCollection(FIRESTORE_SUBSCRIPTION_USER_ROOT);
 export const superLikeUserCollection = getCollection(FIRESTORE_SUPERLIKE_USER_ROOT);
@@ -74,8 +78,12 @@ export const likeNFTSubscriptionUserCollection = getCollection(
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
 );
 export const likeNFTFreeMintTxCollection = getCollection(FIRESTORE_NFT_FREE_MINT_TX_ROOT);
-export const likeNFTBookCartCollection = getCollection(FIRESTORE_LIKER_NFT_BOOK_CART_ROOT);
-export const likeNFTBookCollection = getCollection(FIRESTORE_LIKER_NFT_BOOK_ROOT);
+export const likeNFTBookCartCollection = getCollection<BookPurchaseCartData>(
+  FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
+);
+export const likeNFTBookCollection = getCollection<NFTBookListingInfo>(
+  FIRESTORE_LIKER_NFT_BOOK_ROOT,
+);
 export const likeNFTBookUserCollection = getCollection(FIRESTORE_LIKER_NFT_BOOK_USER_ROOT);
 export const likeButtonUrlCollection = getCollection(FIRESTORE_LIKE_URL_ROOT);
 export const iscnInfoCollection = getCollection(FIRESTORE_ISCN_INFO_ROOT);

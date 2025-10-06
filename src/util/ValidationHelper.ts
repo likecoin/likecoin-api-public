@@ -4,6 +4,31 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
+import type { UserCivicLikerProperties } from '../types/user';
+import type {
+  UserDataFiltered,
+  UserDataMin,
+  UserDataScopedFiltered,
+  TxData,
+  LikeNFTISCNData,
+  LikeNFTMetadata,
+  LikeNFTMetadataFiltered,
+  BookPurchaseData,
+  BookPurchaseDataFiltered,
+  BookPurchaseCommission,
+  BookPurchaseCommissionFiltered,
+  OAuthClientInfo,
+  AppMeta,
+  AppMetaFiltered,
+  NotificationData,
+  BookmarkData,
+  FollowData,
+  NFTBookPrice,
+  NFTBookPriceFiltered,
+  NFTBookPricesInfoFiltered,
+  NFTBookListingInfo,
+  NFTBookListingInfoFiltered,
+} from '../types/validation';
 
 export function checkAddressValid(addr) {
   return addr.length === 42 && addr.substr(0, 2) === '0x';
@@ -25,14 +50,13 @@ export function checkCosmosAddressValid(addr, prefix = 'cosmos') {
   }
 }
 
-export function filterUserData(u) {
+export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
   const {
     user,
-    bonusCooldown,
+    bonusCooldown = 0,
     displayName,
     description,
     email,
-    phone,
     avatar,
     wallet,
     cosmosWallet,
@@ -40,10 +64,8 @@ export function filterUserData(u) {
     evmWallet,
     referrer,
     isEmailVerified,
-    isPhoneVerified,
     isEmailEnabled,
     authCoreUserId,
-    read = {},
     isSubscribedCivicLiker,
     isCivicLikerTrial,
     isCivicLikerRenewalPeriod,
@@ -56,7 +78,6 @@ export function filterUserData(u) {
     isLikerPlus,
     likerPlusPeriod,
     locale,
-    creatorPitch,
   } = u;
   return {
     user,
@@ -64,7 +85,6 @@ export function filterUserData(u) {
     displayName,
     description,
     email,
-    phone,
     avatar,
     wallet,
     cosmosWallet,
@@ -72,10 +92,9 @@ export function filterUserData(u) {
     evmWallet,
     referrer: !!referrer,
     isEmailVerified,
-    isPhoneVerified,
     isEmailEnabled,
     isAuthCore: !!authCoreUserId,
-    read,
+    read: {},
     isSubscribedCivicLiker,
     isCivicLikerTrial,
     isCivicLikerRenewalPeriod,
@@ -88,11 +107,13 @@ export function filterUserData(u) {
     isLikerPlus,
     likerPlusPeriod,
     locale,
-    creatorPitch,
   };
 }
 
-export function filterUserDataMin(userObject, types: string[] = []) {
+export function filterUserDataMin(
+  userObject: UserCivicLikerProperties | UserDataMin,
+  types: string[] = [],
+): UserDataMin {
   const {
     user,
     displayName,
@@ -108,7 +129,7 @@ export function filterUserDataMin(userObject, types: string[] = []) {
     isLikerPlus,
     description,
   } = userObject;
-  const output: any = {
+  const output: UserDataMin = {
     user,
     displayName,
     avatar,
@@ -132,9 +153,12 @@ export function filterUserDataMin(userObject, types: string[] = []) {
   return output;
 }
 
-export function filterUserDataScoped(u, scope: string[] = []) {
+export function filterUserDataScoped(
+  u: UserCivicLikerProperties,
+  scope: string[] = [],
+): UserDataScopedFiltered {
   const user = filterUserData(u);
-  let output = filterUserDataMin(u);
+  let output: UserDataScopedFiltered = filterUserDataMin(u);
   if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
   }
@@ -184,7 +208,7 @@ export function filterTxData({
   completeTs,
   ts,
   txHash,
-}) {
+}: TxData): TxData {
   return {
     from,
     fromId,
@@ -213,7 +237,7 @@ export function filterLikeNFTISCNData({
   classUri,
   creatorWallet,
   ownerWallet,
-}) {
+}: LikeNFTISCNData): LikeNFTISCNData {
   return {
     iscnId,
     classId,
@@ -241,7 +265,7 @@ export function filterLikeNFTMetadata({
   iscnId,
   iscnRecordTimestamp,
   ...data
-}) {
+}: LikeNFTMetadata): LikeNFTMetadataFiltered {
   // key with underscore as in https://docs.opensea.io/docs/metadata-standards
   return {
 
@@ -288,7 +312,7 @@ export function filterBookPurchaseData({
   quantity = 1,
   classIds,
   classIdsWithPrice,
-}) {
+}: BookPurchaseData): BookPurchaseDataFiltered {
   return {
     id,
     email,
@@ -332,7 +356,7 @@ export function filterBookPurchaseCommission({
   amount,
   currency,
   timestamp,
-}) {
+}: BookPurchaseCommission): BookPurchaseCommissionFiltered {
   return {
     type,
     ownerWallet,
@@ -362,7 +386,7 @@ export function filterOAuthClientInfo({
   domain,
   platform,
   isTrusted,
-}) {
+}: OAuthClientInfo): OAuthClientInfo {
   return {
     avatar,
     audience,
@@ -386,7 +410,7 @@ export function filterAppMeta({
   ts,
   android,
   ios,
-}) {
+}: AppMeta): AppMetaFiltered {
   const isNew = (!ts || (Date.now() - ts < ONE_DAY_IN_MS)) && !referrer;
   return {
     isNew,
@@ -408,7 +432,7 @@ export function filterNotification({
   ts,
   txHash,
   type,
-}) {
+}: NotificationData): NotificationData {
   return {
     id,
     LIKE,
@@ -427,7 +451,7 @@ export function filterBookmarks({
   url,
   ts,
   isArchived,
-}) {
+}: BookmarkData): BookmarkData {
   return {
     id,
     url,
@@ -440,7 +464,7 @@ export function filterFollow({
   id,
   isFollowed,
   ts,
-}) {
+}: FollowData): FollowData {
   return {
     id,
     isFollowed,
@@ -448,10 +472,13 @@ export function filterFollow({
   };
 }
 
-export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
+export function filterNFTBookPricesInfo(
+  inputPrices: NFTBookPrice[],
+  isOwner = false,
+): NFTBookPricesInfoFiltered {
   let sold = 0;
   let stock = 0;
-  const prices: any[] = [];
+  const prices: NFTBookPriceFiltered[] = [];
   inputPrices.forEach((p, i) => {
     const {
       name,
@@ -468,7 +495,7 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
       order,
     } = p;
     const price = priceInDecimal / 100;
-    const payload: any = {
+    const payload: NFTBookPriceFiltered = {
       index,
       price,
       name,
@@ -498,7 +525,10 @@ export function filterNFTBookPricesInfo(inputPrices, isOwner = false) {
   };
 }
 
-export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
+export function filterNFTBookListingInfo(
+  bookInfo: NFTBookListingInfo,
+  isOwner = false,
+): NFTBookListingInfoFiltered {
   const {
     id: inputId,
     classId,
@@ -532,7 +562,7 @@ export function filterNFTBookListingInfo(bookInfo, isOwner = false) {
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
-  const payload: any = {
+  const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
     likeClassId,

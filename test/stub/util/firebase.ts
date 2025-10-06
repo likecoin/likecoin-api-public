@@ -4,6 +4,14 @@
 /* eslint import/extensions: "off" */
 import * as admin from 'firebase-admin';
 import cloneDeep from 'lodash.clonedeep'; // eslint-disable-line import/no-extraneous-dependencies
+// These imports will work when this file is copied to src/util/firebase.ts during tests
+// The relative path is correct for the destination location
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+import type { UserData } from '../types/user';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+import type { NFTBookListingInfo, BookPurchaseCartData } from '../types/validation';
 
 export { admin };
 export const { FieldValue, Timestamp } = admin.firestore;
@@ -237,7 +245,7 @@ const dbData: StubData[][] = [
 ];
 
 export const userCollection = createCollection(userData) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<UserData>;
 export const userAuthCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 export const subscriptionUserCollection = createCollection(
@@ -264,9 +272,9 @@ export const likeNFTSubscriptionTxCollection = createCollection([]) as
 export const likeNFTFreeMintTxCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 export const likeNFTBookCartCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<BookPurchaseCartData>;
 export const likeNFTBookCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<NFTBookListingInfo>;
 export const likeNFTBookUserCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 export const likeButtonUrlCollection = createCollection([]) as

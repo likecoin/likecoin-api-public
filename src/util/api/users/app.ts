@@ -6,10 +6,11 @@ import {
   PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import publisher from '../../gcloudPub';
-import { getUserAgentPlatform, UserData } from './index';
+import { getUserAgentPlatform } from './index';
 import { addFollowUser } from './follow';
 import { getAuthCoreUserById } from '../../authcore';
 import { authCoreJwtSignToken } from '../../jwt';
+import type { UserData } from '../../../types/user';
 
 const THREE_DAYS_IN_MS = 259200000;
 

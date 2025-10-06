@@ -6,7 +6,7 @@ import {
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { handleAvatarLinkAndGetURL } from '../../fileupload';
-import type { UserData } from './getPublicInfo';
+import type { UserData } from '../../../types/user';
 
 export async function handleClaimPlatformDelegatedUser(platform, user, {
   email,

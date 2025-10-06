@@ -246,7 +246,7 @@ export async function claimNFTBookCart(
   const {
     status: oldStatus,
     email,
-    classIds,
+    classIds = [],
     claimedClassIds = [],
   } = cartData;
 
@@ -621,7 +621,7 @@ export async function processNFTBookCart(
       email: email || undefined,
       items: infoList.map((item) => ({
         productId: item.classId,
-        priceIndex: item.priceIndex,
+        priceIndex: item.txData.priceIndex,
         quantity: item.txData.quantity,
       })),
       userAgent,
@@ -676,7 +676,7 @@ export async function processNFTBookCart(
       });
       await likeNFTBookCartCollection.doc(cartId).update({
         status: 'error',
-        email,
+        email: email || undefined,
       });
     }
   }
@@ -694,7 +694,7 @@ export async function processNFTBookCartPurchase({
     if (!cartData) throw new ValidationError('CART_ID_NOT_FOUND');
     const {
       status,
-      classIds,
+      classIds = [],
     } = cartData;
     if (status !== 'new') throw new ValidationError('PAYMENT_ALREADY_PROCESSED');
 
@@ -985,7 +985,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         if (!metadata) throw new ValidationError('NFT_NOT_FOUND');
       }
       const {
-        prices,
+        prices = [],
         ownerWallet,
         isLikerLandArt,
         chain,
