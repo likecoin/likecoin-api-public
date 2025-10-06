@@ -63,6 +63,7 @@ router.get('/staking', jwtOptionalAuth('read:civic_liker'), async (req, res, nex
 
       if (userDoc && userDoc.exists) {
         const userData = userDoc.data();
+        if (!userData) throw new Error('USER_DATA_NOT_FOUND');
         address = userData.likeWallet;
       }
     }

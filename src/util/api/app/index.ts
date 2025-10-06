@@ -10,7 +10,7 @@ import {
 } from '../users/app';
 import { addFollowUser } from '../users/follow';
 import publisher from '../../gcloudPub';
-import type { UserData } from '../users';
+import type { UserData } from '../../../types/user';
 
 export async function handleAddAppReferrer(req, username: string, appReferrer: string) {
   const userAppMetaRef = dbRef.doc(username).collection('app').doc('meta');

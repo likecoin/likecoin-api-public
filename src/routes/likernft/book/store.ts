@@ -33,6 +33,7 @@ import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../con
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
+import type { NFTBookListingInfo } from '../../../types/validation';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
@@ -91,7 +92,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
     const list = ownedBookInfos
-      .filter((b: any) => {
+      .filter((b: NFTBookListingInfo) => {
         const {
           isHidden,
           redirectClassId,
@@ -101,7 +102,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
         return (isAuthorized || !isHidden) && !redirectClassId;
       })
-      .map((b: any) => {
+      .map((b: NFTBookListingInfo) => {
         const {
           moderatorWallets = [],
           ownerWallet,
@@ -330,7 +331,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     let expectedNFTCount = 0;
     if (price.isAutoDeliver) {
       expectedNFTCount = oldPriceInfo.isAutoDeliver
-        ? price.stock - oldPriceInfo.stock
+        ? price.stock - (oldPriceInfo.stock ?? 0)
         : price.stock;
     }
 
@@ -433,12 +434,12 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     const oldOrder = priceInfo.order;
 
     const reorderedPrices = prices.map((p) => {
-      let { order } = p;
+      let { order = 0 } = p;
       if (order === oldOrder) {
         order = newOrder;
-      } else if (order < oldOrder && order >= newOrder) {
+      } else if (order < (oldOrder ?? 0) && order >= newOrder) {
         order += 1;
-      } else if (order > oldOrder && order <= newOrder) {
+      } else if (order > (oldOrder ?? 0) && order <= newOrder) {
         order -= 1;
       }
       return {

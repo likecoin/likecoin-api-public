@@ -1,5 +1,6 @@
 import type { DocumentSnapshot } from '@google-cloud/firestore';
-import { formatUserCivicLikerProperies, UserData } from '../users';
+import { formatUserCivicLikerProperies } from '../users';
+import type { UserData } from '../../../types/user';
 
 export function parseCivicLikerV3Status(
   stakingAmount: number,

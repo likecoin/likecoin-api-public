@@ -260,7 +260,7 @@ export async function newNftBookInfo(
   await batch.commit();
 }
 
-export async function getNftBookInfo(classId) {
+export async function getNftBookInfo(classId: string) {
   const doc = await likeNFTBookCollection.doc(classId).get();
   if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
   return doc.data();
@@ -296,7 +296,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     throw new ValidationError('BOOK_INFO_NOT_FOUND');
   }
   const {
-    prices,
+    prices = [],
   } = bookInfo;
   const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 

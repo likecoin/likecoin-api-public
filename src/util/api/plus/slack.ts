@@ -58,6 +58,7 @@ export async function syncUserSubscription(data: { evmWallet?: string; subscript
 
       if (userDoc) {
         const userData = userDoc.data();
+        if (!userData) throw new Error('USER_DATA_NOT_FOUND');
         // Look for existing subscription
         if (userData.likerPlus?.subscriptionId) {
           subscriptionDetails = await getStripeSubscriptionDetails(

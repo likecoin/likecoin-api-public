@@ -15,6 +15,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
+import type { BookPurchaseData } from '../../../types/validation';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
   sendNFTBookGiftPendingClaimEmail,
@@ -58,7 +59,7 @@ router.get(
         res.status(403).send('UNAUTHORIZED');
         return;
       }
-      res.json(filterBookPurchaseData(docData as any));
+      res.json(filterBookPurchaseData(docData));
     } catch (err) {
       next(err);
     }
@@ -533,7 +534,7 @@ router.get(
       if (!isTokenValid && !isUserValid) {
         throw new ValidationError('UNAUTHORIZED', 403);
       }
-      res.json(filterBookPurchaseData(docData as any));
+      res.json(filterBookPurchaseData(docData as BookPurchaseData));
     } catch (err) {
       next(err);
     }
@@ -827,7 +828,7 @@ router.get(
         .get();
       const docDatas = query.docs.map((d) => ({ id: d.id, ...d.data() }));
       res.json({
-        orders: docDatas.map((d) => filterBookPurchaseData(d as any)),
+        orders: docDatas.map((d) => filterBookPurchaseData(d as BookPurchaseData)),
       });
     } catch (err) {
       next(err);
