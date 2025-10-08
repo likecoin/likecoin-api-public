@@ -3,6 +3,7 @@ import { getISCNPrefix } from '../../cosmos/iscn';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
 import { getNFTClassDataById, getNFTQueryClient } from '../../cosmos/nft';
+import type { LikeNFTISCNData } from '../../../types/nft';
 
 export function getISCNPrefixDocName(iscnId) {
   const prefix = getISCNPrefix(iscnId);
@@ -12,7 +13,7 @@ export function getISCNPrefixDocName(iscnId) {
 export async function getCurrentClassIdByISCNId(iscnId) {
   const iscnPrefixDocName = getISCNPrefixDocName(iscnId);
   const iscnDoc = await likeNFTCollection.doc(iscnPrefixDocName).get();
-  const iscnData = iscnDoc.data();
+  const iscnData = iscnDoc.data() as LikeNFTISCNData | undefined;
   if (!iscnData) {
     throw new ValidationError('ISCN_NFT_NOT_FOUND', 404);
   }

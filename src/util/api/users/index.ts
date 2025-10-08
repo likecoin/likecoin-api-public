@@ -267,7 +267,8 @@ export async function normalizeUserEmail(user, email) {
       console.error(err);
     }
     const blacklistDoc = await configCollection.doc('emailBlacklist').get();
-    const { list: customBlackList } = blacklistDoc.data() || {};
+    const configData = blacklistDoc.data();
+    const customBlackList = (configData?.value as { list?: string[] })?.list;
     if (customBlackList) {
       customBlackList.forEach((keyword) => {
         if (domain.includes(keyword)) {

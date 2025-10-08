@@ -97,11 +97,11 @@ router.post(
       const signatureHex = signature && signature.toString('base64');
       let token;
       try {
-        ({ token } = await createNewArweaveTx(txHash, {
+        token = await createNewArweaveTx(txHash, {
           ipfsHash,
           fileSize,
           ownerWallet: req.user?.wallet || '',
-        }));
+        });
       } catch (error) {
         if ((error as Error)?.message.includes('ALREADY_EXISTS')) {
           // eslint-disable-next-line no-console

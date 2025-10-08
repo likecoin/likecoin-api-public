@@ -76,6 +76,6 @@ export async function handleNFTBookStripeSessionCustomer(
   const { bookUserInfo } = res;
   if (bookUserInfo?.stripeCustomerId) return;
   await likeNFTBookUserCollection.doc(wallet).set({
-    stripeCustomerId: customer,
+    stripeCustomerId: typeof customer === 'string' ? customer : customer.id,
   }, { merge: true });
 }

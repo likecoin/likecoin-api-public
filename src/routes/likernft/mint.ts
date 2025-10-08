@@ -19,7 +19,8 @@ router.get(
         return;
       }
       const iscnPrefix = decodeURIComponent(doc.id);
-      res.json(filterLikeNFTISCNData({ iscnId: iscnPrefix, ...doc.data() } as any));
+      const data = doc.data();
+      res.json(filterLikeNFTISCNData({ ...data, iscnId: iscnPrefix }));
     } catch (err) {
       next(err);
     }
