@@ -8,6 +8,7 @@ import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
+import type { BookPurchaseCommission } from '../../../types/book';
 
 const router = Router();
 
@@ -97,6 +98,7 @@ router.post(
       }
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
       if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
+      if (!stripeConnectAccountId) throw new ValidationError('STRIPE_ACCOUNT_NOT_FOUND', 404);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -378,7 +380,7 @@ router.get(
         .collection('commissions')
         .doc(id)
         .get();
-      res.json(filterBookPurchaseCommission(commissionDoc.data() as any));
+      res.json(filterBookPurchaseCommission(commissionDoc.data() as BookPurchaseCommission));
     } catch (err) {
       next(err);
     }

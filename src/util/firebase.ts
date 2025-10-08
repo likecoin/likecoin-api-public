@@ -25,7 +25,23 @@ import {
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
 import type { UserData } from '../types/user';
-import type { NFTBookListingInfo, BookPurchaseCartData } from '../types/validation';
+import type { NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData } from '../types/book';
+import type { LikeNFTISCNData, FreeMintTxData } from '../types/nft';
+import type { TxData, ArweaveTxData } from '../types/transaction';
+import type {
+  UserAuthData,
+  SubscriptionUserData,
+  SuperLikeData,
+  IAPData,
+  MissionData,
+  PayoutData,
+  CouponData,
+  ConfigData,
+  OAuthClientInfo,
+  LikeButtonUrlData,
+  ISCNInfoData,
+  ISCNMappingData,
+} from '../types/firestore';
 
 let database: admin.firestore.Firestore | undefined;
 if (!process.env.CI) {
@@ -63,32 +79,62 @@ function getCollection<T = admin.firestore.DocumentData>(
 }
 
 export const userCollection = getCollection<UserData>(FIRESTORE_USER_ROOT);
-export const userAuthCollection = getCollection(FIRESTORE_USER_AUTH_ROOT);
-export const subscriptionUserCollection = getCollection(FIRESTORE_SUBSCRIPTION_USER_ROOT);
-export const superLikeUserCollection = getCollection(FIRESTORE_SUPERLIKE_USER_ROOT);
-export const txCollection = getCollection(FIRESTORE_TX_ROOT);
-export const iapCollection = getCollection(FIRESTORE_IAP_ROOT);
-export const missionCollection = getCollection(FIRESTORE_MISSION_ROOT);
-export const payoutCollection = getCollection(FIRESTORE_PAYOUT_ROOT);
-export const couponCollection = getCollection(FIRESTORE_COUPON_ROOT);
-export const configCollection = getCollection(FIRESTORE_CONFIG_ROOT);
-export const oAuthClientCollection = getCollection(FIRESTORE_OAUTH_CLIENT_ROOT);
-export const likeNFTCollection = getCollection(FIRESTORE_LIKER_NFT_ROOT);
-export const likeNFTSubscriptionUserCollection = getCollection(
+export const userAuthCollection = getCollection<UserAuthData>(
+  FIRESTORE_USER_AUTH_ROOT,
+);
+export const subscriptionUserCollection = getCollection<SubscriptionUserData>(
+  FIRESTORE_SUBSCRIPTION_USER_ROOT,
+);
+export const superLikeUserCollection = getCollection<SuperLikeData>(
+  FIRESTORE_SUPERLIKE_USER_ROOT,
+);
+export const txCollection = getCollection<TxData>(FIRESTORE_TX_ROOT);
+export const iapCollection = getCollection<IAPData>(FIRESTORE_IAP_ROOT);
+export const missionCollection = getCollection<MissionData>(
+  FIRESTORE_MISSION_ROOT,
+);
+export const payoutCollection = getCollection<PayoutData>(
+  FIRESTORE_PAYOUT_ROOT,
+);
+export const couponCollection = getCollection<CouponData>(
+  FIRESTORE_COUPON_ROOT,
+);
+export const configCollection = getCollection<ConfigData>(
+  FIRESTORE_CONFIG_ROOT,
+);
+export const oAuthClientCollection = getCollection<OAuthClientInfo>(
+  FIRESTORE_OAUTH_CLIENT_ROOT,
+);
+export const likeNFTCollection = getCollection<LikeNFTISCNData>(
+  FIRESTORE_LIKER_NFT_ROOT,
+);
+export const likeNFTSubscriptionUserCollection = getCollection<SubscriptionUserData>(
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
 );
-export const likeNFTFreeMintTxCollection = getCollection(FIRESTORE_NFT_FREE_MINT_TX_ROOT);
+export const likeNFTFreeMintTxCollection = getCollection<FreeMintTxData>(
+  FIRESTORE_NFT_FREE_MINT_TX_ROOT,
+);
 export const likeNFTBookCartCollection = getCollection<BookPurchaseCartData>(
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
 );
 export const likeNFTBookCollection = getCollection<NFTBookListingInfo>(
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
 );
-export const likeNFTBookUserCollection = getCollection(FIRESTORE_LIKER_NFT_BOOK_USER_ROOT);
-export const likeButtonUrlCollection = getCollection(FIRESTORE_LIKE_URL_ROOT);
-export const iscnInfoCollection = getCollection(FIRESTORE_ISCN_INFO_ROOT);
-export const iscnArweaveTxCollection = getCollection(FIRESTORE_ISCN_ARWEAVE_TX_ROOT);
-export const iscnMappingCollection = getCollection(FIRESTORE_ISCN_LIKER_URL_ROOT);
+export const likeNFTBookUserCollection = getCollection<NFTBookUserData>(
+  FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
+);
+export const likeButtonUrlCollection = getCollection<LikeButtonUrlData>(
+  FIRESTORE_LIKE_URL_ROOT,
+);
+export const iscnInfoCollection = getCollection<ISCNInfoData>(
+  FIRESTORE_ISCN_INFO_ROOT,
+);
+export const iscnArweaveTxCollection = getCollection<ArweaveTxData>(
+  FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
+);
+export const iscnMappingCollection = getCollection<ISCNMappingData>(
+  FIRESTORE_ISCN_LIKER_URL_ROOT,
+);
 
 function getBucket(): ReturnType<admin.storage.Storage['bucket']> {
   // In CI environment, allow undefined bucket (it won't be used)

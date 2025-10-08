@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { DocumentSnapshot } from '@google-cloud/firestore';
 import { txCollection as txLogRef, userCollection } from '../../util/firebase';
 import { filterMultipleTxData } from '../../util/api/tx';
 import { filterTxData } from '../../util/ValidationHelper';
@@ -46,7 +47,7 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
       return;
     }
 
-    const promises = [txLogRef.doc(txHash).get()];
+    const promises: Promise<DocumentSnapshot>[] = [txLogRef.doc(txHash).get()];
     if (user) promises.push(userCollection.doc(user).get());
     const [txDoc, userDoc] = await Promise.all(promises);
 

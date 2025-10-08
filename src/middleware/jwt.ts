@@ -18,6 +18,7 @@ import {
 } from '../util/firebase';
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 import { PERMISSION_GROUPS } from '../constant/jwt';
+import type { OAuthClientInfo } from '../types/firestore';
 
 const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
@@ -40,7 +41,7 @@ async function fetchProviderClientInfo(clientId, req) {
   if (!clientInfo) throw new Error('INVALID_AZP');
   const { secret } = clientInfo;
   const filteredClientInfo = {
-    ...filterOAuthClientInfo(clientInfo as any),
+    ...filterOAuthClientInfo(clientInfo),
     clientId,
     secret,
   };
