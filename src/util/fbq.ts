@@ -73,7 +73,7 @@ export default async function logPixelEvents(event, {
                   id = `${id}-${item.priceIndex}`;
                 }
                 return id;
-              }): undefined,
+              }) : undefined,
               contents: items ? items.map((item) => {
                 let id = item.productId;
                 if (item.priceIndex !== undefined) {
