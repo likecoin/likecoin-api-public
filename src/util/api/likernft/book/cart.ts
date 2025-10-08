@@ -974,9 +974,9 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       ]);
       if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
       if (!metadata) throw new ValidationError('NFT_NOT_FOUND');
-      const { evmClassId } = bookInfo;
-      if (evmClassId && isLikeNFTClassId(classId)) {
-        classId = evmClassId as string;
+      const { evmClassId, redirectClassId } = bookInfo;
+      if (redirectClassId || (evmClassId && isLikeNFTClassId(classId))) {
+        classId = redirectClassId || evmClassId as string;
         [metadata, bookInfo] = await Promise.all([
           getNFTClassDataById(classId),
           getNftBookInfo(classId),
