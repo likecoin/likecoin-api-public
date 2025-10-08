@@ -11,10 +11,10 @@ export async function sendVerificationEmail(res, user, ref) {
   const msg = {
     from: 'Liker Land <noreply@liker.land>',
     to: user.email,
-    subject: res.__('Email.VerifiyEmail.subject'),
+    subject: res.__('Email.VerifyEmail.subject'),
     html: getBasicTemplate({
-      title: res.__('Email.VerifiyEmail.subject'),
-      content: res.__('Email.VerifiyEmail.body', {
+      title: res.__('Email.VerifyEmail.subject'),
+      content: res.__('Email.VerifyEmail.body', {
         name: user.displayName,
         uuid: user.verificationUUID,
         ref,
