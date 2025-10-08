@@ -15,7 +15,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
-import type { BookPurchaseData } from '../../../types/validation';
+import type { BookPurchaseData } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
   sendNFTBookGiftPendingClaimEmail,

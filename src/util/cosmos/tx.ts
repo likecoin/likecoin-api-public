@@ -171,11 +171,11 @@ export async function sendTransactionWithSequence(
     const data = d.data();
     if (!data) {
       const count = seq1.toNumber();
-      await t.create(counterRef, { value: count + 1 });
+      await t.create(counterRef, { value: count + 1 } as any);
       return count;
     }
     const v = (data.value as number) + 1;
-    await t.update(counterRef, { value: v });
+    await t.update(counterRef, { value: v } as any);
     return v - 1;
   });
   signedTx = await signingFunction({ sequence: pendingCount });

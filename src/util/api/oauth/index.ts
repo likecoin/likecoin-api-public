@@ -7,6 +7,7 @@ import {
   db,
   oAuthClientCollection as oAuthClientDbRef,
 } from '../../firebase';
+import type { OAuthClientInfo } from '../../../types/firestore';
 
 function signProviderSecret(clientId, secret, { user, scope }) {
   const payload = {
@@ -25,7 +26,8 @@ export async function autoGenerateUserTokenForClient(req, platform, user) {
   const spClientSnapshot = await spClientQuery.get();
   const targetClient = spClientSnapshot.docs[0];
   if (!targetClient) return {};
-  const { secret, scopeWhiteList: scope } = targetClient.data();
+  const clientData = targetClient.data();
+  const { secret, scopeWhiteList: scope } = clientData;
   const { token: accessToken, jwtid } = signProviderSecret(
     targetClient.id,
     secret,

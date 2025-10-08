@@ -259,7 +259,7 @@ export async function mintNFT(
   });
   await logEVMMintNFTsTx({
     txHash: res.transactionHash,
-    chainId: walletClient.chain.id,
+    chainId: String(walletClient.chain.id),
     rawSignedTx: res.tx,
     from: account.address,
     nonce: res.nonce,
