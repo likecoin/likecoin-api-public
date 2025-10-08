@@ -12,9 +12,9 @@
     }
   },
   "Email": {
-    "VerifiyEmail": {
-      "subject": "Liker Land 帳號驗證",
-      "body": "<p>您好 {{name}}：</p><p>歡迎來到 Liker Land。請點擊<a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"color: #28646E\">這裡</a>驗證你的電郵地址。</p>"
+    "VerifyEmail": {
+      "subject": "3ook.com 帳戶驗證",
+      "body": "<p>註冊 3ook.com 帳戶，請點選以下按鈕驗證郵箱。</p><p style=\"text-align: center;\"><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">驗證</a></p><p>如你並無註冊 3ook.com 帳戶，請忽略此郵件。</p>"
     },
     "VerifiyAndCouponEmail": {
       "subject": "like.co 帳號驗證",

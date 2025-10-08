@@ -45,14 +45,14 @@ export async function sendVerificationEmail(res, user, ref) {
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: res.__('Email.VerifiyEmail.subject'),
+        Data: res.__('Email.VerifyEmail.subject'),
       },
       Body: {
         Html: {
           Charset: 'UTF-8',
           Data: getBasicV2Template({
-            title: res.__('Email.VerifiyEmail.subject'),
-            content: res.__('Email.VerifiyEmail.body', {
+            title: res.__('Email.VerifyEmail.subject'),
+            content: res.__('Email.VerifyEmail.body', {
               name: user.displayName,
               uuid: user.verificationUUID,
               ref,
