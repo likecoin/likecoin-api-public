@@ -20,7 +20,6 @@ import {
 import {
   getNFTClassDataById as getEVMNftClassDataById,
   isEVMClassId,
-  getNFTClassBalanceOf,
   triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
 import {
@@ -39,7 +38,11 @@ import { updateAirtablePublicationRecord } from '../../../airtable';
 
 export async function getNFTClassDataById(classId) {
   if (isEVMClassId(classId)) {
-    return getEVMNftClassDataById(classId);
+    try {
+      return await getEVMNftClassDataById(classId);
+    } catch (error) {
+      return null;
+    }
   }
   const data = await getLikeNFTClassDataById(classId);
   if (!data) return data;
