@@ -233,7 +233,8 @@ async function checkTxV2({
       }
       break;
     }
-    case 'OPETH': {
+    case 'OPETH':
+    case 'BASEETH': {
       const client = getEVMClient();
       const tx = await client.getTransaction({ hash: txHash });
       if (!tx) {

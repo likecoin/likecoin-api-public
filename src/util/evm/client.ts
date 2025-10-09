@@ -8,7 +8,7 @@ import {
   PublicClient,
   WalletClient,
 } from 'viem';
-import { optimism, optimismSepolia } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { IS_TESTNET } from '../../constant';
 import {
@@ -21,7 +21,7 @@ let walletClient: WalletClient<HttpTransport, Chain, LocalAccount>;
 export function getEVMClient(): PublicClient<HttpTransport, Chain, undefined> {
   if (!client) {
     client = createPublicClient({
-      chain: IS_TESTNET ? optimismSepolia : optimism,
+      chain: IS_TESTNET ? baseSepolia : base,
       transport: http(),
     }) as PublicClient<HttpTransport, Chain, undefined>;
   }
@@ -39,7 +39,7 @@ export function getEVMWalletClient(): WalletClient<HttpTransport, Chain, LocalAc
     const account = getEVMWalletAccount();
     walletClient = createWalletClient({
       account,
-      chain: IS_TESTNET ? optimismSepolia : optimism,
+      chain: IS_TESTNET ? baseSepolia : base,
       transport: http(),
     });
   }
