@@ -14,15 +14,17 @@ import { IS_TESTNET } from '../../constant';
 import {
   LIKER_NFT_PRIVATE_KEY,
 } from '../../../config/secret';
+import config from '../../../config/config';
 
 let client: PublicClient<HttpTransport, Chain, undefined>;
 let walletClient: WalletClient<HttpTransport, Chain, LocalAccount>;
 
 export function getEVMClient(): PublicClient<HttpTransport, Chain, undefined> {
   if (!client) {
+    const rpcUrl = config.EVM_RPC_ENDPOINT_OVERRIDE || undefined;
     client = createPublicClient({
       chain: IS_TESTNET ? baseSepolia : base,
-      transport: http(),
+      transport: http(rpcUrl),
     }) as PublicClient<HttpTransport, Chain, undefined>;
   }
   return client;
@@ -37,10 +39,11 @@ export function getEVMWalletAccount(): LocalAccount {
 export function getEVMWalletClient(): WalletClient<HttpTransport, Chain, LocalAccount> {
   if (!walletClient) {
     const account = getEVMWalletAccount();
+    const rpcUrl = config.EVM_RPC_ENDPOINT_OVERRIDE || undefined;
     walletClient = createWalletClient({
       account,
       chain: IS_TESTNET ? baseSepolia : base,
-      transport: http(),
+      transport: http(rpcUrl),
     });
   }
   return walletClient;
