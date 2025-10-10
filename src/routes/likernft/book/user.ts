@@ -97,6 +97,7 @@ router.post(
       }
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
       if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
+      if (!stripeConnectAccountId) throw new ValidationError('STRIPE_ACCOUNT_NOT_FOUND', 404);
       const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

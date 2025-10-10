@@ -47,7 +47,9 @@ const publisher = {
       Object.assign(obj, {
         requestIP: likecoinRealIP || req.headers['x-real-ip'] || req.ip,
         originalIP: originalIP || req.headers['x-original-ip'],
-        agent: req.headers['x-likecoin-user-agent'] || req.headers['x-ucbrowser-ua'] || req.headers['user-agent'],
+        agent: req.headers['x-likecoin-user-agent']
+          || req.headers['x-ucbrowser-ua']
+          || req.headers['user-agent'],
         requestUrl: req.originalUrl,
       });
     }

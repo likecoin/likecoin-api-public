@@ -11,7 +11,28 @@ import cloneDeep from 'lodash.clonedeep'; // eslint-disable-line import/no-extra
 import type { UserData } from '../types/user';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - Path is valid when copied to src/util/
-import type { NFTBookListingInfo, BookPurchaseCartData } from '../types/validation';
+import type { NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData } from '../types/book';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+import type { LikeNFTISCNData, FreeMintTxData } from '../types/nft';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+import type { TxData, ArweaveTxData } from '../types/transaction';
+import type {
+  UserAuthData,
+  SubscriptionUserData,
+  SuperLikeData,
+  IAPData,
+  MissionData,
+  PayoutData,
+  ConfigData,
+  OAuthClientInfo,
+  LikeButtonUrlData,
+  ISCNInfoData,
+  ISCNMappingData,
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+} from '../types/firestore';
 
 export { admin };
 export const { FieldValue, Timestamp } = admin.firestore;
@@ -247,48 +268,48 @@ const dbData: StubData[][] = [
 export const userCollection = createCollection(userData) as
   admin.firestore.CollectionReference<UserData>;
 export const userAuthCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<UserAuthData>;
 export const subscriptionUserCollection = createCollection(
   subscriptionData,
-) as admin.firestore.CollectionReference;
+) as admin.firestore.CollectionReference<SubscriptionUserData>;
 export const txCollection = createCollection(txData) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<TxData>;
 export const iapCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<IAPData>;
 export const missionCollection = createCollection(missionData) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<MissionData>;
 export const payoutCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<PayoutData>;
 export const configCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<ConfigData>;
 export const oAuthClientCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<OAuthClientInfo>;
 export const likeNFTCollection = createCollection(likerNftData) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<LikeNFTISCNData>;
 export const likeNFTSubscriptionUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<SubscriptionUserData>;
 export const likeNFTSubscriptionTxCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 export const likeNFTFreeMintTxCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<FreeMintTxData>;
 export const likeNFTBookCartCollection = createCollection([]) as
   admin.firestore.CollectionReference<BookPurchaseCartData>;
 export const likeNFTBookCollection = createCollection([]) as
   admin.firestore.CollectionReference<NFTBookListingInfo>;
 export const likeNFTBookUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<NFTBookUserData>;
 export const likeButtonUrlCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<LikeButtonUrlData>;
 export const iscnInfoCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<ISCNInfoData>;
 export const iscnArweaveTxCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<ArweaveTxData>;
 export const iscnMappingCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<ISCNMappingData>;
 export const superLikeTransferCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 export const superLikeUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+  admin.firestore.CollectionReference<SuperLikeData>;
 export const exchangeHubCollection = createCollection([]) as
   admin.firestore.CollectionReference;
 

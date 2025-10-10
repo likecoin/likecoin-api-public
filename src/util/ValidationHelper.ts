@@ -9,26 +9,32 @@ import type {
   UserDataFiltered,
   UserDataMin,
   UserDataScopedFiltered,
-  TxData,
+  AppMetaFiltered,
+} from '../types/validation';
+import type { TxData } from '../types/transaction';
+import type {
   LikeNFTISCNData,
   LikeNFTMetadata,
   LikeNFTMetadataFiltered,
+} from '../types/nft';
+import type {
   BookPurchaseData,
   BookPurchaseDataFiltered,
   BookPurchaseCommission,
   BookPurchaseCommissionFiltered,
-  OAuthClientInfo,
-  AppMeta,
-  AppMetaFiltered,
-  NotificationData,
-  BookmarkData,
-  FollowData,
   NFTBookPrice,
   NFTBookPriceFiltered,
   NFTBookPricesInfoFiltered,
   NFTBookListingInfo,
   NFTBookListingInfoFiltered,
-} from '../types/validation';
+} from '../types/book';
+import type {
+  OAuthClientInfo,
+  AppMeta,
+  NotificationData,
+  BookmarkData,
+  FollowData,
+} from '../types/firestore';
 
 export function checkAddressValid(addr) {
   return addr.length === 42 && addr.substr(0, 2) === '0x';

@@ -1,6 +1,9 @@
 import { txCollection as dbRef } from './firebase';
+import type { TxData } from '../types/transaction';
 
-export async function logCosmosTx(payload) {
+export async function logCosmosTx(
+  payload: Partial<TxData> & { txHash: string; memo?: string },
+): Promise<void> {
   const { txHash } = payload;
   try {
     await dbRef.doc(txHash).create({
@@ -16,7 +19,9 @@ export async function logCosmosTx(payload) {
   }
 }
 
-export async function logISCNTx(payload) {
+export async function logISCNTx(
+  payload: Partial<TxData> & { txHash: string; memo?: string },
+): Promise<void> {
   const { txHash } = payload;
   try {
     await dbRef.doc(txHash).create({
@@ -32,7 +37,14 @@ export async function logISCNTx(payload) {
   }
 }
 
-export async function logEVMMintNFTsTx(payload) {
+export async function logEVMMintNFTsTx(payload: Partial<TxData> & {
+  txHash: string;
+  chainId: string;
+  rawSignedTx: string;
+  from: string;
+  nonce: number;
+  to: string;
+}): Promise<void> {
   const {
     txHash,
     chainId,

@@ -46,7 +46,7 @@ router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next)
       return;
     }
 
-    const promises = [txLogRef.doc(txHash).get()];
+    const promises: Promise<any>[] = [txLogRef.doc(txHash).get()];
     if (user) promises.push(userCollection.doc(user).get());
     const [txDoc, userDoc] = await Promise.all(promises);
 
