@@ -68,7 +68,7 @@
     "fast-json-stable-stringify": "^2.1.0",
     "file-type": "^12.4.2",
     "firebase-admin": "^11.4.1",
-    "i18n": "^0.8.3",
+    "i18n": "^0.8.6",
     "intercom-client": "^6.4.0",
     "ipfs-http-client": "^56.0.3",
     "ipfs-only-hash": "^4.0.0",
