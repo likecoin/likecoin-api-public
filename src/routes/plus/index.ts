@@ -28,6 +28,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmCampaign,
     utmSource,
     utmMedium,
+    coupon,
     trialPeriodDays = 0,
     mustCollectPaymentMethod,
     giftClassId,
@@ -58,6 +59,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         mustCollectPaymentMethod,
         giftClassId,
         giftPriceIndex,
+        coupon,
       },
       {
         from: from as string,

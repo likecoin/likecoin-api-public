@@ -5,7 +5,7 @@ import {
   BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
-import stripe from '../../stripe';
+import stripe, { getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
 import publisher from '../../gcloudPub';
 
@@ -253,12 +253,14 @@ export async function createNewPlusCheckoutSession(
     mustCollectPaymentMethod = true,
     giftClassId,
     giftPriceIndex,
+    coupon,
   }: {
     period: 'monthly' | 'yearly',
     trialPeriodDays?: number,
     mustCollectPaymentMethod?: boolean,
     giftClassId?: string,
     giftPriceIndex?: string,
+    coupon?: string,
   },
   {
     from,
@@ -344,8 +346,20 @@ export async function createNewPlusCheckoutSession(
       };
     }
   }
+  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+  if (coupon) {
+    try {
+      const promotion = await getStripePromotionFromCode(coupon);
+      if (promotion) {
+        discounts.push({ promotion_code: promotion.id });
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e);
+    }
+  }
+
   const payload: Stripe.Checkout.SessionCreateParams = {
-    allow_promotion_codes: true,
     billing_address_collection: 'auto',
     line_items: [
       {
@@ -360,6 +374,11 @@ export async function createNewPlusCheckoutSession(
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
+  if (discounts.length) {
+    payload.discounts = discounts;
+  } else {
+    payload.allow_promotion_codes = true;
+  }
   if (customerId) {
     payload.customer = customerId;
   } else {
