@@ -8,7 +8,7 @@ import {
 } from '../../../../config/config';
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
-import { processStripeSubscriptionInvoice, processStripeSubscriptionUpdate } from '../../../util/api/plus';
+import { processStripeSubscriptionCancellation, processStripeSubscriptionInvoice } from '../../../util/api/plus';
 
 const router = Router();
 
@@ -63,9 +63,13 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         break;
       }
       case 'customer.subscription.updated': {
+        // no op
+        res.sendStatus(200);
+        break;
+      }
+      case 'customer.subscription.deleted': {
         const subscription: Stripe.Subscription = event.data.object;
-        const previousAttributes = event.data.previous_attributes;
-        await processStripeSubscriptionUpdate(subscription, previousAttributes);
+        await processStripeSubscriptionCancellation(subscription);
         break;
       }
       default: {
