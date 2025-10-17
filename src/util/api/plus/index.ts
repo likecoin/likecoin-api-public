@@ -89,10 +89,9 @@ export async function processStripeSubscriptionInvoice(
   const isYearlySubscription = item.plan.interval === 'year';
 
   let giftCartId = '';
-  // TODO: Now we don't know if the user is upgrading from trial to paid
-  // since isSubscriptionCreation is false for first trial to paid invoice
-  // Might need to detect trial to paid upgrade as well
-  if ((isSubscriptionCreation || isUpgradingPrice)
+  const isTrialToPaidUpgrade = subscription.trial_end
+    && subscription.trial_end === subscription.current_period_start;
+  if ((isSubscriptionCreation || isTrialToPaidUpgrade || isUpgradingPrice)
       && isYearlySubscription
       && giftClassId
       && !existingGiftCartId
@@ -160,21 +159,23 @@ export async function processStripeSubscriptionInvoice(
   });
 
   if (isSubscriptionCreation) {
-    if (isTrial) {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_trial_start',
-      });
-    } else {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_subscription_start',
-      });
-    }
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: isTrial ? 'plus_trial_start' : 'plus_subscription_start',
+    });
+  } else if (isTrialToPaidUpgrade) {
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: 'plus_trial_end',
+    });
+    await sendIntercomEvent({
+      userId: likerId,
+      eventName: 'plus_subscription_start',
+    });
   }
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
-  if (isSubscriptionCreation) {
+  if (isSubscriptionCreation || isTrialToPaidUpgrade) {
     await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
@@ -392,18 +393,13 @@ export async function createNewPlusCheckoutSession(
   };
 }
 
-export async function processStripeSubscriptionUpdate(
+export async function processStripeSubscriptionCancellation(
   subscription: Stripe.Subscription,
-  previousAttributes?: Partial<Stripe.Subscription>,
 ) {
   const subscriptionId = subscription.id;
   const {
     evmWallet,
     likeWallet,
-    userAgent,
-    clientIp,
-    fbClickId,
-    paymentId,
   } = subscription.metadata || {};
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
@@ -417,46 +413,7 @@ export async function processStripeSubscriptionUpdate(
     return;
   }
   const likerId = user.user;
-  const wasInTrial = previousAttributes?.status === 'trialing';
-
-  if (wasInTrial && subscription.status !== 'trialing') {
-    await sendIntercomEvent({
-      userId: likerId,
-      eventName: 'plus_trial_end',
-    });
-  }
-
-  if (wasInTrial && subscription.status === 'active') {
-    const { items: { data: [item] }, customer, metadata } = subscription;
-
-    const stripeCustomer = typeof customer === 'string'
-      ? await stripe.customers.retrieve(customer)
-      : customer;
-
-    const period = item.plan.interval;
-
-    await sendIntercomEvent({
-      userId: likerId,
-      eventName: 'plus_subscription_start',
-    });
-
-    const email = user.email || (stripeCustomer as Stripe.Customer)?.email;
-    await logPixelEvents('Subscribe', {
-      email: email || undefined,
-      items: [{
-        productId: `plus-${period}ly`,
-        quantity: 1,
-      }],
-      value: (item.plan.amount || 0) / 100,
-      currency: 'USD',
-      userAgent,
-      clientIp,
-      fbClickId,
-      paymentId,
-      evmWallet,
-    });
-  }
-
+  const isTrialEnd = subscription.trial_end && subscription.cancel_at === subscription.trial_end;
   if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
@@ -473,7 +430,12 @@ export async function processStripeSubscriptionUpdate(
       isLikerPlus: false,
     });
 
-    if (!wasInTrial) {
+    if (isTrialEnd) {
+      await sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_trial_end',
+      });
+    } else {
       await sendIntercomEvent({
         userId: likerId,
         eventName: 'plus_subscription_end',
