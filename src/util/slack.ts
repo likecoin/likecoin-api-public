@@ -68,12 +68,10 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
   classId,
   className,
   action,
-  moderatorSlackUserId,
 }: {
   classId: string;
   className: string;
   action: string;
-  moderatorSlackUserId: string;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {

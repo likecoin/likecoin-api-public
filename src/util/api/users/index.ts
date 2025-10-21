@@ -1,5 +1,4 @@
 import axios from 'axios';
-import crypto from 'crypto';
 import disposableDomains from 'disposable-email-domains';
 import sigUtil from 'eth-sig-util';
 import LRU from 'lru-cache';

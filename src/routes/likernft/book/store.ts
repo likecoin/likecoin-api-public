@@ -25,7 +25,7 @@ import {
 } from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { validateConnectedWallets, checkIsTrustedPublisher } from '../../../util/api/likernft/book/user';
+import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
@@ -545,7 +545,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       prices,
       autoDeliverTotalStock,
       manualDeliverTotalStock,
-    } = validatePrices(inputPrices, classId, req.user.wallet);
+    } = validatePrices(inputPrices);
     if (autoDeliverTotalStock > 0) {
       await validateAutoDeliverNFTsTxHash(
         autoDeliverNFTsTxHash,

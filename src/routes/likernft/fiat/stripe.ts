@@ -43,7 +43,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         } = session;
         const subscriptionId = session.subscription as string;
         if (evmWallet || likeWallet) {
-          await handleNFTBookStripeSessionCustomer(session, req);
+          await handleNFTBookStripeSessionCustomer(session);
         }
         if (subscriptionId) break;
         await processNFTBookCartStripePurchase(session, req);

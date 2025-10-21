@@ -3,7 +3,6 @@ import { getISCNPrefix } from '../../cosmos/iscn';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
 import { getNFTClassDataById, getNFTQueryClient } from '../../cosmos/nft';
-import type { LikeNFTISCNData } from '../../../types/nft';
 
 export function getISCNPrefixDocName(iscnId) {
   const prefix = getISCNPrefix(iscnId);

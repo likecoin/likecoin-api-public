@@ -57,9 +57,11 @@ export async function handleAvatarLinkAndGetURL(user, url) {
 }
 
 export async function uploadFileToBookCache({
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   path,
   file,
   contentType = 'image/png',
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 }: {
   path: string
   file: Buffer | Uint8Array

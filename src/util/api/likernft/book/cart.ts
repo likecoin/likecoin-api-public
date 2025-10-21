@@ -435,11 +435,9 @@ export async function processNFTBookCart(
       const {
         price,
         quantity,
-        originalPriceInDecimal,
         priceIndex,
         priceName,
         isGift,
-        giftInfo,
         feeInfo,
         from: itemFrom,
       } = txData;
@@ -448,9 +446,6 @@ export async function processNFTBookCart(
       const {
         priceInDecimal,
         stripeFeeAmount,
-        likerLandFeeAmount,
-        likerLandTipFeeAmount,
-        likerLandCommission,
         channelCommission,
         likerLandArtFee,
         royaltyToSplit,
@@ -473,10 +468,6 @@ export async function processNFTBookCart(
         {
           amountTotal: priceInDecimal,
           chargeId,
-          stripeFeeAmount,
-          likerLandFeeAmount,
-          likerLandTipFeeAmount,
-          likerLandCommission,
           channelCommission,
           likerLandArtFee,
           royaltyToSplit,
@@ -1337,7 +1328,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
 
   const {
     session,
-    itemPrices,
     feeInfo,
   } = await formatStripeCheckoutSession({
     cartId,

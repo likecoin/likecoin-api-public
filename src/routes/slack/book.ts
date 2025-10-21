@@ -78,7 +78,6 @@ async function approveBook(classId: string, action: string, slackUserId: string)
       classId,
       className,
       action,
-      moderatorSlackUserId: slackUserId,
     }),
   ]);
 

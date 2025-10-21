@@ -38,6 +38,7 @@ module.exports = {
     ],
     'no-console': 'error',
     'no-await-in-loop': 'off',
+    '@typescript-eslint/no-unused-vars': 'error',
     'no-restricted-syntax': [
       'error',
       {
