@@ -23,8 +23,6 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     gadSource,
     fbClickId,
     referrer,
-    userAgent,
-    clientIp,
     utmCampaign,
     utmSource,
     utmMedium,
@@ -48,6 +46,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (![0, 1, 3, 5, 7].includes(trialPeriodDays)) {
       throw new ValidationError('Invalid trial period days.', 400);
     }
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
     const {
       session,
       paymentId,
