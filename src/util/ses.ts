@@ -651,9 +651,9 @@ export function sendAutoDeliverNFTBookSalesEmail({
   if (coupon) content += `<p>優惠碼：${coupon}</p>`;
   content += '<table>';
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
   content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
   content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
 
@@ -803,9 +803,9 @@ export function sendManualNFTBookSalesEmail({
   if (coupon) content += `<p>優惠碼：${coupon}</p>`;
   content += '<table>';
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
   content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-  if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
   content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
 
