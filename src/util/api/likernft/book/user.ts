@@ -70,7 +70,6 @@ export async function validateConnectedWallets(connectedWallets: {[key: string]:
 
 export async function handleNFTBookStripeSessionCustomer(
   session: Stripe.Checkout.Session,
-  req: Express.Request,
 ) {
   const { customer, metadata } = session;
   if (!customer || !metadata) return;

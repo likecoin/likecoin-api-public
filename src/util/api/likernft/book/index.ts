@@ -553,7 +553,7 @@ export function validatePrice(price: any) {
   };
 }
 
-export function validatePrices(prices: any[], classId: string, wallet: string) {
+export function validatePrices(prices: any[]) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
   let i = 0;
   let autoDeliverTotalStock = 0;

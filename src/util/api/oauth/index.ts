@@ -7,7 +7,6 @@ import {
   db,
   oAuthClientCollection as oAuthClientDbRef,
 } from '../../firebase';
-import type { OAuthClientInfo } from '../../../types/firestore';
 
 function signProviderSecret(clientId, secret, { user, scope }) {
   const payload = {

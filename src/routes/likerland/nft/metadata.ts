@@ -11,7 +11,6 @@ import {
 import {
   isEVMClassId,
   getNFTClassDataById as getEVMNFTClassDataById,
-  listNFTTokenOwner,
   getNFTClassOwner,
   getTokenAccountsByBookNFT,
 } from '../../../util/evm/nft';

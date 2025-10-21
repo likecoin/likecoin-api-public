@@ -68,10 +68,6 @@ export async function handleStripeConnectedAccount({
 }, {
   chargeId = '',
   amountTotal,
-  stripeFeeAmount = 0,
-  likerLandFeeAmount = 0,
-  likerLandTipFeeAmount = 0,
-  likerLandCommission = 0,
   likerLandArtFee = 0,
   channelCommission = 0,
   royaltyToSplit = 0,
