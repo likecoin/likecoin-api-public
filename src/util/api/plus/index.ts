@@ -148,6 +148,7 @@ export async function processStripeSubscriptionInvoice(
       since,
       currentPeriodStart,
       currentPeriodEnd,
+      currentType: isTrial ? 'trial' : 'paid',
       subscriptionId,
       customerId,
     },
