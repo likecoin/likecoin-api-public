@@ -77,6 +77,7 @@ export function formatUserCivicLikerProperies(
     const {
       currentPeriodStart: start,
       currentPeriodEnd: end,
+      currentType,
       since,
       period,
     } = likerPlus;
@@ -85,6 +86,7 @@ export function formatUserCivicLikerProperies(
     if (start <= now && now <= renewalLast) {
       payload.likerPlusSince = since;
       payload.isLikerPlus = true;
+      payload.isLikerPlusTrial = currentType === 'trial';
       payload.isSubscribedCivicLiker = true;
       payload.likerPlusPeriod = period;
     }

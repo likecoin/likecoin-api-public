@@ -9,6 +9,7 @@ export interface CivicLikerData {
 export interface LikerPlusData {
   currentPeriodStart: number;
   currentPeriodEnd: number;
+  currentType?: string;
   since: number;
   period?: string;
   subscriptionId?: string;
@@ -84,5 +85,6 @@ export interface UserCivicLikerProperties extends UserData {
   isExpiredCivicLiker?: boolean;
   likerPlusSince?: number;
   isLikerPlus?: boolean;
+  isLikerPlusTrial?: boolean;
   likerPlusPeriod?: string;
 }

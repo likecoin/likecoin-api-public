@@ -13,7 +13,7 @@ export interface UserDataMin extends Pick<UserCivicLikerProperties,
   'user' | 'displayName' | 'avatar' | 'cosmosWallet' |
   'likeWallet' | 'evmWallet' | 'isSubscribedCivicLiker' |
   'isCivicLikerTrial' | 'civicLikerSince' | 'likerPlusSince' |
-  'isLikerPlus' | 'description'> {
+  'isLikerPlus' | 'isLikerPlusTrial' | 'description'> {
   wallet?: string;
   paymentRedirectWhiteList?: string[];
   creatorPitch?: string;
