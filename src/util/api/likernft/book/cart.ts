@@ -22,11 +22,14 @@ import {
   claimNFTBook,
   calculateItemPrices,
 } from './purchase';
+import { depositLikeCollectiveReward } from '../../../evm/likeCollective';
+import { getLIKEPrice } from '../likePrice';
 import {
   admin,
   db,
   FieldValue,
   likeNFTBookCartCollection,
+  likeNFTBookCollection,
 } from '../../../firebase';
 import stripe, { getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import {
@@ -483,6 +486,35 @@ export async function processNFTBookCart(
       const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
         ? ownerInfo?.likerUserInfo?.email
         : undefined;
+
+      // Deposit like collective reward if applicable
+      try {
+        const { customPriceDiffInDecimal = 0 } = feeInfo as TransactionFeeInfo;
+        if (feeInfo && !txData.likeCollectiveRewardTxHash) {
+          const likePrice = await getLIKEPrice();
+          const rewardTxHash = await depositLikeCollectiveReward(
+            classId,
+            priceInDecimal,
+            customPriceDiffInDecimal,
+            likePrice,
+          );
+
+          if (rewardTxHash) {
+            await likeNFTBookCollection.doc(classId)
+              .collection('transactions')
+              .doc(paymentId)
+              .update({
+                likeCollectiveRewardTxHash: rewardTxHash,
+              });
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `Failed to deposit LikeCollective reward for classId ${classId}:`,
+          error,
+        );
+      }
 
       const notifications: Promise<any>[] = [
         sendNFTBookSalesSlackNotification({

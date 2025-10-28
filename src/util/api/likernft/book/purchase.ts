@@ -501,30 +501,6 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
   };
 }
 
-export async function processNFTBookPurchase({
-  classId,
-  email,
-  paymentId,
-}) {
-  const data = await db.runTransaction(async (t: admin.firestore.Transaction) => {
-    const {
-      txData,
-      listingData,
-    } = await processNFTBookPurchaseTxGet(t, classId, paymentId, {
-      email,
-    });
-    await processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
-      listingData,
-      txData,
-    });
-    return {
-      listingData,
-      txData,
-    };
-  });
-  return data;
-}
-
 export function calculateItemPrices(items: CartItemWithInfo[], from) {
   const itemPrices: ItemPriceInfo[] = items.map(
     (item) => {
