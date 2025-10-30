@@ -28,7 +28,9 @@ const v2reservedCosmosWallets = IS_TESTNET ? [
   'cosmos1rr8km790vqdgl6h97hz7ghlatad87jnyrh2qka', // ecosystem development pool 2
 ];
 
-const v3reservedEthWallets = [];
+const v3reservedEthWallets = [
+  '0x3aFaEA57802E0b8380d6461a62efbd5346752e83', // dao treasury
+];
 const evmPublicClient = createPublicClient({
   chain: IS_TESTNET ? sepolia : mainnet,
   transport: http(),
