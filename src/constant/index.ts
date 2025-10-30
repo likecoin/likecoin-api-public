@@ -117,7 +117,7 @@ export const API_DEFAULT_SIZE_LIMIT = 4096;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
-export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,matic-network,likecoin&vs_currencies=usd';
+export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,polygon-ecosystem-token,likecoin-2&vs_currencies=usd';
 
 export const WRITING_NFT_COLLECTION_ID = 'likerland_writing_nft';
 
