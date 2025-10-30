@@ -318,6 +318,8 @@ type ProcessNFTBookCartMeta = {
   utmSource?: string;
   utmCampaign?: string;
   utmMedium?: string;
+  utmContent?: string;
+  utmTerm?: string;
   gaClientId?: string;
   gaSessionId?: string;
   claimToken: string;
@@ -355,6 +357,8 @@ export async function processNFTBookCart(
     utmSource,
     utmCampaign,
     utmMedium,
+    utmContent,
+    utmTerm,
     gaClientId,
     gaSessionId,
     claimToken,
@@ -520,6 +524,8 @@ export async function processNFTBookCart(
             utmSource,
             utmCampaign,
             utmMedium,
+            utmContent,
+            utmTerm,
             referrer,
             gaClientId,
             gaSessionId,
@@ -543,6 +549,11 @@ export async function processNFTBookCart(
           stripeFeeAmount,
           coupon,
           isGift,
+          utmCampaign,
+          utmSource,
+          utmMedium,
+          utmContent,
+          utmTerm,
         }),
       ];
       if (!isAutoDeliver && stock <= SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD) {
@@ -579,6 +590,11 @@ export async function processNFTBookCart(
       numberOfItems: infoList.length,
       quantity: infoList.reduce((acc, item) => acc + item.txData.quantity, 0),
       isGift: cartIsGift,
+      utmCampaign,
+      utmSource,
+      utmMedium,
+      utmContent,
+      utmTerm,
     });
     if (cartIsGift && cartGiftInfo) {
       const {
@@ -1234,6 +1250,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     campaign?: string,
     source?: string,
     medium?: string,
+    content?: string,
+    term?: string,
   },
   referrer?: string,
   userAgent?: string,

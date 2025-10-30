@@ -65,6 +65,8 @@ export async function processStripeSubscriptionInvoice(
     utmCampaign,
     utmSource,
     utmMedium,
+    utmContent,
+    utmTerm,
     paymentId,
     isUpgradingPrice,
     userAgent,
@@ -228,6 +230,8 @@ export async function processStripeSubscriptionInvoice(
       utmCampaign,
       utmMedium,
       utmSource,
+      utmContent,
+      utmTerm,
       giftCartId,
     }),
   ]);
@@ -245,6 +249,8 @@ export async function processStripeSubscriptionInvoice(
     utmCampaign,
     utmSource,
     utmMedium,
+    utmContent,
+    utmTerm,
   });
 }
 
@@ -289,6 +295,8 @@ export async function createNewPlusCheckoutSession(
       campaign?: string,
       source?: string,
       medium?: string,
+      content?: string,
+      term?: string,
     },
   },
   req,
@@ -324,6 +332,8 @@ export async function createNewPlusCheckoutSession(
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
+  if (utm?.content) subscriptionMetadata.utmContent = utm.content;
+  if (utm?.term) subscriptionMetadata.utmTerm = utm.term;
   if (userAgent) subscriptionMetadata.userAgent = userAgent;
   if (clientIp) subscriptionMetadata.clientIp = clientIp;
   if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;

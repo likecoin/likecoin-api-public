@@ -635,6 +635,8 @@ export async function formatStripeCheckoutSession({
     campaign?: string,
     source?: string,
     medium?: string,
+    content?: string,
+    term?: string,
   },
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
@@ -674,6 +676,8 @@ export async function formatStripeCheckoutSession({
   if (utm?.campaign) sessionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) sessionMetadata.utmSource = utm.source;
   if (utm?.medium) sessionMetadata.utmMedium = utm.medium;
+  if (utm?.content) sessionMetadata.utmContent = utm.content;
+  if (utm?.term) sessionMetadata.utmTerm = utm.term;
   if (httpMethod) sessionMetadata.httpMethod = httpMethod;
   if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
   if (userAgent) sessionMetadata.userAgent = userAgent;

@@ -389,6 +389,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     utmSource,
     utmCampaign,
     utmMedium,
+    utmContent,
+    utmTerm,
     referrer,
     gaClientId,
     gaSessionId,
@@ -565,6 +567,8 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
     utmSource,
     utmCampaign,
     utmMedium,
+    utmContent,
+    utmTerm,
     referrer,
     gaClientId,
     gaSessionId,
@@ -648,6 +652,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'UTM Source': record.utmSource,
       'UTM Campaign': record.utmCampaign,
       'UTM Medium': record.utmMedium,
+      'UTM Content': record.utmContent,
+      'UTM Term': record.utmTerm,
       'HTTP Referrer': record.referrer,
       'GA Client ID': record.gaClientId,
       'GA Session ID': record.gaSessionId,
@@ -691,6 +697,8 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   utmSource,
   utmCampaign,
   utmMedium,
+  utmContent,
+  utmTerm,
   referrer,
   gaClientId,
   gaSessionId,
@@ -709,6 +717,8 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   utmSource,
   utmCampaign,
   utmMedium,
+  utmContent?: string,
+  utmTerm?: string,
   referrer,
   gaClientId,
   gaSessionId,
@@ -749,6 +759,8 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
       'UTM Source': utmSource,
       'UTM Campaign': utmCampaign,
       'UTM Medium': utmMedium,
+      'UTM Content': utmContent,
+      'UTM Term': utmTerm,
       'HTTP Referrer': referrer,
       'GA Client ID': gaClientId,
       'GA Session ID': gaSessionId,
@@ -804,6 +816,8 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmMedium,
   utmSource,
   utmCampaign,
+  utmContent,
+  utmTerm,
   giftCartId,
 }: {
   subscriptionId: string;
@@ -829,6 +843,8 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmCampaign?: string;
   utmMedium?: string;
   utmSource?: string;
+  utmContent?: string;
+  utmTerm?: string;
   giftCartId?: string;
 }): Promise<void> {
   try {
@@ -857,6 +873,8 @@ export async function createAirtableSubscriptionPaymentRecord({
       'UTM Campaign': utmCampaign || '',
       'UTM Medium': utmMedium || '',
       'UTM Source': utmSource || '',
+      'UTM Content': utmContent || '',
+      'UTM Term': utmTerm || '',
       'Gift Cart ID': giftCartId || '',
     };
     await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
