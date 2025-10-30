@@ -36,18 +36,18 @@ async function getTokenPrice(fromToken, toToken, fallback) {
 }
 
 export async function getLIKEPrice({ raw = false } = {}) {
-  const token = 'likecoin';
+  const token = 'likecoin-2';
   const price = await getTokenPrice(token, FIAT_CURRENCY, LIKER_NFT_FIAT_MIN_RATIO);
   return raw ? price : Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
 export async function getMaticPriceInLIKE() {
-  const price = await getTokenPrice('matic-network', 'likecoin', 600);
+  const price = await getTokenPrice('polygon-ecosystem-token', 'likecoin-2', 600);
   return price;
 }
 
 export async function getArweavePriceInLIKE() {
-  const price = await getTokenPrice('arweave', 'likecoin', 16000);
+  const price = await getTokenPrice('arweave', 'likecoin-2', 16000);
   return price;
 }
 
