@@ -26,6 +26,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmCampaign,
     utmSource,
     utmMedium,
+    utmContent,
+    utmTerm,
     coupon,
     trialPeriodDays = 0,
     mustCollectPaymentMethod,
@@ -75,6 +77,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
           campaign: utmCampaign,
           source: utmSource,
           medium: utmMedium,
+          content: utmContent,
+          term: utmTerm,
         },
       },
       req,
@@ -113,6 +117,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       utmCampaign,
       utmSource,
       utmMedium,
+      utmContent,
+      utmTerm,
       referrer,
     });
   } catch (error) {
