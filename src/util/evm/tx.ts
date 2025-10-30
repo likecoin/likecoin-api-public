@@ -78,7 +78,10 @@ export async function sendWriteContractWithNonce(
     if (!hash) {
       throw new Error('Transaction hash is not returned');
     }
-    res = await publicClient.waitForTransactionReceipt({ hash });
+    res = await publicClient.waitForTransactionReceipt({
+      hash,
+      confirmations: 2, // 1 extra confirmation to be safe
+    });
     return {
       result: res,
       tx: serializedTransaction,
