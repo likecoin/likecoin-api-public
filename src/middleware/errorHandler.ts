@@ -1,7 +1,13 @@
 import axios from 'axios';
+import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../util/ValidationError';
 
-export default function errorHandler(err, req, res, next) {
+export default function errorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   if (err instanceof ValidationError) {
     if (err.status !== 404) {
       // eslint-disable-next-line no-console
@@ -24,26 +30,25 @@ export default function errorHandler(err, req, res, next) {
     console.error(err);
   }
   if (res.headersSent) {
-    return next(err);
-  }
-  res.set('Content-Type', 'text/plain');
-  if (err instanceof ValidationError) {
-    if (err.payload) {
-      return res.status(err.status).json({
-        ...err.payload,
-        error: err.message,
-      });
+    next(err);
+  } else {
+    res.set('Content-Type', 'text/plain');
+    if (err instanceof ValidationError) {
+      if (err.payload) {
+        res.status(err.status).json({
+          ...err.payload,
+          error: err.message,
+        });
+      } else {
+        res.status(err.status).send(err.message);
+      }
+    } else if ((err as Record<string, unknown>).type === 'entity.parse.failed') {
+      res.status(400).send('BODY_PARSE_FAILED');
+    } else if ((err as Record<string, unknown>).code === 'LIMIT_FILE_SIZE') {
+      // Handle multer error
+      res.status(400).send('FILE_TOO_LARGE');
+    } else {
+      res.sendStatus(500);
     }
-    return res.status(err.status).send(err.message);
   }
-  if (err.type === 'entity.parse.failed') {
-    return res.status(400).send('BODY_PARSE_FAILED');
-  }
-  // Handle multer error
-  if (err.code) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).send('FILE_TOO_LARGE');
-    }
-  }
-  return res.sendStatus(500);
 }

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import LRU from 'lru-cache';
 import {
   oAuthClientCollection as oAuthClientDbRef,
@@ -10,7 +11,11 @@ import type { OAuthClientInfo } from '../types/firestore';
 
 const providerOAuthClientInfo = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
-export const getOAuthClientInfo = ({ checkSecret = true } = {}) => async (req, res, next) => {
+export const getOAuthClientInfo = ({ checkSecret = true } = {}) => async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     setNoCacheHeader(res);
     const clientId = req.body.client_id || req.query.client_id;

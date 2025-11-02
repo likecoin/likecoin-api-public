@@ -1,4 +1,6 @@
-export function setNoCacheHeader(res) {
+import { Response } from 'express';
+
+export function setNoCacheHeader(res: Response): void {
   res.setHeader('Surrogate-Control', 'no-store');
   res.setHeader(
     'Cache-Control',

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../util/ValidationError';
 import { getISCNPrefix } from '../util/cosmos/iscn';
 import {
@@ -9,7 +10,11 @@ import {
 
 import { WNFT_BATCH_PURCHASE_LIMIT } from '../../config/config';
 
-export const fetchISCNPrefixAndClassId = async (req, res, next) => {
+export const fetchISCNPrefixAndClassId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { iscn_id: iscnId } = req.query;
     let { class_id: classId } = req.query;
@@ -32,7 +37,11 @@ export const fetchISCNPrefixAndClassId = async (req, res, next) => {
   }
 };
 
-export const fetchISCNPrefixes = async (req, res, next) => {
+export const fetchISCNPrefixes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { class_id: classId } = req.query;
     if (!classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
@@ -48,7 +57,11 @@ export const fetchISCNPrefixes = async (req, res, next) => {
   }
 };
 
-export const fetchISCNPrefixFromChain = async (req, res, next) => {
+export const fetchISCNPrefixFromChain = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { class_id: classId } = req.query;
     if (!classId) throw new ValidationError('MISSING_CLASS_ID');
