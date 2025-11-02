@@ -1,5 +1,13 @@
 // NFT Book purchase and listing related types
 
+export interface BookGiftInfo {
+  fromName?: string;
+  toName?: string;
+  toEmail?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
 export interface BookPurchaseData {
   id?: string;
   email?: string;
@@ -20,7 +28,7 @@ export interface BookPurchaseData {
   txHash?: string;
   message?: string;
   from?: string;
-  giftInfo?: any;
+  giftInfo?: BookGiftInfo;
   timestamp?: { toMillis: () => number };
   autoMemo?: string;
   isAutoDeliver?: boolean;
@@ -188,4 +196,11 @@ export interface NFTBookUserData {
   migrateTimestamp?: any;
   timestamp?: any;
   [key: string]: any;
+}
+
+export interface FreeBookClaimResult {
+  classIds: string[];
+  cartId: string;
+  paymentId: string;
+  claimToken: string;
 }

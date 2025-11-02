@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
+import type { UserData } from '../../types/user';
 import {
   PUBSUB_TOPIC_MISC,
 } from '../../constant';
@@ -21,10 +22,10 @@ router.post('/verify/user/:id/', async (req, res, next) => {
     const { ref } = req.body;
     const userRef = dbRef.doc(username);
     const doc = await userRef.get();
-    let user: any = {};
-    let verificationUUID;
+    let user: UserData = {} as UserData;
+    let verificationUUID: string | undefined;
     if (doc.exists) {
-      user = doc.data();
+      user = doc.data() as UserData;
       if (!user.email) throw new ValidationError('Invalid email');
       if (user.isEmailVerified) throw new ValidationError('Already verified');
       if (user.lastVerifyTs && Math.abs(user.lastVerifyTs - Date.now()) < THIRTY_S_IN_MS) {
@@ -81,8 +82,8 @@ router.post('/verify/:uuid', async (req, res, next) => {
         isEmailVerified: true,
       });
 
-      const promises: Promise<any>[] = [];
-      const payload: any = { done: true };
+      const promises: Promise<unknown>[] = [];
+      const payload: Record<string, unknown> = { done: true };
       const { referrer } = user.data();
       if (referrer) {
         promises.push(dbRef.doc(referrer).collection('referrals').doc(user.id).update({ isEmailVerified: true }));

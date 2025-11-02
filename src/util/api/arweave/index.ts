@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Request, Response, NextFunction } from 'express';
 import BigNumber from 'bignumber.js';
 import { ISCNSigningClient } from '@likecoin/iscn-js';
 import { formatEther } from 'viem';
@@ -31,20 +32,22 @@ import { getEVMClient } from '../../evm/client';
 export const ARWEAVE_MAX_SIZE_V1 = 100 * 1024 * 1024; // 100 MB
 export const ARWEAVE_MAX_SIZE_V2 = 200 * 1024 * 1024; // 200 MB
 
-export function checkFileValid(req, res, next) {
-  if (!(req.files && req.files.length)) {
+export function checkFileValid(req: Request, res: Response, next: NextFunction): void {
+  if (!(req.files && (req.files as Array<unknown>).length)) {
     res.status(400).send('MISSING_FILE');
     return;
   }
   const { files } = req;
-  if (files.length > 1 && !files.find((f) => f.fieldname === 'index.html')) {
+  if ((files as Array<{ fieldname: string }>).length > 1 && !(files as Array<{ fieldname: string }>).find((f) => f.fieldname === 'index.html')) {
     res.status(400).send('MISSING_INDEX_FILE');
     return;
   }
   next();
 }
 
-export function convertMulterFiles(files) {
+export function convertMulterFiles(
+  files: Array<{ fieldname: string; mimetype: string; buffer: Buffer }>,
+): Array<{ key: string; mimetype: string; buffer: Buffer }> {
   return files.map((f) => {
     const { mimetype, buffer } = f;
     return {

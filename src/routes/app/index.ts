@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { AppMeta } from '../../types/firestore';
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
@@ -15,8 +16,8 @@ router.get('/meta', jwtAuth('read'), async (req, res, next) => {
   try {
     const { user } = req.user;
     const doc = await dbRef.doc(user).collection('app').doc('meta').get();
-    const appMetaData = doc.data() || {};
-    res.json(filterAppMeta(appMetaData as any));
+    const appMetaData = (doc.data() || {}) as AppMeta;
+    res.json(filterAppMeta(appMetaData));
   } catch (err) {
     next(err);
   }
@@ -33,8 +34,8 @@ router.post('/meta/referral', jwtAuth('write'), async (req, res, next) => {
       userAppMetaRef.get(),
       dbRef.doc(referrer).get(),
     ]);
-    const data = doc.data() || {};
-    const { isNew } = filterAppMeta(data as any);
+    const data = (doc.data() || {}) as AppMeta;
+    const { isNew } = filterAppMeta(data);
     const { referrer: existingReferrer } = data;
     if (!isNew) throw new ValidationError('NOT_NEW_APP_USER');
     if (existingReferrer) throw new ValidationError('REFERRER_ALREADY_SET');

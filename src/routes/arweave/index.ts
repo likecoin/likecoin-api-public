@@ -231,6 +231,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
+      if (!files || !Array.isArray(files)) {
+        throw new ValidationError('NO_FILES_UPLOADED', 400);
+      }
       const { deduplicate = '0' } = req.query;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';
       const arFiles = convertMulterFiles(files);
@@ -275,6 +278,9 @@ router.post(
   async (req, res, next) => {
     try {
       const { files } = req;
+      if (!files || !Array.isArray(files)) {
+        throw new ValidationError('NO_FILES_UPLOADED', 400);
+      }
       const { deduplicate = '0' } = req.query;
       const { txHash } = req.query;
       const checkDuplicate = !!deduplicate && deduplicate !== '0';

@@ -67,7 +67,7 @@ router.get(
         isStripeConnectReady,
         email,
       } = userData;
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         hasAccount: !!stripeConnectAccountId,
         isReady: isStripeConnectReady,
       };
@@ -123,7 +123,8 @@ router.post(
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
-      const { bookUserInfo, likerUserInfo } = await getBookUserInfoFromWallet(wallet);
+      const userInfo = await getBookUserInfoFromWallet(wallet);
+      const { bookUserInfo, likerUserInfo } = userInfo || {};
       const {
         stripeConnectAccountId: existingId,
         isStripeConnectReady,
@@ -354,10 +355,10 @@ router.get(
         .limit(250)
         .get();
       const list = commissionQuery.docs.map((doc) => {
-        const data = doc.data();
+        const data = doc.data() as Record<string, unknown> & { id?: string };
         data.id = doc.id;
         return data;
-      }).map((data) => filterBookPurchaseCommission(data as any));
+      }).map((data) => filterBookPurchaseCommission(data as unknown as BookPurchaseCommission));
       res.json({ commissions: list });
     } catch (err) {
       next(err);

@@ -1,6 +1,8 @@
 // Firestore collection document types
 // These represent the raw data structures stored in Firestore collections
 
+import type { UserCivicLikerProperties } from './user';
+
 export interface UserAuthData {
   platforms: Record<string, any>;
   cosmosWallet?: string;
@@ -145,4 +147,18 @@ export interface FollowData {
   id: string;
   isFollowed: boolean;
   ts: number;
+}
+
+export interface BookUserInfo {
+  stripeConnectAccountId?: string;
+  isStripeConnectReady?: boolean;
+  stripeCustomerId?: string;
+  isTrustedPublisher?: boolean;
+  [key: string]: unknown;
+}
+
+export interface BookUserInfoResult {
+  wallet: string;
+  bookUserInfo: BookUserInfo | null;
+  likerUserInfo: UserCivicLikerProperties | null;
 }
