@@ -31,11 +31,11 @@ export async function sendWriteContractWithNonce(
     const data = d.data();
     if (!data) {
       const count = transactionCount;
-      await t.create(counterRef, { value: count + 1 } as any);
+      t.create(counterRef, { value: count + 1 } as any);
       return count;
     }
     const v = (data.value as number) + 1;
-    await t.update(counterRef, { value: v } as any);
+    t.update(counterRef, { value: v } as any);
     return v - 1;
   });
 
@@ -55,6 +55,7 @@ export async function sendWriteContractWithNonce(
       ...otherParams,
       account: walletClient.account,
       to: toAddress,
+      nonce: pendingNonce,
       data: encodeFunctionData({
         abi,
         functionName,
