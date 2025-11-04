@@ -2,6 +2,7 @@
 import { decodeTxRaw } from '@cosmjs/proto-signing';
 import { MsgSend } from 'cosmjs-types/cosmos/nft/v1beta1/tx';
 import type { Request } from 'express';
+import type { Query } from 'firebase-admin/firestore';
 import { ValidationError } from '../../../ValidationError';
 import {
   db,
@@ -37,6 +38,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
+import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
 function getAuthorNameFromMetadata(author: unknown): string {
   if (typeof author === 'string') {
@@ -119,18 +121,7 @@ export function getLocalizedTextWithFallback(
   return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
 }
 
-export function formatPriceInfo(price: unknown): Record<string, unknown> {
-  const priceTyped = price as {
-    name?: Record<string, string>;
-    description?: Record<string, string>;
-    priceInDecimal?: number;
-    isAllowCustomPrice?: boolean;
-    stock?: number;
-    isAutoDeliver?: boolean;
-    isUnlisted?: boolean;
-    autoMemo?: string;
-    [key: string]: unknown;
-  };
+export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
   const {
     name: nameInput,
     description: descriptionInput,
@@ -140,7 +131,7 @@ export function formatPriceInfo(price: unknown): Record<string, unknown> {
     isAutoDeliver = false,
     isUnlisted = false,
     autoMemo = '',
-  } = priceTyped;
+  } = price;
   const name: Record<string, string> = {};
   const description: Record<string, string> = {};
   NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
@@ -192,7 +183,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   });
   return {
     stripeProductId: stripeProduct.id,
-    stripePriceId: stripeProduct.default_price,
+    stripePriceId: stripeProduct.default_price as string,
   };
 }
 
@@ -439,7 +430,7 @@ export async function updateNftBookInfo(classId: string, {
   signedMessageText,
   tableOfContents,
 }: {
-  prices?: any[];
+  prices?: NFTBookPrice[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
   mustClaimToView?: boolean;
@@ -542,7 +533,7 @@ export async function listNftBookInfoByModeratorWallet(
   { chain = '' } = {},
 ) {
   const MAX_BOOK_ITEMS_LIMIT = 256;
-  let queryRef: any = likeNFTBookCollection;
+  let queryRef: Query = likeNFTBookCollection;
   if (!LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)) {
     queryRef = queryRef
       .where('moderatorWallets', 'array-contains', moderatorWallet);
@@ -552,12 +543,12 @@ export async function listNftBookInfoByModeratorWallet(
   }
   const query = await queryRef.limit(MAX_BOOK_ITEMS_LIMIT).get();
   return query.docs.map((doc) => {
-    const docData = doc.data();
+    const docData = doc.data() as NFTBookListingInfo;
     return { id: doc.id, ...docData };
   });
 }
 
-export function validatePrice(price: any) {
+export function validatePrice(price: NFTBookPrice) {
   const {
     autoMemo,
     order,
@@ -600,12 +591,12 @@ export function validatePrice(price: any) {
   };
 }
 
-export function validatePrices(prices: any[]) {
+export function validatePrices(prices: NFTBookPrice[]) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
   let i = 0;
   let autoDeliverTotalStock = 0;
   let manualDeliverTotalStock = 0;
-  const outputPrices: any = [];
+  const outputPrices: NFTBookPrice[] = [];
   try {
     for (i = 0; i < prices.length; i += 1) {
       const inputPrice = prices[i];

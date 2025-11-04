@@ -15,7 +15,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
-import type { BookPurchaseData, BookGiftInfo } from '../../../types/book';
+import type { BookPurchaseData, BookGiftInfo, NFTBookListingInfo } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
   sendNFTBookGiftPendingClaimEmail,
@@ -682,16 +682,9 @@ router.post(
         return paymentData;
       });
 
-      const paymentDataTyped = result as {
-        email?: string;
-        wallet?: string;
-        isGift?: boolean;
-        giftInfo?: Record<string, unknown>;
-        [key: string]: unknown;
-      };
       const {
         email, wallet: toWallet, isGift, giftInfo,
-      } = paymentDataTyped;
+      } = result;
 
       if (isGift && giftInfo) {
         const giftInfoTyped = giftInfo as BookGiftInfo;
@@ -759,28 +752,13 @@ router.post(
       if (!listingData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const paymentData = paymentDoc.data();
       if (!paymentData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-      const listingDataTyped = listingData as unknown as {
-        ownerWallet?: string;
-        moderatorWallets?: string[];
-        [key: string]: unknown;
-      };
       const {
         ownerWallet,
         moderatorWallets = [],
-      } = listingDataTyped;
+      } = listingData as NFTBookListingInfo;
       if (!ownerWallet) throw new ValidationError('OWNER_WALLET_NOT_FOUND', 404);
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
-      const paymentDataTyped = paymentData as {
-        email?: string;
-        status?: string;
-        isGift?: boolean;
-        giftInfo?: Record<string, unknown>;
-        claimToken?: string;
-        from?: string;
-        lastRemindTimestamp?: { toMillis: () => number };
-        [key: string]: unknown;
-      };
       const {
         email,
         status,
@@ -789,7 +767,7 @@ router.post(
         claimToken,
         from,
         lastRemindTimestamp,
-      } = paymentDataTyped;
+      } = paymentData as BookPurchaseData;
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
       if (lastRemindTimestamp && lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {

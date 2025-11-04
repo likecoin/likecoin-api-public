@@ -28,6 +28,7 @@ export interface BookPurchaseData {
   txHash?: string;
   message?: string;
   from?: string;
+  isGift?: boolean;
   giftInfo?: BookGiftInfo;
   timestamp?: { toMillis: () => number };
   autoMemo?: string;
@@ -35,9 +36,11 @@ export interface BookPurchaseData {
   quantity?: number;
   classIds?: string[];
   classIdsWithPrice?: any[];
+  claimToken?: string;
+  lastRemindTimestamp?: { toMillis: () => number };
 }
 
-export interface BookPurchaseDataFiltered extends Omit<BookPurchaseData, 'timestamp' | 'quantity'> {
+export interface BookPurchaseDataFiltered extends Omit<BookPurchaseData, 'claimToken' | 'timestamp' | 'lastRemindTimestamp' | 'quantity'> {
   timestamp?: number;
   quantity: number;
 }

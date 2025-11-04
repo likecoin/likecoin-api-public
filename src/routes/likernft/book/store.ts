@@ -33,7 +33,7 @@ import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../con
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import type { NFTBookListingInfo } from '../../../types/book';
+import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
@@ -250,7 +250,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       site,
     });
 
-    const newPrice: any = {
+    const newPrice: NFTBookPrice = {
       stripeProductId,
       stripePriceId,
       order: prices.length,

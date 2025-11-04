@@ -124,7 +124,7 @@ router.post(
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
       const userInfo = await getBookUserInfoFromWallet(wallet);
-      const { bookUserInfo, likerUserInfo } = userInfo || {};
+      const { bookUserInfo, likerUserInfo } = userInfo;
       const {
         stripeConnectAccountId: existingId,
         isStripeConnectReady,
@@ -355,10 +355,10 @@ router.get(
         .limit(250)
         .get();
       const list = commissionQuery.docs.map((doc) => {
-        const data = doc.data() as Record<string, unknown> & { id?: string };
+        const data = doc.data();
         data.id = doc.id;
-        return data;
-      }).map((data) => filterBookPurchaseCommission(data as unknown as BookPurchaseCommission));
+        return data as BookPurchaseCommission;
+      }).map((data) => filterBookPurchaseCommission(data));
       res.json({ commissions: list });
     } catch (err) {
       next(err);

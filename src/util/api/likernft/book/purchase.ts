@@ -38,7 +38,7 @@ import {
   sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
-import type { BookGiftInfo } from '../../../../types/book';
+import type { BookGiftInfo, BookPurchaseData } from '../../../../types/book';
 import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
@@ -1177,7 +1177,7 @@ export async function updateNFTBookPostDeliveryData({
   if (!paymentDocData) {
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
-  const { status, quantity: docQuantity = 1 } = paymentDocData;
+  const { status, quantity: docQuantity = 1 } = paymentDocData as BookPurchaseData;
   if (quantity !== docQuantity) {
     throw new ValidationError('INVALID_QUANTITY', 400);
   }
@@ -1193,5 +1193,5 @@ export async function updateNFTBookPostDeliveryData({
       pendingNFTCount: FieldValue.increment(-1),
     });
   }
-  return paymentDocData;
+  return paymentDocData as BookPurchaseData;
 }
