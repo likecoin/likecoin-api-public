@@ -42,7 +42,7 @@ router.get('/staking/info', async (_, res, next) => {
 
 router.get('/staking', jwtOptionalAuth('read:civic_liker'), async (req, res, next) => {
   try {
-    const result: any = {
+    const result: Record<string, unknown> = {
       status: 'unregistered',
       stakingAmount: 0,
       stakingAmountTarget: CIVIC_LIKER_STAKING_AMOUNT_TARGET,
@@ -79,8 +79,8 @@ router.get('/staking', jwtOptionalAuth('read:civic_liker'), async (req, res, nex
       }
       if (userDoc) {
         result.status = parseCivicLikerV3Status(
-          result.stakingAmount,
-          result.stakingAmountTarget,
+          result.stakingAmount as number,
+          result.stakingAmountTarget as number,
           userDoc,
         );
         if (result.status === 'active') {

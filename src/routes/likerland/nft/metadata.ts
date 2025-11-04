@@ -66,7 +66,7 @@ async function getNFTClassChainMetadata(classId) {
     return result;
   } catch (err) {
     const error = err as AxiosError;
-    if (error.response && (error.response.data as any).code === 2) {
+    if (error.response && (error.response.data as { code?: number }).code === 2) {
       // eslint-disable-next-line no-console
       throw new Error('NFT_CLASS_NOT_FOUND');
     }
@@ -182,7 +182,7 @@ router.get('/nft/metadata', async (req, res, next) => {
       selectedSet.add('all');
     }
 
-    const promises: Promise<any>[] = [];
+    const promises: Array<Promise<unknown>> = [];
 
     if (['all', 'class_api', 'iscn'].some((s) => selectedSet.has(s))) {
       promises.push(getNFTClassAndISCNMetadata(classId));

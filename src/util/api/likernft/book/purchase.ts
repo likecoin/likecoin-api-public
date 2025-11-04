@@ -38,12 +38,13 @@ import {
   sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
+import type { BookGiftInfo, BookPurchaseData } from '../../../../types/book';
 import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
 
-export function checkIsFromLikerLand(from: string) {
+export function checkIsFromLikerLand(from: string): boolean {
   return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
 }
 
@@ -997,11 +998,11 @@ export async function claimNFTBook(
           classId,
           wallet,
           {
-            image: metadata.image,
+            image: metadata?.image as string | undefined,
             external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
-            description: metadata.description,
-            name: metadata.name,
-            attributes: metadata.attributes,
+            description: metadata?.description as string | undefined,
+            name: metadata?.name as string | undefined,
+            attributes: metadata?.attributes,
           },
           { count: msgSendNftIds.length, memo: autoMemo, fromTokenId },
         );
@@ -1042,10 +1043,11 @@ export async function claimNFTBook(
     });
 
     if (isGift && giftInfo && email) {
+      const giftInfoTyped = giftInfo as BookGiftInfo;
       const {
         fromName,
         toName,
-      } = giftInfo;
+      } = giftInfoTyped;
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
       if (email) {
@@ -1175,7 +1177,7 @@ export async function updateNFTBookPostDeliveryData({
   if (!paymentDocData) {
     throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
   }
-  const { status, quantity: docQuantity = 1 } = paymentDocData;
+  const { status, quantity: docQuantity = 1 } = paymentDocData as BookPurchaseData;
   if (quantity !== docQuantity) {
     throw new ValidationError('INVALID_QUANTITY', 400);
   }
@@ -1191,5 +1193,5 @@ export async function updateNFTBookPostDeliveryData({
       pendingNFTCount: FieldValue.increment(-1),
     });
   }
-  return paymentDocData;
+  return paymentDocData as BookPurchaseData;
 }

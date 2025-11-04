@@ -33,7 +33,7 @@ import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../con
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
-import type { NFTBookListingInfo } from '../../../types/book';
+import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 
 const router = Router();
@@ -141,7 +141,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
           ownerWallet,
         } = b;
         const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
-        const result: any = {
+        const result: Record<string, unknown> = {
           classId: id,
           prices,
           pendingNFTCount,
@@ -250,7 +250,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       site,
     });
 
-    const newPrice: any = {
+    const newPrice: NFTBookPrice = {
       stripeProductId,
       stripePriceId,
       order: prices.length,
@@ -352,8 +352,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     if (oldPriceInfo.stripeProductId) {
       await stripe.products.update(oldPriceInfo.stripeProductId, {
-        name: [name, getLocalizedTextWithFallback(newPriceInfo.name, 'zh')].filter(Boolean).join(' - '),
-        description: [getLocalizedTextWithFallback(newPriceInfo.description, 'zh'), description].filter(Boolean).join('\n'),
+        name: [name, typeof newPriceInfo.name === 'object' ? getLocalizedTextWithFallback(newPriceInfo.name || {}, 'zh') : newPriceInfo.name].filter(Boolean).join(' - '),
+        description: [typeof newPriceInfo.description === 'object' ? getLocalizedTextWithFallback(newPriceInfo.description || {}, 'zh') : newPriceInfo.description, description].filter(Boolean).join('\n'),
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {

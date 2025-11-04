@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import expressjwt from 'express-jwt';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import LRU from 'lru-cache';
@@ -21,13 +22,13 @@ import { PERMISSION_GROUPS } from '../constant/jwt';
 
 const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
 
-async function fetchProviderClientInfo(clientId, req) {
+async function fetchProviderClientInfo(clientId: string, req: Request): Promise<string> {
   const cachedClientInfo = providerClientInfoCache.get(clientId);
   if (cachedClientInfo) {
     try {
       const info = JSON.parse(cachedClientInfo as string);
       req.auth = info;
-      return info.secret;
+      return info.secret as string;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
@@ -46,17 +47,17 @@ async function fetchProviderClientInfo(clientId, req) {
   };
   req.auth = filteredClientInfo;
   providerClientInfoCache.set(clientId, JSON.stringify(filteredClientInfo));
-  return secret;
+  return secret as string;
 }
 
-export function expandScopeGroup(scope) {
+export function expandScopeGroup(scope: string): string[] {
   if (PERMISSION_GROUPS[scope]) {
     return PERMISSION_GROUPS[scope];
   }
   return [scope];
 }
 
-export function expandScope(scope) {
+export function expandScope(scope: string): string[] {
   const parsed = scope.split(':');
   if (parsed.length <= 1) return [scope];
   const [permission, scopesString] = parsed;
@@ -74,13 +75,16 @@ export function expandScope(scope) {
   return list;
 }
 
-function checkPermissions(inputScopes, targetScope) {
+function checkPermissions(
+  inputScopes: string | string[] | undefined,
+  targetScope: string,
+): boolean {
   let currentScopes = inputScopes;
   if (!currentScopes) return false;
   if (!Array.isArray(currentScopes)) currentScopes = currentScopes.split(' ');
   const expandedTargetScope = expandScope(targetScope);
   const expandedCurrentScopes: string[] = [];
-  currentScopes = currentScopes.reduce((acc, s) => acc.concat(...expandScopeGroup(s)), []);
+  currentScopes = currentScopes.reduce<string[]>((acc, s) => acc.concat(expandScopeGroup(s)), []);
   currentScopes.forEach((s) => {
     if (!s.includes(':') && !['read', 'write', 'profile', 'email'].includes(s)) {
       expandedCurrentScopes.push(`read:${s}`);
@@ -102,7 +106,7 @@ export const jwtAuth = (
     audience = defaultAudience,
     algorithm: inputAlgorithm = defaultVerifyAlgorithm,
   } = {},
-) => async (req, res, next) => {
+) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   setNoCacheHeader(res);
   let secret = inputSecret;
   let algorithm = inputAlgorithm;
@@ -158,7 +162,7 @@ export const jwtOptionalAuth = (
     audience = defaultAudience,
     algorithm: inputAlgorithm = defaultVerifyAlgorithm,
   } = {},
-) => async (req, res, next) => {
+) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   setNoCacheHeader(res);
   let secret = inputSecret;
   let algorithm = inputAlgorithm;
@@ -215,11 +219,16 @@ export const jwtOptionalAuth = (
   });
 };
 
-export const getJwtInfo = async (token) => {
+export const getJwtInfo = async (token: string): Promise<Record<string, unknown>> => {
   try {
     const decoded = jwt.decode(token);
     if (decoded && (decoded as JwtPayload).azp) {
-      const clientSecret = await fetchProviderClientInfo((decoded as JwtPayload).azp, {});
+      // Create a minimal request object for fetchProviderClientInfo
+      const mockReq = { auth: {} } as unknown as Request;
+      const clientSecret = await fetchProviderClientInfo(
+        (decoded as JwtPayload).azp,
+        mockReq,
+      );
       const secret = getProviderJWTSecret(clientSecret);
       return jwtVerify(token, secret) as JwtPayload;
     }

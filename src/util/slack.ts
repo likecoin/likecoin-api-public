@@ -15,6 +15,7 @@ import {
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
+import type { NFTBookPrice } from '../types/book';
 
 export async function sendNFTBookNewListingSlackNotification({
   wallet,
@@ -26,11 +27,7 @@ export async function sendNFTBookNewListingSlackNotification({
   wallet: string;
   classId: string;
   className: string;
-  prices: {
-    name: Record<string, string>;
-    priceInDecimal: number;
-    stock: number;
-  }[];
+  prices: NFTBookPrice[];
   isAutoApproved?: boolean;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
@@ -39,7 +36,7 @@ export async function sendNFTBookNewListingSlackNotification({
     const editions = prices.map(
       (p) => {
         const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} USD}`;
-        return `Name: ${Object.values(p.name).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
+        return `Name: ${Object.values(p.name || {}).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
       },
     ).join('\n');
 

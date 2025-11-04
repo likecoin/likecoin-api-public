@@ -4,9 +4,10 @@ import {
 import { getNFTClassBalanceOf } from '../../../evm/nft';
 import { ValidationError } from '../../../ValidationError';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users';
+import type { FreeBookClaimResult } from '../../../../types/book';
 import { createFreeBookCartForFreeIds } from './cart';
 
-export async function getFreeBooksForUser(evmWallet?: string) {
+export async function getFreeBooksForUser(evmWallet?: string): Promise<string[]> {
   if (evmWallet) {
     const balances = await Promise.all(NFT_BOOK_FREE_CLASS_IDS.map(async (classId) => {
       const balance = await getNFTClassBalanceOf(classId, evmWallet);
@@ -17,7 +18,10 @@ export async function getFreeBooksForUser(evmWallet?: string) {
   return NFT_BOOK_FREE_CLASS_IDS;
 }
 
-export async function claimFreeBooks(evmWallet: string, classId?: string) {
+export async function claimFreeBooks(
+  evmWallet: string,
+  classId?: string,
+): Promise<FreeBookClaimResult> {
   let classIds: string[] = [];
   if (!classId) {
     classIds = await getFreeBooksForUser(evmWallet);

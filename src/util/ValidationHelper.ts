@@ -36,15 +36,15 @@ import type {
   FollowData,
 } from '../types/firestore';
 
-export function checkAddressValid(addr) {
+export function checkAddressValid(addr: string): boolean {
   return addr.length === 42 && addr.substr(0, 2) === '0x';
 }
 
-export function checkUserNameValid(user) {
-  return user && (/^[a-z0-9-_]+$/.test(user) && user.length >= MIN_USER_ID_LENGTH && user.length <= MAX_USER_ID_LENGTH);
+export function checkUserNameValid(user: string): boolean {
+  return !!user && (/^[a-z0-9-_]+$/.test(user) && user.length >= MIN_USER_ID_LENGTH && user.length <= MAX_USER_ID_LENGTH);
 }
 
-export function checkCosmosAddressValid(addr, prefix = 'cosmos') {
+export function checkCosmosAddressValid(addr: string, prefix = 'cosmos'): boolean {
   if (!addr.startsWith(prefix) && addr.length === 45) {
     return false;
   }

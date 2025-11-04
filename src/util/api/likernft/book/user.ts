@@ -5,8 +5,10 @@ import {
   getUserWithCivicLikerProperties,
   getUserWithCivicLikerPropertiesByWallet,
 } from '../../users/getPublicInfo';
+import type { NFTBookUserData } from '../../../../types/book';
+import type { BookUserInfoResult } from '../../../../types/firestore';
 
-export async function getBookUserInfo(wallet: string) {
+export async function getBookUserInfo(wallet: string): Promise<NFTBookUserData | null> {
   const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
   const userData = userDoc.data();
   if (!userData) {
@@ -20,7 +22,7 @@ export async function checkIsTrustedPublisher(wallet: string): Promise<boolean> 
   return userInfo?.isTrustedPublisher || false;
 }
 
-export async function getBookUserInfoFromWallet(wallet: string) {
+export async function getBookUserInfoFromWallet(wallet: string): Promise<BookUserInfoResult> {
   const [bookUserInfo, likerUserInfo] = await Promise.all([
     getBookUserInfo(wallet),
     getUserWithCivicLikerPropertiesByWallet(wallet),
@@ -28,7 +30,9 @@ export async function getBookUserInfoFromWallet(wallet: string) {
   return { wallet, bookUserInfo, likerUserInfo };
 }
 
-export async function getBookUserInfoFromLikerId(likerId: string) {
+export async function getBookUserInfoFromLikerId(
+  likerId: string,
+): Promise<BookUserInfoResult | null> {
   const userInfo = await getUserWithCivicLikerProperties(likerId);
   if (!userInfo) return null;
   const { likeWallet, evmWallet } = userInfo;
@@ -40,8 +44,13 @@ export async function getBookUserInfoFromLikerId(likerId: string) {
   };
 }
 
-export async function getBookUserInfoFromLegacyString(from: string) {
-  const userQuery = await likeNFTBookUserCollection.where('fromString', '==', from).limit(2).get();
+export async function getBookUserInfoFromLegacyString(
+  from: string,
+): Promise<BookUserInfoResult | null> {
+  const userQuery = await likeNFTBookUserCollection
+    .where('fromString', '==', from)
+    .limit(2)
+    .get();
   const userDoc = userQuery.docs[0];
   if (!userDoc) {
     return null;

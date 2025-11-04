@@ -15,7 +15,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
-import type { BookPurchaseData } from '../../../types/book';
+import type { BookPurchaseData, BookGiftInfo, NFTBookListingInfo } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
   sendNFTBookGiftPendingClaimEmail,
@@ -672,23 +672,26 @@ router.post(
       const { ownerWallet, moderatorWallets = [] } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
-      const {
-        email, wallet: toWallet, isGift, giftInfo,
-      } = await db.runTransaction(async (t: admin.firestore.Transaction) => {
-        const result = await updateNFTBookPostDeliveryData({
+      const result = await db.runTransaction(async (t: admin.firestore.Transaction) => {
+        const paymentData = await updateNFTBookPostDeliveryData({
           classId,
           paymentId,
           quantity,
           txHash,
         }, t);
-        return result;
+        return paymentData;
       });
 
+      const {
+        email, wallet: toWallet, isGift, giftInfo,
+      } = result;
+
       if (isGift && giftInfo) {
+        const giftInfoTyped = giftInfo as BookGiftInfo;
         const {
           fromName,
           toName,
-        } = giftInfo;
+        } = giftInfoTyped;
         const classData = await getNFTClassDataById(classId).catch(() => null);
         const className = classData?.name || classId;
         if (email) {
@@ -752,7 +755,8 @@ router.post(
       const {
         ownerWallet,
         moderatorWallets = [],
-      } = listingData;
+      } = listingData as NFTBookListingInfo;
+      if (!ownerWallet) throw new ValidationError('OWNER_WALLET_NOT_FOUND', 404);
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
       const {
@@ -763,21 +767,22 @@ router.post(
         claimToken,
         from,
         lastRemindTimestamp,
-      } = paymentData;
+      } = paymentData as BookPurchaseData;
       if (!email) throw new ValidationError('EMAIL_NOT_FOUND', 404);
       if (status !== 'paid') throw new ValidationError('STATUS_NOT_PAID', 409);
-      if (lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
+      if (lastRemindTimestamp && lastRemindTimestamp?.toMillis() > Date.now() - ONE_DAY_IN_MS) {
         throw new ValidationError('TOO_FREQUENT_REMIND', 429);
       }
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
       if (isGift && giftInfo) {
+        const giftInfoTyped = giftInfo as BookGiftInfo;
         const {
           fromName,
           toName,
           toEmail,
           message,
-        } = giftInfo;
+        } = giftInfoTyped;
         if (toEmail) {
           await sendNFTBookGiftPendingClaimEmail({
             fromName,

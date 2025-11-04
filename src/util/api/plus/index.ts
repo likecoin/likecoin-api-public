@@ -319,7 +319,9 @@ export async function createNewPlusCheckoutSession(
           throw new ValidationError('User already has a Liker Plus subscription.', 429);
         }
       }
-      if (bookUserInfo) customerId = bookUserInfo.stripeCustomerId;
+      if (bookUserInfo) {
+        customerId = bookUserInfo.stripeCustomerId;
+      }
     }
   }
   const subscriptionMetadata: Stripe.MetadataParam = {};

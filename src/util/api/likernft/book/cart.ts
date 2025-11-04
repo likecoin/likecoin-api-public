@@ -82,7 +82,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   itemInfos: CartItemWithInfo[];
   feeInfo: TransactionFeeInfo,
   coupon?: string,
-}) {
+}): Promise<void> {
   const classIdsWithPrice = itemPrices.filter((item) => !!item.classId).map((item) => ({
     classId: item.classId,
     priceIndex: item.priceIndex,
@@ -483,8 +483,9 @@ export async function processNFTBookCart(
       );
 
       const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
-      const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
-        ? ownerInfo?.likerUserInfo?.email
+      const ownerLikerInfo = ownerInfo?.likerUserInfo as any;
+      const ownerEmail = ownerLikerInfo?.isEmailVerified
+        ? ownerLikerInfo?.email
         : undefined;
 
       // Deposit like collective reward if applicable
@@ -1036,6 +1037,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       }
 
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');
+      const priceData = prices[priceIndex];
       const {
         priceInDecimal: originalPriceInDecimal,
         stock,
@@ -1044,11 +1046,11 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         description: pricDescriptionObj,
         stripePriceId,
         isAutoDeliver,
-      } = prices[priceIndex];
+      } = priceData;
       let { name = '', description = '' } = metadata;
       const { image, iscnPrefix } = metadata;
-      const priceName = typeof priceNameObj === 'object' ? priceNameObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : priceNameObj || '';
-      const priceDescription = typeof pricDescriptionObj === 'object' ? pricDescriptionObj[NFT_BOOK_TEXT_DEFAULT_LOCALE] : pricDescriptionObj || '';
+      const priceName = typeof priceNameObj === 'object' && priceNameObj ? (priceNameObj as Record<string, string>)[NFT_BOOK_TEXT_DEFAULT_LOCALE] : (priceNameObj as string) || '';
+      const priceDescription = typeof pricDescriptionObj === 'object' && pricDescriptionObj ? (pricDescriptionObj as Record<string, string>)[NFT_BOOK_TEXT_DEFAULT_LOCALE] : (pricDescriptionObj as string) || '';
       if (priceName) {
         name = `${name} - ${priceName}`;
       }
@@ -1056,7 +1058,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         description = `${description} - ${priceDescription}`;
       }
       if (itemFrom) description = `[${itemFrom}] ${description}`;
-      const images = [parseImageURLFromMetadata(image)];
+      const images = [parseImageURLFromMetadata(image || '')];
       info = {
         stock,
         isAllowCustomPrice,
@@ -1302,11 +1304,12 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     from: item.from,
   }));
   let itemInfos = await formatCartItemsWithInfo(items);
-  let { chain } = itemInfos[0];
+  const firstItemInfo = itemInfos[0];
+  let { chain } = firstItemInfo;
   if (!chain) {
     // eslint-disable-next-line no-console
-    console.warn(`${itemInfos[0].classId} does not have chain id set`);
-    chain = isLikeNFTClassId(itemInfos[0].classId as string) ? 'like' : 'base';
+    console.warn(`${firstItemInfo.classId} does not have chain id set`);
+    chain = isLikeNFTClassId(firstItemInfo.classId as string) ? 'like' : 'base';
   }
   if (!itemInfos.every((item) => {
     let itemChain = item.chain;

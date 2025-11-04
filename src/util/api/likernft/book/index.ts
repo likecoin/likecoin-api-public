@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { decodeTxRaw } from '@cosmjs/proto-signing';
 import { MsgSend } from 'cosmjs-types/cosmos/nft/v1beta1/tx';
+import type { Request } from 'express';
+import type { Query } from 'firebase-admin/firestore';
 import { ValidationError } from '../../../ValidationError';
 import {
   db,
@@ -36,17 +38,48 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
+import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
-export async function getNFTClassDataById(classId) {
+function getAuthorNameFromMetadata(author: unknown): string {
+  if (typeof author === 'string') {
+    return author;
+  }
+  if (author && typeof author === 'object') {
+    const authorObj = author as Record<string, unknown>;
+    return (authorObj.name as string) || '';
+  }
+  return '';
+}
+
+export interface NFTClassData {
+  name?: string;
+  description?: string;
+  uri?: string;
+  uriHash?: string;
+  iscnIdPrefix?: string;
+  // Metadata fields
+  image?: string;
+  inLanguage?: string;
+  keywords?: string;
+  author?: string | Record<string, unknown>;
+  publisher?: string;
+  usageInfo?: string;
+  isbn?: string;
+  thumbnailUrl?: string;
+  // Allow other metadata fields
+  [key: string]: unknown;
+}
+
+export async function getNFTClassDataById(classId: string): Promise<NFTClassData | null> {
   if (isEVMClassId(classId)) {
     try {
-      return await getEVMNftClassDataById(classId);
+      return (await getEVMNftClassDataById(classId)) as NFTClassData;
     } catch (error) {
       return null;
     }
   }
   const data = await getLikeNFTClassDataById(classId);
-  if (!data) return data;
+  if (!data) return null;
   const {
     name,
     description,
@@ -61,7 +94,7 @@ export async function getNFTClassDataById(classId) {
     uriHash,
     ...metadata,
     iscnIdPrefix: parent?.iscnIdPrefix,
-  };
+  } as NFTClassData;
 }
 
 export function checkIsAuthorized({
@@ -70,7 +103,7 @@ export function checkIsAuthorized({
 } : {
   ownerWallet: string;
   moderatorWallets?: string[];
-}, req: Express.Request) {
+}, req: Request): boolean {
   if (!req.user) return false;
   const {
     wallet,
@@ -81,11 +114,14 @@ export function checkIsAuthorized({
     .some((w) => w && (w === ownerWallet || moderatorWallets.includes(w)));
 }
 
-export function getLocalizedTextWithFallback(field, locale) {
+export function getLocalizedTextWithFallback(
+  field: Record<string, string>,
+  locale: string,
+): string {
   return field[locale] || field[NFT_BOOK_TEXT_DEFAULT_LOCALE] || '';
 }
 
-export function formatPriceInfo(price) {
+export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
   const {
     name: nameInput,
     description: descriptionInput,
@@ -96,11 +132,11 @@ export function formatPriceInfo(price) {
     isUnlisted = false,
     autoMemo = '',
   } = price;
-  const name = {};
-  const description = {};
+  const name: Record<string, string> = {};
+  const description: Record<string, string> = {};
   NFT_BOOK_TEXT_LOCALES.forEach((locale) => {
-    name[locale] = nameInput[locale];
-    description[locale] = descriptionInput[locale];
+    if (nameInput) name[locale] = nameInput[locale];
+    if (descriptionInput) description[locale] = descriptionInput[locale];
   });
   return {
     name,
@@ -147,7 +183,7 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
   });
   return {
     stripeProductId: stripeProduct.id,
-    stripePriceId: stripeProduct.default_price,
+    stripePriceId: stripeProduct.default_price as string,
   };
 }
 
@@ -289,7 +325,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
   ]);
   if (!iscnInfo) throw new ValidationError('ISCN_NOT_FOUND');
   const { iscnIdPrefix } = iscnInfo;
-  let metadata = { ...classData };
+  let metadata = {
+    ...(typeof classData === 'object' && classData !== null ? classData : {}),
+  };
   if (iscnIdPrefix) {
     const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
     const iscnContentMetadata = iscnData?.contentMetadata || {};
@@ -306,7 +344,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     usageInfo,
     isbn,
     image,
-  } = metadata;
+  } = metadata as NFTClassData;
   if (!bookInfo) {
     throw new ValidationError('BOOK_INFO_NOT_FOUND');
   }
@@ -334,8 +372,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
       if (image) images.push(parseImageURLFromMetadata(image));
       if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
       await stripe.products.update(p.stripeProductId, {
-        name: [name, getLocalizedTextWithFallback(p.name, 'zh')].filter(Boolean).join(' - '),
-        description: [getLocalizedTextWithFallback(p.description, 'zh'), description].filter(Boolean).join('\n'),
+        name: [name, typeof p.name === 'object' ? getLocalizedTextWithFallback(p.name || {}, 'zh') : p.name].filter(Boolean).join(' - '),
+        description: [typeof p.description === 'object' ? getLocalizedTextWithFallback(p.description || {}, 'zh') : p.description, description].filter(Boolean).join('\n'),
         images: images.length ? images : undefined,
       });
     }
@@ -364,7 +402,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       minPrice,
       maxPrice,
       imageURL: image,
-      author: typeof author === 'string' ? author : author?.name || '',
+      author: getAuthorNameFromMetadata(author),
       publisher,
       language: inLanguage,
       keywords,
@@ -392,7 +430,7 @@ export async function updateNftBookInfo(classId: string, {
   signedMessageText,
   tableOfContents,
 }: {
-  prices?: any[];
+  prices?: NFTBookPrice[];
   moderatorWallets?: string[];
   connectedWallets?: string[];
   mustClaimToView?: boolean;
@@ -495,7 +533,7 @@ export async function listNftBookInfoByModeratorWallet(
   { chain = '' } = {},
 ) {
   const MAX_BOOK_ITEMS_LIMIT = 256;
-  let queryRef: any = likeNFTBookCollection;
+  let queryRef: Query = likeNFTBookCollection;
   if (!LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)) {
     queryRef = queryRef
       .where('moderatorWallets', 'array-contains', moderatorWallet);
@@ -505,12 +543,12 @@ export async function listNftBookInfoByModeratorWallet(
   }
   const query = await queryRef.limit(MAX_BOOK_ITEMS_LIMIT).get();
   return query.docs.map((doc) => {
-    const docData = doc.data();
+    const docData = doc.data() as NFTBookListingInfo;
     return { id: doc.id, ...docData };
   });
 }
 
-export function validatePrice(price: any) {
+export function validatePrice(price: NFTBookPrice) {
   const {
     autoMemo,
     order,
@@ -553,12 +591,12 @@ export function validatePrice(price: any) {
   };
 }
 
-export function validatePrices(prices: any[]) {
+export function validatePrices(prices: NFTBookPrice[]) {
   if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
   let i = 0;
   let autoDeliverTotalStock = 0;
   let manualDeliverTotalStock = 0;
-  const outputPrices: any = [];
+  const outputPrices: NFTBookPrice[] = [];
   try {
     for (i = 0; i < prices.length; i += 1) {
       const inputPrice = prices[i];
