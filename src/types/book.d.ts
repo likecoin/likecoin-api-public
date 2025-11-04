@@ -122,6 +122,8 @@ export interface NFTBookListingInfo {
   inLanguage?: string;
   name?: string;
   description?: string;
+  descriptionFull?: string;
+  descriptionSummary?: string;
   keywords?: string[];
   thumbnailUrl?: string;
   author?: string;
@@ -158,6 +160,8 @@ export interface NFTBookListingInfoFiltered {
   inLanguage?: string;
   name?: string;
   description?: string;
+  descriptionFull?: string;
+  descriptionSummary?: string;
   keywords?: string[];
   thumbnailUrl?: string;
   author?: string;
