@@ -179,6 +179,7 @@ export async function processStripeSubscriptionInvoice(
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
+    const predictedLTV = isTrial ? 120 * 0.3 : 120;
     await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
@@ -192,6 +193,7 @@ export async function processStripeSubscriptionInvoice(
       fbClickId,
       paymentId,
       evmWallet: req.user?.evmWallet,
+      predictedLTV,
     });
   }
 
