@@ -192,7 +192,7 @@ export async function processStripeSubscriptionInvoice(
       clientIp,
       fbClickId,
       paymentId,
-      evmWallet: req.user?.evmWallet,
+      evmWallet,
       predictedLTV,
     });
   }
