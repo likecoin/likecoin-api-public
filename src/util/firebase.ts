@@ -18,6 +18,7 @@ import {
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
+  FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT,
   FIRESTORE_LIKE_URL_ROOT,
   FIRESTORE_ISCN_INFO_ROOT,
   FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
@@ -25,7 +26,9 @@ import {
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
 import type { UserData } from '../types/user';
-import type { NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData } from '../types/book';
+import type {
+  NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData, PlusGiftCartData,
+} from '../types/book';
 import type { LikeNFTISCNData, FreeMintTxData } from '../types/nft';
 import type { TxData, ArweaveTxData } from '../types/transaction';
 import type {
@@ -122,6 +125,9 @@ export const likeNFTBookCollection = getCollection<NFTBookListingInfo>(
 );
 export const likeNFTBookUserCollection = getCollection<NFTBookUserData>(
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
+);
+export const likePlusGiftCartCollection = getCollection<PlusGiftCartData>(
+  FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT,
 );
 export const likeButtonUrlCollection = getCollection<LikeButtonUrlData>(
   FIRESTORE_LIKE_URL_ROOT,

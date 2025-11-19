@@ -9,6 +9,7 @@ import {
 import { processNFTBookCartStripePurchase } from '../../../util/api/likernft/book/cart';
 import { handleNFTBookStripeSessionCustomer } from '../../../util/api/likernft/book/user';
 import { processStripeSubscriptionCancellation, processStripeSubscriptionInvoice } from '../../../util/api/plus';
+import { processPlusGiftStripePurchase } from '../../../util/api/plus/gift';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         const session: Stripe.Checkout.Session = event.data.object;
         const {
           metadata: {
-            likeWallet, evmWallet,
+            likeWallet, evmWallet, store,
           } = {} as any,
         } = session;
         const subscriptionId = session.subscription as string;
@@ -46,6 +47,10 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
           await handleNFTBookStripeSessionCustomer(session);
         }
         if (subscriptionId) break;
+        if (store === 'plus_gift') {
+          await processPlusGiftStripePurchase(session);
+          break;
+        }
         await processNFTBookCartStripePurchase(session, req);
         break;
       }
@@ -55,16 +60,6 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
         if (subscriptionId) {
           await processStripeSubscriptionInvoice(invoice, req);
         }
-        break;
-      }
-      case 'customer.subscription.created': {
-        // no op
-        res.sendStatus(200);
-        break;
-      }
-      case 'customer.subscription.updated': {
-        // no op
-        res.sendStatus(200);
         break;
       }
       case 'customer.subscription.deleted': {

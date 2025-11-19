@@ -52,6 +52,19 @@ export interface BookPurchaseCartData extends BookPurchaseData {
   loginMethod?: string;
 }
 
+export interface PlusGiftCartData {
+  id?: string;
+  email?: string;
+  status?: string;
+  sessionId?: string;
+  errorMessage?: string;
+  wallet?: string;
+  period: string;
+  giftInfo: BookGiftInfo;
+  claimToken: string;
+  timestamp: { toMillis: () => number };
+}
+
 export interface BookPurchaseCommission {
   type: string;
   ownerWallet: string;
