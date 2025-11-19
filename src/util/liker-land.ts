@@ -343,6 +343,143 @@ export const getLikerLandNFTGiftPageURL = ({
   return getLikerLandURL(`/nft/gift?${qs}`, { language });
 };
 
+export const getPlusPageURL = ({
+  language,
+  utmCampaign,
+  utmSource,
+  utmMedium,
+  gaClientId,
+  gaSessionId,
+  gadClickId,
+  gadSource,
+}: {
+  language?: string;
+  utmCampaign?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  gaClientId?: string;
+  gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
+}) => {
+  const qsPayload: any = {};
+  if (utmCampaign) {
+    qsPayload.utm_campaign = utmCampaign;
+  }
+  if (utmSource) {
+    qsPayload.utm_source = utmSource;
+  }
+  if (utmMedium) {
+    qsPayload.utm_medium = utmMedium;
+  }
+  if (gaClientId) {
+    qsPayload.ga_client_id = gaClientId;
+  }
+  if (gaSessionId) {
+    qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
+  }
+  const qs = new URLSearchParams(qsPayload).toString();
+  return getBook3URL(`/plus?${qs}`, { language });
+};
+
+export const getPlusGiftPageURL = ({
+  period,
+  cartId,
+  paymentId,
+  token,
+  language,
+  redirect = false,
+  utmCampaign,
+  utmSource,
+  utmMedium,
+  gaClientId,
+  gaSessionId,
+  gadClickId,
+  gadSource,
+}: {
+  period: string;
+  cartId: string;
+  paymentId: string;
+  token: string;
+  language?: string;
+  redirect?: boolean;
+  from?: string;
+  utmCampaign?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  gaClientId?: string;
+  gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
+}) => {
+  const qsPayload: any = {
+    payment_id: paymentId,
+    claiming_token: token,
+    period,
+  };
+
+  if (cartId) {
+    qsPayload.cart_id = cartId;
+  }
+
+  if (redirect) {
+    qsPayload.redirect = '1';
+  }
+  if (utmCampaign) {
+    qsPayload.utm_campaign = utmCampaign;
+  }
+  if (utmSource) {
+    qsPayload.utm_source = utmSource;
+  }
+  if (utmMedium) {
+    qsPayload.utm_medium = utmMedium;
+  }
+  if (gaClientId) {
+    qsPayload.ga_client_id = gaClientId;
+  }
+  if (gaSessionId) {
+    qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
+  }
+  const qs = new URLSearchParams(qsPayload).toString();
+  return getBook3URL(`/gift/plus/success?${qs}`, { language });
+};
+
+export const getPlusGiftPageClaimURL = ({
+  cartId,
+  paymentId,
+  token,
+  language,
+}: {
+  cartId?: string;
+  paymentId: string;
+  token: string;
+  language?: string;
+}) => {
+  const qsPayload: any = {
+    payment_id: paymentId,
+    claiming_token: token,
+  };
+
+  if (cartId) {
+    qsPayload.cart_id = cartId;
+  }
+
+  const qs = new URLSearchParams(qsPayload).toString();
+  return getBook3URL(`/gift/plus/claim?${qs}`, { language });
+};
+
 export async function findLikerLandWalletUserWithVerifiedEmail(email) {
   try {
     const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
