@@ -3,17 +3,23 @@ import type Stripe from 'stripe';
 import uuidv4 from 'uuid/v4';
 
 import stripe, { getStripePromotionFromCode } from '../../stripe';
-import { FieldValue, likePlusGiftCartCollection } from '../../firebase';
+import {
+  FieldValue, likeNFTBookUserCollection, likePlusGiftCartCollection, userCollection, db,
+} from '../../firebase';
 import {
   LIKER_PLUS_GIFT_MONTHLY_PRICE_ID,
   LIKER_PLUS_GIFT_YEARLY_PRICE_ID,
+  LIKER_PLUS_MONTHLY_PRICE_ID,
+  LIKER_PLUS_YEARLY_PRICE_ID,
 } from '../../../../config/config';
 import { ValidationError } from '../../ValidationError';
-import { sendPlusGiftPendingClaimEmail } from '../../ses';
+import { sendPlusGiftClaimedEmail, sendPlusGiftPendingClaimEmail } from '../../ses';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import logPixelEvents from '../../fbq';
+import { sendIntercomEvent, updateIntercomUserLikerPlusStatus } from '../../intercom';
+import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 
 export async function createPlusGiftCheckoutSession(
   {
@@ -210,14 +216,180 @@ export async function createPlusGiftCart({
   });
 }
 
-export async function claimPlusGiftCart(
+export async function claimPlusGiftCart({
+  cartId,
+  token,
+  wallet,
+}: {
   cartId: string,
-) {
+  token: string,
+  wallet: string,
+}) {
   const cartDoc = await likePlusGiftCartCollection.doc(cartId).get();
-  if (!cartDoc.exists) {
+  const cartData = cartDoc.data();
+  if (!cartData) {
     throw new ValidationError('Plus gift cart not found');
   }
-  // TODO
+  const {
+    claimToken,
+    email,
+    status,
+    giftInfo,
+    period,
+  } = cartData;
+  if (claimToken !== token) {
+    throw new ValidationError('Invalid claim token for plus gift cart');
+  }
+  if (status !== 'paid') {
+    throw new ValidationError('Plus gift cart is not in a claimable state');
+  }
+
+  const user = await getBookUserInfoFromWallet(wallet);
+  if (!user) {
+    throw new ValidationError('User not found for the provided wallet');
+  }
+  const { likerUserInfo, bookUserInfo } = user;
+  if (!likerUserInfo) {
+    throw new ValidationError('Liker user info not found for the provided wallet');
+  }
+  if (likerUserInfo.isLikerPlus) {
+    throw new ValidationError('User already has a Liker Plus subscription.', 409);
+  }
+  const likerId = likerUserInfo.user;
+
+  let stripeCustomerId = bookUserInfo?.stripeCustomerId;
+  if (!stripeCustomerId) {
+    const customer = await stripe.customers.create({
+      email: likerUserInfo.email || undefined,
+    });
+    stripeCustomerId = customer.id;
+    await likeNFTBookUserCollection.doc(wallet).set({
+      stripeCustomerId,
+    }, { merge: true });
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const cartRef = likePlusGiftCartCollection.doc(cartId);
+    const transactionCartDoc = await transaction.get(cartRef);
+    const transactionCartData = transactionCartDoc.data();
+
+    if (!transactionCartData) {
+      throw new ValidationError('Plus gift cart not found');
+    }
+
+    if (transactionCartData.status === 'error') {
+      throw new ValidationError(`Plus gift cart encountered an error: ${transactionCartData.errorMessage || 'Unknown error'}`);
+    }
+
+    if (transactionCartData.status !== 'paid') {
+      throw new ValidationError('Plus gift cart is not available or already being claimed');
+    }
+
+    transaction.update(cartRef, {
+      status: 'pending',
+    });
+  });
+
+  try {
+    const isYearly = period === 'yearly';
+
+    const subscription = await stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [
+        {
+          price: isYearly ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+        },
+      ],
+      metadata: {
+        evmWallet: likerUserInfo.evmWallet || '',
+        likeWallet: likerUserInfo.likeWallet || '',
+        giftFromEmail: email || '',
+        giftToEmail: giftInfo.toEmail || '',
+        giftCartId: cartId,
+        isGift: 'true',
+      },
+      trial_period_days: isYearly ? 365 : 30,
+      trial_settings: {
+        end_behavior: {
+          missing_payment_method: 'cancel',
+        },
+      },
+    });
+
+    await likePlusGiftCartCollection.doc(cartId).update({
+      status: 'completed',
+      wallet,
+      claimTimestamp: FieldValue.serverTimestamp(),
+    });
+
+    const {
+      start_date: startDate,
+      items: { data: [item] },
+    } = subscription;
+    const subscriptionPeriod = item.plan.interval;
+    const since = startDate * 1000; // Convert to milliseconds
+    const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
+    const currentPeriodEnd = subscription.current_period_end * 1000; // Convert to milliseconds
+    await userCollection.doc(likerId).update({
+      likerPlus: {
+        period: subscriptionPeriod,
+        since,
+        currentPeriodStart,
+        currentPeriodEnd,
+        currentType: 'gift',
+        subscriptionId: subscription.id,
+        customerId: stripeCustomerId,
+      },
+    });
+
+    await Promise.all([
+      updateIntercomUserLikerPlusStatus({
+        userId: likerId,
+        isLikerPlus: true,
+      }),
+      sendIntercomEvent({
+        userId: likerId,
+        eventName: 'plus_subscription_start',
+      }),
+    ]);
+
+    await Promise.all([
+      createAirtableSubscriptionPaymentRecord({
+        subscriptionId: subscription.id,
+        customerId: stripeCustomerId,
+        customerEmail: likerUserInfo.email || '',
+        customerUserId: likerId,
+        customerWallet: likerUserInfo.evmWallet || '',
+        productId: item.price.product as string,
+        priceId: item.price.id,
+        priceName: item.price.nickname || '',
+        price: 0,
+        currency: 'USD',
+        invoiceId: '',
+        couponId: '',
+        couponName: '',
+        since,
+        periodInterval: period,
+        periodStartAt: currentPeriodStart,
+        periodEndAt: currentPeriodEnd,
+        isNew: true,
+        isTrial: true,
+        channel: '',
+      }),
+      sendPlusGiftClaimedEmail({
+        fromEmail: email || '',
+        toName: giftInfo.toName,
+        fromName: giftInfo.fromName,
+      }),
+    ]);
+  } catch (error) {
+    await likePlusGiftCartCollection.doc(cartId).update({
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorTimestamp: FieldValue.serverTimestamp(),
+    });
+    throw error;
+  }
 }
 
 export async function processPlusGiftStripePurchase(
@@ -256,7 +428,7 @@ export async function processPlusGiftStripePurchase(
   const period = isYearly ? 'yearly' : 'monthly';
 
   const email = customer?.email || '';
-  const exists = await checkPlusGiftCartExists(sessionId);
+  const exists = await checkPlusGiftCartExists(paymentId);
   if (exists) {
     // eslint-disable-next-line no-console
     console.info(`Plus gift cart ${paymentId} already exists for session ID: ${sessionId}`);
