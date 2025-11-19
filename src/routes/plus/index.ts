@@ -8,7 +8,7 @@ import {
   W3C_EMAIL_REGEX,
 } from '../../constant';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
-import { createPlusGiftCheckoutSession } from '../../util/api/plus/gift';
+import { claimPlusGiftCart, createPlusGiftCheckoutSession } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logPixelEvents from '../../util/fbq';
@@ -236,6 +236,33 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
       utmContent,
       utmTerm,
       referrer,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/gift/:cartId/claim', jwtAuth('write:plus'), async (req, res, next) => {
+  const { cartId } = req.params;
+  const { token } = req.query;
+  try {
+    if (!cartId) {
+      throw new ValidationError('MISSING_CART_ID');
+    }
+    if (!token) {
+      throw new ValidationError('MISSING_CLAIM_TOKEN');
+    }
+    await claimPlusGiftCart({
+      cartId: cartId as string,
+      token: token as string,
+      wallet: req.user?.wallet,
+    });
+    res.sendStatus(200);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'PlusGiftClaimed',
+      cartId,
+      wallet: req.user?.wallet,
     });
   } catch (error) {
     next(error);

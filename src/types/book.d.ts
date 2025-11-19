@@ -63,6 +63,7 @@ export interface PlusGiftCartData {
   giftInfo: BookGiftInfo;
   claimToken: string;
   timestamp: { toMillis: () => number };
+  claimTimestamp?: { toMillis: () => number };
 }
 
 export interface BookPurchaseCommission {
