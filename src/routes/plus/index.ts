@@ -7,7 +7,8 @@ import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
 } from '../../constant';
-import { createNewPlusCheckoutSession, createPlusGiftCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
+import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
+import { createPlusGiftCheckoutSession } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logPixelEvents from '../../util/fbq';

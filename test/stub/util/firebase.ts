@@ -33,6 +33,11 @@ import type {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - Path is valid when copied to src/util/
 } from '../types/firestore';
+import {
+  PlusGiftCartData,
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Path is valid when copied to src/util/
+} from '../types/book';
 
 export { admin };
 export const { FieldValue, Timestamp } = admin.firestore;
@@ -288,8 +293,6 @@ export const likeNFTCollection = createCollection(likerNftData) as
   admin.firestore.CollectionReference<LikeNFTISCNData>;
 export const likeNFTSubscriptionUserCollection = createCollection([]) as
   admin.firestore.CollectionReference<SubscriptionUserData>;
-export const likeNFTSubscriptionTxCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
 export const likeNFTFreeMintTxCollection = createCollection([]) as
   admin.firestore.CollectionReference<FreeMintTxData>;
 export const likeNFTBookCartCollection = createCollection([]) as
@@ -306,12 +309,10 @@ export const iscnArweaveTxCollection = createCollection([]) as
   admin.firestore.CollectionReference<ArweaveTxData>;
 export const iscnMappingCollection = createCollection([]) as
   admin.firestore.CollectionReference<ISCNMappingData>;
-export const superLikeTransferCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
 export const superLikeUserCollection = createCollection([]) as
   admin.firestore.CollectionReference<SuperLikeData>;
-export const exchangeHubCollection = createCollection([]) as
-  admin.firestore.CollectionReference;
+export const likePlusGiftCartCollection = createCollection([]) as
+  admin.firestore.CollectionReference<PlusGiftCartData>;
 
 function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise<any> {
   return updateFunc({
