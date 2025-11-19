@@ -326,7 +326,9 @@ export async function createNewPlusCheckoutSession(
       }
     }
   }
-  const subscriptionMetadata: Stripe.MetadataParam = {};
+  const subscriptionMetadata: Stripe.MetadataParam = {
+    store: 'plus',
+  };
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;

@@ -5,8 +5,9 @@ import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
 import stripe from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  W3C_EMAIL_REGEX,
 } from '../../constant';
-import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
+import { createNewPlusCheckoutSession, createPlusGiftCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logPixelEvents from '../../util/fbq';
@@ -130,6 +131,112 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       evmWallet: req.user?.evmWallet,
       error: (error as Error).message,
     });
+    next(error);
+  }
+});
+
+router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
+  let { period = 'yearly' } = req.query;
+  const { from } = req.query;
+  const {
+    gaClientId,
+    gaSessionId,
+    gadClickId,
+    gadSource,
+    fbClickId,
+    referrer,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+    utmContent,
+    utmTerm,
+    coupon,
+    giftInfo,
+  } = req.body;
+  try {
+    if (period !== 'monthly' && period !== 'yearly') {
+      period = 'yearly'; // Default to yearly if invalid
+    }
+    if (!giftInfo || !giftInfo.toEmail) {
+      throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
+    }
+    if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) {
+      throw new ValidationError('INVALID_GIFT_TO_EMAIL');
+    }
+    const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const userAgent = req.get('User-Agent');
+    const {
+      session,
+      paymentId,
+      email,
+    } = await createPlusGiftCheckoutSession(
+      {
+        period: period as 'monthly' | 'yearly',
+        giftInfo,
+        coupon,
+      },
+      {
+        from: from as string,
+        gaClientId,
+        gaSessionId,
+        gadClickId,
+        gadSource,
+        fbClickId,
+        referrer,
+        userAgent,
+        clientIp,
+        utm: {
+          campaign: utmCampaign,
+          source: utmSource,
+          medium: utmMedium,
+          content: utmContent,
+          term: utmTerm,
+        },
+      },
+      req,
+    );
+    res.json({
+      sessionId: session.id,
+      url: session.url,
+    });
+
+    await logPixelEvents('InitiateCheckout', {
+      email,
+      items: [{
+        productId: `plus-gift-${period}`,
+        quantity: 1,
+      }],
+      userAgent,
+      clientIp,
+      value: period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
+      currency: 'USD',
+      paymentId,
+      referrer,
+      fbClickId,
+      evmWallet: req.user?.evmWallet,
+    });
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'PlusGiftCheckoutSessionCreated',
+      sessionId: session.id,
+      period,
+      wallet: req.user?.wallet,
+      likeWallet: req.user?.likeWallet,
+      evmWallet: req.user?.evmWallet,
+      giftToEmail: giftInfo.toEmail,
+      giftFromName: giftInfo.fromName,
+      giftToName: giftInfo.toName,
+      giftMessage: giftInfo.message,
+      gadClickId,
+      gadSource,
+      fbClickId,
+      utmCampaign,
+      utmSource,
+      utmMedium,
+      utmContent,
+      utmTerm,
+      referrer,
+    });
+  } catch (error) {
     next(error);
   }
 });

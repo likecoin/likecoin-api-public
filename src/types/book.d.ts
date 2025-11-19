@@ -3,7 +3,7 @@
 export interface BookGiftInfo {
   fromName?: string;
   toName?: string;
-  toEmail?: string;
+  toEmail: string;
   message?: string;
   [key: string]: unknown;
 }
