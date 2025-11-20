@@ -46,9 +46,4 @@ export async function getMaticPriceInLIKE() {
   return price;
 }
 
-export async function getArweavePriceInLIKE() {
-  const price = await getTokenPrice('arweave', 'likecoin-2', 16000);
-  return price;
-}
-
 export default getLIKEPrice();

@@ -241,20 +241,4 @@ export function calculateTxGasFee(messageLength = 1, denom = COSMOS_DENOM) {
   };
 }
 
-export function generateSendTxData(senderAddress, toAddress, amount) {
-  const fee = calculateTxGasFee();
-  const messages = [{
-    typeUrl: '/cosmos.bank.v1beta1.MsgSend',
-    value: {
-      fromAddress: senderAddress,
-      toAddress,
-      amount: [{ denom: COSMOS_DENOM, amount }],
-    },
-  }];
-  return {
-    messages,
-    fee,
-  };
-}
-
 export default queryLIKETransactionInfo;
