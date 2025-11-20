@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { jwtAuth } from '../../middleware/jwt';
+import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
 import stripe from '../../util/stripe';
@@ -8,10 +8,11 @@ import {
   W3C_EMAIL_REGEX,
 } from '../../constant';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
-import { claimPlusGiftCart, createPlusGiftCheckoutSession } from '../../util/api/plus/gift';
+import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logPixelEvents from '../../util/fbq';
+import { filterPlusGiftCartData } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -300,6 +301,26 @@ router.post('/price', jwtAuth('write:plus'), async (req, res, next) => {
       giftPriceIndex,
     });
     res.sendStatus(200);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/gift/:cartId/status', jwtOptionalAuth('read:plus'), async (req, res, next) => {
+  try {
+    const { cartId } = req.params;
+    const { token } = req.query;
+    if (!token && !req.user) throw new ValidationError('MISSING_TOKEN');
+    const cartData = await getPlusGiftCartData(cartId);
+    const {
+      claimToken,
+    } = cartData;
+    if (token !== claimToken) {
+      if (!req.user || req.user.wallet !== cartData.wallet) {
+        throw new ValidationError('INVALID_CLAIM_TOKEN');
+      }
+    }
+    res.json(filterPlusGiftCartData(cartData));
   } catch (error) {
     next(error);
   }
