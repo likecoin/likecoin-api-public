@@ -196,6 +196,17 @@ async function checkPlusGiftCartExists(
   return cartDoc.exists;
 }
 
+export async function getPlusGiftCartData(
+  cartId: string,
+) {
+  const cartDoc = await likePlusGiftCartCollection.doc(cartId).get();
+  const cartData = cartDoc.data();
+  if (!cartData) {
+    throw new ValidationError('Plus gift cart not found', 404);
+  }
+  return cartData;
+}
+
 export async function createPlusGiftCart({
   period = 'yearly',
   giftInfo,

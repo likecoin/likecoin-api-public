@@ -66,6 +66,8 @@ export interface PlusGiftCartData {
   claimTimestamp?: { toMillis: () => number };
 }
 
+export type PlusGiftCartDataFiltered = Omit<PlusGiftCartData, 'claimToken'>;
+
 export interface BookPurchaseCommission {
   type: string;
   ownerWallet: string;

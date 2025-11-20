@@ -27,6 +27,8 @@ import type {
   NFTBookPricesInfoFiltered,
   NFTBookListingInfo,
   NFTBookListingInfoFiltered,
+  PlusGiftCartData,
+  PlusGiftCartDataFiltered,
 } from '../types/book';
 import type {
   OAuthClientInfo,
@@ -380,6 +382,32 @@ export function filterBookPurchaseCommission({
     amount,
     currency,
     timestamp: timestamp?.toMillis(),
+  };
+}
+
+export function filterPlusGiftCartData({
+  id,
+  email,
+  status,
+  sessionId,
+  errorMessage,
+  wallet,
+  period,
+  giftInfo,
+  timestamp,
+  claimTimestamp,
+}: PlusGiftCartData): PlusGiftCartDataFiltered {
+  return {
+    id,
+    email,
+    status,
+    sessionId,
+    errorMessage,
+    wallet,
+    period,
+    giftInfo,
+    timestamp,
+    claimTimestamp,
   };
 }
 
