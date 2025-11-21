@@ -15,6 +15,7 @@ import {
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
   syncNFTBookInfoWithISCN,
+  getAuthorNameFromMetadata,
 } from '../../../util/api/likernft/book';
 import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import {
@@ -351,9 +352,19 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     };
 
     if (oldPriceInfo.stripeProductId) {
+      const metadata: Record<string, string> = {
+        classId,
+        priceIndex: priceIndex.toString(),
+        author: getAuthorNameFromMetadata(bookInfo.author),
+        publisher: bookInfo.publisher || '',
+        inLanguage: bookInfo.inLanguage || '',
+        keywords: bookInfo.keywords ? bookInfo.keywords.join(', ') : '',
+        usageInfo: bookInfo.usageInfo || '',
+      };
       await stripe.products.update(oldPriceInfo.stripeProductId, {
         name: [name, typeof newPriceInfo.name === 'object' ? getLocalizedTextWithFallback(newPriceInfo.name || {}, 'zh') : newPriceInfo.name].filter(Boolean).join(' - '),
         description: [typeof newPriceInfo.description === 'object' ? getLocalizedTextWithFallback(newPriceInfo.description || {}, 'zh') : newPriceInfo.description, description].filter(Boolean).join('\n'),
+        metadata,
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
