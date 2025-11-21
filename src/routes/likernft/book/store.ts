@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
 import {
-  validateStocks,
   formatPriceInfo,
   getNftBookInfo,
   listLatestNFTBookInfo,
@@ -10,17 +9,14 @@ import {
   updateNftBookInfo,
   validatePrice,
   validatePrices,
-  validateAutoDeliverNFTsTxHash,
   getLocalizedTextWithFallback,
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
   syncNFTBookInfoWithISCN,
 } from '../../../util/api/likernft/book';
-import { getISCNFromNFTClassId, getNFTClassDataById, getNFTISCNData } from '../../../util/cosmos/nft';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
   getNFTClassOwner as getEVMNFTClassOwner,
-  isEVMClassId,
   triggerNFTIndexerUpdate,
 } from '../../../util/evm/nft';
 import { ValidationError } from '../../../util/ValidationError';
@@ -219,7 +215,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const priceIndex = Number(priceIndexString);
     const {
       price: inputPrice,
-      autoDeliverNFTsTxHash,
       site,
     } = req.body;
     const price = validatePrice(inputPrice);
@@ -259,15 +254,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     };
     prices.push(newPrice);
 
-    let newNFTIds: string[] = [];
-    if (price.isAutoDeliver && price.stock > 0) {
-      newNFTIds = await validateAutoDeliverNFTsTxHash(
-        autoDeliverNFTsTxHash,
-        classId,
-        req.user.wallet,
-        price.stock,
-      );
-    }
     const enableCustomMessagePage = docEnableCustomMessagePage
       || enableSignatureImage
       || !!signedMessageText
@@ -275,7 +261,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     await updateNftBookInfo(
       classId,
       { prices, enableCustomMessagePage },
-      newNFTIds,
     );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -301,7 +286,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const { classId, priceIndex: priceIndexString } = req.params;
     const {
       price: inputPrice,
-      autoDeliverNFTsTxHash,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -326,23 +310,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     if (oldPriceInfo.isAutoDeliver && !price.isAutoDeliver) {
       throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_PRICE', 403);
-    }
-
-    let expectedNFTCount = 0;
-    if (price.isAutoDeliver) {
-      expectedNFTCount = oldPriceInfo.isAutoDeliver
-        ? price.stock - (oldPriceInfo.stock ?? 0)
-        : price.stock;
-    }
-
-    let newNFTIds: string[] = [];
-    if (expectedNFTCount > 0) {
-      newNFTIds = await validateAutoDeliverNFTsTxHash(
-        autoDeliverNFTsTxHash,
-        classId,
-        req.user.wallet,
-        expectedNFTCount,
-      );
     }
 
     const newPriceInfo = {
@@ -383,7 +350,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     await updateNftBookInfo(
       classId,
       { prices, enableCustomMessagePage },
-      newNFTIds,
     );
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -396,7 +362,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       isAutoDeliver: price.isAutoDeliver,
       stockChanged: price.stock !== oldPriceInfo.stock,
       priceChanged: price.priceInDecimal !== oldPriceInfo.priceInDecimal,
-      newNFTsAdded: newNFTIds.length,
     });
 
     res.sendStatus(200);
@@ -504,39 +469,17 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideAudio = false,
       enableCustomMessagePage = false,
       tableOfContents,
-      autoDeliverNFTsTxHash,
       site,
     } = req.body;
 
-    let metadata;
     let ownerWallet = '';
-    let iscnInfo: any = null;
 
-    if (isEVMClassId(classId)) {
-      const [classData, classOwner] = await Promise.all([
-        getEVMNFTClassDataById(classId),
-        getEVMNFTClassOwner(classId),
-      ]);
-      metadata = classData;
-      ownerWallet = classOwner;
-    } else {
-      const [info, classData] = await Promise.all([
-        getISCNFromNFTClassId(classId),
-        getNFTClassDataById(classId),
-      ]);
-      if (!info) throw new ValidationError('CLASS_ID_NOT_FOUND');
-      const { owner: iscnOwner, iscnIdPrefix } = info;
-      const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
-      const iscnContentMetadata = iscnData?.contentMetadata || {};
-      const image = classData?.data?.metadata?.image;
-      metadata = {
-        ...iscnContentMetadata,
-        image,
-        iscnIdPrefix,
-      };
-      ownerWallet = iscnOwner;
-      iscnInfo = info;
-    }
+    const [classData, classOwner] = await Promise.all([
+      getEVMNFTClassDataById(classId),
+      getEVMNFTClassOwner(classId),
+    ]);
+    const metadata = classData;
+    ownerWallet = classOwner;
 
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
@@ -546,21 +489,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       autoDeliverTotalStock,
       manualDeliverTotalStock,
     } = validatePrices(inputPrices);
-    if (autoDeliverTotalStock > 0) {
-      await validateAutoDeliverNFTsTxHash(
-        autoDeliverNFTsTxHash,
-        classId,
-        req.user.wallet,
-        autoDeliverTotalStock,
-      );
-    }
-    const { apiWalletOwnedNFTs } = await validateStocks(
-      classId,
-      req.user.wallet,
-      manualDeliverTotalStock,
-      autoDeliverTotalStock,
-    );
-    const apiWalletOwnedNFTIds = apiWalletOwnedNFTs.map((n) => n.id);
+
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     const {
       inLanguage,
@@ -601,7 +530,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
-    }, apiWalletOwnedNFTIds, site);
+    }, site);
 
     const className = metadata?.name || classId;
     await Promise.all([
@@ -619,7 +548,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         name: className,
         description: metadata?.description || '',
         iscnIdPrefix: metadata.iscnIdPrefix,
-        iscnObject: iscnInfo,
+        iscnObject: null,
         iscnContentMetadata: metadata,
         metadata,
         ownerWallet,
@@ -651,13 +580,11 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       manualDeliverTotalStock,
     });
 
-    if (isEVMClassId(classId)) {
-      try {
-        await triggerNFTIndexerUpdate();
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
-      }
+    try {
+      await triggerNFTIndexerUpdate();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
     }
 
     res.json({
