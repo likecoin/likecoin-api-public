@@ -13,6 +13,7 @@ import {
   LIKER_PLUS_MONTHLY_PRICE_ID,
   LIKER_PLUS_YEARLY_PRICE_ID,
   LIKER_PLUS_PRODUCT_ID,
+  LIKER_PLUS_TRIAL_CONVERSION_RATE,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -179,7 +180,8 @@ export async function processStripeSubscriptionInvoice(
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
-    const predictedLTV = isTrial ? 120 * 0.3 : 120;
+    const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.2;
+    const predictedLTV = isTrial ? 120 * trialConversionRate : 120;
     await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
