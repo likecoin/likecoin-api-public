@@ -2,8 +2,6 @@ import Arweave from 'arweave/node';
 import BigNumber from 'bignumber.js';
 import LRU from 'lru-cache';
 import { getEthereumBundlr, getMaticBundlr } from './signer';
-import { getMaticPriceInLIKE } from '../api/likernft/likePrice';
-import { LIKE_PRICE_MULTIPLIER } from '../../../config/config';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
@@ -75,32 +73,5 @@ export async function estimateARV2Price(
   return {
     MATIC: maticPriceConverted.multipliedBy(1 + margin).toFixed(),
     ETH: ethereumPriceConverted.multipliedBy(1 + margin).toFixed(),
-  };
-}
-
-async function getMATICPriceRatioBigNumber() {
-  try {
-    const priceRatio = await getMaticPriceInLIKE();
-    // At least 1 LIKE for 1 AR
-    const priceRatioBigNumber = BigNumber.max(priceRatio, 1);
-    return priceRatioBigNumber;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(JSON.stringify(err));
-    // TODO: make a less hardcoded fallback price
-    return new BigNumber(600);
-  }
-}
-
-export async function convertMATICPriceToLIKE(matic, {
-  decimal = 0,
-} = {}) {
-  const priceRatioBigNumber = await getMATICPriceRatioBigNumber();
-  const res = new BigNumber(matic)
-    .multipliedBy(priceRatioBigNumber)
-    .multipliedBy(LIKE_PRICE_MULTIPLIER || 1)
-    .toFixed(decimal, BigNumber.ROUND_UP);
-  return {
-    LIKE: res,
   };
 }
