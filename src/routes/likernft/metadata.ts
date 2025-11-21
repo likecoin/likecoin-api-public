@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
 } from '../../constant';
-import { likeNFTCollection, iscnInfoCollection } from '../../util/firebase';
+import { iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import {
@@ -13,9 +13,8 @@ import {
   DEFAULT_NFT_IMAGE_WIDTH,
   parseImageURLFromMetadata,
 } from '../../util/api/likernft/metadata';
-import { getNFTClassDataById, getNFTISCNData, getNFTOwner } from '../../util/cosmos/nft';
+import { getNFTClassDataById, getNFTISCNData } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
-import { LIKER_NFT_TARGET_ADDRESS } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
 import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
@@ -41,35 +40,6 @@ router.get(
         iscnRecordTimestamp: iscnData.recordTimestamp,
         ...metadata,
       }));
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.get(
-  '/metadata/owners',
-  fetchISCNPrefixAndClassId,
-  async (_, res, next) => {
-    try {
-      const { classId, iscnPrefixDocName } = res.locals;
-      const nftQuery = await likeNFTCollection.doc(iscnPrefixDocName)
-        .collection('class').doc(classId)
-        .collection('nft')
-        .where('ownerWallet', '!=', LIKER_NFT_TARGET_ADDRESS)
-        .get();
-      const nftIds = nftQuery.docs.map((n) => n.id);
-      const ownerMap = {
-        // don't include api holded wallet
-        // LIKER_NFT_TARGET_ADDRESS: apiOwnedNFTIds,
-      };
-      const owners = await Promise.all(nftIds.map((id) => getNFTOwner(classId, id)));
-      owners.forEach((owner, index) => {
-        ownerMap[owner] = ownerMap[owner] || [];
-        ownerMap[owner].push(nftIds[index]);
-      });
-      res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.json(ownerMap);
     } catch (err) {
       next(err);
     }

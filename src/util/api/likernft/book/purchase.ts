@@ -2,7 +2,6 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 
-import { formatMsgSend } from '@likecoin/iscn-js/dist/messages/likenft';
 import { getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
@@ -11,7 +10,6 @@ import {
   BOOK3_HOSTNAME,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
 } from '../../../../constant';
-import { handleNFTPurchaseTransaction } from '../purchase';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
   getBookUserInfoFromWallet,
@@ -23,7 +21,6 @@ import {
 import publisher from '../../../gcloudPub';
 import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
 import {
-  LIKER_NFT_TARGET_ADDRESS,
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
@@ -446,19 +443,8 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     email,
   };
   if (isAutoDeliver) {
-    let nftIds: string[];
-    if (isEVMClassId(classId)) {
-      // EVM NFT are mint on demand, we don't need to specify nftId
-      nftIds = Array(quantity).fill(0);
-    } else {
-      const nftRes = await t.get(bookRef
-        .collection('nft')
-        .where('isSold', '==', false)
-        .where('isProcessing', '==', false)
-        .limit(quantity));
-      if (nftRes.size !== quantity) throw new ValidationError('UNSOLD_NFT_BOOK_NOT_FOUND');
-      nftIds = nftRes.docs.map((d) => d.id);
-    }
+    // EVM NFT are mint on demand, we don't need to specify nftId
+    const nftIds = Array(quantity).fill(0);
     [paymentPayload.nftId] = nftIds;
     paymentPayload.nftIds = nftIds;
     paymentPayload.isAutoDeliver = true;
@@ -989,28 +975,22 @@ export async function claimNFTBook(
   if (isAutoDeliver) {
     const msgSendNftIds = nftIds || [nftId];
     try {
-      if (isEVMClassId(classId)) {
-        const [metadata, fromTokenId] = await Promise.all([
-          getNFTClassDataById(classId),
-          getClassCurrentTokenId(classId),
-        ]);
-        txHash = await mintNFT(
-          classId,
-          wallet,
-          {
-            image: metadata?.image as string | undefined,
-            external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
-            description: metadata?.description as string | undefined,
-            name: metadata?.name as string | undefined,
-            attributes: metadata?.attributes,
-          },
-          { count: msgSendNftIds.length, memo: autoMemo, fromTokenId },
-        );
-      } else {
-        const txMessages = msgSendNftIds
-          .map((id) => formatMsgSend(LIKER_NFT_TARGET_ADDRESS, wallet, classId, id));
-        txHash = await handleNFTPurchaseTransaction(txMessages, autoMemo);
-      }
+      const [metadata, fromTokenId] = await Promise.all([
+        getNFTClassDataById(classId),
+        getClassCurrentTokenId(classId),
+      ]);
+      txHash = await mintNFT(
+        classId,
+        wallet,
+        {
+          image: metadata?.image as string | undefined,
+          external_url: `https://${BOOK3_HOSTNAME}/store/${classId}`,
+          description: metadata?.description as string | undefined,
+          name: metadata?.name as string | undefined,
+          attributes: metadata?.attributes,
+        },
+        { count: msgSendNftIds.length, memo: autoMemo, fromTokenId },
+      );
     } catch (autoDeliverErr) {
       await docRef.update({
         isPendingClaim: true,

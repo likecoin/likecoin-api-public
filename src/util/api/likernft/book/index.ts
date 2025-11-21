@@ -1,18 +1,14 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { decodeTxRaw } from '@cosmjs/proto-signing';
-import { MsgSend } from 'cosmjs-types/cosmos/nft/v1beta1/tx';
 import type { Request } from 'express';
 import type { Query } from 'firebase-admin/firestore';
 import { ValidationError } from '../../../ValidationError';
 import {
-  db,
   FieldValue,
   Timestamp,
   likeNFTBookCollection,
 } from '../../../firebase';
-import { LIKER_NFT_TARGET_ADDRESS, LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
+import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import {
-  FIRESTORE_BATCH_SIZE,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   NFT_BOOK_TEXT_LOCALES,
@@ -25,14 +21,8 @@ import {
   triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
 import {
-  getISCNFromNFTClassId,
-  getNFTBalance,
   getNFTClassDataById as getLikeNFTClassDataById,
-  getNFTISCNData,
-  getNFTsByClassId,
 } from '../../../cosmos/nft';
-import { getClient } from '../../../cosmos/tx';
-import { sleep } from '../../../misc';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { getLikerLandNFTClassPageURL } from '../../../liker-land';
@@ -190,7 +180,6 @@ export async function createStripeProductFromNFTBookPrice(classId, priceIndex, {
 export async function newNftBookInfo(
   classId,
   data,
-  apiWalletOwnedNFTIds: string[] = [],
   site = undefined,
 ) {
   const doc = await likeNFTBookCollection.doc(classId).get();
@@ -278,34 +267,7 @@ export async function newNftBookInfo(
   if (enableSignatureImage !== undefined) payload.enableSignatureImage = enableSignatureImage;
   if (signedMessageText !== undefined) payload.signedMessageText = signedMessageText;
   if (tableOfContents) payload.tableOfContents = tableOfContents;
-  let batch = db.batch();
-  batch.create(likeNFTBookCollection.doc(classId), payload);
-  if (apiWalletOwnedNFTIds.length) {
-    for (let i = 0; i < apiWalletOwnedNFTIds.length; i += 1) {
-      if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
-        // eslint-disable-next-line no-await-in-loop
-        await batch.commit();
-        // TODO: remove this after solving API CPU hang error
-        await sleep(10);
-        batch = db.batch();
-      }
-      batch.set(
-        likeNFTBookCollection
-          .doc(classId)
-          .collection('nft')
-          .doc(apiWalletOwnedNFTIds[i]),
-        {
-          isSold: false,
-          isProcessing: false,
-          timestamp,
-        },
-        {
-          merge: true,
-        },
-      );
-    }
-  }
-  await batch.commit();
+  await likeNFTBookCollection.doc(classId).create(payload);
   return {
     isAutoApproved: isTrustedPublisher,
   };
@@ -318,21 +280,13 @@ export async function getNftBookInfo(classId: string) {
 }
 
 export async function syncNFTBookInfoWithISCN(classId) {
-  const [iscnInfo, classData, bookInfo] = await Promise.all([
-    isEVMClassId(classId) ? {} as any : getISCNFromNFTClassId(classId),
+  const [classData, bookInfo] = await Promise.all([
     getNFTClassDataById(classId),
     getNftBookInfo(classId),
   ]);
-  if (!iscnInfo) throw new ValidationError('ISCN_NOT_FOUND');
-  const { iscnIdPrefix } = iscnInfo;
-  let metadata = {
+  const metadata = {
     ...(typeof classData === 'object' && classData !== null ? classData : {}),
   };
-  if (iscnIdPrefix) {
-    const { data: iscnData } = await getNFTISCNData(iscnIdPrefix);
-    const iscnContentMetadata = iscnData?.contentMetadata || {};
-    metadata = { ...metadata, ...iscnContentMetadata };
-  }
   const {
     inLanguage,
     name,
@@ -354,7 +308,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
   const payload: any = {};
-  if (iscnIdPrefix) payload.iscnIdPrefix = iscnIdPrefix;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
@@ -379,13 +332,11 @@ export async function syncNFTBookInfoWithISCN(classId) {
     }
   }));
 
-  if (isEVMClassId(classId)) {
-    try {
-      await triggerNFTIndexerUpdate({ classId });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
-    }
+  try {
+    await triggerNFTIndexerUpdate({ classId });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
   }
 
   try {
@@ -396,7 +347,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       id: classId,
       name,
       description,
-      iscnIdPrefix,
+      iscnIdPrefix: '',
       ownerWallet,
       type: 'book',
       minPrice,
@@ -408,7 +359,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       keywords,
       usageInfo,
       isbn,
-      iscnObject: iscnInfo,
+      iscnObject: null,
       iscnContentMetadata: metadata,
       metadata: classData,
     });
@@ -440,7 +391,7 @@ export async function updateNftBookInfo(classId: string, {
   enableSignatureImage?: boolean;
   signedMessageText?: string;
   tableOfContents?: string;
-} = {}, newAPIWalletOwnedNFTIds: string[] = []) {
+} = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
     lastUpdateTimestamp: timestamp,
@@ -461,35 +412,7 @@ export async function updateNftBookInfo(classId: string, {
   if (enableSignatureImage !== undefined) { payload.enableSignatureImage = enableSignatureImage; }
   if (signedMessageText !== undefined) { payload.signedMessageText = signedMessageText; }
   if (tableOfContents !== undefined) { payload.tableOfContents = tableOfContents; }
-  const classIdRef = likeNFTBookCollection.doc(classId);
-  let batch = db.batch();
-  batch.update(classIdRef, payload);
-  if (newAPIWalletOwnedNFTIds?.length) {
-    for (let i = 0; i < newAPIWalletOwnedNFTIds.length; i += 1) {
-      if ((i + 1) % FIRESTORE_BATCH_SIZE === 0) {
-        // eslint-disable-next-line no-await-in-loop
-        await batch.commit();
-        // TODO: remove this after solving API CPU hang error
-        await sleep(10);
-        batch = db.batch();
-      }
-      batch.set(
-        likeNFTBookCollection
-          .doc(classId)
-          .collection('nft')
-          .doc(newAPIWalletOwnedNFTIds[i]),
-        {
-          isSold: false,
-          isProcessing: false,
-          timestamp,
-        },
-        {
-          merge: true,
-        },
-      );
-    }
-  }
-  await batch.commit();
+  await likeNFTBookCollection.doc(classId).update(payload);
   await syncNFTBookInfoWithISCN(classId);
 }
 
@@ -617,101 +540,6 @@ export function validatePrices(prices: NFTBookPrice[]) {
     autoDeliverTotalStock,
     manualDeliverTotalStock,
   };
-}
-
-export async function validateStocks(
-  classId: string,
-  wallet: string,
-  manualDeliverTotalStock: number,
-  autoDeliverTotalStock: number,
-) {
-  let apiWalletOwnedNFTs: any[] = [];
-  let apiWalletOwnedNFTCount = 0;
-  if (!isEVMClassId(classId)) {
-    apiWalletOwnedNFTCount = LIKER_NFT_TARGET_ADDRESS
-      ? await getNFTBalance(classId, LIKER_NFT_TARGET_ADDRESS)
-      : 0;
-    if (apiWalletOwnedNFTCount < autoDeliverTotalStock) {
-      throw new ValidationError(`NOT_ENOUGH_AUTO_DELIVER_NFT_COUNT: ${classId}, EXPECTED: ${autoDeliverTotalStock}, ACTUAL: ${apiWalletOwnedNFTCount}`, 403);
-    }
-    if (apiWalletOwnedNFTCount) {
-      ({ nfts: apiWalletOwnedNFTs } = await getNFTsByClassId(classId, LIKER_NFT_TARGET_ADDRESS));
-    }
-  }
-
-  return {
-    apiWalletOwnedNFTs,
-  };
-}
-
-async function parseNFTIdsMapFromTxHash(txHash: string, sender: string) {
-  if (!txHash) throw new ValidationError('TX_HASH_IS_EMPTY');
-  const client = await getClient();
-  let tx;
-  for (let tryCount = 0; tryCount < 4; tryCount += 1) {
-    tx = await client.getTx(txHash);
-    if (tx) break;
-    await sleep(3000);
-  }
-  if (!tx) throw new ValidationError('TX_NOT_FOUND');
-  const { code, tx: rawTx } = tx;
-  if (code) throw new ValidationError('TX_FAILED');
-  const { body } = decodeTxRaw(rawTx);
-  const sendMessages = body.messages
-    .filter((m) => m.typeUrl === '/cosmos.nft.v1beta1.MsgSend')
-    .map(((m) => MsgSend.decode(m.value)))
-    .filter((m) => m.sender === sender
-      && m.receiver === LIKER_NFT_TARGET_ADDRESS);
-  const nftIdsMap = {};
-  sendMessages.forEach((m) => {
-    nftIdsMap[m.classId] ??= [];
-    nftIdsMap[m.classId].push(m.id);
-  });
-  return nftIdsMap;
-}
-
-export async function validateAutoDeliverNFTsTxHash(
-  txHash: string,
-  classId: string,
-  sender: string,
-  expectedNFTCount: number,
-) {
-  if (isEVMClassId(classId)) {
-    // evm auto deliver nfts are minted on demand
-    return [];
-  }
-  const nftIdsMap = await parseNFTIdsMapFromTxHash(txHash, sender);
-  const nftIds = nftIdsMap[classId];
-  if (!nftIds) {
-    throw new ValidationError(`TX_SEND_NFT_CLASS_ID_NOT_FOUND: ${classId}`);
-  }
-  if (nftIds.length < expectedNFTCount) {
-    throw new ValidationError(`TX_SEND_NFT_COUNT_NOT_ENOUGH: EXPECTED: ${expectedNFTCount}, ACTUAL: ${nftIds.length}`);
-  }
-  return nftIds;
-}
-
-// TODO: replace validateAutoDeliverNFTsTxHash with this
-export async function validateAutoDeliverNFTsTxHashV2({
-  txHash,
-  sender,
-  expectedNFTCountMap,
-}: {
-  txHash: string;
-  sender: string;
-  expectedNFTCountMap: Record<string, number>;
-}) {
-  const nftIdsMap = await parseNFTIdsMapFromTxHash(txHash, sender);
-  Object.entries(expectedNFTCountMap).forEach(([classId, expectedNFTCount]) => {
-    const nftIds = nftIdsMap[classId];
-    if (!nftIds) {
-      throw new ValidationError(`TX_SEND_NFT_CLASS_ID_NOT_FOUND: ${classId}`);
-    }
-    if (nftIds.length < expectedNFTCount) {
-      throw new ValidationError(`TX_SEND_NFT_COUNT_NOT_ENOUGH: EXPECTED: ${expectedNFTCount}, ACTUAL: ${nftIds.length}`);
-    }
-  });
-  return nftIdsMap;
 }
 
 export function getNFTBookStoreClassPageURL(classId: string) {
