@@ -41,9 +41,4 @@ export async function getLIKEPrice({ raw = false } = {}) {
   return raw ? price : Math.max(price || LIKER_NFT_FIAT_MIN_RATIO);
 }
 
-export async function getMaticPriceInLIKE() {
-  const price = await getTokenPrice('polygon-ecosystem-token', 'likecoin-2', 600);
-  return price;
-}
-
 export default getLIKEPrice();

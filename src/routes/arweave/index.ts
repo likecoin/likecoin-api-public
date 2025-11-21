@@ -7,7 +7,6 @@ import {
 import publisher from '../../util/gcloudPub';
 import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
 import {
-  ARWEAVE_LIKE_TARGET_ADDRESS,
   ARWEAVE_EVM_TARGET_ADDRESS,
   ARWEAVE_LINK_INTERNAL_TOKEN,
 } from '../../../config/config';
@@ -37,7 +36,6 @@ router.post(
       const { fileSize, ipfsHash } = req.body;
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       const {
-        LIKE,
         arweaveId,
         MATIC,
         ETH,
@@ -49,15 +47,12 @@ router.post(
         arweaveId,
         MATIC,
         ETH,
-        LIKE: Number(LIKE),
       });
       res.json({
-        LIKE,
         arweaveId,
         MATIC,
         ETH,
         memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
-        address: ARWEAVE_LIKE_TARGET_ADDRESS,
         evmAddress: ARWEAVE_EVM_TARGET_ADDRESS,
       });
     } catch (error) {
@@ -72,18 +67,17 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        fileSize, ipfsHash, txHash, signatureData, txToken = 'LIKE',
+        fileSize, ipfsHash, txHash, signatureData, txToken = 'BASEETH',
       } = req.body;
       if (!txHash) throw new Error('MISSING_TX_HASH');
       if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
-      if (!['LIKE', 'OPETH', 'BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
+      if (!['BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
       const {
         arweaveId,
         MATIC,
         ETH,
-        LIKE,
         signature,
       } = await processTxUploadToArweaveV2({
         fileSize, ipfsHash, txHash, signatureData, txToken,
@@ -117,7 +111,6 @@ router.post(
         arweaveId,
         MATIC,
         ETH,
-        LIKE: Number(LIKE),
         txHash,
       });
     } catch (error) {

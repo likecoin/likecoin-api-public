@@ -3,17 +3,12 @@ import BigNumber from 'bignumber.js';
 import { formatEther } from 'viem';
 import {
   estimateARV2Price,
-  convertMATICPriceToLIKE,
 } from '../../arweave';
 import { signData } from '../../arweave/signer';
 import { ValidationError } from '../../ValidationError';
-import {
-  queryLIKETransactionInfo,
-} from '../../cosmos/tx';
 import { uploadFileToIPFS } from '../../ipfs';
 
 import {
-  ARWEAVE_LIKE_TARGET_ADDRESS,
   ARWEAVE_EVM_TARGET_ADDRESS,
 } from '../../../../config/config';
 import { ARWEAVE_GATEWAY } from '../../../constant';
@@ -32,46 +27,15 @@ export async function estimateUploadToArweaveV2(
   const {
     MATIC, ETH, arweaveId,
   } = await estimateARV2Price(fileSize, ipfsHash, { checkDuplicate, margin });
-  const { LIKE } = await convertMATICPriceToLIKE(MATIC);
-  if (!LIKE) throw new ValidationError('CANNOT_FETCH_ARWEAVE_ID_NOR_PRICE', 500);
   return {
-    LIKE, MATIC, ETH, arweaveId, isExists: !!arweaveId,
+    MATIC, ETH, arweaveId, isExists: !!arweaveId,
   };
 }
 
 async function checkTxV2({
-  fileSize, ipfsHash, txHash, LIKE, ETH, txToken,
+  fileSize, ipfsHash, txHash, ETH, txToken,
 }) {
   switch (txToken) {
-    case 'LIKE': {
-      const tx = await queryLIKETransactionInfo(txHash, ARWEAVE_LIKE_TARGET_ADDRESS);
-      if (!tx || !tx.amount) {
-        throw new ValidationError('TX_NOT_FOUND');
-      }
-      const { memo, amount } = tx;
-      let memoIPFS = '';
-      let memoFileSize = 0;
-      try {
-        ({ ipfs: memoIPFS, fileSize: memoFileSize } = JSON.parse(memo));
-      } catch (err) {
-        // ignore non-JSON memo
-      }
-      if (!memoIPFS || memoIPFS !== ipfsHash) {
-        throw new ValidationError('TX_MEMO_NOT_MATCH');
-      }
-      const txAmount = new BigNumber(amount.amount).shiftedBy(-9);
-      if (txAmount.lt(LIKE)) {
-        throw new ValidationError('TX_AMOUNT_NOT_ENOUGH');
-      }
-      if (memoFileSize < fileSize) {
-        throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
-      }
-      if (fileSize > ARWEAVE_MAX_SIZE_V2) {
-        throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
-      }
-      break;
-    }
-    case 'OPETH':
     case 'BASEETH': {
       const client = getEVMClient();
       const tx = await client.getTransaction({ hash: txHash });
@@ -127,7 +91,6 @@ export async function processTxUploadToArweaveV2({
     { margin, checkDuplicate: false },
   );
   const {
-    LIKE,
     ETH,
     MATIC,
     arweaveId,
@@ -135,7 +98,7 @@ export async function processTxUploadToArweaveV2({
   } = estimate;
 
   await checkTxV2({
-    fileSize, ipfsHash, txHash, LIKE, ETH, txToken,
+    fileSize, ipfsHash, txHash, ETH, txToken,
   });
 
   // TODO: verify signatureData match filesize if possible
@@ -146,7 +109,6 @@ export async function processTxUploadToArweaveV2({
     arweaveId,
     MATIC,
     ETH,
-    LIKE,
     signature,
   };
 }
