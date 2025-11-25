@@ -51,6 +51,22 @@ export function getAuthorNameFromMetadata(author: unknown): string {
   return '';
 }
 
+export function getStripeProductMetadata(
+  classId: string,
+  priceIndex: number,
+  bookInfo: NFTBookListingInfo,
+): Record<string, string> {
+  return {
+    classId,
+    priceIndex: priceIndex.toString(),
+    author: getAuthorNameFromMetadata(bookInfo.author),
+    publisher: bookInfo.publisher || '',
+    inLanguage: bookInfo.inLanguage || '',
+    keywords: bookInfo.keywords ? bookInfo.keywords.join(', ') : '',
+    usageInfo: bookInfo.usageInfo || '',
+  };
+}
+
 export interface NFTClassData {
   name?: string;
   description?: string;
@@ -170,15 +186,7 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
   const images: string[] = [];
   if (image) images.push(parseImageURLFromMetadata(image));
   // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
-  const metadata: Record<string, string> = {
-    classId,
-    priceIndex: priceIndex.toString(),
-    author: getAuthorNameFromMetadata(bookInfo.author),
-    publisher: bookInfo.publisher || '',
-    inLanguage: bookInfo.inLanguage || '',
-    keywords: bookInfo.keywords ? bookInfo.keywords.join(', ') : '',
-    usageInfo: bookInfo.usageInfo || '',
-  };
+  const metadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
   const stripeProduct = await stripe.products.create({
     name: [name, getLocalizedTextWithFallback(price.name || '', 'zh')].filter(Boolean).join(' - '),
     description: [getLocalizedTextWithFallback(price.description || '', 'zh'), description].filter(Boolean).join('\n') || undefined,
@@ -376,15 +384,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   await likeNFTBookCollection.doc(classId).update(payload);
   await Promise.all(prices.map(async (p, priceIndex) => {
     if (p.stripeProductId) {
-      const stripeMetadata: Record<string, string> = {
-        classId,
-        priceIndex: priceIndex.toString(),
-        author: getAuthorNameFromMetadata(bookInfo.author),
-        publisher: bookInfo.publisher || '',
-        inLanguage: bookInfo.inLanguage || '',
-        keywords: bookInfo.keywords ? bookInfo.keywords.join(', ') : '',
-        usageInfo: bookInfo.usageInfo || '',
-      };
+      const stripeMetadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
       const images: string[] = [];
       if (image) images.push(parseImageURLFromMetadata(image));
       if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
