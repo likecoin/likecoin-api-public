@@ -13,6 +13,7 @@ import {
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
   syncNFTBookInfoWithISCN,
+  getStripeProductMetadata,
 } from '../../../util/api/likernft/book';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
@@ -318,9 +319,11 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     };
 
     if (oldPriceInfo.stripeProductId) {
+      const metadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
       await stripe.products.update(oldPriceInfo.stripeProductId, {
         name: [name, typeof newPriceInfo.name === 'object' ? getLocalizedTextWithFallback(newPriceInfo.name || {}, 'zh') : newPriceInfo.name].filter(Boolean).join(' - '),
         description: [typeof newPriceInfo.description === 'object' ? getLocalizedTextWithFallback(newPriceInfo.description || {}, 'zh') : newPriceInfo.description, description].filter(Boolean).join('\n'),
+        metadata,
       });
       if (oldPriceInfo.stripePriceId) {
         if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
