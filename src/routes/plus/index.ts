@@ -45,7 +45,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (period === 'yearly' && trialPeriodDays > 0 && giftClassId) {
       throw new ValidationError('Gift subscriptions cannot have a trial period.', 400);
     }
-    if (![0, 1, 3, 5, 7].includes(trialPeriodDays)) {
+    if (![0, 1, 3, 5, 7, 30].includes(trialPeriodDays)) {
       throw new ValidationError('Invalid trial period days.', 400);
     }
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
