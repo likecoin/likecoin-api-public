@@ -83,7 +83,7 @@ export async function processStripeSubscriptionInvoice(
 
   const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
   const amountPaid = invoice.amount_paid / 100;
-  const isTrial = amountPaid === 0 && status === 'trialing';
+  const isTrial = status === 'trialing';
   const price = amountPaid;
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
@@ -354,6 +354,7 @@ export async function createNewPlusCheckoutSession(
     metadata: subscriptionMetadata,
   };
   const hasFreeTrial = trialPeriodDays > 0;
+  const isTrialMonth = trialPeriodDays === 30;
   if (hasFreeTrial) {
     subscriptionData.trial_period_days = trialPeriodDays;
     if (!mustCollectPaymentMethod) {
@@ -377,14 +378,30 @@ export async function createNewPlusCheckoutSession(
     }
   }
 
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    {
+      price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+      quantity: 1,
+    },
+  ];
+
+  // Add $1 one-time charge if isTrialMonth
+  if (isTrialMonth) {
+    lineItems.push({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: '3ook.com Plus (1-Month Trial)',
+        },
+        unit_amount: 100, // $1 in cents
+      },
+      quantity: 1,
+    } as Stripe.Checkout.SessionCreateParams.LineItem);
+  }
+
   const payload: Stripe.Checkout.SessionCreateParams = {
     billing_address_collection: 'auto',
-    line_items: [
-      {
-        price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
-        quantity: 1,
-      },
-    ],
+    line_items: lineItems,
     metadata,
     mode: 'subscription',
     subscription_data: subscriptionData,
