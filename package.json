@@ -40,7 +40,7 @@
     "@google-cloud/pubsub": "^5.2.0",
     "@google-cloud/storage": "^7.16.0",
     "@irys/sdk": "^0.2.11",
-    "@likecoin/edm": "^10.0.0",
+    "@likecoin/edm": "^10.1.0",
     "@likecoin/iscn-js": "^0.6.9",
     "@likecoin/secretd-js": "^0.4.4",
     "@magic-sdk/admin": "^2.4.1",
