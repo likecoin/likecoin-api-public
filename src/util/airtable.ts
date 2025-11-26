@@ -271,8 +271,8 @@ export async function updateAirtablePublicationRecord({
   iscnObject,
   iscnContentMetadata,
   metadata,
-  isDRMFree = false,
-  isHidden = false,
+  isDRMFree,
+  isHidden,
 }: UpdateAirtablePublicationRecordParams): Promise<void> {
   if (!base) return;
 
