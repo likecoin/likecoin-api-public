@@ -18,20 +18,11 @@ export const getBook3URL = (path = '', { language = 'zh' }: { language?: string 
 interface GetLikerLandNFTPageURLParams {
   type?: 'nft_book' | 'writing_nft',
   language?: string,
-  site?: string,
 }
 export const getLikerLandPortfolioPageURL = ({
-  type = 'nft_book',
   language = '',
-  site,
 }: GetLikerLandNFTPageURLParams = {}): string => {
-  switch (site) {
-    case 'liker.land':
-      return getLikerLandURL(`/feed?view=collectibles&tab=collected&type=${type}`, { language });
-    case '3ook.com':
-    default:
-      return getBook3URL('/shelf', { language });
-  }
+  return getBook3URL('/shelf', { language });
 };
 
 export const getLikerLandCartURL = ({
@@ -44,7 +35,6 @@ export const getLikerLandCartURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  site,
   page = 'list',
 }: {
   language?: string,
@@ -56,7 +46,6 @@ export const getLikerLandCartURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  site?: string,
   page?: 'list' | 'checkout';
 }): string => {
   const qsPayload: any = {};
@@ -82,22 +71,16 @@ export const getLikerLandCartURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = new URLSearchParams(qsPayload).toString();
-  switch (site) {
-    case 'liker.land':
-      return getLikerLandURL(`/shopping-cart/${type}?${qs}`, { language });
-    case '3ook.com':
-    default: {
-      if (type !== 'book') {
-        // eslint-disable-next-line no-console
-        console.warn(`Unsupported type "${type}" for 3ook.com site`);
-      }
-      let path = '';
-      if (BOOK3_CART_PAGES.includes(page)) {
-        path += `/${page}`;
-      }
-      return getBook3URL(`${path}?${qs}`, { language });
-    }
+
+  if (type !== 'book') {
+    // eslint-disable-next-line no-console
+    console.warn(`Unsupported type "${type}" for 3ook.com site`);
   }
+  let path = '';
+  if (BOOK3_CART_PAGES.includes(page)) {
+    path += `/${page}`;
+  }
+  return getBook3URL(`${path}?${qs}`, { language });
 };
 
 export const getLikerLandNFTClassPageURL = ({
@@ -111,7 +94,6 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  site,
 }: {
   classId: string,
   priceIndex?: number;
@@ -123,7 +105,6 @@ export const getLikerLandNFTClassPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  site?: string;
 }): string => {
   const qsPayload: Record<string, string> = {};
   if (priceIndex) {
@@ -151,13 +132,7 @@ export const getLikerLandNFTClassPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = new URLSearchParams(qsPayload).toString();
-  switch (site) {
-    case 'liker.land':
-      return getLikerLandURL(`/nft/class/${classId}?${qs}`, { language });
-    case '3ook.com':
-    default:
-      return getBook3URL(`/store/${classId}?${qs}`, { language });
-  }
+  return getBook3URL(`/store/${classId}?${qs}`, { language });
 };
 
 export const getLikerLandNFTClaimPageURL = ({
@@ -178,7 +153,6 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
-  site,
 }: {
   classId?: string;
   cartId?: string;
@@ -197,7 +171,6 @@ export const getLikerLandNFTClaimPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
-  site?: string;
 }): string => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -249,13 +222,7 @@ export const getLikerLandNFTClaimPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = new URLSearchParams(qsPayload).toString();
-  switch (site) {
-    case 'liker.land':
-      return getLikerLandURL(`/nft/claim?${qs}`, { language });
-    case '3ook.com':
-    default:
-      return getBook3URL(`/store/claim?${qs}`, { language });
-  }
+  return getBook3URL(`/store/claim?${qs}`, { language });
 };
 
 export const getLikerLandNFTGiftPageURL = ({

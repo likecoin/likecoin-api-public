@@ -274,7 +274,6 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         .map((p, index) => createStripeProductFromNFTBookPrice(evmClassId, index, {
           bookInfo: classData,
           price: p,
-          site: '3ook.com',
         })));
       await likeNFTBookCollection.doc(evmClassId).update({
         prices: prices.map((p, index) => ({

@@ -11,7 +11,7 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
-import { getLikerLandCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
+import { get3ookCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
   formatStripeCheckoutSession,
@@ -331,7 +331,6 @@ type ProcessNFTBookCartMeta = {
   giftToName?: string;
   giftMessage?: string;
   giftFromName?: string;
-  site: string;
   evmWallet?: string;
 };
 
@@ -370,7 +369,6 @@ export async function processNFTBookCart(
     giftToName,
     giftMessage,
     giftFromName,
-    site,
     evmWallet,
   }: ProcessNFTBookCartMeta,
   {
@@ -470,7 +468,6 @@ export async function processNFTBookCart(
           bookName,
           buyerEmail: email,
           paymentIntentId: paymentIntent as string,
-          site,
         },
         {
           amountTotal: priceInDecimal,
@@ -645,7 +642,6 @@ export async function processNFTBookCart(
         bookNames,
         paymentId,
         claimToken,
-        site,
       });
     } else {
       await sendNFTBookCartPendingClaimEmail({
@@ -654,7 +650,6 @@ export async function processNFTBookCart(
         bookNames,
         paymentId,
         claimToken,
-        site,
       });
     }
     await logPixelEvents('Purchase', {
@@ -885,7 +880,6 @@ export async function createFreeBookCartFromSubscription({
     utmCampaign,
     utmSource,
     utmMedium,
-    site: '3ook.com',
   }, {
     amountTotal: 0,
     email,
@@ -966,7 +960,6 @@ export async function createFreeBookCartForFreeIds({
       utmCampaign: 'free-books',
       utmSource: 'free-books',
       utmMedium: 'free-books',
-      site: '3ook.com',
     }, {
       amountTotal: 0,
       email,
@@ -1261,7 +1254,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   paymentMethods,
   httpMethod = 'POST',
   cancelUrl,
-  site,
   language,
 }: {
   gaClientId?: string,
@@ -1293,7 +1285,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   paymentMethods?: string[],
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
-  site?: string,
   language?: string,
 } = {}) {
   let items: CartItem[] = inputItems.map((item) => ({
@@ -1371,7 +1362,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gaSessionId,
     gadClickId,
     gadSource,
-    site,
     language,
   });
   let from: string = inputFrom as string || '';
@@ -1404,11 +1394,10 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     userAgent,
     clientIp,
     httpMethod,
-    site,
     language,
   }, itemInfos, {
     successUrl,
-    cancelUrl: cancelUrl || getLikerLandCartURL({
+    cancelUrl: cancelUrl || get3ookCartURL({
       type: 'book',
       utmCampaign: utm?.campaign,
       utmSource: utm?.source,

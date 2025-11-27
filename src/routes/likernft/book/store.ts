@@ -216,7 +216,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const priceIndex = Number(priceIndexString);
     const {
       price: inputPrice,
-      site,
     } = req.body;
     const price = validatePrice(inputPrice);
 
@@ -243,7 +242,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     } = await createStripeProductFromNFTBookPrice(classId, priceIndex, {
       bookInfo,
       price,
-      site,
     });
 
     const newPrice: NFTBookPrice = {
@@ -472,7 +470,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideAudio = false,
       enableCustomMessagePage = false,
       tableOfContents,
-      site,
     } = req.body;
 
     let ownerWallet = '';
@@ -533,11 +530,11 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
-    }, site);
+    });
 
     const className = metadata?.name || classId;
     await Promise.all([
-      sendNFTBookListingEmail({ classId, bookName: className, site }),
+      sendNFTBookListingEmail({ classId, bookName: className }),
       sendNFTBookNewListingSlackNotification({
         wallet: ownerWallet,
         classId,
