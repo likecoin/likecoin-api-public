@@ -5,7 +5,6 @@ import { IS_TESTNET } from '../../constant';
 
 /* eslint-disable no-underscore-dangle */
 let _irysLib;
-let _maticIrys;
 let _ethereumIrys;
 /* eslint-enable no-underscore-dangle */
 
@@ -16,30 +15,15 @@ export async function getIrysLib() {
   return _irysLib;
 }
 
-export async function getMaticBundlr() {
-  if (!_maticIrys) {
-    const { NodeIrys } = await getIrysLib();
-    _maticIrys = new NodeIrys({
-      network: IS_TESTNET ? 'devnet' : 'mainnet',
-      token: 'matic',
-      key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
-      config: {
-        providerUrl: IS_TESTNET ? 'https://rpc-amoy.polygon.technology' : 'https://polygon-rpc.com/',
-      },
-    });
-  }
-  return _maticIrys;
-}
-
 export async function getEthereumBundlr() {
   if (!_ethereumIrys) {
     const { NodeIrys } = await getIrysLib();
     _ethereumIrys = new NodeIrys({
       network: IS_TESTNET ? 'devnet' : 'mainnet',
-      token: 'ethereum',
+      token: 'base-eth',
       key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
       config: {
-        providerUrl: IS_TESTNET ? 'https://ethereum-sepolia-rpc.publicnode.com' : 'https://ethereum-rpc.publicnode.com',
+        providerUrl: IS_TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org',
       },
     });
   }

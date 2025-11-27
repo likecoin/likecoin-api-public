@@ -25,10 +25,10 @@ export async function estimateUploadToArweaveV2(
     throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
   }
   const {
-    MATIC, ETH, arweaveId,
+    ETH, arweaveId,
   } = await estimateARV2Price(fileSize, ipfsHash, { checkDuplicate, margin });
   return {
-    MATIC, ETH, arweaveId, isExists: !!arweaveId,
+    ETH, arweaveId, isExists: !!arweaveId,
   };
 }
 
@@ -92,7 +92,6 @@ export async function processTxUploadToArweaveV2({
   );
   const {
     ETH,
-    MATIC,
     arweaveId,
     isExists,
   } = estimate;
@@ -107,7 +106,6 @@ export async function processTxUploadToArweaveV2({
     isExists,
     ipfsHash,
     arweaveId,
-    MATIC,
     ETH,
     signature,
   };

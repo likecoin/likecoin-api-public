@@ -37,7 +37,6 @@ router.post(
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       const {
         arweaveId,
-        MATIC,
         ETH,
       } = await estimateUploadToArweaveV2(fileSize, ipfsHash);
 
@@ -45,12 +44,10 @@ router.post(
         logType: 'arweaveEstimateV2',
         ipfsHash,
         arweaveId,
-        MATIC,
         ETH,
       });
       res.json({
         arweaveId,
-        MATIC,
         ETH,
         memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
         evmAddress: ARWEAVE_EVM_TARGET_ADDRESS,
@@ -76,7 +73,6 @@ router.post(
       if (!['BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
       const {
         arweaveId,
-        MATIC,
         ETH,
         signature,
       } = await processTxUploadToArweaveV2({
@@ -109,7 +105,6 @@ router.post(
         logType: 'arweaveSigningV2',
         ipfsHash,
         arweaveId,
-        MATIC,
         ETH,
         txHash,
       });
