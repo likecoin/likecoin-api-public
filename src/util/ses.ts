@@ -9,10 +9,10 @@ import {
   SYSTEM_EMAIL,
 } from '../constant';
 import {
-  getLikerLandNFTClaimPageURL,
-  getLikerLandNFTClassPageURL,
-  getLikerLandPortfolioPageURL,
   getPlusGiftPageClaimURL,
+  getBook3NFTClaimPageURL,
+  getBook3NFTClassPageURL,
+  getBook3PortfolioPageURL,
 } from './liker-land';
 import {
   getNFTBookStoreClassPageURL,
@@ -72,7 +72,7 @@ export function sendNFTBookListingEmail({
 }) {
   if (TEST_MODE) return Promise.resolve();
   const title = `New NFT Book listing: ${bookName}`;
-  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId });
+  const nftPageURLEn = getBook3NFTClassPageURL({ classId });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -124,24 +124,24 @@ export async function sendNFTBookPendingClaimEmail({
   }
   const titleEn = `${isResend ? '(Reminder) ' : ''}Read your ebook`;
   const titleZh = `${isResend ? '（提示）' : ''}閱讀你的電子書`;
-  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
-  const nftPageURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
-  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+  const nftPageURLEn = getBook3NFTClassPageURL({ classId, language: 'en' });
+  const nftPageURLZh = getBook3NFTClassPageURL({ classId, language: 'zh-Hant' });
+  const claimPageURLEn = getBook3NFTClaimPageURL({
     classId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'en',
   });
-  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+  const claimPageURLZh = getBook3NFTClaimPageURL({
     classId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'zh-Hant',
   });
-  const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
-  const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
+  const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -221,22 +221,22 @@ export async function sendNFTBookCartPendingClaimEmail({
   }
   const titleEn = `${isResend ? '(Reminder) ' : ''}Read your ebook`;
   const titleZh = `${isResend ? '（提示）' : ''}閱讀你的電子書`;
-  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+  const claimPageURLEn = getBook3NFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'en',
   });
-  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+  const claimPageURLZh = getBook3NFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'zh-Hant',
   });
-  const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
-  const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
+  const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -313,24 +313,24 @@ export function sendNFTBookGiftPendingClaimEmail({
   if (TEST_MODE) return Promise.resolve();
   const titleEn = `${isResend ? '(Reminder) ' : ''} ${fromName} has sent you an ebook gift from 3ook.com`;
   const titleZh = `${isResend ? '（提示）' : ''} ${fromName} 送了一本電子書禮物給你`;
-  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId, language: 'en' });
-  const nftPageURLZh = getLikerLandNFTClassPageURL({ classId, language: 'zh-Hant' });
-  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+  const nftPageURLEn = getBook3NFTClassPageURL({ classId, language: 'en' });
+  const nftPageURLZh = getBook3NFTClassPageURL({ classId, language: 'zh-Hant' });
+  const claimPageURLEn = getBook3NFTClaimPageURL({
     classId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'en',
   });
-  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+  const claimPageURLZh = getBook3NFTClaimPageURL({
     classId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'zh-Hant',
   });
-  const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
-  const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
+  const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -408,22 +408,22 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   if (TEST_MODE) return Promise.resolve();
   const titleEn = `${isResend ? '(Reminder) ' : ''}${fromName} has sent you an ebook gift from 3ook.com`;
   const titleZh = `${isResend ? '（提示）' : ''}${fromName} 送了電子書禮物給你`;
-  const claimPageURLEn = getLikerLandNFTClaimPageURL({
+  const claimPageURLEn = getBook3NFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'en',
   });
-  const claimPageURLZh = getLikerLandNFTClaimPageURL({
+  const claimPageURLZh = getBook3NFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
     type: 'nft_book',
     language: 'zh-Hant',
   });
-  const portfolioURLEn = getLikerLandPortfolioPageURL({ language: 'en' });
-  const portfolioURLZh = getLikerLandPortfolioPageURL({ language: 'zh-Hant' });
+  const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -707,7 +707,7 @@ export function sendNFTBookSalePaymentsEmail({
         return `Unknown: ${roundedCurrency}`;
     }
   });
-  const nftPageURLEn = getLikerLandNFTClassPageURL({ classId });
+  const nftPageURLEn = getBook3NFTClassPageURL({ classId });
   const title = `You received US$${totalAmount.toFixed(2)} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
   const params = {
     Source: SYSTEM_EMAIL,

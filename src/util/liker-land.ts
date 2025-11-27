@@ -15,17 +15,15 @@ export const getBook3URL = (path = '', { language = 'zh' }: { language?: string 
   return `https://${BOOK3_HOSTNAME}${locale ? `/${locale}` : ''}${path}`;
 };
 
-interface GetLikerLandNFTPageURLParams {
+interface GetBook3NFTPageURLParams {
   type?: 'nft_book' | 'writing_nft',
   language?: string,
 }
-export const getLikerLandPortfolioPageURL = ({
+export const getBook3PortfolioPageURL = ({
   language = '',
-}: GetLikerLandNFTPageURLParams = {}): string => {
-  return getBook3URL('/shelf', { language });
-};
+}: GetBook3NFTPageURLParams = {}): string => getBook3URL('/shelf', { language });
 
-export const getLikerLandCartURL = ({
+export const getBook3CartURL = ({
   language,
   type = 'book',
   utmCampaign,
@@ -83,7 +81,7 @@ export const getLikerLandCartURL = ({
   return getBook3URL(`${path}?${qs}`, { language });
 };
 
-export const getLikerLandNFTClassPageURL = ({
+export const getBook3NFTClassPageURL = ({
   classId,
   priceIndex,
   language,
@@ -135,7 +133,7 @@ export const getLikerLandNFTClassPageURL = ({
   return getBook3URL(`/store/${classId}?${qs}`, { language });
 };
 
-export const getLikerLandNFTClaimPageURL = ({
+export const getBook3NFTClaimPageURL = ({
   classId,
   cartId,
   paymentId,

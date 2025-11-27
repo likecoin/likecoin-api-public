@@ -32,7 +32,7 @@ import {
 } from '../../../util/api/likernft/book/purchase';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import logPixelEvents from '../../../util/fbq';
-import { get3ookCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
+import { getBook3CartURL, getBook3NFTClassPageURL } from '../../../util/liker-land';
 import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
@@ -179,7 +179,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       referrer,
       userAgent,
       clientIp,
-      cancelUrl: get3ookCartURL({
+      cancelUrl: getBook3CartURL({
         type: 'book',
         utmCampaign,
         utmSource,
@@ -312,7 +312,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       },
       httpMethod,
       paymentMethods,
-      cancelUrl: getLikerLandNFTClassPageURL({
+      cancelUrl: getBook3NFTClassPageURL({
         classId,
         utmCampaign: utmCampaign as string,
         utmSource: utmSource as string,
@@ -447,7 +447,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       httpMethod,
       userAgent,
       clientIp,
-      cancelUrl: getLikerLandNFTClassPageURL({
+      cancelUrl: getBook3NFTClassPageURL({
         classId,
         utmCampaign,
         utmSource,

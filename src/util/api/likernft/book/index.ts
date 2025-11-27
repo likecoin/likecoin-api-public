@@ -25,7 +25,7 @@ import {
 } from '../../../cosmos/nft';
 import stripe from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
-import { getLikerLandNFTClassPageURL } from '../../../liker-land';
+import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
@@ -184,7 +184,7 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
       currency: 'usd',
       unit_amount: price.priceInDecimal,
     },
-    url: getLikerLandNFTClassPageURL({ classId, priceIndex }),
+    url: getBook3NFTClassPageURL({ classId, priceIndex }),
     metadata,
   });
   return {

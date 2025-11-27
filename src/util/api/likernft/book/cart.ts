@@ -11,7 +11,7 @@ import {
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
-import { get3ookCartURL, getLikerLandNFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
+import { getBook3CartURL, getBook3NFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
   formatStripeCheckoutSession,
@@ -1349,7 +1349,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gaSessionId,
     gadClickId,
     gadSource,
-  }) : getLikerLandNFTClaimPageURL({
+  }) : getBook3NFTClaimPageURL({
     cartId,
     paymentId,
     token: claimToken,
@@ -1397,7 +1397,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     language,
   }, itemInfos, {
     successUrl,
-    cancelUrl: cancelUrl || get3ookCartURL({
+    cancelUrl: cancelUrl || getBook3CartURL({
       type: 'book',
       utmCampaign: utm?.campaign,
       utmSource: utm?.source,
