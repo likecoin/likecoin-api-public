@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import {
+  checkArweaveTxV2,
   estimateUploadToArweaveV2,
   pushArweaveSingleFileToIPFS,
-  processTxUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
 import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
@@ -10,7 +10,7 @@ import {
   ARWEAVE_EVM_TARGET_ADDRESS,
   ARWEAVE_LINK_INTERNAL_TOKEN,
 } from '../../../config/config';
-import { getPublicKey } from '../../util/arweave/signer';
+import { getPublicKey, fund as fundIrys, signData as signArweaveData } from '../../util/arweave/signer';
 import { createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus } from '../../util/api/arweave/tx';
 import { jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
@@ -71,14 +71,22 @@ router.post(
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
       if (!['BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
+
+      const estimate = await estimateUploadToArweaveV2(
+        fileSize,
+        ipfsHash,
+        { margin: 0, checkDuplicate: false },
+      );
       const {
-        arweaveId,
         ETH,
-        signature,
-      } = await processTxUploadToArweaveV2({
-        fileSize, ipfsHash, txHash, signatureData, txToken,
+        arweaveId,
+        isExists,
+      } = estimate;
+
+      await checkArweaveTxV2({
+        fileSize, ipfsHash, txHash, ETH, txToken,
       });
-      const signatureHex = signature && signature.toString('base64');
+
       let token;
       try {
         token = await createNewArweaveTx(txHash, {
@@ -95,10 +103,20 @@ router.post(
         }
         throw error;
       }
+
+      if (ETH && ETH !== '0') {
+        await fundIrys(ETH);
+      }
+
+      // TODO: verify signatureData match filesize if possible
+      const signature = await signArweaveData(Buffer.from(signatureData, 'base64'));
+      const signatureHex = signature && signature.toString('base64');
+
       res.json({
         token,
         id: txHash,
         arweaveId,
+        isExists,
         signature: signatureHex,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
