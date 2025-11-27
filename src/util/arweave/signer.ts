@@ -1,6 +1,7 @@
 import { TypedEthereumSigner } from 'arbundles';
 
 import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
+import { EVM_RPC_ENDPOINT_OVERRIDE } from '../../../config/config';
 import { IS_TESTNET } from '../../constant';
 
 /* eslint-disable no-underscore-dangle */
@@ -23,7 +24,7 @@ export async function getEthereumBundlr() {
       token: 'base-eth',
       key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
       config: {
-        providerUrl: IS_TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org',
+        providerUrl: EVM_RPC_ENDPOINT_OVERRIDE || (IS_TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org'),
       },
     });
   }
@@ -45,4 +46,10 @@ export async function getPublicKey() {
 export async function signData(signatureData) {
   if (!signer) signer = await initWallet();
   return Buffer.from(await signer.sign(signatureData));
+}
+
+export async function fund(requiredAmount: string) {
+  const ethereumIrys = await getEthereumBundlr();
+  const fundAmount = ethereumIrys.utils.toAtomic(requiredAmount);
+  return ethereumIrys.fund(fundAmount);
 }

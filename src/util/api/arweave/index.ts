@@ -4,7 +4,6 @@ import { formatEther } from 'viem';
 import {
   estimateARV2Price,
 } from '../../arweave';
-import { signData } from '../../arweave/signer';
 import { ValidationError } from '../../ValidationError';
 import { uploadFileToIPFS } from '../../ipfs';
 
@@ -32,7 +31,7 @@ export async function estimateUploadToArweaveV2(
   };
 }
 
-async function checkTxV2({
+export async function checkArweaveTxV2({
   fileSize, ipfsHash, txHash, ETH, txToken,
 }) {
   switch (txToken) {
@@ -80,35 +79,6 @@ async function checkTxV2({
     default:
       throw new ValidationError('INVALID_TX_TOKEN');
   }
-}
-
-export async function processTxUploadToArweaveV2({
-  fileSize, ipfsHash, txHash, signatureData, txToken,
-}, { margin = 0 } = {}) {
-  const estimate = await estimateUploadToArweaveV2(
-    fileSize,
-    ipfsHash,
-    { margin, checkDuplicate: false },
-  );
-  const {
-    ETH,
-    arweaveId,
-    isExists,
-  } = estimate;
-
-  await checkTxV2({
-    fileSize, ipfsHash, txHash, ETH, txToken,
-  });
-
-  // TODO: verify signatureData match filesize if possible
-  const signature = await signData(Buffer.from(signatureData, 'base64'));
-  return {
-    isExists,
-    ipfsHash,
-    arweaveId,
-    ETH,
-    signature,
-  };
 }
 
 export async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
