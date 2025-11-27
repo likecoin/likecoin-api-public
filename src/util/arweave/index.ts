@@ -1,7 +1,7 @@
 import Arweave from 'arweave/node';
 import BigNumber from 'bignumber.js';
 import LRU from 'lru-cache';
-import { getEthereumBundlr, getMaticBundlr } from './signer';
+import { getEthereumBundlr } from './signer';
 
 const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
 
@@ -58,20 +58,14 @@ export async function estimateARV2Price(
     if (id) {
       return {
         arweaveId: id,
-        MATIC: '0',
         ETH: '0',
       };
     }
   }
-  const [maticBundlr, ethereumBundlr] = await Promise.all([getMaticBundlr(), getEthereumBundlr()]);
-  const [maticPriceAtomic, ethereumPriceAtomic]: BigNumber[] = await Promise.all([
-    maticBundlr.getPrice(fileSize),
-    ethereumBundlr.getPrice(fileSize),
-  ]);
-  const maticPriceConverted: BigNumber = maticBundlr.utils.fromAtomic(maticPriceAtomic);
+  const ethereumBundlr = await getEthereumBundlr()
+  const ethereumPriceAtomic = await ethereumBundlr.getPrice(fileSize)
   const ethereumPriceConverted: BigNumber = ethereumBundlr.utils.fromAtomic(ethereumPriceAtomic);
   return {
-    MATIC: maticPriceConverted.multipliedBy(1 + margin).toFixed(),
     ETH: ethereumPriceConverted.multipliedBy(1 + margin).toFixed(),
   };
 }
