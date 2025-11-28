@@ -53,7 +53,6 @@ export async function handleStripeConnectedAccount({
   bookName,
   buyerEmail,
   paymentIntentId,
-  site,
 }: {
   classId?: string,
   priceIndex?: number,
@@ -62,7 +61,6 @@ export async function handleStripeConnectedAccount({
   bookName: string,
   buyerEmail: string | null,
   paymentIntentId: string,
-  site?: string,
 }, {
   chargeId = '',
   amountTotal,
@@ -326,7 +324,6 @@ export async function handleStripeConnectedAccount({
       paymentId,
       bookName,
       payments,
-      site,
     // eslint-disable-next-line no-console
     }).catch(console.error)));
   return { transfers };
@@ -566,7 +563,6 @@ export async function formatStripeCheckoutSession({
   httpMethod,
   userAgent,
   clientIp,
-  site,
   language,
 }: {
   classId?: string,
@@ -604,7 +600,6 @@ export async function formatStripeCheckoutSession({
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
   clientIp?: string,
-  site?: string,
   language?: string,
 }, items: CartItemWithInfo[], {
   successUrl,
@@ -650,9 +645,6 @@ export async function formatStripeCheckoutSession({
   if (evmWallet) sessionMetadata.evmWallet = evmWallet;
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
-  }
-  if (site) {
-    sessionMetadata.site = site;
   }
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {

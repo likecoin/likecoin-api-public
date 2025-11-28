@@ -32,7 +32,7 @@ import {
 } from '../../../util/api/likernft/book/purchase';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import logPixelEvents from '../../../util/fbq';
-import { getLikerLandCartURL, getLikerLandNFTClassPageURL } from '../../../util/liker-land';
+import { getBook3CartURL, getBook3NFTClassPageURL } from '../../../util/liker-land';
 import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
@@ -134,7 +134,6 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       items = [],
       coupon,
       giftInfo,
-      site = undefined,
       cancelPage,
       language,
     } = req.body;
@@ -180,7 +179,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       referrer,
       userAgent,
       clientIp,
-      cancelUrl: getLikerLandCartURL({
+      cancelUrl: getBook3CartURL({
         type: 'book',
         utmCampaign,
         utmSource,
@@ -189,11 +188,9 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gaSessionId,
         gadClickId,
         gadSource,
-        site,
         page: cancelPage,
         language,
       }),
-      site,
       language,
     });
     res.json({ paymentId, url });
@@ -261,7 +258,6 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       coupon,
       fbclid: fbClickId = '',
       payment_method: paymentMethodQs,
-      site: siteQs,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
@@ -280,15 +276,6 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       }
       paymentMethods.filter((pm) => (['link', 'card', 'crypto'].includes(pm)));
       if (paymentMethods.length === 0) paymentMethods = undefined;
-    }
-
-    let site: string | undefined;
-    if (siteQs) {
-      if (Array.isArray(siteQs)) {
-        [site] = siteQs as string[];
-      } else {
-        site = siteQs as string;
-      }
     }
 
     const {
@@ -325,7 +312,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       },
       httpMethod,
       paymentMethods,
-      cancelUrl: getLikerLandNFTClassPageURL({
+      cancelUrl: getBook3NFTClassPageURL({
         classId,
         utmCampaign: utmCampaign as string,
         utmSource: utmSource as string,
@@ -334,9 +321,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gaSessionId: gaSessionId as string,
         gadClickId: gadClickId as string,
         gadSource: gadSource as string,
-        site,
       }),
-      site,
     });
     res.redirect(url);
 
@@ -410,7 +395,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       utmTerm,
       referrer: inputReferrer,
       customPriceInDecimal,
-      site,
       language,
     } = req.body;
     let {
@@ -463,7 +447,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       httpMethod,
       userAgent,
       clientIp,
-      cancelUrl: getLikerLandNFTClassPageURL({
+      cancelUrl: getBook3NFTClassPageURL({
         classId,
         utmCampaign,
         utmSource,
@@ -472,10 +456,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gaSessionId,
         gadClickId,
         gadSource,
-        site,
         language,
       }),
-      site,
       language,
     });
     res.json({ paymentId, url });
@@ -740,7 +722,6 @@ router.post(
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const { site } = req.body;
       const { wallet } = req.user;
       const [listingDoc, paymentDoc] = await Promise.all([
         likeNFTBookCollection.doc(classId).get(),
@@ -794,7 +775,6 @@ router.post(
             paymentId,
             claimToken,
             isResend: true,
-            site,
           });
         }
       } else {
@@ -806,7 +786,6 @@ router.post(
           claimToken,
           from,
           isResend: true,
-          site,
         });
       }
 

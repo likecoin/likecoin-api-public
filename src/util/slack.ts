@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { getLikerLandNFTClassPageURL } from './liker-land';
+import { getBook3NFTClassPageURL } from './liker-land';
 import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
@@ -32,7 +32,7 @@ export async function sendNFTBookNewListingSlackNotification({
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const classLink = getBook3NFTClassPageURL({ classId });
     const editions = prices.map(
       (p) => {
         const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} USD}`;
@@ -72,7 +72,7 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const classLink = getBook3NFTClassPageURL({ classId });
 
     let actionText = '';
     switch (action) {
@@ -123,7 +123,7 @@ export async function sendNFTBookSalesSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const classLink = getBook3NFTClassPageURL({ classId });
     const paymentLink = getNFTBookStoreSendPageURL(classId, paymentId);
     await axios.post(NFT_BOOK_SALES_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
@@ -215,7 +215,7 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const classLink = getBook3NFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
 
@@ -255,7 +255,7 @@ export async function sendNFTBookOutOfStockSlackNotification({
 }) {
   if (!NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK) return;
   try {
-    const classLink = getLikerLandNFTClassPageURL({ classId });
+    const classLink = getBook3NFTClassPageURL({ classId });
     await axios.post(NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       priceIndex,
