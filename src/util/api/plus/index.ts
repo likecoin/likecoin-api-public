@@ -21,7 +21,7 @@ import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import logPixelEvents from '../../fbq';
-import { updateIntercomUserLikerPlusStatus, sendIntercomEvent } from '../../intercom';
+import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -157,9 +157,8 @@ export async function processStripeSubscriptionInvoice(
     },
   });
 
-  await updateIntercomUserLikerPlusStatus({
-    userId: likerId,
-    isLikerPlus: true,
+  await updateIntercomUserAttributes(likerId, {
+    is_liker_plus: true,
   });
 
   if (isSubscriptionCreation) {
@@ -461,9 +460,8 @@ export async function processStripeSubscriptionCancellation(
       });
     }
 
-    await updateIntercomUserLikerPlusStatus({
-      userId: likerId,
-      isLikerPlus: false,
+    await updateIntercomUserAttributes(likerId, {
+      is_liker_plus: false,
     });
 
     if (isTrialEnd) {
