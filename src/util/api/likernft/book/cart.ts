@@ -1266,6 +1266,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   email,
   from: inputFrom,
   coupon,
+  currency,
   giftInfo,
   utm,
   referrer,
@@ -1286,6 +1287,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   evmWallet?: string,
   from?: string,
   coupon?: string,
+  currency?: string,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -1398,6 +1400,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     from,
     coupon,
     couponId,
+    currency,
     claimToken,
     gaClientId,
     gaSessionId,
