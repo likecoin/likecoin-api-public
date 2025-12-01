@@ -39,6 +39,7 @@ import {
 } from '../../../airtable';
 import { sendNFTBookOutOfStockSlackNotification, sendNFTBookSalesSlackNotification } from '../../../slack';
 import publisher from '../../../gcloudPub';
+import { type IntercomUserCustomAttributes, updateIntercomUserAttributes } from '../../../intercom';
 import {
   sendNFTBookCartGiftPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
@@ -54,6 +55,7 @@ import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
+import { getUserWithCivicLikerPropertiesByWallet } from '../../users';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -692,6 +694,24 @@ export async function processNFTBookCart(
         loginMethod: 'autoClaim',
         allItemsAutoClaimed,
       });
+
+      const hasFreeBooks = itemPrices.some((item) => item.priceInDecimal === 0);
+      const hasPaidBooks = itemPrices.some((item) => item.priceInDecimal > 0);
+
+      if (hasFreeBooks || hasPaidBooks) {
+        const attributes: IntercomUserCustomAttributes = {};
+        if (hasFreeBooks) attributes.has_claimed_free_book = true;
+        if (hasPaidBooks) attributes.has_purchased_paid_book = true;
+
+        const userInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+        const likerId = userInfo?.user;
+        if (likerId) {
+          await updateIntercomUserAttributes(likerId, attributes);
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn(`Could not update Intercom user attributes: likerId not found for wallet ${evmWallet}`);
+        }
+      }
     }
   } catch (err) {
     // eslint-disable-next-line no-console

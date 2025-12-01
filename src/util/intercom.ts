@@ -9,11 +9,13 @@ import {
 let intercomClient: IntercomClient | null = null;
 
 /* eslint-disable camelcase */
-interface IntercomUserCustomAttributes {
+export interface IntercomUserCustomAttributes {
   evm_wallet?: string;
   like_wallet?: string;
   login_method?: string;
   is_liker_plus?: boolean;
+  has_claimed_free_book?: boolean;
+  has_purchased_paid_book?: boolean;
   [key: string]: unknown;
 }
 /* eslint-enable camelcase */
@@ -165,49 +167,19 @@ async function updateIntercomContact(
   return true;
 }
 
-export async function updateIntercomUserEvmWallet({
-  userId,
-  evmWallet,
-}: {
-  userId: string;
-  evmWallet: string;
-}): Promise<boolean> {
+export async function updateIntercomUserAttributes(
+  userId: string,
+  customAttributes: IntercomUserCustomAttributes,
+): Promise<boolean> {
   try {
     const contactId = await findIntercomContactIdByUserId(userId);
     if (!contactId) {
-      throw new Error(`Contact with external_id ${userId} not found for EVM wallet update`);
+      throw new Error(`Contact with external_id ${userId} not found for attributes update`);
     }
-    return await updateIntercomContact(contactId, {
-      evm_wallet: evmWallet,
-    });
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error updating Intercom user EVM wallet:', error);
-    return false;
-  }
-}
-
-export async function updateIntercomUserLikerPlusStatus({
-  userId,
-  isLikerPlus,
-}: {
-  userId: string;
-  isLikerPlus: boolean;
-}): Promise<boolean> {
-  try {
-    const contactId = await findIntercomContactIdByUserId(userId);
-    if (!contactId) {
-      throw new Error(`Contact with external_id ${userId} not found for LikerPlus status update`);
-    }
-
-    const customAttributes: Record<string, unknown> = {
-      is_liker_plus: isLikerPlus,
-    };
-
     return await updateIntercomContact(contactId, customAttributes);
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error('Error updating Intercom user LikerPlus status:', error);
+    console.error('Error updating Intercom user attributes:', error);
     return false;
   }
 }

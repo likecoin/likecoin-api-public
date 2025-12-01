@@ -18,7 +18,7 @@ import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import logPixelEvents from '../../fbq';
-import { sendIntercomEvent, updateIntercomUserLikerPlusStatus } from '../../intercom';
+import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 
 export async function createPlusGiftCheckoutSession(
@@ -354,9 +354,8 @@ export async function claimPlusGiftCart({
     });
 
     await Promise.all([
-      updateIntercomUserLikerPlusStatus({
-        userId: likerId,
-        isLikerPlus: true,
+      updateIntercomUserAttributes(likerId, {
+        is_liker_plus: true,
       }),
       sendIntercomEvent({
         userId: likerId,

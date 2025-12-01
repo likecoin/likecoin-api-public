@@ -20,6 +20,7 @@ import {
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
 import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
+import { updateIntercomUserAttributes } from '../../../intercom';
 import {
   NFT_BOOK_LIKER_LAND_FEE_RATIO,
   NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
@@ -1082,6 +1083,27 @@ export async function claimNFTBook(
     buyerMessage: message,
     loginMethod,
   });
+
+  const { priceInDecimal } = feeInfo as TransactionFeeInfo;
+  let likerId: string | undefined;
+  try {
+    const user = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    likerId = user?.user;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to fetch likerId for wallet', wallet, e);
+  }
+  if (likerId) {
+    if (priceInDecimal === 0) {
+      await updateIntercomUserAttributes(likerId, {
+        has_claimed_free_book: true,
+      });
+    } else if (priceInDecimal > 0) {
+      await updateIntercomUserAttributes(likerId, {
+        has_purchased_paid_book: true,
+      });
+    }
+  }
 
   return {
     email, nftIds, nftId: nftIds?.[0], txHash,

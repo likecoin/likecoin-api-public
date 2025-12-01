@@ -14,7 +14,7 @@ import { migrateLikerLandEVMWallet } from '../../liker-land';
 import { createStripeProductFromNFTBookPrice } from '../likernft/book';
 import stripe from '../../stripe';
 import { bookCacheBucket } from '../../gcloudStorage';
-import { updateIntercomUserEvmWallet } from '../../intercom';
+import { updateIntercomUserAttributes } from '../../intercom';
 
 export async function findLikeWalletByEVMWallet(evmWallet: string) {
   const userQuery = await likeNFTBookUserCollection.where('evmWallet', '==', checksumAddress(evmWallet as `0x${string}`)).get();
@@ -166,9 +166,8 @@ async function migrateLikerId(likeWallet:string, evmWallet: string, method: 'man
 
     // Update Intercom user with new EVM wallet
     if (likerId) {
-      await updateIntercomUserEvmWallet({
-        userId: likerId,
-        evmWallet,
+      await updateIntercomUserAttributes(likerId, {
+        evm_wallet: evmWallet,
       });
     }
 
