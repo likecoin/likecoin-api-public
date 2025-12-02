@@ -446,13 +446,6 @@ export async function checkUserInfoUniqueness({
 
 export async function checkReferrerExists(referrer) {
   const referrerRef = await dbRef.doc(referrer).get();
-  if (!referrerRef.exists) return false;
-  const referrerData = referrerRef.data();
-  if (referrerData && referrerData.isBlackListed) {
-    // eslint-disable-next-line no-console
-    console.log(`User referrer limit: ${referrer}`);
-    throw new ValidationError('REFERRER_LIMIT_EXCCEDDED');
-  }
   return referrerRef.exists;
 }
 

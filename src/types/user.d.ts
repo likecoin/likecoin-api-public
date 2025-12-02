@@ -21,6 +21,7 @@ export interface UserData {
   isDeleted?: boolean;
   displayName?: string;
   description?: string;
+  creatorPitch?: string;
 
   // Avatar fields
   avatar?: string;
@@ -45,6 +46,7 @@ export interface UserData {
   likeWallet?: string;
   cosmosWallet?: string;
   evmWallet?: string;
+  wallet?: string;
 
   // Auth provider fields
   authCoreUserId?: string;
@@ -68,13 +70,11 @@ export interface UserData {
   pendingLIKE?: Record<string, number>;
   isPendingLIKE?: boolean;
 
-  // Allow additional fields
-  [key: string]: any;
+  paymentRedirectWhiteList?: string[];
 }
 
 export interface UserCivicLikerProperties extends UserData {
   user: string;
-  avatar: string;
   isCivicLikerRenewalPeriod?: boolean;
   civicLikerSince?: number;
   civicLikerRenewalPeriodLast?: number;

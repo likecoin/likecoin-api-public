@@ -16,14 +16,12 @@ const THREE_DAYS_IN_MS = 259200000;
 
 export function expandEmailFlags(user) {
   const {
-    isBlackListed = false,
     isEmailVerified = false,
     isEmailBlackListed = false,
     isEmailDuplicated = false,
     isPhoneVerified = false,
   } = user;
   return {
-    isBlackListed,
     isEmailVerified,
     isEmailBlackListed,
     isEmailDuplicated,
