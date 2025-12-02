@@ -11,7 +11,6 @@ async function fetchUserInfoByCosmosLikeWallet(wallet) {
         referrer,
         locale,
         timestamp: registerTime,
-        subscriptionURL,
       } = userData;
       return {
         id: snapshot.docs[0].id,
@@ -20,7 +19,6 @@ async function fetchUserInfoByCosmosLikeWallet(wallet) {
         referrer,
         locale,
         registerTime,
-        subscriptionURL,
       };
     }
     return {};
@@ -73,7 +71,6 @@ export async function fetchPaymentUserInfo({ from, to }: { from?: string; to?: s
     referrer: toReferrer,
     locale: toLocale,
     registerTime: toRegisterTime,
-    subscriptionURL: toSubscriptionURL,
   }] = await Promise.all([fromQuery, toQuery]);
   return {
     fromId,
@@ -88,7 +85,6 @@ export async function fetchPaymentUserInfo({ from, to }: { from?: string; to?: s
     toReferrer,
     toLocale,
     toRegisterTime,
-    toSubscriptionURL,
   };
 }
 
