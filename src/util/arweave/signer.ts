@@ -1,4 +1,5 @@
 import { TypedEthereumSigner } from 'arbundles';
+import type { NodeIrys as NodeIrysType } from '@irys/sdk/node';
 
 import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
 import { EVM_RPC_ENDPOINT_OVERRIDE } from '../../../config/config';
@@ -6,7 +7,7 @@ import { IS_TESTNET } from '../../constant';
 
 /* eslint-disable no-underscore-dangle */
 let _irysLib;
-let _ethereumIrys;
+let _ethereumIrys: NodeIrysType | undefined;
 /* eslint-enable no-underscore-dangle */
 
 export async function getIrysLib() {
@@ -16,7 +17,7 @@ export async function getIrysLib() {
   return _irysLib;
 }
 
-export async function getEthereumBundlr() {
+export async function getEthereumBundlr(): Promise<NodeIrysType> {
   if (!_ethereumIrys) {
     const { NodeIrys } = await getIrysLib();
     _ethereumIrys = new NodeIrys({
@@ -26,7 +27,7 @@ export async function getEthereumBundlr() {
       config: {
         providerUrl: EVM_RPC_ENDPOINT_OVERRIDE || (IS_TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org'),
       },
-    });
+    }) as NodeIrysType;
   }
   return _ethereumIrys;
 }
@@ -51,5 +52,5 @@ export async function signData(signatureData) {
 export async function fund(requiredAmount: string) {
   const ethereumIrys = await getEthereumBundlr();
   const fundAmount = ethereumIrys.utils.toAtomic(requiredAmount);
-  return ethereumIrys.fund(fundAmount);
+  return ethereumIrys.fund(fundAmount, 1.2);
 }
