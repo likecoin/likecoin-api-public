@@ -52,5 +52,28 @@ export async function signData(signatureData) {
 export async function fund(requiredAmount: string) {
   const ethereumIrys = await getEthereumBundlr();
   const fundAmount = ethereumIrys.utils.toAtomic(requiredAmount);
-  return ethereumIrys.fund(fundAmount, 1.2);
+
+  const multipliers = [1.2, 1.5, 2.0];
+  let lastError;
+
+  // Retry with progressively higher gas multipliers if funding fails due to low gas.
+  // The Irys SDK has a timing issue where getFee() and createTx() call getGasPrice()
+  // at different times. When gas prices change between these calls, the gas limit
+  // calculation breaks: gasLimit = (estimatedGas * oldGasPrice * multiplier) / newGasPrice,
+  // which can result in gasLimit being too low (e.g., 21005 instead of 25200).
+  for (const multiplier of multipliers) {
+    try {
+      return await ethereumIrys.fund(fundAmount, multiplier);
+    } catch (error) {
+      lastError = error;
+      const errorMessage = (error as Error)?.message || '';
+      if (errorMessage.includes('intrinsic gas too low') || errorMessage.includes('gas too low')) {
+        // eslint-disable-next-line no-console
+        console.warn(`Funding failed with multiplier ${multiplier}, retrying with higher gas...`);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
 }

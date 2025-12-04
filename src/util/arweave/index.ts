@@ -1,5 +1,4 @@
 import Arweave from 'arweave/node';
-import BigNumber from 'bignumber.js';
 import LRU from 'lru-cache';
 import { getEthereumBundlr } from './signer';
 
@@ -64,7 +63,7 @@ export async function estimateARV2Price(
   }
   const ethereumBundlr = await getEthereumBundlr();
   const ethereumPriceAtomic = await ethereumBundlr.getPrice(fileSize);
-  const ethereumPriceConverted: BigNumber = ethereumBundlr.utils.fromAtomic(ethereumPriceAtomic);
+  const ethereumPriceConverted = ethereumBundlr.utils.fromAtomic(ethereumPriceAtomic);
   return {
     ETH: ethereumPriceConverted.multipliedBy(1 + margin).toFixed(),
   };
