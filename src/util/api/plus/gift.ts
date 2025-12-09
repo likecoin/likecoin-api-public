@@ -356,6 +356,7 @@ export async function claimPlusGiftCart({
     await Promise.all([
       updateIntercomUserAttributes(likerId, {
         is_liker_plus: true,
+        is_liker_plus_trial: true,
       }),
       sendIntercomEvent({
         userId: likerId,

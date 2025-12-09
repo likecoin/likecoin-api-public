@@ -159,6 +159,7 @@ export async function processStripeSubscriptionInvoice(
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
+    is_liker_plus_trial: isTrial,
   });
 
   if (isSubscriptionCreation) {
@@ -462,6 +463,7 @@ export async function processStripeSubscriptionCancellation(
 
     await updateIntercomUserAttributes(likerId, {
       is_liker_plus: false,
+      is_liker_plus_trial: false,
     });
 
     if (isTrialEnd) {

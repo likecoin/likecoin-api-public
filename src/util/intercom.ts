@@ -14,6 +14,7 @@ export interface IntercomUserCustomAttributes {
   like_wallet?: string;
   login_method?: string;
   is_liker_plus?: boolean;
+  is_liker_plus_trial?: boolean;
   has_claimed_free_book?: boolean;
   has_purchased_paid_book?: boolean;
   [key: string]: unknown;
