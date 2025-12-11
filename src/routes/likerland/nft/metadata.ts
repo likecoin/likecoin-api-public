@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import LRUCache from 'lru-cache';
 import Axios, { AxiosError } from 'axios';
 
-import { INTERNAL_HOSTNAME, ONE_DAY_IN_MS, ONE_DAY_IN_S } from '../../../constant';
+import { INTERNAL_HOSTNAME, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -15,11 +14,6 @@ import {
   getTokenAccountsByBookNFT,
 } from '../../../util/evm/nft';
 
-const classChainMetadataCache = new LRUCache({
-  max: 1000,
-  ttl: ONE_DAY_IN_MS,
-});
-
 const axios = Axios.create({
   timeout: 60000,
 });
@@ -28,9 +22,6 @@ const router = Router();
 
 async function getNFTClassChainMetadata(classId) {
   try {
-    if (classChainMetadataCache.has(classId)) {
-      return classChainMetadataCache.get(classId);
-    }
     let result;
     if (isEVMClassId(classId)) {
       const [metadata, owner] = await Promise.all([
@@ -62,7 +53,6 @@ async function getNFTClassChainMetadata(classId) {
         iscnIdPrefix: parent?.iscn_id_prefix,
       };
     }
-    classChainMetadataCache.set(classId, result);
     return result;
   } catch (err) {
     const error = err as AxiosError;
