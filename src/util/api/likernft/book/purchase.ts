@@ -552,6 +552,7 @@ export async function formatStripeCheckoutSession({
   from,
   coupon,
   couponId,
+  currency,
   claimToken,
   gaClientId,
   gaSessionId,
@@ -578,6 +579,7 @@ export async function formatStripeCheckoutSession({
   from?: string,
   coupon?: string,
   couponId?: string,
+  currency?: string,
   claimToken: string,
   gaClientId?: string,
   gaSessionId?: string,
@@ -712,7 +714,7 @@ export async function formatStripeCheckoutSession({
     } else {
       lineItems.push({
         price_data: {
-          currency: 'usd',
+          currency: currency || 'usd',
           product_data: {
             name: item.name,
             description: item.description,
@@ -730,7 +732,7 @@ export async function formatStripeCheckoutSession({
     if (item.customPriceDiffInDecimal) {
       lineItems.push({
         price_data: {
-          currency: 'usd',
+          currency: currency || 'usd',
           product_data: {
             name: 'Extra Tip',
             description: 'Fund will be distributed to stakeholders and creators',
@@ -774,6 +776,11 @@ export async function formatStripeCheckoutSession({
     },
     locale: normalizeLanguageForStripeLocale(language),
   };
+  if (currency) {
+    checkoutPayload.currency = currency;
+  } else {
+    checkoutPayload.adaptive_pricing = { enabled: true };
+  }
   if (paymentMethods) {
     checkoutPayload.payment_method_types = paymentMethods as
       Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
