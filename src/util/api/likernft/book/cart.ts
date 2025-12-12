@@ -21,6 +21,7 @@ import {
   processNFTBookPurchaseTxGet,
   claimNFTBook,
   calculateItemPrices,
+  checkIsFromLikerLand,
 } from './purchase';
 import { depositLikeCollectiveReward } from '../../../evm/likeCollective';
 import { getLIKEPrice } from '../likePrice';
@@ -1307,6 +1308,11 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   cancelUrl?: string,
   language?: string,
 } = {}) {
+  let from: string = inputFrom as string || '';
+  if (!from) {
+    from = NFT_BOOK_DEFAULT_FROM_CHANNEL;
+  }
+
   let items: CartItem[] = inputItems.map((item) => ({
     classId: item.classId,
     priceIndex: item.priceIndex,
@@ -1341,7 +1347,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     const { email: userEmail, isEmailVerified, isLikerPlus } = likerUserInfo || {};
     customerId = bookUserInfo?.stripeCustomerId;
     customerEmail = isEmailVerified ? userEmail : email;
-    if (isLikerPlus) {
+
+    if (isLikerPlus && checkIsFromLikerLand(from) && !coupon) {
       couponId = LIKER_PLUS_20_COUPON_ID;
       items = items.map((item) => ({
         ...item,
@@ -1384,10 +1391,6 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gadSource,
     language,
   });
-  let from: string = inputFrom as string || '';
-  if (!from || from === NFT_BOOK_DEFAULT_FROM_CHANNEL) {
-    from = NFT_BOOK_DEFAULT_FROM_CHANNEL;
-  }
 
   const {
     session,
