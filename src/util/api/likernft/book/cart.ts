@@ -9,6 +9,7 @@ import {
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   PUBSUB_TOPIC_MISC,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  PLUS_YEARLY_PRICE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getBook3CartURL, getBook3NFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
@@ -869,10 +870,14 @@ export async function createFreeBookCartFromSubscription({
   // eslint-disable-next-line no-use-before-define
   const itemInfos = await formatCartItemsWithInfo(cartItems);
   const itemPrices = await calculateItemPrices(itemInfos, NFT_BOOK_DEFAULT_FROM_CHANNEL);
-  if (itemInfos[0].originalPriceInDecimal >= amountPaid * 100) {
+  if (itemInfos[0].originalPriceInDecimal > PLUS_YEARLY_PRICE * 100) {
     // eslint-disable-next-line no-console
-    console.warn('Free book cart item price is not less than the amount paid, skipping cart creation.');
+    console.warn('Free book cart item price is not less than the plus yearly price, skipping cart creation.');
     return null;
+  }
+  if (itemInfos[0].originalPriceInDecimal > amountPaid * 100) {
+    // eslint-disable-next-line no-console
+    console.warn('Free book cart item price is not less than the amount paid');
   }
   const totalFeeInfo: TransactionFeeInfo = {
     priceInDecimal: 0,
