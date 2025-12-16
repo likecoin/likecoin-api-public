@@ -13,6 +13,7 @@ import {
   getNFTClassOwner,
   getTokenAccountsByBookNFT,
 } from '../../../util/evm/nft';
+import type { NFTBookListingInfoFiltered } from '../../../types/book';
 
 const axios = Axios.create({
   timeout: 60000,
@@ -218,7 +219,7 @@ router.get('/nft/metadata', async (req, res, next) => {
     const classData = classAndIscnResult ? classAndIscnResult[0] : null;
     const iscnData = classAndIscnResult ? classAndIscnResult[1] : null;
     const ownerInfo = ownerInfoResult;
-    const bookstoreInfo = bookstoreInfoResult;
+    const bookstoreInfo = bookstoreInfoResult as NFTBookListingInfoFiltered | null;
 
     const result: any = {};
     if (['all', 'class_chain', 'class_api'].some((s) => selectedSet.has(s))) {
@@ -234,7 +235,9 @@ router.get('/nft/metadata', async (req, res, next) => {
       result.bookstoreInfo = bookstoreInfo;
     }
 
-    if (!hasAnyError) {
+    if (bookstoreInfo?.evmClassId || bookstoreInfo?.redirectClassId) {
+      res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}`);
+    } else if (!hasAnyError) {
       res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);
     }
     res.json(result);
