@@ -47,6 +47,15 @@ async function approveBook(classId: string, action: string, slackUserId: string)
         approvalStatus: 'approved_no_ads',
       };
       break;
+    case 'approve_hidden':
+      approvalUpdate = {
+        isHidden: true,
+        isApprovedForSale: true,
+        isApprovedForIndexing: false,
+        isApprovedForAds: false,
+        approvalStatus: 'approved_hidden',
+      };
+      break;
     case 'reject':
       approvalUpdate = {
         isHidden: true,
@@ -106,8 +115,8 @@ router.post(
           if (!classId) {
             throw new Error('Missing classId. Usage: /book approve <classId> <approve_with_ads|approve_no_ads|reject>');
           }
-          if (action && !['approve_with_ads', 'approve_no_ads', 'reject'].includes(action)) {
-            throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, reject');
+          if (action && !['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'].includes(action)) {
+            throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, approve_hidden, reject');
           }
           const result = await approveBook(classId, action, slackUserId);
 
@@ -126,6 +135,7 @@ Examples:
   \`/book approve 0x1234...5678 \` - Approve for listing & ads (default)
   \`/book approve 0x1234...5678  approve_with_ads\` - Approve for listing & ads
   \`/book approve 0x1234...5678  approve_no_ads\` - Approve for listing (no ads)
+  \`/book approve 0x1234...5678  approve_hidden\` - Approve but keep hidden (no ads)
   \`/book approve 0x1234...5678  reject\` - Reject/hide listing`,
           });
           break;
