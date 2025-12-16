@@ -37,6 +37,7 @@ export async function checkArweaveTxV2({
   switch (txToken) {
     case 'BASEETH': {
       const client = getEVMClient();
+      await client.waitForTransactionReceipt({ hash: txHash, timeout: 60000 });
       const tx = await client.getTransaction({ hash: txHash });
       if (!tx) {
         throw new ValidationError('TX_NOT_FOUND');
