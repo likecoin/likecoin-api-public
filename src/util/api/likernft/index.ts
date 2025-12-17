@@ -1,8 +1,7 @@
-import { parseNFTClassDataFields } from '@likecoin/iscn-js/dist/messages/parsing';
 import { getISCNPrefix } from '../../cosmos/iscn';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
-import { getNFTClassDataById, getNFTQueryClient } from '../../cosmos/nft';
+import { getNFTClassDataById } from '../../cosmos/nft';
 
 export function getISCNPrefixDocName(iscnId) {
   const prefix = getISCNPrefix(iscnId);
@@ -39,12 +38,4 @@ export async function getISCNPrefixByClassIdFromChain(classId) {
   }
   const { iscnIdPrefix } = data.data.parent;
   return iscnIdPrefix || null;
-}
-
-export async function getNFTClassByClassId(classId) {
-  const c = await getNFTQueryClient();
-  const client = await c.getQueryClient();
-  const res = await client.nft.class(classId);
-  if (!res.class) throw new Error('CLASS_NOT_FOUND');
-  return parseNFTClassDataFields(res.class);
 }

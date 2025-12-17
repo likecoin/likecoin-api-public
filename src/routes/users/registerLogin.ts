@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import Multer from 'multer';
 import RateLimit from 'express-rate-limit';
 import { checksumAddress } from 'viem';
@@ -37,6 +36,7 @@ import {
 } from '../../../config/config';
 
 import {
+  changeAddressPrefix,
   isValidLikeAddress,
 } from '../../util/cosmos';
 import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
