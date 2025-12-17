@@ -640,7 +640,7 @@ export function sendAutoDeliverNFTBookSalesEmail({
   content += '<table>';
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
   if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
-  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
+  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
   content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
@@ -696,19 +696,32 @@ export function sendNFTBookSalePaymentsEmail({
   if (TEST_MODE) return Promise.resolve();
   const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
   const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
-  const displayPayments = payments.map(({ amount, type }) => {
-    const roundedCurrency = `US$${amount.toFixed(2)}`;
-    switch (type) {
-      case 'connectedWallet':
-        return `Royalty: ${roundedCurrency}`;
-      case 'channelCommission':
-        return `Commission: ${roundedCurrency}`;
-      default:
-        return `Unknown: ${roundedCurrency}`;
-    }
-  });
   const nftPageURLEn = getBook3NFTClassPageURL({ classId });
-  const title = `You received US$${totalAmount.toFixed(2)} for ${hasRoyalty ? 'selling' : 'helping to sell'} "${bookName}"`;
+  const paymentTypeLabel = hasRoyalty ? 'Royalty' : 'Commission';
+  const title = `${paymentTypeLabel} Received: US$${formatEmailDecimalNumber(totalAmount * 100)} for ${bookName}`;
+
+  let content = '<p>Dear Book Lover,</p>';
+  content += '<p>Congratulations!</p>';
+  content += `<p>Someone has just purchased the book <a href="${nftPageURLEn}">${bookName}</a>.</p>`;
+  content += '<p>As a result, you have received the following payment:</p>';
+  content += '<table>';
+
+  const labelMap: { [key: string]: string } = {
+    connectedWallet: 'Royalty:',
+    channelCommission: 'Commission:',
+  };
+
+  payments.forEach(({ amount, type }) => {
+    const label = labelMap[type] || 'Other:';
+    content += `<tr><td>${label}</td><td>US$${formatEmailDecimalNumber(amount * 100)}</td></tr>`;
+  });
+
+  content += '</table>';
+  content += `<p>Reference ID: ${paymentId}</p>`;
+  content += '<p>Thank you for being part of the community.</p>';
+  content += '<p>Warm regards,</p>';
+  content += '<p>3ook.com</p>';
+
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -733,15 +746,7 @@ export function sendNFTBookSalePaymentsEmail({
           Charset: 'UTF-8',
           Data: getBasicV2Template({
             title,
-            content: `<p>Dear Book lover,</p>
-            <br/>
-            <p>Congratulation!</p>
-            <p>Someone has bought the NFT book <a href="${nftPageURLEn}">${bookName}</a></p>
-            <p>As a result, you received follow payments: </p>
-            <ul>${displayPayments.map((payment) => `<li>${payment}</li>`).join('')}</ul>
-            <p>Ref ID: ${paymentId}.</p>
-            <br/>
-            <p>3ook.com Bookstore</p>`,
+            content,
           }).body,
         },
       },
@@ -791,7 +796,7 @@ export function sendManualNFTBookSalesEmail({
   content += '<table>';
   content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
   if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
-  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（版稅）</td></tr>`;
+  content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
   if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
   content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   content += '</table>';
