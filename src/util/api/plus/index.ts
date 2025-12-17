@@ -499,16 +499,21 @@ export async function updateSubscriptionPeriod(
   if (giftClassId) metadata.giftClassId = giftClassId;
   if (giftPriceIndex) metadata.giftPriceIndex = giftPriceIndex;
   if (period === 'yearly') metadata.isUpgradingPrice = 'true';
+  const updatePayload: Stripe.SubscriptionUpdateParams = {
+    items: [
+      {
+        id: subscription.items.data[0].id,
+        price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+      },
+    ],
+    metadata,
+  };
+  const isInTrial = subscription.status === 'trialing';
+  if (isInTrial) {
+    updatePayload.trial_end = 'now';
+  }
   await stripe.subscriptions.update(
     subscriptionId,
-    {
-      items: [
-        {
-          id: subscription.items.data[0].id,
-          price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
-        },
-      ],
-      metadata,
-    },
+    updatePayload,
   );
 }
