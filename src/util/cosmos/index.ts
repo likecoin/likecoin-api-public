@@ -110,6 +110,11 @@ export function isValidLikeAddress(address) {
   return /^like1[ac-hj-np-z02-9]{38}$/.test(address);
 }
 
+export function changeAddressPrefix(address: string, newPrefix: string): string {
+  const { words } = bech32.decode(address);
+  return bech32.encode(newPrefix, words);
+}
+
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;
 
 export const ISCN_LCD_ENDPOINT = iscnDevLCDEndpoint;

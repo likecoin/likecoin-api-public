@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
-import { changeAddressPrefix } from '@likecoin/iscn-js/dist/iscn/addressParsing';
 import { authCoreJwtSignToken } from '../../jwt';
 import { registerAuthCoreUser, createAuthCoreCosmosWalletViaServiceAccount } from '../../authcore';
+import { changeAddressPrefix } from '../../cosmos';
 
 export async function createAuthCoreUserAndWallet({
   user,
