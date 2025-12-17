@@ -339,8 +339,8 @@ export async function claimPlusGiftCart({
     } = subscription;
     const subscriptionPeriod = item.plan.interval;
     const since = startDate * 1000; // Convert to milliseconds
-    const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
-    const currentPeriodEnd = subscription.current_period_end * 1000; // Convert to milliseconds
+    const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
+    const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
     await userCollection.doc(likerId).update({
       likerPlus: {
         period: subscriptionPeriod,

@@ -1158,16 +1158,24 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
   return itemInfos;
 }
 
-export async function formatCartItemInfosFromSession(session) {
+export async function formatCartItemInfosFromSession(session: Stripe.Checkout.Session) {
   const sessionId = session.id;
   const {
     currency_conversion: currencyConversion,
+    presentment_details: presentmentDetails,
     metadata: {
       from,
       fromList: fromListString,
     } = {} as any,
   } = session;
-  const conversionRate = Number(currencyConversion?.fx_rate || 1);
+  // presentment_details: amounts already in integration currency (usd for us) (API 2025-03-31+)
+  // currency_conversion: need fx_rate conversion (older sessions)
+  let conversionRate = 1;
+  if (presentmentDetails) {
+    conversionRate = 1;
+  } else if (currencyConversion?.fx_rate) {
+    conversionRate = Number(currencyConversion.fx_rate);
+  }
 
   const items: CartItem[] = [];
   const lineItems: Stripe.LineItem[] = [];

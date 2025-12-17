@@ -4,13 +4,14 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo'
 
 export async function getStripeSubscriptionDetails(subscriptionId: string) {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const item = subscription.items.data[0];
 
   return {
     subscriptionId,
-    period: subscription.items.data[0].plan.interval,
+    period: item.plan.interval,
     status: subscription.status,
-    currentPeriodStart: subscription.current_period_start * 1000,
-    currentPeriodEnd: subscription.current_period_end * 1000,
+    currentPeriodStart: item.current_period_start * 1000,
+    currentPeriodEnd: item.current_period_end * 1000,
     createdAt: subscription.created * 1000,
     customerId: subscription.customer as string,
     metadata: subscription.metadata,

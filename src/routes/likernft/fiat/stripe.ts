@@ -56,7 +56,9 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
       }
       case 'invoice.paid': {
         const invoice: Stripe.Invoice = event.data.object;
-        const { subscription: subscriptionId } = invoice;
+        const subscriptionId = invoice.parent?.type === 'subscription_details'
+          ? invoice.parent.subscription_details?.subscription
+          : null;
         if (subscriptionId) {
           await processStripeSubscriptionInvoice(invoice, req);
         }
