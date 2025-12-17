@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { STRIPE_KEY } from '../../config/config';
 import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
-const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-02-24.acacia', typescript: true });
+const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-12-15.clover', typescript: true });
 
 export function calculateStripeFee(inputAmount: number) {
   if (inputAmount === 0) return 0;

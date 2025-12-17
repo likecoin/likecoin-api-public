@@ -29,10 +29,15 @@ export async function processStripeSubscriptionInvoice(
 ) {
   const {
     billing_reason: billingReason,
-    discount,
-    subscription_details: subscriptionDetails,
+    parent,
   } = invoice;
-  const subscriptionId = invoice.subscription as string;
+  const subscriptionDetails = parent?.type === 'subscription_details' ? parent.subscription_details : null;
+  const subscriptionId = subscriptionDetails?.subscription as string;
+  if (!subscriptionId) {
+    // eslint-disable-next-line no-console
+    console.warn(`No subscription ID found in invoice parent: ${invoice.id}`);
+    return;
+  }
   const {
     evmWallet,
     likeWallet,
@@ -93,7 +98,7 @@ export async function processStripeSubscriptionInvoice(
 
   let giftCartId = '';
   const isTrialToPaidUpgrade = subscription.trial_end
-    && subscription.trial_end === subscription.current_period_start;
+    && subscription.trial_end === item.current_period_start;
   if ((isSubscriptionCreation || isTrialToPaidUpgrade || isUpgradingPrice)
       && isYearlySubscription
       && giftClassId
@@ -143,8 +148,8 @@ export async function processStripeSubscriptionInvoice(
   const customerId = stripeCustomer.id;
   const period = item.plan.interval;
   const since = startDate * 1000; // Convert to milliseconds
-  const currentPeriodStart = subscription.current_period_start * 1000; // Convert to milliseconds
-  const currentPeriodEnd = subscription.current_period_end * 1000; // Convert to milliseconds
+  const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
+  const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
   await userCollection.doc(likerId).update({
     likerPlus: {
       period,
@@ -222,8 +227,6 @@ export async function processStripeSubscriptionInvoice(
       price,
       currency,
       invoiceId: invoice.id,
-      couponId: discount?.coupon.id || '',
-      couponName: discount?.coupon.name || '',
       since,
       periodInterval: period,
       periodStartAt: currentPeriodStart,
