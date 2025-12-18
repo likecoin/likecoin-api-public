@@ -41,6 +41,7 @@ import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
+import { convertUSDPriceToCurrency } from '../../../pricing';
 
 export function checkIsFromLikerLand(from: string): boolean {
   return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
@@ -697,6 +698,8 @@ export async function formatStripeCheckoutSession({
   paymentIntentData.transfer_group = paymentId;
   paymentIntentData.metadata = sessionMetadata;
 
+  const currencyWithDefault: 'hkd' | 'twd' | 'usd' = currency as 'hkd' | 'twd' | 'usd' || 'usd';
+
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   itemWithPrices.forEach((item) => {
     const productMetadata: Stripe.MetadataParam = {};
@@ -714,14 +717,17 @@ export async function formatStripeCheckoutSession({
     } else {
       lineItems.push({
         price_data: {
-          currency: currency || 'usd',
+          currency: currencyWithDefault,
           product_data: {
             name: item.name,
             description: item.description,
             images: item.images,
             metadata: productMetadata,
           },
-          unit_amount: item.originalPriceInDecimal,
+          unit_amount: convertUSDPriceToCurrency(
+            item.originalPriceInDecimal / 100,
+            currencyWithDefault,
+          ) * 100,
         },
         adjustable_quantity: {
           enabled: false,
@@ -730,9 +736,13 @@ export async function formatStripeCheckoutSession({
       });
     }
     if (item.customPriceDiffInDecimal) {
+      const convertedPriceDiffInDecimal = convertUSDPriceToCurrency(
+        item.customPriceDiffInDecimal / 100,
+        currencyWithDefault,
+      ) * 100;
       lineItems.push({
         price_data: {
-          currency: currency || 'usd',
+          currency: currencyWithDefault,
           product_data: {
             name: 'Extra Tip',
             description: 'Fund will be distributed to stakeholders and creators',
@@ -741,7 +751,7 @@ export async function formatStripeCheckoutSession({
               ...productMetadata,
             },
           },
-          unit_amount: item.customPriceDiffInDecimal,
+          unit_amount: convertedPriceDiffInDecimal,
         },
         quantity: item.quantity,
       });
