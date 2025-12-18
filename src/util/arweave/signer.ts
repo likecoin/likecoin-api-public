@@ -49,38 +49,48 @@ export async function signData(signatureData) {
   return Buffer.from(await signer.sign(signatureData));
 }
 
-export async function fund(requiredAmount: string, { lazy = true } = {}) {
+export async function fund(requiredAmount: string, { blocking = false } = {}) {
   const ethereumIrys = await getEthereumBundlr();
   const fundAmount = ethereumIrys.utils.toAtomic(requiredAmount);
 
-  if (lazy) {
-    const currentBalance = await ethereumIrys.getLoadedBalance();
-    if (currentBalance.gte(fundAmount)) {
-      return null;
-    }
-  }
+  const currentBalance = await ethereumIrys.getLoadedBalance();
+  const isInsufficient = currentBalance.lt(fundAmount);
 
   const multipliers = [1.2, 1.5, 2.0];
   let lastError;
 
-  // Retry with progressively higher gas multipliers if funding fails due to low gas.
-  // The Irys SDK has a timing issue where getFee() and createTx() call getGasPrice()
-  // at different times. When gas prices change between these calls, the gas limit
-  // calculation breaks: gasLimit = (estimatedGas * oldGasPrice * multiplier) / newGasPrice,
-  // which can result in gasLimit being too low (e.g., 21005 instead of 25200).
-  for (const multiplier of multipliers) {
-    try {
-      return await ethereumIrys.fund(fundAmount, multiplier);
-    } catch (error) {
-      lastError = error;
-      const errorMessage = (error as Error)?.message || '';
-      if (errorMessage.includes('intrinsic gas too low') || errorMessage.includes('gas too low')) {
-        // eslint-disable-next-line no-console
-        console.warn(`Funding failed with multiplier ${multiplier}, retrying with higher gas...`);
-      } else {
-        throw error;
+  const performFunding = async () => {
+    // Retry with progressively higher gas multipliers if funding fails due to low gas.
+    // The Irys SDK has a timing issue where getFee() and createTx() call getGasPrice()
+    // at different times. When gas prices change between these calls, the gas limit
+    // calculation breaks: gasLimit = (estimatedGas * oldGasPrice * multiplier) / newGasPrice,
+    // which can result in gasLimit being too low (e.g., 21005 instead of 25200).
+    for (const multiplier of multipliers) {
+      try {
+        return await ethereumIrys.fund(fundAmount, multiplier);
+      } catch (error) {
+        lastError = error;
+        const errorMessage = (error as Error)?.message || '';
+        if (errorMessage.includes('intrinsic gas too low') || errorMessage.includes('gas too low')) {
+          // eslint-disable-next-line no-console
+          console.warn(`Funding failed with multiplier ${multiplier}, retrying with higher gas...`);
+        } else {
+          throw error;
+        }
       }
     }
+    throw lastError;
+  };
+
+  // If balance is insufficient or in blocking mode, await the funding
+  if (isInsufficient || blocking) {
+    return performFunding();
   }
-  throw lastError;
+
+  // Balance is sufficient and in async mode: fund without awaiting
+  performFunding().catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error('Async funding failed:', error);
+  });
+  return null;
 }
