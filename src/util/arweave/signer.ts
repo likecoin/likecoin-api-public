@@ -49,9 +49,16 @@ export async function signData(signatureData) {
   return Buffer.from(await signer.sign(signatureData));
 }
 
-export async function fund(requiredAmount: string) {
+export async function fund(requiredAmount: string, { lazy = true } = {}) {
   const ethereumIrys = await getEthereumBundlr();
   const fundAmount = ethereumIrys.utils.toAtomic(requiredAmount);
+
+  if (lazy) {
+    const currentBalance = await ethereumIrys.getLoadedBalance();
+    if (currentBalance.gte(fundAmount)) {
+      return null;
+    }
+  }
 
   const multipliers = [1.2, 1.5, 2.0];
   let lastError;
