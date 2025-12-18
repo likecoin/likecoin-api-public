@@ -48,6 +48,12 @@ export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.S
   });
   const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
     ?.balance_transaction as Stripe.BalanceTransaction;
+  // balanceTx can be null when capture is automatic_async
+  if (!balanceTx) {
+    // eslint-disable-next-line no-console
+    console.warn(`No balance transaction found for payment intent ${paymentIntent}`);
+    return 0;
+  }
   const stripeFee = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
   return stripeFee?.amount || 0;
 }
