@@ -29,6 +29,7 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
+import { convertUSDPriceToCurrency } from '../../../pricing';
 
 export function getAuthorNameFromMetadata(author: unknown): string {
   if (typeof author === 'string') {
@@ -183,6 +184,14 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
     default_price_data: {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
+      currency_options: {
+        twd: {
+          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'twd') * 100,
+        },
+        hkd: {
+          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'hkd') * 100,
+        },
+      },
     },
     url: getBook3NFTClassPageURL({ classId, priceIndex }),
     metadata,
