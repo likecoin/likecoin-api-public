@@ -61,7 +61,7 @@ export async function handleStripeConnectedAccount({
   ownerWallet: string,
   bookName: string,
   buyerEmail: string | null,
-  paymentIntentId: string,
+  paymentIntentId?: string,
 }, {
   chargeId = '',
   amountTotal,
