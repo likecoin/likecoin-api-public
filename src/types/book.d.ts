@@ -141,6 +141,7 @@ export interface NFTBookListingInfo {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   hideAudio?: boolean;
+  hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
   tableOfContents?: any;
   signedMessageText?: string;
@@ -183,6 +184,7 @@ export interface NFTBookListingInfoFiltered {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   hideAudio?: boolean;
+  hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
   tableOfContents?: any;
   signedMessageText?: string;

@@ -209,6 +209,7 @@ export async function newNftBookInfo(
     mustClaimToView,
     hideDownload,
     hideAudio,
+    hideUpsell,
     enableCustomMessagePage,
     enableSignatureImage,
     signedMessageText,
@@ -273,6 +274,7 @@ export async function newNftBookInfo(
   if (mustClaimToView !== undefined) payload.mustClaimToView = mustClaimToView;
   if (hideDownload !== undefined) payload.hideDownload = hideDownload;
   if (hideAudio !== undefined) payload.hideAudio = hideAudio;
+  if (hideUpsell !== undefined) payload.hideUpsell = hideUpsell;
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
@@ -392,6 +394,7 @@ export async function updateNftBookInfo(classId: string, {
   mustClaimToView,
   hideDownload,
   hideAudio,
+  hideUpsell,
   enableCustomMessagePage,
   enableSignatureImage,
   signedMessageText,
@@ -403,6 +406,7 @@ export async function updateNftBookInfo(classId: string, {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   hideAudio?: boolean;
+  hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
   enableSignatureImage?: boolean;
   signedMessageText?: string;
@@ -422,6 +426,7 @@ export async function updateNftBookInfo(classId: string, {
   if (mustClaimToView !== undefined) { payload.mustClaimToView = mustClaimToView; }
   if (hideDownload !== undefined) { payload.hideDownload = hideDownload; }
   if (hideAudio !== undefined) { payload.hideAudio = hideAudio; }
+  if (hideUpsell !== undefined) { payload.hideUpsell = hideUpsell; }
   if (enableCustomMessagePage !== undefined) {
     payload.enableCustomMessagePage = enableCustomMessagePage;
   }
