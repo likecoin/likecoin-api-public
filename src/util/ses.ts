@@ -30,7 +30,7 @@ function formatEmailDecimalNumber(decimal: number) {
 }
 
 export async function sendVerificationEmail(res, user, ref) {
-  if (TEST_MODE) return Promise.resolve();
+  const subject = res.__('Email.VerifyEmail.subject');
   const params = {
     Source: SYSTEM_EMAIL,
     ConfigurationSetName: 'likeco_ses',
@@ -39,6 +39,10 @@ export async function sendVerificationEmail(res, user, ref) {
         Name: 'Function',
         Value: 'sendVerificationEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [user.email],
@@ -46,7 +50,7 @@ export async function sendVerificationEmail(res, user, ref) {
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: res.__('Email.VerifyEmail.subject'),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -70,7 +74,6 @@ export function sendNFTBookListingEmail({
   classId = '',
   bookName,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const title = `New NFT Book listing: ${bookName}`;
   const nftPageURLEn = getBook3NFTClassPageURL({ classId });
   const params = {
@@ -82,6 +85,10 @@ export function sendNFTBookListingEmail({
         Name: 'Function',
         Value: 'sendNFTBookListingEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [SALES_EMAIL],
@@ -89,7 +96,7 @@ export function sendNFTBookListingEmail({
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: title,
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
       },
       Body: {
         Html: {
@@ -114,8 +121,6 @@ export async function sendNFTBookPendingClaimEmail({
   from = '',
   isResend = false,
 }) {
-  if (TEST_MODE) return Promise.resolve();
-
   let receiverDisplayName = '';
   try {
     receiverDisplayName = await fetchUserDisplayNameByEmail(email);
@@ -142,6 +147,7 @@ export async function sendNFTBookPendingClaimEmail({
   });
   const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
+  const subject = [titleZh, titleEn].join(' | ');
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -151,15 +157,19 @@ export async function sendNFTBookPendingClaimEmail({
         Name: 'Function',
         Value: 'sendNFTBookPendingClaimEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -212,7 +222,6 @@ export async function sendNFTBookCartPendingClaimEmail({
   claimToken,
   isResend = false,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   let receiverDisplayName = '';
   try {
     receiverDisplayName = await fetchUserDisplayNameByEmail(email);
@@ -237,6 +246,7 @@ export async function sendNFTBookCartPendingClaimEmail({
   });
   const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
+  const subject = [titleZh, titleEn].join(' | ');
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -246,6 +256,10 @@ export async function sendNFTBookCartPendingClaimEmail({
         Name: 'Function',
         Value: 'sendNFTBookCartPendingClaimEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [SALES_EMAIL], // send to SALES_EMAIL instead of email before revamp
@@ -254,7 +268,7 @@ export async function sendNFTBookCartPendingClaimEmail({
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -310,7 +324,6 @@ export function sendNFTBookGiftPendingClaimEmail({
   claimToken,
   isResend = false,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleEn = `${isResend ? '(Reminder) ' : ''} ${fromName} has sent you an ebook gift from 3ook.com`;
   const titleZh = `${isResend ? '（提示）' : ''} ${fromName} 送了一本電子書禮物給你`;
   const nftPageURLEn = getBook3NFTClassPageURL({ classId, language: 'en' });
@@ -331,6 +344,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   });
   const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
+  const subject = [titleZh, titleEn].join(' | ');
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -340,15 +354,19 @@ export function sendNFTBookGiftPendingClaimEmail({
         Name: 'Function',
         Value: 'sendNFTBookGiftPendingClaimEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [toEmail],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -405,7 +423,6 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   claimToken,
   isResend = false,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleEn = `${isResend ? '(Reminder) ' : ''}${fromName} has sent you an ebook gift from 3ook.com`;
   const titleZh = `${isResend ? '（提示）' : ''}${fromName} 送了電子書禮物給你`;
   const claimPageURLEn = getBook3NFTClaimPageURL({
@@ -424,6 +441,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
   });
   const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
   const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
+  const subject = [titleZh, titleEn].join(' | ');
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -433,15 +451,19 @@ export function sendNFTBookCartGiftPendingClaimEmail({
         Name: 'Function',
         Value: 'sendNFTBookCartGiftPendingClaimEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [toEmail],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -496,9 +518,9 @@ export function sendNFTBookGiftClaimedEmail({
   fromName,
   toName,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleEn = `${toName} has accepted your ebook gift ${bookName}`;
   const titleZh = `${toName} 已接受你的禮物電子書 ${bookName}`;
+  const subject = [titleZh, titleEn].join(' | ');
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -508,15 +530,19 @@ export function sendNFTBookGiftClaimedEmail({
         Name: 'Function',
         Value: 'sendNFTBookGiftClaimedEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [fromEmail],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -551,9 +577,9 @@ export function sendNFTBookGiftSentEmail({
   bookName,
   txHash,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleEn = `Your ebook gift ${bookName} to ${toName} has been delivered`;
   const titleZh = `你給 ${toName} 的禮物電子書 ${bookName} 已經發送`;
+  const subject = [titleZh, titleEn].join(' | ');
   const txURL = `https://mintscan.com/likecoin/txs/${txHash}`;
   const params = {
     Source: SYSTEM_EMAIL,
@@ -564,15 +590,19 @@ export function sendNFTBookGiftSentEmail({
         Name: 'Function',
         Value: 'sendNFTBookGiftSentEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [fromEmail],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: [titleZh, titleEn].join(' | '),
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
       },
       Body: {
         Html: {
@@ -622,7 +652,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
   coupon?: string;
   from?: string;
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const {
     priceInDecimal,
     originalPriceInDecimal,
@@ -660,14 +689,18 @@ export function sendAutoDeliverNFTBookSalesEmail({
         Name: 'Function',
         Value: 'sendAutoDeliverNFTBookSalesEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: title,
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
       },
       Body: {
         Html: {
@@ -693,7 +726,6 @@ export function sendNFTBookSalePaymentsEmail({
   bookName,
   payments,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const hasRoyalty = payments.some(({ type }) => type === 'connectedWallet');
   const totalAmount = payments.reduce((acc, { amount }) => acc + amount, 0);
   const nftPageURLEn = getBook3NFTClassPageURL({ classId });
@@ -731,15 +763,19 @@ export function sendNFTBookSalePaymentsEmail({
         Name: 'Function',
         Value: 'sendNFTBookSalePaymentsEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: title,
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
       },
       Body: {
         Html: {
@@ -778,7 +814,6 @@ export function sendManualNFTBookSalesEmail({
   coupon?: string;
   from?: string;
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const {
     priceInDecimal,
     originalPriceInDecimal,
@@ -816,14 +851,18 @@ export function sendManualNFTBookSalesEmail({
         Name: 'Function',
         Value: 'sendManualNFTBookSalesEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: title,
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
       },
       Body: {
         Html: {
@@ -848,7 +887,6 @@ export function sendNFTBookOutOfStockEmail({
   bookName,
   priceName,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   if (!email) return Promise.resolve();
   const title = `Your book ${bookName} ${priceName} is sold out`;
   const url = getNFTBookStoreClassPageURL(classId);
@@ -867,15 +905,19 @@ export function sendNFTBookOutOfStockEmail({
         Name: 'Function',
         Value: 'sendNFTBookOutOfStockEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [email],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: title,
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
       },
       Body: {
         Html: {
@@ -902,7 +944,6 @@ export function sendPlusGiftPendingClaimEmail({
   claimToken,
   isResend = false,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleZh = `${isResend ? '（提示）' : ''}${fromName} 送贈了 Plus 會籍給你`;
   const claimPageURLZh = getPlusGiftPageClaimURL({
     cartId,
@@ -923,16 +964,20 @@ export function sendPlusGiftPendingClaimEmail({
         Name: 'Function',
         Value: 'sendPlusGiftPendingClaimEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [toEmail],
       CcAddresses: ccAddresses,
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: titleZh,
+        Data: TEST_MODE ? `(TESTNET) ${titleZh}` : titleZh,
       },
       Body: {
         Html: {
@@ -962,7 +1007,6 @@ export function sendPlusGiftClaimedEmail({
   fromName,
   toName,
 }) {
-  if (TEST_MODE) return Promise.resolve();
   const titleZh = `${toName} 已接受你送贈的 Plus 會籍`;
   const params = {
     Source: SYSTEM_EMAIL,
@@ -973,15 +1017,19 @@ export function sendPlusGiftClaimedEmail({
         Name: 'Function',
         Value: 'sendPlusGiftClaimedEmail',
       },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
     ],
     Destination: {
       ToAddresses: [fromEmail],
-      BccAddresses: [SALES_EMAIL],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
     },
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: titleZh,
+        Data: TEST_MODE ? `(TESTNET) ${titleZh}` : titleZh,
       },
       Body: {
         Html: {
