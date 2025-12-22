@@ -34,6 +34,7 @@ export const getBook3CartURL = ({
   gadClickId,
   gadSource,
   page = 'list',
+  from,
 }: {
   language?: string,
   type?: 'book' | 'wnft',
@@ -45,6 +46,7 @@ export const getBook3CartURL = ({
   gadClickId?: string;
   gadSource?: string;
   page?: 'list' | 'checkout';
+  from?: string;
 }): string => {
   const qsPayload: any = {};
   if (utmCampaign) {
@@ -67,6 +69,9 @@ export const getBook3CartURL = ({
   }
   if (gadSource) {
     qsPayload.gad_source = gadSource;
+  }
+  if (from) {
+    qsPayload.from = from;
   }
   const qs = new URLSearchParams(qsPayload).toString();
 
@@ -92,6 +97,7 @@ export const getBook3NFTClassPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
+  from,
 }: {
   classId: string,
   priceIndex?: number;
@@ -103,6 +109,7 @@ export const getBook3NFTClassPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
+  from?: string;
 }): string => {
   const qsPayload: Record<string, string> = {};
   if (priceIndex) {
@@ -128,6 +135,9 @@ export const getBook3NFTClassPageURL = ({
   }
   if (gadSource) {
     qsPayload.gad_source = gadSource;
+  }
+  if (from) {
+    qsPayload.from = from;
   }
   const qs = new URLSearchParams(qsPayload).toString();
   return getBook3URL(`/store/${classId}?${qs}`, { language });

@@ -1442,6 +1442,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
       gaSessionId,
       gadClickId,
       gadSource,
+      from,
     }),
     paymentMethods,
   });
