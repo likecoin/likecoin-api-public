@@ -190,6 +190,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         gadSource,
         page: cancelPage,
         language,
+        from: from as string,
       }),
       language,
     });
@@ -321,6 +322,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gaSessionId: gaSessionId as string,
         gadClickId: gadClickId as string,
         gadSource: gadSource as string,
+        from: from as string,
       }),
     });
     res.redirect(url);
@@ -457,6 +459,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gadClickId,
         gadSource,
         language,
+        from: from as string,
       }),
       language,
     });
