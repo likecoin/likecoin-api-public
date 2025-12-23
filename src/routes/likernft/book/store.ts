@@ -32,6 +32,7 @@ import stripe from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
+import { convertUSDPriceToCurrency } from '../../../util/pricing';
 
 const router = Router();
 const pngUpload = multer({
@@ -329,6 +330,14 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
             product: oldPriceInfo.stripeProductId,
             currency: 'usd',
             unit_amount: price.priceInDecimal,
+            currency_options: {
+              twd: {
+                unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'twd') * 100,
+              },
+              hkd: {
+                unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'hkd') * 100,
+              },
+            },
           });
           await stripe.products.update(
             oldPriceInfo.stripeProductId,

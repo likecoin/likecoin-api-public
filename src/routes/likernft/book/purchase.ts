@@ -133,6 +133,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       referrer: inputReferrer,
       items = [],
       coupon,
+      currency,
       giftInfo,
       cancelPage,
       language,
@@ -145,6 +146,10 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
     if (giftInfo) {
       if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
       if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
+    }
+
+    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency)) {
+      throw new ValidationError('UNSUPPORTED_CURRENCY');
     }
 
     const referrer = inputReferrer;
@@ -169,6 +174,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       evmWallet: req.user?.evmWallet,
       email,
       coupon,
+      currency,
       utm: {
         campaign: utmCampaign,
         source: utmSource,
@@ -257,6 +263,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       quantity: inputQuantity,
       referrer: inputReferrer,
       coupon,
+      currency,
       fbclid: fbClickId = '',
       payment_method: paymentMethodQs,
     } = req.query;
@@ -267,6 +274,10 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
+
+    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+      throw new ValidationError('UNSUPPORTED_CURRENCY');
+    }
 
     let paymentMethods: string[] | undefined;
     if (paymentMethodQs) {
@@ -299,6 +310,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       gadSource: gadSource as string,
       fbClickId: fbClickId as string,
       coupon: coupon as string,
+      currency: currency as string,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
       from: from as string,
@@ -388,6 +400,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       gadSource,
       fbClickId,
       coupon,
+      currency,
       email,
       giftInfo,
       utmCampaign,
@@ -407,6 +420,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     if (giftInfo) {
       if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
       if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
+    }
+
+    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency)) {
+      throw new ValidationError('UNSUPPORTED_CURRENCY');
     }
 
     const httpMethod = 'POST';
@@ -433,6 +450,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       gadSource,
       fbClickId,
       coupon,
+      currency,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
       email,

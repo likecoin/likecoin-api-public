@@ -341,7 +341,7 @@ type ProcessNFTBookCartMeta = {
 type ProcessNFTBookCartPayment = {
   amountTotal: number | null;
   email: string | null;
-  paymentIntent?: string;
+  paymentIntent?: Stripe.PaymentIntent | null;
   session?: Stripe.Checkout.Session;
 };
 
@@ -415,16 +415,10 @@ export async function processNFTBookCart(
       isGift: cartIsGift,
       giftInfo: cartGiftInfo,
     } = cartData as any;
-    let expandedPaymentIntent: Stripe.PaymentIntent | null = null;
-    if (paymentIntent) {
-      expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
-        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
-      });
-    }
 
     let chargeId: string | undefined;
-    if (expandedPaymentIntent) {
-      chargeId = typeof expandedPaymentIntent.latest_charge === 'string' ? expandedPaymentIntent.latest_charge : expandedPaymentIntent.latest_charge?.id;
+    if (paymentIntent) {
+      chargeId = typeof paymentIntent.latest_charge === 'string' ? paymentIntent.latest_charge : paymentIntent.latest_charge?.id;
     }
 
     const infoList = classInfos;
@@ -471,7 +465,7 @@ export async function processNFTBookCart(
           ownerWallet,
           bookName,
           buyerEmail: email,
-          paymentIntentId: paymentIntent as string,
+          paymentIntentId: paymentIntent?.id,
         },
         {
           amountTotal: priceInDecimal,
@@ -529,9 +523,9 @@ export async function processNFTBookCart(
           method: 'Fiat',
           from,
         }),
-        expandedPaymentIntent
+        paymentIntent
           ? createAirtableBookSalesRecordFromStripePaymentIntent({
-            pi: expandedPaymentIntent,
+            pi: paymentIntent,
             paymentId,
             classId,
             priceIndex,
@@ -801,7 +795,7 @@ export async function processNFTBookCartStripePurchase(
   } = session;
   const {
     customer_details: customer,
-    payment_intent: paymentIntent,
+    payment_intent: paymentIntentId,
     id: sessionId,
   } = session;
 
@@ -809,8 +803,13 @@ export async function processNFTBookCartStripePurchase(
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
 
   const isFree = amountTotal === 0;
-  if (!isFree && !paymentIntent) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
-
+  if (!isFree && !paymentIntentId) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
+  let paymentIntent: Stripe.PaymentIntent | null = null;
+  if (paymentIntentId) {
+    paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId as string, {
+      expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+    });
+  }
   const { email } = customer;
 
   const {
@@ -819,7 +818,7 @@ export async function processNFTBookCartStripePurchase(
     feeInfo: totalFeeInfo,
     coupon,
   // eslint-disable-next-line no-use-before-define
-  } = await formatCartItemInfosFromSession(session);
+  } = await formatCartItemInfosFromSession(session, paymentIntent);
 
   if (!itemInfos?.length) return;
 
@@ -844,7 +843,7 @@ export async function processNFTBookCartStripePurchase(
     {
       amountTotal,
       email,
-      paymentIntent: paymentIntent as string,
+      paymentIntent,
       session,
     },
     req,
@@ -1158,7 +1157,10 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
   return itemInfos;
 }
 
-export async function formatCartItemInfosFromSession(session: Stripe.Checkout.Session) {
+export async function formatCartItemInfosFromSession(
+  session: Stripe.Checkout.Session,
+  paymentIntent?: Stripe.PaymentIntent | null,
+) {
   const sessionId = session.id;
   const {
     currency_conversion: currencyConversion,
@@ -1175,6 +1177,11 @@ export async function formatCartItemInfosFromSession(session: Stripe.Checkout.Se
     conversionRate = 1;
   } else if (currencyConversion?.fx_rate) {
     conversionRate = Number(currencyConversion.fx_rate);
+  } else if (paymentIntent) {
+    const balanceTx = (paymentIntent.latest_charge as Stripe.Charge)?.balance_transaction;
+    if (balanceTx && typeof balanceTx !== 'string' && balanceTx.exchange_rate) {
+      conversionRate = 1 / balanceTx.exchange_rate;
+    }
   }
 
   const items: CartItem[] = [];
@@ -1280,6 +1287,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   email,
   from: inputFrom,
   coupon,
+  currency,
   giftInfo,
   utm,
   referrer,
@@ -1300,6 +1308,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   evmWallet?: string,
   from?: string,
   coupon?: string,
+  currency?: string,
   giftInfo?: {
     toEmail: string,
     toName: string,
@@ -1414,6 +1423,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     from,
     coupon,
     couponId,
+    currency,
     claimToken,
     gaClientId,
     gaSessionId,
