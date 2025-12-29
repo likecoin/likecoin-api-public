@@ -7,6 +7,7 @@ import {
   CUSTOMER_SERVICE_EMAIL,
   SALES_EMAIL,
   SYSTEM_EMAIL,
+  CHAIN_EXPLORER_URL,
 } from '../constant';
 import {
   getPlusGiftPageClaimURL,
@@ -580,7 +581,7 @@ export function sendNFTBookGiftSentEmail({
   const titleEn = `Your ebook gift ${bookName} to ${toName} has been delivered`;
   const titleZh = `你給 ${toName} 的禮物電子書 ${bookName} 已經發送`;
   const subject = [titleZh, titleEn].join(' | ');
-  const txURL = `https://mintscan.com/likecoin/txs/${txHash}`;
+  const txURL = `${CHAIN_EXPLORER_URL}/tx/${txHash}`;
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -621,6 +622,86 @@ export function sendNFTBookGiftSentEmail({
             <p>Your gift ${bookName} has been delivered to ${toName}.
             <br>For technical details, visit <a href="${txURL}">transaction detail page</a></p>
             <p>Thank you for sharing the joy of reading.</p>
+            <p>3ook.com Bookstore</p>`,
+          }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params).promise();
+}
+
+export async function sendNFTBookManualDeliverSentEmail({
+  email,
+  classId,
+  bookName,
+  txHash,
+}: {
+  email: string;
+  classId: string;
+  bookName: string;
+  txHash: string;
+}) {
+  let receiverDisplayName = '';
+  try {
+    receiverDisplayName = await fetchUserDisplayNameByEmail(email);
+  } catch {
+    // Do nothing
+  }
+  const titleEn = `Your ebook ${bookName} has been delivered`;
+  const titleZh = `你的電子書《${bookName}》已經發送`;
+  const subject = [titleZh, titleEn].join(' | ');
+  const nftPageURLEn = getBook3NFTClassPageURL({ classId, language: 'en' });
+  const nftPageURLZh = getBook3NFTClassPageURL({ classId, language: 'zh-Hant' });
+  const portfolioURLEn = getBook3PortfolioPageURL({ language: 'en' });
+  const portfolioURLZh = getBook3PortfolioPageURL({ language: 'zh-Hant' });
+  const txURL = `${CHAIN_EXPLORER_URL}/tx/${txHash}`;
+  const params = {
+    Source: SYSTEM_EMAIL,
+    ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendNFTBookManualDeliverSentEmail',
+      },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: TEST_MODE ? `(TESTNET) ${subject}` : subject,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: getNFTTwoContentWithMessageAndButtonTemplate({
+            title1: titleZh,
+            content1: `<p>親愛的 ${receiverDisplayName || '讀者'}：</p>
+            <p>你購買的 <a href="${nftPageURLZh}">《${bookName}》</a> 已經由作者親手簽發。</p>
+            <p>請到你的 <a href="${portfolioURLZh}">3ook.com 書店的書架</a>閱讀你的電子書。如需瀏覽技術細節，請按<a href="${txURL}">此連結</a>。</p>`,
+            buttonText1: '前往我的書架',
+            buttonHref1: portfolioURLZh,
+            append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <p>3ook.com 書店</p>`,
+
+            // English version
+            title2: titleEn,
+            content2: `<p>Dear ${receiverDisplayName || 'reader'},</p>
+            <p>Your ebook "<a href="${nftPageURLEn}">${bookName}</a>" has been personally signed and delivered by the author.</p>
+            <p>Please visit your <a href="${portfolioURLEn}">Bookshelf on 3ook.com bookstore</a> to read your ebook. For technical details, visit <a href="${txURL}">transaction detail page</a>.</p>`,
+            buttonText2: 'Go to my Bookshelf',
+            buttonHref2: portfolioURLEn,
+            append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
+            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
             <p>3ook.com Bookstore</p>`,
           }).body,
         },

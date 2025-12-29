@@ -21,6 +21,7 @@ import {
   sendNFTBookGiftPendingClaimEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookPendingClaimEmail,
+  sendNFTBookManualDeliverSentEmail,
 } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
@@ -689,14 +690,16 @@ router.post(
         email, wallet: toWallet, isGift, giftInfo,
       } = result;
 
+      const classData = await getNFTClassDataById(classId).catch(() => null);
+      const className = classData?.name || classId;
+
       if (isGift && giftInfo) {
         const giftInfoTyped = giftInfo as BookGiftInfo;
         const {
           fromName,
           toName,
+          toEmail,
         } = giftInfoTyped;
-        const classData = await getNFTClassDataById(classId).catch(() => null);
-        const className = classData?.name || classId;
         if (email) {
           await sendNFTBookGiftSentEmail({
             fromEmail: email,
@@ -706,6 +709,21 @@ router.post(
             txHash,
           });
         }
+        if (toEmail) {
+          await sendNFTBookManualDeliverSentEmail({
+            email: toEmail,
+            classId,
+            bookName: className,
+            txHash,
+          });
+        }
+      } else if (email) {
+        await sendNFTBookManualDeliverSentEmail({
+          email,
+          classId,
+          bookName: className,
+          txHash,
+        });
       }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
