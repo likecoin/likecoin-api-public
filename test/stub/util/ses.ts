@@ -160,3 +160,12 @@ export function sendPlusGiftClaimedEmail({
 }) {
   return Promise.resolve();
 }
+
+export function sendNFTBookManualDeliverSentEmail({
+  email,
+  classId,
+  bookName,
+  txHash,
+}) {
+  return Promise.resolve();
+}

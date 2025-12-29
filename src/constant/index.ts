@@ -171,3 +171,5 @@ export const MAX_PNG_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
 export const PLUS_MONTHLY_PRICE = 9.99;
 export const PLUS_YEARLY_PRICE = 99.99;
+
+export const CHAIN_EXPLORER_URL = IS_TESTNET ? 'https://sepolia.basescan.org' : 'https://basescan.org';
