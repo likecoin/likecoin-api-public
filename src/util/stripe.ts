@@ -54,8 +54,13 @@ export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.S
     console.warn(`No balance transaction found for payment intent ${paymentIntent}`);
     return 0;
   }
-  const stripeFee = balanceTx.fee_details.find((fee) => fee.type === 'stripe_fee');
-  return stripeFee?.amount || 0;
+  if (balanceTx.currency !== 'usd') {
+    // eslint-disable-next-line no-console
+    console.warn(`Balance transaction currency is not USD for payment intent ${paymentIntent}`);
+  }
+  const stripeFees = balanceTx.fee_details.filter((fee) => fee.type === 'stripe_fee' && fee.currency === balanceTx.currency);
+  const stripeFee = stripeFees.reduce((prev, curr) => prev + curr.amount, 0);
+  return stripeFee;
 }
 
 export function normalizeLanguageForStripeLocale(
