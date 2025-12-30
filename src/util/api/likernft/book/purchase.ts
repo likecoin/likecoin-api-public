@@ -651,6 +651,7 @@ export async function formatStripeCheckoutSession({
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
   }
+  const currencyWithDefault: 'hkd' | 'twd' | 'usd' = currency as 'hkd' | 'twd' | 'usd' || 'usd';
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'automatic',
@@ -667,7 +668,7 @@ export async function formatStripeCheckoutSession({
     (acc, item) => acc + item.priceInDecimal * item.quantity,
     0,
   );
-  const stripeFeeAmount = calculateStripeFee(totalPriceInDecimal);
+  const stripeFeeAmount = calculateStripeFee(totalPriceInDecimal, currencyWithDefault);
   const likerLandTipFeeAmount = itemPrices.reduce(
     (acc, item) => acc + item.likerLandTipFeeAmount * item.quantity,
     0,
@@ -698,8 +699,6 @@ export async function formatStripeCheckoutSession({
   );
   paymentIntentData.transfer_group = paymentId;
   paymentIntentData.metadata = sessionMetadata;
-
-  const currencyWithDefault: 'hkd' | 'twd' | 'usd' = currency as 'hkd' | 'twd' | 'usd' || 'usd';
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   itemWithPrices.forEach((item) => {
