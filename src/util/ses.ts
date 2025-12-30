@@ -288,7 +288,8 @@ export async function sendNFTBookCartPendingClaimEmail({
             buttonHref1: claimPageURLZh,
             append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
             <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
-            <p>3ook.com 書店</p>`,
+            <p>3ook.com 書店</p>
+            <p>[${paymentId}]</p>`,
 
             // English version
             title2: titleEn,
@@ -305,7 +306,8 @@ export async function sendNFTBookCartPendingClaimEmail({
             buttonHref2: claimPageURLEn,
             append2: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
             <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
-            <p>3ook.com Bookstore</p>`,
+            <p>3ook.com Bookstore</p>
+            <p>[${paymentId}]</p>`,
           }).body,
         },
       },
