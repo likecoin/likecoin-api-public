@@ -495,8 +495,9 @@ export function calculateItemPrices(items: CartItemWithInfo[], from) {
       const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
       const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
       const { priceInDecimal, originalPriceInDecimal } = item;
+      const priceInDecimalWithoutTip = priceInDecimal - customPriceDiffInDecimal;
       const priceDiscountInDecimal = Math.max(
-        originalPriceInDecimal - priceInDecimal,
+        originalPriceInDecimal - priceInDecimalWithoutTip,
         0,
       );
       const likerLandFeeAmount = isFree ? 0 : Math.ceil(
