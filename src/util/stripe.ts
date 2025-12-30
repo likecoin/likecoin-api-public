@@ -4,11 +4,13 @@ import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
 const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-12-15.clover', typescript: true });
 
-export function calculateStripeFee(inputAmount: number) {
+export function calculateStripeFee(inputAmount: number, currency = 'usd'): number {
   if (inputAmount === 0) return 0;
   // 2.9% + 30 cents, 1.5% for international cards
   const flatFee = 30;
-  return Math.ceil(inputAmount * (0.029 + 0.015) + flatFee);
+  // 1% for currency conversion
+  const fxFee = currency !== 'usd' ? 0.01 : 0;
+  return Math.ceil(inputAmount * (0.029 + 0.015 + fxFee) + flatFee);
 }
 
 export async function getStripePromotionFromCode(code: string) {
