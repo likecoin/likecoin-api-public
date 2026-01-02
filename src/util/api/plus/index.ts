@@ -511,6 +511,8 @@ export async function updateSubscriptionPeriod(
   const isInTrial = subscription.status === 'trialing';
   if (isInTrial) {
     updatePayload.trial_end = 'now';
+    updatePayload.proration_behavior = 'none';
+    updatePayload.billing_cycle_anchor = 'now';
   }
   await stripe.subscriptions.update(
     subscriptionId,
