@@ -145,6 +145,7 @@ export async function createPlusGiftCheckoutSession(
       metadata: sessionMetadata,
     },
     mode: 'payment',
+    currency: 'usd',
     success_url: getPlusGiftPageURL({
       period,
       cartId,
