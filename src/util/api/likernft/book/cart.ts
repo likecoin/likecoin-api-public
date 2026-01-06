@@ -513,7 +513,7 @@ export async function processNFTBookCart(
       }
 
       const notifications: Promise<any>[] = [
-        sendNFTBookSalesSlackNotification({
+        price > 0 ? sendNFTBookSalesSlackNotification({
           classId,
           bookName,
           paymentId,
@@ -522,7 +522,7 @@ export async function processNFTBookCart(
           priceWithCurrency: `${price} USD`,
           method: 'Fiat',
           from,
-        }),
+        }) : Promise.resolve(),
         paymentIntent
           ? createAirtableBookSalesRecordFromStripePaymentIntent({
             pi: paymentIntent,
