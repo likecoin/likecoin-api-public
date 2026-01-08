@@ -4,7 +4,7 @@ import { BigNumber } from 'bignumber.js';
 import { LIKER_NFT_FIAT_MIN_RATIO } from '../../../../config/config';
 import { COINGECKO_AR_LIKE_PRICE_API } from '../../../constant';
 
-const priceCache = new LRU({ max: 1, maxAge: 1 * 60 * 1000 }); // 1 min
+const priceCache = new LRU({ max: 1, ttl: 1 * 60 * 1000 }); // 1 min
 const FIAT_CURRENCY = 'usd';
 
 function getKey(fromToken, toToken) {

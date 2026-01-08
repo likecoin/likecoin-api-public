@@ -2,7 +2,7 @@ import Arweave from 'arweave/node';
 import LRU from 'lru-cache';
 import { getEthereumBundlr } from './signer';
 
-const arweaveIdCache = new LRU({ max: 4096, maxAge: 86400000 }); // 1day
+const arweaveIdCache = new LRU({ max: 4096, ttl: 86400000 }); // 1day
 
 const IPFS_KEY = 'IPFS-CID';
 
