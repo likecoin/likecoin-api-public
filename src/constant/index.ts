@@ -160,7 +160,7 @@ export const SYSTEM_EMAIL = '"3ook.com" <cs@3ook.com>';
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
-export const ARWEAVE_GATEWAY = 'https://gateway.irys.xyz';
+export const ARWEAVE_GATEWAY = 'https://gateway.irysnetwork.com';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['zh', 'en'];
