@@ -1,7 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
 import Stripe from 'stripe';
 
-import { IS_TESTNET } from '../constant';
+import { IS_TESTNET, TEST_MODE } from '../constant';
 import {
   AIRTABLE_API_KEY,
   AIRTABLE_BASE_ID,
@@ -54,11 +54,10 @@ const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHp
 const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
 
-let airtable: Airtable;
-let base: Airtable.Base;
+let base: Airtable.Base | undefined;
 
-if (!process.env.CI) {
-  airtable = new Airtable({ apiKey: AIRTABLE_API_KEY });
+if (!process.env.CI && !TEST_MODE) {
+  const airtable = new Airtable({ apiKey: AIRTABLE_API_KEY });
   base = airtable.base(AIRTABLE_BASE_ID);
 }
 
@@ -85,11 +84,10 @@ export async function createAirtablePublicationRecord({
   isDRMFree = false,
   isHidden = false,
 }: CreateAirtablePublicationRecordParams): Promise<void> {
-  if (!base) return;
-
   const normalizedImageURL = parseImageURLFromMetadata(imageURL);
 
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields: any = {
       Timestamp: (!Number.isNaN(timestamp.getTime()) ? timestamp : new Date()).toISOString(),
@@ -159,6 +157,8 @@ export async function createAirtablePublicationRecord({
 
 export async function queryAirtableForPublication({ query, fields }) {
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
+
     const formattedQueryString = query.replaceAll('"', '').toLowerCase();
 
     const defaultFieldNames = ['Name', 'Description', 'Owner Name', 'Author', 'Publisher'];
@@ -238,6 +238,7 @@ export async function queryAirtableForPublication({ query, fields }) {
 }
 
 async function queryAirtablePublicationRecordById(id: string) {
+  if (!base) throw new Error('Airtable base is not initialized');
   const [record] = await base(PUBLICATIONS_TABLE_ID).select({
     maxRecords: 1,
     pageSize: 1,
@@ -274,9 +275,8 @@ export async function updateAirtablePublicationRecord({
   isDRMFree,
   isHidden,
 }: UpdateAirtablePublicationRecordParams): Promise<void> {
-  if (!base) return;
-
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
     const record = await queryAirtablePublicationRecordById(id);
     if (!record) {
       // eslint-disable-next-line no-console
@@ -611,6 +611,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   isGift?: boolean,
 }): Promise<void> {
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
     const record = normalizeStripePaymentIntentForAirtableBookSalesRecord({
       classId,
       priceIndex,
@@ -727,6 +728,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   rawData?: string,
 }): Promise<void> {
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
     const date = new Date();
     const fields: Partial<FieldSet> = {
       'Payment Intent ID': '',
@@ -848,6 +850,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   giftCartId?: string;
 }): Promise<void> {
   try {
+    if (!base) throw new Error('Airtable base is not initialized');
     const fields: Partial<FieldSet> = {
       Date: new Date().toISOString(),
       'Subscription ID': subscriptionId,
