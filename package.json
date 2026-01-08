@@ -8,20 +8,13 @@
   "main": "src/index.js",
   "scripts": {
     "clean": "rm -rf dist && mkdir dist && ln -s ../config ./dist/config",
-    "dev": "IS_TESTNET=true nodemon src/index.ts",
-    "dev:stub": "IS_TESTNET=true node ./test/stub/runner dev",
-    "dev:docker:api": "docker-compose -f docker-compose-dev.yml up -d",
-    "dev:docker:build": "docker-compose build",
-    "dev:docker:down": "docker-compose down",
-    "dev:docker:test": "npm run dev:docker:test:build && docker-compose -f docker-compose-test.yml up -d",
-    "dev:docker:test:build": "docker-compose -f docker-compose-test.yml build",
-    "dev:docker:test:stop": "docker-compose -f docker-compose-test.yml stop",
+    "dev": "IS_TESTNET=true tsx --watch src/index.ts",
+    "dev:stub": "IS_TESTNET=true tsx ./test/stub/runner dev",
     "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/",
     "lint": "eslint --ext .ts,.js src test --fix",
-    "start": "npm run start:web",
-    "start:web": "NODE_ENV=production node dist/src/index.js",
+    "start": "NODE_ENV=production node dist/src/index.js",
     "test": "npm run test:stub",
-    "test:stub": "node ./test/stub/runner test:api",
+    "test:stub": "tsx ./test/stub/runner test:api",
     "test:data": "cp ./test/data/* ./dist/test/data",
     "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true ava --timeout=1m -v"
   },
@@ -102,9 +95,8 @@
     "eslint-plugin-import": "^2.14.0",
     "form-data": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
-    "nodemon": "^2.0.22",
     "source-map-support": "^0.5.21",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.21.0",
     "typescript": "5.0.4"
   }
 }
