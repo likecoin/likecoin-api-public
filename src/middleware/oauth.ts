@@ -9,7 +9,7 @@ import { ValidationError } from '../util/ValidationError';
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 import type { OAuthClientInfo } from '../types/firestore';
 
-const providerOAuthClientInfo = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
+const providerOAuthClientInfo = new LRU({ max: 128, ttl: 10 * 60 * 1000 }); // 10 min
 
 export const getOAuthClientInfo = ({ checkSecret = true } = {}) => async (
   req: Request,

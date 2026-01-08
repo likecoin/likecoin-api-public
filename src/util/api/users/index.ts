@@ -19,7 +19,7 @@ import { jwtSign } from '../../jwt';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 import { maskString } from '../../misc';
 
-const emailDomainCache = new LRU({ max: 1024, maxAge: 3600 }); // 1 hour
+const emailDomainCache = new LRU({ max: 1024, ttl: 3600 }); // 1 hour
 
 export const FIVE_MIN_IN_MS = 300000;
 

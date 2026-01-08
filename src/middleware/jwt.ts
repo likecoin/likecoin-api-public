@@ -20,7 +20,7 @@ import {
 import { filterOAuthClientInfo } from '../util/ValidationHelper';
 import { PERMISSION_GROUPS } from '../constant/jwt';
 
-const providerClientInfoCache = new LRU({ max: 128, maxAge: 10 * 60 * 1000 }); // 10 min
+const providerClientInfoCache = new LRU({ max: 128, ttl: 10 * 60 * 1000 }); // 10 min
 
 async function fetchProviderClientInfo(clientId: string, req: Request): Promise<string> {
   const cachedClientInfo = providerClientInfoCache.get(clientId);
