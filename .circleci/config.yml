@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: ~/likecoin-api-public
     docker:
-      - image: node:20
+      - image: cimg/node:20.18
     resource_class: medium+
     steps:
       - checkout
@@ -11,12 +11,7 @@ jobs:
           key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
       - run:
           name: Dependencies
-          command: npm install && npm install codecov -g
-      - run:
-          name: Apt Dependencies
-          command: |
-            apt update
-            apt -y install rsync
+          command: npm install
       - run:
           name: Lint Test
           command: npm run lint
@@ -35,9 +30,6 @@ jobs:
       - run:
           name: API Test
           command: npm run test
-      - run:
-          name: Upload coverage
-          command: codecov
       - save_cache:
           key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
           paths:
