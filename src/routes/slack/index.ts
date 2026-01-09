@@ -1,13 +1,18 @@
-import * as fs from 'fs';
 import { Router } from 'express';
+import book from './book';
+import nftIndexer from './nft-indexer';
+import payment from './payment';
+import plus from './plus';
+import user from './user';
+import wallet from './wallet';
 
 const router = Router();
 
-fs.readdirSync(__dirname).forEach((file) => {
-  const name = file.split('.')[0];
-  if (!name || name === 'index') return;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  router.use(require(`./${name}`).default); // eslint-disable-line import/no-dynamic-require,global-require
-});
+router.use(book);
+router.use(nftIndexer);
+router.use(payment);
+router.use(plus);
+router.use(user);
+router.use(wallet);
 
 export default router;

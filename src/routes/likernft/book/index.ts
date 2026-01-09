@@ -6,8 +6,8 @@ import user from './user';
 
 const router = Router();
 
-router.use('/book/purchase', purchase);
-router.use('/book/store', store);
-router.use('/book/user', user);
+router.use('/purchase', purchase);
+router.use('/store', store);
+router.use('/user', user);
 
 export default router;

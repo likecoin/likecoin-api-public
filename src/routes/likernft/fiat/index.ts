@@ -3,6 +3,6 @@ import stripe from './stripe';
 
 const router = Router();
 
-router.use('/fiat/stripe', stripe);
+router.use('/stripe', stripe);
 
 export default router;

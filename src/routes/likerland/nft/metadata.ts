@@ -150,7 +150,7 @@ async function getNFTClassBookstoreInfo(classId) {
   }
 }
 
-router.get('/nft/metadata', async (req, res, next) => {
+router.get('/metadata', async (req, res, next) => {
   try {
     const { class_id: classId, data: inputSelected } = req.query;
     if (!classId) {
