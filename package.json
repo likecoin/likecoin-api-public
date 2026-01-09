@@ -9,14 +9,13 @@
   "scripts": {
     "clean": "rm -rf dist && mkdir dist && ln -s ../config ./dist/config",
     "dev": "IS_TESTNET=true tsx --watch src/index.ts",
-    "dev:stub": "IS_TESTNET=true tsx ./test/stub/runner dev",
     "build": "npm run clean && NODE_ENV=production tsc && cp ./src/locales/*.json ./dist/src/locales/",
     "lint": "eslint --ext .ts,.js src test --fix",
     "start": "NODE_ENV=production node dist/src/index.js",
-    "test": "npm run test:stub",
-    "test:stub": "tsx ./test/stub/runner test:api",
-    "test:data": "cp ./test/data/* ./dist/test/data",
-    "test:api": "IS_TESTNET=true CI=true TS_NODE_FILES=true ava --timeout=1m -v"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -79,7 +78,6 @@
     "xml": "^1.0.1"
   },
   "devDependencies": {
-    "@ava/typescript": "^3.0.1",
     "@types/cookie-parser": "^1.4.3",
     "@types/express": "^4.17.14",
     "@types/node": "^20",
@@ -87,7 +85,8 @@
     "@types/url-parse": "^1.4.8",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "ava": "^5.0.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
     "axiosist": "^0.3.0",
     "c8": "^7.12.0",
     "eslint": "^7.11.0",
@@ -97,6 +96,7 @@
     "lodash.clonedeep": "^4.5.0",
     "source-map-support": "^0.5.21",
     "tsx": "^4.21.0",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "vitest": "^3.2.4"
   }
 }

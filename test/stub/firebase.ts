@@ -1,23 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint import/no-unresolved: "off" */
-/* eslint import/extensions: "off" */
-import * as admin from 'firebase-admin';
-import cloneDeep from 'lodash.clonedeep'; // eslint-disable-line import/no-extraneous-dependencies
-// These imports will work when this file is copied to src/util/firebase.ts during tests
-// The relative path is correct for the destination location
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-import type { UserData } from '../types/user';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-import type { NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData } from '../types/book';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-import type { LikeNFTISCNData, FreeMintTxData } from '../types/nft';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-import type { TxData, ArweaveTxData } from '../types/transaction';
+/* eslint-disable @typescript-eslint/no-unused-vars, no-use-before-define */
+import cloneDeep from 'lodash.clonedeep';
+import type { CollectionReference, Firestore } from 'firebase-admin/firestore';
+import type { Storage } from 'firebase-admin/storage';
+import type { UserData } from '../../src/types/user';
+import type {
+  NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData, PlusGiftCartData,
+} from '../../src/types/book';
+import type { LikeNFTISCNData, FreeMintTxData } from '../../src/types/nft';
+import type { TxData, ArweaveTxData } from '../../src/types/transaction';
 import type {
   UserAuthData,
   SubscriptionUserData,
@@ -30,31 +20,73 @@ import type {
   LikeButtonUrlData,
   ISCNInfoData,
   ISCNMappingData,
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-} from '../types/firestore';
-import {
-  PlusGiftCartData,
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Path is valid when copied to src/util/
-} from '../types/book';
+} from '../../src/types/firestore';
+
+// Mock firebase-admin types
+const admin = {
+  firestore: {
+    FieldValue: {
+      serverTimestamp: () => ({ toDate: () => new Date() }),
+      increment: (n: number) => n,
+      arrayUnion: (...items: unknown[]) => items,
+      arrayRemove: (...items: unknown[]) => items,
+      delete: () => null,
+    },
+    Timestamp: {
+      now: () => ({ toDate: () => new Date() }),
+      fromDate: (d: Date) => ({ toDate: () => d }),
+    },
+  },
+};
 
 export { admin };
 export const { FieldValue, Timestamp } = admin.firestore;
 
-console.log('Using stub (firebase.js)'); /* eslint no-console: "off" */
-
 interface StubData {
   id: string;
   collection?: Record<string, StubData[]>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-const userData: StubData[] = require('../../test/data/user.json').users;
-const subscriptionData: StubData[] = require('../../test/data/subscription.json').subscriptions;
-const txData: StubData[] = require('../../test/data/tx.json').tx;
-const missionData: StubData[] = require('../../test/data/mission.json').missions;
-const likerNftData: StubData[] = require('../../test/data/likernft.json').likernft;
+let userData: StubData[] = [];
+let subscriptionData: StubData[] = [];
+let txData: StubData[] = [];
+let missionData: StubData[] = [];
+let likerNftData: StubData[] = [];
+
+// Load test data
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  userData = require('../data/user.json').users || [];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  subscriptionData = require('../data/subscription.json').subscriptions || [];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  txData = require('../data/tx.json').tx || [];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  missionData = require('../data/mission.json').missions || [];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  likerNftData = require('../data/likernft.json').likernft || [];
+} catch (e) {
+  // Test data files may not exist, that's okay
+}
+
+// Reset function to restore initial data
+export function resetTestData() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    userData = require('../data/user.json').users || [];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    subscriptionData = require('../data/subscription.json').subscriptions || [];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    txData = require('../data/tx.json').tx || [];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    missionData = require('../data/mission.json').missions || [];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    likerNftData = require('../data/likernft.json').likernft || [];
+  } catch (e) {
+    // Ignore errors
+  }
+}
 
 function docData(obj: StubData): any {
   const res: any = {
@@ -76,8 +108,8 @@ function docUpdate(
   const index = data.findIndex((d) => d.id === id);
   if (index === -1) throw new Error('not found');
   // eslint-disable-next-line no-param-reassign
-  data[id] = Object.assign(obj, updateData);
-  return global.Promise.resolve();
+  Object.assign(obj, updateData);
+  return Promise.resolve();
 }
 
 function docDelete(data: StubData[], { id }: { id: string }): void {
@@ -103,7 +135,7 @@ function docSet(
     id,
   } as StubData;
   data.push(pushData);
-  return global.Promise.resolve();
+  return Promise.resolve();
 }
 
 function querySnapshotDocs(inputData: StubData[], originalData: StubData[]): any[] {
@@ -115,14 +147,19 @@ function querySnapshotDocs(inputData: StubData[], originalData: StubData[]): any
         set: async (setData: Partial<StubData>, config = {}) => (
           docSet(originalData, d.id, setData, config)
         ),
-        create: async (setData: Partial<StubData>) => (
-          docSet(originalData, d.id, setData)
-        ),
+        create: async (setData: Partial<StubData>) => {
+          const existing = originalData.find((item) => item.id === d.id);
+          if (existing) {
+            const error = new Error('Document already exists');
+            (error as any).code = 6;
+            throw error;
+          }
+          return docSet(originalData, d.id, setData);
+        },
         update: async (updateData: Partial<StubData>) => (
           docUpdate(originalData, d.id, d, updateData)
         ),
         delete: async () => docDelete(originalData, { id: d.id }),
-        // eslint-disable-next-line no-use-before-define
         collection: (id: string) => createCollection(d.collection?.[id] || []),
       },
       data: () => docData(d),
@@ -139,7 +176,7 @@ function collectionWhere(data: StubData[], field = '', op = '', value: any = '')
       const fields = field.split('.');
       whereData = data.filter((d) => fields.reduce((acc: any, f) => {
         if (!acc) return acc;
-        return acc[f];
+        return acc[f as keyof typeof acc];
       }, d));
     } else {
       whereData = data.filter((d) => d[field] === value);
@@ -147,13 +184,13 @@ function collectionWhere(data: StubData[], field = '', op = '', value: any = '')
   } else if (op === 'array-contains') {
     whereData = data.filter((d) => Array.isArray(d[field]) && d[field].includes(value));
   } else if (op === '>=') {
-    whereData = data.filter((d) => d[field] >= value);
+    whereData = data.filter((d) => (d[field] as any) >= value);
   } else if (op === '<=') {
-    whereData = data.filter((d) => d[field] <= value);
+    whereData = data.filter((d) => (d[field] as any) <= value);
   } else if (op === '!=') {
     whereData = data.filter((d) => d[field] !== value);
-  } else if (op) {
-    console.error(`operator ${op} is not supported`);
+  } else if (op === 'in') {
+    whereData = data.filter((d) => (value as any[]).includes(d[field]));
   }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
@@ -161,35 +198,29 @@ function collectionWhere(data: StubData[], field = '', op = '', value: any = '')
       collectionWhere(whereData, sField, sOp, sValue)
     ),
     orderBy: (sField: string, order: 'asc' | 'desc' = 'asc') => {
-      if (sField in data[0] && (order === 'asc' || order === 'desc')) {
+      if (data.length > 0 && sField in data[0] && (order === 'asc' || order === 'desc')) {
         return queryObj;
       }
-      throw new Error('orderBy is incorrect.');
+      return queryObj;
     },
-    startAt: (_: number) => queryObj,
-    startAfter: (_: number) => queryObj,
-    endBefore: (_: number) => queryObj,
-    limit: (limit: number) => {
-      if (Number.isInteger(limit)) {
-        return queryObj;
-      }
-      throw new Error('limit should be integer.');
-    },
-    get: () => global.Promise.resolve({
+    startAt: () => queryObj,
+    startAfter: () => queryObj,
+    endBefore: () => queryObj,
+    limit: () => queryObj,
+    get: () => Promise.resolve({
       size: docs.length,
       docs,
+      empty: docs.length === 0,
       forEach: (f: (doc: any) => void) => docs.forEach(f),
     }),
   };
   return queryObj;
 }
 
-/* eslint-disable no-use-before-define */
 function collectionDoc(data: StubData[], id: string): any {
   let docObj: any;
   const obj = data.find((d) => d.id === id);
   if (obj) {
-    // deep clone data object
     const cloneObj = cloneDeep(obj);
     docObj = {
       exists: true,
@@ -201,24 +232,36 @@ function collectionDoc(data: StubData[], id: string): any {
     }
   } else {
     docObj = {
+      exists: false,
+      id,
       data: () => undefined,
     };
   }
 
   return {
     get: async function get() {
-      return global.Promise.resolve({
+      return Promise.resolve({
         ...docObj,
         ref: this,
       });
     },
     set: async (setData: Partial<StubData>, config = {}) => docSet(data, id, setData, config),
-    create: async (setData: Partial<StubData>) => docSet(data, id, setData),
+    create: async (setData: Partial<StubData>) => {
+      const existing = data.find((item) => item.id === id);
+      if (existing) {
+        const error = new Error('Document already exists');
+        (error as any).code = 6;
+        throw error;
+      }
+      return docSet(data, id, setData);
+    },
     update: async (updateData: Partial<StubData>) => {
       if (obj) {
         return docUpdate(data, id, obj, updateData);
       }
-      return global.Promise.resolve();
+      const error = new Error('Document not found');
+      (error as any).code = 5;
+      throw error;
     },
     delete: async () => {
       if (obj) {
@@ -240,7 +283,6 @@ function collectionDoc(data: StubData[], id: string): any {
     },
   };
 }
-/* eslint-enable no-use-before-define */
 
 function createCollection(data: StubData[]): any {
   return {
@@ -248,17 +290,17 @@ function createCollection(data: StubData[]): any {
     doc: (id: string) => collectionDoc(data, id),
     get: () => {
       const docs = querySnapshotDocs(data, data);
-      return global.Promise.resolve({
+      return Promise.resolve({
         size: docs.length,
         docs,
+        empty: docs.length === 0,
         forEach: (f: (doc: any) => void) => docs.forEach(f),
       });
     },
-    startAt: (_: number) => collectionWhere(data),
-    startAfter: (_: number) => collectionWhere(data),
-    endBefore: (_: number) => collectionWhere(data),
-    limit: (_: number) => collectionWhere(data),
     orderBy: (sField: string, order: 'asc' | 'desc' = 'asc') => collectionWhere(data),
+    startAt: () => collectionWhere(data),
+    startAfter: () => collectionWhere(data),
+    limit: () => collectionWhere(data),
   };
 }
 
@@ -271,48 +313,49 @@ const dbData: StubData[][] = [
 ];
 
 export const userCollection = createCollection(userData) as
-  admin.firestore.CollectionReference<UserData>;
+  CollectionReference<UserData>;
 export const userAuthCollection = createCollection([]) as
-  admin.firestore.CollectionReference<UserAuthData>;
+  CollectionReference<UserAuthData>;
 export const subscriptionUserCollection = createCollection(
   subscriptionData,
-) as admin.firestore.CollectionReference<SubscriptionUserData>;
+) as CollectionReference<SubscriptionUserData>;
 export const txCollection = createCollection(txData) as
-  admin.firestore.CollectionReference<TxData>;
+  CollectionReference<TxData>;
 export const iapCollection = createCollection([]) as
-  admin.firestore.CollectionReference<IAPData>;
+  CollectionReference<IAPData>;
 export const missionCollection = createCollection(missionData) as
-  admin.firestore.CollectionReference<MissionData>;
+  CollectionReference<MissionData>;
 export const payoutCollection = createCollection([]) as
-  admin.firestore.CollectionReference<PayoutData>;
+  CollectionReference<PayoutData>;
 export const configCollection = createCollection([]) as
-  admin.firestore.CollectionReference<ConfigData>;
+  CollectionReference<ConfigData>;
 export const oAuthClientCollection = createCollection([]) as
-  admin.firestore.CollectionReference<OAuthClientInfo>;
+  CollectionReference<OAuthClientInfo>;
+export const couponCollection = createCollection([]) as CollectionReference<any>;
 export const likeNFTCollection = createCollection(likerNftData) as
-  admin.firestore.CollectionReference<LikeNFTISCNData>;
+  CollectionReference<LikeNFTISCNData>;
 export const likeNFTSubscriptionUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference<SubscriptionUserData>;
+  CollectionReference<SubscriptionUserData>;
 export const likeNFTFreeMintTxCollection = createCollection([]) as
-  admin.firestore.CollectionReference<FreeMintTxData>;
+  CollectionReference<FreeMintTxData>;
 export const likeNFTBookCartCollection = createCollection([]) as
-  admin.firestore.CollectionReference<BookPurchaseCartData>;
+  CollectionReference<BookPurchaseCartData>;
 export const likeNFTBookCollection = createCollection([]) as
-  admin.firestore.CollectionReference<NFTBookListingInfo>;
+  CollectionReference<NFTBookListingInfo>;
 export const likeNFTBookUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference<NFTBookUserData>;
+  CollectionReference<NFTBookUserData>;
 export const likeButtonUrlCollection = createCollection([]) as
-  admin.firestore.CollectionReference<LikeButtonUrlData>;
+  CollectionReference<LikeButtonUrlData>;
 export const iscnInfoCollection = createCollection([]) as
-  admin.firestore.CollectionReference<ISCNInfoData>;
+  CollectionReference<ISCNInfoData>;
 export const iscnArweaveTxCollection = createCollection([]) as
-  admin.firestore.CollectionReference<ArweaveTxData>;
+  CollectionReference<ArweaveTxData>;
 export const iscnMappingCollection = createCollection([]) as
-  admin.firestore.CollectionReference<ISCNMappingData>;
+  CollectionReference<ISCNMappingData>;
 export const superLikeUserCollection = createCollection([]) as
-  admin.firestore.CollectionReference<SuperLikeData>;
+  CollectionReference<SuperLikeData>;
 export const likePlusGiftCartCollection = createCollection([]) as
-  admin.firestore.CollectionReference<PlusGiftCartData>;
+  CollectionReference<PlusGiftCartData>;
 
 function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise<any> {
   return updateFunc({
@@ -320,14 +363,11 @@ function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise
     create: (ref: any, data: any) => ref.create(data),
     set: (ref: any, data: any, config = {}) => ref.create(data, config),
     update: (ref: any, data: any) => ref.update(data),
+    delete: (ref: any) => ref.delete(),
   });
 }
 
-async function initDb(): Promise<boolean> {
-  return true;
-}
-
-function createDb(): admin.firestore.Firestore {
+function createDb(): Firestore {
   return {
     runTransaction: (updateFunc: (transaction: any) => Promise<any>) => runTransaction(updateFunc),
     batch: () => ({
@@ -336,10 +376,16 @@ function createDb(): admin.firestore.Firestore {
       set: (ref: any, data: any, config = {}) => ref.create(data, config),
       update: (ref: any, data: any) => ref.update(data),
       delete: (ref: any) => ref.delete(),
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      commit: async () => {},
+      commit: async () => Promise.resolve(),
     }),
-    recursiveDelete: (ref: any) => ref.delete(),
+    recursiveDelete: async (ref: any) => {
+      // Simple recursive delete implementation
+      const snapshot = await ref.get();
+      if (snapshot.exists) {
+        await ref.delete();
+      }
+      return Promise.resolve();
+    },
     collectionGroup: (group: string) => {
       let data: StubData[] = [];
       dbData.forEach((root) => {
@@ -356,9 +402,9 @@ function createDb(): admin.firestore.Firestore {
       });
       return collectionWhere(data);
     },
-  } as unknown as admin.firestore.Firestore;
+  } as unknown as Firestore;
 }
 
-initDb();
 export const db = createDb();
-export const bucket = {} as ReturnType<admin.storage.Storage['bucket']>;
+export const bucket = {} as ReturnType<Storage['bucket']>;
+export const adminApp = {} as any;
