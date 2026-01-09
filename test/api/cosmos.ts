@@ -2,10 +2,11 @@ import secp256k1 from 'secp256k1';
 import bech32 from 'bech32';
 import createHash from 'create-hash';
 import jsonStringify from 'fast-json-stable-stringify';
+import type { WithImplicitCoercion } from 'buffer';
 
 export const ISCN_SECRET_ADDRESS = 'cosmos1l3e9pgs3mmwuwrh95fecme0s0qtn2880f2jmfe';
 
-function signFormatter(signPayload) {
+function signFormatter(signPayload: any) {
   return {
     memo: jsonStringify(signPayload),
     msgs: [],
@@ -15,7 +16,7 @@ function signFormatter(signPayload) {
   };
 }
 
-function createSigner(privateKey) {
+function createSigner(privateKey: Buffer) {
   const publicKeyArr = secp256k1.publicKeyCreate(privateKey, true);
   const publicKey = Buffer.from(publicKeyArr);
   const sha256 = createHash('sha256');
@@ -24,7 +25,7 @@ function createSigner(privateKey) {
   ripemd.update(sha256.digest());
   const rawAddr = ripemd.digest();
   const cosmosAddress = bech32.encode('cosmos', bech32.toWords(rawAddr));
-  const sign = (msg) => {
+  const sign = (msg: any) => {
     const msgSha256 = createHash('sha256');
     msgSha256.update(jsonStringify(msg));
     const msgHash = msgSha256.digest();
@@ -41,7 +42,7 @@ function createSigner(privateKey) {
   return { cosmosAddress, sign };
 }
 
-export function signWithPrivateKey(payload, privateKey) {
+export function signWithPrivateKey(payload: any, privateKey: WithImplicitCoercion<string>) {
   const signBytes = signFormatter(payload);
   const privKey = Buffer.from(privateKey, 'hex');
   const signer = createSigner(privKey);

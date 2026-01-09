@@ -1,11 +1,12 @@
-// eslint-disable-next-line import/no-unresolved
-import test from 'ava';
+import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 
-test('misc: get LikeCoin price (default)', async (t) => {
-  const res = await axiosist.get('/api/misc/price')
-    .catch((err) => (err as any).response);
+describe('Misc API', () => {
+  it('should get LikeCoin price (default)', async () => {
+    const res = await axiosist.get('/api/misc/price')
+      .catch((err) => (err as any).response);
 
-  t.is(res.status, 200);
-  t.true(res.data.price >= 0);
+    expect(res.status).toBe(200);
+    expect(res.data.price).toBeGreaterThanOrEqual(0);
+  });
 });
