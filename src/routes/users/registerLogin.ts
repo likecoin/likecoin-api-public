@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import Multer from 'multer';
-import RateLimit from 'express-rate-limit';
+import RateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { checksumAddress } from 'viem';
 import {
   PUBSUB_TOPIC_MISC,
@@ -54,14 +54,9 @@ const router = Router();
 
 const apiLimiter = RateLimit({
   windowMs: REGISTER_LIMIT_WINDOW,
-  max: REGISTER_LIMIT_COUNT || 0,
+  max: TEST_MODE ? Number.MAX_SAFE_INTEGER : REGISTER_LIMIT_COUNT || Number.MAX_SAFE_INTEGER,
   skipFailedRequests: true,
-  keyGenerator: (req) => (req.headers['x-real-ip'] as string || req.ip),
-  onLimitReached: (req) => {
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventAPILimitReached',
-    });
-  },
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-real-ip'] as string || req.ip || ''),
 });
 
 function isJson(req) {

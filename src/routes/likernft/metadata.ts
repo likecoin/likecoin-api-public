@@ -47,7 +47,7 @@ router.get(
 );
 
 router.get(
-  ['/image/class_(:classId)(.png)?', '/metadata/image/class_(:classId)(.png)?'],
+  ['/image/class_:classId', '/image/class_:classId.png', '/metadata/image/class_:classId', '/metadata/image/class_:classId.png'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -107,7 +107,7 @@ router.get(
 );
 
 router.get(
-  ['/model/class_(:classId).gltf', '/metadata/model/class_(:classId).gltf'],
+  ['/model/class_:classId.gltf', '/metadata/model/class_:classId.gltf'],
   async (req, res, next) => {
     try {
       const { classId } = req.params;
