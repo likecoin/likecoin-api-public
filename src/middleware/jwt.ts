@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import expressjwt from 'express-jwt';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { expressjwt, UnauthorizedError } from 'express-jwt';
+import jwt, { JwtPayload, TokenExpiredError } from 'jsonwebtoken';
 import LRU from 'lru-cache';
 import { setNoCacheHeader } from './noCache';
 import {
@@ -136,14 +136,16 @@ export const jwtAuth = (
     audience,
     issuer,
   })(req, res, (e) => {
-    if (e && e instanceof expressjwt.UnauthorizedError) {
-      if (e.inner && e.inner.name === 'TokenExpiredError') {
+    if (e && e instanceof UnauthorizedError) {
+      if (e.inner && e.inner instanceof TokenExpiredError) {
         res.status(401).send('TOKEN_EXPIRED');
         return;
       }
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
+    // express-jwt sets req.auth instead of req.user
+    req.user = req.auth;
     if (!req.user
       || (permission && !req.user.permissions && !req.user.scope)
       || ((permission && !checkPermissions(req.user.permissions, permission))
@@ -190,10 +192,10 @@ export const jwtOptionalAuth = (
     audience,
     issuer,
   })(req, res, (e) => {
-    if (e instanceof expressjwt.UnauthorizedError) {
+    if (e instanceof UnauthorizedError) {
       if (req.auth) {
         // throw error if token is azp token
-        if (e.inner && e.inner.name === 'TokenExpiredError') {
+        if (e.inner && e.inner instanceof TokenExpiredError) {
           res.status(401).send('TOKEN_EXPIRED');
           return;
         }
@@ -205,6 +207,8 @@ export const jwtOptionalAuth = (
       next();
       return;
     }
+    // express-jwt sets req.auth instead of req.user
+    req.user = req.auth;
     if (!req.user
       || (permission && !req.user.permissions && !req.user.scope)
       || ((permission && !checkPermissions(req.user.permissions, permission))
