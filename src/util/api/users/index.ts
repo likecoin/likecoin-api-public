@@ -162,7 +162,7 @@ export function checkEVMSignPayload({
 }) {
   const recovered = sigUtil.recoverPersonalSignature({ data: message, sig: signature });
   if (recovered.toLowerCase() !== inputWallet.toLowerCase()) {
-    throw new ValidationError('RECOVEREED_ADDRESS_NOT_MATCH');
+    throw new ValidationError('RECOVERED_ADDRESS_NOT_MATCH');
   }
   const actualPayload = parseActualLoginPayload(message, signMethod);
   const {
