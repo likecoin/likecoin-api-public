@@ -227,6 +227,7 @@ export async function newNftBookInfo(
     inLanguage,
     name,
     description,
+    descriptionFull,
     keywords,
     thumbnailUrl,
     author,
@@ -270,6 +271,7 @@ export async function newNftBookInfo(
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
+  if (descriptionFull) payload.descriptionFull = descriptionFull;
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
@@ -314,6 +316,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     inLanguage,
     name,
     description,
+    descriptionFull,
     keywords: keywordString = '',
     thumbnailUrl,
     author,
@@ -334,6 +337,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
+  if (descriptionFull) payload.descriptionFull = descriptionFull;
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
