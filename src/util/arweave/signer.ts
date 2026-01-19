@@ -21,7 +21,7 @@ export async function getEthereumBundlr(): Promise<NodeIrysType> {
   if (!_ethereumIrys) {
     const { NodeIrys } = await getIrysLib();
     _ethereumIrys = new NodeIrys({
-      network: IS_TESTNET ? 'devnet' : 'mainnet',
+      url: IS_TESTNET ? 'https://devnet.irys.network' : 'https://node1.irys.network',
       token: 'base-eth',
       key: BUNDLR_MATIC_WALLET_PRIVATE_KEY,
       config: {
