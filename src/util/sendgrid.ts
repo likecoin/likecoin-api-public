@@ -1,5 +1,5 @@
 /* eslint-disable no-underscore-dangle */
-import { getBasicTemplate } from '@likecoin/edm';
+import { getBasicV2Template } from '@likecoin/edm';
 import sgMail from '@sendgrid/mail';
 import {
   SENDGRID_API_KEY,
@@ -8,12 +8,13 @@ import {
 sgMail.setApiKey(SENDGRID_API_KEY);
 
 export async function sendVerificationEmail(res, user, ref) {
+  const subject = res.__('Email.VerifyEmail.subject');
   const msg = {
     from: 'Liker Land <noreply@liker.land>',
     to: user.email,
-    subject: res.__('Email.VerifyEmail.subject'),
-    html: getBasicTemplate({
-      title: res.__('Email.VerifyEmail.subject'),
+    subject,
+    html: getBasicV2Template({
+      title: subject,
       content: res.__('Email.VerifyEmail.body', {
         name: user.displayName,
         uuid: user.verificationUUID,
