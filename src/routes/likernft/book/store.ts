@@ -480,7 +480,6 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideUpsell = false,
       enableCustomMessagePage = false,
       tableOfContents,
-      descriptionFull,
     } = req.body;
 
     let ownerWallet = '';
@@ -506,6 +505,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       inLanguage,
       name,
       description,
+      descriptionFull,
       keywords: keywordString = '',
       thumbnailUrl,
       author,
