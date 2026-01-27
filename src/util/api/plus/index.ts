@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  BOOK3_HOSTNAME, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD, PLUS_PAID_TRIAL_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import stripe, { getStripePromotionFromCode } from '../../stripe';
@@ -359,7 +359,7 @@ export async function createNewPlusCheckoutSession(
     metadata: subscriptionMetadata,
   };
   const hasFreeTrial = trialPeriodDays > 0;
-  const isTrialMonth = trialPeriodDays === 30;
+  const isPaidTrial = trialPeriodDays >= PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD;
   if (hasFreeTrial) {
     subscriptionData.trial_period_days = trialPeriodDays;
     if (!mustCollectPaymentMethod) {
@@ -390,15 +390,16 @@ export async function createNewPlusCheckoutSession(
     },
   ];
 
-  // Add $1 one-time charge if isTrialMonth
-  if (isTrialMonth) {
+  const currency = 'usd';
+  // Add $1 one-time charge if isPaidTrial
+  if (isPaidTrial) {
     lineItems.push({
       price_data: {
-        currency: 'usd',
+        currency,
         product_data: {
-          name: '3ook.com Plus (1-Month Trial)',
+          name: '3ook.com Plus (Trial)',
         },
-        unit_amount: 100, // $1 in cents
+        unit_amount: PLUS_PAID_TRIAL_PRICE * 100,
       },
       quantity: 1,
     } as Stripe.Checkout.SessionCreateParams.LineItem);
@@ -410,7 +411,7 @@ export async function createNewPlusCheckoutSession(
     metadata,
     mode: 'subscription',
     subscription_data: subscriptionData,
-    currency: 'usd',
+    currency,
     success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&payment_id=${paymentId}&trial=${hasFreeTrial ? '1' : '0'}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
