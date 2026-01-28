@@ -103,7 +103,7 @@ describe('JWT Utility Unit Tests', () => {
       } as any;
 
       const token = getToken(req);
-      expect(token).toBe('');
+      expect(token).toBeUndefined();
     });
 
     it('should NOT handle lowercase bearer authorization header (only uppercase Bearer)', () => {
@@ -119,7 +119,7 @@ describe('JWT Utility Unit Tests', () => {
       // getToken only checks for uppercase 'Bearer', not lowercase
       expect(token).not.toBe('my-token');
       // Since lowercase 'bearer' is not recognized, it returns empty string
-      expect(token).toBe('');
+      expect(token).toBeUndefined();
     });
 
     it('should NOT handle uppercase bearer authorization header (only exact "Bearer" works)', () => {
@@ -134,7 +134,7 @@ describe('JWT Utility Unit Tests', () => {
       const token = getToken(req);
       // getToken uses strict equality for 'Bearer', so BEARER doesn't match
       expect(token).not.toBe('my-token');
-      expect(token).toBe('');
+      expect(token).toBeUndefined();
     });
 
     it('should handle missing authorization header parts (Bearer with no token)', () => {

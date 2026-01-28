@@ -154,7 +154,7 @@ export function getToken(req) {
   if (req.query && req.query.access_token) {
     return req.query.access_token;
   }
-  return '';
+  return undefined;
 }
 
 export const jwtVerify = (
