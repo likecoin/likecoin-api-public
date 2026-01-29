@@ -23,7 +23,7 @@ import {
 import {
   getNFTClassDataById as getLikeNFTClassDataById,
 } from '../../../cosmos/nft';
-import stripe from '../../../stripe';
+import { getStripeClient } from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
@@ -176,7 +176,7 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
   if (image) images.push(parseImageURLFromMetadata(image));
   // if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
   const metadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
-  const stripeProduct = await stripe.products.create({
+  const stripeProduct = await getStripeClient().products.create({
     name: [name, getLocalizedTextWithFallback(price.name || '', 'zh')].filter(Boolean).join(' - '),
     description: [getLocalizedTextWithFallback(price.description || '', 'zh'), description].filter(Boolean).join('\n') || undefined,
     id: `${classId}-${priceIndex}`,
@@ -352,7 +352,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       const images: string[] = [];
       if (image) images.push(parseImageURLFromMetadata(image));
       if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
-      await stripe.products.update(p.stripeProductId, {
+      await getStripeClient().products.update(p.stripeProductId, {
         name: [name, typeof p.name === 'object' ? getLocalizedTextWithFallback(p.name || {}, 'zh') : p.name].filter(Boolean).join(' - '),
         description: [typeof p.description === 'object' ? getLocalizedTextWithFallback(p.description || {}, 'zh') : p.description, description].filter(Boolean).join('\n'),
         images: images.length ? images : undefined,

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
-import stripe from '../../util/stripe';
+import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
   W3C_EMAIL_REGEX,
@@ -337,7 +337,7 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
     if (!subscriptionId) {
       throw new ValidationError('No subscription Id found for this user.', 404);
     }
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId);
     const metadata = subscription.metadata || {};
     const {
       giftClassId,
@@ -369,7 +369,7 @@ router.post('/portal', jwtAuth('write:plus'), async (req, res, next) => {
       });
       throw new ValidationError('No Stripe customer ID found for this user. Please subscribe first.', 400);
     }
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripeClient().billingPortal.sessions.create({
       customer: customerId,
       return_url: `https://${BOOK3_HOSTNAME}/account`,
     });

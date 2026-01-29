@@ -2,7 +2,14 @@ import Stripe from 'stripe';
 import { STRIPE_KEY } from '../../config/config';
 import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../constant';
 
-const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2025-12-15.clover', typescript: true });
+let stripeClient: Stripe | null = null;
+
+export function getStripeClient(): Stripe {
+  if (!stripeClient) {
+    stripeClient = new Stripe(STRIPE_KEY, { apiVersion: '2025-12-15.clover', typescript: true });
+  }
+  return stripeClient;
+}
 
 export function calculateStripeFee(inputAmount: number, currency = 'usd'): number {
   if (inputAmount === 0) return 0;
@@ -14,6 +21,7 @@ export function calculateStripeFee(inputAmount: number, currency = 'usd'): numbe
 }
 
 export async function getStripePromotionFromCode(code: string) {
+  const stripe = getStripeClient();
   const promotionCode = await stripe.promotionCodes.list({
     limit: 1,
     active: true,
@@ -26,6 +34,7 @@ export async function getStripePromotionFromCode(code: string) {
 }
 
 export async function getStripePromotoionCodesFromCheckoutSession(sessionId: string) {
+  const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ['total_details.breakdown.discounts.discount'],
   });
@@ -41,6 +50,7 @@ export async function getStripePromotoionCodesFromCheckoutSession(sessionId: str
 }
 
 export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.Session) {
+  const stripe = getStripeClient();
   const paymentIntent = session.payment_intent;
   if (!paymentIntent) {
     return 0;
@@ -81,5 +91,3 @@ export function normalizeLanguageForStripeLocale(
       return 'auto';
   }
 }
-
-export default stripe;

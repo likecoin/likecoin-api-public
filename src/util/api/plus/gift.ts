@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import type Stripe from 'stripe';
 import uuidv4 from 'uuid/v4';
 
-import stripe, { getStripePromotionFromCode } from '../../stripe';
+import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import {
   FieldValue, likeNFTBookUserCollection, likePlusGiftCartCollection, userCollection, db,
 } from '../../firebase';
@@ -182,7 +182,7 @@ export async function createPlusGiftCheckoutSession(
   } else {
     payload.customer_email = userEmail;
   }
-  const session = await stripe.checkout.sessions.create(payload);
+  const session = await getStripeClient().checkout.sessions.create(payload);
   return {
     session,
     paymentId,
@@ -271,7 +271,7 @@ export async function claimPlusGiftCart({
 
   let stripeCustomerId = bookUserInfo?.stripeCustomerId;
   if (!stripeCustomerId) {
-    const customer = await stripe.customers.create({
+    const customer = await getStripeClient().customers.create({
       email: likerUserInfo.email || undefined,
     });
     stripeCustomerId = customer.id;
@@ -305,7 +305,7 @@ export async function claimPlusGiftCart({
   try {
     const isYearly = period === 'yearly';
 
-    const subscription = await stripe.subscriptions.create({
+    const subscription = await getStripeClient().subscriptions.create({
       customer: stripeCustomerId,
       items: [
         {
@@ -427,7 +427,7 @@ export async function processPlusGiftStripePurchase(
     evmWallet,
     claimToken: metadataClaimToken,
   } = metadata || {};
-  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
+  const lineItems = await getStripeClient().checkout.sessions.listLineItems(sessionId);
   const lineItem = lineItems.data[0];
   if (!lineItem || !lineItem.price?.id) {
     throw new ValidationError('No line item found in Stripe session');

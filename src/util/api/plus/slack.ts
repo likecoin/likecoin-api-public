@@ -1,9 +1,9 @@
 import { userCollection, likeNFTBookUserCollection } from '../../firebase';
-import stripe from '../../stripe';
+import { getStripeClient } from '../../stripe';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 
 export async function getStripeSubscriptionDetails(subscriptionId: string) {
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId);
   const item = subscription.items.data[0];
 
   return {
@@ -19,7 +19,7 @@ export async function getStripeSubscriptionDetails(subscriptionId: string) {
 }
 
 export async function getStripeSubscriptionsByCustomerId(customerId: string) {
-  const subscriptions = await stripe.subscriptions.list({
+  const subscriptions = await getStripeClient().subscriptions.list({
     customer: customerId,
   });
   return subscriptions.data;
@@ -128,7 +128,7 @@ export async function syncUserSubscription(data: { evmWallet?: string; subscript
       metadata.evmWallet = userEvmWallet;
     }
 
-    await stripe.subscriptions.update(subscriptionDetails.subscriptionId, {
+    await getStripeClient().subscriptions.update(subscriptionDetails.subscriptionId, {
       metadata,
     });
 
@@ -240,7 +240,7 @@ export async function linkSubscriptionToUser(subscriptionId: string, evmWallet: 
       evmWallet,
     };
 
-    await stripe.subscriptions.update(subscriptionId, {
+    await getStripeClient().subscriptions.update(subscriptionId, {
       metadata,
     });
 

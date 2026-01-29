@@ -28,7 +28,7 @@ import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../constant';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
-import stripe from '../../../util/stripe';
+import { getStripeClient } from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
@@ -318,6 +318,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     };
 
     if (oldPriceInfo.stripeProductId) {
+      const stripe = getStripeClient();
       const metadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
       await stripe.products.update(oldPriceInfo.stripeProductId, {
         name: [name, typeof newPriceInfo.name === 'object' ? getLocalizedTextWithFallback(newPriceInfo.name || {}, 'zh') : newPriceInfo.name].filter(Boolean).join(' - '),
