@@ -30,159 +30,174 @@ const createMockItem = (overrides: Partial<CartItemWithInfo> = {}): CartItemWith
   ...overrides,
 });
 
-describe('NFT Book Purchase - calculateItemPrices', () => {
-  describe('Custom Price and Tipping', () => {
-    it('should calculate tip fee at 10% of tip amount', () => {
-      const item = createMockItem({
-        priceInDecimal: 15000,
-        originalPriceInDecimal: 10000,
-        customPriceDiffInDecimal: 5000,
-      });
-      const [result] = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
+describe('calculateItemPrices - tipping', () => {
+  const tippingTestCases = [
+    {
+      name: 'with tip',
+      item: {
+        priceInDecimal: 15000, originalPriceInDecimal: 10000, customPriceDiffInDecimal: 5000,
+      },
+      expectedTipFee: 500,
+      expectedCustomPriceDiff: 5000,
+    },
+    {
+      name: 'without tip',
+      item: {
+        priceInDecimal: 10000, originalPriceInDecimal: 10000, customPriceDiffInDecimal: 0,
+      },
+      expectedTipFee: 0,
+      expectedCustomPriceDiff: 0,
+    },
+  ];
 
-      expect(result.customPriceDiffInDecimal).toBe(5000);
-      expect(result.likerLandTipFeeAmount).toBe(500);
-    });
+  tippingTestCases.forEach(({
+    name, item, expectedTipFee, expectedCustomPriceDiff,
+  }) => {
+    it(`should calculate tip fee ${name}`, () => {
+      const mockItem = createMockItem(item);
+      const [result] = calculateItemPrices([mockItem], NFT_BOOK_DEFAULT_FROM_CHANNEL);
 
-    it('should return zero tip fee when no custom price', () => {
-      const item = createMockItem({
-        priceInDecimal: 10000,
-        originalPriceInDecimal: 10000,
-        customPriceDiffInDecimal: 0,
-      });
-      const [result] = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
-
-      expect(result.customPriceDiffInDecimal).toBe(0);
-      expect(result.likerLandTipFeeAmount).toBe(0);
-    });
-  });
-
-  describe('Item Prices for Cart Payments', () => {
-    it('should calculate fees for liker_land channel', () => {
-      const item = createMockItem({
-        classId: 'class-1',
-        priceIndex: 0,
-        quantity: 1,
-        priceInDecimal: 10000,
-        originalPriceInDecimal: 10000,
-      });
-      const itemPrices = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
-
-      expect(itemPrices).toHaveLength(1);
-      expect(itemPrices[0].likerLandCommission).toBe(3000);
-      expect(itemPrices[0].channelCommission).toBe(0);
-      expect(itemPrices[0].likerLandFeeAmount).toBe(500);
-    });
-
-    it('should calculate fees for external channel with tip', () => {
-      const item = createMockItem({
-        classId: 'class-2',
-        priceIndex: 1,
-        quantity: 2,
-        priceInDecimal: 15000,
-        customPriceDiffInDecimal: 5000,
-        originalPriceInDecimal: 10000,
-      });
-      const itemPrices = calculateItemPrices([item], '@external_channel');
-
-      expect(itemPrices).toHaveLength(1);
-      expect(itemPrices[0].likerLandCommission).toBe(0);
-      expect(itemPrices[0].channelCommission).toBe(3000);
-      expect(itemPrices[0].likerLandTipFeeAmount).toBe(500);
-      expect(itemPrices[0].likerLandFeeAmount).toBe(500);
+      expect(result.likerLandTipFeeAmount).toBe(expectedTipFee);
+      expect(result.customPriceDiffInDecimal).toBe(expectedCustomPriceDiff);
     });
   });
+});
 
-  describe('Fee Info and Royalty Calculation', () => {
-    it('should calculate all fee components correctly', () => {
-      const item = createMockItem({
-        priceInDecimal: 60000,
-        originalPriceInDecimal: 50000,
-        customPriceDiffInDecimal: 10000,
+describe('calculateItemPrices - channel fees', () => {
+  const channelFeeTestCases = [
+    {
+      name: 'liker_land channel',
+      channel: NFT_BOOK_DEFAULT_FROM_CHANNEL,
+      expected: { likerLandCommission: 3000, channelCommission: 0, likerLandFeeAmount: 500 },
+    },
+    {
+      name: 'external channel with tip',
+      channel: '@external_channel',
+      item: {
+        priceInDecimal: 15000, customPriceDiffInDecimal: 5000, originalPriceInDecimal: 10000,
+      },
+      expected: {
+        likerLandCommission: 0,
+        channelCommission: 3000,
+        likerLandTipFeeAmount: 500,
+        likerLandFeeAmount: 500,
+      },
+    },
+  ];
+
+  channelFeeTestCases.forEach(({
+    name, channel, item, expected,
+  }) => {
+    it(`should calculate fees for ${name}`, () => {
+      const mockItem = createMockItem(item || {});
+      const [result] = calculateItemPrices([mockItem], channel);
+
+      Object.entries(expected).forEach(([key, value]) => {
+        expect(result[key]).toBe(value);
       });
-      const [result] = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
-      const stripeFeeAmount = calculateStripeFee(60000);
-
-      expect(result.priceInDecimal).toBe(60000);
-      expect(result.originalPriceInDecimal).toBe(50000);
-      expect(result.customPriceDiffInDecimal).toBe(10000);
-      expect(result.likerLandTipFeeAmount).toBe(1000);
-      expect(result.likerLandFeeAmount).toBe(2500);
-      expect(result.likerLandCommission).toBe(15000);
-      expect(result.channelCommission).toBe(0);
-      expect(result.likerLandArtFee).toBe(0);
-
-      const royaltyToSplit = result.priceInDecimal - stripeFeeAmount - result.likerLandFeeAmount
-        - result.likerLandTipFeeAmount - result.likerLandCommission
-        - result.channelCommission - result.likerLandArtFee;
-      expect(royaltyToSplit).toBe(38830);
     });
+  });
+});
+
+describe('calculateItemPrices - fee breakdown', () => {
+  it('should calculate all fee components correctly', () => {
+    const item = createMockItem({
+      priceInDecimal: 60000,
+      originalPriceInDecimal: 50000,
+      customPriceDiffInDecimal: 10000,
+    });
+    const [result] = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
+    const stripeFeeAmount = calculateStripeFee(60000);
+
+    expect(result.priceInDecimal).toBe(60000);
+    expect(result.originalPriceInDecimal).toBe(50000);
+    expect(result.customPriceDiffInDecimal).toBe(10000);
+    expect(result.likerLandTipFeeAmount).toBe(1000);
+    expect(result.likerLandFeeAmount).toBe(2500);
+    expect(result.likerLandCommission).toBe(15000);
+    expect(result.channelCommission).toBe(0);
+    expect(result.likerLandArtFee).toBe(0);
+
+    const royaltyToSplit = result.priceInDecimal - stripeFeeAmount - result.likerLandFeeAmount
+      - result.likerLandTipFeeAmount - result.likerLandCommission
+      - result.channelCommission - result.likerLandArtFee;
+    expect(royaltyToSplit).toBe(38830);
   });
 });
 
 describe('ValidationError', () => {
-  it('should create error with message and default status 400', () => {
-    const error = new ValidationError('CLASS_ID_NOT_FOUND');
-    expect(error.message).toBe('CLASS_ID_NOT_FOUND');
-    expect(error.name).toBe('ValidationError');
-    expect(error.status).toBe(400);
-  });
+  const errorTestCases = [
+    { message: 'CLASS_ID_NOT_FOUND', status: undefined, expectedStatus: 400 },
+    { message: 'PAYMENT_ID_NOT_FOUND', status: 404, expectedStatus: 404 },
+  ];
 
-  it('should create error with custom status code', () => {
-    const error = new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
-    expect(error.message).toBe('PAYMENT_ID_NOT_FOUND');
-    expect(error.status).toBe(404);
+  errorTestCases.forEach(({ message, status, expectedStatus }) => {
+    it(`should create error with status ${expectedStatus}`, () => {
+      const error = status ? new ValidationError(message, status) : new ValidationError(message);
+      expect(error.message).toBe(message);
+      expect(error.name).toBe('ValidationError');
+      expect(error.status).toBe(expectedStatus);
+    });
   });
 });
 
-describe('NFT Book Purchase - Fee Breakdown Examples', () => {
-  it('should match author direct sale: $100 book (~90.3% royalty)', () => {
-    const item = createMockItem({ priceInDecimal: 10000, originalPriceInDecimal: 10000 });
-    const [result] = calculateItemPrices([item], LIKER_LAND_WAIVED_CHANNEL);
-    const stripeFee = calculateStripeFee(10000);
+describe('Fee breakdown examples', () => {
+  const feeBreakdownTestCases = [
+    {
+      name: 'author direct sale ($100 book, ~90.3% royalty)',
+      channel: LIKER_LAND_WAIVED_CHANNEL,
+      expected: {
+        likerLandFeeAmount: 500,
+        likerLandCommission: 0,
+        channelCommission: 0,
+        totalFees: 970,
+        royalty: 9030,
+      },
+    },
+    {
+      name: 'third-party channel ($100 book, ~60.3% royalty)',
+      channel: '@bookstore',
+      expected: {
+        likerLandFeeAmount: 500,
+        likerLandCommission: 0,
+        channelCommission: 3000,
+        totalFees: 3970,
+        royalty: 6030,
+      },
+    },
+  ];
 
-    expect(result.likerLandFeeAmount).toBe(500);
-    expect(result.likerLandCommission).toBe(0);
-    expect(result.channelCommission).toBe(0);
-    expect(stripeFee).toBe(470);
+  feeBreakdownTestCases.forEach(({ name, channel, expected }) => {
+    it(`should match ${name}`, () => {
+      const item = createMockItem({ priceInDecimal: 10000, originalPriceInDecimal: 10000 });
+      const [result] = calculateItemPrices([item], channel);
+      const stripeFee = calculateStripeFee(10000);
 
-    const totalFees = result.likerLandFeeAmount + stripeFee;
-    const royalty = 10000 - totalFees;
+      expect(result.likerLandFeeAmount).toBe(expected.likerLandFeeAmount);
+      expect(result.likerLandCommission).toBe(expected.likerLandCommission);
+      expect(result.channelCommission).toBe(expected.channelCommission);
 
-    expect(totalFees).toBe(970);
-    expect(royalty).toBe(9030);
-  });
+      const totalFees = result.likerLandFeeAmount + result.channelCommission + stripeFee;
+      const royalty = 10000 - totalFees;
 
-  it('should match third-party channel sale: $100 book (~60.3% royalty)', () => {
-    const item = createMockItem({ priceInDecimal: 10000, originalPriceInDecimal: 10000 });
-    const [result] = calculateItemPrices([item], '@bookstore');
-    const stripeFee = calculateStripeFee(10000);
-
-    expect(result.channelCommission).toBe(3000);
-    expect(result.likerLandFeeAmount).toBe(500);
-    expect(result.likerLandCommission).toBe(0);
-    expect(stripeFee).toBe(470);
-
-    const totalFees = result.channelCommission + result.likerLandFeeAmount + stripeFee;
-    const royalty = 10000 - totalFees;
-
-    expect(totalFees).toBe(3970);
-    expect(royalty).toBe(6030);
+      expect(totalFees).toBe(expected.totalFees);
+      expect(royalty).toBe(expected.royalty);
+    });
   });
 
   it('should route commission to correct recipient based on channel', () => {
     const item = createMockItem({ priceInDecimal: 10000, originalPriceInDecimal: 10000 });
 
-    const [likerLandResult] = calculateItemPrices([item], NFT_BOOK_DEFAULT_FROM_CHANNEL);
-    expect(likerLandResult.likerLandCommission).toBe(3000);
-    expect(likerLandResult.channelCommission).toBe(0);
+    const commissionTestCases = [
+      { channel: NFT_BOOK_DEFAULT_FROM_CHANNEL, likerLand: 3000, external: 0 },
+      { channel: '@bookstore', likerLand: 0, external: 3000 },
+      { channel: LIKER_LAND_WAIVED_CHANNEL, likerLand: 0, external: 0 },
+    ];
 
-    const [externalResult] = calculateItemPrices([item], '@bookstore');
-    expect(externalResult.likerLandCommission).toBe(0);
-    expect(externalResult.channelCommission).toBe(3000);
-
-    const [waivedResult] = calculateItemPrices([item], LIKER_LAND_WAIVED_CHANNEL);
-    expect(waivedResult.likerLandCommission).toBe(0);
-    expect(waivedResult.channelCommission).toBe(0);
+    commissionTestCases.forEach(({ channel, likerLand, external }) => {
+      const [result] = calculateItemPrices([item], channel);
+      expect(result.likerLandCommission).toBe(likerLand);
+      expect(result.channelCommission).toBe(external);
+    });
   });
 });
