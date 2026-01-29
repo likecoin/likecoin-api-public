@@ -133,7 +133,6 @@ describe('NFT Book Purchase - Item Price Calculations', () => {
       classId: 'test-class-id',
       priceIndex: 0,
       quantity: 1,
-      currency: 'usd',
       priceInDecimal: 10000,
       customPriceDiffInDecimal: 0,
       stock: 100,
@@ -147,7 +146,7 @@ describe('NFT Book Purchase - Item Price Calculations', () => {
       iscnPrefix: 'iscn://test',
       priceName: 'Standard',
       stripePriceId: 'price_test123',
-      chain: 'evm',
+      chain: 'evm' as const,
     };
 
     describe('Direct sales through liker_land channel', () => {
