@@ -5,9 +5,7 @@ import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
 import { ValidationError } from '../../src/util/ValidationError';
 import { calculateStripeFee } from '../../src/util/stripe';
 import { calculateItemPrices } from '../../src/util/api/likernft/book/price';
-
-const NFT_BOOK_DEFAULT_FROM_CHANNEL = 'liker_land';
-const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
+import { NFT_BOOK_DEFAULT_FROM_CHANNEL, LIKER_LAND_WAIVED_CHANNEL } from '../../src/constant';
 
 const createMockItem = (overrides: Partial<CartItemWithInfo> = {}): CartItemWithInfo => ({
   classId: 'test-class-id',

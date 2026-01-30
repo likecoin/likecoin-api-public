@@ -3,9 +3,7 @@ import {
 } from 'vitest';
 import { calculateStripeFee, normalizeLanguageForStripeLocale } from '../../src/util/stripe';
 import { checkIsFromLikerLand, calculateItemPrices } from '../../src/util/api/likernft/book/price';
-
-const NFT_BOOK_DEFAULT_FROM_CHANNEL = 'liker_land';
-const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
+import { NFT_BOOK_DEFAULT_FROM_CHANNEL, LIKER_LAND_WAIVED_CHANNEL } from '../../src/constant';
 
 const mockItem = {
   classId: 'test-class-id',
