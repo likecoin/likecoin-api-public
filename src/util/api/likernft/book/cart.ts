@@ -802,6 +802,12 @@ export async function processNFTBookCartStripePurchase(
   const metadata: any = session.metadata || {};
   if (!customer) throw new ValidationError('CUSTOMER_NOT_FOUND');
 
+  if (metadata.cartId) {
+    const cartDoc = await likeNFTBookCartCollection.doc(metadata.cartId).get();
+    const cartData = cartDoc.data();
+    if (cartData && cartData.status === 'completed') return;
+  }
+
   const isFree = amountTotal === 0;
   if (!isFree && !paymentIntentId) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   let paymentIntent: Stripe.PaymentIntent | null = null;
