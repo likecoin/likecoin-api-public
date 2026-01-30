@@ -130,6 +130,8 @@ export async function handleStripeConnectedAccount({
             channel: from,
             ...metadata,
           },
+        }, {
+          idempotencyKey: `transfer-${paymentId}-channel-${from}`,
         }).catch((e) => {
           // eslint-disable-next-line no-console
           console.error(`Failed to create transfer for ${fromWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
@@ -224,6 +226,8 @@ export async function handleStripeConnectedAccount({
                 type: 'connectedWallet',
                 ...metadata,
               },
+            }, {
+              idempotencyKey: `transfer-${paymentId}-connected-${wallet}`,
             }).catch((e) => {
               // eslint-disable-next-line no-console
               console.error(`Failed to create transfer for ${wallet} with stripeConnectAccountId ${stripeConnectAccountId}`);
@@ -295,6 +299,8 @@ export async function handleStripeConnectedAccount({
             type: 'artFee',
             ...metadata,
           },
+        }, {
+          idempotencyKey: `transfer-${paymentId}-artFee`,
         });
         transfers.push(transfer);
         await likeNFTBookUserCollection.doc(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
