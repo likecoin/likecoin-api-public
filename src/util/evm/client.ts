@@ -2,6 +2,7 @@ import {
   Chain,
   createPublicClient,
   createWalletClient,
+  defineChain,
   http,
   HttpTransport,
   LocalAccount,
@@ -19,11 +20,25 @@ import config from '../../../config/config';
 let client: PublicClient<HttpTransport, Chain, undefined>;
 let walletClient: WalletClient<HttpTransport, Chain, LocalAccount>;
 
+const baseWithFee = defineChain({
+  ...base,
+  fees: {
+    baseFeeMultiplier: 2,
+  },
+});
+
+const baseSepoliaWithFee = defineChain({
+  ...baseSepolia,
+  fees: {
+    baseFeeMultiplier: 2,
+  },
+});
+
 export function getEVMClient(): PublicClient<HttpTransport, Chain, undefined> {
   if (!client) {
     const rpcUrl = config.EVM_RPC_ENDPOINT_OVERRIDE || undefined;
     client = createPublicClient({
-      chain: IS_TESTNET ? baseSepolia : base,
+      chain: IS_TESTNET ? baseSepoliaWithFee : baseWithFee,
       transport: http(rpcUrl),
     }) as PublicClient<HttpTransport, Chain, undefined>;
   }
@@ -42,7 +57,7 @@ export function getEVMWalletClient(): WalletClient<HttpTransport, Chain, LocalAc
     const rpcUrl = config.EVM_RPC_ENDPOINT_OVERRIDE || undefined;
     walletClient = createWalletClient({
       account,
-      chain: IS_TESTNET ? baseSepolia : base,
+      chain: IS_TESTNET ? baseSepoliaWithFee : baseWithFee,
       transport: http(rpcUrl),
     });
   }
