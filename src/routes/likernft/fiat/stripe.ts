@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bodyParser from 'body-parser';
 
 import Stripe from 'stripe';
-import stripe from '../../../util/stripe';
+import { getStripeClient } from '../../../util/stripe';
 import {
   STRIPE_WEBHOOK_SECRET,
 } from '../../../../config/config';
@@ -24,7 +24,7 @@ router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req
     }
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
+      event = getStripeClient().webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(JSON.stringify({

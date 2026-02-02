@@ -5,7 +5,7 @@ import {
   BOOK3_HOSTNAME, PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD, PLUS_PAID_TRIAL_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
-import stripe, { getStripePromotionFromCode } from '../../stripe';
+import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
 import publisher from '../../gcloudPub';
 
@@ -54,6 +54,7 @@ export async function processStripeSubscriptionInvoice(
     return;
   }
   const likerId = user.user;
+  const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer'] });
   const {
     start_date: startDate,
@@ -426,7 +427,7 @@ export async function createNewPlusCheckoutSession(
   } else {
     payload.customer_email = userEmail;
   }
-  const session = await stripe.checkout.sessions.create(payload);
+  const session = await getStripeClient().checkout.sessions.create(payload);
   return {
     session,
     paymentId,
@@ -496,6 +497,7 @@ export async function updateSubscriptionPeriod(
     giftPriceIndex?: string;
   },
 ) {
+  const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const { metadata } = subscription;
   if (giftClassId) metadata.giftClassId = giftClassId;

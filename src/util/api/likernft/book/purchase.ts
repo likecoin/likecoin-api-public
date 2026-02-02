@@ -6,15 +6,15 @@ import { getNFTClassDataById } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
-  LIKER_LAND_WAIVED_CHANNEL,
   BOOK3_HOSTNAME,
-  NFT_BOOK_DEFAULT_FROM_CHANNEL,
 } from '../../../../constant';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
   getBookUserInfoFromWallet,
 } from './user';
-import stripe, { calculateStripeFee, getStripePromotionFromCode, normalizeLanguageForStripeLocale } from '../../../stripe';
+import {
+  getStripeClient, calculateStripeFee, getStripePromotionFromCode, normalizeLanguageForStripeLocale,
+} from '../../../stripe';
 import {
   admin, likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
@@ -22,10 +22,6 @@ import publisher from '../../../gcloudPub';
 import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
 import { updateIntercomUserAttributes } from '../../../intercom';
 import {
-  NFT_BOOK_LIKER_LAND_FEE_RATIO,
-  NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
-  NFT_BOOK_LIKER_LAND_COMMISSION_RATIO,
-  NFT_BOOK_LIKER_LAND_ART_FEE_RATIO,
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
 } from '../../../../../config/config';
 import {
@@ -37,15 +33,15 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import type { BookGiftInfo, BookPurchaseData } from '../../../../types/book';
-import { CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo } from './type';
+import { CartItemWithInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
 import { convertUSDPriceToCurrency } from '../../../pricing';
+import { checkIsFromLikerLand, calculateItemPrices } from './price';
 
-export function checkIsFromLikerLand(from: string): boolean {
-  return from === NFT_BOOK_DEFAULT_FROM_CHANNEL;
-}
+// Re-export pure functions for backward compatibility
+export { checkIsFromLikerLand, calculateItemPrices } from './price';
 
 export async function handleStripeConnectedAccount({
   classId = '',
@@ -73,6 +69,7 @@ export async function handleStripeConnectedAccount({
   const transfers: Stripe.Transfer[] = [];
   if (!amountTotal) return { transfers };
 
+  const stripe = getStripeClient();
   let connectedWallets = connectedWalletsInput;
   if (!connectedWallets) {
     // if connectedWallets is not set before, default to ownerWallet
@@ -493,60 +490,6 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
   };
 }
 
-export function calculateItemPrices(items: CartItemWithInfo[], from) {
-  const itemPrices: ItemPriceInfo[] = items.map(
-    (item) => {
-      const isFromLikerLand = checkIsFromLikerLand(item.from || from);
-      const isFree = !item.priceInDecimal && !item.customPriceDiffInDecimal;
-      const isCommissionWaived = from === LIKER_LAND_WAIVED_CHANNEL;
-      const customPriceDiffInDecimal = item.customPriceDiffInDecimal || 0;
-      const { priceInDecimal, originalPriceInDecimal } = item;
-      const priceInDecimalWithoutTip = priceInDecimal - customPriceDiffInDecimal;
-      const priceDiscountInDecimal = Math.max(
-        originalPriceInDecimal - priceInDecimalWithoutTip,
-        0,
-      );
-      const likerLandFeeAmount = isFree ? 0 : Math.ceil(
-        originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
-      );
-      const likerLandTipFeeAmount = Math.ceil(
-        customPriceDiffInDecimal * NFT_BOOK_TIP_LIKER_LAND_FEE_RATIO,
-      );
-      const channelCommission = (from && !isCommissionWaived && !isFromLikerLand && !isFree)
-        ? Math.max(Math.ceil(
-          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
-        ), 0)
-        : 0;
-      const likerLandCommission = (isFromLikerLand && !isFree)
-        ? Math.max(Math.ceil(
-          originalPriceInDecimal * NFT_BOOK_LIKER_LAND_COMMISSION_RATIO - priceDiscountInDecimal,
-        ), 0)
-        : 0;
-      const likerLandArtFee = (item.isLikerLandArt && !isFree)
-        ? Math.ceil(originalPriceInDecimal * NFT_BOOK_LIKER_LAND_ART_FEE_RATIO)
-        : 0;
-
-      const payload: ItemPriceInfo = {
-        quantity: item.quantity,
-        currency: 'usd',
-        priceInDecimal,
-        customPriceDiffInDecimal,
-        originalPriceInDecimal,
-        likerLandTipFeeAmount,
-        likerLandFeeAmount,
-        likerLandCommission,
-        channelCommission,
-        likerLandArtFee,
-      };
-      if (item.classId) payload.classId = item.classId;
-      if (item.priceIndex !== undefined) payload.priceIndex = item.priceIndex;
-      if (item.stripePriceId) payload.stripePriceId = item.stripePriceId;
-      return payload;
-    },
-  );
-  return itemPrices;
-}
-
 export async function formatStripeCheckoutSession({
   classId,
   iscnPrefix,
@@ -819,7 +762,7 @@ export async function formatStripeCheckoutSession({
   if (email && !customerId) checkoutPayload.customer_email = email;
   let session;
   try {
-    session = await stripe.checkout.sessions.create(checkoutPayload);
+    session = await getStripeClient().checkout.sessions.create(checkoutPayload);
   } catch (error) {
     if (error instanceof Stripe.errors.StripeInvalidRequestError) {
       throw new ValidationError(error.message, 400);

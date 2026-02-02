@@ -12,7 +12,7 @@ import {
 } from '../../firebase';
 import { migrateLikerLandEVMWallet } from '../../liker-land';
 import { createStripeProductFromNFTBookPrice } from '../likernft/book';
-import stripe from '../../stripe';
+import { getStripeClient } from '../../stripe';
 import { bookCacheBucket } from '../../gcloudStorage';
 import { updateIntercomUserAttributes } from '../../intercom';
 
@@ -282,7 +282,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
       });
       await Promise.all(prices.map((p) => {
         if (p.stripeProductId) {
-          return stripe.products.update(p.stripeProductId, {
+          return getStripeClient().products.update(p.stripeProductId, {
             active: false,
           });
         }

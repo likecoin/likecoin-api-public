@@ -33,7 +33,7 @@ import {
   likeNFTBookCartCollection,
   likeNFTBookCollection,
 } from '../../../firebase';
-import stripe, { getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
+import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import {
   convertObjectToAirtableLongText,
   createAirtableBookSalesRecordFromFreePurchase,
@@ -812,7 +812,7 @@ export async function processNFTBookCartStripePurchase(
   if (!isFree && !paymentIntentId) throw new ValidationError('PAYMENT_INTENT_NOT_FOUND');
   let paymentIntent: Stripe.PaymentIntent | null = null;
   if (paymentIntentId) {
-    paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId as string, {
+    paymentIntent = await getStripeClient().paymentIntents.retrieve(paymentIntentId as string, {
       expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
     });
   }
@@ -1193,7 +1193,7 @@ export async function formatCartItemInfosFromSession(
   const items: CartItem[] = [];
   const lineItems: Stripe.LineItem[] = [];
   const stripeFeeAmount = await getStripeFeeFromCheckoutSession(session);
-  for await (const lineItem of stripe.checkout.sessions.listLineItems(
+  for await (const lineItem of getStripeClient().checkout.sessions.listLineItems(
     sessionId,
     { expand: ['data.price.product'], limit: 100 },
   )) {
@@ -1201,7 +1201,7 @@ export async function formatCartItemInfosFromSession(
       throw new ValidationError('PRICE_NOT_FOUND');
     }
     if (typeof lineItem.price.product === 'string') {
-      lineItem.price.product = await stripe.products.retrieve(lineItem.price.product);
+      lineItem.price.product = await getStripeClient().products.retrieve(lineItem.price.product);
     }
     lineItems.push(lineItem);
     const {

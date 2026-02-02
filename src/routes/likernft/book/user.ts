@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
-import stripe from '../../../util/stripe';
+import { getStripeClient } from '../../../util/stripe';
 import { LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
@@ -99,7 +99,7 @@ router.post(
       const { stripeConnectAccountId, isStripeConnectReady } = userData;
       if (!isStripeConnectReady) throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
       if (!stripeConnectAccountId) throw new ValidationError('STRIPE_ACCOUNT_NOT_FOUND', 404);
-      const loginLink = await stripe.accounts.createLoginLink(stripeConnectAccountId);
+      const loginLink = await getStripeClient().accounts.createLoginLink(stripeConnectAccountId);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'NFTStripeConnectLogin',
@@ -135,6 +135,7 @@ router.post(
         throw new ValidationError('ALREADY_HAS_ACCOUNT');
       }
 
+      const stripe = getStripeClient();
       const { email, user: likerId } = likerUserInfo || {};
       if (!stripeConnectAccountId) {
         const account = await stripe.accounts.create({
@@ -204,7 +205,7 @@ router.post(
       if (!stripeConnectAccountId) {
         throw new ValidationError('ACCOUNT_NOT_CREATED', 404);
       }
-      const account = await stripe.accounts.retrieve(stripeConnectAccountId);
+      const account = await getStripeClient().accounts.retrieve(stripeConnectAccountId);
       const { email } = account;
       const isStripeConnectReady = account.charges_enabled;
       await likeNFTBookUserCollection.doc(wallet).update({
@@ -253,7 +254,7 @@ router.get(
       if (!isStripeConnectReady) {
         throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
       }
-      const payoutRes = await stripe.payouts.list({
+      const payoutRes = await getStripeClient().payouts.list({
         limit: 100,
       }, {
         stripeAccount: stripeConnectAccountId,
@@ -296,6 +297,7 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), async (req, res, next) => {
     if (!isStripeConnectReady) {
       throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
     }
+    const stripe = getStripeClient();
     const payout = await stripe.payouts.retrieve(id, {
       stripeAccount: stripeConnectAccountId,
     });
