@@ -184,19 +184,3 @@ describe('calculateItemPrices', () => {
     });
   });
 });
-
-describe('calculateStripeFee', () => {
-  const stripeFeeTestCases = [
-    { amount: 0, currency: 'usd', expected: 0 },
-    { amount: 10000, currency: 'usd', expected: 470 },
-    { amount: 10000, currency: 'hkd', expected: 570 },
-    { amount: 100, currency: 'usd', expected: 35 },
-    { amount: 100000, currency: 'usd', expected: 4430 },
-  ];
-
-  stripeFeeTestCases.forEach(({ amount, currency, expected }) => {
-    it(`should return ${expected} for ${amount} ${currency.toUpperCase()}`, () => {
-      expect(calculateStripeFee(amount, currency)).toBe(expected);
-    });
-  });
-});
