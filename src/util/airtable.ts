@@ -27,6 +27,7 @@ interface AirtablePublicationRecordParams {
   keywords?: string[];
   usageInfo?: string;
   isbn?: string;
+  genre?: string;
   iscnObject?: any;
   iscnContentMetadata?: any;
   metadata?: any;
@@ -78,6 +79,7 @@ export async function createAirtablePublicationRecord({
   keywords = [],
   usageInfo,
   isbn,
+  genre,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -109,6 +111,7 @@ export async function createAirtablePublicationRecord({
     if (keywords?.length) fields.Keywords = keywords;
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
+    if (genre) fields.Genre = genre;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
@@ -269,6 +272,7 @@ export async function updateAirtablePublicationRecord({
   keywords = [],
   usageInfo,
   isbn,
+  genre,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -305,6 +309,7 @@ export async function updateAirtablePublicationRecord({
     if (keywords?.length) fields.Keywords = keywords;
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
+    if (genre) fields.Genre = genre;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;

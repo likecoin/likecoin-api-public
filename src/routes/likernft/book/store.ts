@@ -514,6 +514,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
+      genre,
     } = metadata;
     const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
@@ -544,6 +545,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       usageInfo,
       isbn,
       image,
+      genre,
     });
 
     const className = metadata?.name || classId;
@@ -576,6 +578,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         publisher: iscnPublisher,
         usageInfo,
         isbn,
+        genre,
         isDRMFree: !hideDownload,
         isHidden: false, // Don't hide new listing until hidden
       }),
