@@ -163,6 +163,7 @@ export interface NFTBookListingInfo {
   isbn?: string;
   image?: string;
   publisher?: string;
+  genre?: string;
   timestamp?: { toMillis: () => number };
   isHidden?: boolean;
   isLikerLandArt?: boolean;
@@ -208,6 +209,7 @@ export interface NFTBookListingInfoFiltered {
   author?: string;
   usageInfo?: string;
   isbn?: string;
+  genre?: string;
   timestamp?: number;
   isHidden?: boolean;
   sold?: number;

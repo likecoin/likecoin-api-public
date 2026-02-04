@@ -73,6 +73,7 @@ export interface NFTClassData {
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;
+  genre?: string;
   // Allow other metadata fields
   [key: string]: unknown;
 }
@@ -234,6 +235,7 @@ export async function newNftBookInfo(
     publisher,
     usageInfo,
     isbn,
+    genre,
 
     image,
   } = data;
@@ -278,6 +280,7 @@ export async function newNftBookInfo(
   if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
   if (isbn) payload.isbn = isbn;
+  if (genre) payload.genre = genre;
   if (successUrl) payload.successUrl = successUrl;
   if (cancelUrl) payload.cancelUrl = cancelUrl;
   if (moderatorWallets) payload.moderatorWallets = moderatorWallets;
@@ -324,6 +327,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     usageInfo,
     isbn,
     image,
+    genre,
   } = metadata as NFTClassData;
   if (!bookInfo) {
     throw new ValidationError('BOOK_INFO_NOT_FOUND');
@@ -345,6 +349,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (usageInfo) payload.usageInfo = usageInfo;
   if (isbn) payload.isbn = isbn;
   if (image) payload.image = image;
+  if (genre) payload.genre = genre;
   await likeNFTBookCollection.doc(classId).update(payload);
   await Promise.all(prices.map(async (p, priceIndex) => {
     if (p.stripeProductId) {
@@ -388,6 +393,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       keywords,
       usageInfo,
       isbn,
+      genre,
       iscnObject: null,
       iscnContentMetadata: metadata,
       metadata: classData,
