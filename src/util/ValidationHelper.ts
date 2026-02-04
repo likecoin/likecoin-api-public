@@ -602,6 +602,7 @@ export function filterNFTBookListingInfo(
     author,
     usageInfo,
     isbn,
+    genre,
     timestamp,
     isHidden,
     isApprovedForSale,
@@ -645,6 +646,7 @@ export function filterNFTBookListingInfo(
     author,
     usageInfo,
     isbn,
+    genre,
     timestamp: timestamp?.toMillis(),
     isHidden,
     // Approval flags - default to true for backward compatibility with existing books
