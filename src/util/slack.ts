@@ -23,12 +23,21 @@ export async function sendNFTBookNewListingSlackNotification({
   className,
   prices,
   isAutoApproved = false,
+  fileRecords,
+  contentFingerprints,
 }: {
   wallet: string;
   classId: string;
   className: string;
   prices: NFTBookPrice[];
   isAutoApproved?: boolean;
+  fileRecords?: {
+    url: string;
+    name?: string;
+    contentType?: string;
+    isEncrypted?: boolean;
+  }[];
+  contentFingerprints?: string[];
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
@@ -44,6 +53,13 @@ export async function sendNFTBookNewListingSlackNotification({
       ? '✅ Auto-approved (Trusted Publisher)'
       : '⏳ Pending Approval';
 
+    const filesText = (fileRecords || []).map((f) => {
+      const label = [f.name, f.contentType, f.isEncrypted ? 'encrypted' : ''].filter(Boolean).join(', ');
+      return label ? `${label}\n${f.url}` : f.url;
+    }).join('\n\n') || 'N/A';
+
+    const fingerprintsText = (contentFingerprints || []).join('\n') || 'N/A';
+
     const payload: any = {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
       wallet,
@@ -52,6 +68,8 @@ export async function sendNFTBookNewListingSlackNotification({
       editions,
       classId,
       approvalStatus: approvalStatusText,
+      files: filesText,
+      fingerprints: fingerprintsText,
     };
 
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, payload);

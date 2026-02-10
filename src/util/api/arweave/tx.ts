@@ -39,13 +39,31 @@ export async function updateArweaveTxStatus(txHash: string, {
   ownerWallet: string;
   key?: string;
   isRequireAuth?: boolean;
-}): Promise<void> {
+}): Promise<string> {
+  const accessToken = uuidv4();
   await iscnArweaveTxCollection.doc(txHash).update({
     status: 'complete',
     arweaveId,
     isRequireAuth,
     ownerWallet,
     key,
+    accessToken,
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });
+  return accessToken;
+}
+
+export async function rotateArweaveTxAccessToken(txHash: string): Promise<string> {
+  const accessToken = uuidv4();
+  await iscnArweaveTxCollection.doc(txHash).update({
+    accessToken,
+    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+  });
+  return accessToken;
+}
+
+export async function getArweaveTxAccessToken(txHash: string): Promise<string | undefined> {
+  const doc = await iscnArweaveTxCollection.doc(txHash).get();
+  const data = doc.data();
+  return data?.accessToken;
 }

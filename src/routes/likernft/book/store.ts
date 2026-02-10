@@ -26,7 +26,10 @@ import { validateConnectedWallets } from '../../../util/api/likernft/book/user';
 import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
-import { ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE } from '../../../constant';
+import {
+  API_HOSTNAME, ARWEAVE_GATEWAY, ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE,
+} from '../../../constant';
+import { getArweaveTxAccessToken } from '../../../util/api/arweave/tx';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import { getStripeClient } from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
@@ -548,6 +551,43 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       genre,
     });
 
+    const { potentialAction, contentFingerprints } = metadata as any;
+    const targets = potentialAction?.target || [];
+    const fileRecords = (await Promise.all(targets.map(async (t) => {
+      const originalUrl = t.url || '';
+      let url = originalUrl;
+      if (originalUrl) {
+        try {
+          const parsed = new URL(originalUrl);
+          if (
+            parsed.protocol === 'https:'
+            && parsed.hostname === API_HOSTNAME
+            && parsed.pathname.startsWith('/arweave/v2/link/')
+          ) {
+            const txHash = parsed.pathname.split('/arweave/v2/link/')[1];
+            if (txHash) {
+              const docAccessToken = await getArweaveTxAccessToken(txHash);
+              if (docAccessToken) {
+                parsed.searchParams.set('token', docAccessToken);
+                url = parsed.toString();
+              }
+            }
+          }
+        } catch {
+          // non-URL value, fall through
+        }
+      }
+      if (url.startsWith('ar://')) {
+        url = url.replace('ar://', `${ARWEAVE_GATEWAY}/`);
+      }
+      return {
+        url,
+        name: t.name,
+        contentType: t.contentType,
+        isEncrypted: !!t.encodingType,
+      };
+    }))).filter((r) => r.url);
+
     const className = metadata?.name || classId;
     await Promise.all([
       sendNFTBookListingEmail({ classId, bookName: className }),
@@ -557,6 +597,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         className,
         prices,
         isAutoApproved,
+        fileRecords,
+        contentFingerprints,
       }),
       createAirtablePublicationRecord({
         id: classId,
