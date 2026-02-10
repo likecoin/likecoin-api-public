@@ -41,7 +41,7 @@
     "airtable": "^0.12.2",
     "arbundles": "^0.9.9",
     "arweave": "^1.10.17",
-    "aws-sdk": "^2.814.0",
+    "@aws-sdk/client-ses": "^3.0.0",
     "axios": "^1.12.0",
     "base64url": "^3.0.1",
     "bech32": "^1.1.3",
