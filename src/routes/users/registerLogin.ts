@@ -91,6 +91,7 @@ router.post(
       user,
       displayName,
       description,
+      locale,
     } = req.body;
     let email;
     try {
@@ -213,6 +214,7 @@ router.post(
         payload: {
           ...payload,
           description,
+          locale,
           platform,
         },
         req,
