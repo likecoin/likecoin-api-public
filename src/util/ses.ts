@@ -1,6 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import { getBasicV2Template, getNFTTwoContentWithMessageAndButtonTemplate } from '@likecoin/edm';
-import aws from 'aws-sdk';
+import { SES } from '@aws-sdk/client-ses';
 import {
   TEST_MODE,
   CUSTOMER_SERVICE_URL,
@@ -22,9 +22,16 @@ import {
 import { fetchUserDisplayNameByEmail } from './api/users';
 import { TransactionFeeInfo } from './api/likernft/book/type';
 
-if (!TEST_MODE) aws.config.loadFromPath('config/aws.json');
+// eslint-disable-next-line import/no-dynamic-require, global-require
+const awsConfig = TEST_MODE ? {} : require('../../config/aws.json');
 
-const ses = new aws.SES();
+const ses = new SES(TEST_MODE ? {} : {
+  region: awsConfig.region,
+  credentials: {
+    accessKeyId: awsConfig.accessKeyId,
+    secretAccessKey: awsConfig.secretAccessKey,
+  },
+});
 
 function formatEmailDecimalNumber(decimal: number) {
   return (decimal / 100).toFixed(2);
@@ -68,7 +75,7 @@ export async function sendVerificationEmail(res, user, ref) {
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookListingEmail({
@@ -110,7 +117,7 @@ export function sendNFTBookListingEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export async function sendNFTBookPendingClaimEmail({
@@ -212,7 +219,7 @@ export async function sendNFTBookPendingClaimEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export async function sendNFTBookCartPendingClaimEmail({
@@ -313,7 +320,7 @@ export async function sendNFTBookCartPendingClaimEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookGiftPendingClaimEmail({
@@ -412,7 +419,7 @@ export function sendNFTBookGiftPendingClaimEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookCartGiftPendingClaimEmail({
@@ -512,7 +519,7 @@ export function sendNFTBookCartGiftPendingClaimEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookGiftClaimedEmail({
@@ -570,7 +577,7 @@ export function sendNFTBookGiftClaimedEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookGiftSentEmail({
@@ -630,7 +637,7 @@ export function sendNFTBookGiftSentEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export async function sendNFTBookManualDeliverSentEmail({
@@ -710,7 +717,7 @@ export async function sendNFTBookManualDeliverSentEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendAutoDeliverNFTBookSalesEmail({
@@ -802,7 +809,7 @@ export function sendAutoDeliverNFTBookSalesEmail({
   if (email) {
     (params.Destination as any).ToAddresses = [email];
   }
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookSalePaymentsEmail({
@@ -874,7 +881,7 @@ export function sendNFTBookSalePaymentsEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendManualNFTBookSalesEmail({
@@ -967,7 +974,7 @@ export function sendManualNFTBookSalesEmail({
   if (email) {
     (params.Destination as any).ToAddresses = [email];
   }
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendNFTBookOutOfStockEmail({
@@ -1019,7 +1026,7 @@ export function sendNFTBookOutOfStockEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendPlusGiftPendingClaimEmail({
@@ -1088,7 +1095,7 @@ export function sendPlusGiftPendingClaimEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
 
 export function sendPlusGiftClaimedEmail({
@@ -1134,5 +1141,5 @@ export function sendPlusGiftClaimedEmail({
       },
     },
   };
-  return ses.sendEmail(params).promise();
+  return ses.sendEmail(params);
 }
