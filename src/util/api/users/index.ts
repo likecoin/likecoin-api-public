@@ -460,4 +460,12 @@ export async function fetchUserDisplayNameByEmail(email: string) {
   return data.displayName || doc.id;
 }
 
+export async function fetchUserInfoByEmail(email: string) {
+  const snapshot = await dbRef.where('email', '==', email).limit(1).get();
+  if (!snapshot.size) return { displayName: '', locale: '' };
+  const [doc] = snapshot.docs;
+  const data = doc.data();
+  return { displayName: data.displayName || doc.id, locale: data.locale || '' };
+}
+
 export * from './getPublicInfo';
