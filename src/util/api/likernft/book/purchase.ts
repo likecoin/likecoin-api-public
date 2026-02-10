@@ -32,6 +32,7 @@ import {
   sendNFTBookSalePaymentsEmail,
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
+import { fetchUserInfoByEmail } from '../../users';
 import type { BookGiftInfo, BookPurchaseData } from '../../../../types/book';
 import { CartItemWithInfo, TransactionFeeInfo } from './type';
 import {
@@ -83,7 +84,7 @@ export async function handleStripeConnectedAccount({
   };
   if (classId) metadata.classId = classId;
   if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
-  const emailMap = {};
+  const emailMap: Record<string, { payments: any[]; locale?: string }> = {};
   if (channelCommission) {
     let fromUser: any = null;
     if (from && !checkIsFromLikerLand(from)) {
@@ -156,8 +157,8 @@ export async function handleStripeConnectedAccount({
             && email
             && isEmailVerified;
           if (shouldSendNotificationEmailToChannel) {
-            emailMap[email] ??= [];
-            emailMap[email].push({
+            emailMap[email] ??= { payments: [], locale: (likerUserInfo as any)?.locale };
+            emailMap[email].payments.push({
               amount: channelCommission / 100,
               type: 'channelCommission',
             });
@@ -254,9 +255,9 @@ export async function handleStripeConnectedAccount({
             const isOwner = wallet === ownerWallet;
             const shouldSendNotificationEmailToChannel = !isOwner && email && isEmailVerified;
             if (shouldSendNotificationEmailToChannel) {
-              emailMap[email] ??= [];
+              emailMap[email] ??= { payments: [], locale: (likerUserInfo as any)?.locale };
               const walletAmount = amountSplit / 100;
-              emailMap[email].push({
+              emailMap[email].payments.push({
                 amount: walletAmount,
                 type: 'connectedWallet',
               });
@@ -323,12 +324,13 @@ export async function handleStripeConnectedAccount({
     }
   }
   await Promise.all(Object.entries(emailMap)
-    .map(([email, payments]) => sendNFTBookSalePaymentsEmail({
+    .map(([email, { payments, locale }]) => sendNFTBookSalePaymentsEmail({
       email,
       classId,
       paymentId,
       bookName,
       payments,
+      language: locale || 'zh',
     // eslint-disable-next-line no-console
     }).catch(console.error)));
   return { transfers };
@@ -595,6 +597,7 @@ export async function formatStripeCheckoutSession({
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
+  if (language) sessionMetadata.language = language;
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
   if (evmWallet) sessionMetadata.evmWallet = evmWallet;
   if (items.length) {
@@ -804,7 +807,7 @@ export async function sendNFTBookClaimedEmailNotification(
         toName: string,
         toEmail: string,
         message?: string,
-      }
+      },
     },
 ) {
   const bookRef = likeNFTBookCollection.doc(classId);
@@ -816,6 +819,7 @@ export async function sendNFTBookClaimedEmailNotification(
   const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
     ? ownerInfo?.likerUserInfo?.email
     : undefined;
+  const ownerLocale = (ownerInfo?.likerUserInfo as any)?.locale || 'zh';
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
   if (ownerEmail) {
@@ -831,6 +835,7 @@ export async function sendNFTBookClaimedEmailNotification(
         feeInfo,
         coupon,
         from,
+        language: ownerLocale,
       });
     } else {
       await sendManualNFTBookSalesEmail({
@@ -844,6 +849,7 @@ export async function sendNFTBookClaimedEmailNotification(
         feeInfo,
         coupon,
         from,
+        language: ownerLocale,
       });
     }
   }
@@ -853,11 +859,17 @@ export async function sendNFTBookClaimedEmailNotification(
       toName,
     } = giftInfo;
     if (email) {
+      let senderLocale = 'zh';
+      try {
+        const senderInfo = await fetchUserInfoByEmail(email);
+        if (senderInfo.locale) senderLocale = senderInfo.locale;
+      } catch { /* ignore */ }
       await sendNFTBookGiftClaimedEmail({
         bookName: className,
         fromEmail: email,
         fromName,
         toName,
+        language: senderLocale,
       });
     }
   }
@@ -989,6 +1001,11 @@ export async function claimNFTBook(
       } = giftInfoTyped;
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
+      let senderLocale = 'zh';
+      try {
+        const senderInfo = await fetchUserInfoByEmail(email);
+        if (senderInfo.locale) senderLocale = senderInfo.locale;
+      } catch { /* ignore */ }
       if (email) {
         await sendNFTBookGiftSentEmail({
           fromEmail: email,
@@ -996,6 +1013,7 @@ export async function claimNFTBook(
           toName,
           bookName: className,
           txHash,
+          language: senderLocale,
         });
       }
     }

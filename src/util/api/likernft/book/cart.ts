@@ -57,7 +57,7 @@ import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
-import { getUserWithCivicLikerPropertiesByWallet } from '../../users';
+import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -336,6 +336,7 @@ type ProcessNFTBookCartMeta = {
   giftMessage?: string;
   giftFromName?: string;
   evmWallet?: string;
+  language?: string;
 };
 
 type ProcessNFTBookCartPayment = {
@@ -374,6 +375,7 @@ export async function processNFTBookCart(
     giftMessage,
     giftFromName,
     evmWallet,
+    language,
   }: ProcessNFTBookCartMeta,
   {
     amountTotal,
@@ -596,11 +598,13 @@ export async function processNFTBookCart(
         }));
       }
       if (isOutOfStock) {
+        const ownerLocale = ownerLikerInfo?.locale || 'zh';
         notifications.push(sendNFTBookOutOfStockEmail({
           email: ownerEmail,
           classId,
           bookName,
           priceName,
+          language: ownerLocale,
         // eslint-disable-next-line no-console
         }).catch((err) => console.error(err)));
       }
@@ -624,6 +628,17 @@ export async function processNFTBookCart(
       utmContent,
       utmTerm,
     });
+    let buyerLocale: string | undefined;
+    let buyerDisplayName = '';
+    try {
+      if (email) {
+        const info = await fetchUserInfoByEmail(email);
+        buyerLocale = info.locale;
+        buyerDisplayName = info.displayName;
+      }
+    } catch { /* ignore */ }
+    const emailLanguage = buyerLocale || language || 'zh';
+
     if (cartIsGift && cartGiftInfo) {
       const {
         fromName,
@@ -640,14 +655,16 @@ export async function processNFTBookCart(
         bookNames,
         paymentId,
         claimToken,
+        language: language || 'zh',
       });
     } else {
       await sendNFTBookCartPendingClaimEmail({
-        email,
         cartId,
         bookNames,
         paymentId,
         claimToken,
+        displayName: buyerDisplayName,
+        language: emailLanguage,
       });
     }
     await logPixelEvents('Purchase', {

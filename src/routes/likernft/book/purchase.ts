@@ -38,6 +38,7 @@ import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
+import { fetchUserInfoByEmail } from '../../../util/api/users';
 
 const router = Router();
 
@@ -693,6 +694,16 @@ router.post(
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
 
+      let senderLocale: string | undefined;
+      let senderDisplayName = '';
+      try {
+        if (email) {
+          const info = await fetchUserInfoByEmail(email);
+          senderLocale = info.locale;
+          senderDisplayName = info.displayName;
+        }
+      } catch { /* ignore */ }
+
       if (isGift && giftInfo) {
         const giftInfoTyped = giftInfo as BookGiftInfo;
         const {
@@ -707,14 +718,24 @@ router.post(
             toName,
             bookName: className,
             txHash,
+            language: senderLocale || 'zh',
           });
         }
         if (toEmail) {
+          let recipientLocale: string | undefined;
+          let recipientDisplayName = '';
+          try {
+            const info = await fetchUserInfoByEmail(toEmail);
+            recipientLocale = info.locale;
+            recipientDisplayName = info.displayName;
+          } catch { /* ignore */ }
           await sendNFTBookManualDeliverSentEmail({
             email: toEmail,
             classId,
             bookName: className,
             txHash,
+            displayName: recipientDisplayName,
+            language: recipientLocale || 'zh',
           });
         }
       } else if (email) {
@@ -723,6 +744,8 @@ router.post(
           classId,
           bookName: className,
           txHash,
+          displayName: senderDisplayName,
+          language: senderLocale || 'zh',
         });
       }
 
@@ -795,6 +818,19 @@ router.post(
       }
       const classData = await getNFTClassDataById(classId).catch(() => null);
       const className = classData?.name || classId;
+
+      let recipientLocale: string | undefined;
+      let recipientDisplayName = '';
+      try {
+        const recipientEmail = isGift ? (giftInfo as BookGiftInfo)?.toEmail : email;
+        if (recipientEmail) {
+          const info = await fetchUserInfoByEmail(recipientEmail);
+          recipientLocale = info.locale;
+          recipientDisplayName = info.displayName;
+        }
+      } catch { /* ignore */ }
+      const emailLanguage = recipientLocale || 'zh';
+
       if (isGift && giftInfo) {
         const giftInfoTyped = giftInfo as BookGiftInfo;
         const {
@@ -814,6 +850,7 @@ router.post(
             paymentId,
             claimToken,
             isResend: true,
+            language: emailLanguage,
           });
         }
       } else {
@@ -825,6 +862,8 @@ router.post(
           claimToken,
           from,
           isResend: true,
+          displayName: recipientDisplayName,
+          language: emailLanguage,
         });
       }
 
