@@ -40,5 +40,6 @@ export interface ArweaveTxData {
   arweaveId?: string;
   isRequireAuth?: boolean;
   key?: string;
+  accessToken?: string;
   [key: string]: any;
 }
