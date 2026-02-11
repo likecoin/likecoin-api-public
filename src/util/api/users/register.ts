@@ -29,6 +29,7 @@ import {
   NEW_USER_BONUS_COOLDOWN,
 } from '../../../../config/config';
 import { createIntercomUser } from '../../intercom';
+import { defaultLocale } from '../../../locales';
 
 function getBool(value = false) {
   if (typeof value === 'string') {
@@ -89,7 +90,7 @@ export async function handleUserRegistration({
     magicUserId,
     isEmailVerified = false,
     isPhoneVerified,
-    locale = 'en',
+    locale = defaultLocale,
     email,
     phone,
     utmSource,

@@ -26,6 +26,7 @@ import {
 import { handleUserRegistration } from '../../util/api/users/register';
 import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
+import { supportedLocales, defaultLocale } from '../../locales';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
@@ -91,10 +92,16 @@ router.post(
       user,
       displayName,
       description,
-      locale,
+      locale: inputLocale,
     } = req.body;
     let email;
     try {
+      let locale = inputLocale;
+      if (!locale) {
+        locale = defaultLocale;
+      } else if (!supportedLocales.includes(locale)) {
+        throw new ValidationError('INVALID_LOCALE');
+      }
       let payload;
       switch (platform) {
         case 'evmWallet': {
@@ -277,8 +284,18 @@ router.post(
         email,
         displayName,
         description,
-        locale,
+        locale: inputLocale,
       } = req.body;
+      let locale;
+      if (inputLocale !== undefined) {
+        if (!inputLocale) {
+          locale = defaultLocale;
+        } else if (!supportedLocales.includes(inputLocale)) {
+          throw new ValidationError('INVALID_LOCALE');
+        } else {
+          locale = inputLocale;
+        }
+      }
       let { isEmailEnabled } = req.body;
 
       // handle isEmailEnable is string
