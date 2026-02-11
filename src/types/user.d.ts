@@ -1,3 +1,5 @@
+import type { SupportedLocale } from '../locales';
+
 export interface CivicLikerData {
   currentPeriodStart: number;
   currentPeriodEnd: number;
@@ -62,7 +64,7 @@ export interface UserData {
   likerPlus?: LikerPlusData;
 
   // Metadata fields
-  locale?: string;
+  locale?: SupportedLocale;
   timestamp?: number;
   bonusCooldown?: number;
   referrer?: string;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
 import { userCollection as dbRef } from '../../util/firebase';
-import { supportedLocales } from '../../locales';
+import { supportedLocales, defaultLocale } from '../../locales';
 
 const router = Router();
 
@@ -48,12 +48,15 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
     } = req.body;
     const payload: any = {};
 
-    if (locale) {
-      if (!supportedLocales.includes(locale)) {
+    if (locale !== undefined) {
+      if (!locale) {
+        payload.locale = defaultLocale;
+      } else if (!supportedLocales.includes(locale)) {
         res.status(400).send('INVALID_LOCALE');
         return;
+      } else {
+        payload.locale = locale;
       }
-      payload.locale = locale;
     }
 
     if (creatorPitch !== undefined) {

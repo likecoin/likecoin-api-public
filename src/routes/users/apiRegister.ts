@@ -24,6 +24,7 @@ import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 import { verifyEmailByMagicDIDToken } from '../../util/magic';
+import { supportedLocales, defaultLocale } from '../../locales';
 
 const router = Router();
 
@@ -77,7 +78,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   const {
     user,
     displayName = user,
-    locale = 'en',
+    locale: inputLocale,
     isEmailEnabled = true,
     sourceURL,
   } = req.body;
@@ -85,6 +86,12 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
     email,
   } = req.body;
   try {
+    let locale = inputLocale;
+    if (!locale) {
+      locale = defaultLocale;
+    } else if (!supportedLocales.includes(locale)) {
+      throw new ValidationError('INVALID_LOCALE');
+    }
     if (req.auth.platform !== platform) {
       throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');
     }
