@@ -54,6 +54,10 @@ export async function checkArweaveTxV2({
       if (status !== 'success') {
         throw new ValidationError('TX_FAILED');
       }
+      const txAmount = new BigNumber(formatEther(value));
+      if (txAmount.lt(ETH)) {
+        throw new ValidationError('TX_AMOUNT_NOT_ENOUGH');
+      }
       const memo = Buffer.from(input.replace('0x', ''), 'hex').toString();
       let memoIPFS = '';
       let memoFileSize = 0;
@@ -62,15 +66,13 @@ export async function checkArweaveTxV2({
       } catch (err) {
         // ignore non-JSON memo
       }
-      if (!memoIPFS || memoIPFS !== ipfsHash) {
-        throw new ValidationError('TX_MEMO_NOT_MATCH');
-      }
-      const txAmount = new BigNumber(formatEther(value));
-      if (txAmount.lt(ETH)) {
-        throw new ValidationError('TX_AMOUNT_NOT_ENOUGH');
-      }
-      if (memoFileSize < fileSize) {
-        throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
+      if (memoIPFS) {
+        if (memoIPFS !== ipfsHash) {
+          throw new ValidationError('TX_MEMO_NOT_MATCH');
+        }
+        if (memoFileSize < fileSize) {
+          throw new ValidationError('TX_MEMO_FILE_SIZE_NOT_ENOUGH');
+        }
       }
       if (fileSize > ARWEAVE_MAX_SIZE_V2) {
         throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
