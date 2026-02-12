@@ -134,7 +134,7 @@ export function sendNFTBookPendingClaimEmail({
   classId?: string;
   bookName: string;
   paymentId: string;
-  claimToken?: string;
+  claimToken: string;
   from?: string;
   isResend?: boolean;
   displayName?: string;
@@ -149,7 +149,7 @@ export function sendNFTBookPendingClaimEmail({
   const claimPageURL = getBook3NFTClaimPageURL({
     classId,
     paymentId,
-    token: claimToken || '',
+    token: claimToken,
     // NOTE: claimToken may be empty, resulting in an incomplete URL
     type: 'nft_book',
     language: lang,

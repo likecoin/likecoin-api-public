@@ -646,6 +646,13 @@ export async function processNFTBookCart(
         toEmail,
         message,
       } = cartGiftInfo;
+      let recipientLocale: string | undefined;
+      try {
+        if (toEmail) {
+          const recipientInfo = await fetchUserInfoByEmail(toEmail);
+          if (recipientInfo.locale) recipientLocale = recipientInfo.locale;
+        }
+      } catch { /* ignore */ }
       await sendNFTBookCartGiftPendingClaimEmail({
         fromName,
         toName,
@@ -655,7 +662,7 @@ export async function processNFTBookCart(
         bookNames,
         paymentId,
         claimToken,
-        language: language || 'zh',
+        language: recipientLocale || language || 'zh',
       });
     } else {
       await sendNFTBookCartPendingClaimEmail({
