@@ -3,7 +3,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import { getStripeClient } from '../../../util/stripe';
-import { LIKER_LAND_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
@@ -148,7 +148,7 @@ router.post(
           business_profile: {
             ...(likerId && {
               name: `@${likerId}`,
-              url: `https://${LIKER_LAND_HOSTNAME}/${likerId}`,
+              url: `https://${BOOK3_HOSTNAME}/store?owner_wallet=${wallet}`,
             }),
           },
           settings: {
