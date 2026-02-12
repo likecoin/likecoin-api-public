@@ -859,7 +859,7 @@ router.post(
           classId,
           bookName: className,
           paymentId,
-          claimToken,
+          claimToken: claimToken || '',
           from,
           isResend: true,
           displayName: recipientDisplayName,
