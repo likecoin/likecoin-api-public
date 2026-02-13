@@ -19,10 +19,10 @@ export async function getArweaveIdFromHashes(ipfsHash) {
   try {
     const res = await arweaveGraphQL.api.post('/graphql', {
       query: `
-    {
+    query($ipfsHash: [String!]!) {
       transactions(
         tags: [
-          { name: "${IPFS_KEY}", values: ["${ipfsHash}"] },
+          { name: "${IPFS_KEY}", values: $ipfsHash },
         ]
       ) {
         edges {
@@ -32,8 +32,9 @@ export async function getArweaveIdFromHashes(ipfsHash) {
         }
       }
     }`,
+      variables: { ipfsHash: [ipfsHash] },
     });
-    const ids = res.data.data.transactions.edges;
+    const ids = res?.data?.data?.transactions?.edges ?? [];
     if (ids[0]) {
       const { id } = ids[0].node;
       arweaveIdCache.set(ipfsHash, id);
