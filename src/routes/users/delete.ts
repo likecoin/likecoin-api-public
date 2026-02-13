@@ -4,7 +4,7 @@ import { getAuthCoreUser } from '../../util/authcore';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users/getPublicInfo';
-import { checkCosmosSignPayload } from '../../util/api/users';
+import { checkCosmosSignPayload, checkEVMSignPayload } from '../../util/api/users';
 import { deleteAllUserData } from '../../util/api/users/delete';
 import { ValidationError } from '../../util/ValidationError';
 
@@ -25,7 +25,7 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
       } = {},
       signMethod,
     } = req.body;
-    if (!signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
+    if (!signature || !message) throw new ValidationError('INVALID_PAYLOAD');
     const userData = await getUserWithCivicLikerProperties(user);
     if (!userData || userData.isDeleted) {
       res.sendStatus(404);
@@ -34,6 +34,7 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
     const {
       authCoreUserId,
       likeWallet,
+      evmWallet,
     } = userData;
     if (authCoreUserId) {
       if (!authCoreAccessToken) throw new ValidationError('MISSING_AUTHCORE_TOKEN');
@@ -42,15 +43,30 @@ router.post('/delete/:id', jwtAuth('write'), async (req, res, next) => {
       } = await getAuthCoreUser(authCoreAccessToken);
       if (tokenUserId !== authCoreUserId) throw new ValidationError('INVALID_AUTHCORE_TOKEN');
     }
-    if (!checkCosmosSignPayload({
-      signature,
-      publicKey,
-      message,
-      inputWallet: likeWallet,
-      signMethod,
-      action: 'user_delete',
-    })) {
-      throw new ValidationError('INVALID_SIGN');
+    const isEVMWallet = signMethod === 'personal_sign';
+    if (isEVMWallet) {
+      if (!evmWallet) throw new ValidationError('EVM_WALLET_NOT_FOUND');
+      if (!checkEVMSignPayload({
+        signature,
+        message,
+        inputWallet: evmWallet,
+        signMethod,
+        action: 'user_delete',
+      })) {
+        throw new ValidationError('INVALID_SIGN');
+      }
+    } else {
+      if (!publicKey) throw new ValidationError('INVALID_PAYLOAD');
+      if (!checkCosmosSignPayload({
+        signature,
+        publicKey,
+        message,
+        inputWallet: likeWallet,
+        signMethod,
+        action: 'user_delete',
+      })) {
+        throw new ValidationError('INVALID_SIGN');
+      }
     }
     await deleteAllUserData(user);
     res.sendStatus(200);
