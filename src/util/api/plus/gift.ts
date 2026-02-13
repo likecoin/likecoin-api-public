@@ -15,6 +15,7 @@ import {
 import { ValidationError } from '../../ValidationError';
 import { sendPlusGiftClaimedEmail, sendPlusGiftPendingClaimEmail } from '../../ses';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
+import { fetchUserInfoByEmail } from '../users';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import logPixelEvents from '../../fbq';
@@ -115,6 +116,7 @@ export async function createPlusGiftCheckoutSession(
   if (gadClickId) sessionMetadata.gadClickId = gadClickId;
   if (gadSource) sessionMetadata.gadSource = gadSource;
   if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
+  if (language) sessionMetadata.language = language;
 
   const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
   if (coupon) {
@@ -365,6 +367,14 @@ export async function claimPlusGiftCart({
       }),
     ]);
 
+    let senderLocale: string | undefined;
+    try {
+      if (email) {
+        const senderInfo = await fetchUserInfoByEmail(email);
+        senderLocale = senderInfo.locale;
+      }
+    } catch { /* ignore */ }
+
     await Promise.all([
       createAirtableSubscriptionPaymentRecord({
         subscriptionId: subscription.id,
@@ -392,6 +402,7 @@ export async function claimPlusGiftCart({
         fromEmail: email || '',
         toName: giftInfo.toName,
         fromName: giftInfo.fromName,
+        language: senderLocale || 'zh',
       }),
     ]);
   } catch (error) {
@@ -426,6 +437,7 @@ export async function processPlusGiftStripePurchase(
     fbClickId,
     evmWallet,
     claimToken: metadataClaimToken,
+    language: metadataLanguage,
   } = metadata || {};
   const lineItems = await getStripeClient().checkout.sessions.listLineItems(sessionId);
   const lineItem = lineItems.data[0];
@@ -470,6 +482,7 @@ export async function processPlusGiftStripePurchase(
     cartId,
     paymentId,
     claimToken,
+    language: metadataLanguage || 'zh',
   });
 
   await logPixelEvents('Purchase', {
