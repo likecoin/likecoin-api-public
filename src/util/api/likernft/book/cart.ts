@@ -1141,6 +1141,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       stripePriceId,
       chain,
       isAutoDeliver,
+      isUnlisted
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -1161,6 +1162,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       priceInDecimal = customPriceInDecimal;
     }
     if (priceInDecimal < 0) throw new ValidationError('PRICE_INVALID');
+    if (isUnlisted) throw new ValidationError('OUT_OF_STOCK');
     if (!isAutoDeliver) {
       if (stock < quantity) throw new ValidationError('OUT_OF_STOCK');
     }
