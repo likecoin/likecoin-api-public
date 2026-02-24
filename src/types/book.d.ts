@@ -166,6 +166,7 @@ export interface NFTBookListingInfo {
   genre?: string;
   timestamp?: { toMillis: () => number };
   isHidden?: boolean;
+  isAdultOnly?: boolean;
   isLikerLandArt?: boolean;
   isApprovedForSale?: boolean;
   isApprovedForIndexing?: boolean;
@@ -212,6 +213,7 @@ export interface NFTBookListingInfoFiltered {
   genre?: string;
   timestamp?: number;
   isHidden?: boolean;
+  isAdultOnly?: boolean;
   sold?: number;
   pendingNFTCount?: number;
   moderatorWallets?: string[];

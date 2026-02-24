@@ -238,6 +238,7 @@ export async function newNftBookInfo(
     genre,
 
     image,
+    isAdultOnly,
   } = data;
 
   const stripeProducts = await Promise.all(prices
@@ -266,7 +267,7 @@ export async function newNftBookInfo(
     chain: isEVMClassId(classId) ? 'base' : 'like',
     isApprovedForSale: isTrustedPublisher || isFree,
     isApprovedForIndexing: true,
-    isApprovedForAds: isTrustedPublisher,
+    isApprovedForAds: (isAdultOnly ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
   };
   if (image) payload.image = image;
@@ -295,6 +296,7 @@ export async function newNftBookInfo(
   if (enableSignatureImage !== undefined) payload.enableSignatureImage = enableSignatureImage;
   if (signedMessageText !== undefined) payload.signedMessageText = signedMessageText;
   if (tableOfContents) payload.tableOfContents = tableOfContents;
+  if (isAdultOnly !== undefined) payload.isAdultOnly = isAdultOnly;
   await likeNFTBookCollection.doc(classId).create(payload);
   return {
     isAutoApproved: isTrustedPublisher,
@@ -418,6 +420,7 @@ export async function updateNftBookInfo(classId: string, {
   enableSignatureImage,
   signedMessageText,
   tableOfContents,
+  isAdultOnly,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -430,6 +433,7 @@ export async function updateNftBookInfo(classId: string, {
   enableSignatureImage?: boolean;
   signedMessageText?: string;
   tableOfContents?: string;
+  isAdultOnly?: boolean;
 } = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -452,6 +456,10 @@ export async function updateNftBookInfo(classId: string, {
   if (enableSignatureImage !== undefined) { payload.enableSignatureImage = enableSignatureImage; }
   if (signedMessageText !== undefined) { payload.signedMessageText = signedMessageText; }
   if (tableOfContents !== undefined) { payload.tableOfContents = tableOfContents; }
+  if (isAdultOnly !== undefined) {
+    payload.isAdultOnly = isAdultOnly;
+    if (isAdultOnly) { payload.isApprovedForAds = false; }
+  }
   await likeNFTBookCollection.doc(classId).update(payload);
   await syncNFTBookInfoWithISCN(classId);
 }

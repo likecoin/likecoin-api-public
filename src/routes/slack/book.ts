@@ -25,6 +25,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
 
   const bookData = bookDoc.data();
   const className = bookData?.name || classId;
+  const { isAdultOnly } = bookData || {};
 
   let approvalUpdate: any = {};
 
@@ -34,7 +35,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
         isHidden: false,
         isApprovedForSale: true,
         isApprovedForIndexing: true,
-        isApprovedForAds: true,
+        isApprovedForAds: !isAdultOnly,
         approvalStatus: 'approved',
       };
       break;

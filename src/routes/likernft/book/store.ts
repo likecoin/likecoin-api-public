@@ -484,6 +484,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideUpsell = false,
       enableCustomMessagePage = false,
       tableOfContents,
+      isAdultOnly = false,
     } = req.body;
 
     let ownerWallet = '';
@@ -535,6 +536,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideDownload,
       hideAudio,
       hideUpsell,
+      isAdultOnly,
 
       // From ISCN content metadata
       inLanguage,
@@ -597,6 +599,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         className,
         prices,
         isAutoApproved,
+        isAdultOnly,
         fileRecords,
         contentFingerprints,
       }),
@@ -635,6 +638,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       hideAudio,
       hideUpsell,
       enableCustomMessagePage,
+      isAdultOnly,
       totalPrices: prices.length,
       autoDeliverTotalStock,
       manualDeliverTotalStock,
@@ -667,6 +671,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideUpsell,
       enableCustomMessagePage,
       tableOfContents,
+      isAdultOnly,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -685,6 +690,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideUpsell,
       enableCustomMessagePage,
       tableOfContents,
+      isAdultOnly,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -696,6 +702,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       hideAudio,
       hideUpsell,
       enableCustomMessagePage,
+      isAdultOnly,
       moderatorWalletCount: moderatorWallets ? moderatorWallets.length : 0,
       connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });

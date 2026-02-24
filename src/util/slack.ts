@@ -23,6 +23,7 @@ export async function sendNFTBookNewListingSlackNotification({
   className,
   prices,
   isAutoApproved = false,
+  isAdultOnly = false,
   fileRecords,
   contentFingerprints,
 }: {
@@ -31,6 +32,7 @@ export async function sendNFTBookNewListingSlackNotification({
   className: string;
   prices: NFTBookPrice[];
   isAutoApproved?: boolean;
+  isAdultOnly?: boolean;
   fileRecords?: {
     url: string;
     name?: string;
@@ -68,6 +70,7 @@ export async function sendNFTBookNewListingSlackNotification({
       editions,
       classId,
       approvalStatus: approvalStatusText,
+      ...(isAdultOnly ? { adultOnly: '🔞 Adult Content (18+)' } : {}),
       files: filesText,
       fingerprints: fingerprintsText,
     };
