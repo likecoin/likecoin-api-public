@@ -33,6 +33,7 @@ interface AirtablePublicationRecordParams {
   metadata?: any;
   isDRMFree?: boolean;
   isHidden?: boolean;
+  isAdultOnly?: boolean;
 }
 
 interface CreateAirtablePublicationRecordParams extends AirtablePublicationRecordParams {
@@ -85,6 +86,7 @@ export async function createAirtablePublicationRecord({
   metadata,
   isDRMFree = false,
   isHidden = false,
+  isAdultOnly = false,
 }: CreateAirtablePublicationRecordParams): Promise<void> {
   const normalizedImageURL = parseImageURLFromMetadata(imageURL);
 
@@ -144,6 +146,9 @@ export async function createAirtablePublicationRecord({
     if (isHidden) {
       fields.Hidden = true;
     }
+    if (isAdultOnly) {
+      fields['Adult Only'] = true;
+    }
 
     const ownerData = await getUserWithCivicLikerPropertiesByWallet(ownerWallet);
     if (ownerData) {
@@ -193,6 +198,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         'Type',
         'Product Page URL',
         'Author',
+        'Adult Only',
       ],
       filterByFormula: formula,
       view: 'All',
@@ -215,6 +221,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         'Product Page URL': url,
         Author: author,
         Publisher: publisher,
+        'Adult Only': isAdultOnly,
       }) => ({
         timestamp,
         ownerWallet,
@@ -231,6 +238,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         iscnId,
         author,
         publisher,
+        isAdultOnly,
       }));
     return result;
   } catch (err) {
@@ -278,6 +286,7 @@ export async function updateAirtablePublicationRecord({
   metadata,
   isDRMFree,
   isHidden,
+  isAdultOnly,
 }: UpdateAirtablePublicationRecordParams): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -341,6 +350,9 @@ export async function updateAirtablePublicationRecord({
 
     if (isHidden !== undefined) {
       fields.Hidden = isHidden;
+    }
+    if (isAdultOnly !== undefined) {
+      fields['Adult Only'] = isAdultOnly;
     }
 
     if (ownerWallet) {
