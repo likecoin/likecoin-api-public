@@ -12,7 +12,7 @@ import {
   PLUS_YEARLY_PRICE,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
-import { getBook3CartURL, getBook3NFTClaimPageURL, getLikerLandNFTGiftPageURL } from '../../../liker-land';
+import { getBook3CartURL, getBook3NFTClaimPageURL, getBook3NFTGiftPageURL } from '../../../liker-land';
 import { parseImageURLFromMetadata } from '../metadata';
 import {
   formatStripeCheckoutSession,
@@ -1417,7 +1417,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   const paymentId = uuidv4();
   const cartId = paymentId;
   const claimToken = crypto.randomBytes(32).toString('hex');
-  const successUrl = giftInfo ? getLikerLandNFTGiftPageURL({
+  const successUrl = giftInfo ? getBook3NFTGiftPageURL({
     cartId,
     paymentId,
     token: claimToken,
