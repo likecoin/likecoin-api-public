@@ -8,8 +8,6 @@ import {
   LIKER_LAND_GET_WALLET_SECRET,
 } from '../../config/config';
 
-export const getLikerLandURL = (path = '', { language = '' }: { language?: string } = {}): string => `https://${LIKER_LAND_HOSTNAME}${language ? `/${language}` : ''}${path}`;
-
 export const getBook3URL = (path = '', { language = 'zh' }: { language?: string } = {}): string => {
   const locale = language.startsWith('zh') ? '' : 'en';
   return `https://${BOOK3_HOSTNAME}${locale ? `/${locale}` : ''}${path}`;
@@ -233,7 +231,7 @@ export const getBook3NFTClaimPageURL = ({
   return getBook3URL(`/store/claim?${qs}`, { language });
 };
 
-export const getLikerLandNFTGiftPageURL = ({
+export const getBook3NFTGiftPageURL = ({
   classId,
   cartId,
   paymentId,
@@ -315,7 +313,7 @@ export const getLikerLandNFTGiftPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = new URLSearchParams(qsPayload).toString();
-  return getLikerLandURL(`/nft/gift?${qs}`, { language });
+  return getBook3URL(`/gift/book?${qs}`, { language });
 };
 
 export const getPlusPageURL = ({
