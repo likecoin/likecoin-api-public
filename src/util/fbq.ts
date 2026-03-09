@@ -6,8 +6,10 @@ import {
   FB_PIXEL_ID,
   FB_ACCESS_TOKEN,
 } from '../../config/config';
+import { SERVER_EVENT_MAP, buildItemId } from './analyticsEvents';
+import type { ServerEventName, AnalyticsItem } from './analyticsEvents';
 
-export default async function logPixelEvents(event, {
+export default async function logPixelEvents(event: ServerEventName, {
   email,
   items,
   userAgent,
@@ -21,7 +23,7 @@ export default async function logPixelEvents(event, {
   evmWallet,
 }: {
   email?: string;
-  items?: { productId: string; priceIndex?: number; quantity?: number }[];
+  items?: AnalyticsItem[];
   userAgent?: string;
   clientIp?: string;
   value: number;
@@ -36,7 +38,7 @@ export default async function logPixelEvents(event, {
   if (!FB_PIXEL_ID || !FB_ACCESS_TOKEN) {
     return;
   }
-  if (!['Purchase', 'InitiateCheckout', 'StartTrial', 'Subscribe'].includes(event)) {
+  if (!SERVER_EVENT_MAP[event]) {
     // eslint-disable-next-line no-console
     console.warn('logPixelEvents: event not implemented', event);
     return;
@@ -67,23 +69,13 @@ export default async function logPixelEvents(event, {
               currency,
               order_id: paymentId,
               content_type: 'product',
-              content_ids: items ? items.map((item) => {
-                let id = item.productId;
-                if (item.priceIndex !== undefined) {
-                  id = `${id}-${item.priceIndex}`;
-                }
-                return id;
-              }) : undefined,
-              contents: items ? items.map((item) => {
-                let id = item.productId;
-                if (item.priceIndex !== undefined) {
-                  id = `${id}-${item.priceIndex}`;
-                }
-                return {
-                  id,
-                  quantity: item.quantity || 1,
-                };
-              }) : undefined,
+              content_ids: items
+                ? items.map((item) => buildItemId(item.productId, item.priceIndex))
+                : undefined,
+              contents: items ? items.map((item) => ({
+                id: buildItemId(item.productId, item.priceIndex),
+                quantity: item.quantity || 1,
+              })) : undefined,
             },
           },
         ],

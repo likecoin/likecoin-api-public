@@ -47,7 +47,7 @@ import {
   sendNFTBookCartPendingClaimEmail,
   sendNFTBookOutOfStockEmail,
 } from '../../../ses';
-import logPixelEvents from '../../../fbq';
+import logServerEvents from '../../../logServerEvents';
 import { getBookUserInfoFromWallet } from './user';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
@@ -676,7 +676,7 @@ export async function processNFTBookCart(
         language: emailLanguage,
       });
     }
-    await logPixelEvents('Purchase', {
+    await logServerEvents('Purchase', {
       email: email || undefined,
       items: infoList.map((item) => ({
         productId: item.classId,
@@ -691,6 +691,8 @@ export async function processNFTBookCart(
       referrer,
       fbClickId,
       evmWallet,
+      gaClientId,
+      gaSessionId,
     });
 
     // Attempt to claim the cart immediately if the user is logged in

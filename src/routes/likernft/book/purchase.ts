@@ -34,7 +34,7 @@ import {
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
-import logPixelEvents from '../../../util/fbq';
+import logServerEvents from '../../../util/logServerEvents';
 import { getBook3CartURL, getBook3NFTClassPageURL } from '../../../util/liker-land';
 import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
@@ -226,7 +226,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         isGift: !!giftInfo,
       });
 
-      await logPixelEvents('InitiateCheckout', {
+      await logServerEvents('InitiateCheckout', {
         email,
         items: items.map((item) => ({
           productId: item.classId,
@@ -241,6 +241,8 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         referrer,
         fbClickId,
         evmWallet: req.user?.evmWallet,
+        gaClientId,
+        gaSessionId,
       });
     }
   } catch (err) {
@@ -368,7 +370,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       });
     }
 
-    await logPixelEvents('InitiateCheckout', {
+    await logServerEvents('InitiateCheckout', {
       items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
       clientIp,
@@ -378,6 +380,8 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       referrer,
       fbClickId: fbClickId as string,
       evmWallet: req.user?.evmWallet,
+      gaClientId: gaClientId as string,
+      gaSessionId: gaSessionId as string,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -513,7 +517,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       });
     }
 
-    await logPixelEvents('InitiateCheckout', {
+    await logServerEvents('InitiateCheckout', {
       email,
       items: [{ productId: classId, priceIndex, quantity }],
       userAgent,
@@ -524,6 +528,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       referrer,
       fbClickId,
       evmWallet: req.user?.evmWallet,
+      gaClientId,
+      gaSessionId,
     });
   } catch (err) {
     next(err);

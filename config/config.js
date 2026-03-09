@@ -99,6 +99,9 @@ config.STRIPE_WEBHOOK_SECRET = '';
 config.FB_PIXEL_ID = '';
 config.FB_ACCESS_TOKEN = '';
 
+config.GA4_MEASUREMENT_ID = '';
+config.GA4_API_SECRET = '';
+
 config.INTERCOM_API_SECRET = '';
 config.INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN || '';
 

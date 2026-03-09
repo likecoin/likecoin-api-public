@@ -22,7 +22,7 @@ import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
-import logPixelEvents from '../../fbq';
+import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export async function processStripeSubscriptionInvoice(
@@ -81,6 +81,8 @@ export async function processStripeSubscriptionInvoice(
     userAgent,
     clientIp,
     fbClickId,
+    gaClientId,
+    gaSessionId,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -190,7 +192,7 @@ export async function processStripeSubscriptionInvoice(
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
     const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.2;
     const predictedLTV = isTrial ? 120 * trialConversionRate : 120;
-    await logPixelEvents(isTrial ? 'StartTrial' : 'Subscribe', {
+    await logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
@@ -204,6 +206,8 @@ export async function processStripeSubscriptionInvoice(
       paymentId,
       evmWallet,
       predictedLTV,
+      gaClientId,
+      gaSessionId,
     });
   }
 
@@ -353,9 +357,9 @@ export async function createNewPlusCheckoutSession(
   if (userAgent) subscriptionMetadata.userAgent = userAgent;
   if (clientIp) subscriptionMetadata.clientIp = clientIp;
   if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;
+  if (gaClientId) subscriptionMetadata.gaClientId = gaClientId;
+  if (gaSessionId) subscriptionMetadata.gaSessionId = gaSessionId;
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
-  if (gaClientId) metadata.gaClientId = gaClientId;
-  if (gaSessionId) metadata.gaSessionId = gaSessionId;
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
   if (referrer) metadata.referrer = referrer.substring(0, 500);

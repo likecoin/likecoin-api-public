@@ -19,7 +19,7 @@ import { fetchUserInfoByEmail } from '../users';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import type { SupportedPlusCurrency } from '../../../constant';
-import logPixelEvents from '../../fbq';
+import logServerEvents from '../../logServerEvents';
 import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 
@@ -442,6 +442,8 @@ export async function processPlusGiftStripePurchase(
     evmWallet,
     claimToken: metadataClaimToken,
     language: metadataLanguage,
+    gaClientId,
+    gaSessionId,
   } = metadata || {};
   const lineItems = await getStripeClient().checkout.sessions.listLineItems(sessionId);
   const lineItem = lineItems.data[0];
@@ -489,7 +491,7 @@ export async function processPlusGiftStripePurchase(
     language: metadataLanguage || 'zh',
   });
 
-  await logPixelEvents('Purchase', {
+  await logServerEvents('Purchase', {
     email: email || undefined,
     items: [{
       productId: `plus-gift-${period}`,
@@ -503,5 +505,7 @@ export async function processPlusGiftStripePurchase(
     referrer,
     fbClickId,
     evmWallet,
+    gaClientId,
+    gaSessionId,
   });
 }
