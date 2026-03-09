@@ -13,7 +13,7 @@ import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../ut
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
-import logPixelEvents from '../../util/fbq';
+import logServerEvents from '../../util/logServerEvents';
 import { filterPlusGiftCartData } from '../../util/ValidationHelper';
 
 const router = Router();
@@ -99,7 +99,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       url: session.url,
     });
 
-    await logPixelEvents('InitiateCheckout', {
+    await logServerEvents('InitiateCheckout', {
       email,
       items: [{
         productId: `plus-${period}`,
@@ -116,6 +116,8 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       referrer,
       fbClickId,
       evmWallet: req.user?.evmWallet,
+      gaClientId,
+      gaSessionId,
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionCreated',
@@ -219,7 +221,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
       url: session.url,
     });
 
-    await logPixelEvents('InitiateCheckout', {
+    await logServerEvents('InitiateCheckout', {
       email,
       items: [{
         productId: `plus-gift-${period}`,
@@ -236,6 +238,8 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
       referrer,
       fbClickId,
       evmWallet: req.user?.evmWallet,
+      gaClientId,
+      gaSessionId,
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusGiftCheckoutSessionCreated',
