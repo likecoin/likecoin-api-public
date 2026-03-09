@@ -9,6 +9,7 @@ import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
 import allRoutes from './routes/all';
+import { shutdownPostHog } from './util/posthog';
 
 const app = express();
 
@@ -61,6 +62,7 @@ const gracefulShutdown = async (signal: string) => {
   server.close(async () => {
     console.log('HTTP server closed'); // eslint-disable-line no-console
     try {
+      await shutdownPostHog();
       if (!process.env.CI) {
         await admin.app().delete();
         console.log('Firebase connections closed'); // eslint-disable-line no-console

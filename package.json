@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/likecoin/likecoin-api-public#readme",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.0.0",
     "@cosmjs/stargate": "^0.30.1",
     "@google-cloud/pubsub": "^5.2.0",
     "@google-cloud/storage": "^7.16.0",
@@ -41,7 +42,6 @@
     "airtable": "^0.12.2",
     "arbundles": "^0.9.9",
     "arweave": "^1.10.17",
-    "@aws-sdk/client-ses": "^3.0.0",
     "axios": "^1.12.0",
     "base64url": "^3.0.1",
     "bech32": "^1.1.3",
@@ -68,6 +68,7 @@
     "lru-cache": "^7.14.0",
     "md5-hex": "^2.0.0",
     "multer": "^2.0.2",
+    "posthog-node": "^5.28.0",
     "secp256k1": "^4.0.3",
     "sharp": "^0.32.6",
     "stripe": "^20.3.0",
