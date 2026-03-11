@@ -38,6 +38,7 @@ config.LIKE_NFT_EVM_INDEXER_API = 'https://likenft-indexer.pandawork.com/api';
 config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
 
 config.EVM_RPC_ENDPOINT_OVERRIDE = '';
+config.EVM_BASE_FEE_MULTIPLIER = 3;
 
 config.LIKER_PLUS_TRIAL_CONVERSION_RATE = 0.2;
 config.LIKER_PLUS_PRODUCT_ID = '';

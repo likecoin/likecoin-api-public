@@ -20,17 +20,19 @@ import config from '../../../config/config';
 let client: PublicClient<HttpTransport, Chain, undefined>;
 let walletClient: WalletClient<HttpTransport, Chain, LocalAccount>;
 
+const baseFeeMultiplier = config.EVM_BASE_FEE_MULTIPLIER || 3;
+
 const baseWithFee = defineChain({
   ...base,
   fees: {
-    baseFeeMultiplier: 2,
+    baseFeeMultiplier,
   },
 });
 
 const baseSepoliaWithFee = defineChain({
   ...baseSepolia,
   fees: {
-    baseFeeMultiplier: 2,
+    baseFeeMultiplier,
   },
 });
 
