@@ -389,11 +389,11 @@ export async function processNFTBookCart(
     type: 'stripe',
     claimToken,
     sessionId,
-    giftInfo: (giftToEmail && giftToName && giftMessage && giftFromName) ? {
+    giftInfo: (giftToEmail && giftToName && giftFromName) ? {
       toEmail: giftToEmail,
       toName: giftToName,
-      message: giftMessage,
       fromName: giftFromName,
+      message: giftMessage,
     } : undefined,
     from,
     itemInfos,
