@@ -246,6 +246,7 @@ export async function claimNFTBookCart(
 
     t.update(cartRef, {
       status: 'pending',
+      wallet,
     });
     return docData;
   });
@@ -293,6 +294,7 @@ export async function claimNFTBookCart(
   } else {
     await cartRef.update({
       status: oldStatus,
+      wallet,
       errors,
       loginMethod: loginMethod || '',
     });
