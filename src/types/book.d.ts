@@ -1,8 +1,8 @@
 // NFT Book purchase and listing related types
 
 export interface BookGiftInfo {
-  fromName?: string;
-  toName?: string;
+  fromName: string;
+  toName: string;
   toEmail: string;
   message?: string;
   [key: string]: unknown;
