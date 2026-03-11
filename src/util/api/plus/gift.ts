@@ -28,11 +28,13 @@ export async function createPlusGiftCheckoutSession(
     giftInfo,
     coupon,
     language,
+    currency,
   }: {
     period: 'monthly' | 'yearly',
     giftInfo: BookGiftInfo,
     coupon?: string,
     language?: 'en' | 'zh',
+    currency?: 'usd' | 'hkd' | 'twd',
   },
   {
     from,
@@ -147,7 +149,7 @@ export async function createPlusGiftCheckoutSession(
       metadata: sessionMetadata,
     },
     mode: 'payment',
-    currency: 'usd',
+    currency: currency || 'usd',
     success_url: getPlusGiftPageURL({
       period,
       cartId,
