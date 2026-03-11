@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   BOOK3_HOSTNAME, PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD, PLUS_PAID_TRIAL_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
+import { convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
@@ -270,6 +271,7 @@ export async function createNewPlusCheckoutSession(
     giftClassId,
     giftPriceIndex,
     coupon,
+    currency,
   }: {
     period: 'monthly' | 'yearly',
     trialPeriodDays?: number,
@@ -277,6 +279,7 @@ export async function createNewPlusCheckoutSession(
     giftClassId?: string,
     giftPriceIndex?: string,
     coupon?: string,
+    currency?: 'usd' | 'hkd' | 'twd',
   },
   {
     from,
@@ -391,16 +394,17 @@ export async function createNewPlusCheckoutSession(
     },
   ];
 
-  const currency = 'usd';
+  const checkoutCurrency = currency || 'usd';
   // Add $1 one-time charge if isPaidTrial
   if (isPaidTrial) {
+    const trialPriceInCurrency = convertUSDPriceToCurrency(PLUS_PAID_TRIAL_PRICE, checkoutCurrency);
     lineItems.push({
       price_data: {
-        currency,
+        currency: checkoutCurrency,
         product_data: {
           name: '3ook.com Plus (Trial)',
         },
-        unit_amount: PLUS_PAID_TRIAL_PRICE * 100,
+        unit_amount: trialPriceInCurrency * 100,
       },
       quantity: 1,
     } as Stripe.Checkout.SessionCreateParams.LineItem);
@@ -412,7 +416,7 @@ export async function createNewPlusCheckoutSession(
     metadata,
     mode: 'subscription',
     subscription_data: subscriptionData,
-    currency,
+    currency: checkoutCurrency,
     success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&payment_id=${paymentId}&trial=${hasFreeTrial ? '1' : '0'}`,
     cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',

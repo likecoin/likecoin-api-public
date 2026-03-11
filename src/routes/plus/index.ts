@@ -18,7 +18,7 @@ const router = Router();
 
 router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
   let { period = 'monthly' } = req.query;
-  const { from } = req.query;
+  const { from, currency } = req.query;
   const {
     gaClientId,
     gaSessionId,
@@ -51,6 +51,9 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (![0, 1, 3, 5, 7, 14, 30].includes(trialPeriodDays)) {
       throw new ValidationError('Invalid trial period days.', 400);
     }
+    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+      throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
+    }
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const {
@@ -65,6 +68,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         giftClassId,
         giftPriceIndex,
         coupon,
+        currency: currency as 'usd' | 'hkd' | 'twd' | undefined,
       },
       {
         from: from as string,
@@ -139,7 +143,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
 
 router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
   let { period = 'yearly' } = req.query;
-  const { from } = req.query;
+  const { from, currency } = req.query;
   const {
     gaClientId,
     gaSessionId,
@@ -165,6 +169,9 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) {
       throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
+    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+      throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
+    }
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const {
@@ -176,6 +183,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
         period: period as 'monthly' | 'yearly',
         giftInfo,
         coupon,
+        currency: currency as 'usd' | 'hkd' | 'twd' | undefined,
       },
       {
         from: from as string,
