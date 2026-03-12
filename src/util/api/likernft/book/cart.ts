@@ -696,7 +696,8 @@ export async function processNFTBookCart(
     });
 
     // Attempt to claim the cart immediately if the user is logged in
-    if (evmWallet) {
+    // Skip auto-claim for gifts — the receiver should claim via the email link
+    if (evmWallet && !cartIsGift) {
       const {
         allItemsAutoClaimed,
       } = await claimNFTBookCart(
