@@ -345,8 +345,8 @@ export function sendNFTBookGiftPendingClaimEmail({
     token: claimToken,
     type: 'nft_book',
     language: lang,
+    email: toEmail,
   });
-  const portfolioURL = getBook3PortfolioPageURL({ language: lang });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -376,36 +376,28 @@ export function sendNFTBookGiftPendingClaimEmail({
           Data: isEn
             ? getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
-              content1: `<p>Dear reader,</p>
-            <p>${fromName} has ${isResend ? 'previously ' : ''}sent an ebook "<a href="${nftPageURL}">${bookName}</a>" to you as a gift.</p>
-            <p>Please follow the steps on the web to claim your ebook.
-            You can also click the button below to get a direct link to that page.
-            Once the steps are completed, you can receive your ebook.</p>
-            <p>If the ebook you received requires a personal signature from the author,
-            please wait patiently for the author to dispatch it after completing the steps,
-            typically within 3 days. You can check the status of the ebook on your <a href="${portfolioURL}">Dashboard on 3ook.com bookstore</a>.</p>`,
+              content1: `<p>Dear ${toName || 'reader'},</p>
+            <p>${fromName} has ${isResend ? 'previously ' : ''}sent you "<a href="${nftPageURL}">${bookName}</a>" as a gift.</p>
+            <p>Click the button below to claim your ebook and start reading.</p>`,
               messageTitle1: `${fromName}'s message`,
               messageContent1: message,
               buttonText1: 'Claim your ebook',
               buttonHref1: claimPageURL,
-              append1: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
-            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
+              append1: `<p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.
+            <br>May you enjoy the pleasure of reading.</p>
             <p>3ook.com Bookstore</p>`,
             }).body
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
-              content1: `<p>親愛的 ${toName}：</p>
-            <p>${fromName} ${isResend ? '先前' : ''}贈送了一本 <a href="${nftPageURL}">《${bookName}》</a> 電子書給你作為禮物。</p>
-            <p>請根據網頁指示領取你的電子書，亦可按以下連結前往該頁面。完成步驟後，即可領取電子書。</p>
-            <p>若你收到的電子書需要作者親自簽發，請在完成步驟後，耐心等待作者發貨。
-            作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURL}">3ook.com 書店的個人主頁</a>查閱。</p>`,
+              content1: `<p>親愛的 ${toName || '讀者'}：</p>
+            <p>${fromName} ${isResend ? '先前' : ''}贈送了 <a href="${nftPageURL}">《${bookName}》</a> 給你。</p>
+            <p>按以下按鈕領取你的電子書，即可開始閱讀。</p>`,
               messageTitle1: `${fromName} 的留言`,
               messageContent1: message,
               buttonText1: '領取我的電子書',
               buttonHref1: claimPageURL,
               append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
-            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <br>願你享受閱讀的樂趣。</p>
             <p>3ook.com 書店</p>`,
             }).body,
         },
@@ -438,8 +430,8 @@ export function sendNFTBookCartGiftPendingClaimEmail({
     token: claimToken,
     type: 'nft_book',
     language: lang,
+    email: toEmail,
   });
-  const portfolioURL = getBook3PortfolioPageURL({ language: lang });
   const params = {
     Source: SYSTEM_EMAIL,
     ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
@@ -470,38 +462,29 @@ export function sendNFTBookCartGiftPendingClaimEmail({
             ? getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
               content1: `<p>Dear ${toName || 'reader'},</p>
-            <p>${fromName} has ${isResend ? 'previously ' : ''}sent the following ebooks to you as a gift.</p>
+            <p>${fromName} has ${isResend ? 'previously ' : ''}sent you the following ebooks as a gift:</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>Please <a href="${claimPageURL}">login to Bookshelf on 3ook.com bookstore</a> to read your ebook.
-            If you have not registered an account on 3ook.com bookstore, please <a href="${claimPageURL}">click here</a> to register.</p>
-            <p>If the ebook you purchased requires the author's personal signature,
-            please log in to 3ook.com bookstore and register by clicking <a href="${claimPageURL}">here</a>, and then patiently wait for the author's dispatch notification.
-            The author will personally sign your ebook within 1-3 business days.
-            Please check your <a href="${portfolioURL}">Bookshelf on 3ook.com bookstore</a> at that time.</p>`,
+            <p>Click the button below to claim your ebooks and start reading.</p>`,
               messageTitle1: `${fromName}'s message`,
               messageContent1: message,
-              buttonText1: 'Claim your ebook',
+              buttonText1: 'Claim your ebooks',
               buttonHref1: claimPageURL,
-              append1: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
-            <br>Thank you for cherishing this book, and may you enjoy the pleasure of reading.</p>
+              append1: `<p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.
+            <br>May you enjoy the pleasure of reading.</p>
             <p>3ook.com Bookstore</p>`,
             }).body
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
               content1: `<p>親愛的 ${toName || '讀者'}：</p>
-            <p>${fromName} ${isResend ? '先前' : ''}贈送了以下電子書給你作為禮物。</p>
+            <p>${fromName} ${isResend ? '先前' : ''}贈送了以下電子書給你：</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>請在 3ook.com 書店，到「<a href="${claimPageURL}">我的書架</a>」閱讀你的電子書。
-            若你未註冊 3ook.com 帳號，請點擊<a href="${claimPageURL}">這裡</a>註冊。</p>
-            <p>若你購買的電子書需要作者親自簽發，請先點擊<a href="${claimPageURL}">這裡</a>登入 3ook.com 書店登記，然後耐心等待作者的發貨通知。
-            作者會在 1-3 個工作天內親手簽發你的電子書。
-            屆時請往你的 <a href="${portfolioURL}">3ook.com 書店的書架</a>查閱。</p>`,
+            <p>按以下按鈕領取你的電子書，即可開始閱讀。</p>`,
               messageTitle1: `${fromName} 的留言`,
               messageContent1: message,
               buttonText1: '領取我的電子書',
               buttonHref1: claimPageURL,
               append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
-            <br>感謝珍藏此書，願你享受閱讀的樂趣。</p>
+            <br>願你享受閱讀的樂趣。</p>
             <p>3ook.com 書店</p>`,
             }).body,
         },
@@ -1133,6 +1116,7 @@ export function sendPlusGiftPendingClaimEmail({
     paymentId,
     token: claimToken,
     language: lang,
+    email: toEmail,
   });
   const ccAddresses: string[] = [];
   if (fromEmail) {

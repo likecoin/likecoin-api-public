@@ -159,6 +159,7 @@ export const getBook3NFTClaimPageURL = ({
   gaSessionId,
   gadClickId,
   gadSource,
+  email,
 }: {
   classId?: string;
   cartId?: string;
@@ -177,6 +178,7 @@ export const getBook3NFTClaimPageURL = ({
   gaSessionId?: string;
   gadClickId?: string;
   gadSource?: string;
+  email?: string;
 }): string => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -226,6 +228,9 @@ export const getBook3NFTClaimPageURL = ({
   }
   if (gadSource) {
     qsPayload.gad_source = gadSource;
+  }
+  if (email) {
+    qsPayload.email = email;
   }
   const qs = new URLSearchParams(qsPayload).toString();
   return getBook3URL(`/store/claim?${qs}`, { language });
@@ -434,11 +439,13 @@ export const getPlusGiftPageClaimURL = ({
   paymentId,
   token,
   language,
+  email,
 }: {
   cartId?: string;
   paymentId: string;
   token: string;
   language?: string;
+  email?: string;
 }) => {
   const qsPayload: any = {
     payment_id: paymentId,
@@ -447,6 +454,9 @@ export const getPlusGiftPageClaimURL = ({
 
   if (cartId) {
     qsPayload.cart_id = cartId;
+  }
+  if (email) {
+    qsPayload.email = email;
   }
 
   const qs = new URLSearchParams(qsPayload).toString();
