@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   BOOK3_HOSTNAME, PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD, PLUS_PAID_TRIAL_PRICE, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
+import type { SupportedPlusCurrency } from '../../../constant';
 import { convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
@@ -196,7 +197,7 @@ export async function processStripeSubscriptionInvoice(
         quantity: 1,
       }],
       value: amountPaid,
-      currency: 'USD',
+      currency,
       userAgent,
       clientIp,
       fbClickId,
@@ -279,7 +280,7 @@ export async function createNewPlusCheckoutSession(
     giftClassId?: string,
     giftPriceIndex?: string,
     coupon?: string,
-    currency?: 'usd' | 'hkd' | 'twd',
+    currency?: SupportedPlusCurrency,
   },
   {
     from,

@@ -8,6 +8,7 @@ import {
   PUBSUB_TOPIC_MISC,
   BOOK3_HOSTNAME,
 } from '../../../../constant';
+import type { SupportedPlusCurrency } from '../../../../constant';
 import {
   getBookUserInfo, getBookUserInfoFromLegacyString, getBookUserInfoFromLikerId,
   getBookUserInfoFromWallet,
@@ -603,7 +604,7 @@ export async function formatStripeCheckoutSession({
   if (items.length) {
     sessionMetadata.fromList = items.map((item) => item.from).join(',');
   }
-  const currencyWithDefault: 'hkd' | 'twd' | 'usd' = currency as 'hkd' | 'twd' | 'usd' || 'usd';
+  const currencyWithDefault: SupportedPlusCurrency = currency as SupportedPlusCurrency || 'usd';
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
     capture_method: 'automatic',

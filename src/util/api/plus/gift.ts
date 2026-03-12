@@ -18,6 +18,7 @@ import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { fetchUserInfoByEmail } from '../users';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
+import type { SupportedPlusCurrency } from '../../../constant';
 import logPixelEvents from '../../fbq';
 import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
@@ -34,7 +35,7 @@ export async function createPlusGiftCheckoutSession(
     giftInfo: BookGiftInfo,
     coupon?: string,
     language?: 'en' | 'zh',
-    currency?: 'usd' | 'hkd' | 'twd',
+    currency?: SupportedPlusCurrency,
   },
   {
     from,
@@ -422,6 +423,7 @@ export async function processPlusGiftStripePurchase(
 ) {
   const {
     amount_total: amountTotal,
+    currency: sessionCurrency,
     customer_details: customer,
     id: sessionId,
     metadata = {},
@@ -496,7 +498,7 @@ export async function processPlusGiftStripePurchase(
     userAgent,
     clientIp,
     value: (amountTotal || 0) / 100,
-    currency: 'USD',
+    currency: (sessionCurrency || 'usd').toUpperCase(),
     paymentId,
     referrer,
     fbClickId,

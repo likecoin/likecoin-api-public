@@ -1,10 +1,11 @@
 import { USD_PRICE_TIER_LIST, HKD_PRICE_TIER_LIST, TWD_PRICE_TIER_LIST } from '../constant/pricing';
+import type { SupportedPlusCurrency } from '../constant';
 
 const MAX_USD = USD_PRICE_TIER_LIST[USD_PRICE_TIER_LIST.length - 1]!;
 const MAX_HKD = HKD_PRICE_TIER_LIST[HKD_PRICE_TIER_LIST.length - 1]!;
 const MAX_TWD = TWD_PRICE_TIER_LIST[TWD_PRICE_TIER_LIST.length - 1]!;
 
-export function convertUSDPriceToCurrency(price: number, currency: 'hkd' | 'twd' | 'usd'): number {
+export function convertUSDPriceToCurrency(price: number, currency: SupportedPlusCurrency): number {
   if (price <= 0) {
     return 0;
   }
@@ -29,7 +30,7 @@ export function convertUSDPriceToCurrency(price: number, currency: 'hkd' | 'twd'
   }
 }
 
-export function convertCurrencyToUSDPrice(price: number, currency: 'hkd' | 'twd' | 'usd'): number {
+export function convertCurrencyToUSDPrice(price: number, currency: SupportedPlusCurrency): number {
   switch (currency) {
     case 'hkd': {
       if (price > MAX_HKD) {

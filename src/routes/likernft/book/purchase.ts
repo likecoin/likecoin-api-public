@@ -11,9 +11,11 @@ import publisher from '../../../util/gcloudPub';
 import {
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
+  SUPPORTED_PLUS_CURRENCIES,
   W3C_EMAIL_REGEX,
   ONE_DAY_IN_MS,
 } from '../../../constant';
+import type { SupportedPlusCurrency } from '../../../constant';
 import { filterBookPurchaseData } from '../../../util/ValidationHelper';
 import type { BookPurchaseData, BookGiftInfo, NFTBookListingInfo } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
@@ -150,7 +152,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
 
-    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency)) {
+    if (currency !== undefined && !SUPPORTED_PLUS_CURRENCIES.includes(currency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY');
     }
 
@@ -277,7 +279,8 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
 
-    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+    if (currency !== undefined
+      && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY');
     }
 
@@ -424,7 +427,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
 
-    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency)) {
+    if (currency !== undefined && !SUPPORTED_PLUS_CURRENCIES.includes(currency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY');
     }
 
