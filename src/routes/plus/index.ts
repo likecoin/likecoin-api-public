@@ -5,8 +5,10 @@ import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
-  W3C_EMAIL_REGEX,
+  SUPPORTED_PLUS_CURRENCIES, W3C_EMAIL_REGEX,
 } from '../../constant';
+import type { SupportedPlusCurrency } from '../../constant';
+import { convertUSDPriceToCurrency } from '../../util/pricing';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
@@ -51,9 +53,11 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (![0, 1, 3, 5, 7, 14, 30].includes(trialPeriodDays)) {
       throw new ValidationError('Invalid trial period days.', 400);
     }
-    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+    if (currency !== undefined
+      && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
     }
+    const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const {
@@ -68,7 +72,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         giftClassId,
         giftPriceIndex,
         coupon,
-        currency: currency as 'usd' | 'hkd' | 'twd' | undefined,
+        currency: checkoutCurrency,
       },
       {
         from: from as string,
@@ -103,8 +107,11 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       }],
       userAgent,
       clientIp,
-      value: period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
-      currency: 'USD',
+      value: convertUSDPriceToCurrency(
+        period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
+        checkoutCurrency,
+      ),
+      currency: checkoutCurrency.toUpperCase(),
       paymentId,
       referrer,
       fbClickId,
@@ -169,9 +176,11 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) {
       throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
-    if (currency !== undefined && !['usd', 'hkd', 'twd'].includes(currency as string)) {
+    if (currency !== undefined
+      && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
     }
+    const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
     const {
@@ -183,7 +192,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
         period: period as 'monthly' | 'yearly',
         giftInfo,
         coupon,
-        currency: currency as 'usd' | 'hkd' | 'twd' | undefined,
+        currency: checkoutCurrency,
       },
       {
         from: from as string,
@@ -218,8 +227,11 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
       }],
       userAgent,
       clientIp,
-      value: period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
-      currency: 'USD',
+      value: convertUSDPriceToCurrency(
+        period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
+        checkoutCurrency,
+      ),
+      currency: checkoutCurrency.toUpperCase(),
       paymentId,
       referrer,
       fbClickId,
