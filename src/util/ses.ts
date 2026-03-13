@@ -317,7 +317,7 @@ export function sendNFTBookGiftPendingClaimEmail({
   const lang = isEn ? 'en' : 'zh-Hant';
   const title = isEn
     ? `${isResend ? '(Reminder) ' : ''}${fromName} has sent you an ebook gift from 3ook.com`
-    : `${isResend ? '（提示）' : ''}${fromName} 送了一本電子書禮物給你`;
+    : `${isResend ? '（提示）' : ''}${fromName} 贈你一本電子書禮物`;
   const nftPageURL = getBook3NFTClassPageURL({ classId, language: lang });
   const claimPageURL = getBook3NFTClaimPageURL({
     classId,
@@ -370,15 +370,16 @@ export function sendNFTBookGiftPendingClaimEmail({
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
               content1: `<p>親愛的 ${toName || '讀者'}：</p>
-            <p>${fromName} ${isResend ? '先前' : ''}贈送了 <a href="${nftPageURL}">《${bookName}》</a> 給你。</p>
-            <p>按以下按鈕領取你的電子書，即可開始閱讀。</p>`,
+            <p>${fromName} ${isResend ? '先前' : ''}贈送你這本電子書：</p>
+            <p><a href="${nftPageURL}">《${bookName}》</a></p>
+            <p>請點擊下方按鈕登入系統，打開電子書閱讀。</p>`,
               messageTitle1: `${fromName} 的留言`,
               messageContent1: message,
-              buttonText1: '領取我的電子書',
+              buttonText1: '領取電子書',
               buttonHref1: claimPageURL,
-              append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+              append1: `<p>如有任何疑問，歡迎聯絡我們的<a href="${CUSTOMER_SERVICE_URL}">客戶服務</a>。
             <br>願你享受閱讀的樂趣。</p>
-            <p>3ook.com 書店</p>`,
+            <p>3ook.com 電子書店</p>`,
             }).body,
         },
       },
@@ -546,7 +547,7 @@ export function sendNFTBookGiftSentEmail({
   const isEn = language === 'en';
   const title = isEn
     ? `Your ebook gift ${bookName} to ${toName} has been delivered`
-    : `你給 ${toName} 的禮物電子書 ${bookName} 已經發送`;
+    : `已發送了你贈給 ${toName} 的電子書`;
   const txURL = `${CHAIN_EXPLORER_URL}/tx/${txHash}`;
   const params = {
     Source: SYSTEM_EMAIL,
@@ -586,10 +587,11 @@ export function sendNFTBookGiftSentEmail({
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
               content1: `<p>親愛的 ${fromName}：</p>
-            <p>你購買的 ${bookName} 已成功發送給 ${toName}。
-            <br>如需瀏覽技術細節，請按<a href="${txURL}">此連結</a></p>
-            <p>感謝你分享閱讀的樂趣</p>
-            <p>3ook.com 書店</p>`,
+            <p>你購買並送給 ${toName} 的電子書《${bookName}》，已成功送出。</p>
+            <p>${toName} 現在可以登入系統後，在書架上打開電子書閱讀。</p>
+            <p>感謝你分享閱讀的樂趣。</p>
+            <p>3ook.com 電子書店</p>
+            <p>*如需協助，請把此<a href="${txURL}">詳細發送記錄</a>報告客服。</p>`,
             }).body,
         },
       },
