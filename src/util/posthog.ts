@@ -38,14 +38,16 @@ export default function logPostHogEvents(event: ServerEventName, {
   predictedLTV,
   currency,
   paymentId,
+  extraProperties,
 }: {
   evmWallet?: string;
   email?: string;
   items?: AnalyticsItem[];
-  value: number;
+  value?: number;
   predictedLTV?: number;
-  currency: string;
+  currency?: string;
   paymentId?: string;
+  extraProperties?: Record<string, unknown>;
 }) {
   const client = getPostHogClient();
   if (!client) {
@@ -65,6 +67,7 @@ export default function logPostHogEvents(event: ServerEventName, {
       distinctId: evmWallet,
       event: posthogEvent,
       properties: {
+        ...extraProperties,
         $set: email ? { email } : undefined,
         $insert_id: paymentId ? `${posthogEvent}_${paymentId}` : undefined,
         value,
