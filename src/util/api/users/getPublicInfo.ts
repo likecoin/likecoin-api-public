@@ -89,6 +89,8 @@ export function formatUserCivicLikerProperies(
       payload.isLikerPlusTrial = currentType === 'trial';
       payload.isSubscribedCivicLiker = true;
       payload.likerPlusPeriod = period;
+    } else if (now > renewalLast) {
+      payload.isExpiredLikerPlus = true;
     }
   }
 
