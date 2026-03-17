@@ -12,20 +12,24 @@ export default async function logServerEvents(
     items?: AnalyticsItem[];
     userAgent?: string;
     clientIp?: string;
-    value: number;
+    value?: number;
     predictedLTV?: number;
-    currency: string;
+    currency?: string;
     paymentId?: string;
     referrer?: string;
     fbClickId?: string;
     evmWallet?: string;
     gaClientId?: string;
     gaSessionId?: string;
+    extraProperties?: Record<string, unknown>;
   },
 ): Promise<void> {
   logPostHogEvents(event, options);
+  if (options.value == null || options.currency == null) {
+    return;
+  }
   await Promise.allSettled([
-    logPixelEvents(event, options),
-    logGA4Events(event, options),
+    logPixelEvents(event, options as typeof options & { value: number; currency: string }),
+    logGA4Events(event, options as typeof options & { value: number; currency: string }),
   ]);
 }

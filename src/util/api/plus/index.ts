@@ -209,6 +209,22 @@ export async function processStripeSubscriptionInvoice(
       gaClientId,
       gaSessionId,
     });
+  } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
+    await logServerEvents('SubscriptionRenewed', {
+      evmWallet,
+      email: user.email || stripeCustomer.email || undefined,
+      value: amountPaid,
+      currency,
+      paymentId,
+      items: [{
+        productId: `plus-${period}ly`,
+        quantity: 1,
+      }],
+      extraProperties: {
+        subscription_id: subscriptionId,
+        period,
+      },
+    });
   }
 
   await Promise.all([
@@ -481,18 +497,64 @@ export async function processStripeSubscriptionCancellation(
       is_liker_plus_trial: false,
     });
 
+    const period = subscription.items?.data[0]?.plan?.interval;
     if (isTrialEnd) {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_trial_end',
-      });
+      await Promise.all([
+        sendIntercomEvent({
+          userId: likerId,
+          eventName: 'plus_trial_end',
+        }),
+        logServerEvents('TrialEnded', {
+          evmWallet,
+          paymentId: subscriptionId,
+          extraProperties: {
+            subscription_id: subscriptionId,
+            period,
+          },
+        }),
+      ]);
     } else {
-      await sendIntercomEvent({
-        userId: likerId,
-        eventName: 'plus_subscription_end',
-      });
+      await Promise.all([
+        sendIntercomEvent({
+          userId: likerId,
+          eventName: 'plus_subscription_end',
+        }),
+        logServerEvents('SubscriptionCancelled', {
+          evmWallet,
+          paymentId: subscriptionId,
+          extraProperties: {
+            subscription_id: subscriptionId,
+            period,
+            cancel_reason: subscription.cancellation_details?.reason,
+          },
+        }),
+      ]);
     }
   }
+}
+
+export async function processStripePaymentFailure(
+  invoice: Stripe.Invoice,
+) {
+  const subscriptionDetails = invoice.parent?.type === 'subscription_details'
+    ? invoice.parent.subscription_details : null;
+  const subscriptionId = subscriptionDetails?.subscription as string;
+  if (!subscriptionId) return;
+  const { evmWallet } = subscriptionDetails?.metadata || {};
+  if (!evmWallet) return;
+  const lastError = invoice.last_finalization_error;
+  await logServerEvents('PaymentFailed', {
+    evmWallet,
+    paymentId: invoice.id,
+    value: (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100,
+    currency: invoice.currency?.toUpperCase(),
+    extraProperties: {
+      subscription_id: subscriptionId,
+      attempt_count: invoice.attempt_count,
+      failure_code: lastError?.code,
+      failure_type: lastError?.type,
+    },
+  });
 }
 
 export async function updateSubscriptionPeriod(
