@@ -85,6 +85,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     likerPlusSince,
     isLikerPlus,
     isLikerPlusTrial,
+    isExpiredLikerPlus,
     likerPlusPeriod,
     locale,
   } = u;
@@ -115,6 +116,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     likerPlusSince,
     isLikerPlus,
     isLikerPlusTrial,
+    isExpiredLikerPlus,
     likerPlusPeriod,
     locale,
   };
@@ -138,6 +140,7 @@ export function filterUserDataMin(
     likerPlusSince,
     isLikerPlus,
     isLikerPlusTrial,
+    isExpiredLikerPlus,
     description,
   } = userObject;
   const output: UserDataMin = {
@@ -154,6 +157,7 @@ export function filterUserDataMin(
     likerPlusSince,
     isLikerPlus,
     isLikerPlusTrial,
+    isExpiredLikerPlus,
     description,
   };
   if (types.includes('payment')) {
