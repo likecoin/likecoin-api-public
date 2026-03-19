@@ -1146,7 +1146,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       stripePriceId,
       chain,
       isAutoDeliver,
-      isUnlisted
+      isUnlisted,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;

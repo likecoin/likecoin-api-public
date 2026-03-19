@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import type { LikerPlusSubscriptionStatus } from '../../../types/user';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -164,6 +165,7 @@ export async function processStripeSubscriptionInvoice(
       currentType: isTrial ? 'trial' : 'paid',
       subscriptionId,
       customerId,
+      subscriptionStatus: 'active',
     },
   });
 
@@ -488,6 +490,7 @@ export async function processStripeSubscriptionCancellation(
         likerPlus: {
           ...user.likerPlus,
           currentPeriodEnd: Date.now(),
+          subscriptionStatus: 'canceled',
         },
       });
     }
@@ -543,10 +546,11 @@ export async function processStripePaymentFailure(
   const { evmWallet } = subscriptionDetails?.metadata || {};
   if (!evmWallet) return;
   const lastError = invoice.last_finalization_error;
-  await logServerEvents('PaymentFailed', {
+  const value = (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100;
+  const logPromise = logServerEvents('PaymentFailed', {
     evmWallet,
     paymentId: invoice.id,
-    value: (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100,
+    value,
     currency: invoice.currency?.toUpperCase(),
     extraProperties: {
       subscription_id: subscriptionId,
@@ -554,6 +558,56 @@ export async function processStripePaymentFailure(
       failure_code: lastError?.code,
       failure_type: lastError?.type,
     },
+  }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('Failed to log PaymentFailed event:', err);
+  });
+  await getUserWithCivicLikerPropertiesByWallet(evmWallet).then((user) => {
+    if (user) {
+      return userCollection.doc(user.user).update({
+        'likerPlus.subscriptionStatus': 'past_due',
+      });
+    }
+    return undefined;
+  });
+  await logPromise;
+}
+
+const STRIPE_TO_SUBSCRIPTION_STATUS: Partial<Record<
+  Stripe.Subscription.Status, LikerPlusSubscriptionStatus
+>> = {
+  active: 'active',
+  trialing: 'active',
+  past_due: 'past_due',
+  canceled: 'canceled',
+  unpaid: 'canceled',
+  incomplete_expired: 'canceled',
+};
+
+export async function processStripeSubscriptionStatusUpdate(
+  subscription: Stripe.Subscription,
+) {
+  const { status } = subscription;
+  const { evmWallet, likeWallet } = subscription.metadata || {};
+  if (!evmWallet && !likeWallet) {
+    // eslint-disable-next-line no-console
+    console.warn(`Subscription ${subscription.id} has no wallet in metadata`);
+    return;
+  }
+  const subscriptionStatus = STRIPE_TO_SUBSCRIPTION_STATUS[status];
+  if (!subscriptionStatus) {
+    // eslint-disable-next-line no-console
+    console.warn(`Unhandled Stripe subscription status ${status} for subscription ${subscription.id}`, {
+      evmWallet,
+      likeWallet,
+    });
+    return;
+  }
+  const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
+  if (!user) return;
+  if (user.likerPlus?.subscriptionStatus === subscriptionStatus) return;
+  await userCollection.doc(user.user).update({
+    'likerPlus.subscriptionStatus': subscriptionStatus,
   });
 }
 

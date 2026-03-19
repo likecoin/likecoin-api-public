@@ -8,6 +8,8 @@ export interface CivicLikerData {
   civicLikerVersion?: number;
 }
 
+export type LikerPlusSubscriptionStatus = 'active' | 'past_due' | 'canceled';
+
 export interface LikerPlusData {
   currentPeriodStart: number;
   currentPeriodEnd: number;
@@ -16,6 +18,7 @@ export interface LikerPlusData {
   period?: string;
   subscriptionId?: string;
   customerId?: string;
+  subscriptionStatus?: LikerPlusSubscriptionStatus;
 }
 
 export interface UserData {
@@ -90,4 +93,5 @@ export interface UserCivicLikerProperties extends UserData {
   isLikerPlusTrial?: boolean;
   isExpiredLikerPlus?: boolean;
   likerPlusPeriod?: string;
+  likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
 }

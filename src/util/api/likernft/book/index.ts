@@ -376,7 +376,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
   }
 
   try {
-    const { ownerWallet, hideDownload, isHidden, isAdultOnly } = bookInfo;
+    const {
+      ownerWallet, hideDownload, isHidden, isAdultOnly,
+    } = bookInfo;
     const minPrice = prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100;
     const maxPrice = prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100;
     await updateAirtablePublicationRecord({
