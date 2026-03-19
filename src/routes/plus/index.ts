@@ -419,4 +419,34 @@ router.post('/portal', jwtAuth('write:plus'), async (req, res, next) => {
   }
 });
 
+router.post('/retry', jwtAuth('write:plus'), async (req, res, next) => {
+  try {
+    const { wallet } = req.user;
+    const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    if (!userInfo?.likerPlus) {
+      throw new ValidationError('No Liker Plus subscription found for this user.', 404);
+    }
+    const { subscriptionId, subscriptionStatus } = userInfo.likerPlus;
+    if (!subscriptionId) {
+      throw new ValidationError('No subscription found for this user.', 404);
+    }
+    if (subscriptionStatus !== 'past_due') {
+      throw new ValidationError('Subscription is not in past_due status.', 400);
+    }
+    const stripe = getStripeClient();
+    const invoices = await stripe.invoices.list({
+      subscription: subscriptionId,
+      status: 'open',
+      limit: 1,
+    });
+    if (!invoices.data.length) {
+      throw new ValidationError('No open invoice found for this subscription.', 404);
+    }
+    await stripe.invoices.pay(invoices.data[0].id);
+    res.sendStatus(200);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

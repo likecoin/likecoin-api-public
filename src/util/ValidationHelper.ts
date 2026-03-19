@@ -87,6 +87,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isLikerPlusTrial,
     isExpiredLikerPlus,
     likerPlusPeriod,
+    likerPlusSubscriptionStatus,
     locale,
   } = u;
   return {
@@ -118,6 +119,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isLikerPlusTrial,
     isExpiredLikerPlus,
     likerPlusPeriod,
+    likerPlusSubscriptionStatus,
     locale,
   };
 }
@@ -177,6 +179,7 @@ export function filterUserDataScoped(
   let output: UserDataScopedFiltered = filterUserDataMin(u);
   if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
+    output.likerPlusSubscriptionStatus = user.likerPlusSubscriptionStatus;
   }
   if (scope.includes('email')) output.email = user.email;
   if (scope.includes('read:civic_liker')) {

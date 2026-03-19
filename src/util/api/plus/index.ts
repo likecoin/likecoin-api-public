@@ -164,6 +164,7 @@ export async function processStripeSubscriptionInvoice(
       currentType: isTrial ? 'trial' : 'paid',
       subscriptionId,
       customerId,
+      subscriptionStatus: 'active',
     },
   });
 
@@ -488,6 +489,7 @@ export async function processStripeSubscriptionCancellation(
         likerPlus: {
           ...user.likerPlus,
           currentPeriodEnd: Date.now(),
+          subscriptionStatus: 'canceled',
         },
       });
     }
@@ -543,17 +545,48 @@ export async function processStripePaymentFailure(
   const { evmWallet } = subscriptionDetails?.metadata || {};
   if (!evmWallet) return;
   const lastError = invoice.last_finalization_error;
-  await logServerEvents('PaymentFailed', {
-    evmWallet,
-    paymentId: invoice.id,
-    value: (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100,
-    currency: invoice.currency?.toUpperCase(),
-    extraProperties: {
-      subscription_id: subscriptionId,
-      attempt_count: invoice.attempt_count,
-      failure_code: lastError?.code,
-      failure_type: lastError?.type,
-    },
+  await Promise.all([
+    logServerEvents('PaymentFailed', {
+      evmWallet,
+      paymentId: invoice.id,
+      value: (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100,
+      currency: invoice.currency?.toUpperCase(),
+      extraProperties: {
+        subscription_id: subscriptionId,
+        attempt_count: invoice.attempt_count,
+        failure_code: lastError?.code,
+        failure_type: lastError?.type,
+      },
+    }),
+    getUserWithCivicLikerPropertiesByWallet(evmWallet).then((user) => {
+      if (user) {
+        return userCollection.doc(user.user).update({
+          'likerPlus.subscriptionStatus': 'past_due',
+        });
+      }
+      return undefined;
+    }),
+  ]);
+}
+
+export async function processStripeSubscriptionStatusUpdate(
+  subscription: Stripe.Subscription,
+) {
+  const { status } = subscription;
+  const { evmWallet, likeWallet } = subscription.metadata || {};
+  if (!evmWallet && !likeWallet) return;
+  const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
+  if (!user) return;
+  let subscriptionStatus: 'active' | 'past_due';
+  if (status === 'active' || status === 'trialing') {
+    subscriptionStatus = 'active';
+  } else if (status === 'past_due') {
+    subscriptionStatus = 'past_due';
+  } else {
+    return; // Other statuses (canceled, unpaid, etc.) handled by other webhooks
+  }
+  await userCollection.doc(user.user).update({
+    'likerPlus.subscriptionStatus': subscriptionStatus,
   });
 }
 

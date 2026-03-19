@@ -1,4 +1,4 @@
-import type { UserCivicLikerProperties } from './user';
+import type { UserCivicLikerProperties, LikerPlusSubscriptionStatus } from './user';
 import type { SupportedLocale } from '../locales';
 import type { AppMeta } from './firestore';
 
@@ -23,6 +23,7 @@ export interface UserDataMin extends Pick<UserCivicLikerProperties,
 
 export interface UserDataScopedFiltered extends UserDataMin {
   likerPlusPeriod?: any;
+  likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
   email?: string;
   isExpiredCivicLiker?: boolean;
   isCivicLikerRenewalPeriod?: boolean;
