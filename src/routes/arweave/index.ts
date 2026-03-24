@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import uuidv4 from 'uuid/v4';
 import {
   checkArweaveTxV2,
   estimateUploadToArweaveV2,
@@ -12,8 +13,10 @@ import {
 } from '../../../config/config';
 import { getPublicKey, fund as fundIrys, signData as signArweaveData } from '../../util/arweave/signer';
 import {
-  createNewArweaveTx, getArweaveTxInfo, updateArweaveTxStatus, rotateArweaveTxAccessToken,
+  createNewArweaveTx,
+  getArweaveTxInfo, updateArweaveTxStatus, rotateArweaveTxAccessToken,
 } from '../../util/api/arweave/tx';
+import { getRemainingQuota, checkAndReserveQuota } from '../../util/api/arweave/quota';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 
@@ -33,6 +36,7 @@ router.get(
 
 router.post(
   '/v2/estimate',
+  jwtOptionalAuth('write:iscn'),
   async (req, res, next) => {
     try {
       const { fileSize, ipfsHash } = req.body;
@@ -48,12 +52,25 @@ router.post(
         arweaveId,
         ETH,
       });
-      res.json({
+      const result: {
+        arweaveId?: string;
+        ETH: string;
+        memo: string;
+        evmAddress: string;
+        remainingBytes?: number;
+        remainingUploads?: number;
+      } = {
         arweaveId,
         ETH,
         memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
         evmAddress: ARWEAVE_EVM_TARGET_ADDRESS,
-      });
+      };
+      if (req.user?.wallet) {
+        const quota = await getRemainingQuota(req.user.wallet);
+        result.remainingBytes = quota.remainingBytes;
+        result.remainingUploads = quota.remainingUploads;
+      }
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -68,11 +85,18 @@ router.post(
       const {
         fileSize, ipfsHash, txHash, signatureData, txToken = 'BASEETH',
       } = req.body;
-      if (!txHash) throw new Error('MISSING_TX_HASH');
       if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
-      if (!['BASEETH'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
+      if (!['BASEETH', 'SPONSORED'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
+
+      const isSponsored = txToken === 'SPONSORED';
+      if (isSponsored && !req.user?.wallet) {
+        throw new ValidationError('MISSING_USER', 401);
+      }
+      if (!isSponsored && !txHash) {
+        throw new Error('MISSING_TX_HASH');
+      }
 
       const estimate = await estimateUploadToArweaveV2(
         fileSize,
@@ -85,25 +109,40 @@ router.post(
         isExists,
       } = estimate;
 
-      await checkArweaveTxV2({
-        fileSize, ipfsHash, txHash, ETH, txToken,
-      });
+      let token: string;
+      let uploadId: string;
 
-      let token;
-      try {
-        token = await createNewArweaveTx(txHash, {
+      if (isSponsored) {
+        const { wallet } = req.user!;
+        await checkAndReserveQuota(wallet, fileSize, ETH);
+        uploadId = `sponsored-${uuidv4()}`;
+        token = await createNewArweaveTx(uploadId, {
           ipfsHash,
           fileSize,
-          ownerWallet: req.user?.wallet || '',
+          ownerWallet: wallet,
+          isSponsored: true,
+          sponsoredETH: ETH,
         });
-      } catch (error) {
-        if ((error as Error)?.message.includes('ALREADY_EXISTS')) {
-          // eslint-disable-next-line no-console
-          console.warn(error);
-          res.status(429).send('TX_HASH_ALREADY_USED');
-          return;
+      } else {
+        uploadId = txHash;
+        await checkArweaveTxV2({
+          fileSize, ipfsHash, txHash, ETH, txToken,
+        });
+        try {
+          token = await createNewArweaveTx(txHash, {
+            ipfsHash,
+            fileSize,
+            ownerWallet: req.user?.wallet || '',
+          });
+        } catch (error) {
+          if ((error as Error)?.message.includes('ALREADY_EXISTS')) {
+            // eslint-disable-next-line no-console
+            console.warn(error);
+            res.status(429).send('TX_HASH_ALREADY_USED');
+            return;
+          }
+          throw error;
         }
-        throw error;
       }
 
       if (ETH && ETH !== '0') {
@@ -116,17 +155,18 @@ router.post(
 
       res.json({
         token,
-        id: txHash,
+        id: uploadId,
         arweaveId,
         isExists,
         signature: signatureHex,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'arweaveSigningV2',
+        logType: isSponsored ? 'arweaveSponsoredSigningV2' : 'arweaveSigningV2',
         ipfsHash,
         arweaveId,
         ETH,
-        txHash,
+        txHash: uploadId,
+        ...(isSponsored ? { wallet: req.user!.wallet } : {}),
       });
     } catch (error) {
       next(error);

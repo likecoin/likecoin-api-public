@@ -2,17 +2,21 @@ import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
 import type { ArweaveTxData } from '../../../types/transaction';
 
-export async function createNewArweaveTx(txHash: string, {
+export async function createNewArweaveTx(docId: string, {
   ipfsHash,
   fileSize,
   ownerWallet,
+  isSponsored,
+  sponsoredETH,
 }: {
   ipfsHash: string;
   fileSize: number;
   ownerWallet: string;
+  isSponsored?: boolean;
+  sponsoredETH?: string;
 }): Promise<string> {
   const token = uuidv4();
-  await iscnArweaveTxCollection.doc(txHash).create({
+  const data: Record<string, any> = {
     token,
     ipfsHash,
     fileSize,
@@ -20,7 +24,12 @@ export async function createNewArweaveTx(txHash: string, {
     status: 'pending',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
-  });
+  };
+  if (isSponsored) {
+    data.isSponsored = true;
+    data.sponsoredETH = sponsoredETH;
+  }
+  await iscnArweaveTxCollection.doc(docId).create(data);
   return token;
 }
 

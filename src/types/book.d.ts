@@ -236,6 +236,10 @@ export interface NFTBookUserData {
   migrateMethod?: string;
   migrateTimestamp?: any;
   timestamp?: any;
+  sponsoredUploadBytes?: number;
+  sponsoredUploadCount?: number;
+  sponsoredUploadETH?: string;
+  sponsoredUploadDate?: string;
   [key: string]: any;
 }
 
