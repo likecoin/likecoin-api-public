@@ -3,7 +3,11 @@ import type { LikerPlusSubscriptionStatus } from '../../../types/user';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  BOOK3_HOSTNAME, PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD, PLUS_PAID_TRIAL_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME,
+  PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD,
+  PLUS_PAID_TRIAL_PRICE,
+  PUBSUB_TOPIC_MISC,
+  STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
 } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
 import { convertUSDPriceToCurrency } from '../../pricing';
@@ -25,6 +29,10 @@ import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
+
+function findStripeDefaultPayment(payments?: Stripe.ApiList<Stripe.InvoicePayment>) {
+  return payments?.data?.find((p) => p.is_default);
+}
 
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
@@ -96,6 +104,42 @@ export async function processStripeSubscriptionInvoice(
   const amountPaid = invoice.amount_paid / 100;
   const isTrial = status === 'trialing';
   const price = amountPaid;
+  let balanceTxAmount: number | undefined;
+  let balanceTxExchangeRate: number | undefined;
+  if (amountPaid > 0) {
+    try {
+      let defaultPayment = findStripeDefaultPayment(invoice.payments);
+      if (!defaultPayment) {
+        const expandedInvoice = await stripe.invoices.retrieve(
+          invoice.id,
+          { expand: ['payments.data'] },
+        );
+        defaultPayment = findStripeDefaultPayment(expandedInvoice.payments);
+      }
+      const paymentIntent = defaultPayment?.payment?.payment_intent;
+      if (paymentIntent) {
+        const paymentIntentId = typeof paymentIntent === 'string'
+          ? paymentIntent : paymentIntent.id;
+        const paymentIntentObj = await stripe.paymentIntents.retrieve(
+          paymentIntentId,
+          { expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS },
+        );
+        const { latest_charge: latestCharge } = paymentIntentObj;
+        if (latestCharge && typeof latestCharge !== 'string') {
+          const { balance_transaction: balanceTx } = latestCharge;
+          if (balanceTx && typeof balanceTx !== 'string') {
+            balanceTxAmount = balanceTx.amount / 100;
+            if (balanceTx.exchange_rate != null) {
+              balanceTxExchangeRate = balanceTx.exchange_rate;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Error retrieving balance transaction for invoice ${invoice.id} of subscription ${subscriptionId}:`, err);
+    }
+  }
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
   const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
@@ -251,6 +295,8 @@ export async function processStripeSubscriptionInvoice(
       priceName,
       price,
       currency,
+      balanceTxAmount,
+      balanceTxExchangeRate,
       invoiceId: invoice.id,
       since,
       periodInterval: period,

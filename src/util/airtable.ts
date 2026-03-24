@@ -822,6 +822,8 @@ export async function createAirtableSubscriptionPaymentRecord({
   priceName,
   price,
   currency,
+  balanceTxAmount,
+  balanceTxExchangeRate,
   invoiceId,
   couponId,
   couponName,
@@ -853,6 +855,8 @@ export async function createAirtableSubscriptionPaymentRecord({
   priceName?: string;
   price?: number;
   currency?: string;
+  balanceTxAmount?: number;
+  balanceTxExchangeRate?: number;
   invoiceId?: string;
   couponId?: string;
   couponName?: string;
@@ -881,6 +885,8 @@ export async function createAirtableSubscriptionPaymentRecord({
       'Price Name': priceName || '',
       Price: price || 0,
       Currency: currency || 'USD',
+      ...(balanceTxAmount != null ? { 'Balance Tx Amount': balanceTxAmount } : {}),
+      ...(balanceTxExchangeRate != null ? { 'Balance Tx Exchange Rate': balanceTxExchangeRate } : {}),
       'Invoice ID': invoiceId || '',
       'Coupon ID': couponId || '',
       'Coupon Name': couponName || '',
