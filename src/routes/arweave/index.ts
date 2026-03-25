@@ -14,7 +14,9 @@ import {
 import { getPublicKey, fund as fundIrys, signData as signArweaveData } from '../../util/arweave/signer';
 import {
   createNewArweaveTx,
-  getArweaveTxInfo, updateArweaveTxStatus, rotateArweaveTxAccessToken,
+  getArweaveTxInfo,
+  updateArweaveTxStatus,
+  rotateArweaveTxAccessToken,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, checkAndReserveQuota } from '../../util/api/arweave/quota';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';

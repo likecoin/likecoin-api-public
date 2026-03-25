@@ -16,7 +16,7 @@ export async function createNewArweaveTx(docId: string, {
   sponsoredETH?: string;
 }): Promise<string> {
   const token = uuidv4();
-  const data: Record<string, any> = {
+  const data: ArweaveTxData = {
     token,
     ipfsHash,
     fileSize,
@@ -24,11 +24,8 @@ export async function createNewArweaveTx(docId: string, {
     status: 'pending',
     timestamp: FieldValue.serverTimestamp(),
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
+    ...(isSponsored ? { isSponsored: true, sponsoredETH } : {}),
   };
-  if (isSponsored) {
-    data.isSponsored = true;
-    data.sponsoredETH = sponsoredETH;
-  }
   await iscnArweaveTxCollection.doc(docId).create(data);
   return token;
 }

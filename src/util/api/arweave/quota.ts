@@ -17,7 +17,7 @@ export async function getRemainingQuota(wallet: string): Promise<{
   const doc = await likeNFTBookUserCollection.doc(wallet).get();
   const data = doc.data();
   const today = getTodayUTC();
-  const isToday = data?.sponsoredUploadDate === today;
+  const isToday = data?.lastSponsoredUploadDate === today;
   const usedBytes = isToday ? (data?.sponsoredUploadBytes || 0) : 0;
   const usedCount = isToday ? (data?.sponsoredUploadCount || 0) : 0;
   return {
@@ -31,12 +31,19 @@ export async function checkAndReserveQuota(
   fileSize: number,
   ethCost: string,
 ): Promise<void> {
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    throw new ValidationError('INVALID_FILE_SIZE');
+  }
+  const ethCostBN = new BigNumber(ethCost);
+  if (!ethCost || ethCostBN.isNaN() || ethCostBN.isNegative()) {
+    throw new ValidationError('INVALID_ETH_COST');
+  }
   const today = getTodayUTC();
   const docRef = likeNFTBookUserCollection.doc(wallet);
   await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
     const data = doc.data();
-    const isToday = data?.sponsoredUploadDate === today;
+    const isToday = data?.lastSponsoredUploadDate === today;
     const currentBytes = isToday ? (data?.sponsoredUploadBytes || 0) : 0;
     const currentCount = isToday ? (data?.sponsoredUploadCount || 0) : 0;
     const currentETH = isToday ? (data?.sponsoredUploadETH || '0') : '0';
@@ -48,12 +55,12 @@ export async function checkAndReserveQuota(
       throw new ValidationError('DAILY_QUOTA_EXCEEDED', 403);
     }
 
-    const newETH = new BigNumber(currentETH).plus(new BigNumber(ethCost)).toFixed();
+    const newETH = new BigNumber(currentETH).plus(ethCostBN).toFixed();
     t.set(docRef, {
       sponsoredUploadBytes: currentBytes + fileSize,
       sponsoredUploadCount: currentCount + 1,
       sponsoredUploadETH: newETH,
-      sponsoredUploadDate: today,
+      lastSponsoredUploadDate: today,
       lastUpdateTimestamp: FieldValue.serverTimestamp(),
     }, { merge: true });
   });

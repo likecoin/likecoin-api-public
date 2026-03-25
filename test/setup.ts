@@ -31,6 +31,8 @@ vi.mock('../../config/config', () => ({
   FIRESTORE_ISCN_INFO_ROOT: 'iscn-info',
   FIRESTORE_ISCN_ARWEAVE_TX_ROOT: 'iscn-arweave-tx',
   FIRESTORE_ISCN_LIKER_URL_ROOT: 'iscn-like-button',
+  ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT: 10,
+  ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT: 100 * 1024 * 1024,
 }));
 
 vi.mock('../../config/serviceAccountKey.json', () => ({}));
