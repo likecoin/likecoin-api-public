@@ -239,7 +239,7 @@ export interface NFTBookUserData {
   sponsoredUploadBytes?: number;
   sponsoredUploadCount?: number;
   sponsoredUploadETH?: string;
-  sponsoredUploadDate?: string;
+  lastSponsoredUploadDate?: string;
   [key: string]: any;
 }
 

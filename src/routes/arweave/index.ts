@@ -18,7 +18,7 @@ import {
   updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
 } from '../../util/api/arweave/tx';
-import { getRemainingQuota, checkAndReserveQuota } from '../../util/api/arweave/quota';
+import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
 
@@ -117,14 +117,25 @@ router.post(
       if (isSponsored) {
         const { wallet } = req.user!;
         await checkAndReserveQuota(wallet, fileSize, ETH);
-        uploadId = `sponsored-${uuidv4()}`;
-        token = await createNewArweaveTx(uploadId, {
-          ipfsHash,
-          fileSize,
-          ownerWallet: wallet,
-          isSponsored: true,
-          sponsoredETH: ETH,
-        });
+        try {
+          uploadId = `sponsored-${uuidv4()}`;
+          token = await createNewArweaveTx(uploadId, {
+            ipfsHash,
+            fileSize,
+            ownerWallet: wallet,
+            isSponsored: true,
+            sponsoredETH: ETH,
+          });
+          if (ETH && ETH !== '0') {
+            await fundIrys(ETH);
+          }
+        } catch (err) {
+          await rollbackQuota(wallet, fileSize, ETH).catch((e) => {
+            // eslint-disable-next-line no-console
+            console.error('Failed to rollback quota', e);
+          });
+          throw err;
+        }
       } else {
         uploadId = txHash;
         await checkArweaveTxV2({
@@ -145,10 +156,9 @@ router.post(
           }
           throw error;
         }
-      }
-
-      if (ETH && ETH !== '0') {
-        await fundIrys(ETH);
+        if (ETH && ETH !== '0') {
+          await fundIrys(ETH);
+        }
       }
 
       // TODO: verify signatureData match filesize if possible
