@@ -41,5 +41,7 @@ export interface ArweaveTxData {
   isRequireAuth?: boolean;
   key?: string;
   accessToken?: string;
+  isSponsored?: boolean;
+  sponsoredETH?: string;
   [key: string]: any;
 }
