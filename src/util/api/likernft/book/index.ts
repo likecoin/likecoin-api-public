@@ -73,6 +73,7 @@ export interface NFTClassData {
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;
+  previewContent?: string;
   genre?: string;
   // Allow other metadata fields
   [key: string]: unknown;
@@ -229,6 +230,7 @@ export async function newNftBookInfo(
     name,
     description,
     descriptionFull,
+    previewContent,
     keywords,
     thumbnailUrl,
     author,
@@ -275,6 +277,7 @@ export async function newNftBookInfo(
   if (name) payload.name = name;
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
+  if (previewContent) payload.previewContent = previewContent;
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
@@ -322,6 +325,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     name,
     description,
     descriptionFull,
+    previewContent,
     keywords: keywordString = '',
     thumbnailUrl,
     author,
@@ -344,6 +348,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (name) payload.name = name;
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
+  if (previewContent) payload.previewContent = previewContent;
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
