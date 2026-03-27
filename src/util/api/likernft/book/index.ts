@@ -65,22 +65,31 @@ export interface NFTClassDataHasPart {
 }
 
 export interface NFTClassData {
+  '@type'?: string;
   name?: string;
   description?: string;
+  descriptionFull?: string;
+  alternativeHeadline?: string;
+  url?: string;
   uri?: string;
   uriHash?: string;
   iscnIdPrefix?: string;
   // Metadata fields
   image?: string;
   inLanguage?: string;
-  keywords?: string;
-  author?: string | Record<string, unknown>;
+  datePublished?: string;
+  keywords?: string | string[];
+  author?: string | { name?: string; description?: string; url?: string };
   publisher?: string;
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;
   genre?: string;
+  contentFingerprints?: string[];
+  sameAs?: string[];
+  potentialAction?: { '@type'?: string; target?: unknown[] };
   hasPart?: NFTClassDataHasPart | NFTClassDataHasPart[];
+  recordNotes?: string;
   // Allow other metadata fields
   [key: string]: unknown;
 }
