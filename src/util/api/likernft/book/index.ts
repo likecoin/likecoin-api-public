@@ -58,6 +58,12 @@ export function getStripeProductMetadata(
   };
 }
 
+export interface NFTClassDataHasPart {
+  '@type'?: string;
+  isAccessibleForFree?: boolean;
+  text?: string;
+}
+
 export interface NFTClassData {
   name?: string;
   description?: string;
@@ -73,10 +79,21 @@ export interface NFTClassData {
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;
-  previewContent?: string;
   genre?: string;
+  hasPart?: NFTClassDataHasPart | NFTClassDataHasPart[];
   // Allow other metadata fields
   [key: string]: unknown;
+}
+
+export function getPreviewContentFromHasPart(
+  hasPart?: NFTClassData['hasPart'],
+): string | undefined {
+  if (!hasPart) return undefined;
+  const parts = Array.isArray(hasPart) ? hasPart : [hasPart];
+  const previewPart = parts.find(
+    (p) => p.isAccessibleForFree === true && !!p.text,
+  );
+  return previewPart?.text;
 }
 
 export async function getNFTClassDataById(classId: string): Promise<NFTClassData | null> {
@@ -230,7 +247,6 @@ export async function newNftBookInfo(
     name,
     description,
     descriptionFull,
-    previewContent,
     keywords,
     thumbnailUrl,
     author,
@@ -238,10 +254,12 @@ export async function newNftBookInfo(
     usageInfo,
     isbn,
     genre,
+    hasPart,
 
     image,
     isAdultOnly,
   } = data;
+  const previewContent = getPreviewContentFromHasPart(hasPart);
 
   const stripeProducts = await Promise.all(prices
     .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
@@ -325,7 +343,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
     name,
     description,
     descriptionFull,
-    previewContent,
     keywords: keywordString = '',
     thumbnailUrl,
     author,
@@ -334,7 +351,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
     isbn,
     image,
     genre,
+    hasPart,
   } = metadata as NFTClassData;
+  const previewContent = getPreviewContentFromHasPart(hasPart);
   if (!bookInfo) {
     throw new ValidationError('BOOK_INFO_NOT_FOUND');
   }
