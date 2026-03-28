@@ -376,7 +376,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (name) payload.name = name;
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
-  if (previewContent) payload.previewContent = previewContent;
+  payload.previewContent = previewContent || FieldValue.delete();
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
