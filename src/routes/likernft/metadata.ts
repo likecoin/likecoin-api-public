@@ -14,12 +14,14 @@ import {
   parseImageURLFromMetadata,
 } from '../../util/api/likernft/metadata';
 import { getNFTClassDataById, getNFTISCNData } from '../../util/cosmos/nft';
-import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
+import { fetchISCNPrefixAndClassId, normalizeClassIdParam } from '../../middleware/likernft';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
 import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
 
 const router = Router();
+
+router.param('classId', normalizeClassIdParam);
 
 router.get(
   '/metadata',
