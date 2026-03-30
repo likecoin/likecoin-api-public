@@ -36,8 +36,12 @@ import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 import { convertUSDPriceToCurrency } from '../../../util/pricing';
+import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
+
+router.param('classId', normalizeClassIdParam);
+
 const pngUpload = multer({
   limits: {
     fileSize: MAX_PNG_FILE_SIZE,

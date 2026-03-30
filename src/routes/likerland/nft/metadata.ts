@@ -152,7 +152,8 @@ async function getNFTClassBookstoreInfo(classId) {
 
 router.get('/metadata', async (req, res, next) => {
   try {
-    const { class_id: classId, data: inputSelected } = req.query;
+    const { class_id: rawClassId, data: inputSelected } = req.query;
+    const classId = typeof rawClassId === 'string' ? rawClassId.toLowerCase() : rawClassId;
     if (!classId) {
       res.status(400).send('MISSING_CLASS_ID');
       return;

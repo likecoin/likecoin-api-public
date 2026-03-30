@@ -10,6 +10,16 @@ import {
 
 import { WNFT_BATCH_PURCHASE_LIMIT } from '../../config/config';
 
+export const normalizeClassIdParam = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  classId: string,
+): void => {
+  req.params.classId = classId.toLowerCase();
+  next();
+};
+
 export const fetchISCNPrefixAndClassId = async (
   req: Request,
   res: Response,
@@ -18,6 +28,7 @@ export const fetchISCNPrefixAndClassId = async (
   try {
     const { iscn_id: iscnId } = req.query;
     let { class_id: classId } = req.query;
+    if (typeof classId === 'string') classId = classId.toLowerCase();
     if (!iscnId && !classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
     let iscnPrefix;
     if (!iscnId) {
@@ -27,6 +38,7 @@ export const fetchISCNPrefixAndClassId = async (
     }
     if (!classId) {
       classId = await getCurrentClassIdByISCNId(iscnPrefix);
+      if (typeof classId === 'string') classId = classId.toLowerCase();
     }
     res.locals.iscnPrefix = iscnPrefix;
     res.locals.classId = classId;
@@ -45,7 +57,8 @@ export const fetchISCNPrefixes = async (
   try {
     const { class_id: classId } = req.query;
     if (!classId) throw new ValidationError('MISSING_ISCN_OR_CLASS_ID');
-    const classIds = Array.isArray(classId) ? classId : [classId];
+    const classIds = (Array.isArray(classId) ? classId : [classId])
+      .map((id) => (id as string).toLowerCase());
     if (classIds.length !== new Set(classIds).size) throw new ValidationError('CANNOT_PURCHASE_SAME_CLASS', 422);
     if (classIds.length > WNFT_BATCH_PURCHASE_LIMIT) throw new ValidationError(`CLASS_NUMBER_EXCESS_${WNFT_BATCH_PURCHASE_LIMIT}`, 422);
     const iscnPrefixes = await Promise.all(classIds.map((id) => getISCNPrefixByClassId(id)));
@@ -63,7 +76,8 @@ export const fetchISCNPrefixFromChain = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { class_id: classId } = req.query;
+    let { class_id: classId } = req.query;
+    if (typeof classId === 'string') classId = classId.toLowerCase();
     if (!classId) throw new ValidationError('MISSING_CLASS_ID');
     const iscnPrefix = await getISCNPrefixByClassIdFromChain(classId);
     res.locals.iscnPrefix = iscnPrefix;

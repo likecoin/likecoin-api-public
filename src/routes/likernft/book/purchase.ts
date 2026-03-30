@@ -41,8 +41,11 @@ import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
 import { fetchUserInfoByEmail } from '../../../util/api/users';
+import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
+
+router.param('classId', normalizeClassIdParam);
 
 router.get(
   '/cart/:cartId/status',
