@@ -2,8 +2,8 @@ import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusSubscriptionStatus } from '../../../types/user';
 
+import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
 import {
-  BOOK3_HOSTNAME,
   PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD,
   PLUS_PAID_TRIAL_PRICE,
   PUBSUB_TOPIC_MISC,
@@ -486,8 +486,27 @@ export async function createNewPlusCheckoutSession(
     mode: 'subscription',
     subscription_data: subscriptionData,
     currency: checkoutCurrency,
-    success_url: `https://${BOOK3_HOSTNAME}/plus/success?redirect=1&period=${period}&payment_id=${paymentId}&trial=${hasFreeTrial ? '1' : '0'}`,
-    cancel_url: `https://${BOOK3_HOSTNAME}/plus`,
+    success_url: getPlusSuccessPageURL({
+      period,
+      paymentId,
+      hasFreeTrial,
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+    }),
+    cancel_url: getPlusPageURL({
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+    }),
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
   if (discounts.length) {

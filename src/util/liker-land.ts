@@ -366,6 +366,62 @@ export const getPlusPageURL = ({
   return getBook3URL(`/plus?${qs}`, { language });
 };
 
+export const getPlusSuccessPageURL = ({
+  period,
+  paymentId,
+  hasFreeTrial,
+  language,
+  utmCampaign,
+  utmSource,
+  utmMedium,
+  gaClientId,
+  gaSessionId,
+  gadClickId,
+  gadSource,
+}: {
+  period: string;
+  paymentId: string;
+  hasFreeTrial: boolean;
+  language?: string;
+  utmCampaign?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  gaClientId?: string;
+  gaSessionId?: string;
+  gadClickId?: string;
+  gadSource?: string;
+}) => {
+  const qsPayload: any = {
+    redirect: '1',
+    period,
+    payment_id: paymentId,
+    trial: hasFreeTrial ? '1' : '0',
+  };
+  if (utmCampaign) {
+    qsPayload.utm_campaign = utmCampaign;
+  }
+  if (utmSource) {
+    qsPayload.utm_source = utmSource;
+  }
+  if (utmMedium) {
+    qsPayload.utm_medium = utmMedium;
+  }
+  if (gaClientId) {
+    qsPayload.ga_client_id = gaClientId;
+  }
+  if (gaSessionId) {
+    qsPayload.ga_session_id = gaSessionId;
+  }
+  if (gadClickId) {
+    qsPayload.gclid = gadClickId;
+  }
+  if (gadSource) {
+    qsPayload.gad_source = gadSource;
+  }
+  const qs = new URLSearchParams(qsPayload).toString();
+  return getBook3URL(`/plus/success?${qs}`, { language });
+};
+
 export const getPlusGiftPageURL = ({
   period,
   cartId,
