@@ -30,12 +30,14 @@ export async function createPlusGiftCheckoutSession(
     coupon,
     language,
     currency,
+    isApp,
   }: {
     period: 'monthly' | 'yearly',
     giftInfo: BookGiftInfo,
     coupon?: string,
     language?: 'en' | 'zh',
     currency?: SupportedPlusCurrency,
+    isApp?: boolean,
   },
   {
     from,
@@ -179,7 +181,7 @@ export async function createPlusGiftCheckoutSession(
   };
   if (discounts.length) {
     payload.discounts = discounts;
-  } else {
+  } else if (!isApp) {
     payload.allow_promotion_codes = true;
   }
   if (customerId) {
