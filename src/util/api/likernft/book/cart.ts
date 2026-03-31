@@ -1334,6 +1334,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   httpMethod = 'POST',
   cancelUrl,
   language,
+  isApp,
 }: {
   gaClientId?: string,
   gaSessionId?: string,
@@ -1366,6 +1367,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
   language?: string,
+  isApp?: boolean,
 } = {}) {
   let from: string = inputFrom as string || '';
   if (!from) {
@@ -1478,6 +1480,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     clientIp,
     httpMethod,
     language,
+    isApp,
   }, itemInfos, {
     successUrl,
     cancelUrl: cancelUrl || getBook3CartURL({

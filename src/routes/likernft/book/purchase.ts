@@ -144,6 +144,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       giftInfo,
       cancelPage,
       language,
+      isApp,
     } = req.body;
 
     if (!items?.length) {
@@ -206,6 +207,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         from: from as string,
       }),
       language,
+      isApp,
     });
     res.json({ paymentId, url });
 
@@ -275,6 +277,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       currency,
       fbclid: fbClickId = '',
       payment_method: paymentMethodQs,
+      is_app: isApp,
     } = req.query;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
@@ -346,6 +349,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gadSource: gadSource as string,
         from: from as string,
       }),
+      isApp: isApp === '1' || isApp === 'true',
     });
     res.redirect(url);
 
@@ -423,6 +427,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       referrer: inputReferrer,
       customPriceInDecimal,
       language,
+      isApp,
     } = req.body;
     let {
       quantity = 1,
@@ -492,6 +497,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         from: from as string,
       }),
       language,
+      isApp,
     });
     res.json({ paymentId, url });
 

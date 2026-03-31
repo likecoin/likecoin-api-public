@@ -38,6 +38,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     mustCollectPaymentMethod,
     giftClassId,
     giftPriceIndex = '0',
+    isApp,
   } = req.body;
   try {
     // Ensure period is either 'monthly' or 'yearly'
@@ -73,6 +74,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         giftPriceIndex,
         coupon,
         currency: checkoutCurrency,
+        isApp,
       },
       {
         from: from as string,
@@ -167,6 +169,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     utmTerm,
     coupon,
     giftInfo,
+    isApp,
   } = req.body;
   try {
     if (period !== 'monthly' && period !== 'yearly') {
@@ -195,6 +198,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
         giftInfo,
         coupon,
         currency: checkoutCurrency,
+        isApp,
       },
       {
         from: from as string,

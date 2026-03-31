@@ -520,6 +520,7 @@ export async function formatStripeCheckoutSession({
   userAgent,
   clientIp,
   language,
+  isApp,
 }: {
   classId?: string,
   iscnPrefix?: string,
@@ -558,6 +559,7 @@ export async function formatStripeCheckoutSession({
   userAgent?: string,
   clientIp?: string,
   language?: string,
+  isApp?: boolean,
 }, items: CartItemWithInfo[], {
   successUrl,
   cancelUrl,
@@ -750,7 +752,7 @@ export async function formatStripeCheckoutSession({
   }
   if (discounts.length) {
     checkoutPayload.discounts = discounts;
-  } else {
+  } else if (!isApp) {
     checkoutPayload.allow_promotion_codes = true;
   }
   if (likeWallet || evmWallet) {

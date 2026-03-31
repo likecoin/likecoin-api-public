@@ -341,6 +341,7 @@ export async function createNewPlusCheckoutSession(
     giftPriceIndex,
     coupon,
     currency,
+    isApp,
   }: {
     period: 'monthly' | 'yearly',
     trialPeriodDays?: number,
@@ -349,6 +350,7 @@ export async function createNewPlusCheckoutSession(
     giftPriceIndex?: string,
     coupon?: string,
     currency?: SupportedPlusCurrency,
+    isApp?: boolean,
   },
   {
     from,
@@ -511,7 +513,7 @@ export async function createNewPlusCheckoutSession(
   };
   if (discounts.length) {
     payload.discounts = discounts;
-  } else {
+  } else if (!isApp) {
     payload.allow_promotion_codes = true;
   }
   if (customerId) {
