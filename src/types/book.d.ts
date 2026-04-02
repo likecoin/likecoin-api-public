@@ -228,6 +228,16 @@ export interface NFTBookListingInfoFiltered {
   plusPromoEnabled?: boolean;
 }
 
+export interface AffiliateConfig {
+  giftClassId: string;
+  giftPriceIndex: number;
+  customVoiceId?: string;
+  customVoiceName?: string;
+  customVoiceLanguage?: string;
+  giftOnTrial: boolean;
+  active: boolean;
+}
+
 export interface NFTBookUserData {
   userId?: string;
   classId?: string;
@@ -244,6 +254,7 @@ export interface NFTBookUserData {
   sponsoredUploadCount?: number;
   sponsoredUploadETH?: string;
   lastSponsoredUploadDate?: string;
+  affiliateConfig?: AffiliateConfig;
   [key: string]: any;
 }
 

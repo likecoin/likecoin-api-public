@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
-import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
+import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
@@ -374,12 +374,40 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
       giftCartId,
       giftPaymentId,
       giftClaimToken,
+      affiliateVoiceId,
+      affiliateVoiceName,
+      affiliateVoiceLanguage,
+      affiliateFrom,
     } = metadata;
     res.json({
       giftClassId,
       giftCartId,
       giftPaymentId,
       giftClaimToken,
+      affiliateVoiceId,
+      affiliateVoiceName,
+      affiliateVoiceLanguage,
+      affiliateFrom,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/affiliate/:likerId', async (req, res, next) => {
+  try {
+    const { likerId } = req.params;
+    const normalizedLikerId = likerId.startsWith('@') ? likerId.substring(1) : likerId;
+    const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
+    const affiliateConfig = userInfo?.bookUserInfo?.affiliateConfig;
+    if (!affiliateConfig?.active) {
+      res.json({ active: false });
+      return;
+    }
+    res.json({
+      active: true,
+      giftClassId: affiliateConfig.giftClassId,
+      customVoiceName: affiliateConfig.customVoiceName,
     });
   } catch (error) {
     next(error);
