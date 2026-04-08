@@ -46,12 +46,14 @@ import {
   sendNFTBookCartGiftPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
   sendNFTBookOutOfStockEmail,
+  sendPlusBookPromoCodeEmail,
 } from '../../../ses';
 import logServerEvents from '../../../logServerEvents';
 import { getBookUserInfoFromWallet } from './user';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
   LIKER_PLUS_20_COUPON_ID,
+  LIKER_PLUS_BOOK_PROMO_COUPON_CODE,
 } from '../../../../../config/config';
 import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
@@ -641,6 +643,8 @@ export async function processNFTBookCart(
     } catch { /* ignore */ }
     const emailLanguage = buyerLocale || language || 'zh';
 
+    let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
+
     if (cartIsGift && cartGiftInfo) {
       const {
         fromName,
@@ -675,6 +679,42 @@ export async function processNFTBookCart(
         displayName: buyerDisplayName,
         language: emailLanguage,
       });
+
+      // Send Plus promo code email for self-purchases of promo-eligible books.
+      // Skip silently if we can't verify the buyer isn't already a Plus subscriber.
+      if (email && LIKER_PLUS_BOOK_PROMO_COUPON_CODE) {
+        const promoBookNames = infoList
+          .map((info, idx) => ({ info, name: bookNames[idx] }))
+          .filter((x) => (x.info.listingData as any)?.plusPromoEnabled === true)
+          .map((x) => x.name);
+        if (promoBookNames.length > 0) {
+          try {
+            if (evmWallet) {
+              buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+            }
+            if (!buyerUserInfo?.isLikerPlus) {
+              await sendPlusBookPromoCodeEmail({
+                email,
+                code: LIKER_PLUS_BOOK_PROMO_COUPON_CODE,
+                bookNames: promoBookNames,
+                displayName: buyerDisplayName,
+                language: emailLanguage,
+              });
+              publisher.publish(PUBSUB_TOPIC_MISC, req, {
+                logType: 'PlusBookPromoCodeEmailSent',
+                paymentId,
+                cartId,
+                email,
+                evmWallet,
+                bookNames: promoBookNames,
+              });
+            }
+          } catch (promoErr) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to send Plus promo code email:', promoErr);
+          }
+        }
+      }
     }
     await logServerEvents('Purchase', {
       email: email || undefined,
@@ -728,7 +768,8 @@ export async function processNFTBookCart(
         if (hasFreeBooks) attributes.has_claimed_free_book = true;
         if (hasPaidBooks) attributes.has_purchased_paid_book = true;
 
-        const userInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+        const userInfo = buyerUserInfo
+          ?? await getUserWithCivicLikerPropertiesByWallet(evmWallet);
         const likerId = userInfo?.user;
         if (likerId) {
           await updateIntercomUserAttributes(likerId, attributes);

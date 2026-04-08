@@ -11,6 +11,7 @@ import {
 } from '../constant';
 import {
   getPlusGiftPageClaimURL,
+  getPlusPageURL,
   getBook3NFTClaimPageURL,
   getBook3NFTClassPageURL,
   getBook3PortfolioPageURL,
@@ -1069,6 +1070,93 @@ export function sendNFTBookOutOfStockEmail({
             title,
             content,
           }).body,
+        },
+      },
+    },
+  };
+  return ses.sendEmail(params);
+}
+
+export function sendPlusBookPromoCodeEmail({
+  email,
+  code,
+  bookNames,
+  displayName = '',
+  language = 'zh',
+}: {
+  email: string;
+  code: string;
+  bookNames: string[];
+  displayName?: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const lang = isEn ? 'en' : 'zh-Hant';
+  const title = isEn
+    ? 'Get 1 month of 3ook.com Plus, free'
+    : '免費獲得一個月 3ook.com Plus';
+  const plusPageURL = getPlusPageURL({
+    language: lang,
+    coupon: code,
+    utmCampaign: 'book-plus-promo',
+    utmSource: 'book-promo',
+    utmMedium: 'email',
+  });
+  const params = {
+    Source: SYSTEM_EMAIL,
+    ReplyToAddresses: [CUSTOMER_SERVICE_EMAIL],
+    ConfigurationSetName: 'likeco_ses',
+    Tags: [
+      {
+        Name: 'Function',
+        Value: 'sendPlusBookPromoCodeEmail',
+      },
+      {
+        Name: 'Environment',
+        Value: TEST_MODE ? 'testnet' : 'mainnet',
+      },
+    ],
+    Destination: {
+      ToAddresses: [email],
+      ...(TEST_MODE ? {} : { BccAddresses: [SALES_EMAIL] }),
+    },
+    Message: {
+      Subject: {
+        Charset: 'UTF-8',
+        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
+      },
+      Body: {
+        Html: {
+          Charset: 'UTF-8',
+          Data: isEn
+            ? getNFTTwoContentWithMessageAndButtonTemplate({
+              title1: title,
+              content1: `<p>Dear ${displayName || 'reader'},</p>
+            <p>Thank you for purchasing the following ebook${bookNames.length > 1 ? 's' : ''}:</p>
+            <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
+            <p>As a thank-you, here is <strong>1 month of 3ook.com Plus for free</strong>. Plus unlocks AI-powered reading features across your entire library.</p>
+            <p>Click the button below to activate your free month. Your subscription will renew automatically at the regular price after the first month — you can cancel anytime.</p>`,
+              buttonText1: 'Activate my free month',
+              buttonHref1: plusPageURL,
+              append1: `<p>Promo code: <strong>${code}</strong></p>
+            <p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.
+            <br>May you enjoy the pleasure of reading.</p>
+            <p>3ook.com Bookstore</p>`,
+            }).body
+            : getNFTTwoContentWithMessageAndButtonTemplate({
+              title1: title,
+              content1: `<p>親愛的${displayName || '讀者'}：</p>
+            <p>感謝你購買以下電子書：</p>
+            <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
+            <p>為答謝你的支持，我們送上<strong>一個月免費的 3ook.com Plus 會籍</strong>。Plus 會籍將為你的整個書庫解鎖 AI 閱讀功能。</p>
+            <p>按以下按鈕啟用你的免費會籍。首月過後，會籍將按正常價格自動續訂，你可以隨時取消。</p>`,
+              buttonText1: '啟用我的免費會籍',
+              buttonHref1: plusPageURL,
+              append1: `<p>優惠碼：<strong>${code}</strong></p>
+            <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>願你享受閱讀的樂趣。</p>
+            <p>3ook.com 書店</p>`,
+            }).body,
         },
       },
     },

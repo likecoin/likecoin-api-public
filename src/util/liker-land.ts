@@ -323,6 +323,7 @@ export const getBook3NFTGiftPageURL = ({
 
 export const getPlusPageURL = ({
   language,
+  coupon,
   utmCampaign,
   utmSource,
   utmMedium,
@@ -332,6 +333,7 @@ export const getPlusPageURL = ({
   gadSource,
 }: {
   language?: string;
+  coupon?: string;
   utmCampaign?: string;
   utmSource?: string;
   utmMedium?: string;
@@ -341,6 +343,9 @@ export const getPlusPageURL = ({
   gadSource?: string;
 }) => {
   const qsPayload: any = {};
+  if (coupon) {
+    qsPayload.coupon = coupon;
+  }
   if (utmCampaign) {
     qsPayload.utm_campaign = utmCampaign;
   }
