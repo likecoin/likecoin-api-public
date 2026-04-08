@@ -618,6 +618,7 @@ export function filterNFTBookListingInfo(
     isApprovedForIndexing,
     isApprovedForAds,
     approvalStatus,
+    plusPromoEnabled,
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
@@ -664,6 +665,7 @@ export function filterNFTBookListingInfo(
     isApprovedForSale: isApprovedForSale !== undefined ? isApprovedForSale : true,
     isApprovedForIndexing: isApprovedForIndexing !== undefined ? isApprovedForIndexing : true,
     isApprovedForAds: isApprovedForAds !== undefined ? isApprovedForAds : true,
+    plusPromoEnabled,
   };
   if (isOwner) {
     payload.sold = sold;
