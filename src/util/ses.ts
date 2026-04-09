@@ -1098,6 +1098,8 @@ export function sendPlusBookPromoCodeEmail({
   const plusPageURL = getPlusPageURL({
     language: lang,
     coupon: code,
+    plan: 'monthly',
+    trial: '0',
     utmCampaign: 'book-plus-promo',
     utmSource: 'book-promo',
     utmMedium: 'email',
