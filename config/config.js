@@ -47,6 +47,7 @@ config.LIKER_PLUS_MONTHLY_PRICE_ID = '';
 config.LIKER_PLUS_YEARLY_PRICE_ID = '';
 config.LIKER_PLUS_GIFT_MONTHLY_PRICE_ID = '';
 config.LIKER_PLUS_GIFT_YEARLY_PRICE_ID = '';
+config.LIKER_PLUS_BOOK_PROMO_COUPON_CODE = '';
 
 config.ARWEAVE_EVM_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
