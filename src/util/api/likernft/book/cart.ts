@@ -429,6 +429,7 @@ export async function processNFTBookCart(
 
     const infoList = classInfos;
     const bookNames: string[] = [];
+    let promoOwnerLikerId: string | undefined;
     for (let itemIndex = 0; itemIndex < infoList.length; itemIndex += 1) {
       const info = infoList[itemIndex];
       const {
@@ -485,6 +486,13 @@ export async function processNFTBookCart(
 
       const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
       const ownerLikerInfo = ownerInfo?.likerUserInfo as any;
+      if (
+        !promoOwnerLikerId
+        && (listingData as any)?.plusPromoEnabled === true
+        && ownerLikerInfo?.user
+      ) {
+        promoOwnerLikerId = ownerLikerInfo.user;
+      }
       const ownerEmail = ownerLikerInfo?.isEmailVerified
         ? ownerLikerInfo?.email
         : undefined;
@@ -699,6 +707,7 @@ export async function processNFTBookCart(
                 bookNames: promoBookNames,
                 displayName: buyerDisplayName,
                 language: emailLanguage,
+                fromLikerId: promoOwnerLikerId,
               });
               publisher.publish(PUBSUB_TOPIC_MISC, req, {
                 logType: 'PlusBookPromoCodeEmailSent',

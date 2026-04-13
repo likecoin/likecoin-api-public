@@ -326,6 +326,7 @@ export const getPlusPageURL = ({
   coupon,
   plan,
   trial,
+  from,
   utmCampaign,
   utmSource,
   utmMedium,
@@ -338,6 +339,7 @@ export const getPlusPageURL = ({
   coupon?: string;
   plan?: 'monthly' | 'yearly';
   trial?: '0' | '0d' | '1d' | '3d' | '5d' | '7d' | '14d' | '30d';
+  from?: string;
   utmCampaign?: string;
   utmSource?: string;
   utmMedium?: string;
@@ -355,6 +357,9 @@ export const getPlusPageURL = ({
   }
   if (trial) {
     qsPayload.trial = trial;
+  }
+  if (from) {
+    qsPayload.from = from;
   }
   if (utmCampaign) {
     qsPayload.utm_campaign = utmCampaign;
