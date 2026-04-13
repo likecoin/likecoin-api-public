@@ -1083,12 +1083,14 @@ export function sendPlusBookPromoCodeEmail({
   bookNames,
   displayName = '',
   language = 'zh',
+  fromLikerId,
 }: {
   email: string;
   code: string;
   bookNames: string[];
   displayName?: string;
   language?: string;
+  fromLikerId?: string;
 }) {
   const isEn = language === 'en';
   const lang = isEn ? 'en' : 'zh-Hant';
@@ -1100,6 +1102,7 @@ export function sendPlusBookPromoCodeEmail({
     coupon: code,
     plan: 'monthly',
     trial: '0',
+    from: fromLikerId ? `@${fromLikerId}` : undefined,
     utmCampaign: 'book-plus-promo',
     utmSource: 'book-promo',
     utmMedium: 'email',
