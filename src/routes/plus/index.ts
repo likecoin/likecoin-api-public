@@ -374,9 +374,6 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
       giftCartId,
       giftPaymentId,
       giftClaimToken,
-      affiliateVoiceId,
-      affiliateVoiceName,
-      affiliateVoiceLanguage,
       affiliateFrom,
     } = metadata;
     res.json({
@@ -384,9 +381,6 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
       giftCartId,
       giftPaymentId,
       giftClaimToken,
-      affiliateVoiceId,
-      affiliateVoiceName,
-      affiliateVoiceLanguage,
       affiliateFrom,
     });
   } catch (error) {
@@ -406,8 +400,15 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
     }
     res.json({
       active: true,
+      affiliateClassIds: affiliateConfig.affiliateClassIds || [],
       giftClassId: affiliateConfig.giftClassId,
-      customVoiceName: affiliateConfig.customVoiceName,
+      customVoices: (affiliateConfig.customVoices || []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        language: v.language,
+        avatarUrl: v.avatarUrl,
+        providerVoiceId: v.providerVoiceId,
+      })),
     });
   } catch (error) {
     next(error);

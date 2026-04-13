@@ -228,14 +228,25 @@ export interface NFTBookListingInfoFiltered {
   plusPromoEnabled?: boolean;
 }
 
+export interface AffiliateCustomVoice {
+  id: string;
+  name: string;
+  language?: string;
+  avatarUrl?: string;
+  providerVoiceId: string;
+}
+
 export interface AffiliateConfig {
-  giftClassId: string;
-  giftPriceIndex: number;
-  customVoiceId?: string;
-  customVoiceName?: string;
-  customVoiceLanguage?: string;
-  giftOnTrial: boolean;
   active: boolean;
+  /** Book classes where this affiliate's custom voices can be used.
+   *  Must include `giftClassId` when set. */
+  affiliateClassIds: string[];
+  /** The class currently being gifted at checkout; must be a member of
+   *  `affiliateClassIds`. */
+  giftClassId?: string;
+  giftPriceIndex: number;
+  giftOnTrial: boolean;
+  customVoices: AffiliateCustomVoice[];
 }
 
 export interface NFTBookUserData {

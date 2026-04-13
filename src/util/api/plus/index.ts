@@ -93,6 +93,7 @@ export async function processStripeSubscriptionInvoice(
     gaClientId,
     gaSessionId,
     affiliateGiftOnTrial,
+    affiliateFrom,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -203,6 +204,12 @@ export async function processStripeSubscriptionInvoice(
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
   const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
+  let normalizedAffiliateFrom: string | undefined;
+  if (isSubscriptionCreation && affiliateFrom) {
+    normalizedAffiliateFrom = affiliateFrom.startsWith('@')
+      ? affiliateFrom.substring(1)
+      : affiliateFrom;
+  }
   await userCollection.doc(likerId).update({
     likerPlus: {
       period,
@@ -214,6 +221,7 @@ export async function processStripeSubscriptionInvoice(
       customerId,
       subscriptionStatus: 'active',
     },
+    ...(normalizedAffiliateFrom && { plusAffiliateFrom: normalizedAffiliateFrom }),
   });
 
   await updateIntercomUserAttributes(likerId, {
@@ -434,18 +442,9 @@ export async function createNewPlusCheckoutSession(
         const affiliateConfig = affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
           ? affiliateUserInfo.bookUserInfo.affiliateConfig
           : null;
-        if (affiliateConfig) {
+        if (affiliateConfig?.giftClassId) {
           resolvedGiftClassId = affiliateConfig.giftClassId;
           resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
-          if (affiliateConfig.customVoiceId) {
-            subscriptionMetadata.affiliateVoiceId = affiliateConfig.customVoiceId;
-          }
-          if (affiliateConfig.customVoiceName) {
-            subscriptionMetadata.affiliateVoiceName = affiliateConfig.customVoiceName;
-          }
-          if (affiliateConfig.customVoiceLanguage) {
-            subscriptionMetadata.affiliateVoiceLanguage = affiliateConfig.customVoiceLanguage;
-          }
           subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
           subscriptionMetadata.affiliateFrom = from;
         }
