@@ -99,6 +99,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     res.json({
       sessionId: session.id,
       url: session.url,
+      paymentId,
     });
 
     await logServerEvents('InitiateCheckout', {
@@ -223,6 +224,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     res.json({
       sessionId: session.id,
       url: session.url,
+      paymentId,
     });
 
     await logServerEvents('InitiateCheckout', {
