@@ -261,7 +261,7 @@ export async function processStripeSubscriptionInvoice(
       email: user.email || stripeCustomer.email || undefined,
       value: amountPaid,
       currency,
-      paymentId,
+      paymentId: invoice.id,
       items: [{
         productId: `plus-${period}ly`,
         quantity: 1,
