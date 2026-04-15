@@ -596,6 +596,8 @@ export async function processStripeSubscriptionCancellation(
             subscription_id: subscriptionId,
             period,
             cancel_reason: subscription.cancellation_details?.reason,
+            cancel_feedback: subscription.cancellation_details?.feedback,
+            cancel_comment: subscription.cancellation_details?.comment,
           },
         }),
       ]);
