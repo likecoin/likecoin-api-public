@@ -582,7 +582,7 @@ export async function processStripeSubscriptionCancellation(
       price_id: priceId,
       cancel_reason: subscription.cancellation_details?.reason,
       cancel_feedback: subscription.cancellation_details?.feedback,
-      cancel_comment: subscription.cancellation_details?.comment,
+      cancel_comment: subscription.cancellation_details?.comment?.substring(0, 500),
     };
     if (isTrialEnd) {
       await Promise.all([
