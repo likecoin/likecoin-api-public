@@ -27,6 +27,7 @@ import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
+import { checkUserNameValid } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
@@ -437,16 +438,18 @@ export async function createNewPlusCheckoutSession(
   if (from && !giftClassId && period === 'yearly') {
     try {
       const normalizedFrom = from.startsWith('@') ? from.substring(1) : from;
-      const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
-      if (affiliateUserInfo?.wallet) {
-        const affiliateConfig = affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
-          ? affiliateUserInfo.bookUserInfo.affiliateConfig
-          : null;
-        if (affiliateConfig?.giftClassId) {
-          resolvedGiftClassId = affiliateConfig.giftClassId;
-          resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
-          subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
-          subscriptionMetadata.affiliateFrom = from;
+      if (checkUserNameValid(normalizedFrom)) {
+        const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
+        if (affiliateUserInfo?.wallet) {
+          const affiliateConfig = affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
+            ? affiliateUserInfo.bookUserInfo.affiliateConfig
+            : null;
+          if (affiliateConfig?.giftClassId) {
+            resolvedGiftClassId = affiliateConfig.giftClassId;
+            resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
+            subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
+            subscriptionMetadata.affiliateFrom = from;
+          }
         }
       }
     } catch (err) {

@@ -14,7 +14,7 @@ import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData }
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
-import { filterPlusGiftCartData } from '../../util/ValidationHelper';
+import { checkUserNameValid, filterPlusGiftCartData } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -392,6 +392,9 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
   try {
     const { likerId } = req.params;
     const normalizedLikerId = likerId.startsWith('@') ? likerId.substring(1) : likerId;
+    if (!checkUserNameValid(normalizedLikerId)) {
+      throw new ValidationError('Invalid likerId', 400);
+    }
     const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
     const affiliateConfig = userInfo?.bookUserInfo?.affiliateConfig;
     if (!affiliateConfig?.active) {
@@ -402,6 +405,8 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
       active: true,
       affiliateClassIds: affiliateConfig.affiliateClassIds || [],
       giftClassId: affiliateConfig.giftClassId,
+      giftPriceIndex: affiliateConfig.giftPriceIndex || 0,
+      giftOnTrial: !!affiliateConfig.giftOnTrial,
       customVoices: (affiliateConfig.customVoices || []).map((v) => ({
         id: v.id,
         name: v.name,
