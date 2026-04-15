@@ -576,6 +576,14 @@ export async function processStripeSubscriptionCancellation(
     const subscriptionItem = subscription.items?.data[0];
     const period = subscriptionItem?.plan?.interval;
     const priceId = subscriptionItem?.price?.id;
+    const cancellationExtraProperties = {
+      subscription_id: subscriptionId,
+      period,
+      price_id: priceId,
+      cancel_reason: subscription.cancellation_details?.reason,
+      cancel_feedback: subscription.cancellation_details?.feedback,
+      cancel_comment: subscription.cancellation_details?.comment,
+    };
     if (isTrialEnd) {
       await Promise.all([
         sendIntercomEvent({
@@ -585,11 +593,7 @@ export async function processStripeSubscriptionCancellation(
         logServerEvents('TrialEnded', {
           evmWallet,
           paymentId: subscriptionId,
-          extraProperties: {
-            subscription_id: subscriptionId,
-            period,
-            price_id: priceId,
-          },
+          extraProperties: cancellationExtraProperties,
         }),
       ]);
     } else {
@@ -601,14 +605,7 @@ export async function processStripeSubscriptionCancellation(
         logServerEvents('SubscriptionCancelled', {
           evmWallet,
           paymentId: subscriptionId,
-          extraProperties: {
-            subscription_id: subscriptionId,
-            period,
-            price_id: priceId,
-            cancel_reason: subscription.cancellation_details?.reason,
-            cancel_feedback: subscription.cancellation_details?.feedback,
-            cancel_comment: subscription.cancellation_details?.comment,
-          },
+          extraProperties: cancellationExtraProperties,
         }),
       ]);
     }
