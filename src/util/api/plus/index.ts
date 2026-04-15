@@ -254,6 +254,11 @@ export async function processStripeSubscriptionInvoice(
       predictedLTV,
       gaClientId,
       gaSessionId,
+      extraProperties: {
+        subscription_id: subscriptionId,
+        period,
+        price_id: item.price.id,
+      },
     });
   } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
     await logServerEvents('SubscriptionRenewed', {
@@ -269,6 +274,7 @@ export async function processStripeSubscriptionInvoice(
       extraProperties: {
         subscription_id: subscriptionId,
         period,
+        price_id: item.price.id,
       },
     });
   }
@@ -567,7 +573,17 @@ export async function processStripeSubscriptionCancellation(
       is_liker_plus_trial: false,
     });
 
-    const period = subscription.items?.data[0]?.plan?.interval;
+    const subscriptionItem = subscription.items?.data[0];
+    const period = subscriptionItem?.plan?.interval;
+    const priceId = subscriptionItem?.price?.id;
+    const cancellationExtraProperties = {
+      subscription_id: subscriptionId,
+      period,
+      price_id: priceId,
+      cancel_reason: subscription.cancellation_details?.reason,
+      cancel_feedback: subscription.cancellation_details?.feedback,
+      cancel_comment: subscription.cancellation_details?.comment?.substring(0, 500),
+    };
     if (isTrialEnd) {
       await Promise.all([
         sendIntercomEvent({
@@ -577,10 +593,7 @@ export async function processStripeSubscriptionCancellation(
         logServerEvents('TrialEnded', {
           evmWallet,
           paymentId: subscriptionId,
-          extraProperties: {
-            subscription_id: subscriptionId,
-            period,
-          },
+          extraProperties: cancellationExtraProperties,
         }),
       ]);
     } else {
@@ -592,11 +605,7 @@ export async function processStripeSubscriptionCancellation(
         logServerEvents('SubscriptionCancelled', {
           evmWallet,
           paymentId: subscriptionId,
-          extraProperties: {
-            subscription_id: subscriptionId,
-            period,
-            cancel_reason: subscription.cancellation_details?.reason,
-          },
+          extraProperties: cancellationExtraProperties,
         }),
       ]);
     }
@@ -614,6 +623,16 @@ export async function processStripePaymentFailure(
   if (!evmWallet) return;
   const lastError = invoice.last_finalization_error;
   const value = (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100;
+  const stripe = getStripeClient();
+  const [subscription, user] = await Promise.all([
+    stripe.subscriptions.retrieve(subscriptionId).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to retrieve subscription ${subscriptionId} for PaymentFailed event:`, err);
+      return null;
+    }),
+    getUserWithCivicLikerPropertiesByWallet(evmWallet),
+  ]);
+  const subscriptionItem = subscription?.items?.data[0];
   const logPromise = logServerEvents('PaymentFailed', {
     evmWallet,
     paymentId: invoice.id,
@@ -621,6 +640,8 @@ export async function processStripePaymentFailure(
     currency: invoice.currency?.toUpperCase(),
     extraProperties: {
       subscription_id: subscriptionId,
+      period: subscriptionItem?.plan?.interval,
+      price_id: subscriptionItem?.price?.id,
       attempt_count: invoice.attempt_count,
       failure_code: lastError?.code,
       failure_type: lastError?.type,
@@ -629,14 +650,11 @@ export async function processStripePaymentFailure(
     // eslint-disable-next-line no-console
     console.error('Failed to log PaymentFailed event:', err);
   });
-  await getUserWithCivicLikerPropertiesByWallet(evmWallet).then((user) => {
-    if (user) {
-      return userCollection.doc(user.user).update({
-        'likerPlus.subscriptionStatus': 'past_due',
-      });
-    }
-    return undefined;
-  });
+  if (user) {
+    await userCollection.doc(user.user).update({
+      'likerPlus.subscriptionStatus': 'past_due',
+    });
+  }
   await logPromise;
 }
 
