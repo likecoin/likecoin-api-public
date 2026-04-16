@@ -341,6 +341,7 @@ type ProcessNFTBookCartMeta = {
   giftFromName?: string;
   evmWallet?: string;
   language?: string;
+  isPlusGiftCart?: boolean;
 };
 
 type ProcessNFTBookCartPayment = {
@@ -380,6 +381,7 @@ export async function processNFTBookCart(
     giftFromName,
     evmWallet,
     language,
+    isPlusGiftCart,
   }: ProcessNFTBookCartMeta,
   {
     amountTotal,
@@ -690,7 +692,9 @@ export async function processNFTBookCart(
 
       // Send Plus promo code email for self-purchases of promo-eligible books.
       // Skip silently if we can't verify the buyer isn't already a Plus subscriber.
-      if (email && LIKER_PLUS_BOOK_PROMO_COUPON_CODE) {
+      // Also skip when the cart is a gift book issued from a Plus subscription,
+      // since the buyer is already Plus.
+      if (email && LIKER_PLUS_BOOK_PROMO_COUPON_CODE && !isPlusGiftCart) {
         const promoBookNames = infoList
           .map((info, idx) => ({ info, name: bookNames[idx] }))
           .filter((x) => (x.info.listingData as any)?.plusPromoEnabled === true)
@@ -990,6 +994,7 @@ export async function createFreeBookCartFromSubscription({
     utmCampaign,
     utmSource,
     utmMedium,
+    isPlusGiftCart: true,
   }, {
     amountTotal: 0,
     email,

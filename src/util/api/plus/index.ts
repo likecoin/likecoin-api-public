@@ -432,23 +432,25 @@ export async function createNewPlusCheckoutSession(
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
 
-  // Auto-resolve affiliate config when from is present and no explicit giftClassId
+  // Record affiliate attribution whenever `from` resolves to a valid affiliate user.
+  // Auto-resolve gift config only when no explicit giftClassId was passed and period is yearly.
   let resolvedGiftClassId = giftClassId;
   let resolvedGiftPriceIndex = giftPriceIndex;
-  if (from && !giftClassId && period === 'yearly') {
+  if (from) {
     try {
       const normalizedFrom = from.startsWith('@') ? from.substring(1) : from;
       if (checkUserNameValid(normalizedFrom)) {
         const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
-        if (affiliateUserInfo?.wallet) {
-          const affiliateConfig = affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
-            ? affiliateUserInfo.bookUserInfo.affiliateConfig
-            : null;
-          if (affiliateConfig?.giftClassId) {
+        const affiliateConfig = affiliateUserInfo?.wallet
+          && affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
+          ? affiliateUserInfo.bookUserInfo.affiliateConfig
+          : null;
+        if (affiliateConfig) {
+          subscriptionMetadata.affiliateFrom = from;
+          if (!giftClassId && affiliateConfig.giftClassId && period === 'yearly') {
             resolvedGiftClassId = affiliateConfig.giftClassId;
             resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
             subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
-            subscriptionMetadata.affiliateFrom = from;
           }
         }
       }
