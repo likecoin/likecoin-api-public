@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { ValidationError } from '../../util/ValidationError';
-import { getBookUserInfoFromWallet } from '../../util/api/likernft/book/user';
+import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
@@ -14,7 +14,7 @@ import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData }
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
-import { filterPlusGiftCartData } from '../../util/ValidationHelper';
+import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -374,12 +374,46 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
       giftCartId,
       giftPaymentId,
       giftClaimToken,
+      affiliateFrom,
     } = metadata;
     res.json({
       giftClassId,
       giftCartId,
       giftPaymentId,
       giftClaimToken,
+      affiliateFrom,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/affiliate/:likerId', async (req, res, next) => {
+  try {
+    const { likerId } = req.params;
+    const normalizedLikerId = normalizeLikerId(likerId);
+    if (!checkUserNameValid(normalizedLikerId)) {
+      throw new ValidationError('Invalid likerId', 400);
+    }
+    const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
+    const affiliateConfig = userInfo?.bookUserInfo?.affiliateConfig;
+    if (!affiliateConfig?.active) {
+      res.json({ active: false });
+      return;
+    }
+    res.json({
+      active: true,
+      affiliateClassIds: affiliateConfig.affiliateClassIds || [],
+      giftClassId: affiliateConfig.giftClassId,
+      giftPriceIndex: affiliateConfig.giftPriceIndex || 0,
+      giftOnTrial: !!affiliateConfig.giftOnTrial,
+      customVoices: (affiliateConfig.customVoices || []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        language: v.language,
+        avatarUrl: v.avatarUrl,
+        providerVoiceId: v.providerVoiceId,
+      })),
     });
   } catch (error) {
     next(error);

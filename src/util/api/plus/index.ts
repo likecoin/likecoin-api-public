@@ -11,7 +11,7 @@ import {
 } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
 import { convertUSDPriceToCurrency } from '../../pricing';
-import { getBookUserInfoFromWallet } from '../likernft/book/user';
+import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
 import publisher from '../../gcloudPub';
@@ -27,6 +27,7 @@ import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
+import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
@@ -92,6 +93,8 @@ export async function processStripeSubscriptionInvoice(
     fbClickId,
     gaClientId,
     gaSessionId,
+    affiliateGiftOnTrial,
+    affiliateFrom,
   } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
@@ -149,12 +152,14 @@ export async function processStripeSubscriptionInvoice(
   let giftCartId = '';
   const isTrialToPaidUpgrade = subscription.trial_end
     && subscription.trial_end === item.current_period_start;
+  const isAffiliateGiftOnTrial = affiliateGiftOnTrial === 'true';
+  const canCreateGiftCart = (!isTrial && amountPaid > 0)
+    || (isAffiliateGiftOnTrial && isSubscriptionCreation);
   if ((isSubscriptionCreation || isTrialToPaidUpgrade || isUpgradingPrice)
       && isYearlySubscription
       && giftClassId
       && !existingGiftCartId
-      && !isTrial
-      && amountPaid > 0) {
+      && canCreateGiftCart) {
     try {
       giftCartId = uuidv4();
       const metadata: Stripe.MetadataParam = {
@@ -169,6 +174,7 @@ export async function processStripeSubscriptionInvoice(
         classId: giftClassId,
         priceIndex: parseInt(giftPriceIndex, 10) || 0,
         amountPaid,
+        isTrialGift: isAffiliateGiftOnTrial && isTrial,
       }, {
         evmWallet,
         email: stripeCustomer.email,
@@ -200,7 +206,7 @@ export async function processStripeSubscriptionInvoice(
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
   const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
-  await userCollection.doc(likerId).update({
+  const userUpdate: Record<string, unknown> = {
     likerPlus: {
       period,
       since,
@@ -211,7 +217,11 @@ export async function processStripeSubscriptionInvoice(
       customerId,
       subscriptionStatus: 'active',
     },
-  });
+  };
+  if (isSubscriptionCreation && affiliateFrom) {
+    userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
+  }
+  await userCollection.doc(likerId).update(userUpdate);
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
@@ -419,8 +429,38 @@ export async function createNewPlusCheckoutSession(
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
-  if (giftClassId) subscriptionMetadata.giftClassId = giftClassId;
-  if (giftPriceIndex !== undefined) subscriptionMetadata.giftPriceIndex = giftPriceIndex;
+
+  // Require the `@` prefix so plain UTM/channel values don't trigger affiliate lookups.
+  let resolvedGiftClassId = giftClassId;
+  let resolvedGiftPriceIndex = giftPriceIndex;
+  if (from && from.startsWith('@')) {
+    try {
+      const normalizedFrom = normalizeLikerId(from);
+      if (checkUserNameValid(normalizedFrom)) {
+        const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
+        const affiliateConfig = affiliateUserInfo?.wallet
+          && affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
+          ? affiliateUserInfo.bookUserInfo.affiliateConfig
+          : null;
+        if (affiliateConfig) {
+          subscriptionMetadata.affiliateFrom = from;
+          if (!giftClassId && affiliateConfig.giftClassId && period === 'yearly') {
+            resolvedGiftClassId = affiliateConfig.giftClassId;
+            resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
+            subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
+          }
+        }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Error resolving affiliate config for from:', from, err);
+    }
+  }
+
+  if (resolvedGiftClassId) subscriptionMetadata.giftClassId = resolvedGiftClassId;
+  if (resolvedGiftPriceIndex !== undefined) {
+    subscriptionMetadata.giftPriceIndex = resolvedGiftPriceIndex;
+  }
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;

@@ -24,6 +24,7 @@ export interface UserDataMin extends Pick<UserCivicLikerProperties,
 export interface UserDataScopedFiltered extends UserDataMin {
   likerPlusPeriod?: any;
   likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
+  plusAffiliateFrom?: string;
   email?: string;
   isExpiredCivicLiker?: boolean;
   isCivicLikerRenewalPeriod?: boolean;

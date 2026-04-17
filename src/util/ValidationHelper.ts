@@ -46,6 +46,10 @@ export function checkUserNameValid(user: string): boolean {
   return !!user && (/^[a-z0-9-_]+$/.test(user) && user.length >= MIN_USER_ID_LENGTH && user.length <= MAX_USER_ID_LENGTH);
 }
 
+export function normalizeLikerId(likerId: string): string {
+  return likerId.startsWith('@') ? likerId.substring(1) : likerId;
+}
+
 export function checkCosmosAddressValid(addr: string, prefix = 'cosmos'): boolean {
   if (!addr.startsWith(prefix) && addr.length === 45) {
     return false;
@@ -88,6 +92,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isExpiredLikerPlus,
     likerPlusPeriod,
     likerPlusSubscriptionStatus,
+    plusAffiliateFrom,
     locale,
   } = u;
   return {
@@ -120,6 +125,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isExpiredLikerPlus,
     likerPlusPeriod,
     likerPlusSubscriptionStatus,
+    plusAffiliateFrom,
     locale,
   };
 }
@@ -180,6 +186,7 @@ export function filterUserDataScoped(
   if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
     output.likerPlusSubscriptionStatus = user.likerPlusSubscriptionStatus;
+    output.plusAffiliateFrom = user.plusAffiliateFrom;
   }
   if (scope.includes('email')) output.email = user.email;
   if (scope.includes('read:civic_liker')) {

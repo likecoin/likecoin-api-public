@@ -94,4 +94,5 @@ export interface UserCivicLikerProperties extends UserData {
   isExpiredLikerPlus?: boolean;
   likerPlusPeriod?: string;
   likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
+  plusAffiliateFrom?: string;
 }

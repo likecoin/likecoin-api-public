@@ -2,6 +2,7 @@
 // These represent the raw data structures stored in Firestore collections
 
 import type { UserCivicLikerProperties } from './user';
+import type { NFTBookUserData } from './book';
 
 export interface UserAuthData {
   platforms: Record<string, any>;
@@ -149,16 +150,8 @@ export interface FollowData {
   ts: number;
 }
 
-export interface BookUserInfo {
-  stripeConnectAccountId?: string;
-  isStripeConnectReady?: boolean;
-  stripeCustomerId?: string;
-  isTrustedPublisher?: boolean;
-  [key: string]: unknown;
-}
-
 export interface BookUserInfoResult {
   wallet: string;
-  bookUserInfo: BookUserInfo | null;
+  bookUserInfo: NFTBookUserData | null;
   likerUserInfo: UserCivicLikerProperties | null;
 }
