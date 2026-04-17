@@ -944,6 +944,7 @@ export async function createFreeBookCartFromSubscription({
   cartId,
   priceIndex,
   amountPaid,
+  isTrialGift = false,
 }, {
   evmWallet,
   email,
@@ -963,7 +964,7 @@ export async function createFreeBookCartFromSubscription({
     console.warn('Free book cart item price is not less than the plus yearly price, skipping cart creation.');
     return null;
   }
-  if (itemInfos[0].originalPriceInDecimal > amountPaid * 100) {
+  if (!isTrialGift && itemInfos[0].originalPriceInDecimal > amountPaid * 100) {
     // eslint-disable-next-line no-console
     console.warn('Free book cart item price is not less than the amount paid');
   }

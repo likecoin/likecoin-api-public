@@ -27,7 +27,7 @@ import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
-import { checkUserNameValid } from '../../ValidationHelper';
+import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
@@ -174,6 +174,7 @@ export async function processStripeSubscriptionInvoice(
         classId: giftClassId,
         priceIndex: parseInt(giftPriceIndex, 10) || 0,
         amountPaid,
+        isTrialGift: isAffiliateGiftOnTrial && isTrial,
       }, {
         evmWallet,
         email: stripeCustomer.email,
@@ -205,13 +206,7 @@ export async function processStripeSubscriptionInvoice(
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
   const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
-  let normalizedAffiliateFrom: string | undefined;
-  if (isSubscriptionCreation && affiliateFrom) {
-    normalizedAffiliateFrom = affiliateFrom.startsWith('@')
-      ? affiliateFrom.substring(1)
-      : affiliateFrom;
-  }
-  await userCollection.doc(likerId).update({
+  const userUpdate: Record<string, unknown> = {
     likerPlus: {
       period,
       since,
@@ -222,8 +217,11 @@ export async function processStripeSubscriptionInvoice(
       customerId,
       subscriptionStatus: 'active',
     },
-    ...(normalizedAffiliateFrom && { plusAffiliateFrom: normalizedAffiliateFrom }),
-  });
+  };
+  if (isSubscriptionCreation && affiliateFrom) {
+    userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
+  }
+  await userCollection.doc(likerId).update(userUpdate);
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
@@ -432,13 +430,12 @@ export async function createNewPlusCheckoutSession(
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
 
-  // Record affiliate attribution whenever `from` resolves to a valid affiliate user.
-  // Auto-resolve gift config only when no explicit giftClassId was passed and period is yearly.
+  // Require the `@` prefix so plain UTM/channel values don't trigger affiliate lookups.
   let resolvedGiftClassId = giftClassId;
   let resolvedGiftPriceIndex = giftPriceIndex;
-  if (from) {
+  if (from && from.startsWith('@')) {
     try {
-      const normalizedFrom = from.startsWith('@') ? from.substring(1) : from;
+      const normalizedFrom = normalizeLikerId(from);
       if (checkUserNameValid(normalizedFrom)) {
         const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
         const affiliateConfig = affiliateUserInfo?.wallet

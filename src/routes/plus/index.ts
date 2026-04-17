@@ -14,7 +14,7 @@ import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData }
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
-import { checkUserNameValid, filterPlusGiftCartData } from '../../util/ValidationHelper';
+import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -391,7 +391,7 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
 router.get('/affiliate/:likerId', async (req, res, next) => {
   try {
     const { likerId } = req.params;
-    const normalizedLikerId = likerId.startsWith('@') ? likerId.substring(1) : likerId;
+    const normalizedLikerId = normalizeLikerId(likerId);
     if (!checkUserNameValid(normalizedLikerId)) {
       throw new ValidationError('Invalid likerId', 400);
     }
