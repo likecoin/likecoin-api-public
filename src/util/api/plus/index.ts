@@ -21,6 +21,7 @@ import {
   LIKER_PLUS_YEARLY_PRICE_ID,
   LIKER_PLUS_PRODUCT_ID,
   LIKER_PLUS_TRIAL_CONVERSION_RATE,
+  LIKER_PLUS_LTV,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -246,15 +247,20 @@ export async function processStripeSubscriptionInvoice(
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
-    const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.2;
-    const predictedLTV = isTrial ? 120 * trialConversionRate : 120;
+    const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.5;
+    const ltvUSD = LIKER_PLUS_LTV || 100;
+    const predictedLTVUSD = isTrial ? ltvUSD * trialConversionRate : ltvUSD;
+    const predictedLTV = convertUSDPriceToCurrency(
+      predictedLTVUSD,
+      currency.toLowerCase() as SupportedPlusCurrency,
+    );
     await logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
-      value: amountPaid,
+      value: isTrial ? predictedLTV : amountPaid,
       currency,
       userAgent,
       clientIp,
