@@ -5,9 +5,9 @@ import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../uti
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
-  SUPPORTED_PLUS_CURRENCIES, W3C_EMAIL_REGEX,
+  SUPPORTED_CHECKOUT_UI_MODES, SUPPORTED_PLUS_CURRENCIES, W3C_EMAIL_REGEX,
 } from '../../constant';
-import type { SupportedPlusCurrency } from '../../constant';
+import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
@@ -41,6 +41,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     giftClassId,
     giftPriceIndex = '0',
     isApp,
+    uiMode,
   } = req.body;
   try {
     // Ensure period is either 'monthly' or 'yearly'
@@ -60,6 +61,12 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
     }
+    if (
+      uiMode !== undefined
+      && !SUPPORTED_CHECKOUT_UI_MODES.includes(uiMode as SupportedCheckoutUIMode)
+    ) {
+      throw new ValidationError('INVALID_UI_MODE', 400);
+    }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
     const userAgent = req.get('User-Agent');
@@ -77,6 +84,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         coupon,
         currency: checkoutCurrency,
         isApp,
+        uiMode,
       },
       {
         from: from as string,
@@ -103,6 +111,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     res.json({
       sessionId: session.id,
       url: session.url,
+      clientSecret: session.client_secret,
       paymentId,
     });
 
@@ -132,6 +141,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       logType: 'PlusCheckoutSessionCreated',
       sessionId: session.id,
       period,
+      uiMode: uiMode || 'hosted',
       wallet: req.user?.wallet,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,

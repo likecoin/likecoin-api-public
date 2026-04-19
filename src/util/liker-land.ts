@@ -439,7 +439,9 @@ export const getPlusSuccessPageURL = ({
     qsPayload.gad_source = gadSource;
   }
   const qs = new URLSearchParams(qsPayload).toString();
-  return getBook3URL(`/plus/success?${qs}`, { language });
+  // {CHECKOUT_SESSION_ID} is a Stripe placeholder;
+  // must stay literal (not URL-encoded) for Stripe to substitute it.
+  return `${getBook3URL(`/plus/success?${qs}`, { language })}&session_id={CHECKOUT_SESSION_ID}`;
 };
 
 export const getPlusGiftPageURL = ({
