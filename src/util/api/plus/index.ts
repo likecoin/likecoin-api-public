@@ -9,7 +9,7 @@ import {
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
 } from '../../../constant';
-import type { SupportedPlusCurrency } from '../../../constant';
+import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
 import { convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
@@ -368,6 +368,7 @@ export async function createNewPlusCheckoutSession(
     coupon,
     currency,
     isApp,
+    uiMode = 'hosted',
   }: {
     period: 'monthly' | 'yearly',
     trialPeriodDays?: number,
@@ -377,6 +378,7 @@ export async function createNewPlusCheckoutSession(
     coupon?: string,
     currency?: SupportedPlusCurrency,
     isApp?: boolean,
+    uiMode?: SupportedCheckoutUIMode,
   },
   {
     from,
@@ -543,6 +545,18 @@ export async function createNewPlusCheckoutSession(
     } as Stripe.Checkout.SessionCreateParams.LineItem);
   }
 
+  const successUrl = getPlusSuccessPageURL({
+    period,
+    paymentId,
+    hasFreeTrial,
+    utmCampaign: utm?.campaign,
+    utmSource: utm?.source,
+    utmMedium: utm?.medium,
+    gaClientId,
+    gaSessionId,
+    gadClickId,
+    gadSource,
+  });
   const payload: Stripe.Checkout.SessionCreateParams = {
     billing_address_collection: 'auto',
     line_items: lineItems,
@@ -550,29 +564,24 @@ export async function createNewPlusCheckoutSession(
     mode: 'subscription',
     subscription_data: subscriptionData,
     currency: checkoutCurrency,
-    success_url: getPlusSuccessPageURL({
-      period,
-      paymentId,
-      hasFreeTrial,
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    }),
-    cancel_url: getPlusPageURL({
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    }),
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
+  if (uiMode === 'embedded') {
+    payload.ui_mode = 'embedded';
+    payload.return_url = successUrl;
+    payload.redirect_on_completion = 'if_required';
+  } else {
+    payload.success_url = successUrl;
+    payload.cancel_url = getPlusPageURL({
+      utmCampaign: utm?.campaign,
+      utmSource: utm?.source,
+      utmMedium: utm?.medium,
+      gaClientId,
+      gaSessionId,
+      gadClickId,
+      gadSource,
+    });
+  }
   if (discounts.length) {
     payload.discounts = discounts;
   } else if (!isApp) {

@@ -175,6 +175,9 @@ export const PLUS_YEARLY_PRICE = 99.99;
 export const SUPPORTED_PLUS_CURRENCIES = ['usd', 'hkd', 'twd'] as const;
 export type SupportedPlusCurrency = typeof SUPPORTED_PLUS_CURRENCIES[number];
 
+export const SUPPORTED_CHECKOUT_UI_MODES = ['hosted', 'embedded'] as const;
+export type SupportedCheckoutUIMode = typeof SUPPORTED_CHECKOUT_UI_MODES[number];
+
 export const PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD = 14;
 export const PLUS_PAID_TRIAL_PRICE = 1;
 
