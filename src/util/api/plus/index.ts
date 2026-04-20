@@ -92,6 +92,8 @@ export async function processStripeSubscriptionInvoice(
     userAgent,
     clientIp,
     fbClickId,
+    fbp,
+    fbc,
     gaClientId,
     gaSessionId,
     affiliateGiftOnTrial,
@@ -265,6 +267,8 @@ export async function processStripeSubscriptionInvoice(
       userAgent,
       clientIp,
       fbClickId,
+      fbp,
+      fbc,
       paymentId,
       evmWallet,
       predictedLTV,
@@ -381,6 +385,8 @@ export async function createNewPlusCheckoutSession(
     gadClickId,
     gadSource,
     fbClickId,
+    fbp,
+    fbc,
     referrer,
     userAgent,
     clientIp,
@@ -392,6 +398,8 @@ export async function createNewPlusCheckoutSession(
     gadClickId?: string,
     gadSource?: string,
     fbClickId?: string,
+    fbp?: string,
+    fbc?: string,
     referrer?: string,
     userAgent?: string,
     clientIp?: string,
@@ -475,6 +483,8 @@ export async function createNewPlusCheckoutSession(
   if (userAgent) subscriptionMetadata.userAgent = userAgent;
   if (clientIp) subscriptionMetadata.clientIp = clientIp;
   if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;
+  if (fbp) subscriptionMetadata.fbp = fbp.substring(0, 255);
+  if (fbc) subscriptionMetadata.fbc = fbc.substring(0, 255);
   if (gaClientId) subscriptionMetadata.gaClientId = gaClientId;
   if (gaSessionId) subscriptionMetadata.gaSessionId = gaSessionId;
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };

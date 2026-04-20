@@ -18,6 +18,8 @@ export default async function logServerEvents(
     paymentId?: string;
     referrer?: string;
     fbClickId?: string;
+    fbp?: string;
+    fbc?: string;
     evmWallet?: string;
     gaClientId?: string;
     gaSessionId?: string;

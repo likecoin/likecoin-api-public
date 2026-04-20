@@ -46,6 +46,8 @@ export async function createPlusGiftCheckoutSession(
     gadClickId,
     gadSource,
     fbClickId,
+    fbp,
+    fbc,
     referrer,
     userAgent,
     clientIp,
@@ -57,6 +59,8 @@ export async function createPlusGiftCheckoutSession(
     gadClickId?: string,
     gadSource?: string,
     fbClickId?: string,
+    fbp?: string,
+    fbc?: string,
     referrer?: string,
     userAgent?: string,
     clientIp?: string,
@@ -116,6 +120,8 @@ export async function createPlusGiftCheckoutSession(
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
+  if (fbp) sessionMetadata.fbp = fbp.substring(0, 255);
+  if (fbc) sessionMetadata.fbc = fbc.substring(0, 255);
   if (gaClientId) sessionMetadata.gaClientId = gaClientId;
   if (gaSessionId) sessionMetadata.gaSessionId = gaSessionId;
   if (gadClickId) sessionMetadata.gadClickId = gadClickId;
@@ -441,6 +447,8 @@ export async function processPlusGiftStripePurchase(
     clientIp,
     referrer,
     fbClickId,
+    fbp,
+    fbc,
     evmWallet,
     claimToken: metadataClaimToken,
     language: metadataLanguage,
@@ -506,6 +514,8 @@ export async function processPlusGiftStripePurchase(
     paymentId,
     referrer,
     fbClickId,
+    fbp,
+    fbc,
     evmWallet,
     gaClientId,
     gaSessionId,
