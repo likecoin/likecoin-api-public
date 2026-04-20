@@ -16,6 +16,8 @@ import { ValidationError } from '../../ValidationError';
 import { sendPlusGiftClaimedEmail, sendPlusGiftPendingClaimEmail } from '../../ses';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { fetchUserInfoByEmail } from '../users';
+import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import getPaymentUpdateFields from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import type { SupportedPlusCurrency } from '../../../constant';
@@ -520,4 +522,12 @@ export async function processPlusGiftStripePurchase(
     gaClientId,
     gaSessionId,
   });
+
+  if (evmWallet && (amountTotal || 0) > 0) {
+    const buyer = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+    if (buyer) {
+      await userCollection.doc(buyer.user)
+        .update(getPaymentUpdateFields(!!buyer.firstPaidAt));
+    }
+  }
 }

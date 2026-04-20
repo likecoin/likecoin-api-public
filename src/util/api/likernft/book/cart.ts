@@ -32,6 +32,7 @@ import {
   FieldValue,
   likeNFTBookCartCollection,
   likeNFTBookCollection,
+  userCollection,
 } from '../../../firebase';
 import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
 import {
@@ -60,6 +61,7 @@ import {
 } from './type';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
+import getPaymentUpdateFields from '../../users/payment';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -753,6 +755,15 @@ export async function processNFTBookCart(
       gaClientId,
       gaSessionId,
     });
+
+    if (evmWallet && (amountTotal || 0) > 0) {
+      buyerUserInfo = buyerUserInfo
+        ?? await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+      if (buyerUserInfo) {
+        await userCollection.doc(buyerUserInfo.user)
+          .update(getPaymentUpdateFields(!!buyerUserInfo.firstPaidAt));
+      }
+    }
 
     // Attempt to claim the cart immediately if the user is logged in
     // Skip auto-claim for gifts — the receiver should claim via the email link
