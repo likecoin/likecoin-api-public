@@ -326,6 +326,8 @@ type ProcessNFTBookCartMeta = {
   clientIp?: string;
   referrer?: string;
   fbClickId?: string;
+  fbp?: string;
+  fbc?: string;
   utmSource?: string;
   utmCampaign?: string;
   utmMedium?: string;
@@ -366,6 +368,8 @@ export async function processNFTBookCart(
     clientIp,
     referrer,
     fbClickId,
+    fbp,
+    fbc,
     utmSource,
     utmCampaign,
     utmMedium,
@@ -743,6 +747,8 @@ export async function processNFTBookCart(
       paymentId,
       referrer,
       fbClickId,
+      fbp,
+      fbc,
       evmWallet,
       gaClientId,
       gaSessionId,
@@ -1375,6 +1381,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   gadClickId,
   gadSource,
   fbClickId,
+  fbp,
+  fbc,
   likeWallet,
   evmWallet,
   email,
@@ -1397,6 +1405,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   gadClickId?: string,
   gadSource?: string,
   fbClickId?: string,
+  fbp?: string,
+  fbc?: string,
   email?: string,
   likeWallet?: string,
   evmWallet?: string,
@@ -1525,6 +1535,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     gadClickId,
     gadSource,
     fbClickId,
+    fbp,
+    fbc,
     likeWallet,
     evmWallet,
     customerId,

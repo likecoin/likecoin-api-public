@@ -513,6 +513,8 @@ export async function formatStripeCheckoutSession({
   gadClickId,
   gadSource,
   fbClickId,
+  fbp,
+  fbc,
   giftInfo,
   referrer,
   utm,
@@ -541,6 +543,8 @@ export async function formatStripeCheckoutSession({
   gadClickId?: string,
   gadSource?: string,
   fbClickId?: string,
+  fbp?: string,
+  fbc?: string,
   giftInfo?: {
     fromName: string,
     toName: string,
@@ -600,6 +604,8 @@ export async function formatStripeCheckoutSession({
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
+  if (fbp) sessionMetadata.fbp = fbp.substring(0, 255);
+  if (fbc) sessionMetadata.fbc = fbc.substring(0, 255);
   if (language) sessionMetadata.language = language;
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
   if (evmWallet) sessionMetadata.evmWallet = evmWallet;

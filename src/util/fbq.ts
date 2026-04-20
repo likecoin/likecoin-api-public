@@ -9,6 +9,12 @@ import {
 import { SERVER_EVENT_MAP, buildItemId } from './analyticsEvents';
 import type { ServerEventName, AnalyticsItem } from './analyticsEvents';
 
+function formatFbc(fbClickId?: string, fbc?: string): string | undefined {
+  if (fbc) return fbc;
+  if (!fbClickId) return undefined;
+  return `fb.1.${Date.now()}.${fbClickId}`;
+}
+
 export default async function logPixelEvents(event: ServerEventName, {
   email,
   items,
@@ -20,6 +26,8 @@ export default async function logPixelEvents(event: ServerEventName, {
   paymentId,
   referrer,
   fbClickId,
+  fbp,
+  fbc,
   evmWallet,
 }: {
   email?: string;
@@ -33,6 +41,8 @@ export default async function logPixelEvents(event: ServerEventName, {
   paymentId?: string;
   referrer?: string;
   fbClickId?: string;
+  fbp?: string;
+  fbc?: string;
   evmWallet?: string;
 }) {
   if (!FB_PIXEL_ID || !FB_ACCESS_TOKEN) {
@@ -61,7 +71,8 @@ export default async function logPixelEvents(event: ServerEventName, {
               external_id: evmWallet && evmWallet.startsWith('0x')
                 ? [viemSHA256(evmWallet as `0x${string}`)]
                 : undefined,
-              fbc: fbClickId,
+              fbc: formatFbc(fbClickId, fbc),
+              fbp,
             },
             custom_data: {
               value,
