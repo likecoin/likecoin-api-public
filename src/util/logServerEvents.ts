@@ -23,6 +23,7 @@ export default async function logServerEvents(
     evmWallet?: string;
     gaClientId?: string;
     gaSessionId?: string;
+    customerType?: 'new' | 'returning';
     extraProperties?: Record<string, unknown>;
   },
 ): Promise<void> {

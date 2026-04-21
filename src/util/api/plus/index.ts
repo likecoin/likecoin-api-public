@@ -14,6 +14,7 @@ import { convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
+import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import publisher from '../../gcloudPub';
 
 import {
@@ -224,6 +225,9 @@ export async function processStripeSubscriptionInvoice(
   if (isSubscriptionCreation && affiliateFrom) {
     userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
   }
+  if (amountPaid > 0) {
+    Object.assign(userUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
+  }
   await userCollection.doc(likerId).update(userUpdate);
 
   await updateIntercomUserAttributes(likerId, {
@@ -274,6 +278,7 @@ export async function processStripeSubscriptionInvoice(
       predictedLTV,
       gaClientId,
       gaSessionId,
+      customerType: isNewSubscription ? getCustomerType(user) : 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
         period,
@@ -291,6 +296,7 @@ export async function processStripeSubscriptionInvoice(
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
+      customerType: 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
         period,

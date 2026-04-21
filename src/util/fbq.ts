@@ -29,6 +29,7 @@ export default async function logPixelEvents(event: ServerEventName, {
   fbp,
   fbc,
   evmWallet,
+  customerType,
 }: {
   email?: string;
   items?: AnalyticsItem[];
@@ -44,6 +45,7 @@ export default async function logPixelEvents(event: ServerEventName, {
   fbp?: string;
   fbc?: string;
   evmWallet?: string;
+  customerType?: 'new' | 'returning';
 }) {
   if (!FB_PIXEL_ID || !FB_ACCESS_TOKEN) {
     return;
@@ -79,6 +81,7 @@ export default async function logPixelEvents(event: ServerEventName, {
               predicted_ltv: predictedLTV,
               currency,
               order_id: paymentId,
+              customer_type: customerType,
               content_type: 'product',
               content_ids: items
                 ? items.map((item) => buildItemId(item.productId, item.priceIndex))

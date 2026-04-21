@@ -1,3 +1,4 @@
+import type { Timestamp } from '@google-cloud/firestore';
 import type { SupportedLocale } from '../locales';
 
 export interface CivicLikerData {
@@ -65,6 +66,10 @@ export interface UserData {
   // Subscription fields
   civicLiker?: CivicLikerData;
   likerPlus?: LikerPlusData;
+
+  // Purchase history
+  firstPaidAt?: Timestamp;
+  lastPaidAt?: Timestamp;
 
   // Metadata fields
   locale?: SupportedLocale;
