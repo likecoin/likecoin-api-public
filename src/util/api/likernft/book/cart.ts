@@ -61,7 +61,7 @@ import {
 } from './type';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
-import getPaymentUpdateFields from '../../users/payment';
+import { getCustomerType, getPaymentUpdateFields } from '../../users/payment';
 
 export async function createNewNFTBookCartPayment(cartId: string, paymentId: string, {
   type,
@@ -735,6 +735,10 @@ export async function processNFTBookCart(
         }
       }
     }
+    if (evmWallet && !buyerUserInfo) {
+      buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+    }
+
     await logServerEvents('Purchase', {
       email: email || undefined,
       items: infoList.map((item) => ({
@@ -754,15 +758,12 @@ export async function processNFTBookCart(
       evmWallet,
       gaClientId,
       gaSessionId,
+      customerType: getCustomerType(buyerUserInfo),
     });
 
-    if (evmWallet && (amountTotal || 0) > 0) {
-      buyerUserInfo = buyerUserInfo
-        ?? await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-      if (buyerUserInfo) {
-        await userCollection.doc(buyerUserInfo.user)
-          .update(getPaymentUpdateFields(!!buyerUserInfo.firstPaidAt));
-      }
+    if (buyerUserInfo && (amountTotal || 0) > 0) {
+      await userCollection.doc(buyerUserInfo.user)
+        .update(getPaymentUpdateFields(!!buyerUserInfo.firstPaidAt));
     }
 
     // Attempt to claim the cart immediately if the user is logged in

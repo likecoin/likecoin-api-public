@@ -1,6 +1,6 @@
 import { FieldValue } from '../../firebase';
 
-export default function getPaymentUpdateFields(hasPriorPayment: boolean): Record<string, unknown> {
+export function getPaymentUpdateFields(hasPriorPayment: boolean): Record<string, unknown> {
   const fields: Record<string, unknown> = {
     lastPaidAt: FieldValue.serverTimestamp(),
   };
@@ -8,4 +8,10 @@ export default function getPaymentUpdateFields(hasPriorPayment: boolean): Record
     fields.firstPaidAt = FieldValue.serverTimestamp();
   }
   return fields;
+}
+
+export function getCustomerType(
+  user: { firstPaidAt?: unknown } | null | undefined,
+): 'new' | 'returning' {
+  return user?.firstPaidAt ? 'returning' : 'new';
 }

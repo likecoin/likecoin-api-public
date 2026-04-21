@@ -17,7 +17,7 @@ import { sendPlusGiftClaimedEmail, sendPlusGiftPendingClaimEmail } from '../../s
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import { fetchUserInfoByEmail } from '../users';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
-import getPaymentUpdateFields from '../users/payment';
+import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
 import type { SupportedPlusCurrency } from '../../../constant';
@@ -503,6 +503,10 @@ export async function processPlusGiftStripePurchase(
     language: metadataLanguage || 'zh',
   });
 
+  const buyer = evmWallet
+    ? await getUserWithCivicLikerPropertiesByWallet(evmWallet)
+    : null;
+
   await logServerEvents('Purchase', {
     email: email || undefined,
     items: [{
@@ -521,13 +525,11 @@ export async function processPlusGiftStripePurchase(
     evmWallet,
     gaClientId,
     gaSessionId,
+    customerType: getCustomerType(buyer),
   });
 
-  if (evmWallet && (amountTotal || 0) > 0) {
-    const buyer = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-    if (buyer) {
-      await userCollection.doc(buyer.user)
-        .update(getPaymentUpdateFields(!!buyer.firstPaidAt));
-    }
+  if (buyer && (amountTotal || 0) > 0) {
+    await userCollection.doc(buyer.user)
+      .update(getPaymentUpdateFields(!!buyer.firstPaidAt));
   }
 }

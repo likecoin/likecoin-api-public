@@ -14,7 +14,7 @@ import { convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
-import getPaymentUpdateFields from '../users/payment';
+import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import publisher from '../../gcloudPub';
 
 import {
@@ -278,7 +278,7 @@ export async function processStripeSubscriptionInvoice(
       predictedLTV,
       gaClientId,
       gaSessionId,
-      customerType: isNewSubscription ? 'new' : 'returning',
+      customerType: isNewSubscription ? getCustomerType(user) : 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
         period,
@@ -296,6 +296,7 @@ export async function processStripeSubscriptionInvoice(
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
+      customerType: 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
         period,
