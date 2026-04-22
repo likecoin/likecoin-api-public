@@ -25,6 +25,7 @@ export default async function logServerEvents(
     gaSessionId?: string;
     customerType?: 'new' | 'returning';
     extraProperties?: Record<string, unknown>;
+    setOnce?: Record<string, unknown>;
   },
 ): Promise<void> {
   logPostHogEvents(event, options);

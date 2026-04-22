@@ -37,6 +37,31 @@ function findStripeDefaultPayment(payments?: Stripe.ApiList<Stripe.InvoicePaymen
   return payments?.data?.find((p) => p.is_default);
 }
 
+function mapAttributionExtraProperties({
+  utmSource,
+  utmMedium,
+  utmCampaign,
+  utmContent,
+  utmTerm,
+  from,
+}: {
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  from?: string;
+}) {
+  return {
+    utm_source: utmSource,
+    utm_medium: utmMedium,
+    utm_campaign: utmCampaign,
+    utm_content: utmContent,
+    utm_term: utmTerm,
+    channel: from,
+  };
+}
+
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
   req: Express.Request,
@@ -97,6 +122,7 @@ export async function processStripeSubscriptionInvoice(
     fbc,
     gaClientId,
     gaSessionId,
+    referrer,
     affiliateGiftOnTrial,
     affiliateFrom,
   } = subscriptionMetadata || {};
@@ -283,7 +309,12 @@ export async function processStripeSubscriptionInvoice(
         subscription_id: subscriptionId,
         period,
         price_id: item.price.id,
+        ...mapAttributionExtraProperties({
+          utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
+        }),
+        $referrer: referrer,
       },
+      setOnce: referrer ? { $initial_referrer: referrer } : undefined,
     });
   } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
     await logServerEvents('SubscriptionRenewed', {
@@ -296,11 +327,21 @@ export async function processStripeSubscriptionInvoice(
         productId: `plus-${period}ly`,
         quantity: 1,
       }],
+      userAgent,
+      clientIp,
+      fbClickId,
+      fbp,
+      fbc,
+      gaClientId,
+      gaSessionId,
       customerType: 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
         period,
         price_id: item.price.id,
+        ...mapAttributionExtraProperties({
+          utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
+        }),
       },
     });
   }
@@ -495,10 +536,10 @@ export async function createNewPlusCheckoutSession(
   if (fbc) subscriptionMetadata.fbc = fbc.substring(0, 255);
   if (gaClientId) subscriptionMetadata.gaClientId = gaClientId;
   if (gaSessionId) subscriptionMetadata.gaSessionId = gaSessionId;
+  if (referrer) subscriptionMetadata.referrer = referrer.substring(0, 500);
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
-  if (referrer) metadata.referrer = referrer.substring(0, 500);
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: subscriptionMetadata,
@@ -613,6 +654,12 @@ export async function processStripeSubscriptionCancellation(
   const {
     evmWallet,
     likeWallet,
+    from,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+    utmContent,
+    utmTerm,
   } = subscription.metadata || {};
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
@@ -654,6 +701,9 @@ export async function processStripeSubscriptionCancellation(
       cancel_reason: subscription.cancellation_details?.reason,
       cancel_feedback: subscription.cancellation_details?.feedback,
       cancel_comment: subscription.cancellation_details?.comment?.substring(0, 500),
+      ...mapAttributionExtraProperties({
+        utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
+      }),
     };
     if (isTrialEnd) {
       await Promise.all([
@@ -690,7 +740,22 @@ export async function processStripePaymentFailure(
     ? invoice.parent.subscription_details : null;
   const subscriptionId = subscriptionDetails?.subscription as string;
   if (!subscriptionId) return;
-  const { evmWallet } = subscriptionDetails?.metadata || {};
+  const {
+    evmWallet,
+    from,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+    utmContent,
+    utmTerm,
+    userAgent,
+    clientIp,
+    fbClickId,
+    fbp,
+    fbc,
+    gaClientId,
+    gaSessionId,
+  } = subscriptionDetails?.metadata || {};
   if (!evmWallet) return;
   const lastError = invoice.last_finalization_error;
   const value = (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100;
@@ -709,6 +774,13 @@ export async function processStripePaymentFailure(
     paymentId: invoice.id,
     value,
     currency: invoice.currency?.toUpperCase(),
+    userAgent,
+    clientIp,
+    fbClickId,
+    fbp,
+    fbc,
+    gaClientId,
+    gaSessionId,
     extraProperties: {
       subscription_id: subscriptionId,
       period: subscriptionItem?.plan?.interval,
@@ -716,6 +788,9 @@ export async function processStripePaymentFailure(
       attempt_count: invoice.attempt_count,
       failure_code: lastError?.code,
       failure_type: lastError?.type,
+      ...mapAttributionExtraProperties({
+        utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
+      }),
     },
   }).catch((err) => {
     // eslint-disable-next-line no-console
