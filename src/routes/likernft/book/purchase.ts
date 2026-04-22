@@ -164,6 +164,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
 
     const referrer = inputReferrer;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
     const userAgent = req.get('User-Agent');
     const {
       url,
@@ -197,6 +198,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       referrer,
       userAgent,
       clientIp,
+      ipCountry,
       cancelUrl: getBook3CartURL({
         type: 'book',
         utmCampaign,
@@ -290,6 +292,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const httpMethod = 'GET';
     const referrer = (inputReferrer || req.get('Referrer')) as string;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const ipCountry = ((req.headers['cf-ipcountry'] as string) || '').toUpperCase() || undefined;
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
 
@@ -334,6 +337,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       evmWallet: req.user?.evmWallet,
       from: from as string,
       clientIp,
+      ipCountry,
       referrer,
       utm: {
         campaign: utmCampaign as string,
@@ -454,6 +458,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     const httpMethod = 'POST';
     const referrer = inputReferrer;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
     const userAgent = req.get('User-Agent');
     const {
       url,
@@ -494,6 +499,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       httpMethod,
       userAgent,
       clientIp,
+      ipCountry,
       cancelUrl: getBook3NFTClassPageURL({
         classId,
         utmCampaign,

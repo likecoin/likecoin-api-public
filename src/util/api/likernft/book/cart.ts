@@ -74,6 +74,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   itemInfos,
   feeInfo,
   coupon,
+  ipCountry,
 }: {
   type: string;
   email?: string;
@@ -90,6 +91,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   itemInfos: CartItemWithInfo[];
   feeInfo: TransactionFeeInfo,
   coupon?: string,
+  ipCountry?: string,
 }): Promise<void> {
   const classIdsWithPrice = itemPrices.filter((item) => !!item.classId).map((item) => ({
     classId: item.classId,
@@ -124,6 +126,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     feeInfo,
   };
   if (coupon) payload.coupon = coupon;
+  if (ipCountry) payload.ipCountry = ipCountry;
   const isGift = !!giftInfo;
   if (isGift) {
     const {
@@ -199,6 +202,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
         from: itemFrom || from,
         itemPrices: [item],
         feeInfo: itemFeeInfo,
+        ipCountry,
       });
     }
     throw new ValidationError('ITEM_ID_NOT_SET');
@@ -326,6 +330,7 @@ type ProcessNFTBookCartMeta = {
   sessionId?: string;
   userAgent?: string;
   clientIp?: string;
+  ipCountry?: string;
   referrer?: string;
   fbClickId?: string;
   fbp?: string;
@@ -368,6 +373,7 @@ export async function processNFTBookCart(
     sessionId,
     userAgent,
     clientIp,
+    ipCountry,
     referrer,
     fbClickId,
     fbp,
@@ -412,6 +418,7 @@ export async function processNFTBookCart(
     itemPrices,
     feeInfo: totalFeeInfo,
     coupon,
+    ipCountry,
   });
 
   try {
@@ -1406,6 +1413,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   referrer,
   userAgent,
   clientIp,
+  ipCountry,
   paymentMethods,
   httpMethod = 'POST',
   cancelUrl,
@@ -1441,6 +1449,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   referrer?: string,
   userAgent?: string,
   clientIp?: string,
+  ipCountry?: string,
   paymentMethods?: string[],
   httpMethod?: 'GET' | 'POST',
   cancelUrl?: string,
@@ -1558,6 +1567,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     referrer,
     userAgent,
     clientIp,
+    ipCountry,
     httpMethod,
     language,
     isApp,

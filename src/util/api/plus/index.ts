@@ -439,6 +439,7 @@ export async function createNewPlusCheckoutSession(
     referrer,
     userAgent,
     clientIp,
+    ipCountry,
     utm,
   }: {
     from?: string,
@@ -452,6 +453,7 @@ export async function createNewPlusCheckoutSession(
     referrer?: string,
     userAgent?: string,
     clientIp?: string,
+    ipCountry?: string,
     utm?: {
       campaign?: string,
       source?: string,
@@ -531,6 +533,7 @@ export async function createNewPlusCheckoutSession(
   if (utm?.term) subscriptionMetadata.utmTerm = utm.term;
   if (userAgent) subscriptionMetadata.userAgent = userAgent;
   if (clientIp) subscriptionMetadata.clientIp = clientIp;
+  if (ipCountry) subscriptionMetadata.ipCountry = ipCountry;
   if (fbClickId) subscriptionMetadata.fbClickId = fbClickId;
   if (fbp) subscriptionMetadata.fbp = fbp.substring(0, 255);
   if (fbc) subscriptionMetadata.fbc = fbc.substring(0, 255);
