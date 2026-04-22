@@ -38,6 +38,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   predictedLTV,
   currency,
   paymentId,
+  posthogDistinctId,
   extraProperties,
   setOnce,
 }: {
@@ -48,6 +49,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   predictedLTV?: number;
   currency?: string;
   paymentId?: string;
+  posthogDistinctId?: string;
   extraProperties?: Record<string, unknown>;
   setOnce?: Record<string, unknown>;
 }) {
@@ -65,6 +67,10 @@ export default function logPostHogEvents(event: ServerEventName, {
     return;
   }
   try {
+    // $anon_distinct_id triggers PostHog's implicit person-merge; skip when equal to avoid a no-op.
+    const anonDistinctId = posthogDistinctId && posthogDistinctId !== evmWallet
+      ? posthogDistinctId
+      : undefined;
     client.capture({
       distinctId: evmWallet,
       event: posthogEvent,
@@ -73,6 +79,7 @@ export default function logPostHogEvents(event: ServerEventName, {
         $set: email ? { email } : undefined,
         $set_once: setOnce && Object.keys(setOnce).length > 0 ? setOnce : undefined,
         $insert_id: paymentId ? `${posthogEvent}_${paymentId}` : undefined,
+        $anon_distinct_id: anonDistinctId,
         value,
         predicted_ltv: predictedLTV,
         currency,
