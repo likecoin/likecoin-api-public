@@ -133,6 +133,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       fbClickId,
       fbp,
       fbc,
+      posthogDistinctId,
       email,
       utmCampaign,
       utmSource,
@@ -256,6 +257,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
         evmWallet: req.user?.evmWallet,
         gaClientId,
         gaSessionId,
+        posthogDistinctId,
       });
     }
   } catch (err) {
@@ -284,6 +286,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       coupon,
       currency,
       fbclid: fbClickId = '',
+      posthog_distinct_id: posthogDistinctId = '',
       payment_method: paymentMethodQs,
       is_app: isApp,
     } = req.query;
@@ -399,6 +402,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       evmWallet: req.user?.evmWallet,
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
+      posthogDistinctId: posthogDistinctId as string,
     });
   } catch (err) {
     if ((err as Error).message === 'OUT_OF_STOCK') {
@@ -427,6 +431,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       fbClickId,
       fbp,
       fbc,
+      posthogDistinctId,
       coupon,
       currency,
       email,
@@ -557,6 +562,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       evmWallet: req.user?.evmWallet,
       gaClientId,
       gaSessionId,
+      posthogDistinctId,
     });
   } catch (err) {
     next(err);

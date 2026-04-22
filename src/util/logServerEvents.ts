@@ -23,6 +23,7 @@ export default async function logServerEvents(
     evmWallet?: string;
     gaClientId?: string;
     gaSessionId?: string;
+    posthogDistinctId?: string;
     customerType?: 'new' | 'returning';
     extraProperties?: Record<string, unknown>;
     setOnce?: Record<string, unknown>;

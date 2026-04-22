@@ -29,6 +29,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     fbClickId,
     fbp,
     fbc,
+    posthogDistinctId,
     referrer,
     utmCampaign,
     utmSource,
@@ -138,6 +139,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
       evmWallet: req.user?.evmWallet,
       gaClientId,
       gaSessionId,
+      posthogDistinctId,
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionCreated',
@@ -182,6 +184,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     fbClickId,
     fbp,
     fbc,
+    posthogDistinctId,
     referrer,
     utmCampaign,
     utmSource,
@@ -272,6 +275,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
       evmWallet: req.user?.evmWallet,
       gaClientId,
       gaSessionId,
+      posthogDistinctId,
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusGiftCheckoutSessionCreated',
