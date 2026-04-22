@@ -69,6 +69,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
     }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
     const userAgent = req.get('User-Agent');
     const {
       session,
@@ -98,6 +99,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
         referrer,
         userAgent,
         clientIp,
+        ipCountry,
         utm: {
           campaign: utmCampaign,
           source: utmSource,
@@ -206,6 +208,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
     }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
+    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
     const userAgent = req.get('User-Agent');
     const {
       session,
@@ -231,6 +234,7 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
         referrer,
         userAgent,
         clientIp,
+        ipCountry,
         utm: {
           campaign: utmCampaign,
           source: utmSource,

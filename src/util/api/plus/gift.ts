@@ -53,6 +53,7 @@ export async function createPlusGiftCheckoutSession(
     referrer,
     userAgent,
     clientIp,
+    ipCountry,
     utm,
   }: {
     from?: string,
@@ -66,6 +67,7 @@ export async function createPlusGiftCheckoutSession(
     referrer?: string,
     userAgent?: string,
     clientIp?: string,
+    ipCountry?: string,
     utm?: {
       campaign?: string,
       source?: string,
@@ -121,6 +123,7 @@ export async function createPlusGiftCheckoutSession(
   if (utm?.term) sessionMetadata.utmTerm = utm.term;
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
+  if (ipCountry) sessionMetadata.ipCountry = ipCountry;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
   if (fbp) sessionMetadata.fbp = fbp.substring(0, 255);
   if (fbc) sessionMetadata.fbc = fbc.substring(0, 255);
@@ -230,8 +233,17 @@ export async function createPlusGiftCart({
   paymentId,
   sessionId,
   claimToken,
+  ipCountry,
+}: {
+  period?: 'monthly' | 'yearly',
+  giftInfo: BookGiftInfo,
+  email: string,
+  paymentId: string,
+  sessionId: string,
+  claimToken: string,
+  ipCountry?: string,
 }) {
-  await likePlusGiftCartCollection.doc(paymentId).create({
+  const payload: any = {
     id: paymentId,
     email,
     period,
@@ -240,7 +252,9 @@ export async function createPlusGiftCart({
     sessionId,
     claimToken,
     timestamp: FieldValue.serverTimestamp(),
-  });
+  };
+  if (ipCountry) payload.ipCountry = ipCountry;
+  await likePlusGiftCartCollection.doc(paymentId).create(payload);
 }
 
 export async function claimPlusGiftCart({
@@ -447,6 +461,7 @@ export async function processPlusGiftStripePurchase(
     giftMessage = '',
     userAgent,
     clientIp,
+    ipCountry,
     referrer,
     fbClickId,
     fbp,
@@ -489,6 +504,7 @@ export async function processPlusGiftStripePurchase(
     paymentId,
     sessionId,
     claimToken,
+    ipCountry,
   });
 
   await sendPlusGiftPendingClaimEmail({

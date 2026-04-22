@@ -62,6 +62,7 @@ export interface PlusGiftCartData {
   period: string;
   giftInfo: BookGiftInfo;
   claimToken: string;
+  ipCountry?: string;
   timestamp: { toMillis: () => number };
   claimTimestamp?: { toMillis: () => number };
 }

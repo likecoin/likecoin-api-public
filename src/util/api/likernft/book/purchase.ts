@@ -353,6 +353,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   from = '',
   itemPrices,
   feeInfo,
+  ipCountry,
 }: {
   type: string;
   cartId?: string;
@@ -374,6 +375,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   };
   itemPrices?: any[],
   feeInfo?: TransactionFeeInfo,
+  ipCountry?: string,
 }) {
   const payload: any = {
     type,
@@ -398,6 +400,7 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   if (coupon) payload.coupon = coupon;
   if (itemPrices) payload.itemPrices = itemPrices;
   if (feeInfo) payload.feeInfo = feeInfo;
+  if (ipCountry) payload.ipCountry = ipCountry;
 
   const isGift = !!giftInfo;
 
@@ -521,6 +524,7 @@ export async function formatStripeCheckoutSession({
   httpMethod,
   userAgent,
   clientIp,
+  ipCountry,
   language,
   isApp,
 }: {
@@ -562,6 +566,7 @@ export async function formatStripeCheckoutSession({
   httpMethod?: 'GET' | 'POST',
   userAgent?: string,
   clientIp?: string,
+  ipCountry?: string,
   language?: string,
   isApp?: boolean,
 }, items: CartItemWithInfo[], {
@@ -603,6 +608,7 @@ export async function formatStripeCheckoutSession({
   if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
   if (userAgent) sessionMetadata.userAgent = userAgent;
   if (clientIp) sessionMetadata.clientIp = clientIp;
+  if (ipCountry) sessionMetadata.ipCountry = ipCountry;
   if (fbClickId) sessionMetadata.fbClickId = fbClickId;
   if (fbp) sessionMetadata.fbp = fbp.substring(0, 255);
   if (fbc) sessionMetadata.fbc = fbc.substring(0, 255);
