@@ -266,6 +266,7 @@ export interface NFTBookUserData {
   sponsoredUploadCount?: number;
   sponsoredUploadETH?: string;
   lastSponsoredUploadDate?: string;
+  isUnlimitedSponsoredUpload?: boolean;
   affiliateConfig?: AffiliateConfig;
   [key: string]: any;
 }

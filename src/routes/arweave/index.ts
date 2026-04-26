@@ -43,10 +43,10 @@ router.post(
     try {
       const { fileSize, ipfsHash } = req.body;
       if (!fileSize) throw new Error('MISSING_FILE_SIZE');
-      const {
-        arweaveId,
-        ETH,
-      } = await estimateUploadToArweaveV2(fileSize, ipfsHash);
+      const [{ arweaveId, ETH }, quota] = await Promise.all([
+        estimateUploadToArweaveV2(fileSize, ipfsHash),
+        req.user?.wallet ? getRemainingQuota(req.user.wallet) : Promise.resolve(null),
+      ]);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveEstimateV2',
@@ -61,16 +61,19 @@ router.post(
         evmAddress: string;
         remainingBytes?: number;
         remainingUploads?: number;
+        isUnlimited?: boolean;
       } = {
         arweaveId,
         ETH,
         memo: JSON.stringify({ ipfs: ipfsHash, fileSize }),
         evmAddress: ARWEAVE_EVM_TARGET_ADDRESS,
       };
-      if (req.user?.wallet) {
-        const quota = await getRemainingQuota(req.user.wallet);
-        result.remainingBytes = quota.remainingBytes;
-        result.remainingUploads = quota.remainingUploads;
+      if (quota) {
+        result.isUnlimited = quota.isUnlimited;
+        if (!quota.isUnlimited) {
+          result.remainingBytes = quota.remainingBytes;
+          result.remainingUploads = quota.remainingUploads;
+        }
       }
       res.json(result);
     } catch (error) {

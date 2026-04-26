@@ -5,12 +5,13 @@ import {
   ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT,
   ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT,
 } from '../../../../config/config';
+import type { NFTBookUserData } from '../../../types/book';
 
 function getTodayUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function readTodayQuota(data: FirebaseFirestore.DocumentData | undefined, today: string) {
+function readTodayQuota(data: NFTBookUserData | undefined, today: string) {
   const isToday = data?.lastSponsoredUploadDate === today;
   return {
     currentBytes: isToday ? (data?.sponsoredUploadBytes || 0) : 0,
@@ -19,16 +20,26 @@ function readTodayQuota(data: FirebaseFirestore.DocumentData | undefined, today:
   };
 }
 
+function hasUnlimitedSponsoredUpload(data: NFTBookUserData | undefined): boolean {
+  return !!data?.isUnlimitedSponsoredUpload;
+}
+
 export async function getRemainingQuota(wallet: string): Promise<{
-  remainingBytes: number;
-  remainingUploads: number;
+  remainingBytes?: number;
+  remainingUploads?: number;
+  isUnlimited: boolean;
 }> {
   const doc = await likeNFTBookUserCollection.doc(wallet).get();
+  const data = doc.data();
+  if (hasUnlimitedSponsoredUpload(data)) {
+    return { isUnlimited: true };
+  }
   const today = getTodayUTC();
-  const { currentBytes, currentCount } = readTodayQuota(doc.data(), today);
+  const { currentBytes, currentCount } = readTodayQuota(data, today);
   return {
     remainingBytes: Math.max(0, ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT - currentBytes),
     remainingUploads: Math.max(0, ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT - currentCount),
+    isUnlimited: false,
   };
 }
 
@@ -48,13 +59,17 @@ export async function checkAndReserveQuota(
   const docRef = likeNFTBookUserCollection.doc(wallet);
   await db.runTransaction(async (t) => {
     const doc = await t.get(docRef);
-    const { currentBytes, currentCount, currentETH } = readTodayQuota(doc.data(), today);
+    const data = doc.data();
+    const isUnlimited = hasUnlimitedSponsoredUpload(data);
+    const { currentBytes, currentCount, currentETH } = readTodayQuota(data, today);
 
-    if (currentBytes + fileSize > ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT) {
-      throw new ValidationError('DAILY_QUOTA_EXCEEDED', 403);
-    }
-    if (currentCount + 1 > ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT) {
-      throw new ValidationError('DAILY_QUOTA_EXCEEDED', 403);
+    if (!isUnlimited) {
+      if (currentBytes + fileSize > ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT) {
+        throw new ValidationError('DAILY_QUOTA_EXCEEDED', 403);
+      }
+      if (currentCount + 1 > ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT) {
+        throw new ValidationError('DAILY_QUOTA_EXCEEDED', 403);
+      }
     }
 
     const newETH = new BigNumber(currentETH).plus(ethCostBN).toFixed();
