@@ -276,7 +276,7 @@ router.post(
 
 router.post(
   '/update',
-  jwtAuth('write'),
+  jwtAuth('write:profile'),
   async (req, res, next) => {
     try {
       const { user } = req.user;
@@ -376,7 +376,7 @@ router.post(
 
 router.post(
   '/update/avatar',
-  jwtAuth('write'),
+  jwtAuth('write:profile'),
   multer.single('avatarFile'),
   async (req, res, next) => {
     try {
