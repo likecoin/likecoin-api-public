@@ -10,6 +10,11 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 import type { BookPurchaseCommission } from '../../../types/book';
 
+const STRIPE_CONNECT_REDIRECT_HOSTS: Record<string, string> = {
+  press: NFT_BOOKSTORE_HOSTNAME,
+  store: BOOK3_HOSTNAME,
+};
+
 const router = Router();
 
 router.get(
@@ -123,6 +128,11 @@ router.post(
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
+      const { site = 'press' } = req.body || {};
+      const redirectHost = STRIPE_CONNECT_REDIRECT_HOSTS[site as string];
+      if (!redirectHost) {
+        throw new ValidationError('INVALID_SITE');
+      }
       const userInfo = await getBookUserInfoFromWallet(wallet);
       const { bookUserInfo, likerUserInfo } = userInfo;
       const {
@@ -165,8 +175,8 @@ router.post(
       }
       const accountLink = await stripe.accountLinks.create({
         account: stripeConnectAccountId,
-        refresh_url: `https://${NFT_BOOKSTORE_HOSTNAME}/settings/connect/refresh`,
-        return_url: `https://${NFT_BOOKSTORE_HOSTNAME}/settings/connect/return`,
+        refresh_url: `https://${redirectHost}/settings/connect/refresh`,
+        return_url: `https://${redirectHost}/settings/connect/return`,
         type: 'account_onboarding',
       });
       await likeNFTBookUserCollection.doc(wallet).set({
