@@ -31,7 +31,7 @@ function getIntercomClient(): IntercomClient | null {
 
 export function createIntercomToken(payload: JwtPayload): string | undefined {
   if (!INTERCOM_API_SECRET) return undefined;
-  return jwt.sign(payload, INTERCOM_API_SECRET, { expiresIn: '1h' });
+  return jwt.sign(payload, INTERCOM_API_SECRET, { expiresIn: '1d' });
 }
 
 async function findIntercomLeadByEmail(
