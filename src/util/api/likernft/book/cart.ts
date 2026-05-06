@@ -1050,10 +1050,19 @@ export async function createFreeBookCartForFreeIds({
   const cartId = uuidv4();
   const paymentId = cartId;
   const claimToken = uuidv4();
-  const cartItems = classIds.map((classId) => ({
-    classId,
-    priceIndex: 0,
-    priceInDecimal: 0,
+  const cartItems = await Promise.all(classIds.map(async (classId) => {
+    const bookInfo = await getNftBookInfo(classId);
+    if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
+    const { prices = [] } = bookInfo;
+    const priceIndex = prices.findIndex((p) => p.priceInDecimal === 0);
+    if (priceIndex === -1) {
+      throw new ValidationError('FREE_BOOK_CART_ITEM_PRICE_NOT_FREE');
+    }
+    return {
+      classId,
+      priceIndex,
+      priceInDecimal: 0,
+    };
   }));
   // eslint-disable-next-line no-use-before-define
   const itemInfos = await formatCartItemsWithInfo(cartItems);
