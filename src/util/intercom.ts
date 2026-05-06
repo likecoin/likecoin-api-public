@@ -34,6 +34,24 @@ export function createIntercomToken(payload: JwtPayload): string | undefined {
   return jwt.sign(payload, INTERCOM_API_SECRET, { expiresIn: '1d' });
 }
 
+// Intercom Identity Verification expects snake_case payload keys; centralize
+// the camelCase → snake_case mapping so call sites can't drift.
+export function createIntercomTokenForUser({
+  user,
+  email,
+  evmWallet,
+}: {
+  user: string;
+  email?: string;
+  evmWallet?: string;
+}): string | undefined {
+  return createIntercomToken({
+    user_id: user,
+    email,
+    evm_wallet: evmWallet,
+  });
+}
+
 async function findIntercomLeadByEmail(
   email: string,
 ): Promise<Contact | null> {
