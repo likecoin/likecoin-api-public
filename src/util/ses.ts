@@ -1125,7 +1125,7 @@ export function sendPlusBookPromoCodeEmail({
 }) {
   const isEn = language === 'en';
   const lang = isEn ? 'en' : 'zh-Hant';
-  const ownerName = ownerDisplayName || '3ook.com';
+  const ownerName = (ownerDisplayName.replace(/[\r\n]+/g, ' ').trim()) || '3ook.com';
   const hasVoice = !!voiceName;
   const safeCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[]).includes(currency)
     ? currency
@@ -1135,9 +1135,10 @@ export function sendPlusBookPromoCodeEmail({
   const safeOwnerName = escapeHtml(ownerName);
   const safeVoiceName = voiceName ? escapeHtml(voiceName) : '';
   const safeBookNames = bookNames.map(escapeHtml);
-  const title = isEn
+  const subjectTitle = isEn
     ? `A surprise for ${ownerName} readers — unlock 3ook.com Plus membership!`
     : `${ownerName} 讀者的專屬驚喜，開信即享 3ook.com Plus 會員資格！`;
+  const htmlTitle = escapeHtml(subjectTitle);
   let voice = { leadIn: '', bullet: '', note: '' };
   if (hasVoice) {
     voice = isEn
@@ -1183,14 +1184,14 @@ export function sendPlusBookPromoCodeEmail({
     Message: {
       Subject: {
         Charset: 'UTF-8',
-        Data: TEST_MODE ? `(TESTNET) ${title}` : title,
+        Data: TEST_MODE ? `(TESTNET) ${subjectTitle}` : subjectTitle,
       },
       Body: {
         Html: {
           Charset: 'UTF-8',
           Data: isEn
             ? getNFTTwoContentWithMessageAndButtonTemplate({
-              title1: title,
+              title1: htmlTitle,
               content1: `<p>Dear ${safeDisplayName || 'reader'},</p>
             <p>Thank you for purchasing ${safeBookNames.length > 1 ? 'the following ebooks from' : 'the following ebook from'} ${safeOwnerName}:</p>
             <ul>${safeBookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
@@ -1219,7 +1220,7 @@ export function sendPlusBookPromoCodeEmail({
             <p>3ook.com Bookstore</p>`,
             }).body
             : getNFTTwoContentWithMessageAndButtonTemplate({
-              title1: title,
+              title1: htmlTitle,
               content1: `<p>親愛的 ${safeDisplayName || '讀者'}：</p>
             <p>謝謝您購買 ${safeOwnerName} 以下電子書：</p>
             <ul>${safeBookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
