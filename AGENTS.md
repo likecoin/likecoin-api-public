@@ -32,7 +32,7 @@ CI (CircleCI, `cimg/node:20.20`) runs **lint → build → start (background) �
 
 ## Build pipeline gotchas
 
-`npm run build` is `npm run clean && tsc && cp src/locales/*.json dist/src/locales/`. Two non-obvious steps:
+`npm run build` is `npm run clean && NODE_ENV=production tsc && cp src/locales/*.json dist/src/locales/`. Two non-obvious steps:
 
 1. **`npm run clean` creates a symlink** `dist/config -> ../config` so compiled code can resolve `require('../../config/config')` against the project's `config/` directory. Don't manually create `dist/config/` — it must remain a symlink.
 2. **Locale JSON files are copied manually** (tsc doesn't emit them). New files in `src/locales/` only reach prod through this final `cp`. If you add a new file extension under `src/`, update the `build` script too.
