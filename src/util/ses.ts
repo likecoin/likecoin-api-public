@@ -1093,6 +1093,15 @@ function formatPlusMonthlyPrice(currency: SupportedPlusCurrency): string {
   return `${PLUS_CURRENCY_SYMBOLS[currency]}${formatted}`;
 }
 
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function sendPlusBookPromoCodeEmail({
   email,
   code,
@@ -1122,6 +1131,10 @@ export function sendPlusBookPromoCodeEmail({
     ? currency
     : 'usd';
   const monthlyPriceLabel = formatPlusMonthlyPrice(safeCurrency);
+  const safeDisplayName = displayName ? escapeHtml(displayName) : '';
+  const safeOwnerName = escapeHtml(ownerName);
+  const safeVoiceName = voiceName ? escapeHtml(voiceName) : '';
+  const safeBookNames = bookNames.map(escapeHtml);
   const title = isEn
     ? `A surprise for ${ownerName} readers — unlock 3ook.com Plus membership!`
     : `${ownerName} 讀者的專屬驚喜，開信即享 3ook.com Plus 會員資格！`;
@@ -1129,14 +1142,14 @@ export function sendPlusBookPromoCodeEmail({
   if (hasVoice) {
     voice = isEn
       ? {
-        leadIn: `<p>Beyond unlocking AI reading features across your library, there's a hidden surprise — listen to your books in ${voiceName}'s voice!</p>`,
-        bullet: `<li>Exclusive! Listen to books narrated by ${voiceName}</li>`,
-        note: `<li>${voiceName}'s narration is only available for selected ${ownerName} titles.</li>`,
+        leadIn: `<p>Beyond unlocking AI reading features across your library, there's a hidden surprise — listen to your books in ${safeVoiceName}'s voice!</p>`,
+        bullet: `<li>Exclusive! Listen to books narrated by ${safeVoiceName}</li>`,
+        note: `<li>${safeVoiceName}'s narration is only available for selected ${safeOwnerName} titles.</li>`,
       }
       : {
-        leadIn: `<p>除了能解鎖書櫃的 AI 閱讀功能，還有隱藏版驚喜——切換 ${voiceName} 的聲音來聽書！</p>`,
-        bullet: `<li>獨家！${voiceName} 聲線朗讀聽書</li>`,
-        note: `<li>${voiceName} 的朗讀功能僅適用於 ${ownerName} 指定書目。</li>`,
+        leadIn: `<p>除了能解鎖書櫃的 AI 閱讀功能，還有隱藏版驚喜——切換 ${safeVoiceName} 的聲音來聽書！</p>`,
+        bullet: `<li>獨家！${safeVoiceName} 聲線朗讀聽書</li>`,
+        note: `<li>${safeVoiceName} 的朗讀功能僅適用於 ${safeOwnerName} 指定書目。</li>`,
       };
   }
   const plusPageURL = getPlusPageURL({
@@ -1178,12 +1191,12 @@ export function sendPlusBookPromoCodeEmail({
           Data: isEn
             ? getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
-              content1: `<p>Dear ${displayName || 'reader'},</p>
-            <p>Thank you for purchasing ${bookNames.length > 1 ? 'the following ebooks from' : 'the following ebook from'} ${ownerName}:</p>
-            <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
+              content1: `<p>Dear ${safeDisplayName || 'reader'},</p>
+            <p>Thank you for purchasing ${safeBookNames.length > 1 ? 'the following ebooks from' : 'the following ebook from'} ${safeOwnerName}:</p>
+            <ul>${safeBookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
             <p>You have received our limited-time gift: <strong>1 month of 3ook.com Plus membership (worth ${monthlyPriceLabel})</strong>.</p>
             ${voice.leadIn}
-            <p><strong>${ownerName} exclusive · Plus member features</strong></p>
+            <p><strong>${safeOwnerName} exclusive · Plus member features</strong></p>
             <ul>
               ${voice.bullet}
               <li>Record your own voice to create a personal narrator</li>
@@ -1202,17 +1215,17 @@ export function sendPlusBookPromoCodeEmail({
               ${voice.note}
             </ul>
             <p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.</p>
-            <p>Thank you again for supporting ${ownerName}'s books.<br>May you find more joy of reading between voice and text.</p>
+            <p>Thank you again for supporting ${safeOwnerName}'s books.<br>May you find more joy of reading between voice and text.</p>
             <p>3ook.com Bookstore</p>`,
             }).body
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
-              content1: `<p>親愛的 ${displayName || '讀者'}：</p>
-            <p>謝謝您購買 ${ownerName} 以下電子書：</p>
-            <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
+              content1: `<p>親愛的 ${safeDisplayName || '讀者'}：</p>
+            <p>謝謝您購買 ${safeOwnerName} 以下電子書：</p>
+            <ul>${safeBookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
             <p>您已獲得期間活動限定贈禮「<strong>3ook.com Plus 會員一個月（價值 ${monthlyPriceLabel}）</strong>」。</p>
             ${voice.leadIn}
-            <p><strong>【${ownerName} 獨家合作．Plus 會員功能】</strong></p>
+            <p><strong>【${safeOwnerName} 獨家合作．Plus 會員功能】</strong></p>
             <ul>
               ${voice.bullet}
               <li>自行錄製聲線，打造專屬聲優</li>
@@ -1231,7 +1244,7 @@ export function sendPlusBookPromoCodeEmail({
               ${voice.note}
             </ul>
             <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
-            <p>再次謝謝您支持 ${ownerName} 書籍，<br>願您能在聲音與文字間，發現更多閱讀的樂趣。</p>
+            <p>再次謝謝您支持 ${safeOwnerName} 書籍，<br>願您能在聲音與文字間，發現更多閱讀的樂趣。</p>
             <p>3ook.com 書店 敬上</p>`,
             }).body,
         },

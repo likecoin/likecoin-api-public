@@ -449,6 +449,7 @@ export async function processNFTBookCart(
     let promoOwnerLikerId: string | undefined;
     let promoOwnerDisplayName: string | undefined;
     let promoOwnerVoices: { name: string; language?: string }[] | undefined;
+    const promoOwnerLikerIds = new Set<string>();
     for (let itemIndex = 0; itemIndex < infoList.length; itemIndex += 1) {
       const info = infoList[itemIndex];
       const {
@@ -506,18 +507,20 @@ export async function processNFTBookCart(
       const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
       const ownerLikerInfo = ownerInfo?.likerUserInfo as any;
       if (
-        !promoOwnerLikerId
-        && (listingData as any)?.plusPromoEnabled === true
+        (listingData as any)?.plusPromoEnabled === true
         && ownerLikerInfo?.user
       ) {
-        promoOwnerLikerId = ownerLikerInfo.user;
-        promoOwnerDisplayName = ownerLikerInfo.displayName;
-        const ownerAffiliateConfig = ownerInfo?.bookUserInfo?.affiliateConfig;
-        if (ownerAffiliateConfig?.active && ownerAffiliateConfig.customVoices?.length) {
-          promoOwnerVoices = ownerAffiliateConfig.customVoices.map((v) => ({
-            name: v.name,
-            language: v.language,
-          }));
+        promoOwnerLikerIds.add(ownerLikerInfo.user);
+        if (!promoOwnerLikerId) {
+          promoOwnerLikerId = ownerLikerInfo.user;
+          promoOwnerDisplayName = ownerLikerInfo.displayName;
+          const ownerAffiliateConfig = ownerInfo?.bookUserInfo?.affiliateConfig;
+          if (ownerAffiliateConfig?.active && ownerAffiliateConfig.customVoices?.length) {
+            promoOwnerVoices = ownerAffiliateConfig.customVoices.map((v) => ({
+              name: v.name,
+              language: v.language,
+            }));
+          }
         }
       }
       const ownerEmail = ownerLikerInfo?.isEmailVerified
@@ -736,19 +739,22 @@ export async function processNFTBookCart(
                 ? (paymentCurrency as SupportedPlusCurrency)
                 : undefined;
               const voiceLangPrefix = emailLanguage === 'en' ? 'en' : 'zh';
-              const matchedVoice = promoOwnerVoices?.find(
-                (v) => v.language?.toLowerCase().startsWith(voiceLangPrefix),
-              ) || promoOwnerVoices?.[0];
+              const isSinglePromoOwner = promoOwnerLikerIds.size === 1;
+              const matchedVoice = isSinglePromoOwner
+                ? (promoOwnerVoices?.find(
+                  (v) => v.language?.toLowerCase().startsWith(voiceLangPrefix),
+                ) || promoOwnerVoices?.[0])
+                : undefined;
               await sendPlusBookPromoCodeEmail({
                 email,
                 code: LIKER_PLUS_BOOK_PROMO_COUPON_CODE,
                 bookNames: promoBookNames,
                 displayName: buyerDisplayName,
-                ownerDisplayName: promoOwnerDisplayName,
+                ownerDisplayName: isSinglePromoOwner ? promoOwnerDisplayName : undefined,
                 voiceName: matchedVoice?.name,
                 language: emailLanguage,
                 currency: promoCurrency,
-                fromLikerId: promoOwnerLikerId,
+                fromLikerId: isSinglePromoOwner ? promoOwnerLikerId : undefined,
               });
               publisher.publish(PUBSUB_TOPIC_MISC, req, {
                 logType: 'PlusBookPromoCodeEmailSent',
