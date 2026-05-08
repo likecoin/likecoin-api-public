@@ -10,6 +10,8 @@ import {
   PUBSUB_TOPIC_MISC,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   PLUS_YEARLY_PRICE,
+  SUPPORTED_PLUS_CURRENCIES,
+  type SupportedPlusCurrency,
 } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import { getBook3CartURL, getBook3NFTClaimPageURL, getBook3NFTGiftPageURL } from '../../../liker-land';
@@ -445,6 +447,8 @@ export async function processNFTBookCart(
     const infoList = classInfos;
     const bookNames: string[] = [];
     let promoOwnerLikerId: string | undefined;
+    let promoOwnerDisplayName: string | undefined;
+    let promoOwnerVoices: { name: string; language?: string }[] | undefined;
     for (let itemIndex = 0; itemIndex < infoList.length; itemIndex += 1) {
       const info = infoList[itemIndex];
       const {
@@ -507,6 +511,14 @@ export async function processNFTBookCart(
         && ownerLikerInfo?.user
       ) {
         promoOwnerLikerId = ownerLikerInfo.user;
+        promoOwnerDisplayName = ownerLikerInfo.displayName;
+        const ownerAffiliateConfig = ownerInfo?.bookUserInfo?.affiliateConfig;
+        if (ownerAffiliateConfig?.active && ownerAffiliateConfig.customVoices?.length) {
+          promoOwnerVoices = ownerAffiliateConfig.customVoices.map((v) => ({
+            name: v.name,
+            language: v.language,
+          }));
+        }
       }
       const ownerEmail = ownerLikerInfo?.isEmailVerified
         ? ownerLikerInfo?.email
@@ -718,12 +730,24 @@ export async function processNFTBookCart(
               buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
             }
             if (!buyerUserInfo?.isLikerPlus) {
+              const paymentCurrency = paymentIntent?.currency?.toLowerCase();
+              const promoCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[])
+                .includes(paymentCurrency || '')
+                ? (paymentCurrency as SupportedPlusCurrency)
+                : undefined;
+              const voiceLangPrefix = emailLanguage === 'en' ? 'en' : 'zh';
+              const matchedVoice = promoOwnerVoices?.find(
+                (v) => v.language?.toLowerCase().startsWith(voiceLangPrefix),
+              ) || promoOwnerVoices?.[0];
               await sendPlusBookPromoCodeEmail({
                 email,
                 code: LIKER_PLUS_BOOK_PROMO_COUPON_CODE,
                 bookNames: promoBookNames,
                 displayName: buyerDisplayName,
+                ownerDisplayName: promoOwnerDisplayName,
+                voiceName: matchedVoice?.name,
                 language: emailLanguage,
+                currency: promoCurrency,
                 fromLikerId: promoOwnerLikerId,
               });
               publisher.publish(PUBSUB_TOPIC_MISC, req, {

@@ -8,7 +8,11 @@ import {
   SALES_EMAIL,
   SYSTEM_EMAIL,
   CHAIN_EXPLORER_URL,
+  PLUS_MONTHLY_PRICE,
+  SUPPORTED_PLUS_CURRENCIES,
+  type SupportedPlusCurrency,
 } from '../constant';
+import { convertUSDPriceToCurrency } from './pricing';
 import {
   getPlusGiftPageClaimURL,
   getPlusPageURL,
@@ -1077,26 +1081,64 @@ export function sendNFTBookOutOfStockEmail({
   return ses.sendEmail(params);
 }
 
+const PLUS_CURRENCY_SYMBOLS: Record<SupportedPlusCurrency, string> = {
+  usd: 'US$',
+  hkd: 'HK$',
+  twd: 'NT$',
+};
+
+function formatPlusMonthlyPrice(currency: SupportedPlusCurrency): string {
+  const amount = convertUSDPriceToCurrency(PLUS_MONTHLY_PRICE, currency);
+  const formatted = currency === 'usd' ? amount.toFixed(2) : Math.round(amount).toString();
+  return `${PLUS_CURRENCY_SYMBOLS[currency]}${formatted}`;
+}
+
 export function sendPlusBookPromoCodeEmail({
   email,
   code,
   bookNames,
   displayName = '',
+  ownerDisplayName = '',
+  voiceName = '',
   language = 'zh',
+  currency = 'usd',
   fromLikerId,
 }: {
   email: string;
   code: string;
   bookNames: string[];
   displayName?: string;
+  ownerDisplayName?: string;
+  voiceName?: string;
   language?: string;
+  currency?: SupportedPlusCurrency;
   fromLikerId?: string;
 }) {
   const isEn = language === 'en';
   const lang = isEn ? 'en' : 'zh-Hant';
+  const ownerName = ownerDisplayName || '3ook.com';
+  const hasVoice = !!voiceName;
+  const safeCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[]).includes(currency)
+    ? currency
+    : 'usd';
+  const monthlyPriceLabel = formatPlusMonthlyPrice(safeCurrency);
   const title = isEn
-    ? 'Get 1 month of 3ook.com Plus, free'
-    : '免費獲得一個月 3ook.com Plus';
+    ? `A surprise for ${ownerName} readers — unlock 3ook.com Plus membership!`
+    : `${ownerName} 讀者的專屬驚喜，開信即享 3ook.com Plus 會員資格！`;
+  let voice = { leadIn: '', bullet: '', note: '' };
+  if (hasVoice) {
+    voice = isEn
+      ? {
+        leadIn: `<p>Beyond unlocking AI reading features across your library, there's a hidden surprise — listen to your books in ${voiceName}'s voice!</p>`,
+        bullet: `<li>Exclusive! Listen to books narrated by ${voiceName}</li>`,
+        note: `<li>${voiceName}'s narration is only available for selected ${ownerName} titles.</li>`,
+      }
+      : {
+        leadIn: `<p>除了能解鎖書櫃的 AI 閱讀功能，還有隱藏版驚喜——切換 ${voiceName} 的聲音來聽書！</p>`,
+        bullet: `<li>獨家！${voiceName} 聲線朗讀聽書</li>`,
+        note: `<li>${voiceName} 的朗讀功能僅適用於 ${ownerName} 指定書目。</li>`,
+      };
+  }
   const plusPageURL = getPlusPageURL({
     language: lang,
     coupon: code,
@@ -1137,30 +1179,60 @@ export function sendPlusBookPromoCodeEmail({
             ? getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
               content1: `<p>Dear ${displayName || 'reader'},</p>
-            <p>Thank you for purchasing the following ebook${bookNames.length > 1 ? 's' : ''}:</p>
+            <p>Thank you for purchasing ${bookNames.length > 1 ? 'the following ebooks from' : 'the following ebook from'} ${ownerName}:</p>
             <ul>${bookNames.map((name) => `<li>"${name}"</li>`).join('')}</ul>
-            <p>As a thank-you, here is <strong>1 month of 3ook.com Plus for free</strong>. Plus unlocks AI-powered reading features across your entire library.</p>
-            <p>Click the button below to activate your free month. Your subscription will renew automatically at the regular price after the first month — you can cancel anytime.</p>`,
-              buttonText1: 'Activate my free month',
+            <p>You have received our limited-time gift: <strong>1 month of 3ook.com Plus membership (worth ${monthlyPriceLabel})</strong>.</p>
+            ${voice.leadIn}
+            <p><strong>${ownerName} exclusive · Plus member features</strong></p>
+            <ul>
+              ${voice.bullet}
+              <li>Record your own voice to create a personal narrator</li>
+              <li>20% off all books, no limit</li>
+              <li>Dark mode and other exclusive features</li>
+              <li>Yearly-exclusive gift: any ebook of your choice, every year</li>
+            </ul>
+            <p>⬇️ Click below to activate your Plus membership ⬇️</p>`,
+              buttonText1: 'Claim my 1-month 3ook Plus membership',
               buttonHref1: plusPageURL,
-              append1: `<p>Promo code: <strong>${code}</strong></p>
-            <p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.
-            <br>May you enjoy the pleasure of reading.</p>
+              append1: `<p><strong>Subscription notes</strong></p>
+            <ul>
+              <li>Choose either an annual or monthly subscription — the system will automatically deduct one month's fee (${monthlyPriceLabel}).</li>
+              <li>The next month will renew at the regular price; you can cancel anytime on the website.</li>
+              <li>If the discount is not applied automatically, please enter the promo code manually: <strong>${code}</strong></li>
+              ${voice.note}
+            </ul>
+            <p>If you have any questions, please contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a>.</p>
+            <p>Thank you again for supporting ${ownerName}'s books.<br>May you find more joy of reading between voice and text.</p>
             <p>3ook.com Bookstore</p>`,
             }).body
             : getNFTTwoContentWithMessageAndButtonTemplate({
               title1: title,
-              content1: `<p>親愛的${displayName || '讀者'}：</p>
-            <p>感謝你購買以下電子書：</p>
+              content1: `<p>親愛的 ${displayName || '讀者'}：</p>
+            <p>謝謝您購買 ${ownerName} 以下電子書：</p>
             <ul>${bookNames.map((name) => `<li>《${name}》</li>`).join('')}</ul>
-            <p>為答謝你的支持，我們送上<strong>一個月免費的 3ook.com Plus 會籍</strong>。Plus 會籍將為你的整個書庫解鎖 AI 閱讀功能。</p>
-            <p>按以下按鈕啟用你的免費會籍。首月過後，會籍將按正常價格自動續訂，你可以隨時取消。</p>`,
-              buttonText1: '啟用我的免費會籍',
+            <p>您已獲得期間活動限定贈禮「<strong>3ook.com Plus 會員一個月（價值 ${monthlyPriceLabel}）</strong>」。</p>
+            ${voice.leadIn}
+            <p><strong>【${ownerName} 獨家合作．Plus 會員功能】</strong></p>
+            <ul>
+              ${voice.bullet}
+              <li>自行錄製聲線，打造專屬聲優</li>
+              <li>全站購書八折 無上限</li>
+              <li>專享深色模式等專屬功能</li>
+              <li>年費會員限定禮：每年全站任選電子書乙本</li>
+            </ul>
+            <p>⬇️ 點擊開啟 Plus 會員資格 ⬇️</p>`,
+              buttonText1: '領取我的 3ook Plus 會員資格一個月',
               buttonHref1: plusPageURL,
-              append1: `<p>優惠碼：<strong>${code}</strong></p>
-            <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
-            <br>願你享受閱讀的樂趣。</p>
-            <p>3ook.com 書店</p>`,
+              append1: `<p><strong>【訂閱說明】</strong></p>
+            <ul>
+              <li>可依需求自由選擇年費、月費會員訂閱，系統將會自動折抵「一個月會員費用 ${monthlyPriceLabel}」。</li>
+              <li>隔月系統將按原價續訂，可於網站內隨時取消。</li>
+              <li>如未自動帶入折扣，請手動輸入優惠序號：<strong>${code}</strong></li>
+              ${voice.note}
+            </ul>
+            <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
+            <p>再次謝謝您支持 ${ownerName} 書籍，<br>願您能在聲音與文字間，發現更多閱讀的樂趣。</p>
+            <p>3ook.com 書店 敬上</p>`,
             }).body,
         },
       },
