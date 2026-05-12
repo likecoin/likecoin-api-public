@@ -426,9 +426,11 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
       throw new ValidationError('Invalid likerId', 400);
     }
     const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
-    const affiliateConfig = userInfo?.bookUserInfo?.affiliateConfig;
+    const bookUserInfo = userInfo?.bookUserInfo;
+    const affiliateConfig = bookUserInfo?.affiliateConfig;
+    const isPlusDiscountAllowed = !!bookUserInfo?.isPlusDiscountAllowed;
     if (!affiliateConfig?.active) {
-      res.json({ active: false });
+      res.json({ active: false, isPlusDiscountAllowed });
       return;
     }
     res.json({
@@ -437,6 +439,7 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
       giftClassId: affiliateConfig.giftClassId,
       giftPriceIndex: affiliateConfig.giftPriceIndex || 0,
       giftOnTrial: !!affiliateConfig.giftOnTrial,
+      isPlusDiscountAllowed,
       customVoices: (affiliateConfig.customVoices || []).map((v) => ({
         id: v.id,
         name: v.name,

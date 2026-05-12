@@ -52,7 +52,8 @@ import {
   sendPlusBookPromoCodeEmail,
 } from '../../../ses';
 import logServerEvents from '../../../logServerEvents';
-import { getBookUserInfoFromWallet } from './user';
+import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from './user';
+import { normalizeLikerId } from '../../../ValidationHelper';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
   LIKER_PLUS_20_COUPON_ID,
@@ -1535,16 +1536,43 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     customerId = bookUserInfo?.stripeCustomerId;
     customerEmail = isEmailVerified ? userEmail : email;
 
-    if (isLikerPlus && checkIsFromLikerLand(from) && !coupon) {
-      couponId = LIKER_PLUS_20_COUPON_ID;
-      items = items.map((item) => ({
-        ...item,
-        from: undefined,
-      }));
-      itemInfos = itemInfos.map((item) => ({
-        ...item,
-        from: undefined,
-      }));
+    if (isLikerPlus && !coupon) {
+      let shouldApplyPlusDiscount = false;
+      let shouldClearFrom = false;
+      if (checkIsFromLikerLand(from)) {
+        // Default Liker Land channel: no real affiliate to pay — apply the
+        // discount and clear `from` so commission stays at zero.
+        shouldApplyPlusDiscount = true;
+        shouldClearFrom = true;
+      } else if (from && from.startsWith('@')) {
+        // Affiliate link: only honor the Plus discount if the affiliate has
+        // opted in. Keep `from` so the 30% channel commission still flows,
+        // reduced by the discount via calculateItemPrices' existing math.
+        try {
+          const affiliateUserInfo = await getBookUserInfoFromLikerId(
+            normalizeLikerId(from),
+          );
+          if (affiliateUserInfo?.bookUserInfo?.isPlusDiscountAllowed) {
+            shouldApplyPlusDiscount = true;
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to resolve affiliate Plus-discount flag:', err);
+        }
+      }
+      if (shouldApplyPlusDiscount) {
+        couponId = LIKER_PLUS_20_COUPON_ID;
+        if (shouldClearFrom) {
+          items = items.map((item) => ({
+            ...item,
+            from: undefined,
+          }));
+          itemInfos = itemInfos.map((item) => ({
+            ...item,
+            from: undefined,
+          }));
+        }
+      }
     }
   }
   const paymentId = uuidv4();

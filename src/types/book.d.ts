@@ -269,6 +269,12 @@ export interface NFTBookUserData {
   lastSponsoredUploadDate?: string;
   isUnlimitedSponsoredUpload?: boolean;
   affiliateConfig?: AffiliateConfig;
+  /** When true, Plus members arriving via this user's `from=@likerId`
+   *  channel still receive the 20% Plus discount; the 30% channel share
+   *  absorbs the discount cost via the existing commission math in
+   *  `calculateItemPrices`. Lives at the user-doc root because channel
+   *  commission flows from `from` regardless of `affiliateConfig.active`. */
+  isPlusDiscountAllowed?: boolean;
   [key: string]: any;
 }
 
