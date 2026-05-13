@@ -27,7 +27,7 @@ npm run test:watch    # Watch mode
 npm run test:coverage # v8 coverage
 ```
 
-CI (CircleCI, `cimg/node:20.20`) runs **lint → build → start (background) → wget /healthz → test**. Replicate this sequence locally before pushing.
+CI (CircleCI, `cimg/node:24.10`) runs **lint → build → start (background) → wget /healthz → test**. Replicate this sequence locally before pushing.
 
 ## Configuration
 

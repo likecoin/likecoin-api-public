@@ -3,7 +3,7 @@ jobs:
   test:
     working_directory: ~/likecoin-api-public
     docker:
-      - image: cimg/node:20.20
+      - image: cimg/node:24.10
     resource_class: medium+
     steps:
       - checkout

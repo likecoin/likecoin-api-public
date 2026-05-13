@@ -2,7 +2,7 @@
   "name": "likecoin-api-public",
   "version": "1.0.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "description": "",
   "main": "src/index.js",
@@ -33,7 +33,7 @@
     "@google-cloud/pubsub": "^5.2.0",
     "@google-cloud/storage": "^7.16.0",
     "@irys/sdk": "^0.2.11",
-    "@likecoin/edm": "^10.2.0",
+    "@likecoin/edm": "^10.3.0",
     "@likecoin/iscn-js": "^0.6.9",
     "@likecoin/secretd-js": "^0.4.4",
     "@magic-sdk/admin": "^2.4.1",
@@ -81,7 +81,7 @@
   "devDependencies": {
     "@types/cookie-parser": "^1.4.3",
     "@types/express": "^4.17.14",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/sharp": "^0.31.0",
     "@types/url-parse": "^1.4.8",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

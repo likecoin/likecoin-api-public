@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents (Claude Code, GitHub Copilot, Cu
 
 ## Repository
 
-REST API backend for the like.co platform. Express.js + TypeScript on Node.js 20+, with Firebase Firestore as the primary datastore. Surface area covers user accounts, OAuth, Cosmos/LikeCoin chain interactions, NFT/book commerce, Stripe-backed fiat purchases, Liker Plus subscriptions, Arweave uploads, and email/notifications.
+REST API backend for the like.co platform. Express.js + TypeScript on Node.js 24+, with Firebase Firestore as the primary datastore. Surface area covers user accounts, OAuth, Cosmos/LikeCoin chain interactions, NFT/book commerce, Stripe-backed fiat purchases, Liker Plus subscriptions, Arweave uploads, and email/notifications.
 
 For a public-facing overview and quick start, see [README.md](./README.md).
 
@@ -28,7 +28,7 @@ npx vitest run test/api/user.test.ts
 npx vitest run -t "Register"
 ```
 
-CI (CircleCI, `cimg/node:20.20`) runs **lint → build → start (background) → wget /healthz → test** in that order. Replicate this sequence locally before pushing.
+CI (CircleCI, `cimg/node:24.10`) runs **lint → build → start (background) → wget /healthz → test** in that order. Replicate this sequence locally before pushing.
 
 ## Build pipeline gotchas
 
