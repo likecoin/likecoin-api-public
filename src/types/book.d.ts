@@ -176,6 +176,7 @@ export interface NFTBookListingInfo {
   isApprovedForAds?: boolean;
   approvalStatus?: string;
   plusPromoEnabled?: boolean;
+  isPlusReadingEnabled?: boolean;
   successUrl?: string;
   cancelUrl?: string;
 }
@@ -228,6 +229,7 @@ export interface NFTBookListingInfoFiltered {
   isApprovedForAds: boolean;
   approvalStatus?: string;
   plusPromoEnabled?: boolean;
+  isPlusReadingEnabled?: boolean;
 }
 
 export interface AffiliateCustomVoice {
