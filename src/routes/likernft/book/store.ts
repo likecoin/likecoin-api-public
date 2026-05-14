@@ -192,11 +192,6 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
     const bookInfo = await getNftBookInfo(classId);
-
-    if (!bookInfo) {
-      res.status(404).send('BOOK_NOT_FOUND');
-      return;
-    }
     const {
       prices = [],
       ownerWallet,
@@ -228,7 +223,6 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     const price = validatePrice(inputPrice);
 
     const bookInfo = await getNftBookInfo(classId);
-    if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
     const {
       ownerWallet,
       moderatorWallets = [],
@@ -298,8 +292,6 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     const priceIndex = Number(priceIndexString);
     const bookInfo = await getNftBookInfo(classId);
-    if (!bookInfo) throw new ValidationError('BOOK_NOT_FOUND', 404);
-
     const {
       prices = [],
       name,
@@ -393,10 +385,6 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
 
-    if (!bookInfo) {
-      throw new ValidationError('BOOK_NOT_FOUND', 404);
-    }
-
     const priceIndex = Number(req.params.priceIndex);
     const {
       prices = [],
@@ -452,7 +440,6 @@ router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
-    if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
     const {
       ownerWallet,
       moderatorWallets = [],
@@ -685,7 +672,6 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       isPlusReadingEnabled,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
-    if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
     const {
       ownerWallet,
       moderatorWallets: existingModeratorWallets = [],
@@ -743,7 +729,6 @@ router.post(
     try {
       const { classId } = req.params;
       const bookInfo = await getNftBookInfo(classId);
-      if (!bookInfo) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const {
         ownerWallet,
         moderatorWallets = [],

@@ -335,10 +335,10 @@ export async function newNftBookInfo(
   };
 }
 
-export async function getNftBookInfo(classId: string) {
+export async function getNftBookInfo(classId: string): Promise<NFTBookListingInfo> {
   const doc = await likeNFTBookCollection.doc(classId).get();
-  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND');
-  return doc.data();
+  if (!doc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  return doc.data()!;
 }
 
 export async function syncNFTBookInfoWithISCN(classId) {
