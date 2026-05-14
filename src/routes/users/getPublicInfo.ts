@@ -59,7 +59,8 @@ router.get('/id/:id/avatar', async (req, res, next) => {
       });
       const cacheTime = 3600;
       res.set('Cache-Control', `public, max-age=${cacheTime}, s-maxage=${cacheTime}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.type(headers['content-type'] || 'image/jpeg');
+      const contentType = headers['content-type'];
+      res.type(typeof contentType === 'string' ? contentType : 'image/jpeg');
       data.pipe(resizer).pipe(res);
     } catch (error) {
       if (avatar === AVATAR_DEFAULT_PATH) {
@@ -75,7 +76,8 @@ router.get('/id/:id/avatar', async (req, res, next) => {
         responseType: 'stream',
       });
       res.set('Cache-Control', 'no-store');
-      res.type(headers['content-type'] || 'image/jpeg');
+      const contentType = headers['content-type'];
+      res.type(typeof contentType === 'string' ? contentType : 'image/jpeg');
       data.pipe(resizer).pipe(res);
     }
   } catch (err) {

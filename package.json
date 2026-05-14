@@ -42,7 +42,7 @@
     "airtable": "^0.12.2",
     "arbundles": "^0.9.9",
     "arweave": "^1.10.17",
-    "axios": "^1.15.0",
+    "axios": "^1.16.1",
     "base64url": "^3.0.1",
     "bech32": "^1.1.3",
     "bignumber.js": "^8.0.1",
