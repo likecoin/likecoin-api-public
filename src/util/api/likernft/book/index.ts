@@ -9,12 +9,10 @@ import {
 } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
 import {
-  MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   NFT_BOOK_TEXT_LOCALES,
   NFT_BOOKSTORE_HOSTNAME,
 } from '../../../../constant';
-
 import {
   getNFTClassDataById as getEVMNftClassDataById,
   isEVMClassId,
@@ -558,77 +556,6 @@ export async function listNftBookInfoByModeratorWallet(
     const docData = doc.data() as NFTBookListingInfo;
     return { id: doc.id, ...docData };
   });
-}
-
-export function validatePrice(price: NFTBookPrice) {
-  const {
-    autoMemo,
-    order,
-    stock,
-    name = {},
-    description = {},
-    isAllowCustomPrice,
-    isAutoDeliver,
-    isUnlisted,
-    priceInDecimal,
-  } = price;
-  if (!(
-    typeof priceInDecimal === 'number'
-    && priceInDecimal >= 0
-    && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL)
-  )) {
-    throw new ValidationError('INVALID_PRICE');
-  }
-  if (!(typeof stock === 'number' && stock >= 0)) {
-    throw new ValidationError('INVALID_PRICE_STOCK');
-  }
-  if (!(typeof name[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
-    && Object.values(name).every((n) => typeof n === 'string'))) {
-    throw new ValidationError('INVALID_PRICE_NAME');
-  }
-  if (!(typeof description[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string'
-    && Object.values(description).every((n) => typeof n === 'string'))) {
-    throw new ValidationError('INVALID_PRICE_DESCRIPTION');
-  }
-  return {
-    autoMemo,
-    order,
-    priceInDecimal,
-    stock,
-    name,
-    description,
-    isAutoDeliver,
-    isUnlisted,
-    isAllowCustomPrice,
-  };
-}
-
-export function validatePrices(prices: NFTBookPrice[]) {
-  if (!prices.length) throw new ValidationError('PRICES_ARE_EMPTY');
-  let i = 0;
-  let autoDeliverTotalStock = 0;
-  let manualDeliverTotalStock = 0;
-  const outputPrices: NFTBookPrice[] = [];
-  try {
-    for (i = 0; i < prices.length; i += 1) {
-      const inputPrice = prices[i];
-      const price = validatePrice(inputPrice);
-      outputPrices.push(price);
-      if (price.isAutoDeliver) {
-        autoDeliverTotalStock += price.stock;
-      } else {
-        manualDeliverTotalStock += price.stock;
-      }
-    }
-  } catch (err) {
-    const errorMessage = `${(err as Error).message}_in_${i}`;
-    throw new ValidationError(errorMessage);
-  }
-  return {
-    prices: outputPrices,
-    autoDeliverTotalStock,
-    manualDeliverTotalStock,
-  };
 }
 
 export function getNFTBookStoreClassPageURL(classId: string) {

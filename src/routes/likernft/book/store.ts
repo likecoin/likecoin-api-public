@@ -7,14 +7,20 @@ import {
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
   updateNftBookInfo,
-  validatePrice,
-  validatePrices,
   getLocalizedTextWithFallback,
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
   syncNFTBookInfoWithISCN,
   getStripeProductMetadata,
 } from '../../../util/api/likernft/book';
+import {
+  ImageUploadBodySchema,
+  ListingSettingsBodySchema,
+  NewListingBodySchema,
+  PriceMutationBodySchema,
+  PriceReorderBodySchema,
+} from '../../../util/api/likernft/book/schemas';
+import { validateBody } from '../../../middleware/validate';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
   getNFTClassOwner as getEVMNFTClassOwner,
@@ -213,14 +219,11 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   }
 });
 
-router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
-    const {
-      price: inputPrice,
-    } = req.body;
-    const price = validatePrice(inputPrice);
+    const { price } = req.body;
 
     const bookInfo = await getNftBookInfo(classId);
     const {
@@ -282,13 +285,10 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   }
 });
 
-router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
-    const {
-      price: inputPrice,
-    } = req.body;
-    const price = validatePrice(inputPrice);
+    const { price } = req.body;
 
     const priceIndex = Number(priceIndexString);
     const bookInfo = await getNftBookInfo(classId);
@@ -380,7 +380,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   }
 });
 
-router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), validateBody(PriceReorderBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -397,9 +397,8 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
 
-    const { order: newOrderString } = req.body;
-    const newOrder = Number(newOrderString);
-    if (newOrder < 0 || newOrder >= prices.length) {
+    const { order: newOrder } = req.body;
+    if (newOrder >= prices.length) {
       throw new ValidationError('INVALID_NEW_PRICE_ORDER', 400);
     }
     const oldOrder = priceInfo.order;
@@ -460,13 +459,13 @@ router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), validateBody(NewListingBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
       successUrl,
       cancelUrl,
-      prices: inputPrices = [],
+      prices,
       moderatorWallets = [],
       connectedWallets,
       mustClaimToView = false,
@@ -491,11 +490,12 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets: [] }, req);
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
 
-    const {
-      prices,
-      autoDeliverTotalStock,
-      manualDeliverTotalStock,
-    } = validatePrices(inputPrices);
+    let autoDeliverTotalStock = 0;
+    let manualDeliverTotalStock = 0;
+    for (const p of prices) {
+      if (p.isAutoDeliver) autoDeliverTotalStock += p.stock;
+      else manualDeliverTotalStock += p.stock;
+    }
 
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     const {
@@ -656,7 +656,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
   }
 });
 
-router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), validateBody(ListingSettingsBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -725,6 +725,7 @@ router.post(
     { name: 'signImage', maxCount: 1 },
     { name: 'memoImage', maxCount: 1 },
   ]),
+  validateBody(ImageUploadBodySchema),
   async (req, res, next) => {
     try {
       const { classId } = req.params;
