@@ -787,7 +787,7 @@ export async function processNFTBookCart(
       userAgent,
       clientIp,
       value: (amountTotal || 0) / 100,
-      currency: 'USD',
+      currency: (session?.currency || 'usd').toUpperCase(),
       paymentId,
       referrer,
       fbClickId,
