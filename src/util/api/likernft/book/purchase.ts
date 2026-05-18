@@ -39,7 +39,7 @@ import { CartItemWithInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
 } from '../../../evm/nft';
-import { convertUSDPriceToCurrency } from '../../../pricing';
+import { getCurrencyPriceInDecimal } from '../../../pricing';
 import { checkIsFromLikerLand, calculateItemPrices } from './price';
 
 // Re-export pure functions for backward compatibility
@@ -694,10 +694,11 @@ export async function formatStripeCheckoutSession({
             images: item.images,
             metadata: productMetadata,
           },
-          unit_amount: convertUSDPriceToCurrency(
-            item.originalPriceInDecimal / 100,
+          unit_amount: getCurrencyPriceInDecimal(
+            item.originalPriceInDecimal,
             currencyWithDefault,
-          ) * 100,
+            item.priceInDecimalByCurrency,
+          ),
         },
         adjustable_quantity: {
           enabled: false,
@@ -706,10 +707,10 @@ export async function formatStripeCheckoutSession({
       });
     }
     if (item.customPriceDiffInDecimal) {
-      const convertedPriceDiffInDecimal = convertUSDPriceToCurrency(
-        item.customPriceDiffInDecimal / 100,
+      const convertedPriceDiffInDecimal = getCurrencyPriceInDecimal(
+        item.customPriceDiffInDecimal,
         currencyWithDefault,
-      ) * 100;
+      );
       lineItems.push({
         price_data: {
           currency: currencyWithDefault,

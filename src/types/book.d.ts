@@ -89,10 +89,19 @@ export interface BookPurchaseCommissionFiltered extends Omit<BookPurchaseCommiss
   timestamp?: number;
 }
 
+// Per-currency price overrides, in that currency's minor units (e.g. cents),
+// matching the convention of `priceInDecimal`. A missing currency falls back
+// to the index-based ladder conversion.
+export interface BookPriceInDecimalByCurrency {
+  hkd?: number;
+  twd?: number;
+}
+
 export interface NFTBookPrice {
   name?: string | Record<string, string>;
   description?: string | Record<string, string>;
   priceInDecimal: number;
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
   isAllowCustomPrice?: boolean;
   isTippingEnabled?: boolean;
   isUnlisted?: boolean;
@@ -109,6 +118,7 @@ export interface NFTBookPrice {
 export interface NFTBookPriceFiltered {
   index: number;
   price: number;
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
   name?: string | Record<string, string>;
   description?: string | Record<string, string>;
   stock: number;
