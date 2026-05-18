@@ -37,6 +37,16 @@ function findStripeDefaultPayment(payments?: Stripe.ApiList<Stripe.InvoicePaymen
   return payments?.data?.find((p) => p.is_default);
 }
 
+function getCouponFromDiscounts(
+  discounts?: Array<string | Stripe.Discount | Stripe.DeletedDiscount> | null,
+): Stripe.Coupon | undefined {
+  const discount = discounts?.find(
+    (d): d is Stripe.Discount | Stripe.DeletedDiscount => typeof d !== 'string',
+  );
+  const coupon = discount?.source?.coupon;
+  return coupon && typeof coupon !== 'string' ? coupon : undefined;
+}
+
 function mapAttributionExtraProperties({
   utmSource,
   utmMedium,
@@ -94,13 +104,14 @@ export async function processStripeSubscriptionInvoice(
   }
   const likerId = user.user;
   const stripe = getStripeClient();
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer'] });
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer', 'discounts.source.coupon'] });
   const {
     start_date: startDate,
     items: { data: [item] },
     metadata: subscriptionMetadata,
     customer,
     status,
+    discounts,
   } = subscription;
   const stripeCustomer = customer as Stripe.Customer;
   const {
@@ -139,13 +150,14 @@ export async function processStripeSubscriptionInvoice(
   const price = amountPaid;
   let balanceTxAmount: number | undefined;
   let balanceTxExchangeRate: number | undefined;
+  let expandedInvoice: Stripe.Invoice | undefined;
   if (amountPaid > 0) {
     try {
       let defaultPayment = findStripeDefaultPayment(invoice.payments);
       if (!defaultPayment) {
-        const expandedInvoice = await stripe.invoices.retrieve(
+        expandedInvoice = await stripe.invoices.retrieve(
           invoice.id,
-          { expand: ['payments.data'] },
+          { expand: ['payments.data', 'discounts.source.coupon'] },
         );
         defaultPayment = findStripeDefaultPayment(expandedInvoice.payments);
       }
@@ -175,6 +187,25 @@ export async function processStripeSubscriptionInvoice(
   }
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
+  // Prefer the invoice's own discounts (immutable, correct for `once`/expired
+  // coupons that Stripe removes from the subscription after applying them);
+  // fall back to the subscription-level discount.
+  let coupon: Stripe.Coupon | undefined;
+  try {
+    if (!expandedInvoice) {
+      expandedInvoice = await stripe.invoices.retrieve(
+        invoice.id,
+        { expand: ['discounts.source.coupon'] },
+      );
+    }
+    coupon = getCouponFromDiscounts(expandedInvoice.discounts);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`Error retrieving invoice discounts for invoice ${invoice.id}:`, err);
+  }
+  if (!coupon) coupon = getCouponFromDiscounts(discounts);
+  const couponId = coupon?.id || '';
+  const couponName = coupon?.name || '';
   const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
   const isSubscriptionCreation = billingReason === 'subscription_create';
   const isYearlySubscription = item.plan.interval === 'year';
@@ -371,6 +402,8 @@ export async function processStripeSubscriptionInvoice(
       balanceTxAmount,
       balanceTxExchangeRate,
       invoiceId: invoice.id,
+      couponId,
+      couponName,
       since,
       periodInterval: period,
       periodStartAt: currentPeriodStart,
