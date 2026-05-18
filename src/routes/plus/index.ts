@@ -436,8 +436,10 @@ router.get('/affiliate/:likerId', async (req, res, next) => {
     res.json({
       active: true,
       affiliateClassIds: affiliateConfig.affiliateClassIds || [],
-      giftClassId: affiliateConfig.giftClassId,
-      giftPriceIndex: affiliateConfig.giftPriceIndex || 0,
+      giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
+        classId: b.classId,
+        priceIndex: b.priceIndex || 0,
+      })),
       giftOnTrial: !!affiliateConfig.giftOnTrial,
       isPlusDiscountAllowed,
       customVoices: (affiliateConfig.customVoices || []).map((v) => ({
