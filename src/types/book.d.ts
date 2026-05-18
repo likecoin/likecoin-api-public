@@ -240,15 +240,20 @@ export interface AffiliateCustomVoice {
   providerVoiceId: string;
 }
 
+export interface AffiliateGiftBook {
+  classId: string;
+  priceIndex: number;
+}
+
 export interface AffiliateConfig {
   active: boolean;
   /** Book classes where this affiliate's custom voices can be used.
-   *  Must include `giftClassId` when set. */
+   *  Must include every `giftBooks[].classId`. */
   affiliateClassIds: string[];
-  /** The class currently being gifted at checkout; must be a member of
+  /** The list of books offered as a yearly-subscription gift; the subscriber
+   *  picks one at checkout. Each `classId` must be a member of
    *  `affiliateClassIds`. */
-  giftClassId?: string;
-  giftPriceIndex: number;
+  giftBooks?: AffiliateGiftBook[];
   giftOnTrial: boolean;
   customVoices: AffiliateCustomVoice[];
 }

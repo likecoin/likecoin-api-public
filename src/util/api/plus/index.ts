@@ -509,10 +509,23 @@ export async function createNewPlusCheckoutSession(
           : null;
         if (affiliateConfig) {
           subscriptionMetadata.affiliateFrom = from;
-          if (!giftClassId && affiliateConfig.giftClassId && period === 'yearly') {
-            resolvedGiftClassId = affiliateConfig.giftClassId;
-            resolvedGiftPriceIndex = String(affiliateConfig.giftPriceIndex || 0);
-            subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
+          const giftBooks = affiliateConfig.giftBooks || [];
+          if (giftBooks.length && period === 'yearly') {
+            // No pick defaults to the first book so plain affiliate links still
+            // grant a gift. An explicit `giftClassId` outside the list stays
+            // untouched, keeping the non-affiliate gift flow (upsell
+            // "subscribe to get this book") working.
+            const chosen = giftClassId
+              ? giftBooks.find((b) => b.classId === giftClassId)
+              : giftBooks[0];
+            if (chosen) {
+              // priceIndex is from the affiliate config, never the client —
+              // the gift is free, so a client-supplied index is pure attack
+              // surface.
+              resolvedGiftClassId = chosen.classId;
+              resolvedGiftPriceIndex = String(chosen.priceIndex || 0);
+              subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
+            }
           }
         }
       }
