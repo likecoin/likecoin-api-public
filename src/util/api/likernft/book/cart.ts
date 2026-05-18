@@ -1214,6 +1214,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       const priceData = prices[priceIndex];
       const {
         priceInDecimal: originalPriceInDecimal,
+        priceInDecimalByCurrency,
         stock,
         isAllowCustomPrice,
         name: priceNameObj,
@@ -1236,6 +1237,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       info = {
         stock,
         isAllowCustomPrice,
+        priceInDecimalByCurrency,
         name,
         description,
         images,
@@ -1258,6 +1260,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
     } = info;
     const {
       isAllowCustomPrice,
+      priceInDecimalByCurrency,
       originalPriceInDecimal,
       stock,
       images,
@@ -1296,6 +1299,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       ...item,
       priceName,
       priceInDecimal,
+      priceInDecimalByCurrency,
       customPriceDiffInDecimal,
       stock,
       isAllowCustomPrice,

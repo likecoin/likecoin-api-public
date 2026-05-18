@@ -28,8 +28,8 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
-import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
-import { convertUSDPriceToCurrency } from '../../../pricing';
+import type { BookPriceInDecimalByCurrency, NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
+import { BOOK_PRICE_OVERRIDE_CURRENCIES, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getAuthorNameFromMetadata(author: unknown): string {
   if (typeof author === 'string') {
@@ -164,6 +164,7 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
+    priceInDecimalByCurrency,
     isAllowCustomPrice = false,
     stock,
     isAutoDeliver = false,
@@ -176,7 +177,7 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     if (nameInput) name[locale] = nameInput[locale];
     if (descriptionInput) description[locale] = descriptionInput[locale];
   });
-  return {
+  const formatted: NFTBookPrice = {
     name,
     description,
     priceInDecimal,
@@ -186,6 +187,8 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     isUnlisted,
     autoMemo,
   };
+  if (priceInDecimalByCurrency) formatted.priceInDecimalByCurrency = priceInDecimalByCurrency;
+  return formatted;
 }
 
 export async function createStripeProductFromNFTBookPrice(classId: string, priceIndex: number, {
@@ -212,14 +215,10 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
     default_price_data: {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
-      currency_options: {
-        twd: {
-          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'twd') * 100,
-        },
-        hkd: {
-          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'hkd') * 100,
-        },
-      },
+      currency_options: getStripeCurrencyOptionsFromNFTBookPrice(
+        price.priceInDecimal,
+        price.priceInDecimalByCurrency,
+      ),
     },
     url: getBook3NFTClassPageURL({ classId, priceIndex }),
     metadata,
@@ -571,6 +570,7 @@ export function validatePrice(price: NFTBookPrice) {
     isAutoDeliver,
     isUnlisted,
     priceInDecimal,
+    priceInDecimalByCurrency: priceInDecimalByCurrencyInput,
   } = price;
   if (!(
     typeof priceInDecimal === 'number'
@@ -578,6 +578,22 @@ export function validatePrice(price: NFTBookPrice) {
     && (priceInDecimal === 0 || priceInDecimal >= MIN_BOOK_PRICE_DECIMAL)
   )) {
     throw new ValidationError('INVALID_PRICE');
+  }
+  let priceInDecimalByCurrency: BookPriceInDecimalByCurrency | undefined;
+  if (priceInDecimalByCurrencyInput !== undefined) {
+    if (typeof priceInDecimalByCurrencyInput !== 'object' || priceInDecimalByCurrencyInput === null) {
+      throw new ValidationError('INVALID_PRICE_CURRENCY_OVERRIDE');
+    }
+    const override: BookPriceInDecimalByCurrency = {};
+    BOOK_PRICE_OVERRIDE_CURRENCIES.forEach((currency) => {
+      const value = priceInDecimalByCurrencyInput[currency];
+      if (value === undefined) return;
+      if (!(typeof value === 'number' && Number.isInteger(value) && value >= 0)) {
+        throw new ValidationError('INVALID_PRICE_CURRENCY_OVERRIDE');
+      }
+      override[currency] = value;
+    });
+    if (Object.keys(override).length) priceInDecimalByCurrency = override;
   }
   if (!(typeof stock === 'number' && stock >= 0)) {
     throw new ValidationError('INVALID_PRICE_STOCK');
@@ -594,6 +610,7 @@ export function validatePrice(price: NFTBookPrice) {
     autoMemo,
     order,
     priceInDecimal,
+    priceInDecimalByCurrency,
     stock,
     name,
     description,

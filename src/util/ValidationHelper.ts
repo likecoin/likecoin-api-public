@@ -538,6 +538,7 @@ export function filterNFTBookPricesInfo(
       name,
       description,
       priceInDecimal,
+      priceInDecimalByCurrency,
       isAllowCustomPrice,
       isTippingEnabled,
       isUnlisted,
@@ -563,6 +564,7 @@ export function filterNFTBookPricesInfo(
       isTippingEnabled: !priceInDecimal || isTippingEnabled,
       order: order ?? index,
     };
+    if (priceInDecimalByCurrency) payload.priceInDecimalByCurrency = priceInDecimalByCurrency;
     if (isOwner) {
       payload.sold = pSold;
       payload.stock = pStock;

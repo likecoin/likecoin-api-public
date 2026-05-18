@@ -1,3 +1,5 @@
+import type { BookPriceInDecimalByCurrency } from '../../../../types/book';
+
 export type CartItem = {
   classId?: string
   priceIndex?: number
@@ -12,6 +14,7 @@ export type CartItemWithInfo = CartItem & {
   customPriceDiffInDecimal: number;
   stock: number;
   isAllowCustomPrice: boolean;
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
   name: string,
   description: string,
   images: string[],
