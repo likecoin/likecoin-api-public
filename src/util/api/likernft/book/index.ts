@@ -27,7 +27,7 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
-import { convertUSDPriceToCurrency } from '../../../pricing';
+import { getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getAuthorNameFromMetadata(author: unknown): string {
   if (typeof author === 'string') {
@@ -162,6 +162,7 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     name: nameInput,
     description: descriptionInput,
     priceInDecimal,
+    priceInDecimalByCurrency,
     isAllowCustomPrice = false,
     stock,
     isAutoDeliver = false,
@@ -174,7 +175,7 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     if (nameInput) name[locale] = nameInput[locale];
     if (descriptionInput) description[locale] = descriptionInput[locale];
   });
-  return {
+  const formatted: NFTBookPrice = {
     name,
     description,
     priceInDecimal,
@@ -184,6 +185,8 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     isUnlisted,
     autoMemo,
   };
+  if (priceInDecimalByCurrency) formatted.priceInDecimalByCurrency = priceInDecimalByCurrency;
+  return formatted;
 }
 
 export async function createStripeProductFromNFTBookPrice(classId: string, priceIndex: number, {
@@ -210,14 +213,10 @@ export async function createStripeProductFromNFTBookPrice(classId: string, price
     default_price_data: {
       currency: 'usd',
       unit_amount: price.priceInDecimal,
-      currency_options: {
-        twd: {
-          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'twd') * 100,
-        },
-        hkd: {
-          unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'hkd') * 100,
-        },
-      },
+      currency_options: getStripeCurrencyOptionsFromNFTBookPrice(
+        price.priceInDecimal,
+        price.priceInDecimalByCurrency,
+      ),
     },
     url: getBook3NFTClassPageURL({ classId, priceIndex }),
     metadata,

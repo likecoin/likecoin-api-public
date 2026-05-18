@@ -41,7 +41,7 @@ import { getStripeClient } from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
-import { convertUSDPriceToCurrency } from '../../../util/pricing';
+import { BOOK_PRICE_OVERRIDE_CURRENCIES, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../util/pricing';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -315,6 +315,9 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ...oldPriceInfo,
       ...formatPriceInfo(price),
     };
+    if (!price.priceInDecimalByCurrency) {
+      delete newPriceInfo.priceInDecimalByCurrency;
+    }
 
     if (oldPriceInfo.stripeProductId) {
       const stripe = getStripeClient();
@@ -325,19 +328,23 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
         metadata,
       });
       if (oldPriceInfo.stripePriceId) {
-        if (oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal) {
+        const oldCurrencyOverride = oldPriceInfo.priceInDecimalByCurrency || {};
+        const newCurrencyOverride = newPriceInfo.priceInDecimalByCurrency || {};
+        const isCurrencyOverrideChanged = BOOK_PRICE_OVERRIDE_CURRENCIES.some(
+          (currency) => oldCurrencyOverride[currency] !== newCurrencyOverride[currency],
+        );
+        if (
+          oldPriceInfo.priceInDecimal !== newPriceInfo.priceInDecimal
+          || isCurrencyOverrideChanged
+        ) {
           const newStripePrice = await stripe.prices.create({
             product: oldPriceInfo.stripeProductId,
             currency: 'usd',
             unit_amount: price.priceInDecimal,
-            currency_options: {
-              twd: {
-                unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'twd') * 100,
-              },
-              hkd: {
-                unit_amount: convertUSDPriceToCurrency(price.priceInDecimal / 100, 'hkd') * 100,
-              },
-            },
+            currency_options: getStripeCurrencyOptionsFromNFTBookPrice(
+              price.priceInDecimal,
+              newPriceInfo.priceInDecimalByCurrency,
+            ),
           });
           await stripe.products.update(
             oldPriceInfo.stripeProductId,

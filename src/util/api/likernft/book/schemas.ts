@@ -3,12 +3,22 @@ import {
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../../../../constant';
+import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
 
 const LocalizedTextMap = z.record(z.string(), z.string())
   .refine(
     (m) => typeof m[NFT_BOOK_TEXT_DEFAULT_LOCALE] === 'string',
     { message: `default locale "${NFT_BOOK_TEXT_DEFAULT_LOCALE}" is required` },
   );
+
+const PriceInDecimalByCurrencySchema = z.object(
+  Object.fromEntries(
+    BOOK_PRICE_OVERRIDE_CURRENCIES.map((currency) => [
+      currency,
+      z.number().int().min(0),
+    ]),
+  ),
+).partial();
 
 export const NFTBookPriceSchema = z.object({
   priceInDecimal: z.number()
@@ -18,6 +28,7 @@ export const NFTBookPriceSchema = z.object({
       (v) => v === 0 || v >= MIN_BOOK_PRICE_DECIMAL,
       { message: `priceInDecimal must be 0 or >= ${MIN_BOOK_PRICE_DECIMAL}` },
     ),
+  priceInDecimalByCurrency: PriceInDecimalByCurrencySchema.optional(),
   stock: z.number().int().min(0),
   name: LocalizedTextMap,
   description: LocalizedTextMap,

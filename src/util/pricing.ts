@@ -1,5 +1,6 @@
 import { USD_PRICE_TIER_LIST, HKD_PRICE_TIER_LIST, TWD_PRICE_TIER_LIST } from '../constant/pricing';
 import type { SupportedPlusCurrency } from '../constant';
+import type { BookPriceInDecimalByCurrency } from '../types/book';
 
 const MAX_USD = USD_PRICE_TIER_LIST[USD_PRICE_TIER_LIST.length - 1]!;
 const MAX_HKD = HKD_PRICE_TIER_LIST[HKD_PRICE_TIER_LIST.length - 1]!;
@@ -28,6 +29,36 @@ export function convertUSDPriceToCurrency(price: number, currency: SupportedPlus
     default:
       return price;
   }
+}
+
+// USD is excluded by design: it is the stored `priceInDecimal` and the commission base.
+export const BOOK_PRICE_OVERRIDE_CURRENCIES = ['hkd', 'twd'] as const;
+
+export function getCurrencyPriceInDecimal(
+  usdPriceInDecimal: number,
+  currency: SupportedPlusCurrency,
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency,
+): number {
+  if (currency === 'usd') return usdPriceInDecimal;
+  const override = priceInDecimalByCurrency?.[currency];
+  if (typeof override === 'number') return override;
+  return convertUSDPriceToCurrency(usdPriceInDecimal / 100, currency) * 100;
+}
+
+export function getStripeCurrencyOptionsFromNFTBookPrice(
+  usdPriceInDecimal: number,
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency,
+) {
+  return Object.fromEntries(
+    BOOK_PRICE_OVERRIDE_CURRENCIES.map((currency) => {
+      const unitAmount = getCurrencyPriceInDecimal(
+        usdPriceInDecimal,
+        currency,
+        priceInDecimalByCurrency,
+      );
+      return [currency, { unit_amount: unitAmount }];
+    }),
+  );
 }
 
 export function convertCurrencyToUSDPrice(price: number, currency: SupportedPlusCurrency): number {
