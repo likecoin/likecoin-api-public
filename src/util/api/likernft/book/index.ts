@@ -26,6 +26,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
+import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 import { getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
@@ -406,6 +407,13 @@ export async function syncNFTBookInfoWithISCN(classId) {
     // eslint-disable-next-line no-console
     console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
   }
+
+  // The on-chain metadata (including file paths) may have changed; re-warm the
+  // shared ebook cache bucket. Fire-and-forget: must not block the sync.
+  cacheBookFilesFromNFTClassMetadata(classId, metadata).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to cache book files for class ${classId}:`, err);
+  });
 
   try {
     const {

@@ -42,6 +42,7 @@ import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../util/pricing';
+import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -654,6 +655,13 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       // eslint-disable-next-line no-console
       console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
     }
+
+    // Pre-warm the shared ebook cache bucket (read by the ebook-cors service)
+    // with the listing's files. Fire-and-forget: must not block the response.
+    cacheBookFilesFromNFTClassMetadata(classId, metadata).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to cache book files for class ${classId}:`, err);
+    });
 
     res.json({
       classId,
