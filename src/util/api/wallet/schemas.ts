@@ -13,6 +13,12 @@ export const WalletAuthorizeBodySchema = z.object({
   { message: 'wallet or from is required', path: ['wallet'] },
 );
 
+export const WalletEvmMigrateEmailMagicBodySchema = z.object({
+  wallet: z.string().min(1),
+  signature: z.string().min(1),
+  message: z.string().min(1),
+});
+
 export const WalletAuthorizeResponseSchema = z.object({
   jwtid: z.string(),
   token: z.string(),

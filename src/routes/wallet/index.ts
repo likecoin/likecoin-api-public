@@ -14,7 +14,10 @@ import {
   migrateBookClassId,
   migrateLikeWalletToEVMWallet,
 } from '../../util/api/wallet';
-import { WalletAuthorizeBodySchema } from '../../util/api/wallet/schemas';
+import {
+  WalletAuthorizeBodySchema,
+  WalletEvmMigrateEmailMagicBodySchema,
+} from '../../util/api/wallet/schemas';
 import { validateBody } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
@@ -144,7 +147,7 @@ router.get('/evm/migrate/user/addr/:likeWallet', async (req, res, next) => {
   }
 });
 
-router.post('/evm/migrate/email/magic', async (req, res, next) => {
+router.post('/evm/migrate/email/magic', validateBody(WalletEvmMigrateEmailMagicBodySchema), async (req, res, next) => {
   try {
     const {
       wallet: evmWallet,
@@ -152,9 +155,6 @@ router.post('/evm/migrate/email/magic', async (req, res, next) => {
       message,
     } = req.body;
     const migrationMethod = 'auto';
-    if (!evmWallet || !signature || !message) {
-      throw new ValidationError('INVALID_PAYLOAD');
-    }
     if (!checkAddressValid(evmWallet)) {
       throw new ValidationError('INVALID_WALLET');
     }
