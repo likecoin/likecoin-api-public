@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
+import { validateBody } from '../../middleware/validate';
+import { UsersPreferencesBodySchema } from '../../util/api/users/schemas';
 import { userCollection as dbRef } from '../../util/firebase';
 import { supportedLocales, defaultLocale } from '../../locales';
 
@@ -38,7 +40,7 @@ function isValidHttpUrl(string) {
   return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
-router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
+router.post('/preferences', jwtAuth('write:preferences'), validateBody(UsersPreferencesBodySchema), async (req, res, next) => {
   try {
     const { user } = req.user;
     const {

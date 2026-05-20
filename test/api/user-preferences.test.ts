@@ -245,7 +245,7 @@ describe('USER: Post payment redirect whitelist', () => {
     }).catch((err) => (err as any).response);
 
     expect(res.status).toBe(400);
-    expect(res.data).toBe('INVALID_PAYMENT_REDIRECT_WHITELIST');
+    expect(res.data.error).toBe('INVALID_INPUT');
   });
 
   it('Post payment redirect whitelist. Case: Invalid url format', async () => {

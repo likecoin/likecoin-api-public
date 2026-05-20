@@ -221,7 +221,7 @@ describe('USER tests', () => {
     }).catch((err) => (err as any).response);
 
     expect(res.status).toBe(400);
-    expect(res.data).toBe('EMAIL_FORMAT_INCORRECT');
+    expect(res.data.error).toBe('INVALID_INPUT');
   });
 
   it('USER: Edit user by form-data from Web. Case: invalid content-type', async () => {
