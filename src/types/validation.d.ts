@@ -1,6 +1,8 @@
+import type { z } from 'zod';
 import type { UserCivicLikerProperties, LikerPlusSubscriptionStatus } from './user';
 import type { SupportedLocale } from '../locales';
 import type { AppMeta } from './firestore';
+import type { UserDataMinResponseSchema } from '../util/api/users/schemas';
 
 // User-related filtered/validated interfaces
 // These are transformed versions of the raw data, used for API responses and validation
@@ -11,15 +13,7 @@ export interface UserDataFiltered extends Omit<UserCivicLikerProperties, 'referr
   read: Record<string, any>;
 }
 
-export interface UserDataMin extends Pick<UserCivicLikerProperties,
-  'user' | 'displayName' | 'avatar' | 'cosmosWallet' |
-  'likeWallet' | 'evmWallet' | 'isSubscribedCivicLiker' |
-  'isCivicLikerTrial' | 'civicLikerSince' | 'likerPlusSince' |
-  'isLikerPlus' | 'isLikerPlusTrial' | 'isExpiredLikerPlus' | 'description'> {
-  wallet?: string;
-  paymentRedirectWhiteList?: string[];
-  creatorPitch?: string;
-}
+export type UserDataMin = z.infer<typeof UserDataMinResponseSchema>;
 
 export interface UserDataScopedFiltered extends UserDataMin {
   likerPlusPeriod?: any;

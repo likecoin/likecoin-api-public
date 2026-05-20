@@ -11,14 +11,10 @@ const LocalizedTextMap = z.record(z.string(), z.string())
     { message: `default locale "${NFT_BOOK_TEXT_DEFAULT_LOCALE}" is required` },
   );
 
-const PriceInDecimalByCurrencySchema = z.object(
-  Object.fromEntries(
-    BOOK_PRICE_OVERRIDE_CURRENCIES.map((currency) => [
-      currency,
-      z.number().int().min(0),
-    ]),
-  ),
-).partial();
+export const PriceInDecimalByCurrencySchema = z.record(
+  z.enum(BOOK_PRICE_OVERRIDE_CURRENCIES),
+  z.number().int().min(0),
+);
 
 export const NFTBookPriceSchema = z.object({
   priceInDecimal: z.number()
@@ -111,7 +107,7 @@ const LocalizedOrPlainTextSchema = z.union([
   z.record(z.string(), z.string()),
 ]);
 
-const NFTBookPriceFilteredSchema = z.object({
+export const NFTBookPriceFilteredSchema = z.object({
   index: z.number().int().min(0),
   price: z.number(),
   priceInDecimalByCurrency: PriceInDecimalByCurrencySchema.optional(),
@@ -128,7 +124,13 @@ const NFTBookPriceFilteredSchema = z.object({
   sold: z.number().int().optional(),
 });
 
-const NFTBookListingInfoFilteredSchema = z.object({
+export const NFTBookPricesInfoFilteredSchema = z.object({
+  sold: z.number().int(),
+  stock: z.number().int(),
+  prices: z.array(NFTBookPriceFilteredSchema),
+});
+
+export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
   likeClassId: z.string().optional(),
@@ -179,14 +181,14 @@ const NFTBookListingInfoFilteredSchema = z.object({
   isPlusReadingEnabled: z.boolean().optional(),
 });
 
-const BookGiftInfoSchema = z.object({
+export const BookGiftInfoSchema = z.object({
   fromName: z.string(),
   toName: z.string(),
   toEmail: z.string(),
   message: z.string().optional(),
 }).passthrough();
 
-const BookPurchaseDataFilteredSchema = z.object({
+export const BookPurchaseDataFilteredSchema = z.object({
   id: z.string().optional(),
   email: z.string().optional(),
   status: z.string().optional(),
@@ -215,7 +217,7 @@ const BookPurchaseDataFilteredSchema = z.object({
   classIdsWithPrice: z.array(z.unknown()).optional(),
 });
 
-const BookPurchaseCommissionFilteredSchema = z.object({
+export const BookPurchaseCommissionFilteredSchema = z.object({
   type: z.string(),
   ownerWallet: z.string(),
   classId: z.string().optional(),
