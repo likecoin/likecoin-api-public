@@ -73,3 +73,15 @@ export const NewListingBodySchema = ListingSettingsBodySchema.extend({
 export const ImageUploadBodySchema = z.object({
   signedMessageText: z.string().optional(),
 });
+
+export const STRIPE_CONNECT_SITES = ['press', 'store'] as const;
+export type StripeConnectSite = typeof STRIPE_CONNECT_SITES[number];
+
+export const StripeConnectNewBodySchema = z.object({
+  site: z.enum(STRIPE_CONNECT_SITES).optional(),
+});
+
+export const NFTBookSentBodySchema = z.object({
+  txHash: z.string().nullish(),
+  quantity: z.coerce.number().int().positive().default(1),
+});

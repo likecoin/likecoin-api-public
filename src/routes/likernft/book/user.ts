@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
+import { validateBody } from '../../../middleware/validate';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import { getStripeClient } from '../../../util/stripe';
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -8,9 +9,13 @@ import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
+import {
+  StripeConnectNewBodySchema,
+  type StripeConnectSite,
+} from '../../../util/api/likernft/book/schemas';
 import type { BookPurchaseCommission } from '../../../types/book';
 
-const STRIPE_CONNECT_REDIRECT_HOSTS: Record<string, string> = {
+const STRIPE_CONNECT_REDIRECT_HOSTS: Record<StripeConnectSite, string> = {
   press: NFT_BOOKSTORE_HOSTNAME,
   store: BOOK3_HOSTNAME,
 };
@@ -122,17 +127,15 @@ router.post(
 router.post(
   '/connect/new',
   jwtAuth('write:nftbook'),
+  validateBody(StripeConnectNewBodySchema),
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
-      const { site = 'press' } = req.body || {};
-      const redirectHost = STRIPE_CONNECT_REDIRECT_HOSTS[site as string];
-      if (!redirectHost) {
-        throw new ValidationError('INVALID_SITE');
-      }
+      const { site = 'press' } = req.body;
+      const redirectHost = STRIPE_CONNECT_REDIRECT_HOSTS[site];
       const userInfo = await getBookUserInfoFromWallet(wallet);
       const { bookUserInfo, likerUserInfo } = userInfo;
       const {

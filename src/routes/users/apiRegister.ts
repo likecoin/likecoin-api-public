@@ -19,6 +19,8 @@ import {
   handleTransferPlatformDelegatedUser,
 } from '../../util/api/users/platforms';
 import { createAuthCoreUserAndWallet } from '../../util/api/users/authcore';
+import { UsersNewCheckBodySchema } from '../../util/api/users/schemas';
+import { validateBody } from '../../middleware/validate';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
@@ -28,7 +30,7 @@ import { supportedLocales, defaultLocale } from '../../locales';
 
 const router = Router();
 
-router.post('/new/check', async (req, res, next) => {
+router.post('/new/check', validateBody(UsersNewCheckBodySchema), async (req, res, next) => {
   try {
     const {
       user,
