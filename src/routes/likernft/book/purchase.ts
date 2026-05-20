@@ -12,7 +12,6 @@ import {
   LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
   SUPPORTED_PLUS_CURRENCIES,
-  W3C_EMAIL_REGEX,
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
@@ -43,7 +42,14 @@ import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/
 import { fetchUserInfoByEmail } from '../../../util/api/users';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 import { validateBody } from '../../../middleware/validate';
-import { NFTBookSentBodySchema } from '../../../util/api/likernft/book/schemas';
+import {
+  BookCartClaimBodySchema,
+  BookCartNewBodySchema,
+  BookFreeClaimBodySchema,
+  BookMessageBodySchema,
+  BookPurchaseNewBodySchema,
+  NFTBookSentBodySchema,
+} from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
 
@@ -77,6 +83,7 @@ router.get(
 
 router.post(
   '/cart/:cartId/claim',
+  validateBody(BookCartClaimBodySchema),
   async (req, res, next) => {
     try {
       const { cartId } = req.params;
@@ -84,7 +91,6 @@ router.post(
       const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
-      if (!wallet) throw new ValidationError('MISSING_WALLET');
 
       const {
         email,
@@ -124,7 +130,7 @@ router.post(
   },
 );
 
-router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartNewBodySchema), async (req, res, next) => {
   try {
     const { from } = req.query;
     const {
@@ -143,7 +149,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       utmContent,
       utmTerm,
       referrer: inputReferrer,
-      items = [],
+      items,
       coupon,
       currency,
       giftInfo,
@@ -151,19 +157,6 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), async (req, res, next)
       language,
       isApp,
     } = req.body;
-
-    if (!items?.length) {
-      throw new ValidationError('REQUIRE_ITEMS');
-    }
-
-    if (giftInfo) {
-      if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
-      if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
-    }
-
-    if (currency !== undefined && !SUPPORTED_PLUS_CURRENCIES.includes(currency)) {
-      throw new ValidationError('UNSUPPORTED_CURRENCY');
-    }
 
     const referrer = inputReferrer;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
@@ -417,7 +410,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateBody(BookPurchaseNewBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -447,20 +440,8 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       customPriceInDecimal,
       language,
       isApp,
+      quantity,
     } = req.body;
-    let {
-      quantity = 1,
-    } = req.body;
-    quantity = parseInt(quantity, 10) || 1;
-
-    if (giftInfo) {
-      if (!giftInfo.toEmail) throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
-      if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) throw new ValidationError('INVALID_GIFT_TO_EMAIL');
-    }
-
-    if (currency !== undefined && !SUPPORTED_PLUS_CURRENCIES.includes(currency)) {
-      throw new ValidationError('UNSUPPORTED_CURRENCY');
-    }
 
     const httpMethod = 'POST';
     const referrer = inputReferrer;
@@ -617,7 +598,7 @@ router.get('/free', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   }
 });
 
-router.post('/free', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post('/free', jwtAuth('write:nftbook'), validateBody(BookFreeClaimBodySchema), async (req, res, next) => {
   try {
     const { user } = req;
     if (!user) throw new ValidationError('UNAUTHORIZED', 401);
@@ -679,6 +660,7 @@ router.post(
 
 router.post(
   '/class/:classId/message/:paymentId',
+  validateBody(BookMessageBodySchema),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -686,8 +668,6 @@ router.post(
       const { wallet, message } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
-      if (!wallet) throw new ValidationError('MISSING_WALLET');
-      if (!message) throw new ValidationError('MISSING_MESSAGE');
 
       await setNFTBookBuyerMessage(
         classId,
