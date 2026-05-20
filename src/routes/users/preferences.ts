@@ -80,14 +80,8 @@ router.post('/preferences', jwtAuth('write:preferences'), validateBody(UsersPref
     }
 
     if (inputPaymentRedirectWhiteList !== undefined) {
-      let paymentRedirectWhiteList = inputPaymentRedirectWhiteList === null
-        ? [] : inputPaymentRedirectWhiteList;
-      if (!Array.isArray(paymentRedirectWhiteList)) {
-        res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
-        return;
-      }
-      paymentRedirectWhiteList = Array.from(new Set(
-        paymentRedirectWhiteList.filter((url) => !!url),
+      const paymentRedirectWhiteList = Array.from(new Set(
+        (inputPaymentRedirectWhiteList ?? []).filter((url) => !!url),
       ));
       if (paymentRedirectWhiteList.some((url) => !isValidHttpUrl(url))) {
         res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');

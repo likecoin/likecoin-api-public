@@ -458,7 +458,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     } = await handleNewCartStripeCheckout([{
       classId,
       priceIndex,
-      customPriceInDecimal: parseInt(customPriceInDecimal, 10) || undefined,
+      customPriceInDecimal: customPriceInDecimal || undefined,
       quantity,
       from: from as string,
     }], {

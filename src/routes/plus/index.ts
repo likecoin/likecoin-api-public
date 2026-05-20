@@ -11,9 +11,9 @@ import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../uti
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
-  SUPPORTED_CHECKOUT_UI_MODES, SUPPORTED_PLUS_CURRENCIES,
+  SUPPORTED_PLUS_CURRENCIES,
 } from '../../constant';
-import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../constant';
+import type { SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
@@ -61,18 +61,9 @@ router.post('/new', jwtAuth('write:plus'), validateBody(PlusNewBodySchema), asyn
     if (period === 'yearly' && trialPeriodDays > 0 && giftClassId) {
       throw new ValidationError('Gift subscriptions cannot have a trial period.', 400);
     }
-    if (![0, 1, 3, 5, 7, 14, 30].includes(trialPeriodDays)) {
-      throw new ValidationError('Invalid trial period days.', 400);
-    }
     if (currency !== undefined
       && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
-    }
-    if (
-      uiMode !== undefined
-      && !SUPPORTED_CHECKOUT_UI_MODES.includes(uiMode as SupportedCheckoutUIMode)
-    ) {
-      throw new ValidationError('INVALID_UI_MODE', 400);
     }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;

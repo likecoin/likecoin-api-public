@@ -15,10 +15,7 @@ const TrialPeriodDaysSchema = z.union([
   z.literal(30),
 ]);
 
-const GiftPriceIndexSchema = z.union([
-  z.coerce.number().int().min(0),
-  z.string(),
-]);
+const GiftPriceIndexSchema = z.string();
 
 export const PlusNewBodySchema = TrackingFieldsSchema.extend({
   coupon: z.string().optional(),
