@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// eslint-disable-next-line import/prefer-default-export
 export const WalletAuthorizeBodySchema = z.object({
   wallet: z.string().optional(),
   from: z.string().optional(),
@@ -13,3 +12,9 @@ export const WalletAuthorizeBodySchema = z.object({
   (b) => !!(b.wallet || b.from),
   { message: 'wallet or from is required', path: ['wallet'] },
 );
+
+export const WalletAuthorizeResponseSchema = z.object({
+  jwtid: z.string(),
+  token: z.string(),
+  intercomToken: z.string().optional(),
+});
