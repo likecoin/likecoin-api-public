@@ -1,11 +1,17 @@
 import { Router } from 'express';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
+import { validateBody } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
+import {
+  PlusGiftNewBodySchema,
+  PlusNewBodySchema,
+  PlusPriceBodySchema,
+} from '../../util/api/plus/schemas';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
-  SUPPORTED_CHECKOUT_UI_MODES, SUPPORTED_PLUS_CURRENCIES, W3C_EMAIL_REGEX,
+  SUPPORTED_CHECKOUT_UI_MODES, SUPPORTED_PLUS_CURRENCIES,
 } from '../../constant';
 import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
@@ -18,7 +24,7 @@ import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '..
 
 const router = Router();
 
-router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
+router.post('/new', jwtAuth('write:plus'), validateBody(PlusNewBodySchema), async (req, res, next) => {
   let { period = 'monthly' } = req.query;
   const { from, currency } = req.query;
   const {
@@ -173,7 +179,7 @@ router.post('/new', jwtAuth('write:plus'), async (req, res, next) => {
   }
 });
 
-router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
+router.post('/gift/new', jwtAuth('write:plus'), validateBody(PlusGiftNewBodySchema), async (req, res, next) => {
   let { period = 'yearly' } = req.query;
   const { from, currency } = req.query;
   const {
@@ -198,12 +204,6 @@ router.post('/gift/new', jwtAuth('write:plus'), async (req, res, next) => {
   try {
     if (period !== 'monthly' && period !== 'yearly') {
       period = 'yearly'; // Default to yearly if invalid
-    }
-    if (!giftInfo || !giftInfo.toEmail) {
-      throw new ValidationError('REQUIRE_GIFT_TO_EMAIL');
-    }
-    if (!W3C_EMAIL_REGEX.test(giftInfo.toEmail)) {
-      throw new ValidationError('INVALID_GIFT_TO_EMAIL');
     }
     if (currency !== undefined
       && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
@@ -330,17 +330,13 @@ router.post('/gift/:cartId/claim', jwtAuth('write:plus'), async (req, res, next)
   }
 });
 
-router.post('/price', jwtAuth('write:plus'), async (req, res, next) => {
+router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), async (req, res, next) => {
   const {
     period,
     giftClassId,
     giftPriceIndex = '0',
   } = req.body;
   try {
-    // Validate and update the subscription plan
-    if (period !== 'monthly' && period !== 'yearly') {
-      throw new ValidationError('Invalid subscription period.', 400);
-    }
     if (giftClassId && period !== 'yearly') {
       throw new ValidationError('Gift books are only available for yearly plans.', 400);
     }
