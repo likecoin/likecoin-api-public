@@ -2,6 +2,7 @@
 
 import type { z } from 'zod';
 import type {
+  BookFreeClaimResponseSchema,
   BookGiftInfoSchema,
   BookPurchaseCommissionFilteredSchema,
   BookPurchaseDataFilteredSchema,
@@ -10,6 +11,7 @@ import type {
   NFTBookPricesInfoFilteredSchema,
   PriceInDecimalByCurrencySchema,
 } from '../util/api/likernft/book/schemas';
+import type { AffiliateConfigSchema } from '../util/api/plus/schemas';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
@@ -171,31 +173,9 @@ export interface NFTBookListingInfo {
 
 export type NFTBookListingInfoFiltered = z.infer<typeof NFTBookListingInfoFilteredSchema>;
 
-export interface AffiliateCustomVoice {
-  id: string;
-  name: string;
-  language?: string;
-  avatarUrl?: string;
-  providerVoiceId: string;
-}
-
-export interface AffiliateGiftBook {
-  classId: string;
-  priceIndex: number;
-}
-
-export interface AffiliateConfig {
-  active: boolean;
-  /** Book classes where this affiliate's custom voices can be used.
-   *  Must include every `giftBooks[].classId`. */
-  affiliateClassIds: string[];
-  /** The list of books offered as a yearly-subscription gift; the subscriber
-   *  picks one at checkout. Each `classId` must be a member of
-   *  `affiliateClassIds`. */
-  giftBooks?: AffiliateGiftBook[];
-  giftOnTrial: boolean;
-  customVoices: AffiliateCustomVoice[];
-}
+export type AffiliateConfig = z.infer<typeof AffiliateConfigSchema>;
+export type AffiliateGiftBook = NonNullable<AffiliateConfig['giftBooks']>[number];
+export type AffiliateCustomVoice = AffiliateConfig['customVoices'][number];
 
 export interface NFTBookUserData {
   userId?: string;
@@ -224,9 +204,4 @@ export interface NFTBookUserData {
   [key: string]: any;
 }
 
-export interface FreeBookClaimResult {
-  classIds: string[];
-  cartId: string;
-  paymentId: string;
-  claimToken: string;
-}
+export type FreeBookClaimResult = z.infer<typeof BookFreeClaimResponseSchema>;
