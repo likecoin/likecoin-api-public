@@ -215,7 +215,7 @@ export function filterUserDataScoped(
     };
   }
   if (scope.includes('read:preferences')) {
-    output.creatorPitch = user.creatorPitch;
+    output.creatorPitch = u.creatorPitch;
   }
   return output;
 }
