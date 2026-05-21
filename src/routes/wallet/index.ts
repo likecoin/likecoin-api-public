@@ -14,6 +14,8 @@ import {
   migrateBookClassId,
   migrateLikeWalletToEVMWallet,
 } from '../../util/api/wallet';
+import { WalletAuthorizeBodySchema } from '../../util/api/wallet/schemas';
+import { validateBody } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
@@ -22,17 +24,13 @@ import { createIntercomTokenForUser } from '../../util/intercom';
 
 const router = Router();
 
-router.post('/authorize', async (req, res, next) => {
+router.post('/authorize', validateBody(WalletAuthorizeBodySchema), async (req, res, next) => {
   try {
     const {
       wallet, from, signature, publicKey, message, signMethod,
     } = req.body;
-    let { expiresIn } = req.body;
-    if (!expiresIn || !['1h', '1d', '7d', '30d'].includes(expiresIn)) {
-      expiresIn = '1h';
-    }
+    const expiresIn = req.body.expiresIn || '1h';
     const inputWallet = wallet || from;
-    if (!inputWallet || !signature || !message) throw new ValidationError('INVALID_PAYLOAD');
     const isEVMWallet = signMethod === 'personal_sign';
     let signed;
     if (isEVMWallet) {

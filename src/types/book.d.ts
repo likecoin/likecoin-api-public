@@ -1,12 +1,17 @@
 // NFT Book purchase and listing related types
 
-export interface BookGiftInfo {
-  fromName: string;
-  toName: string;
-  toEmail: string;
-  message?: string;
-  [key: string]: unknown;
-}
+import type { z } from 'zod';
+import type {
+  BookGiftInfoSchema,
+  BookPurchaseCommissionFilteredSchema,
+  BookPurchaseDataFilteredSchema,
+  NFTBookListingInfoFilteredSchema,
+  NFTBookPriceFilteredSchema,
+  NFTBookPricesInfoFilteredSchema,
+  PriceInDecimalByCurrencySchema,
+} from '../util/api/likernft/book/schemas';
+
+export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
 export interface BookPurchaseData {
   id?: string;
@@ -40,10 +45,7 @@ export interface BookPurchaseData {
   lastRemindTimestamp?: { toMillis: () => number };
 }
 
-export interface BookPurchaseDataFiltered extends Omit<BookPurchaseData, 'claimToken' | 'timestamp' | 'lastRemindTimestamp' | 'quantity'> {
-  timestamp?: number;
-  quantity: number;
-}
+export type BookPurchaseDataFiltered = z.infer<typeof BookPurchaseDataFilteredSchema>;
 
 export interface BookPurchaseCartData extends BookPurchaseData {
   claimToken?: string;
@@ -85,17 +87,12 @@ export interface BookPurchaseCommission {
   timestamp?: { toMillis: () => number };
 }
 
-export interface BookPurchaseCommissionFiltered extends Omit<BookPurchaseCommission, 'timestamp'> {
-  timestamp?: number;
-}
+export type BookPurchaseCommissionFiltered = z.infer<typeof BookPurchaseCommissionFilteredSchema>;
 
 // Per-currency price overrides, in that currency's minor units (e.g. cents),
 // matching the convention of `priceInDecimal`. A missing currency falls back
 // to the index-based ladder conversion.
-export interface BookPriceInDecimalByCurrency {
-  hkd?: number;
-  twd?: number;
-}
+export type BookPriceInDecimalByCurrency = z.infer<typeof PriceInDecimalByCurrencySchema>;
 
 export interface NFTBookPrice {
   name?: string | Record<string, string>;
@@ -115,28 +112,9 @@ export interface NFTBookPrice {
   stripePriceId?: string;
 }
 
-export interface NFTBookPriceFiltered {
-  index: number;
-  price: number;
-  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
-  name?: string | Record<string, string>;
-  description?: string | Record<string, string>;
-  stock: number;
-  isSoldOut: boolean;
-  isAutoDeliver?: boolean;
-  isUnlisted?: boolean;
-  autoMemo?: string;
-  isAllowCustomPrice?: boolean;
-  isTippingEnabled?: boolean;
-  order: number;
-  sold?: number;
-}
+export type NFTBookPriceFiltered = z.infer<typeof NFTBookPriceFilteredSchema>;
 
-export interface NFTBookPricesInfoFiltered {
-  sold: number;
-  stock: number;
-  prices: NFTBookPriceFiltered[];
-}
+export type NFTBookPricesInfoFiltered = z.infer<typeof NFTBookPricesInfoFilteredSchema>;
 
 export interface NFTBookListingInfo {
   id?: string;
@@ -191,56 +169,7 @@ export interface NFTBookListingInfo {
   cancelUrl?: string;
 }
 
-export interface NFTBookListingInfoFiltered {
-  id: string;
-  classId: string;
-  likeClassId?: string;
-  evmClassId?: string;
-  redirectClassId?: string;
-  chain?: string;
-  prices: NFTBookPriceFiltered[];
-  isSoldOut: boolean;
-  stock: number;
-  ownerWallet: string;
-  mustClaimToView?: boolean;
-  hideDownload?: boolean;
-  hideAudio?: boolean;
-  hideUpsell?: boolean;
-  enableCustomMessagePage?: boolean;
-  tableOfContents?: any;
-  signedMessageText?: string;
-  enableSignatureImage?: boolean;
-  recommendedClassIds?: string[];
-  inLanguage?: string;
-  name?: string;
-  description?: string;
-  descriptionFull?: string;
-  previewContent?: string;
-  descriptionSummary?: string;
-  promotionalImages?: string[];
-  promotionalVideos?: string[];
-  reviewTitle?: string;
-  reviewURL?: string;
-  keywords?: string[];
-  thumbnailUrl?: string;
-  author?: string;
-  usageInfo?: string;
-  isbn?: string;
-  genre?: string;
-  timestamp?: number;
-  isHidden?: boolean;
-  isAdultOnly?: boolean;
-  sold?: number;
-  pendingNFTCount?: number;
-  moderatorWallets?: string[];
-  connectedWallets?: any;
-  isApprovedForSale: boolean;
-  isApprovedForIndexing: boolean;
-  isApprovedForAds: boolean;
-  approvalStatus?: string;
-  plusPromoEnabled?: boolean;
-  isPlusReadingEnabled?: boolean;
-}
+export type NFTBookListingInfoFiltered = z.infer<typeof NFTBookListingInfoFilteredSchema>;
 
 export interface AffiliateCustomVoice {
   id: string;

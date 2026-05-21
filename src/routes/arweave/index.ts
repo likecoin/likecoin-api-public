@@ -19,7 +19,13 @@ import {
   rotateArweaveTxAccessToken,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
+import {
+  ArweaveEstimateBodySchema,
+  ArweaveRegisterBodySchema,
+  ArweaveSignPaymentBodySchema,
+} from '../../util/api/arweave/schemas';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
+import { validateBody } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
@@ -39,10 +45,10 @@ router.get(
 router.post(
   '/v2/estimate',
   jwtOptionalAuth('write:iscn'),
+  validateBody(ArweaveEstimateBodySchema),
   async (req, res, next) => {
     try {
       const { fileSize, ipfsHash } = req.body;
-      if (!fileSize) throw new Error('MISSING_FILE_SIZE');
       const [{ arweaveId, ETH }, quota] = await Promise.all([
         estimateUploadToArweaveV2(fileSize, ipfsHash),
         req.user?.wallet ? getRemainingQuota(req.user.wallet) : Promise.resolve(null),
@@ -85,15 +91,12 @@ router.post(
 router.post(
   '/v2/sign_payment_data',
   jwtOptionalAuth('write:iscn'),
+  validateBody(ArweaveSignPaymentBodySchema),
   async (req, res, next) => {
     try {
       const {
         fileSize, ipfsHash, txHash, signatureData, txToken = 'BASEETH',
       } = req.body;
-      if (!ipfsHash) throw new Error('MISSING_IPFS_HASH');
-      if (!fileSize) throw new Error('MISSING_FILE_SIZE');
-      if (!signatureData) throw new Error('MISSING_SIGNATURE_DATA');
-      if (!['BASEETH', 'SPONSORED'].includes(txToken)) throw new Error('INVALID_TX_TOKEN');
 
       const isSponsored = txToken === 'SPONSORED';
       if (isSponsored && !req.user?.wallet) {
@@ -192,13 +195,12 @@ router.post(
 router.post(
   '/v2/register',
   jwtOptionalAuth('write:iscn'),
+  validateBody(ArweaveRegisterBodySchema),
   async (req, res, next) => {
     try {
       const {
         txHash, arweaveId, token, key, isRequireAuth = true,
       } = req.body;
-      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
-      if (!arweaveId) throw new ValidationError('MISSING_ARWEAVE_ID');
       if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);

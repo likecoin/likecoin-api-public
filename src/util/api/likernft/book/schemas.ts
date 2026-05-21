@@ -11,14 +11,10 @@ const LocalizedTextMap = z.record(z.string(), z.string())
     { message: `default locale "${NFT_BOOK_TEXT_DEFAULT_LOCALE}" is required` },
   );
 
-const PriceInDecimalByCurrencySchema = z.object(
-  Object.fromEntries(
-    BOOK_PRICE_OVERRIDE_CURRENCIES.map((currency) => [
-      currency,
-      z.number().int().min(0),
-    ]),
-  ),
-).partial();
+export const PriceInDecimalByCurrencySchema = z.record(
+  z.enum(BOOK_PRICE_OVERRIDE_CURRENCIES),
+  z.number().int().min(0),
+);
 
 export const NFTBookPriceSchema = z.object({
   priceInDecimal: z.number()
@@ -72,4 +68,242 @@ export const NewListingBodySchema = ListingSettingsBodySchema.extend({
 
 export const ImageUploadBodySchema = z.object({
   signedMessageText: z.string().optional(),
+});
+
+export const STRIPE_CONNECT_SITES = ['press', 'store'] as const;
+export type StripeConnectSite = typeof STRIPE_CONNECT_SITES[number];
+
+export const StripeConnectNewBodySchema = z.object({
+  site: z.enum(STRIPE_CONNECT_SITES).optional(),
+});
+
+export const NFTBookSentBodySchema = z.object({
+  txHash: z.string().nullish(),
+  quantity: z.coerce.number().int().positive().default(1),
+});
+
+export const ClassIdResponseSchema = z.object({
+  classId: z.string(),
+});
+
+export const NewListingResponseSchema = ClassIdResponseSchema;
+export const ListingSettingsResponseSchema = ClassIdResponseSchema;
+
+export const PriceCreateResponseSchema = z.object({
+  index: z.number().int().min(0),
+});
+
+export const ImageUploadResponseSchema = z.object({
+  enableSignatureImage: z.boolean(),
+  signedMessageText: z.string(),
+});
+
+export const StripeConnectNewResponseSchema = z.object({
+  url: z.string().url(),
+});
+
+const LocalizedOrPlainTextSchema = z.union([
+  z.string(),
+  z.record(z.string(), z.string()),
+]);
+
+export const NFTBookPriceFilteredSchema = z.object({
+  index: z.number().int().min(0),
+  price: z.number(),
+  priceInDecimalByCurrency: PriceInDecimalByCurrencySchema.optional(),
+  name: LocalizedOrPlainTextSchema.optional(),
+  description: LocalizedOrPlainTextSchema.optional(),
+  stock: z.number().int(),
+  isSoldOut: z.boolean(),
+  isAutoDeliver: z.boolean().optional(),
+  isUnlisted: z.boolean().optional(),
+  autoMemo: z.string().optional(),
+  isAllowCustomPrice: z.boolean().optional(),
+  isTippingEnabled: z.boolean().optional(),
+  order: z.number().int(),
+  sold: z.number().int().optional(),
+});
+
+export const NFTBookPricesInfoFilteredSchema = z.object({
+  sold: z.number().int(),
+  stock: z.number().int(),
+  prices: z.array(NFTBookPriceFilteredSchema),
+});
+
+export const NFTBookListingInfoFilteredSchema = z.object({
+  id: z.string(),
+  classId: z.string(),
+  likeClassId: z.string().optional(),
+  evmClassId: z.string().optional(),
+  redirectClassId: z.string().optional(),
+  chain: z.string().optional(),
+  prices: z.array(NFTBookPriceFilteredSchema),
+  isSoldOut: z.boolean(),
+  stock: z.number().int(),
+  ownerWallet: z.string(),
+  mustClaimToView: z.boolean().optional(),
+  hideDownload: z.boolean().optional(),
+  hideAudio: z.boolean().optional(),
+  hideUpsell: z.boolean().optional(),
+  enableCustomMessagePage: z.boolean().optional(),
+  tableOfContents: z.unknown().optional(),
+  signedMessageText: z.string().optional(),
+  enableSignatureImage: z.boolean().optional(),
+  recommendedClassIds: z.array(z.string()).optional(),
+  inLanguage: z.string().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  descriptionFull: z.string().optional(),
+  previewContent: z.string().optional(),
+  descriptionSummary: z.string().optional(),
+  promotionalImages: z.array(z.string()).optional(),
+  promotionalVideos: z.array(z.string()).optional(),
+  reviewTitle: z.string().optional(),
+  reviewURL: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
+  thumbnailUrl: z.string().optional(),
+  author: z.string().optional(),
+  usageInfo: z.string().optional(),
+  isbn: z.string().optional(),
+  genre: z.string().optional(),
+  timestamp: z.number().optional(),
+  isHidden: z.boolean().optional(),
+  isAdultOnly: z.boolean().optional(),
+  sold: z.number().int().optional(),
+  pendingNFTCount: z.number().int().optional(),
+  moderatorWallets: z.array(z.string()).optional(),
+  connectedWallets: z.unknown().optional(),
+  isApprovedForSale: z.boolean(),
+  isApprovedForIndexing: z.boolean(),
+  isApprovedForAds: z.boolean(),
+  approvalStatus: z.string().optional(),
+  plusPromoEnabled: z.boolean().optional(),
+  isPlusReadingEnabled: z.boolean().optional(),
+});
+
+export const BookGiftInfoSchema = z.object({
+  fromName: z.string(),
+  toName: z.string(),
+  toEmail: z.string(),
+  message: z.string().optional(),
+}).passthrough();
+
+export const BookPurchaseDataFilteredSchema = z.object({
+  id: z.string().optional(),
+  email: z.string().optional(),
+  status: z.string().optional(),
+  sessionId: z.string().optional(),
+  isPendingClaim: z.boolean().optional(),
+  isPaid: z.boolean().optional(),
+  errorMessage: z.string().optional(),
+  wallet: z.string().optional(),
+  classId: z.string().optional(),
+  priceInDecimal: z.number().optional(),
+  price: z.number().optional(),
+  originalPrice: z.number().optional(),
+  originalPriceInDecimal: z.number().optional(),
+  priceIndex: z.number().int().optional(),
+  priceName: z.string().optional(),
+  coupon: z.string().optional(),
+  txHash: z.string().optional(),
+  message: z.string().optional(),
+  from: z.string().optional(),
+  giftInfo: BookGiftInfoSchema.optional(),
+  timestamp: z.number().optional(),
+  autoMemo: z.string().optional(),
+  isAutoDeliver: z.boolean().optional(),
+  quantity: z.number().int(),
+  classIds: z.array(z.string()).optional(),
+  classIdsWithPrice: z.array(z.unknown()).optional(),
+});
+
+export const BookPurchaseCommissionFilteredSchema = z.object({
+  type: z.string(),
+  ownerWallet: z.string(),
+  classId: z.string().optional(),
+  priceIndex: z.number().int().optional(),
+  collectionId: z.string().optional(),
+  transferId: z.string().optional(),
+  stripeConnectAccountId: z.string().optional(),
+  paymentId: z.string(),
+  amountTotal: z.number(),
+  amount: z.number(),
+  currency: z.string(),
+  buyerEmail: z.string().optional(),
+  timestamp: z.number().optional(),
+});
+
+export const BookSearchResponseSchema = z.object({
+  list: z.array(z.unknown()),
+});
+
+export const BookListResponseSchema = z.object({
+  list: z.array(NFTBookListingInfoFilteredSchema),
+  nextKey: z.number().nullable(),
+});
+
+export const BookListModeratedResponseSchema = z.object({
+  list: z.array(z.object({
+    classId: z.string(),
+    prices: z.array(NFTBookPriceFilteredSchema),
+    pendingNFTCount: z.number().int().optional(),
+    stock: z.number().int(),
+    sold: z.number().int(),
+    ownerWallet: z.string(),
+  })),
+});
+
+export const BookInfoResponseSchema = NFTBookListingInfoFilteredSchema;
+
+export const BookPriceInfoResponseSchema = NFTBookPriceFilteredSchema.extend({
+  ownerWallet: z.string(),
+});
+
+export const BookOrdersResponseSchema = z.object({
+  orders: z.array(BookPurchaseDataFilteredSchema),
+});
+
+export const BookStatusResponseSchema = BookPurchaseDataFilteredSchema;
+
+export const BookUserProfileResponseSchema = z.object({
+  stripeConnectAccountId: z.string().optional(),
+  isStripeConnectReady: z.boolean().optional(),
+  notificationEmail: z.string().nullable(),
+  isEmailVerified: z.boolean(),
+});
+
+export const BookUserConnectStatusResponseSchema = z.object({
+  hasAccount: z.boolean(),
+  isReady: z.boolean().optional(),
+  stripeConnectAccountId: z.string().optional(),
+  email: z.string().optional(),
+});
+
+export const BookUserCommissionsResponseSchema = z.object({
+  commissions: z.array(BookPurchaseCommissionFilteredSchema),
+});
+
+const StripePayoutSummarySchema = z.object({
+  amount: z.number(),
+  currency: z.string(),
+  id: z.string(),
+  status: z.string(),
+  arrivalTs: z.number(),
+  createdTs: z.number(),
+});
+
+export const BookUserPayoutsListResponseSchema = z.object({
+  payouts: z.array(StripePayoutSummarySchema),
+});
+
+export const BookUserPayoutResponseSchema = StripePayoutSummarySchema.extend({
+  items: z.array(z.object({
+    amount: z.number(),
+    currency: z.string(),
+    status: z.string(),
+    createdTs: z.number(),
+    description: z.string().nullable(),
+    commissionId: z.string().nullable(),
+    metadata: z.record(z.string(), z.string()).optional(),
+  })),
 });

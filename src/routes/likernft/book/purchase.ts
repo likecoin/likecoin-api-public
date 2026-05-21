@@ -42,6 +42,8 @@ import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
 import { fetchUserInfoByEmail } from '../../../util/api/users';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
+import { validateBody } from '../../../middleware/validate';
+import { NFTBookSentBodySchema } from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
 
@@ -706,12 +708,11 @@ router.post(
 router.post(
   ['/:classId/sent/:paymentId', '/class/:classId/sent/:paymentId'],
   jwtAuth('write:nftbook'),
+  validateBody(NFTBookSentBodySchema),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
-      const { txHash } = req.body;
-      let { quantity = 1 } = req.body;
-      quantity = parseInt(quantity, 10) || 1;
+      const { txHash, quantity } = req.body;
       const listingDoc = await likeNFTBookCollection.doc(classId).get();
       if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const listingData = listingDoc.data();
