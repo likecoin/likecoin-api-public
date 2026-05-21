@@ -62,11 +62,6 @@ export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.
 
 export const DEFAULT_AVATAR_SIZE = 400;
 
-export const DEFAULT_FOLLOW_IDS = [
-  'foundation',
-  'hi176-matters',
-];
-
 export const QUERY_STRING_TO_REMOVE = [
   'fbclid',
   'gclid',

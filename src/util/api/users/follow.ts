@@ -1,18 +1,4 @@
-import { db, userCollection as dbRef } from '../../firebase';
-import { DEFAULT_FOLLOW_IDS } from '../../../constant';
-
-export async function addDefaultFollowers(userId) {
-  const batch = db.batch();
-  const createObj = {
-    isFollowed: true,
-    ts: Date.now(),
-  };
-  DEFAULT_FOLLOW_IDS.forEach((id) => batch.set(
-    dbRef.doc(userId).collection('follow').doc(id),
-    createObj,
-  ));
-  await batch.commit();
-}
+import { userCollection as dbRef } from '../../firebase';
 
 export async function addFollowUser(userId, followUserId) {
   const createObj = {
@@ -25,3 +11,5 @@ export async function addFollowUser(userId, followUserId) {
     .doc(followUserId)
     .set(createObj, { merge: true });
 }
+
+export default addFollowUser;

@@ -1,5 +1,4 @@
 import type { z } from 'zod';
-import type { AppMeta } from './firestore';
 import type {
   UserDataFilteredResponseSchema,
   UserDataMinResponseSchema,
@@ -11,7 +10,3 @@ export type UserDataFiltered = z.infer<typeof UserDataFilteredResponseSchema>;
 export type UserDataMin = z.infer<typeof UserDataMinResponseSchema>;
 
 export type UserDataScopedFiltered = z.infer<typeof UserDataScopedResponseSchema>;
-
-export interface AppMetaFiltered extends Omit<AppMeta, 'referrer'> {
-  isNew: boolean;
-}

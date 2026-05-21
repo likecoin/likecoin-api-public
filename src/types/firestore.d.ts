@@ -116,40 +116,6 @@ export interface ISCNMappingData {
   [key: string]: any;
 }
 
-export interface AppMeta {
-  isEmailVerified?: boolean;
-  isPhoneVerified?: boolean;
-  referrer?: string;
-  ts?: number;
-  android?: any;
-  ios?: any;
-}
-
-export interface NotificationData {
-  id: string;
-  LIKE?: number;
-  from?: string;
-  isRead?: boolean;
-  sourceURL?: string;
-  to?: string;
-  ts?: number;
-  txHash?: string;
-  type?: string;
-}
-
-export interface BookmarkData {
-  id: string;
-  url: string;
-  ts: number;
-  isArchived?: boolean;
-}
-
-export interface FollowData {
-  id: string;
-  isFollowed: boolean;
-  ts: number;
-}
-
 export interface BookUserInfoResult {
   wallet: string;
   bookUserInfo: NFTBookUserData | null;
