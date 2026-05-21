@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  SUPPORTED_PLUS_CURRENCIES,
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
 
@@ -82,12 +83,108 @@ export const NFTBookSentBodySchema = z.object({
   quantity: z.coerce.number().int().positive().default(1),
 });
 
+export const TrackingFieldsSchema = z.object({
+  gaClientId: z.string().optional(),
+  gaSessionId: z.string().optional(),
+  gadClickId: z.string().optional(),
+  gadSource: z.string().optional(),
+  fbClickId: z.string().optional(),
+  fbp: z.string().optional(),
+  fbc: z.string().optional(),
+  posthogDistinctId: z.string().optional(),
+  utmCampaign: z.string().optional(),
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmContent: z.string().optional(),
+  utmTerm: z.string().optional(),
+  referrer: z.string().optional(),
+  ipCountry: z.string().optional(),
+  isApp: z.boolean().optional(),
+  language: z.string().optional(),
+});
+
+export const BookGiftInfoBodySchema = z.object({
+  fromName: z.string().optional(),
+  toName: z.string().optional(),
+  toEmail: z.string().email(),
+  message: z.string().optional(),
+}).passthrough();
+
+export const BookPurchaseNewBodySchema = TrackingFieldsSchema.extend({
+  email: z.string().email().optional(),
+  giftInfo: BookGiftInfoBodySchema.optional(),
+  coupon: z.string().optional(),
+  currency: z.enum(SUPPORTED_PLUS_CURRENCIES).optional(),
+  customPriceInDecimal: z.coerce.number().int().min(0).optional(),
+  quantity: z.coerce.number().int().positive().default(1),
+});
+
+export const BookCartItemSchema = z.object({
+  classId: z.string().min(1),
+  priceIndex: z.coerce.number().int().min(0),
+  customPriceInDecimal: z.coerce.number().int().min(0).optional(),
+  quantity: z.coerce.number().int().positive().default(1),
+  from: z.string().optional(),
+});
+
+export const BookCartNewBodySchema = TrackingFieldsSchema.extend({
+  items: z.array(BookCartItemSchema).min(1),
+  email: z.string().email().optional(),
+  giftInfo: BookGiftInfoBodySchema.optional(),
+  coupon: z.string().optional(),
+  currency: z.enum(SUPPORTED_PLUS_CURRENCIES).optional(),
+  cancelPage: z.string().optional(),
+});
+
+export const BookCartClaimBodySchema = z.object({
+  wallet: z.string().min(1),
+  message: z.string().optional(),
+  loginMethod: z.string().optional(),
+});
+
+export const BookMessageBodySchema = z.object({
+  wallet: z.string().min(1),
+  message: z.string().min(1),
+});
+
+export const BookFreeClaimBodySchema = z.object({
+  classId: z.string().min(1),
+});
+
 export const ClassIdResponseSchema = z.object({
   classId: z.string(),
 });
 
 export const NewListingResponseSchema = ClassIdResponseSchema;
 export const ListingSettingsResponseSchema = ClassIdResponseSchema;
+
+export const StripeCheckoutResponseSchema = z.object({
+  paymentId: z.string(),
+  url: z.string().url().nullable(),
+});
+
+export const BookPurchaseNewResponseSchema = StripeCheckoutResponseSchema;
+export const BookCartNewResponseSchema = StripeCheckoutResponseSchema;
+
+export const BookCartClaimResponseSchema = z.object({
+  classIds: z.array(z.string()),
+  newClaimedNFTs: z.array(z.object({
+    classId: z.string(),
+    nftId: z.string().optional(),
+  })),
+  allItemsAutoClaimed: z.boolean(),
+  errors: z.array(z.object({
+    classId: z.string(),
+    error: z.string(),
+  })),
+});
+
+export const BookFreeClaimResponseSchema = z.object({
+  classIds: z.array(z.string()),
+  cartId: z.string(),
+  paymentId: z.string(),
+  claimToken: z.string(),
+});
 
 export const PriceCreateResponseSchema = z.object({
   index: z.number().int().min(0),

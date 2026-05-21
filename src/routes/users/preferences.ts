@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
+import { validateBody } from '../../middleware/validate';
+import { UsersPreferencesBodySchema } from '../../util/api/users/schemas';
 import { userCollection as dbRef } from '../../util/firebase';
 import { supportedLocales, defaultLocale } from '../../locales';
 
@@ -38,7 +40,7 @@ function isValidHttpUrl(string) {
   return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
-router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next) => {
+router.post('/preferences', jwtAuth('write:preferences'), validateBody(UsersPreferencesBodySchema), async (req, res, next) => {
   try {
     const { user } = req.user;
     const {
@@ -78,14 +80,8 @@ router.post('/preferences', jwtAuth('write:preferences'), async (req, res, next)
     }
 
     if (inputPaymentRedirectWhiteList !== undefined) {
-      let paymentRedirectWhiteList = inputPaymentRedirectWhiteList === null
-        ? [] : inputPaymentRedirectWhiteList;
-      if (!Array.isArray(paymentRedirectWhiteList)) {
-        res.status(400).send('INVALID_PAYMENT_REDIRECT_WHITELIST');
-        return;
-      }
-      paymentRedirectWhiteList = Array.from(new Set(
-        paymentRedirectWhiteList.filter((url) => !!url),
+      const paymentRedirectWhiteList = Array.from(new Set(
+        (inputPaymentRedirectWhiteList ?? []).filter((url) => !!url),
       ));
       if (paymentRedirectWhiteList.some((url) => !isValidHttpUrl(url))) {
         res.status(400).send('INVALID_PAYMENT_REDIRECT_URL');

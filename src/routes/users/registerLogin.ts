@@ -29,6 +29,11 @@ import { ValidationError } from '../../util/ValidationError';
 import { supportedLocales, defaultLocale } from '../../locales';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
 import { jwtAuth } from '../../middleware/jwt';
+import { validateBody } from '../../middleware/validate';
+import {
+  UsersUpdateAvatarBodySchema,
+  UsersUpdateBodySchema,
+} from '../../util/api/users/schemas';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
@@ -277,6 +282,7 @@ router.post(
 router.post(
   '/update',
   jwtAuth('write:profile'),
+  validateBody(UsersUpdateBodySchema),
   async (req, res, next) => {
     try {
       const { user } = req.user;
@@ -378,6 +384,7 @@ router.post(
   '/update/avatar',
   jwtAuth('write:profile'),
   multer.single('avatarFile'),
+  validateBody(UsersUpdateAvatarBodySchema),
   async (req, res, next) => {
     try {
       const { user } = req.user;
