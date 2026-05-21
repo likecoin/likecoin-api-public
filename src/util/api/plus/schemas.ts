@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { SUPPORTED_CHECKOUT_UI_MODES } from '../../../constant';
 import {
   BookGiftInfoBodySchema,
+  BookGiftInfoSchema,
   StripeCheckoutResponseSchema,
   TrackingFieldsSchema,
 } from '../likernft/book/schemas';
@@ -90,4 +91,17 @@ export const PlusGiftStatusResponseSchema = z.object({
   giftPaymentId: z.string().optional(),
   giftClaimToken: z.string().optional(),
   affiliateFrom: z.string().optional(),
+});
+
+export const PlusGiftCartStatusResponseSchema = z.object({
+  id: z.string().optional(),
+  email: z.string().optional(),
+  status: z.string().optional(),
+  sessionId: z.string().optional(),
+  errorMessage: z.string().optional(),
+  wallet: z.string().optional(),
+  period: z.string(),
+  giftInfo: BookGiftInfoSchema,
+  timestamp: z.unknown().optional(),
+  claimTimestamp: z.unknown().optional(),
 });

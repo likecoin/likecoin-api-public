@@ -362,6 +362,19 @@ export const BookOrdersResponseSchema = z.object({
 
 export const BookStatusResponseSchema = BookPurchaseDataFilteredSchema;
 
+export const BookCartStatusResponseSchema = BookPurchaseDataFilteredSchema;
+
+export const BookFreeClaimableListResponseSchema = z.array(z.string());
+
+export const BookPurchaseMessagesResponseSchema = z.object({
+  messages: z.array(z.object({
+    wallet: z.string().optional(),
+    txHash: z.string().optional(),
+    timestamp: z.number().optional(),
+    message: z.string().optional(),
+  })),
+});
+
 export const BookUserProfileResponseSchema = z.object({
   stripeConnectAccountId: z.string().optional(),
   isStripeConnectReady: z.boolean().optional(),
