@@ -158,6 +158,34 @@ export const ClassIdResponseSchema = z.object({
 export const NewListingResponseSchema = ClassIdResponseSchema;
 export const ListingSettingsResponseSchema = ClassIdResponseSchema;
 
+export const StripeCheckoutResponseSchema = z.object({
+  paymentId: z.string(),
+  url: z.string().url().nullable(),
+});
+
+export const BookPurchaseNewResponseSchema = StripeCheckoutResponseSchema;
+export const BookCartNewResponseSchema = StripeCheckoutResponseSchema;
+
+export const BookCartClaimResponseSchema = z.object({
+  classIds: z.array(z.string()),
+  newClaimedNFTs: z.array(z.object({
+    classId: z.string(),
+    nftId: z.string().optional(),
+  })),
+  allItemsAutoClaimed: z.boolean(),
+  errors: z.array(z.object({
+    classId: z.string(),
+    error: z.string(),
+  })),
+});
+
+export const BookFreeClaimResponseSchema = z.object({
+  classIds: z.array(z.string()),
+  cartId: z.string(),
+  paymentId: z.string(),
+  claimToken: z.string(),
+});
+
 export const PriceCreateResponseSchema = z.object({
   index: z.number().int().min(0),
 });

@@ -24,3 +24,16 @@ export const WalletAuthorizeResponseSchema = z.object({
   token: z.string(),
   intercomToken: z.string().optional(),
 });
+
+export const WalletEvmMigrateResponseSchema = z.object({
+  isMigratedBookUser: z.boolean(),
+  isMigratedBookOwner: z.boolean(),
+  isMigratedLikerId: z.boolean(),
+  isMigratedLikerLand: z.boolean(),
+  migratedLikerId: z.string().optional(),
+  migratedLikerLandUser: z.string().optional(),
+  migrateBookUserError: z.string().optional(),
+  migrateBookOwnerError: z.string().optional(),
+  migrateLikerIdError: z.string().optional(),
+  migrateLikerLandError: z.string().optional(),
+});

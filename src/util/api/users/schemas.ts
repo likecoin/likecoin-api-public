@@ -37,6 +37,16 @@ export const UsersUpdateAvatarBodySchema = z.object({
   avatarSHA256: z.string().optional(),
 });
 
+export const UsersPreferencesResponseSchema = z.object({
+  locale: z.string().optional(),
+  creatorPitch: z.string(),
+  paymentRedirectWhiteList: z.array(z.string()),
+});
+
+export const UsersUpdateAvatarResponseSchema = z.object({
+  avatar: z.string().url(),
+});
+
 export const UserDataMinResponseSchema = z.object({
   user: z.string(),
   displayName: z.string().optional(),
