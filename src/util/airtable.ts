@@ -20,6 +20,7 @@ interface AirtablePublicationRecordParams {
   type?: string;
   minPrice?: number;
   maxPrice?: number;
+  priceRangeByCurrency?: Record<string, { min: number; max: number }>;
   imageURL?: string;
   author?: string;
   publisher?: string;
@@ -73,6 +74,7 @@ export async function createAirtablePublicationRecord({
   type,
   minPrice,
   maxPrice,
+  priceRangeByCurrency,
   imageURL,
   author,
   publisher,
@@ -106,6 +108,14 @@ export async function createAirtablePublicationRecord({
       'Max Price': maxPrice,
       'DRM-free': isDRMFree,
     };
+
+    if (priceRangeByCurrency) {
+      for (const [currency, range] of Object.entries(priceRangeByCurrency)) {
+        const code = currency.toUpperCase();
+        fields[`Min Price ${code}`] = range.min;
+        fields[`Max Price ${code}`] = range.max;
+      }
+    }
 
     if (author) fields.Author = author;
     if (publisher) fields.Publisher = publisher;
@@ -273,6 +283,7 @@ export async function updateAirtablePublicationRecord({
   type,
   minPrice,
   maxPrice,
+  priceRangeByCurrency,
   imageURL,
   author,
   publisher,
@@ -310,6 +321,13 @@ export async function updateAirtablePublicationRecord({
     }
     if (minPrice !== undefined) fields['Min Price'] = minPrice;
     if (maxPrice !== undefined) fields['Max Price'] = maxPrice;
+    if (priceRangeByCurrency) {
+      for (const [currency, range] of Object.entries(priceRangeByCurrency)) {
+        const code = currency.toUpperCase();
+        fields[`Min Price ${code}`] = range.min;
+        fields[`Max Price ${code}`] = range.max;
+      }
+    }
     if (isDRMFree !== undefined) fields['DRM-free'] = isDRMFree;
 
     if (author) fields.Author = author;

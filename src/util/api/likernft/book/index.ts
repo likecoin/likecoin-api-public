@@ -28,7 +28,7 @@ import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
-import { getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
+import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getAuthorNameFromMetadata(author: unknown): string {
   if (typeof author === 'string') {
@@ -421,6 +421,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     } = bookInfo;
     const minPrice = prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100;
     const maxPrice = prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100;
+    const priceRangeByCurrency = getBookPriceRangeByCurrency(prices);
     await updateAirtablePublicationRecord({
       id: classId,
       name,
@@ -430,6 +431,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       type: 'book',
       minPrice,
       maxPrice,
+      priceRangeByCurrency,
       imageURL: image,
       author: getAuthorNameFromMetadata(author),
       publisher,
