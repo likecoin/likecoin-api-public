@@ -61,6 +61,30 @@ export function getStripeCurrencyOptionsFromNFTBookPrice(
   );
 }
 
+type OverrideCurrency = typeof BOOK_PRICE_OVERRIDE_CURRENCIES[number];
+
+type BookPriceLike = {
+  priceInDecimal: number;
+  priceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
+};
+
+export function getBookPriceRangeByCurrency(
+  prices: BookPriceLike[],
+): Record<OverrideCurrency, { min: number; max: number }> {
+  const result = {} as Record<OverrideCurrency, { min: number; max: number }>;
+  for (const currency of BOOK_PRICE_OVERRIDE_CURRENCIES) {
+    const amounts = prices.map((p) => getCurrencyPriceInDecimal(
+      p.priceInDecimal,
+      currency,
+      p.priceInDecimalByCurrency,
+    ));
+    const min = amounts.reduce((acc, v) => Math.min(acc, v), Infinity) / 100;
+    const max = amounts.reduce((acc, v) => Math.max(acc, v), 0) / 100;
+    result[currency] = { min, max };
+  }
+  return result;
+}
+
 export function convertCurrencyToUSDPrice(price: number, currency: SupportedPlusCurrency): number {
   switch (currency) {
     case 'hkd': {

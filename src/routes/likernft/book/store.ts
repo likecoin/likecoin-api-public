@@ -41,7 +41,11 @@ import { getStripeClient } from '../../../util/stripe';
 import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
-import { BOOK_PRICE_OVERRIDE_CURRENCIES, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../util/pricing';
+import {
+  BOOK_PRICE_OVERRIDE_CURRENCIES,
+  getBookPriceRangeByCurrency,
+  getStripeCurrencyOptionsFromNFTBookPrice,
+} from '../../../util/pricing';
 import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
@@ -619,6 +623,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         type: metadata?.data?.metadata?.nft_meta_collection_id,
         minPrice: prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100,
         maxPrice: prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100,
+        priceRangeByCurrency: getBookPriceRangeByCurrency(prices),
         imageURL: image,
         language: inLanguage,
         keywords,
