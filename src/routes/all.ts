@@ -1,8 +1,5 @@
 import { Router } from 'express';
-import app from './app';
 import arweave from './arweave';
-import civic from './civic';
-import cosmos from './cosmos';
 import email from './email';
 import likerland from './likerland';
 import likernft from './likernft';
@@ -16,10 +13,7 @@ import wallet from './wallet';
 
 const router = Router();
 
-router.use('/app', app);
 router.use('/arweave', arweave);
-router.use('/civic', civic);
-router.use('/cosmos', cosmos);
 router.use('/email', email);
 router.use('/likerland', likerland);
 router.use('/likernft', likernft);

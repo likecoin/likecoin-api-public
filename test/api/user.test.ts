@@ -612,27 +612,6 @@ describe('USER tests', () => {
     );
   });
 
-  it('USER: Post user notitication option', async () => {
-    const user = testingUser1;
-    const token = jwtSign({ user });
-    let res = await axiosist.post(`/api/users/email/${user}`, {
-      isEmailEnabled: true,
-    }, {
-      headers: {
-        Cookie: `likecoin_auth=${token}`,
-      },
-    }).catch((err) => (err as any).response);
-
-    expect(res.status).toBe(200);
-    res = await axiosist.get(`/api/users/id/${user}`, {
-      headers: {
-        Cookie: `likecoin_auth=${token}`,
-      },
-    });
-    expect(res.status).toBe(200);
-    expect(res.data.isEmailEnabled).toBe(true);
-  });
-
   it('USER: Check New User Info: Available', async () => {
     const user = `${testingUser2}-new`;
     const email = 'newemail@email.com';

@@ -1,6 +1,5 @@
 import bech32 from 'bech32';
 import {
-  ONE_DAY_IN_MS,
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
@@ -9,7 +8,6 @@ import type {
   UserDataFiltered,
   UserDataMin,
   UserDataScopedFiltered,
-  AppMetaFiltered,
 } from '../types/validation';
 import type { TxData } from '../types/transaction';
 import type {
@@ -32,10 +30,6 @@ import type {
 } from '../types/book';
 import type {
   OAuthClientInfo,
-  AppMeta,
-  NotificationData,
-  BookmarkData,
-  FollowData,
 } from '../types/firestore';
 
 export function checkAddressValid(addr: string): boolean {
@@ -454,75 +448,6 @@ export function filterOAuthClientInfo({
     domain,
     platform,
     isTrusted,
-  };
-}
-
-export function filterAppMeta({
-  isEmailVerified,
-  isPhoneVerified,
-  referrer,
-  ts,
-  android,
-  ios,
-}: AppMeta): AppMetaFiltered {
-  const isNew = (!ts || (Date.now() - ts < ONE_DAY_IN_MS)) && !referrer;
-  return {
-    isNew,
-    isEmailVerified,
-    isPhoneVerified,
-    ts,
-    android,
-    ios,
-  };
-}
-
-export function filterNotification({
-  id,
-  LIKE,
-  from,
-  isRead,
-  sourceURL,
-  to,
-  ts,
-  txHash,
-  type,
-}: NotificationData): NotificationData {
-  return {
-    id,
-    LIKE,
-    from,
-    isRead,
-    sourceURL,
-    to,
-    ts,
-    txHash,
-    type,
-  };
-}
-
-export function filterBookmarks({
-  id,
-  url,
-  ts,
-  isArchived,
-}: BookmarkData): BookmarkData {
-  return {
-    id,
-    url,
-    ts,
-    isArchived,
-  };
-}
-
-export function filterFollow({
-  id,
-  isFollowed,
-  ts,
-}: FollowData): FollowData {
-  return {
-    id,
-    isFollowed,
-    ts,
   };
 }
 
