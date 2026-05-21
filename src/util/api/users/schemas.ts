@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { supportedLocales } from '../../../locales';
 
-const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
+export const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
 const LikerPlusSubscriptionStatusSchema = z.enum(LIKER_PLUS_SUBSCRIPTION_STATUSES);
 const LocaleSchema = z.enum(supportedLocales);
 

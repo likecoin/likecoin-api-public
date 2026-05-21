@@ -367,11 +367,11 @@ export const BookCartStatusResponseSchema = BookPurchaseDataFilteredSchema;
 export const BookFreeClaimableListResponseSchema = z.array(z.string());
 
 export const BookPurchaseMessagesResponseSchema = z.object({
-  messages: z.array(z.object({
-    wallet: z.string().optional(),
-    txHash: z.string().optional(),
-    timestamp: z.number().optional(),
-    message: z.string().optional(),
+  messages: z.array(BookPurchaseDataFilteredSchema.pick({
+    wallet: true,
+    txHash: true,
+    timestamp: true,
+    message: true,
   })),
 });
 

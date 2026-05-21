@@ -422,8 +422,8 @@ export function filterPlusGiftCartData({
     wallet,
     period,
     giftInfo,
-    timestamp,
-    claimTimestamp,
+    timestamp: timestamp?.toMillis(),
+    claimTimestamp: claimTimestamp?.toMillis(),
   };
 }
 

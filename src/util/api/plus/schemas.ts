@@ -96,12 +96,12 @@ export const PlusGiftStatusResponseSchema = z.object({
 export const PlusGiftCartStatusResponseSchema = z.object({
   id: z.string().optional(),
   email: z.string().optional(),
-  status: z.string().optional(),
+  status: z.enum(['paid', 'pending', 'completed', 'error']).optional(),
   sessionId: z.string().optional(),
   errorMessage: z.string().optional(),
   wallet: z.string().optional(),
-  period: z.string(),
+  period: z.enum(['monthly', 'yearly']),
   giftInfo: BookGiftInfoSchema,
-  timestamp: z.unknown().optional(),
-  claimTimestamp: z.unknown().optional(),
+  timestamp: z.number().optional(),
+  claimTimestamp: z.number().optional(),
 });

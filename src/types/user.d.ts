@@ -1,5 +1,6 @@
 import type { Timestamp } from '@google-cloud/firestore';
 import type { SupportedLocale } from '../locales';
+import type { LIKER_PLUS_SUBSCRIPTION_STATUSES } from '../util/api/users/schemas';
 
 export interface CivicLikerData {
   currentPeriodStart: number;
@@ -9,7 +10,7 @@ export interface CivicLikerData {
   civicLikerVersion?: number;
 }
 
-export type LikerPlusSubscriptionStatus = 'active' | 'past_due' | 'canceled';
+export type LikerPlusSubscriptionStatus = typeof LIKER_PLUS_SUBSCRIPTION_STATUSES[number];
 
 export interface LikerPlusData {
   currentPeriodStart: number;

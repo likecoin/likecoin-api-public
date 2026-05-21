@@ -62,11 +62,11 @@ export interface BookPurchaseCartData extends BookPurchaseData {
 export interface PlusGiftCartData {
   id?: string;
   email?: string;
-  status?: string;
+  status?: 'paid' | 'pending' | 'completed' | 'error';
   sessionId?: string;
   errorMessage?: string;
   wallet?: string;
-  period: string;
+  period: 'monthly' | 'yearly';
   giftInfo: BookGiftInfo;
   claimToken: string;
   ipCountry?: string;
