@@ -215,7 +215,7 @@ export function filterUserDataScoped(
     };
   }
   if (scope.includes('read:preferences')) {
-    output.creatorPitch = user.creatorPitch;
+    output.creatorPitch = u.creatorPitch;
   }
   return output;
 }
@@ -422,8 +422,8 @@ export function filterPlusGiftCartData({
     wallet,
     period,
     giftInfo,
-    timestamp,
-    claimTimestamp,
+    timestamp: timestamp?.toMillis(),
+    claimTimestamp: claimTimestamp?.toMillis(),
   };
 }
 

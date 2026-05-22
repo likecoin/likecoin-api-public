@@ -11,7 +11,10 @@ import type {
   NFTBookPricesInfoFilteredSchema,
   PriceInDecimalByCurrencySchema,
 } from '../util/api/likernft/book/schemas';
-import type { AffiliateConfigSchema } from '../util/api/plus/schemas';
+import type {
+  AffiliateConfigSchema,
+  PlusGiftCartStatusResponseSchema,
+} from '../util/api/plus/schemas';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
@@ -59,11 +62,11 @@ export interface BookPurchaseCartData extends BookPurchaseData {
 export interface PlusGiftCartData {
   id?: string;
   email?: string;
-  status?: string;
+  status?: 'paid' | 'pending' | 'completed' | 'error';
   sessionId?: string;
   errorMessage?: string;
   wallet?: string;
-  period: string;
+  period: 'monthly' | 'yearly';
   giftInfo: BookGiftInfo;
   claimToken: string;
   ipCountry?: string;
@@ -71,7 +74,7 @@ export interface PlusGiftCartData {
   claimTimestamp?: { toMillis: () => number };
 }
 
-export type PlusGiftCartDataFiltered = Omit<PlusGiftCartData, 'claimToken'>;
+export type PlusGiftCartDataFiltered = z.infer<typeof PlusGiftCartStatusResponseSchema>;
 
 export interface BookPurchaseCommission {
   type: string;
