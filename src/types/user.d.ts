@@ -108,6 +108,7 @@ export interface UserCivicLikerProperties extends UserData {
   isLikerPlusTrial?: boolean;
   isExpiredLikerPlus?: boolean;
   likerPlusPeriod?: string;
+  likerPlusProvider?: LikerPlusProvider;
   likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
   plusAffiliateFrom?: string;
 }

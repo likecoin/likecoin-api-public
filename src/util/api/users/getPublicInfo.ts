@@ -81,6 +81,17 @@ export function formatUserCivicLikerProperies(
       since,
       period,
     } = likerPlus;
+    // Surface which billing system owns the subscription so the client can
+    // route "manage subscription" correctly (Stripe portal vs native store
+    // sheet). Legacy Stripe records predate `provider` but carry Stripe's
+    // subscriptionId/customerId; gifts carry them too (Stripe-managed). Mirrors
+    // isStripeOwnedLikerPlus in plus/revenuecat.ts (inlined to avoid an import
+    // cycle — revenuecat.ts already imports from this module).
+    if (likerPlus.provider === 'stripe' || likerPlus.subscriptionId || likerPlus.customerId) {
+      payload.likerPlusProvider = 'stripe';
+    } else if (likerPlus.provider === 'revenuecat') {
+      payload.likerPlusProvider = 'revenuecat';
+    }
     const now = Date.now();
     const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
     if (start <= now && now <= renewalLast) {
