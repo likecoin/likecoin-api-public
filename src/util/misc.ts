@@ -20,3 +20,7 @@ export function maskString(
   if (!str || str.length <= start + end) return str;
   return `${str.slice(0, start)}*****${str.slice(-end)}`;
 }
+
+export function splitEnvList(value?: string): string[] {
+  return (value || '').split(',').map((s) => s.trim()).filter(Boolean);
+}

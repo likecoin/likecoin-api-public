@@ -12,6 +12,8 @@ export interface CivicLikerData {
 
 export type LikerPlusSubscriptionStatus = typeof LIKER_PLUS_SUBSCRIPTION_STATUSES[number];
 
+export type LikerPlusProvider = 'stripe' | 'revenuecat';
+
 export interface LikerPlusData {
   currentPeriodStart: number;
   currentPeriodEnd: number;
@@ -21,6 +23,13 @@ export interface LikerPlusData {
   subscriptionId?: string;
   customerId?: string;
   subscriptionStatus?: LikerPlusSubscriptionStatus;
+  // Platform that last wrote this record. Stripe (web) and RevenueCat (mobile)
+  // share one record on a latest-write-wins basis.
+  provider?: LikerPlusProvider;
+  // RevenueCat-only: originating store (e.g. 'APP_STORE', 'PLAY_STORE') and the
+  // store's original transaction id, used for debugging and idempotency.
+  store?: string;
+  originalTransactionId?: string;
 }
 
 export interface UserData {

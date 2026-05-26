@@ -5,6 +5,11 @@ import * as FirebaseStub from './stub/firebase';
 
 // Set test environment variables BEFORE any imports
 process.env.IS_TESTNET = 'true';
+// config/config.js reads these at import time; the vi.mock below does not reach
+// source imports (its path resolves outside the repo), so env is the real lever.
+process.env.REVENUECAT_WEBHOOK_AUTHORIZATION = 'test-rc-webhook-secret';
+process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = 'rc_plus_monthly';
+process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = 'rc_plus_yearly';
 
 // Mock config files
 vi.mock('../../config/config', () => ({
@@ -33,6 +38,10 @@ vi.mock('../../config/config', () => ({
   FIRESTORE_ISCN_LIKER_URL_ROOT: 'iscn-like-button',
   ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT: 10,
   ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT: 100 * 1024 * 1024,
+  REVENUECAT_WEBHOOK_AUTHORIZATION: 'test-rc-webhook-secret',
+  REVENUECAT_PLUS_ENTITLEMENT_ID: 'plus',
+  REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS: 'rc_plus_monthly',
+  REVENUECAT_PLUS_YEARLY_PRODUCT_IDS: 'rc_plus_yearly',
 }));
 
 vi.mock('../../config/serviceAccountKey.json', () => ({}));
