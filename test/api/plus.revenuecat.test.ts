@@ -161,6 +161,64 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.subscriptionStatus).toBe('past_due');
   });
 
+  it('revokes a RevenueCat-owned record for transferred_from users on TRANSFER', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: EXPIRATION_AT_MS,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        provider: 'revenuecat',
+      },
+    });
+    // TRANSFER payloads carry no entitlement_ids/product_id (per RevenueCat docs).
+    const res = await post(
+      {
+        id: 'evt_transfer',
+        type: 'TRANSFER',
+        store: 'APP_STORE',
+        environment: 'SANDBOX',
+        transferred_from: ['testing'],
+        transferred_to: ['testuser'],
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('canceled');
+    expect(user?.likerPlus?.provider).toBe('revenuecat');
+  });
+
+  it('does not revoke a Stripe-owned record on TRANSFER', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: EXPIRATION_AT_MS,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        subscriptionId: 'sub_legacy',
+        customerId: 'cus_legacy',
+      },
+    });
+    const res = await post(
+      {
+        id: 'evt_transfer2',
+        type: 'TRANSFER',
+        store: 'APP_STORE',
+        environment: 'SANDBOX',
+        transferred_from: ['testing'],
+        transferred_to: ['testuser'],
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
+  });
+
   it('returns 200 for an unknown app_user_id without writing', async () => {
     const res = await post(
       { ...baseEvent, app_user_id: 'nonexistent-user', type: 'INITIAL_PURCHASE' },

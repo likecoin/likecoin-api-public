@@ -289,6 +289,10 @@ export async function processRevenueCatEvent(
   const isSandbox = event.environment === 'SANDBOX';
   if (isSandbox !== !!IS_TESTNET) return;
 
+  // Handle TRANSFER before the isPlusEntitlement() gate below: a TRANSFER payload
+  // carries no entitlement_ids/product_id, so that check would always fail and
+  // silently drop every transfer. handleTransfer only revokes RevenueCat-owned
+  // records, so a transfer can never cancel a Stripe-owned Plus subscription.
   if (event.type === 'TRANSFER') {
     await handleTransfer(event, req);
     return;
