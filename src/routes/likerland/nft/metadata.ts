@@ -14,6 +14,8 @@ import {
   getTokenAccountsByBookNFT,
 } from '../../../util/evm/nft';
 import type { NFTBookListingInfoFiltered } from '../../../types/book';
+import { validateQuery } from '../../../middleware/validate';
+import { NFTAggregatedMetadataQuerySchema } from '../../../util/api/likerland/schemas';
 
 const axios = Axios.create({
   timeout: 60000,
@@ -150,7 +152,7 @@ async function getNFTClassBookstoreInfo(classId) {
   }
 }
 
-router.get('/metadata', async (req, res, next) => {
+router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (req, res, next) => {
   try {
     const { class_id: rawClassId, data: inputSelected } = req.query;
     const classId = typeof rawClassId === 'string' ? rawClassId.toLowerCase() : rawClassId;

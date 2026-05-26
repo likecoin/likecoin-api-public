@@ -3,6 +3,8 @@ import {
   userCollection as dbRef,
 } from '../../util/firebase';
 import { jwtAuth } from '../../middleware/jwt';
+import { validateParams } from '../../middleware/validate';
+import { UsersIdParamsSchema } from '../../util/api/users/schemas';
 import {
   filterUserData,
 } from '../../util/ValidationHelper';
@@ -45,7 +47,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
-router.get('/id/:id', jwtAuth('read'), async (req, res, next) => {
+router.get('/id/:id', jwtAuth('read'), validateParams(UsersIdParamsSchema), async (req, res, next) => {
   try {
     const username = req.params.id;
     if (req.user.user !== username) {

@@ -41,7 +41,7 @@ import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
 import { fetchUserInfoByEmail } from '../../../util/api/users';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
-import { validateBody } from '../../../middleware/validate';
+import { validateBody, validateParams } from '../../../middleware/validate';
 import {
   BookCartClaimBodySchema,
   BookCartNewBodySchema,
@@ -49,6 +49,9 @@ import {
   BookMessageBodySchema,
   BookPurchaseNewBodySchema,
   NFTBookSentBodySchema,
+  BookCartIdParamsSchema,
+  BookClassIdParamsSchema,
+  BookClassIdPaymentIdParamsSchema,
 } from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
@@ -58,6 +61,7 @@ router.param('classId', normalizeClassIdParam);
 router.get(
   '/cart/:cartId/status',
   jwtOptionalAuth('read:nftbook'),
+  validateParams(BookCartIdParamsSchema),
   async (req, res, next) => {
     try {
       const { cartId } = req.params;
@@ -83,6 +87,7 @@ router.get(
 
 router.post(
   '/cart/:cartId/claim',
+  validateParams(BookCartIdParamsSchema),
   validateBody(BookCartClaimBodySchema),
   async (req, res, next) => {
     try {
@@ -260,7 +265,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
   }
 });
 
-router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
   const { classId } = req.params;
   try {
     const {
@@ -410,7 +415,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateBody(BookPurchaseNewBodySchema), async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(BookPurchaseNewBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -555,6 +560,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
 router.get(
   ['/:classId/status/:paymentId', '/class/:classId/status/:paymentId'],
   jwtOptionalAuth('read:nftbook'),
+  validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -623,6 +629,7 @@ router.post('/free', jwtAuth('write:nftbook'), validateBody(BookFreeClaimBodySch
 
 router.post(
   ['/:classId/claim/:paymentId', '/class/:classId/claim/:paymentId'],
+  validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -660,6 +667,7 @@ router.post(
 
 router.post(
   '/class/:classId/message/:paymentId',
+  validateParams(BookClassIdPaymentIdParamsSchema),
   validateBody(BookMessageBodySchema),
   async (req, res, next) => {
     try {
@@ -688,6 +696,7 @@ router.post(
 router.post(
   ['/:classId/sent/:paymentId', '/class/:classId/sent/:paymentId'],
   jwtAuth('write:nftbook'),
+  validateParams(BookClassIdPaymentIdParamsSchema),
   validateBody(NFTBookSentBodySchema),
   async (req, res, next) => {
     try {
@@ -804,6 +813,7 @@ router.post(
 router.post(
   ['/:classId/status/:paymentId/remind', '/class/:classId/status/:paymentId/remind'],
   jwtAuth('write:nftbook'),
+  validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId, paymentId } = req.params;
@@ -912,6 +922,7 @@ router.post(
 router.get(
   ['/:classId/orders', '/class/:classId/orders'],
   jwtAuth('read:nftbook'),
+  validateParams(BookClassIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -941,6 +952,7 @@ router.get(
 
 router.get(
   ['/:classId/messages', '/class/:classId/messages'],
+  validateParams(BookClassIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId } = req.params;

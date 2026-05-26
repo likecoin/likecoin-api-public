@@ -23,9 +23,10 @@ import {
   ArweaveEstimateBodySchema,
   ArweaveRegisterBodySchema,
   ArweaveSignPaymentBodySchema,
+  ArweaveTxHashParamsSchema,
 } from '../../util/api/arweave/schemas';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateParams } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
@@ -247,6 +248,7 @@ router.post(
 router.get(
   '/v2/link/:txHash',
   jwtOptionalAuth('read:iscn'),
+  validateParams(ArweaveTxHashParamsSchema),
   async (req, res, next) => {
     try {
       const { txHash } = req.params;
@@ -289,6 +291,7 @@ router.get(
 router.post(
   '/v2/access_token/:txHash',
   jwtAuth('write:iscn'),
+  validateParams(ArweaveTxHashParamsSchema),
   async (req, res, next) => {
     try {
       const { txHash } = req.params;

@@ -151,6 +151,33 @@ export const BookFreeClaimBodySchema = z.object({
   classId: z.string().min(1),
 });
 
+export const BookClassIdParamsSchema = z.object({
+  classId: z.string().min(1),
+});
+
+export const BookClassIdPriceIndexParamsSchema = z.object({
+  classId: z.string().min(1),
+  priceIndex: z.coerce.number().int().min(0),
+});
+
+export const BookClassIdPaymentIdParamsSchema = z.object({
+  classId: z.string().min(1),
+  paymentId: z.string().min(1),
+});
+
+export const BookCartIdParamsSchema = z.object({
+  cartId: z.string().min(1),
+});
+
+export const BookIdParamsSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const BookSearchQuerySchema = z.object({
+  q: z.string().optional(),
+  fields: z.union([z.string(), z.array(z.string())]).optional(),
+}).passthrough();
+
 export const ClassIdResponseSchema = z.object({
   classId: z.string(),
 });

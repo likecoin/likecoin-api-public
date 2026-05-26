@@ -19,8 +19,11 @@ import {
   NewListingBodySchema,
   PriceMutationBodySchema,
   PriceReorderBodySchema,
+  BookClassIdParamsSchema,
+  BookClassIdPriceIndexParamsSchema,
+  BookSearchQuerySchema,
 } from '../../../util/api/likernft/book/schemas';
-import { validateBody } from '../../../middleware/validate';
+import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
   getNFTClassOwner as getEVMNFTClassOwner,
@@ -66,7 +69,7 @@ const pngUpload = multer({
   },
 });
 
-router.get('/search', async (req, res, next) => {
+router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, next) => {
   try {
     const {
       q,
@@ -173,7 +176,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
   }
 });
 
-router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     let bookInfo;
@@ -198,7 +201,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), as
   }
 });
 
-router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
@@ -224,7 +227,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   }
 });
 
-router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateBody(PriceMutationBodySchema), async (req, res, next) => {
+router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const priceIndex = Number(priceIndexString);
@@ -290,7 +293,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
   }
 });
 
-router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateBody(PriceMutationBodySchema), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
     const { classId, priceIndex: priceIndexString } = req.params;
     const { price } = req.body;
@@ -392,7 +395,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
   }
 });
 
-router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), validateBody(PriceReorderBodySchema), async (req, res, next) => {
+router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceReorderBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -447,7 +450,7 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
   }
 });
 
-router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res, next) => {
+router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const bookInfo = await getNftBookInfo(classId);
@@ -471,7 +474,7 @@ router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), async (req, res
   }
 });
 
-router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), validateBody(NewListingBodySchema), async (req, res, next) => {
+router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(NewListingBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -676,7 +679,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
   }
 });
 
-router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), validateBody(ListingSettingsBodySchema), async (req, res, next) => {
+router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(ListingSettingsBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params;
     const {
@@ -741,6 +744,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
 router.post(
   '/:classId/image/upload',
   jwtAuth('write:nftbook'),
+  validateParams(BookClassIdParamsSchema),
   pngUpload.fields([
     { name: 'signImage', maxCount: 1 },
     { name: 'memoImage', maxCount: 1 },

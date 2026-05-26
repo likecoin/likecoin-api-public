@@ -11,10 +11,12 @@ import {
   getUserWithCivicLikerPropertiesByWallet,
 } from '../../util/api/users/getPublicInfo';
 import { ONE_DAY_IN_S, AVATAR_DEFAULT_PATH, DEFAULT_AVATAR_SIZE } from '../../constant';
+import { validateParams } from '../../middleware/validate';
+import { UsersAddrParamsSchema, UsersIdParamsSchema } from '../../util/api/users/schemas';
 
 const router = Router();
 
-router.get('/id/:id/min', async (req, res, next) => {
+router.get('/id/:id/min', validateParams(UsersIdParamsSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { type = '' } = req.query;
@@ -34,7 +36,7 @@ router.get('/id/:id/min', async (req, res, next) => {
   }
 });
 
-router.get('/id/:id/avatar', async (req, res, next) => {
+router.get('/id/:id/avatar', validateParams(UsersIdParamsSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { size: inputSizeStr = DEFAULT_AVATAR_SIZE } = req.query;
@@ -85,7 +87,7 @@ router.get('/id/:id/avatar', async (req, res, next) => {
   }
 });
 
-router.get('/addr/:addr/min', async (req, res, next) => {
+router.get('/addr/:addr/min', validateParams(UsersAddrParamsSchema), async (req, res, next) => {
   try {
     const { addr } = req.params;
     const { type } = req.query;

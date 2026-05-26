@@ -21,6 +21,10 @@ export const ArweaveRegisterBodySchema = z.object({
   isRequireAuth: z.boolean().optional(),
 });
 
+export const ArweaveTxHashParamsSchema = z.object({
+  txHash: z.string().min(1),
+});
+
 export const ArweaveEstimateResponseSchema = z.object({
   arweaveId: z.string().optional(),
   ETH: z.string(),

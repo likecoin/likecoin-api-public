@@ -42,6 +42,18 @@ export const UsersUpdateAvatarBodySchema = z.object({
   avatarSHA256: z.string().optional(),
 });
 
+export const UsersIdParamsSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const UsersAddrParamsSchema = z.object({
+  addr: z.string().min(1),
+});
+
+export const UsersPlatformParamsSchema = z.object({
+  platform: z.string().min(1),
+});
+
 export const UsersPreferencesResponseSchema = z.object({
   locale: z.string().optional(),
   creatorPitch: z.string(),

@@ -17,8 +17,9 @@ import {
 import {
   WalletAuthorizeBodySchema,
   WalletEvmMigrateEmailMagicBodySchema,
+  WalletLikeWalletParamsSchema,
 } from '../../util/api/wallet/schemas';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateParams } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
@@ -131,7 +132,7 @@ router.post('/evm/migrate/book', async (req, res, next) => {
   }
 });
 
-router.get('/evm/migrate/user/addr/:likeWallet', async (req, res, next) => {
+router.get('/evm/migrate/user/addr/:likeWallet', validateParams(WalletLikeWalletParamsSchema), async (req, res, next) => {
   try {
     const { likeWallet } = req.params;
     if (!likeWallet || !checkCosmosAddressValid(likeWallet, 'like')) {

@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateParams, validateQuery } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
 import {
+  PlusAffiliateParamsSchema,
+  PlusCartIdParamsSchema,
   PlusGiftNewBodySchema,
+  PlusGiftNewQuerySchema,
   PlusNewBodySchema,
+  PlusNewQuerySchema,
   PlusPriceBodySchema,
 } from '../../util/api/plus/schemas';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
@@ -24,8 +28,8 @@ import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '..
 
 const router = Router();
 
-router.post('/new', jwtAuth('write:plus'), validateBody(PlusNewBodySchema), async (req, res, next) => {
-  let { period = 'monthly' } = req.query;
+router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), validateBody(PlusNewBodySchema), async (req, res, next) => {
+  const { period = 'monthly' } = req.query;
   const { from, currency } = req.query;
   const {
     gaClientId,
@@ -51,10 +55,6 @@ router.post('/new', jwtAuth('write:plus'), validateBody(PlusNewBodySchema), asyn
     uiMode,
   } = req.body;
   try {
-    // Ensure period is either 'monthly' or 'yearly'
-    if (period !== 'monthly' && period !== 'yearly') {
-      period = 'monthly'; // Default to monthly if invalid
-    }
     if (period !== 'yearly' && giftClassId) {
       throw new ValidationError('Gift subscriptions are only available for yearly plans.', 400);
     }
@@ -170,8 +170,8 @@ router.post('/new', jwtAuth('write:plus'), validateBody(PlusNewBodySchema), asyn
   }
 });
 
-router.post('/gift/new', jwtAuth('write:plus'), validateBody(PlusGiftNewBodySchema), async (req, res, next) => {
-  let { period = 'yearly' } = req.query;
+router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySchema), validateBody(PlusGiftNewBodySchema), async (req, res, next) => {
+  const { period = 'yearly' } = req.query;
   const { from, currency } = req.query;
   const {
     gaClientId,
@@ -193,9 +193,6 @@ router.post('/gift/new', jwtAuth('write:plus'), validateBody(PlusGiftNewBodySche
     isApp,
   } = req.body;
   try {
-    if (period !== 'monthly' && period !== 'yearly') {
-      period = 'yearly'; // Default to yearly if invalid
-    }
     if (currency !== undefined
       && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
@@ -294,7 +291,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateBody(PlusGiftNewBodySche
   }
 });
 
-router.post('/gift/:cartId/claim', jwtAuth('write:plus'), async (req, res, next) => {
+router.post('/gift/:cartId/claim', jwtAuth('write:plus'), validateParams(PlusCartIdParamsSchema), async (req, res, next) => {
   const { cartId } = req.params;
   const { token } = req.query;
   try {
@@ -353,7 +350,7 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
   }
 });
 
-router.get('/gift/:cartId/status', jwtOptionalAuth('read:plus'), async (req, res, next) => {
+router.get('/gift/:cartId/status', jwtOptionalAuth('read:plus'), validateParams(PlusCartIdParamsSchema), async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const { token } = req.query;
@@ -405,7 +402,7 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
   }
 });
 
-router.get('/affiliate/:likerId', async (req, res, next) => {
+router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), async (req, res, next) => {
   try {
     const { likerId } = req.params;
     const normalizedLikerId = normalizeLikerId(likerId);

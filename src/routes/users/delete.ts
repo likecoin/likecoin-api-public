@@ -1,18 +1,18 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateParams } from '../../middleware/validate';
 import { getAuthCoreUser } from '../../util/authcore';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users/getPublicInfo';
 import { checkCosmosSignPayload, checkEVMSignPayload } from '../../util/api/users';
 import { deleteAllUserData } from '../../util/api/users/delete';
-import { UsersDeleteBodySchema } from '../../util/api/users/schemas';
+import { UsersDeleteBodySchema, UsersIdParamsSchema } from '../../util/api/users/schemas';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
 
-router.post('/delete/:id', jwtAuth('write'), validateBody(UsersDeleteBodySchema), async (req, res, next) => {
+router.post('/delete/:id', jwtAuth('write'), validateParams(UsersIdParamsSchema), validateBody(UsersDeleteBodySchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { user } = req.user;
