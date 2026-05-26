@@ -503,6 +503,7 @@ export async function createNewPlusCheckoutSession(
     wallet,
     likeWallet,
     evmWallet,
+    user: appUserId,
   } = req.user;
   let userEmail;
   let customerId;
@@ -526,6 +527,10 @@ export async function createNewPlusCheckoutSession(
   };
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
+  // Our internal user id is the RevenueCat app_user_id. Nothing reads it yet; it
+  // lets a future RevenueCat Stripe integration map this web subscription to the
+  // same identity the mobile app logs in with (see GET /plus/revenuecat/config).
+  if (appUserId) subscriptionMetadata.appUserId = appUserId;
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
 
