@@ -39,6 +39,28 @@ export const PlusGiftNewBodySchema = TrackingFieldsSchema.extend({
   giftInfo: BookGiftInfoBodySchema,
 });
 
+export const PlusCartIdParamsSchema = z.object({
+  cartId: z.string().min(1),
+});
+
+export const PlusAffiliateParamsSchema = z.object({
+  likerId: z.string().min(1),
+});
+
+// `.catch()` keeps the endpoints' historically lenient behaviour: a missing or
+// invalid `period` falls back to the default instead of returning 400.
+export const PlusNewQuerySchema = z.object({
+  period: z.enum(['monthly', 'yearly']).default('monthly').catch('monthly'),
+  from: z.string().optional(),
+  currency: z.string().optional(),
+}).passthrough();
+
+export const PlusGiftNewQuerySchema = z.object({
+  period: z.enum(['monthly', 'yearly']).default('yearly').catch('yearly'),
+  from: z.string().optional(),
+  currency: z.string().optional(),
+}).passthrough();
+
 export const PlusCheckoutResponseSchema = StripeCheckoutResponseSchema.extend({
   sessionId: z.string(),
   clientSecret: z.string().nullable().optional(),

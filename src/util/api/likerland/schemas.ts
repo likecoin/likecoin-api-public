@@ -8,3 +8,8 @@ export const NFTAggregatedMetadataResponseSchema = z.object({
   ownerInfo: z.array(z.string()).nullable().optional(),
   bookstoreInfo: NFTBookListingInfoFilteredSchema.nullable().optional(),
 });
+
+export const NFTAggregatedMetadataQuerySchema = z.object({
+  class_id: z.string().optional(),
+  data: z.union([z.string(), z.array(z.string())]).optional(),
+}).passthrough();

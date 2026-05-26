@@ -19,8 +19,8 @@ import {
   handleTransferPlatformDelegatedUser,
 } from '../../util/api/users/platforms';
 import { createAuthCoreUserAndWallet } from '../../util/api/users/authcore';
-import { UsersNewCheckBodySchema } from '../../util/api/users/schemas';
-import { validateBody } from '../../middleware/validate';
+import { UsersNewCheckBodySchema, UsersPlatformParamsSchema } from '../../util/api/users/schemas';
+import { validateBody, validateParams } from '../../middleware/validate';
 import { fetchMattersUser } from '../../util/oauth/matters';
 import { checkUserNameValid } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
@@ -73,7 +73,7 @@ router.post('/new/check', validateBody(UsersNewCheckBodySchema), async (req, res
   }
 });
 
-router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
+router.post('/new/:platform', getOAuthClientInfo(), validateParams(UsersPlatformParamsSchema), async (req, res, next) => {
   const {
     platform,
   } = req.params;
@@ -210,7 +210,7 @@ router.post('/new/:platform', getOAuthClientInfo(), async (req, res, next) => {
   }
 });
 
-router.post('/edit/:platform', getOAuthClientInfo(), async (req, res, next) => {
+router.post('/edit/:platform', getOAuthClientInfo(), validateParams(UsersPlatformParamsSchema), async (req, res, next) => {
   const { platform } = req.params;
   if (req.auth.platform !== platform) {
     throw new ValidationError('AUTH_PLATFORM_NOT_MATCH');

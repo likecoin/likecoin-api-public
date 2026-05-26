@@ -19,6 +19,10 @@ export const WalletEvmMigrateEmailMagicBodySchema = z.object({
   message: z.string().min(1),
 });
 
+export const WalletLikeWalletParamsSchema = z.object({
+  likeWallet: z.string().min(1),
+});
+
 export const WalletAuthorizeResponseSchema = z.object({
   jwtid: z.string(),
   token: z.string(),

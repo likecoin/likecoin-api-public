@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
-import { validateBody } from '../../../middleware/validate';
+import { validateBody, validateParams } from '../../../middleware/validate';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import { getStripeClient } from '../../../util/stripe';
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
@@ -11,6 +11,7 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 import {
   StripeConnectNewBodySchema,
+  BookIdParamsSchema,
   type StripeConnectSite,
 } from '../../../util/api/likernft/book/schemas';
 import type { BookPurchaseCommission } from '../../../types/book';
@@ -288,7 +289,7 @@ router.get(
   },
 );
 
-router.get('/payouts/:id', jwtAuth('read:nftbook'), async (req, res, next) => {
+router.get('/payouts/:id', jwtAuth('read:nftbook'), validateParams(BookIdParamsSchema), async (req, res, next) => {
   try {
     const { wallet } = req.user;
     const { id } = req.params;
@@ -386,6 +387,7 @@ router.get(
 router.get(
   '/commissions/:id',
   jwtAuth('read:nftbook'),
+  validateParams(BookIdParamsSchema),
   async (req, res, next) => {
     try {
       const { wallet } = req.user;
