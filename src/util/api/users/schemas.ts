@@ -113,6 +113,7 @@ export const UserDataFilteredResponseSchema = z.object({
   isLikerPlusTrial: z.boolean().optional(),
   isExpiredLikerPlus: z.boolean().optional(),
   likerPlusPeriod: z.string().optional(),
+  likerPlusProvider: z.enum(['stripe', 'revenuecat']).optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   locale: LocaleSchema.optional(),
@@ -121,6 +122,7 @@ export const UserDataFilteredResponseSchema = z.object({
 export const UserDataScopedResponseSchema = UserDataMinResponseSchema.extend({
   email: z.string().optional(),
   likerPlusPeriod: z.string().optional(),
+  likerPlusProvider: z.enum(['stripe', 'revenuecat']).optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   isCivicLikerRenewalPeriod: z.boolean().optional(),
