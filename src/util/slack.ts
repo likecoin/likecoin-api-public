@@ -16,6 +16,7 @@ import {
 } from '../../config/config';
 import { Timestamp } from './firebase';
 import type { NFTBookPrice } from '../types/book';
+import type { LikerPlusProvider } from '../types/user';
 
 export async function sendNFTBookNewListingSlackNotification({
   wallet,
@@ -179,7 +180,7 @@ export async function sendPlusSubscriptionSlackNotification({
   isNew: boolean;
   userId?: string;
   stripeCustomerId?: string;
-  method?: string;
+  method?: LikerPlusProvider;
   isTrial?: boolean;
 }) {
   if (!PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK) return;
@@ -195,7 +196,11 @@ export async function sendPlusSubscriptionSlackNotification({
     const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
     const stripeEnvironment = IS_TESTNET ? 'test' : '';
     const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
-    const subscriptionLink = `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`;
+    // Only Stripe ids resolve to a Stripe dashboard URL. Other providers (e.g.
+    // RevenueCat) pass their own transaction id, so render it as plain text.
+    const subscriptionLink = method === 'stripe'
+      ? `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`
+      : subscriptionId;
 
     await axios.post(PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK, {
       network: IS_TESTNET ? 'testnet' : 'mainnet',

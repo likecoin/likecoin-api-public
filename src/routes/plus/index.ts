@@ -25,8 +25,11 @@ import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
 import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '../../util/ValidationHelper';
+import revenueCatRouter from './revenuecat';
 
 const router = Router();
+
+router.use('/revenuecat', revenueCatRouter);
 
 router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), validateBody(PlusNewBodySchema), async (req, res, next) => {
   const { period = 'monthly' } = req.query;

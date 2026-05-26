@@ -277,6 +277,7 @@ export async function processStripeSubscriptionInvoice(
       subscriptionId,
       customerId,
       subscriptionStatus: 'active',
+      provider: 'stripe',
     },
   };
   if (isSubscriptionCreation && affiliateFrom) {

@@ -127,3 +127,11 @@ export const PlusGiftCartStatusResponseSchema = z.object({
   timestamp: z.number().optional(),
   claimTimestamp: z.number().optional(),
 });
+
+// Response contract for GET /plus/revenuecat/config: the canonical app_user_id
+// (our internal user id) the mobile app passes to Purchases.logIn(), plus the
+// RevenueCat entitlement that grants Liker Plus.
+export const RevenueCatConfigResponseSchema = z.object({
+  appUserId: z.string(),
+  entitlementId: z.string(),
+});
