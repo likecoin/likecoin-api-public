@@ -5,9 +5,10 @@ import { userCollection } from '../../firebase';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
+import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import logServerEvents from '../../logServerEvents';
 import publisher from '../../gcloudPub';
-import { splitEnvList } from '../../misc';
+import { splitByComma } from '../../misc';
 import {
   REVENUECAT_PLUS_ENTITLEMENT_ID,
   REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS,
@@ -58,8 +59,8 @@ function resolveAppUserId(event: RevenueCatEvent): string | undefined {
 }
 
 // config exposes the raw comma-separated env strings; parse them into id lists once.
-const monthlyProductIds = splitEnvList(REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS);
-const yearlyProductIds = splitEnvList(REVENUECAT_PLUS_YEARLY_PRODUCT_IDS);
+const monthlyProductIds = splitByComma(REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS);
+const yearlyProductIds = splitByComma(REVENUECAT_PLUS_YEARLY_PRODUCT_IDS);
 
 function mapProductIdToPeriod(productId?: string): 'month' | 'year' | undefined {
   if (!productId) return undefined;
@@ -106,6 +107,7 @@ async function handleGrant(
   const isInitial = event.type === 'INITIAL_PURCHASE';
   const isTrial = event.period_type === 'TRIAL';
   const purchasedAtMs = event.purchased_at_ms || Date.now();
+  const transactionId = event.original_transaction_id || event.id;
   const currentPeriodEnd = event.expiration_at_ms || user.likerPlus?.currentPeriodEnd;
   // A subscription grant must resolve to a real period end. Persisting 0/undefined
   // alongside subscriptionStatus 'active' yields an active-but-expired record that
@@ -156,7 +158,7 @@ async function handleGrant(
   // Independent notifications/analytics — fire in parallel (matches the Stripe path).
   const sideEffects: Promise<unknown>[] = [
     sendPlusSubscriptionSlackNotification({
-      subscriptionId: event.original_transaction_id || event.id || 'N/A',
+      subscriptionId: transactionId || 'N/A',
       email: user.email || 'N/A',
       priceWithCurrency: event.price != null && event.currency
         ? `${event.price.toFixed(2)} ${event.currency}`
@@ -173,7 +175,7 @@ async function handleGrant(
       evmWallet: user.evmWallet,
       value: event.price,
       currency: event.currency,
-      paymentId: event.original_transaction_id || event.id,
+      paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
       extraProperties: {
         provider: 'revenuecat',
@@ -181,6 +183,26 @@ async function handleGrant(
         product_id: event.product_id,
         period,
       },
+    }));
+    // Mirror the Stripe path's Airtable payment record. RevenueCat carries no Stripe
+    // customer/invoice/coupon/price-id, so those columns stay empty; record only on
+    // payment-bearing events (initial purchase + renewal) — the same gate as the
+    // analytics event above — to avoid spurious rows for uncancel/extend grants.
+    sideEffects.push(createAirtableSubscriptionPaymentRecord({
+      subscriptionId: transactionId || '',
+      customerId: '',
+      customerEmail: user.email || '',
+      customerUserId: likerId,
+      customerWallet: user.evmWallet || '',
+      productId: event.product_id,
+      price: event.price,
+      currency: event.currency,
+      since,
+      periodInterval: period || '',
+      periodStartAt: purchasedAtMs,
+      periodEndAt: currentPeriodEnd,
+      isNew: isInitial,
+      isTrial,
     }));
   }
   await Promise.all(sideEffects);

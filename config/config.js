@@ -51,9 +51,9 @@ config.LIKER_PLUS_GIFT_YEARLY_PRICE_ID = '';
 config.LIKER_PLUS_BOOK_PROMO_COUPON_CODE = '';
 
 // RevenueCat (mobile IAP) — bridges App/Play Store Plus subscriptions.
-// Product-id lists stay raw comma-separated strings here; the consumer parses them.
 config.REVENUECAT_WEBHOOK_AUTHORIZATION = process.env.REVENUECAT_WEBHOOK_AUTHORIZATION || ''; // shared secret set in RC dashboard's webhook Authorization header
 config.REVENUECAT_PLUS_ENTITLEMENT_ID = process.env.REVENUECAT_PLUS_ENTITLEMENT_ID || 'plus'; // RC entitlement identifier that grants Liker Plus
+// Product-id lists stay raw comma-separated strings here; the consumer parses them.
 config.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS || ''; // comma-separated store product ids for the monthly period
 config.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS || ''; // comma-separated store product ids for the yearly period
 
