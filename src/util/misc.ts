@@ -21,6 +21,6 @@ export function maskString(
   return `${str.slice(0, start)}*****${str.slice(-end)}`;
 }
 
-export function splitEnvList(value?: string): string[] {
+export function splitByComma(value?: string): string[] {
   return (value || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
