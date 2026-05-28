@@ -124,6 +124,17 @@ function isStripeOwnedLikerPlus(likerPlus?: LikerPlusData): boolean {
     || !!likerPlus.customerId;
 }
 
+// Whether a Plus record still confers access right now — mirrors getPublicInfo's
+// window: currentPeriodStart <= now <= currentPeriodEnd + grace. A missing/zero
+// period end reads as expired.
+function hasLivePlusAccess(likerPlus?: LikerPlusData): boolean {
+  const now = Date.now();
+  const start = likerPlus?.currentPeriodStart || 0;
+  const end = likerPlus?.currentPeriodEnd || 0;
+  if (!end) return false;
+  return start <= now && now <= end + SUBSCRIPTION_GRACE_PERIOD;
+}
+
 // SANDBOX events landing on the prod backend are quarantined: the resulting
 // record gets an environment:'SANDBOX' tag (so dashboards filter them) and
 // monetary/CRM side effects (Slack, Airtable, Intercom paid attributes,
@@ -147,8 +158,7 @@ function isSandboxLockedOut(isSandbox: boolean, likerPlus?: LikerPlusData): bool
   if (!isSandbox || IS_TESTNET) return false;
   if (!likerPlus) return false;
   if (likerPlus.environment === 'SANDBOX') return false;
-  const accessUntil = (likerPlus.currentPeriodEnd || 0) + SUBSCRIPTION_GRACE_PERIOD;
-  return accessUntil > Date.now();
+  return hasLivePlusAccess(likerPlus);
 }
 
 const GRANT_EVENT_TYPES = new Set([
@@ -169,6 +179,7 @@ async function handleGrant(
     firstPaidAt?: unknown;
   },
   isSandbox: boolean,
+  req: Express.Request,
 ) {
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
 
@@ -252,6 +263,39 @@ async function handleGrant(
     Object.assign(grantUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
   }
   await userCollection.doc(likerId).update(grantUpdate);
+
+  // Skip the cross-Liker-ID dedupe query only when this Liker ID already RC-owns
+  // this transaction with still-active access (the dominant case for RENEWAL et
+  // al.) — a continuously-active holder already revoked any rival at its initial
+  // grant, so a renewal introduces no new collision. If the prior record is
+  // expired or canceled, this grant is a reactivation that may collide with a
+  // holder the sub bounced to in between, so still run the dedupe. Stripe-owned
+  // prior records also need the dedupe in case the user is migrating off Stripe
+  // onto an existing mobile sub.
+  const destinationAlreadyOwnsTransaction = !!user.likerPlus
+    && user.likerPlus.originalTransactionId === event.original_transaction_id
+    && !isStripeOwnedLikerPlus(user.likerPlus)
+    && user.likerPlus.subscriptionStatus === 'active'
+    && hasLivePlusAccess(user.likerPlus);
+  if (event.original_transaction_id && !destinationAlreadyOwnsTransaction) {
+    try {
+      // eslint-disable-next-line no-use-before-define
+      await revokeOtherHoldersOfTransaction(
+        event.original_transaction_id,
+        likerId,
+        purchasedAtMs,
+        isSandbox,
+        req,
+      );
+    } catch (err) {
+      // Don't let a missing Firestore index or transient query failure drop the
+      // grant's downstream side effects (Intercom, Slack, Airtable, analytics).
+      // Falls back to "trust RC's TRANSFER" — same protection level as before
+      // this dedupe existed.
+      // eslint-disable-next-line no-console
+      console.error('revokeOtherHoldersOfTransaction failed; grant proceeds without dedupe', err);
+    }
+  }
 
   // Quarantine reviewer (sandbox-on-prod) traffic out of CRM, Slack, revenue
   // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
@@ -510,6 +554,90 @@ async function clearIntercomPlusFlags(likerId: string) {
   });
 }
 
+// Shared "revoke RC-owned Plus + clear Intercom flags" used by terminal RC
+// events (transfer-away, dedupe). Returns true if the revoke actually ran so
+// callers can audit-log only on real revocations.
+async function revokeIfRevenueCatOwned(
+  likerId: string,
+  likerPlus: LikerPlusData | undefined,
+  isSandbox: boolean,
+): Promise<boolean> {
+  if (!likerPlus) return false;
+  if (isStripeOwnedLikerPlus(likerPlus)) return false;
+  if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
+  // Revoke access first — the Firestore write is the source of truth. Only after
+  // it succeeds do we report a real revocation (callers audit-log on the return
+  // value) and touch CRM, so a failed revoke can never clear Intercom.
+  await revokeLikerPlus(likerId, likerPlus, {
+    currentPeriodEnd: Date.now(),
+    subscriptionStatus: 'canceled',
+  });
+  // Best-effort CRM cleanup: a failed Intercom write must not mask the completed
+  // revoke (would skip the caller's audit log) nor fail the webhook into a retry.
+  if (!isQuarantinedSandbox(isSandbox)) {
+    try {
+      await clearIntercomPlusFlags(likerId);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
+  return true;
+}
+
+// Enforce 1 sub = 1 Liker ID. When a grant arrives we revoke active Plus on any
+// OTHER Liker ID currently tied to the same original_transaction_id, catching the
+// gap where RevenueCat's TRANSFER event is missed/delayed (e.g. mobile app didn't
+// call Purchases.logIn() before Restore Purchases) and Family Sharing siblings.
+// Runs AFTER the destination grant is written so a failed write can't leave the
+// user with no Plus at all.
+// `keepPeriodStart` is this grant's currentPeriodStart. A holder is revoked only
+// if this grant's claim is strictly newer, ties broken by liker id. That total
+// order makes the "grant then query then revoke" safe under concurrency: two
+// grants for the same transaction on different Liker IDs can't both win, so they
+// never mutually revoke — the both-canceled outcome this guards against. Once
+// both writes have committed exactly one survives; an unlucky interleaving (one
+// query runs before the other's write lands) may briefly leave two, which is
+// benign since the user keeps access.
+async function revokeOtherHoldersOfTransaction(
+  originalTransactionId: string,
+  keepLikerId: string,
+  keepPeriodStart: number,
+  isSandbox: boolean,
+  req: Express.Request,
+): Promise<void> {
+  const snapshot = await userCollection
+    .where('likerPlus.originalTransactionId', '==', originalTransactionId)
+    .get();
+  await Promise.all(snapshot.docs.map(async (doc) => {
+    if (doc.id === keepLikerId) return;
+    const lp = (doc.data() as { likerPlus?: LikerPlusData }).likerPlus;
+    // Skip records past the Plus access boundary — no live access to revoke, so
+    // revoking would just emit a spurious audit log and Intercom write.
+    if (!lp || !hasLivePlusAccess(lp)) return;
+    // Revoke only if this grant's claim wins: strictly newer, or equal start with
+    // the greater liker id as a deterministic tie-break. A newer holder is the
+    // more recent owner and must be kept, so this grant yields to it.
+    const holderPeriodStart = lp.currentPeriodStart || 0;
+    const thisGrantWins = holderPeriodStart < keepPeriodStart
+      || (holderPeriodStart === keepPeriodStart && keepLikerId > doc.id);
+    if (!thisGrantWins) return;
+    const revoked = await revokeIfRevenueCatOwned(doc.id, lp, isSandbox);
+    if (!revoked) return;
+    try {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'PlusRevenueCatDuplicateTransactionRevoke',
+        originalTransactionId,
+        revokedLikerId: doc.id,
+        grantedLikerId: keepLikerId,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }));
+}
+
 async function handleExpiration(
   event: RevenueCatEvent,
   likerId: string,
@@ -559,16 +687,9 @@ async function handleTransfer(
 ): Promise<void> {
   const fromIds = (event.transferred_from || []).filter((id) => id && !isAnonymousId(id));
   const toIds = (event.transferred_to || []).filter((id) => id && !isAnonymousId(id));
-  const quarantine = isQuarantinedSandbox(isSandbox);
   await Promise.all(fromIds.map(async (likerId) => {
     const user = await getUserWithCivicLikerProperties(likerId);
-    if (!user?.likerPlus || isStripeOwnedLikerPlus(user.likerPlus)) return;
-    if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
-    await revokeLikerPlus(likerId, user.likerPlus, {
-      currentPeriodEnd: Date.now(),
-      subscriptionStatus: 'canceled',
-    });
-    if (!quarantine) await clearIntercomPlusFlags(likerId);
+    await revokeIfRevenueCatOwned(likerId, user?.likerPlus, isSandbox);
   }));
   try {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -640,7 +761,7 @@ export async function processRevenueCatEvent(
   }
 
   if (GRANT_EVENT_TYPES.has(event.type)) {
-    await handleGrant(event, likerId, user, isSandbox);
+    await handleGrant(event, likerId, user, isSandbox, req);
   } else if (event.type === 'EXPIRATION') {
     await handleExpiration(event, likerId, user, isSandbox);
   } else if (event.type === 'BILLING_ISSUE') {
