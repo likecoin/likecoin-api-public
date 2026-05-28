@@ -36,7 +36,7 @@ import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import {
-  API_HOSTNAME, ARWEAVE_GATEWAY, ONE_DAY_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE,
+  API_HOSTNAME, ARWEAVE_GATEWAY, ONE_DAY_IN_S, ONE_HOUR_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE,
 } from '../../../constant';
 import { getArweaveTxAccessToken } from '../../../util/api/arweave/tx';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
@@ -50,6 +50,7 @@ import {
   getStripeCurrencyOptionsFromNFTBookPrice,
 } from '../../../util/pricing';
 import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
+import { getMetaProductCatalogItems } from '../../../util/api/likernft/book/metaCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -84,6 +85,16 @@ router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, nex
     if (!q) throw new ValidationError('INVALID_SEARCH_QUERY');
     const list = await queryAirtableForPublication({ query: q, fields });
     res.json({ list });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/catalog/meta', async (req, res, next) => {
+  try {
+    const items = await getMetaProductCatalogItems();
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.json({ items });
   } catch (err) {
     next(err);
   }
