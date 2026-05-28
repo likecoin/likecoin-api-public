@@ -91,6 +91,29 @@ function isStripeOwnedLikerPlus(likerPlus?: LikerPlusData): boolean {
     || !!likerPlus.customerId;
 }
 
+// SANDBOX events landing on the prod backend are quarantined: the resulting
+// record gets an environment:'SANDBOX' tag (so dashboards filter them) and
+// monetary/CRM side effects (Slack, Airtable, Intercom paid attributes,
+// logServerEvents) are skipped to keep prod metrics clean. Testnet does NOT
+// quarantine — it has its own testnet-scoped Airtable/Slack/Intercom that
+// devs use to verify integrations end-to-end, so all side effects fire as
+// usual when the testnet backend receives SANDBOX events.
+function isQuarantinedSandbox(isSandbox: boolean): boolean {
+  return isSandbox && !IS_TESTNET;
+}
+
+// Prevent SANDBOX events on prod from mutating a non-sandbox record. Without
+// this, an App Store reviewer (or anyone with a sandbox account) who collides
+// on app_user_id with an existing paid user could clobber their real sub.
+// Testnet has no production records to protect, so the guard is a no-op there.
+// Mirrors the shape of isStripeOwnedLikerPlus — terminal events only revoke
+// records owned by the same environment.
+function isSandboxLockedOut(isSandbox: boolean, likerPlus?: LikerPlusData): boolean {
+  if (!isSandbox || IS_TESTNET) return false;
+  if (!likerPlus) return false;
+  return likerPlus.environment !== 'SANDBOX';
+}
+
 const GRANT_EVENT_TYPES = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -103,7 +126,10 @@ async function handleGrant(
   event: RevenueCatEvent,
   likerId: string,
   user: { email?: string; evmWallet?: string; likerPlus?: LikerPlusData },
+  isSandbox: boolean,
 ) {
+  if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
+
   const isInitial = event.type === 'INITIAL_PURCHASE';
   const isTrial = event.period_type === 'TRIAL';
   const purchasedAtMs = event.purchased_at_ms || Date.now();
@@ -138,7 +164,13 @@ async function handleGrant(
   if (event.original_transaction_id) {
     likerPlus.originalTransactionId = event.original_transaction_id;
   }
+  if (isSandbox) likerPlus.environment = 'SANDBOX';
   await userCollection.doc(likerId).update({ likerPlus });
+
+  // Quarantine reviewer (sandbox-on-prod) traffic out of CRM, Slack, revenue
+  // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
+  // own testnet-scoped integrations still fire as usual.
+  if (isQuarantinedSandbox(isSandbox)) return;
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
@@ -208,8 +240,9 @@ async function handleGrant(
   await Promise.all(sideEffects);
 }
 
-// Merge terminal changes into the shared Plus record from RevenueCat's side and
-// clear the Intercom Plus flags. Shared by expiration and transfer-away.
+// Merge terminal changes into the shared Plus record from RevenueCat's side.
+// Shared by expiration and transfer-away. Intercom flag clearing is left to
+// callers so quarantined sandbox-on-prod events can skip the spurious CRM write.
 async function revokeLikerPlus(
   likerId: string,
   likerPlus: LikerPlusData,
@@ -218,6 +251,9 @@ async function revokeLikerPlus(
   await userCollection.doc(likerId).update({
     likerPlus: { ...likerPlus, ...changes, provider: 'revenuecat' },
   });
+}
+
+async function clearIntercomPlusFlags(likerId: string) {
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: false,
     is_liker_plus_trial: false,
@@ -228,25 +264,31 @@ async function handleExpiration(
   event: RevenueCatEvent,
   likerId: string,
   user: { likerPlus?: LikerPlusData },
+  isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
   // (web) currently owns. Grants always reclaim the record; terminal events do not.
   if (isStripeOwnedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
+  if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   const expiredAt = event.expiration_at_ms || Date.now();
   await revokeLikerPlus(likerId, user.likerPlus, {
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
     subscriptionStatus: 'canceled',
   });
+  if (isQuarantinedSandbox(isSandbox)) return;
+  await clearIntercomPlusFlags(likerId);
   await sendIntercomEvent({ userId: likerId, eventName: 'plus_subscription_end' });
 }
 
 async function handleBillingIssue(
   likerId: string,
   user: { likerPlus?: LikerPlusData },
+  isSandbox: boolean,
 ) {
   if (isStripeOwnedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
+  if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (user.likerPlus.subscriptionStatus === 'past_due') return;
   await userCollection.doc(likerId).update({
     likerPlus: {
@@ -263,16 +305,20 @@ async function handleBillingIssue(
 async function handleTransfer(
   event: RevenueCatEvent,
   req: Express.Request,
+  isSandbox: boolean,
 ): Promise<void> {
   const fromIds = (event.transferred_from || []).filter((id) => id && !isAnonymousId(id));
   const toIds = (event.transferred_to || []).filter((id) => id && !isAnonymousId(id));
+  const quarantine = isQuarantinedSandbox(isSandbox);
   await Promise.all(fromIds.map(async (likerId) => {
     const user = await getUserWithCivicLikerProperties(likerId);
     if (!user?.likerPlus || isStripeOwnedLikerPlus(user.likerPlus)) return;
+    if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
     await revokeLikerPlus(likerId, user.likerPlus, {
       currentPeriodEnd: Date.now(),
       subscriptionStatus: 'canceled',
     });
+    if (!quarantine) await clearIntercomPlusFlags(likerId);
   }));
   try {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -307,16 +353,27 @@ export async function processRevenueCatEvent(
   // Web subscriptions are the Stripe webhook's responsibility.
   if (event.store === 'STRIPE') return;
 
-  // Ignore sandbox traffic on mainnet (and vice versa) to keep environments clean.
+  // Cross-environment routing:
+  //   testnet backend: only SANDBOX events are processed; PRODUCTION events are
+  //     dropped (they belong to the prod deployment).
+  //   prod backend: PRODUCTION events run through the normal path; SANDBOX
+  //     events are accepted but quarantined — the resulting record is tagged
+  //     environment:'SANDBOX' and external side effects are skipped (see
+  //     isQuarantinedSandbox), and a SANDBOX event cannot mutate a non-sandbox
+  //     record (see isSandboxLockedOut). This exists because App Store / Play
+  //     Store reviewers exercise IAP with sandbox accounts against whichever
+  //     binary they're reviewing; the long-term fix is to ship a separate
+  //     testnet-pointing review build, which would let this gate go back to a
+  //     strict drop.
   const isSandbox = event.environment === 'SANDBOX';
-  if (isSandbox !== !!IS_TESTNET) return;
+  if (!isSandbox && IS_TESTNET) return;
 
   // Handle TRANSFER before the isPlusEntitlement() gate below: a TRANSFER payload
   // carries no entitlement_ids/product_id, so that check would always fail and
   // silently drop every transfer. handleTransfer only revokes RevenueCat-owned
   // records, so a transfer can never cancel a Stripe-owned Plus subscription.
   if (event.type === 'TRANSFER') {
-    await handleTransfer(event, req);
+    await handleTransfer(event, req, isSandbox);
     return;
   }
 
@@ -333,11 +390,11 @@ export async function processRevenueCatEvent(
   }
 
   if (GRANT_EVENT_TYPES.has(event.type)) {
-    await handleGrant(event, likerId, user);
+    await handleGrant(event, likerId, user, isSandbox);
   } else if (event.type === 'EXPIRATION') {
-    await handleExpiration(event, likerId, user);
+    await handleExpiration(event, likerId, user, isSandbox);
   } else if (event.type === 'BILLING_ISSUE') {
-    await handleBillingIssue(likerId, user);
+    await handleBillingIssue(likerId, user, isSandbox);
   } else if (event.type === 'CANCELLATION') {
     // Auto-renew turned off — the user keeps access until EXPIRATION. Nothing to
     // revoke; fall through to logging only.

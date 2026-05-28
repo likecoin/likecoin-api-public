@@ -58,6 +58,16 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentPeriodEnd).toBe(EXPIRATION_AT_MS);
   });
 
+  it('tags the record with environment=SANDBOX for sandbox events', async () => {
+    // Sandbox-on-prod is quarantined by tagging the record so dashboards can
+    // filter out reviewer traffic. Testnet records carry the same tag since
+    // every event there is SANDBOX — that's accurate, not a side effect.
+    const res = await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.environment).toBe('SANDBOX');
+  });
+
   it('marks trial subscriptions with currentType=trial', async () => {
     const res = await post(
       { ...baseEvent, type: 'INITIAL_PURCHASE', period_type: 'TRIAL' },
