@@ -30,6 +30,12 @@ export interface LikerPlusData {
   // store's original transaction id, used for debugging and idempotency.
   store?: string;
   originalTransactionId?: string;
+  // RevenueCat-only: 'SANDBOX' when the record was last written by a sandbox
+  // event (App Store / Play Store reviewer traffic). Undefined for production
+  // records (legacy Stripe records also have no env tag). Used by dashboards
+  // to filter sandbox traffic out of revenue metrics, and by the RC handlers
+  // to prevent sandbox events from mutating production records.
+  environment?: 'SANDBOX' | 'PRODUCTION';
 }
 
 export interface UserData {
