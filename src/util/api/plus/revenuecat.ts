@@ -1,6 +1,6 @@
 import type { LikerPlusData } from '../../../types/user';
 
-import { IS_TESTNET, PUBSUB_TOPIC_MISC } from '../../../constant';
+import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
@@ -102,16 +102,20 @@ function isQuarantinedSandbox(isSandbox: boolean): boolean {
   return isSandbox && !IS_TESTNET;
 }
 
-// Prevent SANDBOX events on prod from mutating a non-sandbox record. Without
-// this, an App Store reviewer (or anyone with a sandbox account) who collides
-// on app_user_id with an existing paid user could clobber their real sub.
-// Testnet has no production records to protect, so the guard is a no-op there.
-// Mirrors the shape of isStripeOwnedLikerPlus — terminal events only revoke
-// records owned by the same environment.
+// Prevent SANDBOX events on prod from mutating a non-sandbox record with live
+// access. Without this, an App Store reviewer (or anyone with a sandbox account)
+// who collides on app_user_id with an existing paid user could clobber their
+// real sub. Testnet has no production records to protect, so the guard is a
+// no-op there. Mirrors the shape of isStripeOwnedLikerPlus — terminal events
+// only revoke records owned by the same environment.
+// Expired non-sandbox records are not protected — there is no live access to
+// clobber. Expiry matches getPublicInfo's boundary (currentPeriodEnd + grace).
 function isSandboxLockedOut(isSandbox: boolean, likerPlus?: LikerPlusData): boolean {
   if (!isSandbox || IS_TESTNET) return false;
   if (!likerPlus) return false;
-  return likerPlus.environment !== 'SANDBOX';
+  if (likerPlus.environment === 'SANDBOX') return false;
+  const accessUntil = (likerPlus.currentPeriodEnd || 0) + SUBSCRIPTION_GRACE_PERIOD;
+  return accessUntil > Date.now();
 }
 
 const GRANT_EVENT_TYPES = new Set([
