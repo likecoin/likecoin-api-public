@@ -128,6 +128,7 @@ export interface NFTBookListingInfo {
   evmClassId?: string;
   redirectClassId?: string;
   chain?: string;
+  cmsTags?: Record<string, number>;
   prices?: NFTBookPrice[];
   pendingNFTCount?: number;
   ownerWallet: string;
@@ -172,6 +173,15 @@ export interface NFTBookListingInfo {
   isPlusReadingEnabled?: boolean;
   successUrl?: string;
   cancelUrl?: string;
+}
+
+export interface NFTBookCMSTag {
+  name: { zh: string; en: string };
+  description: { zh: string; en: string };
+  isPublic: boolean;
+  order: string;
+  timestamp?: any;
+  lastUpdateTimestamp?: any;
 }
 
 export type NFTBookListingInfoFiltered = z.infer<typeof NFTBookListingInfoFilteredSchema>;

@@ -10,9 +10,11 @@ process.env.IS_TESTNET = 'true';
 process.env.REVENUECAT_WEBHOOK_AUTHORIZATION = 'test-rc-webhook-secret';
 process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = 'rc_plus_monthly';
 process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = 'rc_plus_yearly';
+process.env.AIRTABLE_AUTOMATION_TOKEN = 'test-airtable-automation-token';
 
 // Mock config files
 vi.mock('../../config/config', () => ({
+  AIRTABLE_AUTOMATION_TOKEN: 'test-airtable-automation-token',
   FIREBASE_STORAGE_BUCKET: 'test-bucket',
   FIRESTORE_USER_ROOT: 'users',
   FIRESTORE_USER_AUTH_ROOT: 'user-auth',
@@ -29,6 +31,7 @@ vi.mock('../../config/config', () => ({
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT: 'nft-subscription',
   FIRESTORE_NFT_FREE_MINT_TX_ROOT: 'nft-free-mint-tx',
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT: 'nft-book-cart',
+  FIRESTORE_LIKER_NFT_BOOK_CMS_TAG_ROOT: 'nft-book-cms-tag',
   FIRESTORE_LIKER_NFT_BOOK_ROOT: 'nft-book',
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT: 'nft-book-user',
   FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT: 'plus-gift-cart',
