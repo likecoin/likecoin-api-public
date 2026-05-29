@@ -11,7 +11,11 @@ import {
   userCollection,
 } from '../../firebase';
 import { migrateLikerLandEVMWallet } from '../../liker-land';
-import { createStripeProductFromNFTBookPrice } from '../likernft/book';
+import {
+  createStripeProductFromNFTBookPrice,
+  getAuthorNameFromMetadata,
+  getPublisherNameFromMetadata,
+} from '../likernft/book';
 import { getStripeClient } from '../../stripe';
 import { bookCacheBucket } from '../../gcloudStorage';
 import { updateIntercomUserAttributes } from '../../intercom';
@@ -301,8 +305,8 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         imageURL: image,
         language: inLanguage,
         keywords,
-        author: typeof author === 'string' ? author : author?.name || '',
-        publisher,
+        author: getAuthorNameFromMetadata(author),
+        publisher: getPublisherNameFromMetadata(publisher),
         usageInfo,
         isbn,
         isDRMFree: !hideDownload,

@@ -30,15 +30,25 @@ import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
-export function getAuthorNameFromMetadata(author: unknown): string {
-  if (typeof author === 'string') {
-    return author;
+export function getNameFromMetadata(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
   }
-  if (author && typeof author === 'object') {
-    const authorObj = author as Record<string, unknown>;
-    return (authorObj.name as string) || '';
+  if (value && typeof value === 'object') {
+    const valueObj = value as Record<string, unknown>;
+    if (typeof valueObj.name === 'string') {
+      return valueObj.name;
+    }
   }
   return '';
+}
+
+export function getAuthorNameFromMetadata(author: unknown): string {
+  return getNameFromMetadata(author);
+}
+
+export function getPublisherNameFromMetadata(publisher: unknown): string {
+  return getNameFromMetadata(publisher);
 }
 
 export function getStripeProductMetadata(
@@ -50,7 +60,7 @@ export function getStripeProductMetadata(
     classId,
     priceIndex: priceIndex.toString(),
     author: getAuthorNameFromMetadata(bookInfo.author),
-    publisher: bookInfo.publisher || '',
+    publisher: getPublisherNameFromMetadata(bookInfo.publisher),
     inLanguage: bookInfo.inLanguage || '',
     keywords: bookInfo.keywords ? bookInfo.keywords.join(', ') : '',
     usageInfo: bookInfo.usageInfo || '',
@@ -79,7 +89,7 @@ export interface NFTClassData {
   datePublished?: string;
   keywords?: string | string[];
   author?: string | { name?: string; description?: string; url?: string };
-  publisher?: string;
+  publisher?: string | { name?: string; description?: string; url?: string };
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;
@@ -435,7 +445,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       priceRangeByCurrency,
       imageURL: image,
       author: getAuthorNameFromMetadata(author),
-      publisher,
+      publisher: getPublisherNameFromMetadata(publisher),
       language: inLanguage,
       keywords,
       usageInfo,

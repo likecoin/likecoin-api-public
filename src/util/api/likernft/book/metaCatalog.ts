@@ -3,6 +3,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { buildItemId } from '../../../analyticsEvents';
 import {
   getAuthorNameFromMetadata,
+  getPublisherNameFromMetadata,
   getLocalizedTextWithFallback,
   listLatestNFTBookInfo,
 } from './index';
@@ -97,7 +98,8 @@ function buildItem(
   // cart.ts and ValidationHelper.ts.
   const inStock = price.isAutoDeliver || price.stock === undefined || price.stock > 0;
   const author = getAuthorNameFromMetadata(book.author);
-  const brand = book.publisher || author || META_CATALOG_FALLBACK_BRAND;
+  const publisher = getPublisherNameFromMetadata(book.publisher);
+  const brand = publisher || author || META_CATALOG_FALLBACK_BRAND;
 
   const item: MetaCatalogItem = {
     id: buildItemId(classId, priceIndex),
