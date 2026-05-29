@@ -200,6 +200,19 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
   return formatted;
 }
 
+// Cheapest customer-visible (non-unlisted) priceInDecimal across a book's prices,
+// or undefined when there is no listed price.
+// Denormalized onto the book doc so free books (== 0) can be queried directly.
+export function getMinListedPriceInDecimal(prices: NFTBookPrice[] = []) {
+  // Number.isFinite rejects NaN and ±Infinity;
+  // `typeof === 'number'` lets NaN through and would poison the reducer.
+  const listed = prices.filter(
+    (p) => !p.isUnlisted && Number.isFinite(p.priceInDecimal),
+  );
+  if (!listed.length) return undefined;
+  return listed.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity);
+}
+
 export async function createStripeProductFromNFTBookPrice(classId: string, priceIndex: number, {
   bookInfo,
   price,
@@ -309,6 +322,8 @@ export async function newNftBookInfo(
     isApprovedForAds: (isAdultOnly ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
   };
+  const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
+  if (minPriceInDecimal !== undefined) payload.minPriceInDecimal = minPriceInDecimal;
   if (image) payload.image = image;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
@@ -501,6 +516,10 @@ export async function updateNftBookInfo(classId: string, {
     payload.prices = prices;
     payload.stripeProductIds = prices.map((p) => p.stripeProductId).filter(Boolean);
     payload.stripePriceIds = prices.map((p) => p.stripePriceId).filter(Boolean);
+    const minPriceInDecimal = getMinListedPriceInDecimal(prices);
+    payload.minPriceInDecimal = minPriceInDecimal === undefined
+      ? FieldValue.delete()
+      : minPriceInDecimal;
   }
   if (moderatorWallets !== undefined) { payload.moderatorWallets = moderatorWallets; }
   if (connectedWallets !== undefined) { payload.connectedWallets = connectedWallets; }
@@ -564,14 +583,14 @@ export async function listFilteredNFTBookInfo({
   limit,
   key,
 }: {
-  filter: 'drm-free';
+  filter: 'free' | 'drm-free';
   before?: number;
   limit?: number;
   key?: number;
 }) {
-  let snapshot = filter === 'drm-free'
-    ? likeNFTBookCollection.where('hideDownload', '==', false)
-    : likeNFTBookCollection;
+  let snapshot = filter === 'free'
+    ? likeNFTBookCollection.where('minPriceInDecimal', '==', 0)
+    : likeNFTBookCollection.where('hideDownload', '==', false);
   snapshot = snapshot.orderBy('timestamp', 'desc');
   const tsNumber = before ?? key;
   if (tsNumber !== undefined) {

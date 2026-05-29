@@ -325,6 +325,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   redirectClassId: z.string().optional(),
   chain: z.string().optional(),
   prices: z.array(NFTBookPriceFilteredSchema),
+  minPrice: z.number().optional(),
   isSoldOut: z.boolean(),
   stock: z.number().int(),
   ownerWallet: z.string(),
