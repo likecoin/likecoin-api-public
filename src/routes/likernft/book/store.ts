@@ -50,7 +50,7 @@ import {
   getStripeCurrencyOptionsFromNFTBookPrice,
 } from '../../../util/pricing';
 import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
-import { getMetaProductCatalogItems } from '../../../util/api/likernft/book/metaCatalog';
+import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../../util/api/likernft/book/metaCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -94,6 +94,12 @@ router.get('/catalog/meta', async (req, res, next) => {
   try {
     const items = await getMetaProductCatalogItems();
     res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    if (req.query.format === 'csv') {
+      res.type('text/csv; charset=utf-8');
+      res.set('Content-Disposition', 'attachment; filename="meta-catalog.csv"');
+      res.send(formatMetaProductCatalogCSV(items));
+      return;
+    }
     res.json({ items });
   } catch (err) {
     next(err);
