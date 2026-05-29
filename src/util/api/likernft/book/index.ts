@@ -558,6 +558,35 @@ export async function listLatestNFTBookInfo({
   });
 }
 
+export async function listFilteredNFTBookInfo({
+  filter,
+  before,
+  limit,
+  key,
+}: {
+  filter: 'drm-free';
+  before?: number;
+  limit?: number;
+  key?: number;
+}) {
+  let snapshot = filter === 'drm-free'
+    ? likeNFTBookCollection.where('hideDownload', '==', false)
+    : likeNFTBookCollection;
+  snapshot = snapshot.orderBy('timestamp', 'desc');
+  const tsNumber = before ?? key;
+  if (tsNumber !== undefined) {
+    snapshot = snapshot.startAfter(Timestamp.fromMillis(tsNumber));
+  }
+  if (limit !== undefined) {
+    snapshot = snapshot.limit(limit);
+  }
+  const query = await snapshot.get();
+  return query.docs.map((doc) => {
+    const docData = doc.data();
+    return { id: doc.id, ...docData };
+  });
+}
+
 export async function listNftBookInfoByModeratorWallet(
   moderatorWallet: string,
   { chain = '' } = {},

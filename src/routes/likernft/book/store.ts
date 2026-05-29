@@ -4,6 +4,7 @@ import {
   formatPriceInfo,
   getNftBookInfo,
   listLatestNFTBookInfo,
+  listFilteredNFTBookInfo,
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
   updateNftBookInfo,
@@ -35,6 +36,8 @@ import {
   BookListQuerySchema,
   BookCatalogMetaQuerySchema,
   type BookListQuery,
+  BookListPaginationQuerySchema,
+  type BookListPaginationQuery,
   BookCMSTagSyncBodySchema,
   BookCMSTagBulkBodySchema,
   BookCMSTagUpsertBodySchema,
@@ -176,6 +179,48 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     next(err);
   }
 });
+
+function createDerivedListHandler(filter: 'drm-free') {
+  return async (req, res, next) => {
+    try {
+      const { before, limit, key } = req.query as unknown as BookListPaginationQuery;
+      const conditions = {
+        filter,
+        before,
+        limit,
+        key,
+      };
+
+      const bookInfos = await listFilteredNFTBookInfo(conditions);
+      const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
+        const {
+          isHidden, redirectClassId, moderatorWallets = [], ownerWallet,
+        } = b;
+        if (redirectClassId) return [];
+        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+        if (!isAuthorized && isHidden) return [];
+        return [filterNFTBookListingInfo(b, isAuthorized)];
+      });
+      // Use the unfiltered Firestore result for the cursor:
+      // filtered-out docs (hidden / redirected) must not end pagination early.
+      // Coalesce to null so the response shape matches `nextKey: number | null` on empty pages.
+      const lastBookInfo = bookInfos[bookInfos.length - 1];
+      const nextKey = bookInfos.length < conditions.limit
+        ? null
+        : (lastBookInfo?.timestamp?.toMillis() ?? null);
+      if (req.user) {
+        res.set('Cache-Control', 'no-store');
+      } else {
+        res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+      }
+      res.json({ list, nextKey });
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+router.get('/list/drm-free', jwtOptionalAuth('read:nftbook'), validateQuery(BookListPaginationQuerySchema), createDerivedListHandler('drm-free'));
 
 router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {
   try {
