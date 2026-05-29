@@ -180,7 +180,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
   }
 });
 
-function createDerivedListHandler(filter: 'drm-free') {
+function createDerivedListHandler(filter: 'free' | 'drm-free') {
   return async (req, res, next) => {
     try {
       const { before, limit, key } = req.query as unknown as BookListPaginationQuery;
@@ -220,6 +220,7 @@ function createDerivedListHandler(filter: 'drm-free') {
   };
 }
 
+router.get('/list/free', jwtOptionalAuth('read:nftbook'), validateQuery(BookListPaginationQuerySchema), createDerivedListHandler('free'));
 router.get('/list/drm-free', jwtOptionalAuth('read:nftbook'), validateQuery(BookListPaginationQuerySchema), createDerivedListHandler('drm-free'));
 
 router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {

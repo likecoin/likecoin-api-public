@@ -130,6 +130,7 @@ export interface NFTBookListingInfo {
   chain?: string;
   cmsTags?: Record<string, number>;
   prices?: NFTBookPrice[];
+  minPriceInDecimal?: number;
   pendingNFTCount?: number;
   ownerWallet: string;
   moderatorWallets?: string[];
