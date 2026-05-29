@@ -1,7 +1,8 @@
 import {
   describe, it, expect, beforeEach, vi,
 } from 'vitest';
-import { getMetaProductCatalogItems } from '../../src/util/api/likernft/book/metaCatalog';
+import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../src/util/api/likernft/book/metaCatalog';
+import type { MetaCatalogItem } from '../../src/util/api/likernft/book/metaCatalog';
 import { listLatestNFTBookInfo } from '../../src/util/api/likernft/book/index';
 import type { NFTBookListingInfo } from '../../src/types/book';
 
@@ -70,6 +71,7 @@ describe('getMetaProductCatalogItems', () => {
     expect(item.brand).toBe('Penguin');
     expect(item.item_group_id).toBe('class-a');
     expect(item.google_product_category).toBe('Media > Books > E-Books');
+    expect(item.fb_product_category).toBe('Media > Books');
     // hyphenated ISBN-13 normalized to a 13-digit GTIN
     expect(item.gtin).toBe('9783161484100');
     expect(item.custom_label_0).toBe('0xabc');
@@ -156,5 +158,72 @@ describe('getMetaProductCatalogItems', () => {
         id: 'noimage', classId: 'noimage', name: 'No Image', prices: [{ priceInDecimal: 1000 }], // missing image → dropped
       },
     ], ['mixed-0']);
+  });
+});
+
+describe('formatMetaProductCatalogCSV', () => {
+  const baseItem: MetaCatalogItem = {
+    id: 'class-a-0',
+    title: 'The Great Book',
+    description: 'Full description',
+    availability: 'in stock',
+    condition: 'new',
+    price: '15.00 USD',
+    link: 'https://3ook.com/store/class-a?priceIndex=0',
+    image_link: 'https://img.example/a.jpg',
+    brand: 'Penguin',
+    item_group_id: 'class-a',
+    google_product_category: 'Media > Books > E-Books',
+    fb_product_category: 'Media > Books',
+    gtin: '9783161484100',
+    custom_label_0: '0xabc',
+  };
+
+  it('emits the template header in column order', () => {
+    const [header] = formatMetaProductCatalogCSV([]).split('\n');
+    expect(header).toBe(
+      'id,title,description,availability,condition,price,link,image_link,brand,'
+      + 'google_product_category,fb_product_category,item_group_id,gtin,custom_label_0',
+    );
+  });
+
+  it('serializes an item into a row matching the header order', () => {
+    const [, row] = formatMetaProductCatalogCSV([baseItem]).split('\n');
+    expect(row).toBe(
+      'class-a-0,The Great Book,Full description,in stock,new,15.00 USD,'
+      + 'https://3ook.com/store/class-a?priceIndex=0,https://img.example/a.jpg,Penguin,'
+      + 'Media > Books > E-Books,Media > Books,class-a,9783161484100,0xabc',
+    );
+  });
+
+  it('quotes and escapes fields containing commas, quotes, and newlines', () => {
+    const csv = formatMetaProductCatalogCSV([{
+      ...baseItem,
+      title: 'Book, "Special" Edition',
+      description: 'Line one\nLine two',
+    }]);
+    // Don't split on '\n' here: the escaped description legitimately contains one.
+    expect(csv).toContain('class-a-0,"Book, ""Special"" Edition","Line one\nLine two",');
+  });
+
+  it('defangs spreadsheet formula injection in publisher-supplied fields', () => {
+    const csv = formatMetaProductCatalogCSV([{
+      ...baseItem,
+      title: '=HYPERLINK("http://evil")',
+      brand: '@SUM(A1)',
+    }]);
+    // Leading formula triggers get a single-quote prefix; the '=' value also
+    // contains a comma/quote so it is additionally RFC 4180 quoted.
+    expect(csv).toContain('"\'=HYPERLINK(""http://evil"")"');
+    expect(csv).toContain(",'@SUM(A1),");
+  });
+
+  it('leaves optional columns blank when absent', () => {
+    const withoutOptional: MetaCatalogItem = { ...baseItem };
+    delete withoutOptional.gtin;
+    delete withoutOptional.custom_label_0;
+    const [, row] = formatMetaProductCatalogCSV([withoutOptional]).split('\n');
+    // trailing gtin and custom_label_0 columns are empty
+    expect(row.endsWith('class-a,,')).toBe(true);
   });
 });

@@ -16,6 +16,10 @@ const META_CATALOG_LOCALE = 'en';
 // use-structured-data.ts.
 const META_CATALOG_FALLBACK_BRAND = '3ook.com';
 const META_CATALOG_GOOGLE_PRODUCT_CATEGORY = 'Media > Books > E-Books';
+// `fb_product_category` uses Meta's own product taxonomy (distinct from Google's
+// taxonomy above) and is a required column in Meta's official catalog CSV
+// template. Books map to "Media > Books".
+const META_CATALOG_FB_PRODUCT_CATEGORY = 'Media > Books';
 // Meta limits a single catalog feed to 200k products; books listings are
 // nowhere near that today, but cap defensively to keep the response bounded.
 const META_CATALOG_MAX_BOOKS = 5000;
@@ -33,9 +37,34 @@ export interface MetaCatalogItem {
   brand: string;
   item_group_id: string;
   google_product_category: string;
+  fb_product_category: string;
   gtin?: string;
   custom_label_0?: string;
 }
+/* eslint-enable camelcase */
+
+// Column order follows Meta's official catalog CSV template (Commerce Manager →
+// Data sources → "Use template"). We emit only the columns we populate; Meta
+// treats absent optional columns as empty. `custom_label_0` is a standard Meta
+// feed column used for product-set filtering even though it is not pre-printed
+// in the downloadable template.
+/* eslint-disable camelcase -- Meta product catalog field names must be snake_case per spec */
+const META_CATALOG_CSV_COLUMNS: Array<keyof MetaCatalogItem> = [
+  'id',
+  'title',
+  'description',
+  'availability',
+  'condition',
+  'price',
+  'link',
+  'image_link',
+  'brand',
+  'google_product_category',
+  'fb_product_category',
+  'item_group_id',
+  'gtin',
+  'custom_label_0',
+];
 /* eslint-enable camelcase */
 
 function formatPrice(price: NFTBookPrice): string {
@@ -82,6 +111,7 @@ function buildItem(
     brand,
     item_group_id: classId,
     google_product_category: META_CATALOG_GOOGLE_PRODUCT_CATEGORY,
+    fb_product_category: META_CATALOG_FB_PRODUCT_CATEGORY,
   };
   // Mirrors `product:custom_label_0` in liker-land-v3 (owner wallet address).
   if (book.ownerWallet) item.custom_label_0 = book.ownerWallet;
@@ -118,4 +148,26 @@ export async function getMetaProductCatalogItems(): Promise<MetaCatalogItem[]> {
     });
   });
   return items;
+}
+
+// Defang spreadsheet formula injection (CWE-1236): publisher-supplied fields
+// (title/description/brand) could start with a formula trigger. Meta ingests
+// the value as-is, but an admin opening the downloaded feed in Excel/Sheets
+// would otherwise evaluate it. Prefix a single quote per OWASP, before the
+// RFC 4180 quoting below so quoted cells are defanged too.
+// RFC 4180: wrap a field in double quotes when it contains a comma, quote, or
+// line break, and escape embedded quotes by doubling them. Book descriptions
+// routinely contain all three, so this keeps columns from shifting.
+function escapeCSVField(value: string | undefined): string {
+  if (!value) return '';
+  const defanged = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(defanged) ? `"${defanged.replace(/"/g, '""')}"` : defanged;
+}
+
+export function formatMetaProductCatalogCSV(items: MetaCatalogItem[]): string {
+  const header = META_CATALOG_CSV_COLUMNS.join(',');
+  const rows = items.map((item) => META_CATALOG_CSV_COLUMNS
+    .map((col) => escapeCSVField(item[col]))
+    .join(','));
+  return `${header}\n${rows.join('\n')}`;
 }
