@@ -201,6 +201,46 @@ export const BookConnectStatusQuerySchema = z.object({
   wallet: z.string().optional(),
 }).passthrough();
 
+export const BookCMSTagIdSchema = z.string().regex(/^[a-z][a-z-]*$/);
+
+const BookCMSLocalizedStringSchema = z.object({
+  zh: z.string(),
+  en: z.string(),
+});
+
+export const BookCMSTagSyncBodySchema = z.object({
+  tagIds: z.array(BookCMSTagIdSchema),
+});
+
+export const BookCMSTagBulkBodySchema = z.object({
+  entries: z.array(z.object({
+    classId: z.string().min(1),
+    tagId: BookCMSTagIdSchema,
+    // Non-negative integer (matches the `>= 0` filter on cmsTags.<tagId> in /cms/list);
+    // null means delete the entry.
+    order: z.number().int().min(0).nullable(),
+  })),
+});
+
+export const BookCMSTagUpsertBodySchema = z.object({
+  name: BookCMSLocalizedStringSchema,
+  description: BookCMSLocalizedStringSchema,
+  order: z.string(),
+  isPublic: z.boolean(),
+});
+
+export const BookCMSTagIdParamsSchema = z.object({
+  tagId: BookCMSTagIdSchema,
+});
+
+export const BookCMSTagListQuerySchema = z.object({
+  tag: BookCMSTagIdSchema,
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100)
+    .default(10),
+});
+export type BookCMSTagListQuery = z.infer<typeof BookCMSTagListQuerySchema>;
+
 export const ClassIdResponseSchema = z.object({
   classId: z.string(),
 });

@@ -16,6 +16,14 @@ import {
   getPublisherNameFromMetadata,
 } from '../../../util/api/likernft/book';
 import {
+  syncNFTBookCMSTagEntries,
+  bulkSetNFTBookCMSTagOrder,
+  listNFTBookInfoByCMSTag,
+  upsertNFTBookCMSTag,
+  listNFTBookCMSTags,
+  getNFTBookCMSTag,
+} from '../../../util/api/likernft/book/cms';
+import {
   ImageUploadBodySchema,
   ListingSettingsBodySchema,
   NewListingBodySchema,
@@ -27,8 +35,15 @@ import {
   BookListQuerySchema,
   BookCatalogMetaQuerySchema,
   type BookListQuery,
+  BookCMSTagSyncBodySchema,
+  BookCMSTagBulkBodySchema,
+  BookCMSTagUpsertBodySchema,
+  BookCMSTagIdParamsSchema,
+  BookCMSTagListQuerySchema,
+  type BookCMSTagListQuery,
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
+import { airtableAutomationAuth } from '../../../middleware/airtable-automation-auth';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
   getNFTClassOwner as getEVMNFTClassOwner,
@@ -190,6 +205,88 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
         };
       });
     res.json({ list });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:classId/cms/tags', airtableAutomationAuth, validateParams(BookClassIdParamsSchema), validateBody(BookCMSTagSyncBodySchema), async (req, res, next) => {
+  try {
+    const { classId } = req.params as Record<string, string>;
+    const { tagIds } = req.body;
+    await syncNFTBookCMSTagEntries(classId, tagIds);
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/bulk/cms/tags', airtableAutomationAuth, validateBody(BookCMSTagBulkBodySchema), async (req, res, next) => {
+  try {
+    const { entries } = req.body;
+    if (!entries.length) {
+      res.json({ updated: 0 });
+      return;
+    }
+    const result = await bulkSetNFTBookCMSTagOrder(entries);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/cms/tags/:tagId', airtableAutomationAuth, validateParams(BookCMSTagIdParamsSchema), validateBody(BookCMSTagUpsertBodySchema), async (req, res, next) => {
+  try {
+    const { tagId } = req.params as Record<string, string>;
+    await upsertNFTBookCMSTag(tagId, req.body);
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/cms/tags', async (_, res, next) => {
+  try {
+    const tags = await listNFTBookCMSTags();
+    res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.json({ list: tags });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/cms/tags/:tagId', validateParams(BookCMSTagIdParamsSchema), async (req, res, next) => {
+  try {
+    const { tagId } = req.params as Record<string, string>;
+    const tag = await getNFTBookCMSTag(tagId);
+    if (!tag) {
+      res.status(404).send('TAG_NOT_FOUND');
+      return;
+    }
+    res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.json(tag);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req, res, next) => {
+  try {
+    const { tag, offset, limit } = req.query as unknown as BookCMSTagListQuery;
+    // Treat missing or non-public tags as 404,
+    // to prevent discovery of internal curation lists by guessing tag ids.
+    const tagDoc = await getNFTBookCMSTag(tag);
+    if (!tagDoc || !tagDoc.isPublic) throw new ValidationError('TAG_NOT_FOUND', 404);
+    const books = await listNFTBookInfoByCMSTag(tag, { offset, limit });
+    const list = books
+      .filter((b) => !b.isHidden && !b.redirectClassId)
+      .map((b) => filterNFTBookListingInfo(b, false));
+
+    res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    res.json({
+      list,
+      nextOffset: books.length < limit ? null : offset + limit,
+    });
   } catch (err) {
     next(err);
   }

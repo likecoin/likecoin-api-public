@@ -4,7 +4,11 @@ import type { CollectionReference, Firestore } from 'firebase-admin/firestore';
 import type { Storage } from 'firebase-admin/storage';
 import type { UserData } from '../../src/types/user';
 import type {
-  NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData, PlusGiftCartData,
+  NFTBookListingInfo,
+  NFTBookCMSTag,
+  BookPurchaseCartData,
+  NFTBookUserData,
+  PlusGiftCartData,
 } from '../../src/types/book';
 import type { LikeNFTISCNData, FreeMintTxData } from '../../src/types/nft';
 import type { TxData, ArweaveTxData } from '../../src/types/transaction';
@@ -22,19 +26,31 @@ import type {
   ISCNMappingData,
 } from '../../src/types/firestore';
 
+// Stub a Firestore Timestamp-like object whose closure remembers the captured Date,
+// so toDate() and toMillis() are consistent across re-reads.
+function makeTimestampStub(d: Date) {
+  return { toDate: () => d, toMillis: () => d.getTime() };
+}
+
+// Sentinel distinct from null,
+// so the stub can distinguish a null write from a FieldValue.delete().
+// Matches real Firestore: null is stored as null, only the delete sentinel removes the field.
+export const FIELD_VALUE_DELETE = Symbol('__FIELD_VALUE_DELETE__');
+
 // Mock firebase-admin types
 const admin = {
   firestore: {
     FieldValue: {
-      serverTimestamp: () => ({ toDate: () => new Date() }),
+      serverTimestamp: () => makeTimestampStub(new Date()),
       increment: (n: number) => n,
       arrayUnion: (...items: unknown[]) => items,
       arrayRemove: (...items: unknown[]) => items,
-      delete: () => null,
+      delete: () => FIELD_VALUE_DELETE,
     },
     Timestamp: {
-      now: () => ({ toDate: () => new Date() }),
-      fromDate: (d: Date) => ({ toDate: () => d }),
+      now: () => makeTimestampStub(new Date()),
+      fromDate: (d: Date) => makeTimestampStub(d),
+      fromMillis: (ms: number) => makeTimestampStub(new Date(ms)),
     },
   },
 };
@@ -107,8 +123,35 @@ function docUpdate(
   }
   const index = data.findIndex((d) => d.id === id);
   if (index === -1) throw new Error('not found');
-  // eslint-disable-next-line no-param-reassign
-  Object.assign(obj, updateData);
+  // Apply Firestore-style dot-paths against nested maps.
+  // FIELD_VALUE_DELETE (from FieldValue.delete()) removes the field;
+  // plain `null` is stored as null, matching real Firestore semantics.
+  Object.entries(updateData).forEach(([key, value]) => {
+    if (key.includes('.')) {
+      const parts = key.split('.');
+      const leaf = parts.pop() as string;
+      let cursor: any = obj;
+      parts.forEach((p) => {
+        if (cursor[p] == null) {
+          cursor[p] = {};
+        } else if (typeof cursor[p] !== 'object') {
+          throw new Error(`Cannot use dot-path update: intermediate field "${p}" is not a map`);
+        }
+        cursor = cursor[p];
+      });
+      if (value === FIELD_VALUE_DELETE) {
+        delete cursor[leaf];
+      } else {
+        cursor[leaf] = value;
+      }
+    } else if (value === FIELD_VALUE_DELETE) {
+      // eslint-disable-next-line no-param-reassign
+      delete (obj as any)[key];
+    } else {
+      // eslint-disable-next-line no-param-reassign
+      (obj as any)[key] = value;
+    }
+  });
   return Promise.resolve();
 }
 
@@ -169,28 +212,45 @@ function querySnapshotDocs(inputData: StubData[], originalData: StubData[]): any
   });
 }
 
+// Resolve a (possibly dotted) field path against a doc, mirroring Firestore's nested-map traversal.
+// Returns undefined when any segment is missing.
+function resolveField(d: StubData, field: string): unknown {
+  if (!field.includes('.')) return d[field];
+  return field.split('.').reduce<any>((acc, f) => (acc == null ? acc : acc[f]), d);
+}
+
 function collectionWhere(data: StubData[], field = '', op = '', value: any = ''): any {
   let whereData = data;
   if (op === '==') {
     if (field.includes('.')) {
-      const fields = field.split('.');
-      whereData = data.filter((d) => fields.reduce((acc: any, f) => {
-        if (!acc) return acc;
-        return acc[f as keyof typeof acc];
-      }, d));
+      whereData = data.filter((d) => resolveField(d, field) === value);
     } else {
       whereData = data.filter((d) => d[field] === value);
     }
   } else if (op === 'array-contains') {
     whereData = data.filter((d) => Array.isArray(d[field]) && d[field].includes(value));
   } else if (op === '>=') {
-    whereData = data.filter((d) => (d[field] as any) >= value);
+    whereData = data.filter((d) => {
+      const v = resolveField(d, field);
+      return v !== undefined && (v as any) >= value;
+    });
   } else if (op === '<=') {
-    whereData = data.filter((d) => (d[field] as any) <= value);
+    whereData = data.filter((d) => {
+      const v = resolveField(d, field);
+      return v !== undefined && (v as any) <= value;
+    });
   } else if (op === '!=') {
-    whereData = data.filter((d) => d[field] !== value);
+    // Real Firestore excludes docs missing the field;
+    // match that, else `undefined !== value` would let them leak through.
+    whereData = data.filter((d) => {
+      const v = resolveField(d, field);
+      return v !== undefined && v !== value;
+    });
   } else if (op === 'in') {
-    whereData = data.filter((d) => (value as any[]).includes(d[field]));
+    whereData = data.filter((d) => {
+      const v = resolveField(d, field);
+      return v !== undefined && (value as any[]).includes(v);
+    });
   }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
@@ -207,6 +267,7 @@ function collectionWhere(data: StubData[], field = '', op = '', value: any = '')
     startAfter: () => queryObj,
     endBefore: () => queryObj,
     limit: () => queryObj,
+    offset: () => queryObj,
     get: () => Promise.resolve({
       size: docs.length,
       docs,
@@ -342,6 +403,8 @@ export const likeNFTBookCartCollection = createCollection([]) as
   CollectionReference<BookPurchaseCartData>;
 export const likeNFTBookCollection = createCollection([]) as
   CollectionReference<NFTBookListingInfo>;
+export const likeNFTBookCMSTagCollection = createCollection([]) as
+  CollectionReference<NFTBookCMSTag>;
 export const likeNFTBookUserCollection = createCollection([]) as
   CollectionReference<NFTBookUserData>;
 export const likeButtonUrlCollection = createCollection([]) as
@@ -370,14 +433,79 @@ function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise
 function createDb(): Firestore {
   return {
     runTransaction: (updateFunc: (transaction: any) => Promise<any>) => runTransaction(updateFunc),
-    batch: () => ({
-      get: (ref: any) => ref.get(),
-      create: (ref: any, data: any) => ref.create(data),
-      set: (ref: any, data: any, config = {}) => ref.create(data, config),
-      update: (ref: any, data: any) => ref.update(data),
-      delete: (ref: any) => ref.delete(),
-      commit: async () => Promise.resolve(),
-    }),
+    batch: () => {
+      // Real Firestore batches are atomic: if any op fails at commit, none land.
+      // Two-phase commit: run every op's precheck against pre-batch state first,
+      // then apply mutations only if all prechecks pass.
+      type BatchOp = {
+        precheck: () => Promise<void>;
+        apply: () => Promise<unknown>;
+      };
+      const ops: BatchOp[] = [];
+      return {
+        get: (ref: any) => ref.get(),
+        create: (ref: any, data: any) => {
+          ops.push({
+            precheck: async () => {
+              const snap = await ref.get();
+              if (snap.exists) {
+                const error = new Error('Document already exists');
+                (error as any).code = 6;
+                throw error;
+              }
+            },
+            apply: () => ref.create(data),
+          });
+        },
+        set: (ref: any, data: any, config = {}) => {
+          // batch.set() always succeeds (overwrites or merges) — no precheck needed.
+          ops.push({
+            precheck: async () => {},
+            apply: () => ref.set(data, config),
+          });
+        },
+        update: (ref: any, data: any) => {
+          ops.push({
+            precheck: async () => {
+              const snap = await ref.get();
+              if (!snap.exists) {
+                const error = new Error('Document not found');
+                (error as any).code = 5;
+                throw error;
+              }
+            },
+            apply: () => ref.update(data),
+          });
+        },
+        delete: (ref: any) => {
+          // Real Firestore allows deleting a missing doc, but this stub's ref.delete() throws;
+          // swallow the not-found case to match real behavior.
+          ops.push({
+            precheck: async () => {},
+            apply: async () => {
+              try {
+                await ref.delete();
+              } catch (e: any) {
+                if (e?.message === 'Doc not exists for deletion.') return;
+                throw e;
+              }
+            },
+          });
+        },
+        commit: async () => {
+          // eslint-disable-next-line no-restricted-syntax
+          for (const op of ops) {
+            // eslint-disable-next-line no-await-in-loop
+            await op.precheck();
+          }
+          // eslint-disable-next-line no-restricted-syntax
+          for (const op of ops) {
+            // eslint-disable-next-line no-await-in-loop
+            await op.apply();
+          }
+        },
+      };
+    },
     recursiveDelete: async (ref: any) => {
       // Simple recursive delete implementation
       const snapshot = await ref.get();

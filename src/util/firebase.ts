@@ -16,6 +16,7 @@ import {
   FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT,
   FIRESTORE_NFT_FREE_MINT_TX_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_CART_ROOT,
+  FIRESTORE_LIKER_NFT_BOOK_CMS_TAG_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
   FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT,
@@ -27,7 +28,11 @@ import {
 import serviceAccount from '../../config/serviceAccountKey.json';
 import type { UserData } from '../types/user';
 import type {
-  NFTBookListingInfo, BookPurchaseCartData, NFTBookUserData, PlusGiftCartData,
+  NFTBookListingInfo,
+  BookPurchaseCartData,
+  NFTBookUserData,
+  PlusGiftCartData,
+  NFTBookCMSTag,
 } from '../types/book';
 import type { LikeNFTISCNData, FreeMintTxData } from '../types/nft';
 import type { TxData, ArweaveTxData } from '../types/transaction';
@@ -122,6 +127,9 @@ export const likeNFTBookCartCollection = getCollection<BookPurchaseCartData>(
 );
 export const likeNFTBookCollection = getCollection<NFTBookListingInfo>(
   FIRESTORE_LIKER_NFT_BOOK_ROOT,
+);
+export const likeNFTBookCMSTagCollection = getCollection<NFTBookCMSTag>(
+  FIRESTORE_LIKER_NFT_BOOK_CMS_TAG_ROOT,
 );
 export const likeNFTBookUserCollection = getCollection<NFTBookUserData>(
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,

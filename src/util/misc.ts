@@ -1,5 +1,17 @@
+import { timingSafeEqual } from 'crypto';
+
 export function sleep(time) {
   return new Promise((resolve) => { setTimeout(resolve, time); });
+}
+
+// Constant-time string compare for server-side secrets vs caller input.
+// `timingSafeEqual` throws on unequal-length buffers, so length must short-circuit first.
+// Use for webhook auth, Bearer tokens, and other timing-sensitive comparisons.
+export function constantTimeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
 }
 
 export function removeUndefinedObjectKey(obj) {

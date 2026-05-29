@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { timingSafeEqual } from 'crypto';
 
 import { jwtAuth } from '../../middleware/jwt';
 import {
@@ -8,6 +7,7 @@ import {
 } from '../../../config/config';
 import { processRevenueCatEvent } from '../../util/api/plus/revenuecat';
 import type { RevenueCatEvent } from '../../util/api/plus/revenuecat';
+import { constantTimeEqual } from '../../util/misc';
 
 const router = Router();
 
@@ -15,10 +15,7 @@ const router = Router();
 // Authorization header value (set verbatim in the RevenueCat dashboard).
 function isAuthorized(header?: string): boolean {
   if (!REVENUECAT_WEBHOOK_AUTHORIZATION || !header) return false;
-  const a = Buffer.from(header);
-  const b = Buffer.from(REVENUECAT_WEBHOOK_AUTHORIZATION);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  return constantTimeEqual(header, REVENUECAT_WEBHOOK_AUTHORIZATION);
 }
 
 router.post('/webhook', async (req, res, next) => {
