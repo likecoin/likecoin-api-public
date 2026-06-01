@@ -160,7 +160,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
     if (req.user) {
       res.set('Cache-Control', 'no-store');
     } else {
-      res.set(`Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+      res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
     }
     res.json({ list, nextKey });
   } catch (err) {
