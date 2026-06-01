@@ -130,26 +130,18 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     };
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
-    const list = ownedBookInfos
-      .filter((b: NFTBookListingInfo) => {
-        const {
-          isHidden,
-          redirectClassId,
-          moderatorWallets = [],
-          ownerWallet,
-        } = b;
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        return (isAuthorized || !isHidden) && !redirectClassId;
-      })
-      .map((b: NFTBookListingInfo) => {
-        const {
-          moderatorWallets = [],
-          ownerWallet,
-        } = b;
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        const result = filterNFTBookListingInfo(b, isAuthorized);
-        return result;
-      });
+    const list = ownedBookInfos.flatMap((b: NFTBookListingInfo) => {
+      const {
+        isHidden,
+        redirectClassId,
+        moderatorWallets = [],
+        ownerWallet,
+      } = b;
+      if (redirectClassId) return [];
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized && isHidden) return [];
+      return [filterNFTBookListingInfo(b, isAuthorized)];
+    });
     // Use the unfiltered Firestore result for the cursor — filtered-out
     // docs (hidden / redirected) must not end pagination early. Coalesce to
     // null so the response shape matches `nextKey: number | null` even when
