@@ -178,6 +178,21 @@ export const BookSearchQuerySchema = z.object({
   fields: z.union([z.string(), z.array(z.string())]).optional(),
 }).passthrough();
 
+export const BookListPaginationQuerySchema = z.object({
+  before: z.coerce.number().int().optional(),
+  key: z.coerce.number().int().optional(),
+  limit: z.coerce.number().int().min(1).max(100)
+    .default(10),
+});
+export type BookListPaginationQuery = z.infer<typeof BookListPaginationQuerySchema>;
+
+export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
+  wallet: z.string().optional(),
+  chain: z.string().optional(),
+  exclude_wallet: z.string().optional(),
+});
+export type BookListQuery = z.infer<typeof BookListQuerySchema>;
+
 export const ClassIdResponseSchema = z.object({
   classId: z.string(),
 });

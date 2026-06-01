@@ -24,6 +24,8 @@ import {
   BookClassIdParamsSchema,
   BookClassIdPriceIndexParamsSchema,
   BookSearchQuerySchema,
+  BookListQuerySchema,
+  type BookListQuery,
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import {
@@ -108,25 +110,24 @@ router.get('/catalog/meta', async (req, res, next) => {
   }
 });
 
-router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuerySchema), async (req, res, next) => {
   try {
     const {
       wallet,
       chain,
       exclude_wallet: excludedWallet,
-      before: beforeString,
-      limit: limitString,
-      key: keyString,
-    } = req.query;
+      before,
+      limit,
+      key,
+    } = req.query as unknown as BookListQuery;
     const conditions = {
-      ownerWallet: wallet as string,
-      chain: chain as string,
-      excludedOwnerWallet: excludedWallet as string,
-      before: beforeString ? Number(beforeString) : undefined,
-      limit: limitString ? Number(limitString) : 10,
-      key: keyString ? Number(keyString) : undefined,
+      ownerWallet: wallet,
+      chain,
+      excludedOwnerWallet: excludedWallet,
+      before,
+      limit,
+      key,
     };
-    if (conditions.limit > 100) throw new ValidationError('LIMIT_TOO_LARGE', 400);
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
     const list = ownedBookInfos
