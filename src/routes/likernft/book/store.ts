@@ -149,7 +149,14 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
         const result = filterNFTBookListingInfo(b, isAuthorized);
         return result;
       });
-    const nextKey = list.length < conditions.limit ? null : list[list.length - 1].timestamp;
+    // Use the unfiltered Firestore result for the cursor — filtered-out
+    // docs (hidden / redirected) must not end pagination early. Coalesce to
+    // null so the response shape matches `nextKey: number | null` even when
+    // the page is empty or a doc is missing a timestamp.
+    const lastBookInfo = ownedBookInfos[ownedBookInfos.length - 1];
+    const nextKey = ownedBookInfos.length < conditions.limit
+      ? null
+      : (lastBookInfo?.timestamp?.toMillis() ?? null);
     if (req.user) {
       res.set('Cache-Control', 'no-store');
     } else {
