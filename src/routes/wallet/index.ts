@@ -20,11 +20,13 @@ import {
   WalletEvmMigrateBookBodySchema,
   WalletEvmMigrateBodySchema,
   WalletLikeWalletParamsSchema,
+  WalletAuthorizeResponseSchema,
+  WalletEvmMigrateResponseSchema,
 } from '../../util/api/wallet/schemas';
 import { validateBody, validateParams } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { checkAddressValid, checkCosmosAddressValid } from '../../util/ValidationHelper';
+import { checkAddressValid, checkCosmosAddressValid, sendValidatedJSON } from '../../util/ValidationHelper';
 import { verifyEmailByMagicDIDToken } from '../../util/magic';
 import { createIntercomTokenForUser } from '../../util/intercom';
 
@@ -91,7 +93,7 @@ router.post('/authorize', validateBody(WalletAuthorizeBodySchema), async (req, r
       });
     }
 
-    res.json({
+    sendValidatedJSON(res, WalletAuthorizeResponseSchema, {
       jwtid,
       token,
       intercomToken,
@@ -219,7 +221,7 @@ router.post('/evm/migrate/email/magic', validateBody(WalletEvmMigrateEmailMagicB
         migrateLikerIdError,
         migrateLikerLandError,
       });
-      res.json({
+      sendValidatedJSON(res, WalletEvmMigrateResponseSchema, {
         isMigratedBookUser,
         isMigratedBookOwner,
         isMigratedLikerId,
@@ -299,7 +301,7 @@ router.post(['/evm/migrate/user', '/evm/migrate/all'], validateBody(WalletEvmMig
       migrateLikerIdError,
       migrateLikerLandError,
     });
-    res.json({
+    sendValidatedJSON(res, WalletEvmMigrateResponseSchema, {
       isMigratedBookUser,
       isMigratedBookOwner,
       isMigratedLikerId,

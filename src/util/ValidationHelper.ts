@@ -1,7 +1,10 @@
 import bech32 from 'bech32';
+import type { Response } from 'express';
+import type { z } from 'zod';
 import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
+  TEST_MODE,
 } from '../constant';
 import type { UserCivicLikerProperties } from '../types/user';
 import type {
@@ -31,6 +34,27 @@ import type {
 import type {
   OAuthClientInfo,
 } from '../types/firestore';
+
+/**
+ * Send `data` as a JSON response, type-checked at compile time against `schema`
+ * (`data` must satisfy `z.infer<typeof schema>`). In dev/CI (`TEST_MODE`) it
+ * also runs a `safeParse` so response-schema drift fails fast; deployed
+ * production never parses, so legacy datastore values can't 500 a live
+ * response. Pairs with the request-side validators in `middleware/validate.ts`.
+ */
+export function sendValidatedJSON<S extends z.ZodTypeAny>(
+  res: Response,
+  schema: S,
+  data: z.infer<S>,
+): void {
+  if (TEST_MODE) {
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      throw new Error(`RESPONSE_SCHEMA_MISMATCH: ${JSON.stringify(result.error.issues)}`);
+    }
+  }
+  res.json(data);
+}
 
 export function checkAddressValid(addr: string): boolean {
   return addr.length === 42 && addr.substr(0, 2) === '0x';

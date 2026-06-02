@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
 import { validateBody } from '../../middleware/validate';
-import { UsersPreferencesBodySchema } from '../../util/api/users/schemas';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
+import { UsersPreferencesBodySchema, UsersPreferencesResponseSchema } from '../../util/api/users/schemas';
 import { userCollection as dbRef } from '../../util/firebase';
 import { supportedLocales, defaultLocale } from '../../locales';
 
@@ -18,7 +19,9 @@ router.get('/preferences', jwtAuth('read:preferences'), async (req, res, next) =
         return;
       }
       const { locale, creatorPitch = '', paymentRedirectWhiteList = [] } = data;
-      res.json({ locale, creatorPitch, paymentRedirectWhiteList });
+      sendValidatedJSON(res, UsersPreferencesResponseSchema, {
+        locale, creatorPitch, paymentRedirectWhiteList,
+      });
       return;
     }
     res.sendStatus(404);
