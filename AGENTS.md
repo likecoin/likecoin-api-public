@@ -97,3 +97,4 @@ External network calls in tests (e.g. `kickbox.com`) are expected to fail and do
 - **Pre-commit checklist**: `npm run lint && npm run build && npm run test`. The build catches type errors that the editor sometimes misses because of `node16` resolution quirks.
 - **Adding routes**: create the handler under `src/routes/<surface>/`, register it in the surface's `index.ts`, and put logic under `src/util/api/<surface>/`. Mount new top-level surfaces in `src/routes/all.ts`.
 - **i18n**: user-facing strings go through `i18n` and JSON files in `src/locales/`. Adding strings means editing every `<lang>.json` file (and remember the build copies these).
+- **Comments**: keep concise, at most 3 lines. Avoid breaking lines mid-sentence; break at punctuation when needed.
