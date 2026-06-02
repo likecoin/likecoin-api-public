@@ -314,11 +314,11 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), validateParams(BookIdParamsS
       throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
     }
     const stripe = getStripeClient();
-    const payout = await stripe.payouts.retrieve(id, {
+    const payout = await stripe.payouts.retrieve(id as string, {
       stripeAccount: stripeConnectAccountId,
     });
     const balanceTransactionRes = await stripe.balanceTransactions.list({
-      payout: id,
+      payout: id as string,
       type: 'payment',
       limit: 100,
     }, {
@@ -400,7 +400,7 @@ router.get(
       const commissionDoc = await likeNFTBookUserCollection
         .doc(wallet)
         .collection('commissions')
-        .doc(id)
+        .doc(id as string)
         .get();
       if (!commissionDoc.exists) {
         throw new ValidationError('COMMISSION_NOT_FOUND', 404);

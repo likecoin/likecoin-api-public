@@ -136,7 +136,7 @@ router.post('/evm/migrate/book', validateBody(WalletEvmMigrateBookBodySchema), a
 
 router.get('/evm/migrate/user/addr/:likeWallet', validateParams(WalletLikeWalletParamsSchema), async (req, res, next) => {
   try {
-    const { likeWallet } = req.params;
+    const { likeWallet } = req.params as Record<string, string>;
     if (!likeWallet || !checkCosmosAddressValid(likeWallet, 'like')) {
       throw new ValidationError('INVALID_PAYLOAD');
     }

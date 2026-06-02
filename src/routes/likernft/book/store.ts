@@ -197,7 +197,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
 
 router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     let bookInfo;
     try {
       bookInfo = await getNftBookInfo(classId);
@@ -222,7 +222,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), va
 
 router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), async (req, res, next) => {
   try {
-    const { classId, priceIndex: priceIndexString } = req.params;
+    const { classId, priceIndex: priceIndexString } = req.params as Record<string, string>;
     const priceIndex = Number(priceIndexString);
     const bookInfo = await getNftBookInfo(classId);
     const {
@@ -248,7 +248,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
 router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
-    const { classId, priceIndex: priceIndexString } = req.params;
+    const { classId, priceIndex: priceIndexString } = req.params as Record<string, string>;
     const priceIndex = Number(priceIndexString);
     const { price } = req.body;
 
@@ -314,7 +314,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
 
 router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceMutationBodySchema), async (req, res, next) => {
   try {
-    const { classId, priceIndex: priceIndexString } = req.params;
+    const { classId, priceIndex: priceIndexString } = req.params as Record<string, string>;
     const { price } = req.body;
 
     const priceIndex = Number(priceIndexString);
@@ -416,7 +416,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
 router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIndex/order'], jwtAuth('write:nftbook'), validateParams(BookClassIdPriceIndexParamsSchema), validateBody(PriceReorderBodySchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     const bookInfo = await getNftBookInfo(classId);
 
     const priceIndex = Number(req.params.priceIndex);
@@ -471,7 +471,7 @@ router.put(['/:classId/price/:priceIndex/order', '/class/:classId/price/:priceIn
 
 router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     const bookInfo = await getNftBookInfo(classId);
     const {
       ownerWallet,
@@ -495,7 +495,7 @@ router.post('/class/:classId/refresh', jwtAuth('write:nftbook'), validateParams(
 
 router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(NewListingBodySchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     const {
       successUrl,
       cancelUrl,
@@ -700,7 +700,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
 router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(ListingSettingsBodySchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     const {
       moderatorWallets,
       connectedWallets,
@@ -771,7 +771,7 @@ router.post(
   validateBody(ImageUploadBodySchema),
   async (req, res, next) => {
     try {
-      const { classId } = req.params;
+      const { classId } = req.params as Record<string, string>;
       const bookInfo = await getNftBookInfo(classId);
       const {
         ownerWallet,

@@ -251,8 +251,8 @@ router.get(
   validateParams(ArweaveTxHashParamsSchema),
   async (req, res, next) => {
     try {
-      const { txHash } = req.params;
-      const { token } = req.query;
+      const { txHash } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
@@ -294,7 +294,7 @@ router.post(
   validateParams(ArweaveTxHashParamsSchema),
   async (req, res, next) => {
     try {
-      const { txHash } = req.params;
+      const { txHash } = req.params as Record<string, string>;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);

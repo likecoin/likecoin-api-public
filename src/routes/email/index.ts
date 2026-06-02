@@ -24,7 +24,7 @@ const router = Router();
 
 router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), validateBody(EmailVerifyUserBodySchema), async (req, res, next) => {
   try {
-    const username = req.params.id;
+    const { id: username } = req.params as Record<string, string>;
     const { ref } = req.body;
     const userRef = dbRef.doc(username);
     const doc = await userRef.get();

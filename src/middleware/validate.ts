@@ -22,7 +22,18 @@ function makeValidator(target: Target) {
       }));
       return;
     }
-    (req as any)[target] = result.data;
+    if (target === 'query') {
+      // Express 5 exposes req.query as a getter-only property, so a plain
+      // assignment throws. Shadow it with an own writable data property.
+      Object.defineProperty(req, 'query', {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    } else {
+      (req as any)[target] = result.data;
+    }
     next();
   };
 }
