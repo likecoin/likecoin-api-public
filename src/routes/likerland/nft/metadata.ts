@@ -15,7 +15,11 @@ import {
 } from '../../../util/evm/nft';
 import type { NFTBookListingInfoFiltered } from '../../../types/book';
 import { validateQuery } from '../../../middleware/validate';
-import { NFTAggregatedMetadataQuerySchema } from '../../../util/api/likerland/schemas';
+import {
+  NFTAggregatedMetadataQuerySchema,
+  NFTAggregatedMetadataResponseSchema,
+} from '../../../util/api/likerland/schemas';
+import { sendValidatedJSON } from '../../../util/ValidationHelper';
 
 const axios = Axios.create({
   timeout: 60000,
@@ -243,7 +247,7 @@ router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (
     } else if (!hasAnyError) {
       res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);
     }
-    res.json(result);
+    sendValidatedJSON(res, NFTAggregatedMetadataResponseSchema, result);
   } catch (err) {
     const error = err as AxiosError;
     if (error.message === 'NFT_CLASS_NOT_FOUND') {

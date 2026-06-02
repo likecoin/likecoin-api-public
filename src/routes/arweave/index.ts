@@ -21,12 +21,16 @@ import {
 import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
 import {
   ArweaveEstimateBodySchema,
+  ArweaveEstimateResponseSchema,
   ArweaveRegisterBodySchema,
+  ArweaveRegisterResponseSchema,
   ArweaveSignPaymentBodySchema,
+  ArweaveSignPaymentResponseSchema,
   ArweaveTxHashParamsSchema,
 } from '../../util/api/arweave/schemas';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { validateBody, validateParams } from '../../middleware/validate';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
@@ -82,7 +86,7 @@ router.post(
           result.remainingUploads = quota.remainingUploads;
         }
       }
-      res.json(result);
+      sendValidatedJSON(res, ArweaveEstimateResponseSchema, result);
     } catch (error) {
       next(error);
     }
@@ -172,7 +176,7 @@ router.post(
       const signature = await signArweaveData(Buffer.from(signatureData, 'base64'));
       const signatureHex = signature && signature.toString('base64');
 
-      res.json({
+      sendValidatedJSON(res, ArweaveSignPaymentResponseSchema, {
         token,
         id: uploadId,
         arweaveId,
@@ -217,7 +221,7 @@ router.post(
         key,
         isRequireAuth,
       });
-      res.json({
+      sendValidatedJSON(res, ArweaveRegisterResponseSchema, {
         link: `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`,
         token,
         accessToken,

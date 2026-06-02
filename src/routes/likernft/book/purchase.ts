@@ -15,7 +15,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
-import { filterBookPurchaseData } from '../../../util/ValidationHelper';
+import { filterBookPurchaseData, sendValidatedJSON } from '../../../util/ValidationHelper';
 import type { BookPurchaseData, BookGiftInfo, NFTBookListingInfo } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
@@ -52,6 +52,15 @@ import {
   BookCartIdParamsSchema,
   BookClassIdParamsSchema,
   BookClassIdPaymentIdParamsSchema,
+  BookCartClaimResponseSchema,
+  BookCartNewResponseSchema,
+  BookCartStatusResponseSchema,
+  BookPurchaseNewResponseSchema,
+  BookStatusResponseSchema,
+  BookFreeClaimableListResponseSchema,
+  BookFreeClaimResponseSchema,
+  BookOrdersResponseSchema,
+  BookPurchaseMessagesResponseSchema,
 } from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
@@ -78,7 +87,7 @@ router.get(
         res.status(403).send('UNAUTHORIZED');
         return;
       }
-      res.json(filterBookPurchaseData(docData));
+      sendValidatedJSON(res, BookCartStatusResponseSchema, filterBookPurchaseData(docData));
     } catch (err) {
       next(err);
     }
@@ -123,7 +132,7 @@ router.post(
         loginMethod,
         allItemsAutoClaimed,
       });
-      res.json({
+      sendValidatedJSON(res, BookCartClaimResponseSchema, {
         classIds,
         newClaimedNFTs,
         allItemsAutoClaimed,
@@ -216,7 +225,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
       language,
       isApp,
     });
-    res.json({ paymentId, url });
+    sendValidatedJSON(res, BookCartNewResponseSchema, { paymentId, url });
 
     if (priceInDecimal) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -508,7 +517,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       language,
       isApp,
     });
-    res.json({ paymentId, url });
+    sendValidatedJSON(res, BookPurchaseNewResponseSchema, { paymentId, url });
 
     if (priceInDecimal) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -588,7 +597,11 @@ router.get(
       if (!isTokenValid && !isUserValid) {
         throw new ValidationError('UNAUTHORIZED', 403);
       }
-      res.json(filterBookPurchaseData(docData as BookPurchaseData));
+      sendValidatedJSON(
+        res,
+        BookStatusResponseSchema,
+        filterBookPurchaseData(docData as BookPurchaseData),
+      );
     } catch (err) {
       next(err);
     }
@@ -598,7 +611,7 @@ router.get(
 router.get('/free', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
   try {
     const freeBookNFTClassIds = await getFreeBooksForUser(req.user?.evmWallet);
-    res.json(freeBookNFTClassIds);
+    sendValidatedJSON(res, BookFreeClaimableListResponseSchema, freeBookNFTClassIds);
   } catch (err) {
     next(err);
   }
@@ -616,7 +629,7 @@ router.post('/free', jwtAuth('write:nftbook'), validateBody(BookFreeClaimBodySch
       paymentId,
       claimToken,
     } = await claimFreeBooks(user.evmWallet, classId);
-    res.json({
+    sendValidatedJSON(res, BookFreeClaimResponseSchema, {
       classIds,
       cartId,
       paymentId,
@@ -941,7 +954,7 @@ router.get(
         .where('isPaid', '==', true)
         .get();
       const docDatas = query.docs.map((d) => ({ id: d.id, ...d.data() }));
-      res.json({
+      sendValidatedJSON(res, BookOrdersResponseSchema, {
         orders: docDatas.map((d) => filterBookPurchaseData(d as BookPurchaseData)),
       });
     } catch (err) {
@@ -975,7 +988,7 @@ router.get(
           message,
         };
       });
-      res.json({
+      sendValidatedJSON(res, BookPurchaseMessagesResponseSchema, {
         messages: data,
       });
     } catch (err) {

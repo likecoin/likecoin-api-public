@@ -8,6 +8,8 @@ import {
 import { processRevenueCatEvent } from '../../util/api/plus/revenuecat';
 import type { RevenueCatEvent } from '../../util/api/plus/revenuecat';
 import { constantTimeEqual } from '../../util/misc';
+import { RevenueCatConfigResponseSchema } from '../../util/api/plus/schemas';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -40,7 +42,7 @@ router.post('/webhook', async (req, res, next) => {
 // Lets the mobile app fetch the canonical app_user_id (our internal user id) so it
 // can call Purchases.logIn() with the same identity used for web/Stripe.
 router.get('/config', jwtAuth('read:plus'), (req, res) => {
-  res.json({
+  sendValidatedJSON(res, RevenueCatConfigResponseSchema, {
     appUserId: req.user.user,
     entitlementId: REVENUECAT_PLUS_ENTITLEMENT_ID,
   });

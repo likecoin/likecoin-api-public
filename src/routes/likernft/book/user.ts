@@ -6,13 +6,20 @@ import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
 import { getStripeClient } from '../../../util/stripe';
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
-import { filterBookPurchaseCommission } from '../../../util/ValidationHelper';
+import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 import {
   StripeConnectNewBodySchema,
   BookIdParamsSchema,
   BookConnectStatusQuerySchema,
+  BookUserProfileResponseSchema,
+  BookUserConnectStatusResponseSchema,
+  StripeConnectNewResponseSchema,
+  BookUserPayoutsListResponseSchema,
+  BookUserPayoutResponseSchema,
+  BookUserCommissionsResponseSchema,
+  type BookUserConnectStatusResponse,
   type StripeConnectSite,
 } from '../../../util/api/likernft/book/schemas';
 import type { BookPurchaseCommission } from '../../../types/book';
@@ -53,7 +60,7 @@ router.get(
         notificationEmail: email,
         isEmailVerified,
       };
-      res.json(payload);
+      sendValidatedJSON(res, BookUserProfileResponseSchema, payload);
     } catch (err) {
       next(err);
     }
@@ -80,7 +87,7 @@ router.get(
         isStripeConnectReady,
         email,
       } = userData;
-      const payload: Record<string, unknown> = {
+      const payload: BookUserConnectStatusResponse = {
         hasAccount: !!stripeConnectAccountId,
         isReady: isStripeConnectReady,
       };
@@ -88,7 +95,7 @@ router.get(
         payload.stripeConnectAccountId = stripeConnectAccountId;
         payload.email = email;
       }
-      res.json(payload);
+      sendValidatedJSON(res, BookUserConnectStatusResponseSchema, payload);
     } catch (err) {
       next(err);
     }
@@ -196,7 +203,7 @@ router.post(
         stripeConnectAccountId,
       });
 
-      res.json({ url: accountLink.url });
+      sendValidatedJSON(res, StripeConnectNewResponseSchema, { url: accountLink.url });
     } catch (err) {
       next(err);
     }
@@ -284,7 +291,7 @@ router.get(
         createdTs: payout.created,
       }));
 
-      res.json({ payouts });
+      sendValidatedJSON(res, BookUserPayoutsListResponseSchema, { payouts });
     } catch (err) {
       next(err);
     }
@@ -351,7 +358,7 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), validateParams(BookIdParamsS
       createdTs: payout.created,
       items,
     };
-    res.json(payload);
+    sendValidatedJSON(res, BookUserPayoutResponseSchema, payload);
   } catch (err) {
     next(err);
   }
@@ -379,7 +386,7 @@ router.get(
       }).map((data) => filterBookPurchaseCommission(data, {
         includeBuyerEmail: data.ownerWallet === wallet,
       }));
-      res.json({ commissions: list });
+      sendValidatedJSON(res, BookUserCommissionsResponseSchema, { commissions: list });
     } catch (err) {
       next(err);
     }
