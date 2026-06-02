@@ -1,5 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
-import bodyParser from 'body-parser';
+import express, { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../util/ValidationError';
 
 export const slackTokenChecker = (
@@ -7,7 +6,7 @@ export const slackTokenChecker = (
   channelIds: string[],
   userIds: string[],
 ) => (req: Request, res: Response, next: NextFunction): void => {
-  bodyParser.urlencoded({ extended: false })(req, res, (e) => {
+  express.urlencoded({ extended: false })(req, res, (e) => {
     try {
       if (!req.body.token || req.body.token !== token) next(new ValidationError('Wrong token'));
       if (!req.body.channel_id || !channelIds.includes(req.body.channel_id)) next(new ValidationError('Invalid channel'));

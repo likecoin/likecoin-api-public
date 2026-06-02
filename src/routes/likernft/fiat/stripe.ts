@@ -1,5 +1,4 @@
-import { Router } from 'express';
-import bodyParser from 'body-parser';
+import express, { Router } from 'express';
 
 import Stripe from 'stripe';
 import { getStripeClient } from '../../../util/stripe';
@@ -18,7 +17,7 @@ import { processPlusGiftStripePurchase } from '../../../util/api/plus/gift';
 
 const router = Router();
 
-router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res, next) => {
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res, next) => {
   try {
     const sig = req.headers['stripe-signature'];
     if (!sig) {
