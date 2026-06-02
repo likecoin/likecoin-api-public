@@ -12,10 +12,12 @@ import publisher from '../../util/gcloudPub';
 import { sendVerificationEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
 import { validateParams, validateBody } from '../../middleware/validate';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 import {
   EmailVerifyUserParamsSchema,
   EmailVerifyUserBodySchema,
   EmailVerifyParamsSchema,
+  EmailVerifyResponseSchema,
 } from '../../util/api/email/schemas';
 
 const THIRTY_S_IN_MS = 30000;
@@ -97,7 +99,10 @@ router.post('/verify/:uuid', validateParams(EmailVerifyParamsSchema), async (req
         payload.bonusId = 'none';
       }
       await Promise.all(promises);
-      res.json({ referrer: !!user.data().referrer, wallet: user.data().wallet });
+      sendValidatedJSON(res, EmailVerifyResponseSchema, {
+        referrer: !!user.data().referrer,
+        wallet: user.data().wallet,
+      });
       const userObj = user.data();
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventVerify',

@@ -28,6 +28,7 @@ import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users
 import { ValidationError } from '../../util/ValidationError';
 import { supportedLocales, defaultLocale } from '../../locales';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { jwtAuth } from '../../middleware/jwt';
 import { validateBody } from '../../middleware/validate';
 import {
@@ -36,6 +37,7 @@ import {
   UsersRegisterBodySchema,
   UsersLoginBodySchema,
   UsersSyncAuthcoreBodySchema,
+  UsersUpdateAvatarResponseSchema,
 } from '../../util/api/users/schemas';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
@@ -413,7 +415,9 @@ router.post(
       const payload: any = { avatar: avatarUrl };
       if (avatarHash) payload.avatarHash = avatarHash;
       await dbRef.doc(user).update(payload);
-      res.json({ avatar: avatarUrl });
+      sendValidatedJSON(res, UsersUpdateAvatarResponseSchema, {
+        avatar: avatarUrl,
+      });
 
       const oldUserObj = await dbRef.doc(user).get();
       const oldUserData = oldUserObj.data();

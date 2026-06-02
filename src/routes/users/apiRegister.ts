@@ -24,10 +24,11 @@ import {
   UsersPlatformParamsSchema,
   UsersNewPlatformBodySchema,
   UsersEditPlatformBodySchema,
+  UsersPlatformAuthResponseSchema,
 } from '../../util/api/users/schemas';
 import { validateBody, validateParams } from '../../middleware/validate';
 import { fetchMattersUser } from '../../util/oauth/matters';
-import { checkUserNameValid } from '../../util/ValidationHelper';
+import { checkUserNameValid, sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 import publisher from '../../util/gcloudPub';
 import { verifyEmailByMagicDIDToken } from '../../util/magic';
@@ -189,7 +190,7 @@ router.post('/new/:platform', getOAuthClientInfo(), validateParams(UsersPlatform
         scope,
       } = await autoGenerateUserTokenForClient(req, platform, user));
     }
-    res.json({
+    sendValidatedJSON(res, UsersPlatformAuthResponseSchema, {
       accessToken,
       refreshToken,
       scope,
@@ -336,7 +337,7 @@ router.post('/edit/:platform', getOAuthClientInfo(), validateParams(UsersPlatfor
               pendingLIKE,
               jwtid,
             });
-            res.json({
+            sendValidatedJSON(res, UsersPlatformAuthResponseSchema, {
               accessToken,
               refreshToken,
               scope,

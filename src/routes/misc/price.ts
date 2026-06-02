@@ -4,10 +4,11 @@ import {
   CMC_API_CACHE_S,
 } from '../../../config/config';
 import { ValidationError } from '../../util/ValidationError';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { getLIKEPrice } from '../../util/api/likernft/likePrice';
 import { ONE_DAY_IN_S } from '../../constant';
 import { validateQuery } from '../../middleware/validate';
-import { MiscPriceQuerySchema } from '../../util/api/misc/schemas';
+import { MiscPriceQuerySchema, MiscPriceResponseSchema } from '../../util/api/misc/schemas';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/price', validateQuery(MiscPriceQuerySchema), async (req, res) => {
   }
   const price = await getLIKEPrice({ raw: true });
   res.set('Cache-Control', `public, max-age=${CACHE_IN_S}, s-maxage=${CACHE_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-  res.send({ price });
+  sendValidatedJSON(res, MiscPriceResponseSchema, { price });
 });
 
 export default router;

@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
 import {
   filterUserDataScoped,
+  sendValidatedJSON,
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users/getPublicInfo';
+import { UserProfileResponseSchema } from '../../util/api/users/schemas';
 import { createIntercomTokenForUser } from '../../util/intercom';
 
 const router = Router();
@@ -30,7 +32,10 @@ router.get('/profile', jwtAuth('profile'), async (req, res, next) => {
         email: filteredPayload.email,
         evmWallet: filteredPayload.evmWallet,
       });
-      res.json({ ...filteredPayload, intercomToken });
+      sendValidatedJSON(res, UserProfileResponseSchema, {
+        ...filteredPayload,
+        intercomToken,
+      });
     } else {
       res.sendStatus(404);
     }

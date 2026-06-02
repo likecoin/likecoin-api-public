@@ -35,6 +35,8 @@ import {
   BookSearchQuerySchema,
   BookListQuerySchema,
   BookCatalogMetaQuerySchema,
+  BookListResponseSchema,
+  BookListModeratedResponseSchema,
   type BookListQuery,
   BookListPaginationQuerySchema,
   type BookListPaginationQuery,
@@ -64,7 +66,7 @@ import {
 import { getArweaveTxAccessToken } from '../../../util/api/arweave/tx';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import { getStripeClient } from '../../../util/stripe';
-import { filterNFTBookListingInfo, filterNFTBookPricesInfo } from '../../../util/ValidationHelper';
+import { filterNFTBookListingInfo, filterNFTBookPricesInfo, sendValidatedJSON } from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 import {
@@ -174,7 +176,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     } else {
       res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
     }
-    res.json({ list, nextKey });
+    sendValidatedJSON(res, BookListResponseSchema, { list, nextKey });
   } catch (err) {
     next(err);
   }
@@ -250,7 +252,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
           ownerWallet,
         };
       });
-    res.json({ list });
+    sendValidatedJSON(res, BookListModeratedResponseSchema, { list });
   } catch (err) {
     next(err);
   }
