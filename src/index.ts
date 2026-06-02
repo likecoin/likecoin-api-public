@@ -1,13 +1,13 @@
 import express, { Request } from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-import bodyParser from 'body-parser';
 import cors from 'cors';
 import i18n from 'i18n';
 import * as admin from 'firebase-admin';
 import { supportedLocales } from './locales';
 
 import errorHandler from './middleware/errorHandler';
+import normalizeBody from './middleware/normalizeBody';
 import allRoutes from './routes/all';
 import { shutdownPostHog } from './util/posthog';
 
@@ -27,7 +27,7 @@ i18n.configure({
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
-app.use(bodyParser.json({
+app.use(express.json({
   verify: (req, _, buf) => {
     const r = req as Request & { rawBody?: Buffer };
     if (r.path.includes('/stripe/webhook')) { // rawbody is needed for stripe webhook
@@ -35,6 +35,7 @@ app.use(bodyParser.json({
     }
   },
 }));
+app.use(normalizeBody);
 app.use(i18n.init);
 app.use((req, res, next) => {
   if (req.body.locale) req.setLocale(req.body.locale);
