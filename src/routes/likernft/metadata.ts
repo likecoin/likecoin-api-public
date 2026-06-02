@@ -135,7 +135,7 @@ router.get(
         throw new ValidationError('NOT_WRITING_NFT_OR_NFT_BOOK');
       }
       const imageUrl = (isCustomImage || !uri) ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
-      let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId);
+      let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId as string);
       model = model.replace(new RegExp(IMAGE_URI_PLACEHOLDER, 'g'), imageUrl);
       res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       res.type('model/gltf+json');

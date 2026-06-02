@@ -24,7 +24,7 @@ router.get('/id/:id/min', validateParams(UsersIdParamsSchema), async (req, res, 
     if (type) {
       types = (type as string).split(',');
     }
-    const payload = await getUserWithCivicLikerProperties(id);
+    const payload = await getUserWithCivicLikerProperties(id as string);
     if (!payload) {
       res.sendStatus(404);
       return;
@@ -46,7 +46,7 @@ router.get('/id/:id/avatar', validateParams(UsersIdParamsSchema), async (req, re
     }
     const size = Math.min(Math.max(inputSizeNum, 1), 1920);
 
-    const avatar = await getUserAvatar(id);
+    const avatar = await getUserAvatar(id as string);
     if (!avatar) {
       res.sendStatus(404);
       return;
@@ -95,7 +95,7 @@ router.get('/addr/:addr/min', validateParams(UsersAddrParamsSchema), async (req,
     if (type) {
       types = (type as string).split(',');
     }
-    const payload = await getUserWithCivicLikerPropertiesByWallet(addr);
+    const payload = await getUserWithCivicLikerPropertiesByWallet(addr as string);
     if (!payload) {
       res.sendStatus(404);
       return;

@@ -21,8 +21,10 @@ const router = Router();
 
 router.get('/id/:id', validateParams(TxIdParamsSchema), validateQuery(TxIdQuerySchema), async (req, res, next) => {
   try {
-    const { id: txHash } = req.params;
-    const { address } = req.query;
+    const { id: txHash } = req.params as Record<string, string>;
+    const { address: addressQs } = req.query as Record<string, string | string[]>;
+    // Repeated query params parse to string[]; take the first to avoid a nested address filter.
+    const address = Array.isArray(addressQs) ? addressQs[0] : addressQs;
     const doc = await txLogRef.doc(txHash).get();
     if (doc.exists) {
       const data = doc.data();
@@ -44,7 +46,7 @@ router.get('/id/:id', validateParams(TxIdParamsSchema), validateQuery(TxIdQueryS
 
 router.post('/id/:id/metadata', jwtOptionalAuth('write'), validateParams(TxIdParamsSchema), validateBody(TxMetadataBodySchema), async (req, res, next) => {
   try {
-    const { id: txHash } = req.params;
+    const { id: txHash } = req.params as Record<string, string>;
     const { user } = (req.user || {});
     const { metadata } = req.body;
     const updateToken = req.cookies[RPC_TX_UPDATE_COOKIE_KEY];

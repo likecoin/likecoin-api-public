@@ -54,7 +54,7 @@ router.get('/id/:id', jwtAuth('read'), validateParams(UsersIdParamsSchema), asyn
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
-    const payload = await getUserWithCivicLikerProperties(username);
+    const payload = await getUserWithCivicLikerProperties(username as string);
     if (payload) {
       if (payload.isDeleted) {
         res.sendStatus(404);

@@ -32,8 +32,8 @@ const router = Router();
 router.use('/revenuecat', revenueCatRouter);
 
 router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), validateBody(PlusNewBodySchema), async (req, res, next) => {
-  const { period = 'monthly' } = req.query;
-  const { from, currency } = req.query;
+  const { period = 'monthly' } = req.query as Record<string, string>;
+  const { from, currency } = req.query as Record<string, string>;
   const {
     gaClientId,
     gaSessionId,
@@ -174,8 +174,8 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
 });
 
 router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySchema), validateBody(PlusGiftNewBodySchema), async (req, res, next) => {
-  const { period = 'yearly' } = req.query;
-  const { from, currency } = req.query;
+  const { period = 'yearly' } = req.query as Record<string, string>;
+  const { from, currency } = req.query as Record<string, string>;
   const {
     gaClientId,
     gaSessionId,
@@ -295,8 +295,8 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
 });
 
 router.post('/gift/:cartId/claim', jwtAuth('write:plus'), validateParams(PlusCartIdParamsSchema), async (req, res, next) => {
-  const { cartId } = req.params;
-  const { token } = req.query;
+  const { cartId } = req.params as Record<string, string>;
+  const { token } = req.query as Record<string, string>;
   try {
     if (!cartId) {
       throw new ValidationError('MISSING_CART_ID');
@@ -355,8 +355,8 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
 
 router.get('/gift/:cartId/status', jwtOptionalAuth('read:plus'), validateParams(PlusCartIdParamsSchema), async (req, res, next) => {
   try {
-    const { cartId } = req.params;
-    const { token } = req.query;
+    const { cartId } = req.params as Record<string, string>;
+    const { token } = req.query as Record<string, string>;
     if (!token && !req.user) throw new ValidationError('MISSING_TOKEN');
     const cartData = await getPlusGiftCartData(cartId);
     const {
@@ -407,7 +407,7 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
 
 router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), async (req, res, next) => {
   try {
-    const { likerId } = req.params;
+    const { likerId } = req.params as Record<string, string>;
     const normalizedLikerId = normalizeLikerId(likerId);
     if (!checkUserNameValid(normalizedLikerId)) {
       throw new ValidationError('Invalid likerId', 400);

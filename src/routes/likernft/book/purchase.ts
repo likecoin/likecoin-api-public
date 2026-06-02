@@ -64,8 +64,8 @@ router.get(
   validateParams(BookCartIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { cartId } = req.params;
-      const { token } = req.query;
+      const { cartId } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       if (!token && !req.user) throw new ValidationError('MISSING_TOKEN');
       const doc = await likeNFTBookCartCollection.doc(cartId).get();
       const docData = doc.data();
@@ -91,8 +91,8 @@ router.post(
   validateBody(BookCartClaimBodySchema),
   async (req, res, next) => {
     try {
-      const { cartId } = req.params;
-      const { token } = req.query;
+      const { cartId } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       const { wallet, message, loginMethod } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
@@ -137,7 +137,7 @@ router.post(
 
 router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartNewBodySchema), async (req, res, next) => {
   try {
-    const { from } = req.query;
+    const { from } = req.query as Record<string, string>;
     const {
       gaClientId,
       gaSessionId,
@@ -266,7 +266,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
 });
 
 router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), async (req, res, next) => {
-  const { classId } = req.params;
+  const { classId } = req.params as Record<string, string>;
   try {
     const {
       from,
@@ -289,7 +289,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       posthog_distinct_id: posthogDistinctId = '',
       payment_method: paymentMethodQs,
       is_app: isApp,
-    } = req.query;
+    } = req.query as Record<string, string | string[]>;
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
@@ -417,11 +417,11 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
 
 router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(BookPurchaseNewBodySchema), async (req, res, next) => {
   try {
-    const { classId } = req.params;
+    const { classId } = req.params as Record<string, string>;
     const {
       from,
       price_index: priceIndexString = undefined,
-    } = req.query;
+    } = req.query as Record<string, string>;
     const priceIndex = Number(priceIndexString) || 0;
     const {
       gaClientId,
@@ -563,8 +563,8 @@ router.get(
   validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { classId, paymentId } = req.params;
-      const { token } = req.query;
+      const { classId, paymentId } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       const [listingDoc, paymentDoc] = await Promise.all([
         likeNFTBookCollection.doc(classId).get(),
         likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).get(),
@@ -632,8 +632,8 @@ router.post(
   validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { classId, paymentId } = req.params;
-      const { token } = req.query;
+      const { classId, paymentId } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       const { wallet, message, loginMethod } = req.body;
 
       if (isEVMClassId(classId)) {
@@ -671,8 +671,8 @@ router.post(
   validateBody(BookMessageBodySchema),
   async (req, res, next) => {
     try {
-      const { classId, paymentId } = req.params;
-      const { token } = req.query;
+      const { classId, paymentId } = req.params as Record<string, string>;
+      const { token } = req.query as Record<string, string>;
       const { wallet, message } = req.body;
 
       if (!token) throw new ValidationError('MISSING_TOKEN');
@@ -700,7 +700,7 @@ router.post(
   validateBody(NFTBookSentBodySchema),
   async (req, res, next) => {
     try {
-      const { classId, paymentId } = req.params;
+      const { classId, paymentId } = req.params as Record<string, string>;
       const { txHash, quantity } = req.body;
       const listingDoc = await likeNFTBookCollection.doc(classId).get();
       if (!listingDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -816,7 +816,7 @@ router.post(
   validateParams(BookClassIdPaymentIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { classId, paymentId } = req.params;
+      const { classId, paymentId } = req.params as Record<string, string>;
       const { wallet } = req.user;
       const [listingDoc, paymentDoc] = await Promise.all([
         likeNFTBookCollection.doc(classId).get(),
@@ -925,7 +925,7 @@ router.get(
   validateParams(BookClassIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { classId } = req.params;
+      const { classId } = req.params as Record<string, string>;
       const bookDoc = await likeNFTBookCollection.doc(classId).get();
       const bookDocData = bookDoc.data();
       if (!bookDocData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
@@ -955,7 +955,7 @@ router.get(
   validateParams(BookClassIdParamsSchema),
   async (req, res, next) => {
     try {
-      const { classId } = req.params;
+      const { classId } = req.params as Record<string, string>;
       const bookDoc = await likeNFTBookCollection.doc(classId).get();
       if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
       const query = await likeNFTBookCollection.doc(classId).collection('transactions')

@@ -25,13 +25,13 @@ const router = Router();
 
 router.get('/history/user/:id', jwtAuth('read'), validateParams(TxHistoryUserParamsSchema), validateQuery(TxHistoryQuerySchema), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     if (req.user.user !== id) {
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
 
-    const { ts: tsQs, count: countQs } = req.query;
+    const { ts: tsQs, count: countQs } = req.query as Record<string, string>;
     let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
     let count = Number(countQs);
@@ -76,7 +76,7 @@ router.get('/history/user/:id', jwtAuth('read'), validateParams(TxHistoryUserPar
 
 router.get('/history/addr/:addr', jwtAuth('read'), validateParams(TxHistoryAddrParamsSchema), validateQuery(TxHistoryQuerySchema), async (req, res, next) => {
   try {
-    const { addr } = req.params;
+    const { addr } = req.params as Record<string, string>;
 
     if (!checkAddressValid(addr)) {
       throw new ValidationError('Invalid address');
@@ -94,7 +94,7 @@ router.get('/history/addr/:addr', jwtAuth('read'), validateParams(TxHistoryAddrP
       return;
     }
 
-    const { ts: tsQs, count: countQs } = req.query;
+    const { ts: tsQs, count: countQs } = req.query as Record<string, string>;
     let ts = Number(tsQs);
     if (!ts || Number.isNaN(ts)) ts = Date.now();
     let count = Number(countQs);
