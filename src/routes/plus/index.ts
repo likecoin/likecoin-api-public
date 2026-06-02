@@ -4,11 +4,17 @@ import { validateBody, validateParams, validateQuery } from '../../middleware/va
 import { ValidationError } from '../../util/ValidationError';
 import {
   PlusAffiliateParamsSchema,
+  PlusAffiliateResponseSchema,
   PlusCartIdParamsSchema,
+  PlusGiftCartStatusResponseSchema,
   PlusGiftNewBodySchema,
   PlusGiftNewQuerySchema,
+  PlusGiftNewResponseSchema,
+  PlusGiftStatusResponseSchema,
   PlusNewBodySchema,
   PlusNewQuerySchema,
+  PlusNewResponseSchema,
+  PlusPortalResponseSchema,
   PlusPriceBodySchema,
 } from '../../util/api/plus/schemas';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
@@ -24,7 +30,9 @@ import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData }
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
-import { checkUserNameValid, filterPlusGiftCartData, normalizeLikerId } from '../../util/ValidationHelper';
+import {
+  checkUserNameValid, filterPlusGiftCartData, normalizeLikerId, sendValidatedJSON,
+} from '../../util/ValidationHelper';
 import revenueCatRouter from './revenuecat';
 
 const router = Router();
@@ -111,7 +119,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       },
       req,
     );
-    res.json({
+    sendValidatedJSON(res, PlusNewResponseSchema, {
       sessionId: session.id,
       url: session.url,
       clientSecret: session.client_secret,
@@ -239,7 +247,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
       },
       req,
     );
-    res.json({
+    sendValidatedJSON(res, PlusGiftNewResponseSchema, {
       sessionId: session.id,
       url: session.url,
       paymentId,
@@ -367,7 +375,7 @@ router.get('/gift/:cartId/status', jwtOptionalAuth('read:plus'), validateParams(
         throw new ValidationError('INVALID_CLAIM_TOKEN');
       }
     }
-    res.json(filterPlusGiftCartData(cartData));
+    sendValidatedJSON(res, PlusGiftCartStatusResponseSchema, filterPlusGiftCartData(cartData));
   } catch (error) {
     next(error);
   }
@@ -393,7 +401,7 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
       giftClaimToken,
       affiliateFrom,
     } = metadata;
-    res.json({
+    sendValidatedJSON(res, PlusGiftStatusResponseSchema, {
       giftClassId,
       giftCartId,
       giftPaymentId,
@@ -417,10 +425,10 @@ router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), asy
     const affiliateConfig = bookUserInfo?.affiliateConfig;
     const isPlusDiscountAllowed = !!bookUserInfo?.isPlusDiscountAllowed;
     if (!affiliateConfig?.active) {
-      res.json({ active: false, isPlusDiscountAllowed });
+      sendValidatedJSON(res, PlusAffiliateResponseSchema, { active: false, isPlusDiscountAllowed });
       return;
     }
-    res.json({
+    sendValidatedJSON(res, PlusAffiliateResponseSchema, {
       active: true,
       affiliateClassIds: affiliateConfig.affiliateClassIds || [],
       giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
@@ -467,7 +475,7 @@ router.post('/portal', jwtAuth('write:plus'), async (req, res, next) => {
       customerId,
     });
 
-    res.json({
+    sendValidatedJSON(res, PlusPortalResponseSchema, {
       sessionId: session.id,
       url: session.url,
     });

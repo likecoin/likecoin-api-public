@@ -422,7 +422,8 @@ export const BookPurchaseCommissionFilteredSchema = z.object({
 });
 
 export const BookSearchResponseSchema = z.object({
-  list: z.array(z.unknown()),
+  // queryAirtableForPublication returns null when the Airtable lookup errors.
+  list: z.array(z.unknown()).nullable(),
 });
 
 export const BookListResponseSchema = z.object({
@@ -479,6 +480,7 @@ export const BookUserConnectStatusResponseSchema = z.object({
   stripeConnectAccountId: z.string().optional(),
   email: z.string().optional(),
 });
+export type BookUserConnectStatusResponse = z.infer<typeof BookUserConnectStatusResponseSchema>;
 
 export const BookUserCommissionsResponseSchema = z.object({
   commissions: z.array(BookPurchaseCommissionFilteredSchema),

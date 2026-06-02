@@ -37,6 +37,13 @@ import {
   BookCatalogMetaQuerySchema,
   BookListResponseSchema,
   BookListModeratedResponseSchema,
+  BookSearchResponseSchema,
+  BookInfoResponseSchema,
+  BookPriceInfoResponseSchema,
+  PriceCreateResponseSchema,
+  ImageUploadResponseSchema,
+  NewListingResponseSchema,
+  ListingSettingsResponseSchema,
   type BookListQuery,
   BookListPaginationQuerySchema,
   type BookListPaginationQuery,
@@ -109,7 +116,7 @@ router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, nex
     }
     if (!q) throw new ValidationError('INVALID_SEARCH_QUERY');
     const list = await queryAirtableForPublication({ query: q, fields });
-    res.json({ list });
+    sendValidatedJSON(res, BookSearchResponseSchema, { list });
   } catch (err) {
     next(err);
   }
@@ -359,7 +366,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), va
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     const payload = filterNFTBookListingInfo(bookInfo, isAuthorized);
-    res.json(payload);
+    sendValidatedJSON(res, BookInfoResponseSchema, payload);
   } catch (err) {
     next(err);
   }
@@ -382,7 +389,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       ...priceInfo,
       index: priceIndex,
     }], isAuthorized);
-    res.json({
+    sendValidatedJSON(res, BookPriceInfoResponseSchema, {
       ownerWallet,
       ...price,
     });
@@ -449,7 +456,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
       isAutoDeliver: price.isAutoDeliver,
     });
 
-    res.json({
+    sendValidatedJSON(res, PriceCreateResponseSchema, {
       index: prices.length - 1,
     });
   } catch (err) {
@@ -835,7 +842,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       console.error(`Failed to cache book files for class ${classId}:`, err);
     });
 
-    res.json({
+    sendValidatedJSON(res, NewListingResponseSchema, {
       classId,
     });
   } catch (err) {
@@ -897,7 +904,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });
 
-    res.json({
+    sendValidatedJSON(res, ListingSettingsResponseSchema, {
       classId,
     });
   } catch (err) {
@@ -972,7 +979,7 @@ router.post(
         memoImageUploaded: !!memoResult,
       });
 
-      res.json({
+      sendValidatedJSON(res, ImageUploadResponseSchema, {
         enableSignatureImage,
         signedMessageText: signedTextToSave,
       });
