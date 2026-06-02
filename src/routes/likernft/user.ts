@@ -3,11 +3,14 @@ import { isValidLikeAddress } from '../../util/cosmos';
 import { getUserStat } from '../../util/api/likernft/user';
 import { ValidationError } from '../../util/ValidationError';
 import { ONE_DAY_IN_S } from '../../constant';
+import { validateParams } from '../../middleware/validate';
+import { LikernftUserStatsParamsSchema } from '../../util/api/likernft/schemas';
 
 const router = Router();
 
 router.get(
   '/user/:wallet/stats',
+  validateParams(LikernftUserStatsParamsSchema),
   async (req, res, next) => {
     try {
       const { wallet } = req.params;

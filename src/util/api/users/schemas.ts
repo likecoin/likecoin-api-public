@@ -54,6 +54,47 @@ export const UsersPlatformParamsSchema = z.object({
   platform: z.string().min(1),
 });
 
+// Platform register/edit bodies are validated extensively in-handler and vary
+// per platform; keep permissive + .passthrough() so behaviour is unchanged.
+export const UsersNewPlatformBodySchema = z.object({
+  user: z.string().optional(),
+  displayName: z.string().optional(),
+  email: z.string().optional(),
+  locale: z.string().optional(),
+  isEmailEnabled: z.union([z.boolean(), z.string()]).optional(),
+  sourceURL: z.string().optional(),
+  token: z.string().optional(),
+}).passthrough();
+
+export const UsersEditPlatformBodySchema = z.object({
+  payload: z.record(z.string(), z.unknown()).optional(),
+  action: z.string().optional(),
+  user: z.string().optional(),
+}).passthrough();
+
+// /new reads many platform-specific body fields and forwards the whole body
+// (`payload = req.body`); .passthrough() is required so nothing is stripped.
+export const UsersRegisterBodySchema = z.object({
+  platform: z.string().optional(),
+  appReferrer: z.string().optional(),
+  user: z.string().optional(),
+  displayName: z.string().optional(),
+  description: z.string().optional(),
+  locale: z.string().optional(),
+  email: z.string().optional(),
+}).passthrough();
+
+export const UsersLoginBodySchema = z.object({
+  platform: z.string().optional(),
+  appReferrer: z.string().optional(),
+  sourceURL: z.string().optional(),
+  utmSource: z.string().optional(),
+}).passthrough();
+
+export const UsersSyncAuthcoreBodySchema = z.object({
+  authCoreAccessToken: z.string().optional(),
+}).passthrough();
+
 export const UsersPreferencesResponseSchema = z.object({
   locale: z.string().optional(),
   creatorPitch: z.string(),
@@ -63,6 +104,12 @@ export const UsersPreferencesResponseSchema = z.object({
 export const UsersUpdateAvatarResponseSchema = z.object({
   avatar: z.string().url(),
 });
+
+export const UsersPlatformAuthResponseSchema = z.object({
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  scope: z.union([z.string(), z.array(z.string())]).optional(),
+}).passthrough();
 
 export const UserDataMinResponseSchema = z.object({
   user: z.string(),
@@ -134,5 +181,6 @@ export const UserDataScopedResponseSchema = UserDataMinResponseSchema.extend({
 });
 
 export const UserProfileResponseSchema = UserDataScopedResponseSchema.extend({
-  intercomToken: z.string(),
+  // createIntercomTokenForUser returns undefined when Intercom is unconfigured.
+  intercomToken: z.string().optional(),
 });

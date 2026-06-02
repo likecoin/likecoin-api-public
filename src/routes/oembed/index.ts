@@ -9,6 +9,8 @@ import {
 import {
   userCollection as dbRef,
 } from '../../util/firebase';
+import { validateQuery } from '../../middleware/validate';
+import { OembedQuerySchema } from '../../util/api/oembed/schemas';
 
 const allowedSubdomains = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
 const domainRegexp = /^((?:[a-z0-9]+\.)+)?like\.co$/;
@@ -188,7 +190,7 @@ function parseURL(url) {
   }
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', validateQuery(OembedQuerySchema), async (req, res, next) => {
   try {
     const { url, format = 'json' } = req.query;
     if (!url) {

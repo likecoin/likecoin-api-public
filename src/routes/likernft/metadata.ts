@@ -15,6 +15,12 @@ import {
 } from '../../util/api/likernft/metadata';
 import { getNFTClassDataById, getNFTISCNData } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId, normalizeClassIdParam } from '../../middleware/likernft';
+import { validateParams, validateQuery } from '../../middleware/validate';
+import {
+  LikernftClassQuerySchema,
+  LikernftClassIdParamsSchema,
+  LikernftImageQuerySchema,
+} from '../../util/api/likernft/schemas';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
 import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
@@ -25,6 +31,7 @@ router.param('classId', normalizeClassIdParam);
 
 router.get(
   '/metadata',
+  validateQuery(LikernftClassQuerySchema),
   fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
@@ -50,6 +57,8 @@ router.get(
 
 router.get(
   ['/image/class_:classId', '/image/class_:classId.png', '/metadata/image/class_:classId', '/metadata/image/class_:classId.png'],
+  validateParams(LikernftClassIdParamsSchema),
+  validateQuery(LikernftImageQuerySchema),
   async (req, res, next) => {
     try {
       const { classId } = req.params;
@@ -110,6 +119,7 @@ router.get(
 
 router.get(
   ['/model/class_:classId.gltf', '/metadata/model/class_:classId.gltf'],
+  validateParams(LikernftClassIdParamsSchema),
   async (req, res, next) => {
     try {
       const { classId } = req.params;

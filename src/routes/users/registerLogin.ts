@@ -33,6 +33,9 @@ import { validateBody } from '../../middleware/validate';
 import {
   UsersUpdateAvatarBodySchema,
   UsersUpdateBodySchema,
+  UsersRegisterBodySchema,
+  UsersLoginBodySchema,
+  UsersSyncAuthcoreBodySchema,
 } from '../../util/api/users/schemas';
 import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
@@ -90,6 +93,7 @@ router.post(
   '/new',
   formdataParserForApp,
   apiLimiter,
+  validateBody(UsersRegisterBodySchema),
   async (req, res, next) => {
     const {
       platform,
@@ -440,7 +444,7 @@ router.post(
   },
 );
 
-router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
+router.post('/sync/authcore', jwtAuth('write'), validateBody(UsersSyncAuthcoreBodySchema), async (req, res, next) => {
   try {
     const { user } = req.user;
     const {
@@ -484,7 +488,7 @@ router.post('/sync/authcore', jwtAuth('write'), async (req, res, next) => {
   }
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next) => {
   try {
     let user;
     let wallet;

@@ -11,12 +11,18 @@ import {
 import publisher from '../../util/gcloudPub';
 import { sendVerificationEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
+import { validateParams, validateBody } from '../../middleware/validate';
+import {
+  EmailVerifyUserParamsSchema,
+  EmailVerifyUserBodySchema,
+  EmailVerifyParamsSchema,
+} from '../../util/api/email/schemas';
 
 const THIRTY_S_IN_MS = 30000;
 
 const router = Router();
 
-router.post('/verify/user/:id/', async (req, res, next) => {
+router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), validateBody(EmailVerifyUserBodySchema), async (req, res, next) => {
   try {
     const username = req.params.id;
     const { ref } = req.body;
@@ -70,7 +76,7 @@ router.post('/verify/user/:id/', async (req, res, next) => {
   }
 });
 
-router.post('/verify/:uuid', async (req, res, next) => {
+router.post('/verify/:uuid', validateParams(EmailVerifyParamsSchema), async (req, res, next) => {
   try {
     const verificationUUID = req.params.uuid;
     const query = await dbRef.where('verificationUUID', '==', verificationUUID).get();

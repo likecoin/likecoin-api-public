@@ -3,11 +3,14 @@ import { Router } from 'express';
 import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
 import { getISCNDocByClassId } from '../../util/api/likernft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
+import { validateQuery } from '../../middleware/validate';
+import { LikernftClassQuerySchema } from '../../util/api/likernft/schemas';
 
 const router = Router();
 
 router.get(
   '/mint',
+  validateQuery(LikernftClassQuerySchema),
   fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {
