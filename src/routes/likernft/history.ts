@@ -3,6 +3,11 @@ import axios from 'axios';
 import { ValidationError } from '../../util/ValidationError';
 import { getISCNDocByClassId } from '../../util/api/likernft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
+import { validateQuery } from '../../middleware/validate';
+import {
+  LikernftClassQuerySchema,
+  LikernftHistoryQuerySchema,
+} from '../../util/api/likernft/schemas';
 import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../config/config';
 import { ONE_DAY_IN_S } from '../../constant';
 
@@ -10,6 +15,7 @@ const router = Router();
 
 router.get(
   '/history',
+  validateQuery(LikernftHistoryQuerySchema),
   fetchISCNPrefixAndClassId,
   async (req, res, next) => {
     try {
@@ -40,6 +46,7 @@ router.get(
 
 router.get(
   '/events',
+  validateQuery(LikernftClassQuerySchema),
   fetchISCNPrefixAndClassId,
   async (_, res, next) => {
     try {

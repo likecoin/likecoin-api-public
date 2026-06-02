@@ -19,6 +19,21 @@ export const WalletEvmMigrateEmailMagicBodySchema = z.object({
   message: z.string().min(1),
 });
 
+// snake_case body fields kept .optional() + .passthrough(): the handlers throw
+// their own INVALID_PAYLOAD when a field is missing.
+export const WalletEvmMigrateBookBodySchema = z.object({
+  like_class_id: z.string().optional(),
+  evm_class_id: z.string().optional(),
+}).passthrough();
+
+export const WalletEvmMigrateBodySchema = z.object({
+  cosmos_address: z.string().optional(),
+  cosmos_signature: z.string().optional(),
+  cosmos_public_key: z.string().optional(),
+  cosmos_signature_content: z.string().optional(),
+  signMethod: z.string().optional(),
+}).passthrough();
+
 export const WalletLikeWalletParamsSchema = z.object({
   likeWallet: z.string().min(1),
 });
@@ -34,10 +49,12 @@ export const WalletEvmMigrateResponseSchema = z.object({
   isMigratedBookOwner: z.boolean(),
   isMigratedLikerId: z.boolean(),
   isMigratedLikerLand: z.boolean(),
-  migratedLikerId: z.string().optional(),
-  migratedLikerLandUser: z.string().optional(),
-  migrateBookUserError: z.string().optional(),
-  migrateBookOwnerError: z.string().optional(),
-  migrateLikerIdError: z.string().optional(),
-  migrateLikerLandError: z.string().optional(),
+  // migrateLikeWalletToEVMWallet returns null (not undefined) for absent values,
+  // and the liker-land error is an untyped axios response body.
+  migratedLikerId: z.string().nullable(),
+  migratedLikerLandUser: z.string().nullable(),
+  migrateBookUserError: z.string().nullable(),
+  migrateBookOwnerError: z.string().nullable(),
+  migrateLikerIdError: z.string().nullable(),
+  migrateLikerLandError: z.unknown().nullable(),
 });

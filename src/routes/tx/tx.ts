@@ -4,6 +4,12 @@ import { txCollection as txLogRef, userCollection } from '../../util/firebase';
 import { filterMultipleTxData } from '../../util/api/tx';
 import { filterTxData } from '../../util/ValidationHelper';
 import { jwtOptionalAuth } from '../../middleware/jwt';
+import { validateParams, validateQuery, validateBody } from '../../middleware/validate';
+import {
+  TxIdParamsSchema,
+  TxIdQuerySchema,
+  TxMetadataBodySchema,
+} from '../../util/api/tx/schemas';
 import {
   TX_METADATA_TYPES,
   TX_METADATA_TIME,
@@ -13,7 +19,7 @@ import { RPC_TX_UPDATE_COOKIE_KEY } from '../../constant';
 
 const router = Router();
 
-router.get('/id/:id', async (req, res, next) => {
+router.get('/id/:id', validateParams(TxIdParamsSchema), validateQuery(TxIdQuerySchema), async (req, res, next) => {
   try {
     const { id: txHash } = req.params;
     const { address } = req.query;
@@ -36,7 +42,7 @@ router.get('/id/:id', async (req, res, next) => {
   }
 });
 
-router.post('/id/:id/metadata', jwtOptionalAuth('write'), async (req, res, next) => {
+router.post('/id/:id/metadata', jwtOptionalAuth('write'), validateParams(TxIdParamsSchema), validateBody(TxMetadataBodySchema), async (req, res, next) => {
   try {
     const { id: txHash } = req.params;
     const { user } = (req.user || {});

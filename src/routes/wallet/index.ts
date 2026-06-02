@@ -17,6 +17,8 @@ import {
 import {
   WalletAuthorizeBodySchema,
   WalletEvmMigrateEmailMagicBodySchema,
+  WalletEvmMigrateBookBodySchema,
+  WalletEvmMigrateBodySchema,
   WalletLikeWalletParamsSchema,
 } from '../../util/api/wallet/schemas';
 import { validateBody, validateParams } from '../../middleware/validate';
@@ -99,7 +101,7 @@ router.post('/authorize', validateBody(WalletAuthorizeBodySchema), async (req, r
   }
 });
 
-router.post('/evm/migrate/book', async (req, res, next) => {
+router.post('/evm/migrate/book', validateBody(WalletEvmMigrateBookBodySchema), async (req, res, next) => {
   try {
     const {
       like_class_id: likeClassId,
@@ -237,7 +239,7 @@ router.post('/evm/migrate/email/magic', validateBody(WalletEvmMigrateEmailMagicB
   }
 });
 
-router.post(['/evm/migrate/user', '/evm/migrate/all'], async (req, res, next) => {
+router.post(['/evm/migrate/user', '/evm/migrate/all'], validateBody(WalletEvmMigrateBodySchema), async (req, res, next) => {
   try {
     const {
       cosmos_address: likeWallet,

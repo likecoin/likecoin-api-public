@@ -9,6 +9,12 @@ import {
 } from '../../util/firebase';
 import { filterMultipleTxData } from '../../util/api/tx';
 import { jwtAuth } from '../../middleware/jwt';
+import { validateParams, validateQuery } from '../../middleware/validate';
+import {
+  TxHistoryUserParamsSchema,
+  TxHistoryAddrParamsSchema,
+  TxHistoryQuerySchema,
+} from '../../util/api/tx/schemas';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,
@@ -17,7 +23,7 @@ import {
 
 const router = Router();
 
-router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
+router.get('/history/user/:id', jwtAuth('read'), validateParams(TxHistoryUserParamsSchema), validateQuery(TxHistoryQuerySchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     if (req.user.user !== id) {
@@ -68,7 +74,7 @@ router.get('/history/user/:id', jwtAuth('read'), async (req, res, next) => {
   }
 });
 
-router.get('/history/addr/:addr', jwtAuth('read'), async (req, res, next) => {
+router.get('/history/addr/:addr', jwtAuth('read'), validateParams(TxHistoryAddrParamsSchema), validateQuery(TxHistoryQuerySchema), async (req, res, next) => {
   try {
     const { addr } = req.params;
 

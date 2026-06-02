@@ -193,6 +193,14 @@ export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
+export const BookCatalogMetaQuerySchema = z.object({
+  format: z.string().optional(),
+}).passthrough();
+
+export const BookConnectStatusQuerySchema = z.object({
+  wallet: z.string().optional(),
+}).passthrough();
+
 export const ClassIdResponseSchema = z.object({
   classId: z.string(),
 });

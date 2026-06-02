@@ -25,6 +25,7 @@ import {
   BookClassIdPriceIndexParamsSchema,
   BookSearchQuerySchema,
   BookListQuerySchema,
+  BookCatalogMetaQuerySchema,
   type BookListQuery,
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
@@ -94,7 +95,7 @@ router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, nex
   }
 });
 
-router.get('/catalog/meta', async (req, res, next) => {
+router.get('/catalog/meta', validateQuery(BookCatalogMetaQuerySchema), async (req, res, next) => {
   try {
     const items = await getMetaProductCatalogItems();
     res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
@@ -179,7 +180,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
           ownerWallet,
         } = b;
         const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
-        const result: Record<string, unknown> = {
+        return {
           classId: id,
           prices,
           pendingNFTCount,
@@ -187,7 +188,6 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
           sold,
           ownerWallet,
         };
-        return result;
       });
     res.json({ list });
   } catch (err) {

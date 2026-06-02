@@ -10,6 +10,8 @@ import { LIKE_COIN_ABI as LIKE_COIN_V1_ABI, LIKE_COIN_ADDRESS as LIKE_COIN_V1_AD
 import { LIKE_COIN_V3_ABI, LIKE_COIN_V3_ADDRESS } from '../../constant/contract/likecoinV3';
 import { getCosmosTotalSupply, getCosmosAccountLIKE } from '../../util/cosmos';
 import { getEVMClient } from '../../util/evm/client';
+import { validateQuery } from '../../middleware/validate';
+import { MiscSupplyQuerySchema } from '../../util/api/misc/schemas';
 
 const router = Router();
 
@@ -36,7 +38,7 @@ const evmPublicClient = createPublicClient({
   transport: http(),
 });
 
-router.get('/totalsupply/erc20', async (req, res, next) => {
+router.get('/totalsupply/erc20', validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     let rawSupply = new BigNumber(await readContract(evmPublicClient, {
       address: LIKE_COIN_V1_ADDRESS,
@@ -55,7 +57,7 @@ router.get('/totalsupply/erc20', async (req, res, next) => {
   }
 });
 
-router.get('/circulating/erc20', async (req, res, next) => {
+router.get('/circulating/erc20', validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     const rawSupply = await readContract(evmPublicClient, {
       address: LIKE_COIN_V1_ADDRESS,
@@ -86,7 +88,7 @@ router.get('/circulating/erc20', async (req, res, next) => {
   }
 });
 
-router.get('/totalsupply/v3', async (req, res, next) => {
+router.get('/totalsupply/v3', validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     const evmClient = getEVMClient();
     let rawSupply = new BigNumber(await readContract(evmClient, {
@@ -106,7 +108,7 @@ router.get('/totalsupply/v3', async (req, res, next) => {
   }
 });
 
-router.get('/circulating/v3', async (req, res, next) => {
+router.get('/circulating/v3', validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     const evmClient = getEVMClient();
     const rawSupply = await readContract(evmClient, {
@@ -138,7 +140,7 @@ router.get('/circulating/v3', async (req, res, next) => {
   }
 });
 
-router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res, next) => {
+router.get(['/totalsupply', '/totalsupply/likecoinchain'], validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     let rawSupply = new BigNumber(await getCosmosTotalSupply());
     if (req.query.raw === '1') {
@@ -152,7 +154,7 @@ router.get(['/totalsupply', '/totalsupply/likecoinchain'], async (req, res, next
   }
 });
 
-router.get(['/circulating', '/circulating/likecoinchain'], async (req, res, next) => {
+router.get(['/circulating', '/circulating/likecoinchain'], validateQuery(MiscSupplyQuerySchema), async (req, res, next) => {
   try {
     const rawSupply = await getCosmosTotalSupply();
     const amounts = await Promise.all(v2reservedCosmosWallets
