@@ -542,13 +542,13 @@ export async function listLatestNFTBookInfo({
   if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
   if (excludedOwnerWallet) snapshot = snapshot.where('ownerWallet', '!=', excludedOwnerWallet);
   if (chain) snapshot = snapshot.where('chain', '==', chain);
-  const tsNumber = before || key;
-  if (tsNumber) {
-    // HACK: bypass startAfter() type check
-    const timestamp = Timestamp.fromMillis(tsNumber) as unknown as number;
-    snapshot = snapshot.startAfter(timestamp);
+  // `??` (not `||`) so a legitimate cursor of 0 is preserved; routes are
+  // expected to reject NaN/array inputs before reaching this function.
+  const tsNumber = before ?? key;
+  if (tsNumber !== undefined) {
+    snapshot = snapshot.startAfter(Timestamp.fromMillis(tsNumber));
   }
-  if (limit) {
+  if (limit !== undefined) {
     snapshot = snapshot.limit(limit);
   }
   const query = await snapshot.get();

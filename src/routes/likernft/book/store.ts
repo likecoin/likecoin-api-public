@@ -24,6 +24,8 @@ import {
   BookClassIdParamsSchema,
   BookClassIdPriceIndexParamsSchema,
   BookSearchQuerySchema,
+  BookListQuerySchema,
+  type BookListQuery,
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import {
@@ -108,47 +110,38 @@ router.get('/catalog/meta', async (req, res, next) => {
   }
 });
 
-router.get('/list', jwtOptionalAuth('read:nftbook'), async (req, res, next) => {
+router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuerySchema), async (req, res, next) => {
   try {
     const {
       wallet,
       chain,
       exclude_wallet: excludedWallet,
-      before: beforeString,
-      limit: limitString,
-      key: keyString,
-    } = req.query;
+      before,
+      limit,
+      key,
+    } = req.query as unknown as BookListQuery;
     const conditions = {
-      ownerWallet: wallet as string,
-      chain: chain as string,
-      excludedOwnerWallet: excludedWallet as string,
-      before: beforeString ? Number(beforeString) : undefined,
-      limit: limitString ? Number(limitString) : 10,
-      key: keyString ? Number(keyString) : undefined,
+      ownerWallet: wallet,
+      chain,
+      excludedOwnerWallet: excludedWallet,
+      before,
+      limit,
+      key,
     };
-    if (conditions.limit > 100) throw new ValidationError('LIMIT_TOO_LARGE', 400);
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
-    const list = ownedBookInfos
-      .filter((b: NFTBookListingInfo) => {
-        const {
-          isHidden,
-          redirectClassId,
-          moderatorWallets = [],
-          ownerWallet,
-        } = b;
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        return (isAuthorized || !isHidden) && !redirectClassId;
-      })
-      .map((b: NFTBookListingInfo) => {
-        const {
-          moderatorWallets = [],
-          ownerWallet,
-        } = b;
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        const result = filterNFTBookListingInfo(b, isAuthorized);
-        return result;
-      });
+    const list = ownedBookInfos.flatMap((b: NFTBookListingInfo) => {
+      const {
+        isHidden,
+        redirectClassId,
+        moderatorWallets = [],
+        ownerWallet,
+      } = b;
+      if (redirectClassId) return [];
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized && isHidden) return [];
+      return [filterNFTBookListingInfo(b, isAuthorized)];
+    });
     // Use the unfiltered Firestore result for the cursor — filtered-out
     // docs (hidden / redirected) must not end pagination early. Coalesce to
     // null so the response shape matches `nextKey: number | null` even when
