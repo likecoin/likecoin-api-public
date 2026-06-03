@@ -53,6 +53,10 @@ import {
   BookCMSTagIdParamsSchema,
   BookCMSTagListQuerySchema,
   type BookCMSTagListQuery,
+  BookCMSTagResponseSchema,
+  BookCMSTagListResponseSchema,
+  BookCMSTagBulkResponseSchema,
+  BookCMSTagBookListResponseSchema,
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import { airtableAutomationAuth } from '../../../middleware/airtable-automation-auth';
@@ -222,7 +226,7 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
       } else {
         res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       }
-      res.json({ list, nextKey });
+      sendValidatedJSON(res, BookListResponseSchema, { list, nextKey });
     } catch (err) {
       next(err);
     }
@@ -280,11 +284,11 @@ router.post('/bulk/cms/tags', airtableAutomationAuth, validateBody(BookCMSTagBul
   try {
     const { entries } = req.body;
     if (!entries.length) {
-      res.json({ updated: 0 });
+      sendValidatedJSON(res, BookCMSTagBulkResponseSchema, { updated: 0 });
       return;
     }
     const result = await bulkSetNFTBookCMSTagOrder(entries);
-    res.json(result);
+    sendValidatedJSON(res, BookCMSTagBulkResponseSchema, result);
   } catch (err) {
     next(err);
   }
@@ -304,7 +308,7 @@ router.get('/cms/tags', async (_, res, next) => {
   try {
     const tags = await listNFTBookCMSTags();
     res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-    res.json({ list: tags });
+    sendValidatedJSON(res, BookCMSTagListResponseSchema, { list: tags });
   } catch (err) {
     next(err);
   }
@@ -319,7 +323,7 @@ router.get('/cms/tags/:tagId', validateParams(BookCMSTagIdParamsSchema), async (
       return;
     }
     res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-    res.json(tag);
+    sendValidatedJSON(res, BookCMSTagResponseSchema, tag);
   } catch (err) {
     next(err);
   }
@@ -338,7 +342,7 @@ router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req, re
       .map((b) => filterNFTBookListingInfo(b, false));
 
     res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-    res.json({
+    sendValidatedJSON(res, BookCMSTagBookListResponseSchema, {
       list,
       nextOffset: books.length < limit ? null : offset + limit,
     });
