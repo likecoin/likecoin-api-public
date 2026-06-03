@@ -442,6 +442,29 @@ export const BookListModeratedResponseSchema = z.object({
   })),
 });
 
+// Response mirrors the upsert body plus the server-assigned id and timestamps.
+export const BookCMSTagResponseSchema = BookCMSTagUpsertBodySchema.extend({
+  id: BookCMSTagIdSchema,
+  // serializeCMSTagDoc converts Firestore Timestamps to millis; absent on legacy docs.
+  timestamp: z.number().optional(),
+  lastUpdateTimestamp: z.number().optional(),
+});
+
+export const BookCMSTagListResponseSchema = z.object({
+  list: z.array(BookCMSTagResponseSchema),
+});
+
+export const BookCMSTagBulkResponseSchema = z.object({
+  updated: z.number().int().min(0),
+  // Per-classId failure map, only present when at least one update failed.
+  errors: z.record(z.string(), z.string()).optional(),
+});
+
+export const BookCMSTagBookListResponseSchema = z.object({
+  list: z.array(NFTBookListingInfoFilteredSchema),
+  nextOffset: z.number().nullable(),
+});
+
 export const BookInfoResponseSchema = NFTBookListingInfoFilteredSchema;
 
 export const BookPriceInfoResponseSchema = NFTBookPriceFilteredSchema.extend({
