@@ -183,6 +183,12 @@ router.post('/evm/migrate/email/magic', validateBody(WalletEvmMigrateEmailMagicB
       if (!userInfo) {
         throw new ValidationError('USER_NOT_FOUND');
       }
+      // Only auto-link when the existing account's email is itself verified;
+      // combined with the fresh Magic-verified email this proves both sides
+      // control the inbox before importing the EVM wallet.
+      if (!userInfo.isEmailVerified) {
+        throw new ValidationError('EXISTING_EMAIL_NOT_VERIFIED');
+      }
       const { likeWallet, evmWallet: docEvmWallet } = userInfo;
       if (docEvmWallet && docEvmWallet !== evmWallet) {
         throw new ValidationError('EVM_WALLET_MISMATCH');

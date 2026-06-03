@@ -143,6 +143,29 @@
             "referrals": [
             ]
           }
+        },
+        {
+          "id": "testgmaillegacy",
+          "displayName": "testgmaillegacy",
+          "email": "John.Doe+book@gmail.com",
+          "normalizedEmail": "johndoe@gmail.com",
+          "likeWallet": "like1gmaillegacy00000000000000000000000000",
+          "isEmailVerified": true
+        },
+        {
+          "id": "testgmailunverified",
+          "displayName": "testgmailunverified",
+          "email": "Jane.Roe@gmail.com",
+          "normalizedEmail": "janeroe@gmail.com",
+          "likeWallet": "like1gmailunverified000000000000000000000000"
+        },
+        {
+          "id": "testprotonlegacy",
+          "displayName": "testprotonlegacy",
+          "email": "John.Roe+news@proton.me",
+          "normalizedEmail": "john.roe@proton.me",
+          "likeWallet": "like1protonlegacy0000000000000000000000000",
+          "isEmailVerified": true
         }
     ]
 }

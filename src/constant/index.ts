@@ -49,6 +49,29 @@ export const KNOWN_EMAIL_HOSTS = [
   'icloud.com',
 ];
 
+// Gmail-family domains ignore dots in the local part, so dots are stripped when
+// normalizing. Other providers treat dots as significant and must keep them.
+export const NORMALIZABLE_EMAIL_HOSTS = ['gmail.com', 'googlemail.com'];
+
+// Providers where "+tag" subaddressing routes to the base mailbox. The +tag is
+// dropped when normalizing, and normalizedEmail is trusted for account matching
+// on these domains. Excludes providers without it (e.g. Yahoo uses hyphens).
+export const PLUS_ADDRESSING_EMAIL_HOSTS = [
+  'gmail.com',
+  'googlemail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'proton.me',
+  'protonmail.com',
+  'pm.me',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'fastmail.com',
+];
+
 export const SUPPORTED_AVATAR_TYPE = new Set([
   'jpg',
   'png',
