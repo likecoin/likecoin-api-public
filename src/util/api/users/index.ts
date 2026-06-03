@@ -8,6 +8,8 @@ import {
   BUTTON_COOKIE_OPTION,
   KNOWN_EMAIL_HOSTS,
   KICKBOX_DISPOSIBLE_API,
+  NORMALIZABLE_EMAIL_HOSTS,
+  PLUS_ADDRESSING_EMAIL_HOSTS,
   W3C_EMAIL_REGEX,
 } from '../../../constant';
 import {
@@ -182,12 +184,45 @@ export function checkEVMSignPayload({
   return actualPayload;
 }
 
+function getEmailDomain(email: string): string | undefined {
+  return email ? email.split('@')[1]?.toLowerCase() : undefined;
+}
+
+// Domain-aware canonical email. Always lowercases and drops the "+tag" suffix.
+// Dots are stripped only for Gmail-family domains (which ignore them); every
+// other provider treats dots as significant, so they are kept.
+export function getNormalizedEmail(email: string): string | undefined {
+  if (!email || !W3C_EMAIL_REGEX.test(email)) return undefined;
+  const [rawUser, rawDomain] = email.split('@');
+  if (!rawDomain) return undefined;
+  const domain = rawDomain.toLowerCase();
+  const [withoutTag] = rawUser.split('+');
+  const isGmailFamily = NORMALIZABLE_EMAIL_HOSTS.includes(domain);
+  const localPart = isGmailFamily ? withoutTag.split('.').join('') : withoutTag;
+  return `${localPart.toLowerCase()}@${domain}`;
+}
+
+// Returns normalizedEmail only for providers where it reliably maps to a single
+// inbox (Gmail-family and plus-addressing hosts), so it is safe for account
+// matching. Other domains fall back to exact-email matching only.
+export function getMatchableNormalizedEmail(email: string): string | undefined {
+  const domain = getEmailDomain(email);
+  if (!domain || !PLUS_ADDRESSING_EMAIL_HOSTS.includes(domain)) return undefined;
+  return getNormalizedEmail(email);
+}
+
 export async function findLikerByEmail(email: string): Promise<{
   user: string,
   [key: string]: unknown
 } | undefined> {
   if (!email) return undefined;
-  const snapshot = await dbRef.where('email', '==', email).limit(1).get();
+  let snapshot = await dbRef.where('email', '==', email).limit(1).get();
+  if (!snapshot.docs.length) {
+    const normalizedEmail = getMatchableNormalizedEmail(email);
+    if (normalizedEmail) {
+      snapshot = await dbRef.where('normalizedEmail', '==', normalizedEmail).limit(1).get();
+    }
+  }
   if (!snapshot.docs.length) return undefined;
   const [doc] = snapshot.docs;
   return { user: doc.id, ...doc.data() };
@@ -202,27 +237,35 @@ export async function userOrWalletByEmailQuery({
   evmWallet?: string,
   likeWallet?: string,
 }, email: string, isEmailVerified = false): Promise<boolean> {
-  return dbRef.where('email', '==', email).get().then((snapshot) => {
-    snapshot.forEach((doc) => {
-      const docUser = doc.id;
-      const docData = doc.data();
-      if (
-        (user && user !== docUser)
-        || (evmWallet && evmWallet !== docData.evmWallet)
-        || (likeWallet && likeWallet !== docData.likeWallet)
-      ) {
-        let payload: any = null;
-        if (isEmailVerified) {
-          payload = {
-            evmWallet: maskString(docData.evmWallet),
-            likeWallet: maskString(docData.likeWallet, { start: 11 }),
-          };
-        }
-        throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
-      }
-    });
-    return true;
+  const normalizedEmail = getMatchableNormalizedEmail(email);
+  const queries = [dbRef.where('email', '==', email).get()];
+  if (normalizedEmail) {
+    queries.push(dbRef.where('normalizedEmail', '==', normalizedEmail).get());
+  }
+  const snapshots = await Promise.all(queries);
+  const docsById = new Map<string, any>();
+  snapshots.forEach((snapshot) => {
+    snapshot.docs.forEach((doc) => docsById.set(doc.id, doc));
   });
+  docsById.forEach((doc) => {
+    const docUser = doc.id;
+    const docData = doc.data();
+    if (
+      (user && user !== docUser)
+      || (evmWallet && evmWallet !== docData.evmWallet)
+      || (likeWallet && likeWallet !== docData.likeWallet)
+    ) {
+      let payload: any = null;
+      if (isEmailVerified) {
+        payload = {
+          evmWallet: maskString(docData.evmWallet),
+          likeWallet: maskString(docData.likeWallet, { start: 11 }),
+        };
+      }
+      throw new ValidationError('EMAIL_ALREADY_USED', 400, payload);
+    }
+  });
+  return true;
 }
 
 export function queryNormalizedEmailExists(user, email) {
@@ -241,7 +284,6 @@ export async function normalizeUserEmail(user, email) {
   let isEmailBlacklisted;
   const BLACK_LIST_DOMAIN = disposableDomains;
   const parts = email.split('@');
-  let emailUser = parts[0];
   const domain = parts[1];
   if (!domain) return {};
   if (BLACK_LIST_DOMAIN.includes(domain)) {
@@ -281,11 +323,7 @@ export async function normalizeUserEmail(user, email) {
   /* we handle special char for all domain
     the processed string is only stored as normalizedEmail
     for anti spam/analysis purpose, not for actual sending */
-  // handlt dot for all domain
-  emailUser = emailUser.split('.').join('');
-  // handlt plus for all domain
-  [emailUser] = emailUser.split('+');
-  normalizedEmail = `${emailUser.toLowerCase()}@${domain.toLowerCase()}`;
+  normalizedEmail = getNormalizedEmail(email) || normalizedEmail;
   let isEmailDuplicated;
   if (user) {
     isEmailDuplicated = await queryNormalizedEmailExists(user, normalizedEmail);
