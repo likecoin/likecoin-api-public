@@ -2,6 +2,7 @@ import { checksumAddress } from 'viem';
 import { createAirtablePublicationRecord } from '../../airtable';
 import { isValidLikeAddress } from '../../cosmos';
 import { getNFTClassDataById, isEVMClassId } from '../../evm/nft';
+import { isValidEVMAddress } from '../../evm';
 import {
   admin,
   db,
@@ -30,6 +31,20 @@ export async function findLikeWalletByEVMWallet(evmWallet: string) {
     return docId;
   }
   return null;
+}
+
+// Existence-only check for sponsorship gating: is this EVM address a registered
+// likerId user? Queries userCollection (not the book-user collection), where
+// evmWallet is consistently stored checksummed; only needs one hit.
+export async function isRegisteredEVMWallet(evmWallet: string): Promise<boolean> {
+  if (!isValidEVMAddress(evmWallet)) {
+    return false;
+  }
+  const userQuery = await userCollection
+    .where('evmWallet', '==', checksumAddress(evmWallet as `0x${string}`))
+    .limit(1)
+    .get();
+  return !userQuery.empty;
 }
 
 export async function checkBookUserEVMWallet(likeWallet: string) {

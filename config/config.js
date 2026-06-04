@@ -41,6 +41,12 @@ config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
 config.EVM_RPC_ENDPOINT_OVERRIDE = '';
 config.EVM_BASE_FEE_MULTIPLIER = 3;
 
+// Alchemy Gas Manager (sponsored gas for Magic Link users via EIP-7702).
+// The webhook secret guards the custom-rules endpoint Alchemy POSTs to; it is
+// embedded in the configured webhookUrl path (Alchemy sends no auth header).
+config.ALCHEMY_GAS_POLICY_ID = process.env.ALCHEMY_GAS_POLICY_ID || '';
+config.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET = process.env.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET || '';
+
 config.LIKER_PLUS_TRIAL_CONVERSION_RATE = 0.5;
 config.LIKER_PLUS_LTV = 100;
 config.LIKER_PLUS_PRODUCT_ID = '';
