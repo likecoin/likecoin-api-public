@@ -42,6 +42,23 @@ export interface LikerPlusData {
   environment?: 'SANDBOX' | 'PRODUCTION';
 }
 
+/**
+ * Immutable per-term funding record for the reading-library revenue-share pool,
+ * written at invoice time under `users/{likerId}/plusReadingAccrual/{termKey}`.
+ * One doc per paid subscription term; settlement sums each term's day-overlap with
+ * the settlement month. `dailyValueUSD` is pre-normalized so the pool is single-currency.
+ */
+export interface PlusReadingAccrualData {
+  dailyValueUSD: number;
+  // Original charge currency, kept for audit only — the pool itself is USD.
+  currency: string;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  paidDays: number;
+  provider: LikerPlusProvider;
+  subscriptionId: string;
+}
+
 export interface UserData {
   // Identity fields
   isDeleted?: boolean;

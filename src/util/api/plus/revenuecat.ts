@@ -3,7 +3,7 @@ import type { LikerPlusData } from '../../../types/user';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
-import { calculatePlusDailyValue } from './revenueShare';
+import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
@@ -212,6 +212,32 @@ async function handleGrant(
   // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
   // own testnet-scoped integrations still fire as usual.
   if (isQuarantinedSandbox(isSandbox)) return;
+
+  // Accrue this term's value to the rev-share pool. Only on a real new charge
+  // (`price` present) — never trials or uncancel/extend grants, which carry no price
+  // and would otherwise re-fund a term. RC `price` is already USD. Placed after the
+  // quarantine return so reviewer/sandbox traffic never funds real payouts.
+  if (!isTrial && event.price != null && dailyValue > 0 && transactionId) {
+    // Best-effort: accrual is not yet used for payouts, so a transient Firestore
+    // failure must not fail (and make RevenueCat retry) the subscription webhook.
+    try {
+      await recordPlusSubscriptionAccrual({
+        likerId,
+        subscriptionId: transactionId,
+        dailyValueUSD: dailyValue,
+        // Original charge currency for audit; `dailyValueUSD` itself is always USD.
+        // `event.currency` is the ISO code the product was purchased in (NULL when
+        // unknown — RevenueCat's `price` is already USD, so fall back to USD).
+        currency: event.currency || 'USD',
+        currentPeriodStart: purchasedAtMs,
+        currentPeriodEnd,
+        provider: 'revenuecat',
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Error recording Plus reading accrual for ${likerId}:`, err);
+    }
+  }
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
