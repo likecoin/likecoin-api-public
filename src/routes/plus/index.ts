@@ -20,11 +20,13 @@ import {
   PlusReadingUsageResponseSchema,
   PlusSettleBodySchema,
   PlusSettleResponseSchema,
+  PlusSweepBodySchema,
+  PlusSweepResponseSchema,
 } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
 import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
 import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
-import { settlePlusReadingPeriod } from '../../util/api/plus/settleJob';
+import { settlePlusReadingPeriod, sweepPlusReadingPendingPayouts } from '../../util/api/plus/settleJob';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
@@ -90,6 +92,18 @@ router.post('/admin/reading/settle', plusSettleAdminAuth, validateBody(PlusSettl
     const { periodId, dryRun = false, mode } = req.body;
     const result = await settlePlusReadingPeriod({ periodId, dryRun, mode });
     sendValidatedJSON(res, PlusSettleResponseSchema, { success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Admin/cron: re-attempt payouts left `pending` by earlier settles (payees who have
+// since completed Stripe Connect onboarding). Idempotent; `dryRun` previews only.
+router.post('/admin/reading/sweep', plusSettleAdminAuth, validateBody(PlusSweepBodySchema), async (req, res, next) => {
+  try {
+    const { dryRun = false } = req.body;
+    const result = await sweepPlusReadingPendingPayouts({ dryRun });
+    sendValidatedJSON(res, PlusSweepResponseSchema, { success: true, ...result });
   } catch (err) {
     next(err);
   }

@@ -283,3 +283,51 @@ export async function settlePlusReadingPeriod({
 
   return { dryRun, ...summary, books };
 }
+
+/**
+ * Re-attempts payouts left `pending` by earlier runs — typically payees who have since
+ * completed Stripe Connect onboarding (or whose earlier transfer failed). Reuses
+ * settleWalletPayout with the same idempotency key, so a payout that already went through
+ * is never double-paid. `dryRun` classifies without writing or transferring. Run on its
+ * own cadence, independent of the monthly period settle.
+ */
+export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boolean }) {
+  const snap = await db.collectionGroup('plusReadingPayouts').get();
+  const pending = snap.docs
+    .map((doc) => doc.data())
+    .filter((p) => p.status === 'pending' && p.wallet && p.classId && p.periodId);
+
+  let paidCount = 0;
+  let stillPendingCount = 0;
+  let paidCents = 0;
+  for (const p of pending) {
+    const walletCents = Number(p.amountCents) || 0;
+    if (walletCents <= 0) continue;
+    const book = {
+      classId: String(p.classId),
+      readingTimeMs: Number(p.readingTimeMs) || 0,
+      ttsTimeMs: Number(p.ttsTimeMs) || 0,
+    };
+    const outcome = await settleWalletPayout({
+      periodId: String(p.periodId),
+      book,
+      wallet: String(p.wallet),
+      walletCents,
+      dryRun,
+    });
+    if (outcome === 'paid') {
+      paidCount += 1;
+      paidCents += walletCents;
+    } else if (outcome === 'pending') {
+      stillPendingCount += 1;
+    }
+  }
+
+  return {
+    dryRun,
+    sweptCount: pending.length,
+    paidCount,
+    stillPendingCount,
+    paidCents,
+  };
+}

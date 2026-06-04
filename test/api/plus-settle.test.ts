@@ -2,12 +2,18 @@ import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 
 const PATH = '/api/plus/admin/reading/settle';
+const SWEEP_PATH = '/api/plus/admin/reading/sweep';
 const AUTH = 'test-plus-settle-admin-token'; // matches PLUS_SETTLE_ADMIN_TOKEN in test/setup.ts
 const AUTH_HEADER = { Authorization: `Bearer ${AUTH}` };
 
-const post = (body: Record<string, unknown>, headers?: Record<string, string>) => axiosist
-  .post(PATH, body, headers ? { headers } : undefined)
+const postTo = (path: string) => (
+  body: Record<string, unknown>,
+  headers?: Record<string, string>,
+) => axiosist
+  .post(path, body, headers ? { headers } : undefined)
   .catch((err) => (err as any).response);
+const post = postTo(PATH);
+const postSweep = postTo(SWEEP_PATH);
 
 describe('POST /plus/admin/reading/settle', () => {
   it('rejects requests without the admin token', async () => {
@@ -40,6 +46,26 @@ describe('POST /plus/admin/reading/settle', () => {
       paidCount: 0,
       pendingCount: 0,
       books: [],
+    });
+  });
+});
+
+describe('POST /plus/admin/reading/sweep', () => {
+  it('rejects requests without the admin token', async () => {
+    const res = await postSweep({ dryRun: true });
+    expect(res.status).toBe(401);
+  });
+
+  it('dry-run with no pending payouts sweeps nothing', async () => {
+    const res = await postSweep({ dryRun: true }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data).toMatchObject({
+      success: true,
+      dryRun: true,
+      sweptCount: 0,
+      paidCount: 0,
+      stillPendingCount: 0,
+      paidCents: 0,
     });
   });
 });
