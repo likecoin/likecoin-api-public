@@ -10,7 +10,7 @@ import {
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
 } from '../../../constant';
 import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
-import { convertUSDPriceToCurrency } from '../../pricing';
+import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
 import { userCollection } from '../../firebase';
@@ -25,7 +25,7 @@ import {
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
-import { calculatePlusDailyValue } from './revenueShare';
+import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
@@ -306,6 +306,42 @@ export async function processStripeSubscriptionInvoice(
     Object.assign(userUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
   }
   await userCollection.doc(likerId).update(userUpdate);
+
+  // Accrue this term's USD value to the rev-share pool. Full-term paid charges only:
+  // proration invoices reuse the stored dailyValue (already accrued at the cycle), and
+  // trials fund nothing. The charge is normalized from its invoice currency to USD so
+  // the pool stays single-currency.
+  if (isFullTermInvoice && !isTrial && dailyValue > 0) {
+    // Stripe settles in USD, so the charge's balance transaction amount is the real
+    // converted USD value (actual FX, net of spread). Prefer it; fall back to tier-based
+    // conversion only when the balance transaction couldn't be fetched.
+    const amountPaidUSD = balanceTxAmount
+      ?? convertCurrencyToUSDPrice(
+        amountPaid,
+        currency.toLowerCase() as SupportedPlusCurrency,
+      );
+    const dailyValueUSD = calculatePlusDailyValue({
+      amountPaid: amountPaidUSD,
+      currentPeriodStart,
+      currentPeriodEnd,
+    });
+    // Best-effort: accrual is not yet used for payouts, so a transient Firestore
+    // failure must not fail (and make Stripe retry) the subscription webhook.
+    try {
+      await recordPlusSubscriptionAccrual({
+        likerId,
+        subscriptionId,
+        dailyValueUSD,
+        currency,
+        currentPeriodStart,
+        currentPeriodEnd,
+        provider: 'stripe',
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`Error recording Plus reading accrual for ${likerId}:`, err);
+    }
+  }
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,

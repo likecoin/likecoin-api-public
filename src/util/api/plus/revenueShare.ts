@@ -1,9 +1,19 @@
-/* eslint-disable import/prefer-default-export */
 import { ONE_DAY_IN_MS } from '../../../constant';
+import { FieldValue, userCollection } from '../../firebase';
+import type { PlusReadingAccrualData } from '../../../types/user';
+
+/**
+ * Whole paid days in a term, rounding sub-day clock jitter. The stored accrual
+ * `paidDays` and the settle-time overlap basis must round identically or pool
+ * conservation (Σ monthly overlaps = term paidDays) breaks — so both derive it here.
+ */
+function roundTermDays(termMs: number): number {
+  return Math.round(termMs / ONE_DAY_IN_MS);
+}
 
 /**
  * Computes the per-day value of a Plus subscription term — the funding basis for
- * the reading-library revenue-share pool, which accrues per complete paid day.
+ * the reading-library revenue-share pool, which accrues proportionally over the term.
  *
  * `amountPaid` is the net (post-discount) charge for the current term, so the
  * early/beta/full price tiers and the monthly/yearly discount are all captured by
@@ -27,7 +37,110 @@ export function calculatePlusDailyValue({
   if (!(amountPaid > 0)) return 0;
   const termMs = currentPeriodEnd - currentPeriodStart;
   if (!(termMs > 0)) return 0;
-  const termDays = Math.round(termMs / ONE_DAY_IN_MS);
+  const termDays = roundTermDays(termMs);
   if (termDays <= 0) return 0;
   return amountPaid / termDays;
+}
+
+/**
+ * Records a per-term accrual entry that funds the reading-library
+ * revenue-share pool, under `users/{likerId}/plusReadingAccrual/{termKey}`.
+ *
+ * Written at invoice time rather than recomputed at settle time: the shared
+ * `likerPlus` record is latest-write-wins, so a renewal would overwrite a prior
+ * term's dailyValue before settlement reads it. One doc per paid term, keyed by
+ * `${subscriptionId}_${currentPeriodStart}` — reprocessing the same invoice overwrites
+ * the same accrual fields (only `updatedAt` changes), so it is idempotent. `dailyValueUSD`
+ * is already normalized to USD so settlement sums a single currency. No-op for trials / malformed
+ * terms (they fund nothing).
+ */
+export async function recordPlusSubscriptionAccrual({
+  likerId,
+  subscriptionId,
+  dailyValueUSD,
+  currency,
+  currentPeriodStart,
+  currentPeriodEnd,
+  provider,
+}: {
+  likerId: string;
+  subscriptionId: string;
+  dailyValueUSD: number;
+  currency: string;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  provider: PlusReadingAccrualData['provider'];
+}): Promise<void> {
+  if (!(dailyValueUSD > 0)) return;
+  const termMs = currentPeriodEnd - currentPeriodStart;
+  if (!(termMs > 0)) return;
+  const paidDays = roundTermDays(termMs);
+  if (paidDays <= 0) return;
+
+  const termKey = `${subscriptionId}_${currentPeriodStart}`;
+  const accrual: PlusReadingAccrualData = {
+    dailyValueUSD,
+    currency,
+    currentPeriodStart,
+    currentPeriodEnd,
+    paidDays,
+    provider,
+    subscriptionId,
+  };
+  await userCollection
+    .doc(likerId)
+    .collection('plusReadingAccrual')
+    .doc(termKey)
+    .set({ ...accrual, updatedAt: FieldValue.serverTimestamp() });
+}
+
+/**
+ * UTC millisecond bounds `[startMs, endMs)` of a `YYYY-MM` settlement period.
+ */
+export function getUsageMonthBoundsMs(periodId: string): { startMs: number; endMs: number } {
+  const [year, month] = periodId.split('-').map(Number);
+  return {
+    startMs: Date.UTC(year, month - 1, 1),
+    endMs: Date.UTC(year, month, 1),
+  };
+}
+
+/**
+ * Fractional paid days of an accrual term that fall inside a settlement month,
+ * distributed proportionally so summing across every month a term spans returns the
+ * term's full `paidDays` exactly (no month-boundary rounding drift).
+ */
+export function getAccrualOverlapDays(
+  termStartMs: number,
+  termEndMs: number,
+  monthStartMs: number,
+  monthEndMs: number,
+): number {
+  const termMs = termEndMs - termStartMs;
+  if (!(termMs > 0)) return 0;
+  const overlapMs = Math.min(termEndMs, monthEndMs) - Math.max(termStartMs, monthStartMs);
+  if (!(overlapMs > 0)) return 0;
+  const paidDays = roundTermDays(termMs);
+  return paidDays * (overlapMs / termMs);
+}
+
+/**
+ * Sums the USD funding attributable to a settlement period: each accrual term
+ * contributes `dailyValueUSD × overlapDays(term, month)`. Pure — settlement reads the
+ * accrual docs from Firestore and passes them in.
+ */
+export function accruePoolUSD(
+  accruals: Array<Pick<PlusReadingAccrualData, 'dailyValueUSD' | 'currentPeriodStart' | 'currentPeriodEnd'>>,
+  periodId: string,
+): number {
+  const { startMs, endMs } = getUsageMonthBoundsMs(periodId);
+  return accruals.reduce(
+    (sum, a) => sum + a.dailyValueUSD * getAccrualOverlapDays(
+      a.currentPeriodStart,
+      a.currentPeriodEnd,
+      startMs,
+      endMs,
+    ),
+    0,
+  );
 }
