@@ -12,11 +12,15 @@ process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = 'rc_plus_monthly';
 process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = 'rc_plus_yearly';
 process.env.AIRTABLE_AUTOMATION_TOKEN = 'test-airtable-automation-token';
 process.env.PLUS_READING_SERVICE_TOKEN = 'test-plus-reading-service-token';
+process.env.ALCHEMY_GAS_POLICY_ID = 'test-alchemy-policy-id';
+process.env.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET = 'test-alchemy-webhook-secret';
 
 // Mock config files
 vi.mock('../../config/config', () => ({
   AIRTABLE_AUTOMATION_TOKEN: 'test-airtable-automation-token',
   PLUS_READING_SERVICE_TOKEN: 'test-plus-reading-service-token',
+  ALCHEMY_GAS_POLICY_ID: 'test-alchemy-policy-id',
+  ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET: 'test-alchemy-webhook-secret',
   FIREBASE_STORAGE_BUCKET: 'test-bucket',
   FIRESTORE_USER_ROOT: 'users',
   FIRESTORE_USER_AUTH_ROOT: 'user-auth',
