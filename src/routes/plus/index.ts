@@ -18,9 +18,13 @@ import {
   PlusPriceBodySchema,
   PlusReadingUsageBodySchema,
   PlusReadingUsageResponseSchema,
+  PlusSettleBodySchema,
+  PlusSettleResponseSchema,
 } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
+import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
 import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
+import { settlePlusReadingPeriod } from '../../util/api/plus/settleJob';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
@@ -73,6 +77,19 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
       occurredAt,
     });
     sendValidatedJSON(res, PlusReadingUsageResponseSchema, { success: true, dayId });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Admin/cron: settle the Plus reading revenue share for a `YYYY-MM` period — accrue the
+// pool, freeze usage, price each book, and pay payees via Stripe Connect. `dryRun` returns
+// the full allocation without writing or transferring (run it first to eyeball the split).
+router.post('/admin/reading/settle', plusSettleAdminAuth, validateBody(PlusSettleBodySchema), async (req, res, next) => {
+  try {
+    const { periodId, dryRun = false, mode } = req.body;
+    const result = await settlePlusReadingPeriod({ periodId, dryRun, mode });
+    sendValidatedJSON(res, PlusSettleResponseSchema, { success: true, ...result });
   } catch (err) {
     next(err);
   }
