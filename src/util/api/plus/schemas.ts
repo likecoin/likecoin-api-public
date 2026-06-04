@@ -190,3 +190,17 @@ export const PlusSettleResponseSchema = z.object({
     ttsTimeMs: z.number(),
   })),
 });
+
+// Admin Plus reading pending-payout sweep (POST /plus/admin/reading/sweep).
+export const PlusSweepBodySchema = z.object({
+  dryRun: z.boolean().optional(),
+});
+
+export const PlusSweepResponseSchema = z.object({
+  success: z.literal(true),
+  dryRun: z.boolean(),
+  sweptCount: z.number(),
+  paidCount: z.number(),
+  stillPendingCount: z.number(),
+  paidCents: z.number(),
+});
