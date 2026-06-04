@@ -20,6 +20,10 @@ export interface LikerPlusData {
   currentType?: string;
   since: number;
   period?: string;
+  // Per-day value of the current term (in `dailyValueCurrency`), used to fund the
+  // reading-library revenue-share pool. 0 for trials. See calculatePlusDailyValue.
+  dailyValue?: number;
+  dailyValueCurrency?: string;
   subscriptionId?: string;
   customerId?: string;
   subscriptionStatus?: LikerPlusSubscriptionStatus;

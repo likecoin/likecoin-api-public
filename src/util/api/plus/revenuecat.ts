@@ -3,6 +3,7 @@ import type { LikerPlusData } from '../../../types/user';
 import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
+import { calculatePlusDailyValue } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
@@ -171,11 +172,30 @@ async function handleGrant(
     ? purchasedAtMs
     : (user.likerPlus?.since || purchasedAtMs);
 
+  // Per-day value of this term, funding the reading-library revenue-share pool.
+  // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
+  // `price` is normalized to USD, so the pool funds in USD — the actual transaction
+  // price still captures intro/promotional and monthly/yearly differences.
+  // Uncancel/extend/product-change grants carry no `price` (no new charge); preserve
+  // the stored dailyValue rather than zeroing accrual until the next priced renewal.
+  let dailyValue = 0;
+  if (!isTrial) {
+    dailyValue = event.price != null
+      ? calculatePlusDailyValue({
+        amountPaid: event.price,
+        currentPeriodStart: purchasedAtMs,
+        currentPeriodEnd,
+      })
+      : (user.likerPlus?.dailyValue ?? 0);
+  }
+
   const likerPlus: LikerPlusData = {
     since,
     currentPeriodStart: purchasedAtMs,
     currentPeriodEnd,
     currentType: isTrial ? 'trial' : 'paid',
+    dailyValue,
+    dailyValueCurrency: 'USD',
     subscriptionStatus: 'active',
     provider: 'revenuecat',
   };

@@ -25,6 +25,7 @@ import {
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import { calculatePlusDailyValue } from './revenueShare';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
@@ -267,6 +268,22 @@ export async function processStripeSubscriptionInvoice(
   const since = startDate * 1000; // Convert to milliseconds
   const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
   const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
+  // A proration invoice pays a partial amount that doesn't match the full
+  // current_period_start/end term, so dividing would understate per-day value;
+  // recompute only for full-term charges, else preserve the stored value.
+  const isFullTermInvoice = isSubscriptionCreation
+    || isTrialToPaidUpgrade
+    || billingReason === 'subscription_cycle';
+  const dailyValue = isFullTermInvoice
+    ? calculatePlusDailyValue({
+      amountPaid: isTrial ? 0 : amountPaid,
+      currentPeriodStart,
+      currentPeriodEnd,
+    })
+    : (user.likerPlus?.dailyValue ?? 0);
+  const dailyValueCurrency = isFullTermInvoice
+    ? currency
+    : (user.likerPlus?.dailyValueCurrency ?? currency);
   const userUpdate: Record<string, unknown> = {
     likerPlus: {
       period,
@@ -274,6 +291,8 @@ export async function processStripeSubscriptionInvoice(
       currentPeriodStart,
       currentPeriodEnd,
       currentType: isTrial ? 'trial' : 'paid',
+      dailyValue,
+      dailyValueCurrency,
       subscriptionId,
       customerId,
       subscriptionStatus: 'active',
