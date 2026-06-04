@@ -201,7 +201,7 @@ export const BookConnectStatusQuerySchema = z.object({
   wallet: z.string().optional(),
 }).passthrough();
 
-export const BookCMSTagIdSchema = z.string().regex(/^[a-z][a-z-]*$/);
+export const BookCMSTagIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 const BookCMSLocalizedStringSchema = z.object({
   zh: z.string(),
