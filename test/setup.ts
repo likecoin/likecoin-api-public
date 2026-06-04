@@ -14,6 +14,7 @@ process.env.AIRTABLE_AUTOMATION_TOKEN = 'test-airtable-automation-token';
 process.env.PLUS_READING_SERVICE_TOKEN = 'test-plus-reading-service-token';
 process.env.ALCHEMY_GAS_POLICY_ID = 'test-alchemy-policy-id';
 process.env.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET = 'test-alchemy-webhook-secret';
+process.env.PLUS_SETTLE_ADMIN_TOKEN = 'test-plus-settle-admin-token';
 
 // Mock config files
 vi.mock('../../config/config', () => ({
@@ -21,6 +22,7 @@ vi.mock('../../config/config', () => ({
   PLUS_READING_SERVICE_TOKEN: 'test-plus-reading-service-token',
   ALCHEMY_GAS_POLICY_ID: 'test-alchemy-policy-id',
   ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET: 'test-alchemy-webhook-secret',
+  PLUS_SETTLE_ADMIN_TOKEN: 'test-plus-settle-admin-token',
   FIREBASE_STORAGE_BUCKET: 'test-bucket',
   FIRESTORE_USER_ROOT: 'users',
   FIRESTORE_USER_AUTH_ROOT: 'user-auth',

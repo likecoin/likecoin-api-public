@@ -7,6 +7,7 @@ import {
   StripeCheckoutResponseSchema,
   TrackingFieldsSchema,
 } from '../likernft/book/schemas';
+import { PLUS_READING_ALLOCATION_MODES } from './settle';
 
 const TrialPeriodDaysSchema = z.union([
   z.literal(0),
@@ -154,4 +155,38 @@ export const PlusReadingUsageBodySchema = z.object({
 export const PlusReadingUsageResponseSchema = z.object({
   success: z.literal(true),
   dayId: z.string(),
+});
+
+// Admin Plus reading revenue-share settle (POST /plus/admin/reading/settle).
+export const PlusSettleBodySchema = z.object({
+  periodId: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'INVALID_PERIOD_ID'),
+  dryRun: z.boolean().optional(),
+  mode: z.enum(PLUS_READING_ALLOCATION_MODES).optional(),
+});
+
+export const PlusSettleResponseSchema = z.object({
+  success: z.literal(true),
+  dryRun: z.boolean(),
+  periodId: z.string(),
+  mode: z.enum(PLUS_READING_ALLOCATION_MODES),
+  revShareRate: z.number(),
+  poolUSD: z.number(),
+  allocatableUSD: z.number(),
+  allocatedUSD: z.number(),
+  revSharePct: z.number(),
+  readRatePerMin: z.number(),
+  ttsRatePerMin: z.number(),
+  totalReadingTimeMs: z.number(),
+  totalTTSTimeMs: z.number(),
+  bookCount: z.number(),
+  paidCount: z.number(),
+  pendingCount: z.number(),
+  paidCents: z.number(),
+  pendingCents: z.number(),
+  books: z.array(z.object({
+    classId: z.string(),
+    amountCents: z.number(),
+    readingTimeMs: z.number(),
+    ttsTimeMs: z.number(),
+  })),
 });
