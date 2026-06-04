@@ -34,6 +34,7 @@ export interface RevenueCatEvent {
   store?: string;
   environment?: 'SANDBOX' | 'PRODUCTION';
   price?: number;
+  price_in_purchased_currency?: number;
   currency?: string;
   original_transaction_id?: string;
   cancel_reason?: string;
@@ -43,6 +44,22 @@ export interface RevenueCatEvent {
   transferred_to?: string[];
 }
 /* eslint-enable camelcase */
+
+// RevenueCat's `price` is normalized to USD, while `currency` describes
+// `price_in_purchased_currency` (the amount the customer actually paid). Pairing
+// `price` with `currency` mislabels USD amounts as the local currency. Return a
+// consistent (amount, currency) pair: the local charge when present, else USD.
+export function getRevenueCatPaymentAmount(
+  event: RevenueCatEvent,
+): { amount?: number; currency?: string } {
+  if (event.price_in_purchased_currency != null && event.currency) {
+    return { amount: event.price_in_purchased_currency, currency: event.currency };
+  }
+  if (event.price != null) {
+    return { amount: event.price, currency: 'USD' };
+  }
+  return {};
+}
 
 const RC_ANONYMOUS_ID_PREFIX = '$RCAnonymousID:';
 
@@ -191,13 +208,16 @@ async function handleGrant(
   if (isInitial) logEvent = isTrial ? 'StartTrial' : 'Subscribe';
   else if (event.type === 'RENEWAL') logEvent = 'SubscriptionRenewed';
 
+  // Resolve once and reuse across Slack, analytics, and the Airtable record.
+  const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
+
   // Independent notifications/analytics — fire in parallel (matches the Stripe path).
   const sideEffects: Promise<unknown>[] = [
     sendPlusSubscriptionSlackNotification({
       subscriptionId: transactionId || 'N/A',
       email: user.email || 'N/A',
-      priceWithCurrency: event.price != null && event.currency
-        ? `${event.price.toFixed(2)} ${event.currency}`
+      priceWithCurrency: paymentAmount != null && paymentCurrency
+        ? `${paymentAmount.toFixed(2)} ${paymentCurrency}`
         : 'N/A',
       isNew: isInitial,
       userId: likerId,
@@ -209,8 +229,8 @@ async function handleGrant(
     sideEffects.push(logServerEvents(logEvent, {
       email: user.email,
       evmWallet: user.evmWallet,
-      value: event.price,
-      currency: event.currency,
+      value: paymentAmount,
+      currency: paymentCurrency,
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
       extraProperties: {
@@ -231,8 +251,8 @@ async function handleGrant(
       customerUserId: likerId,
       customerWallet: user.evmWallet || '',
       productId: event.product_id,
-      price: event.price,
-      currency: event.currency,
+      price: paymentAmount,
+      currency: paymentCurrency,
       since,
       periodInterval: period || '',
       periodStartAt: purchasedAtMs,
