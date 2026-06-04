@@ -1,5 +1,7 @@
 import { ONE_DAY_IN_MS } from '../../../constant';
-import { FieldValue, userCollection } from '../../firebase';
+import {
+  FieldValue, db, likeNFTBookCollection, userCollection,
+} from '../../firebase';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
@@ -40,6 +42,71 @@ export function calculatePlusDailyValue({
   const termDays = roundTermDays(termMs);
   if (termDays <= 0) return 0;
   return amountPaid / termDays;
+}
+
+/**
+ * Settlement-period bucket for a usage timestamp: a UTC calendar month, `YYYY-MM`.
+ * UTC (not the project's HK timezone) keeps bucketing deterministic and matches the
+ * web backend's UTC date handling for reading streaks.
+ */
+export function getUsagePeriodId(timestampMs: number): string {
+  const date = new Date(timestampMs);
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+/**
+ * Records Plus reading/TTS usage into the period-bucketed ledger that funds the
+ * reading-library revenue share. Durations are already paced (anti-fraud) by the
+ * web backend, so this is a trusted write.
+ *
+ * Dual-write in one batch (mirrors the web backend's incrementBookReadingTime):
+ *   likeNFTBookCollection/{classId}/plusUsage/{periodId}                  ← book rollup
+ *   likeNFTBookCollection/{classId}/plusUsage/{periodId}/readers/{wallet} ← reader grain
+ *
+ * The book rollup hangs off the book doc so settlement reads ownerWallet /
+ * connectedWallets live from the parent (no snapshot drift). `classId` is
+ * lowercased to a canonical key: EVM class ids arrive in mixed (EIP-55) casing
+ * from different callers, and the web backend already lowercases the same id for
+ * its per-user books subcollection — keying the ledger consistently dedups casing
+ * variants. Settlement resolves the book doc by the same lowercase key. The reader
+ * grain feeds the future per-reader/author stats without a backfill.
+ */
+export async function recordPlusReadingUsage({
+  readerWallet,
+  classId,
+  readingTimeMs,
+  ttsTimeMs,
+  occurredAt,
+}: {
+  readerWallet: string;
+  classId: string;
+  readingTimeMs: number;
+  ttsTimeMs: number;
+  occurredAt?: number;
+}): Promise<{ periodId: string }> {
+  const periodId = getUsagePeriodId(occurredAt || Date.now());
+  const normalizedClassId = classId.toLowerCase();
+
+  const periodDocRef = likeNFTBookCollection
+    .doc(normalizedClassId)
+    .collection('plusUsage')
+    .doc(periodId);
+  const readerDocRef = periodDocRef.collection('readers').doc(readerWallet);
+
+  const usageIncrement = {
+    readingTimeMs: FieldValue.increment(readingTimeMs),
+    ttsTimeMs: FieldValue.increment(ttsTimeMs),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  const batch = db.batch();
+  batch.set(periodDocRef, usageIncrement, { merge: true });
+  batch.set(readerDocRef, usageIncrement, { merge: true });
+  await batch.commit();
+
+  return { periodId };
 }
 
 /**

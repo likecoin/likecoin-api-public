@@ -135,3 +135,22 @@ export const RevenueCatConfigResponseSchema = z.object({
   appUserId: z.string(),
   entitlementId: z.string(),
 });
+
+// Internal Plus reading-usage ingest (POST /plus/reading/usage), called
+// server-to-server by liker-land-v3. Durations are already paced (anti-fraud)
+// upstream; cap each at 4h — the reader's per-session ceiling — as a sanity bound.
+const MAX_USAGE_DELTA_MS = 4 * 60 * 60 * 1000;
+const UsageDurationSchema = z.number().int().min(0).max(MAX_USAGE_DELTA_MS);
+
+export const PlusReadingUsageBodySchema = z.object({
+  readerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'INVALID_READER_WALLET'),
+  classId: z.string().min(1),
+  readingTimeMs: UsageDurationSchema,
+  ttsTimeMs: UsageDurationSchema,
+  occurredAt: z.number().int().positive().optional(),
+});
+
+export const PlusReadingUsageResponseSchema = z.object({
+  success: z.literal(true),
+  periodId: z.string(),
+});
