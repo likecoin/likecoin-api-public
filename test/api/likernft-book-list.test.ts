@@ -24,6 +24,9 @@ async function makeNFTBookStub(classId: string, overrides: Record<string, unknow
   await likeNFTBookCollection.doc(classId).set({
     classId,
     ownerWallet: 'wallet1',
+    // `/list` defaults the chain query to 'base', and Firestore equality
+    // filters skip docs missing the field — stub it so fixtures aren't dropped.
+    chain: 'base',
     prices: [],
     ...overrides,
   } as any);
