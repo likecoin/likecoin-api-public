@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
+import mockEVMAddress from './address';
 import { likeNFTBookCollection } from '../../src/util/firebase';
 
 const PATH = '/api/plus/reading/usage';
 const AUTH = 'test-plus-reading-service-token'; // matches PLUS_READING_SERVICE_TOKEN in test/setup.ts
 const AUTH_HEADER = { Authorization: `Bearer ${AUTH}` };
-const CLASS_ID = '0x1111111111111111111111111111111111111111';
-const READER = '0x2222222222222222222222222222222222222222';
-const OWNER = '0x3333333333333333333333333333333333333333';
+const CLASS_ID = mockEVMAddress(0x11);
+const READER = mockEVMAddress(0x22);
+const OWNER = mockEVMAddress(0x33);
 
 const post = (body: Record<string, unknown>, headers?: Record<string, string>) => axiosist
   .post(PATH, body, headers ? { headers } : undefined)
@@ -54,6 +55,18 @@ describe('POST /plus/reading/usage', () => {
     const data = doc.data() as any;
     expect(data.readingTimeMs).toBe(1500);
     expect(data.ttsTimeMs).toBe(4200);
+  });
+
+  it('rejects usage for a class id with no book doc', async () => {
+    const orphanClassId = mockEVMAddress(0x44);
+    const res = await post({
+      readerWallet: READER,
+      classId: orphanClassId,
+      readingTimeMs: 1000,
+      ttsTimeMs: 0,
+      occurredAt: Date.UTC(2026, 2, 10),
+    }, AUTH_HEADER);
+    expect(res.status).toBe(404);
   });
 
   it('acks a no-op (zero duration) without requiring a book', async () => {

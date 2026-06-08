@@ -7,9 +7,9 @@ import { ValidationError } from '../util/ValidationError';
 
 const BEARER_PREFIX = 'Bearer ';
 
-// Guards the internal Plus reading-usage ingest endpoint. The liker-land-v3 web
-// backend forwards already-paced (anti-fraud) usage deltas server-to-server, so
-// a shared secret is sufficient — no user JWT is involved.
+// Guards the internal Plus reading-usage ingest endpoint. The 3ook.com backend
+// forwards already-paced (anti-fraud) usage deltas server-to-server, so a shared
+// secret is sufficient — no user JWT is involved.
 export function plusReadingServiceAuth(req: Request, res: Response, next: NextFunction) {
   if (!PLUS_READING_SERVICE_TOKEN) {
     next(new ValidationError('PLUS_READING_SERVICE_TOKEN_NOT_CONFIGURED', 500));

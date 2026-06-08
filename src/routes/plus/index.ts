@@ -43,8 +43,8 @@ const router = Router();
 
 router.use('/revenuecat', revenueCatRouter);
 
-// Internal: the liker-land-v3 web backend forwards already-paced Plus reading/TTS
-// usage deltas here (service-secret auth, no user JWT) to fund the reading-library
+// Internal: the 3ook.com backend forwards already-paced Plus reading/TTS usage
+// deltas here (service-secret auth, no user JWT) to fund the reading-library
 // revenue share. Recorded into a per-(book, period) ledger with a per-reader grain.
 router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUsageBodySchema), async (req, res, next) => {
   try {

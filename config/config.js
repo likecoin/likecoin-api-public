@@ -149,7 +149,7 @@ config.AIRTABLE_BASE_ID = '';
 config.AIRTABLE_AUTOMATION_TOKEN = process.env.AIRTABLE_AUTOMATION_TOKEN;
 
 // Shared secret for the internal Plus reading-usage ingest endpoint, called
-// server-to-server by the liker-land-v3 web backend.
+// server-to-server by the 3ook.com backend.
 config.PLUS_READING_SERVICE_TOKEN = process.env.PLUS_READING_SERVICE_TOKEN;
 
 config.SLACK_COMMAND_TOKEN = '';

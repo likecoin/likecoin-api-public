@@ -2,6 +2,7 @@ import { ONE_DAY_IN_MS } from '../../../constant';
 import {
   FieldValue, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
+import { ValidationError } from '../../ValidationError';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
@@ -57,21 +58,14 @@ export function getUsagePeriodId(timestampMs: number): string {
 }
 
 /**
- * Records Plus reading/TTS usage into the period-bucketed ledger that funds the
- * reading-library revenue share. Durations are already paced (anti-fraud) by the
- * web backend, so this is a trusted write.
- *
- * Dual-write in one batch (mirrors the web backend's incrementBookReadingTime):
- *   likeNFTBookCollection/{classId}/plusUsage/{periodId}                  ← book rollup
- *   likeNFTBookCollection/{classId}/plusUsage/{periodId}/readers/{wallet} ← reader grain
- *
- * The book rollup hangs off the book doc so settlement reads ownerWallet /
- * connectedWallets live from the parent (no snapshot drift). `classId` is
- * lowercased to a canonical key: EVM class ids arrive in mixed (EIP-55) casing
- * from different callers, and the web backend already lowercases the same id for
- * its per-user books subcollection — keying the ledger consistently dedups casing
- * variants. Settlement resolves the book doc by the same lowercase key. The reader
- * grain feeds the future per-reader/author stats without a backfill.
+ * Records already-paced (anti-fraud) Plus reading/TTS usage into the period-bucketed
+ * ledger funding the reading-library revenue share — a trusted write. Dual-writes the
+ * book rollup and a per-reader grain in one batch, both hanging off the book doc so
+ * settlement reads ownerWallet/connectedWallets live from the parent (no snapshot drift).
+ * Requires the parent book doc to exist — Firestore would otherwise happily create an
+ * orphan ledger under a missing parent that settlement could never attribute.
+ * `classId` and `readerWallet` are lowercased to canonical keys so EIP-55 casing variants
+ * don't split the same book/reader across docs (the web backend lowercases the same ids).
  */
 export async function recordPlusReadingUsage({
   readerWallet,
@@ -88,12 +82,14 @@ export async function recordPlusReadingUsage({
 }): Promise<{ periodId: string }> {
   const periodId = getUsagePeriodId(occurredAt || Date.now());
   const normalizedClassId = classId.toLowerCase();
+  const normalizedReaderWallet = readerWallet.toLowerCase();
 
-  const periodDocRef = likeNFTBookCollection
-    .doc(normalizedClassId)
-    .collection('plusUsage')
-    .doc(periodId);
-  const readerDocRef = periodDocRef.collection('readers').doc(readerWallet);
+  const bookDocRef = likeNFTBookCollection.doc(normalizedClassId);
+  const bookDoc = await bookDocRef.get();
+  if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+
+  const periodDocRef = bookDocRef.collection('plusUsage').doc(periodId);
+  const readerDocRef = periodDocRef.collection('readers').doc(normalizedReaderWallet);
 
   const usageIncrement = {
     readingTimeMs: FieldValue.increment(readingTimeMs),
