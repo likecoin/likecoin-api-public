@@ -383,7 +383,9 @@ export async function processStripeSubscriptionInvoice(
       subscriptionId,
       email: user.email || 'N/A',
       priceWithCurrency,
-      isNew: isNewSubscription,
+      // Treat the first payment converted from a trial as a new subscription,
+      // not a renewal (start_date is unchanged so isNewSubscription is false).
+      isNew: isNewSubscription || !!isTrialToPaidUpgrade,
       userId: likerId,
       stripeCustomerId: customerId,
       method: 'stripe',
