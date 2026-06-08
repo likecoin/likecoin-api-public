@@ -188,7 +188,7 @@ export type BookListPaginationQuery = z.infer<typeof BookListPaginationQuerySche
 
 export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
   wallet: z.string().optional(),
-  chain: z.string().optional(),
+  chain: z.string().default('base'),
   exclude_wallet: z.string().optional(),
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
