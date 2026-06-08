@@ -5,6 +5,7 @@ import {
   calculatePlusDailyValue,
   getAccrualOverlapDays,
   getUsageMonthBoundsMs,
+  getUsagePeriodId,
 } from '../../src/util/api/plus/revenueShare';
 
 const monthStart = Date.UTC(2026, 0, 1);
@@ -69,6 +70,38 @@ describe('calculatePlusDailyValue', () => {
       currentPeriodEnd: monthStart + 30 * ONE_DAY_IN_MS - 5000,
     });
     expect(daily).toBeCloseTo(9 / 30, 10);
+  });
+});
+
+describe('getUsagePeriodId', () => {
+  it('buckets a timestamp into its UTC YYYY-MM month', () => {
+    expect(getUsagePeriodId(Date.UTC(2026, 2, 15, 12))).toBe('2026-03');
+  });
+
+  it('zero-pads single-digit months', () => {
+    expect(getUsagePeriodId(Date.UTC(2026, 0, 1))).toBe('2026-01');
+  });
+
+  it('keeps the first millisecond of a month in that month', () => {
+    expect(getUsagePeriodId(Date.UTC(2026, 1, 1, 0, 0, 0, 0))).toBe('2026-02');
+  });
+
+  it('keeps the last millisecond of a month in that month', () => {
+    expect(getUsagePeriodId(Date.UTC(2026, 1, 1) - 1)).toBe('2026-01');
+  });
+
+  it('buckets by UTC, not local time, across a day boundary', () => {
+    // 2026-01-31T23:30 UTC is still January in UTC even though it is February
+    // in any positive-offset local zone (e.g. the project's HK timezone).
+    expect(getUsagePeriodId(Date.UTC(2026, 0, 31, 23, 30))).toBe('2026-01');
+  });
+
+  it('round-trips into getUsageMonthBoundsMs bounds', () => {
+    const periodId = getUsagePeriodId(Date.UTC(2026, 11, 25));
+    const { startMs, endMs } = getUsageMonthBoundsMs(periodId);
+    expect(periodId).toBe('2026-12');
+    expect(getUsagePeriodId(startMs)).toBe(periodId);
+    expect(getUsagePeriodId(endMs - 1)).toBe(periodId);
   });
 });
 

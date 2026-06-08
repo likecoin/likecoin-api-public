@@ -16,7 +16,11 @@ import {
   PlusNewResponseSchema,
   PlusPortalResponseSchema,
   PlusPriceBodySchema,
+  PlusReadingUsageBodySchema,
+  PlusReadingUsageResponseSchema,
 } from '../../util/api/plus/schemas';
+import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
+import { getUsagePeriodId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
@@ -38,6 +42,41 @@ import revenueCatRouter from './revenuecat';
 const router = Router();
 
 router.use('/revenuecat', revenueCatRouter);
+
+// Internal: the 3ook.com backend forwards already-paced Plus reading/TTS usage
+// deltas here (service-secret auth, no user JWT) to fund the reading-library
+// revenue share. Recorded into a per-(book, period) ledger with a per-reader grain.
+router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUsageBodySchema), async (req, res, next) => {
+  try {
+    const {
+      readerWallet,
+      classId,
+      readingTimeMs,
+      ttsTimeMs,
+      occurredAt,
+    } = req.body;
+
+    // Nothing to record, but ack so the forwarder doesn't retry.
+    if (readingTimeMs <= 0 && ttsTimeMs <= 0) {
+      sendValidatedJSON(res, PlusReadingUsageResponseSchema, {
+        success: true,
+        periodId: getUsagePeriodId(occurredAt || Date.now()),
+      });
+      return;
+    }
+
+    const { periodId } = await recordPlusReadingUsage({
+      readerWallet,
+      classId,
+      readingTimeMs,
+      ttsTimeMs,
+      occurredAt,
+    });
+    sendValidatedJSON(res, PlusReadingUsageResponseSchema, { success: true, periodId });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), validateBody(PlusNewBodySchema), async (req, res, next) => {
   const { period = 'monthly' } = req.query as Record<string, string>;

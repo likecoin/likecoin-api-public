@@ -11,10 +11,12 @@ process.env.REVENUECAT_WEBHOOK_AUTHORIZATION = 'test-rc-webhook-secret';
 process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = 'rc_plus_monthly';
 process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = 'rc_plus_yearly';
 process.env.AIRTABLE_AUTOMATION_TOKEN = 'test-airtable-automation-token';
+process.env.PLUS_READING_SERVICE_TOKEN = 'test-plus-reading-service-token';
 
 // Mock config files
 vi.mock('../../config/config', () => ({
   AIRTABLE_AUTOMATION_TOKEN: 'test-airtable-automation-token',
+  PLUS_READING_SERVICE_TOKEN: 'test-plus-reading-service-token',
   FIREBASE_STORAGE_BUCKET: 'test-bucket',
   FIRESTORE_USER_ROOT: 'users',
   FIRESTORE_USER_AUTH_ROOT: 'user-auth',

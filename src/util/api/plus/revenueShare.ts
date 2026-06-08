@@ -1,5 +1,8 @@
 import { ONE_DAY_IN_MS } from '../../../constant';
-import { FieldValue, userCollection } from '../../firebase';
+import {
+  FieldValue, db, likeNFTBookCollection, userCollection,
+} from '../../firebase';
+import { ValidationError } from '../../ValidationError';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
@@ -40,6 +43,66 @@ export function calculatePlusDailyValue({
   const termDays = roundTermDays(termMs);
   if (termDays <= 0) return 0;
   return amountPaid / termDays;
+}
+
+/**
+ * Settlement-period bucket for a usage timestamp: a UTC calendar month, `YYYY-MM`.
+ * UTC (not the project's HK timezone) keeps bucketing deterministic and matches the
+ * web backend's UTC date handling for reading streaks.
+ */
+export function getUsagePeriodId(timestampMs: number): string {
+  const date = new Date(timestampMs);
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+/**
+ * Records already-paced (anti-fraud) Plus reading/TTS usage into the period-bucketed
+ * ledger funding the reading-library revenue share — a trusted write. Dual-writes the
+ * book rollup and a per-reader grain in one batch, both hanging off the book doc so
+ * settlement reads ownerWallet/connectedWallets live from the parent (no snapshot drift).
+ * Requires the parent book doc to exist — Firestore would otherwise happily create an
+ * orphan ledger under a missing parent that settlement could never attribute.
+ * `classId` and `readerWallet` are lowercased to canonical keys so EIP-55 casing variants
+ * don't split the same book/reader across docs (the web backend lowercases the same ids).
+ */
+export async function recordPlusReadingUsage({
+  readerWallet,
+  classId,
+  readingTimeMs,
+  ttsTimeMs,
+  occurredAt,
+}: {
+  readerWallet: string;
+  classId: string;
+  readingTimeMs: number;
+  ttsTimeMs: number;
+  occurredAt?: number;
+}): Promise<{ periodId: string }> {
+  const periodId = getUsagePeriodId(occurredAt || Date.now());
+  const normalizedClassId = classId.toLowerCase();
+  const normalizedReaderWallet = readerWallet.toLowerCase();
+
+  const bookDocRef = likeNFTBookCollection.doc(normalizedClassId);
+  const bookDoc = await bookDocRef.get();
+  if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+
+  const periodDocRef = bookDocRef.collection('plusUsage').doc(periodId);
+  const readerDocRef = periodDocRef.collection('readers').doc(normalizedReaderWallet);
+
+  const usageIncrement = {
+    readingTimeMs: FieldValue.increment(readingTimeMs),
+    ttsTimeMs: FieldValue.increment(ttsTimeMs),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  const batch = db.batch();
+  batch.set(periodDocRef, usageIncrement, { merge: true });
+  batch.set(readerDocRef, usageIncrement, { merge: true });
+  await batch.commit();
+
+  return { periodId };
 }
 
 /**

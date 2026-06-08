@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SUPPORTED_CHECKOUT_UI_MODES } from '../../../constant';
+import { EVM_ADDRESS_REGEX } from '../../evm';
 import {
   BookGiftInfoBodySchema,
   BookGiftInfoSchema,
@@ -134,4 +135,23 @@ export const PlusGiftCartStatusResponseSchema = z.object({
 export const RevenueCatConfigResponseSchema = z.object({
   appUserId: z.string(),
   entitlementId: z.string(),
+});
+
+// Internal Plus reading-usage ingest (POST /plus/reading/usage), called
+// server-to-server by 3ook.com. Durations are already paced (anti-fraud)
+// upstream; cap each at 4h — the reader's per-session ceiling — as a sanity bound.
+const MAX_USAGE_DELTA_MS = 4 * 60 * 60 * 1000;
+const UsageDurationSchema = z.number().int().min(0).max(MAX_USAGE_DELTA_MS);
+
+export const PlusReadingUsageBodySchema = z.object({
+  readerWallet: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_READER_WALLET'),
+  classId: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_CLASS_ID'),
+  readingTimeMs: UsageDurationSchema,
+  ttsTimeMs: UsageDurationSchema,
+  occurredAt: z.number().int().positive().optional(),
+});
+
+export const PlusReadingUsageResponseSchema = z.object({
+  success: z.literal(true),
+  periodId: z.string(),
 });
