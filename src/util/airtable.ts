@@ -35,6 +35,7 @@ interface AirtablePublicationRecordParams {
   isDRMFree?: boolean;
   isHidden?: boolean;
   isAdultOnly?: boolean;
+  isPlusReadingEnabled?: boolean;
 }
 
 interface CreateAirtablePublicationRecordParams extends AirtablePublicationRecordParams {
@@ -89,6 +90,7 @@ export async function createAirtablePublicationRecord({
   isDRMFree = false,
   isHidden = false,
   isAdultOnly = false,
+  isPlusReadingEnabled = false,
 }: CreateAirtablePublicationRecordParams): Promise<void> {
   const normalizedImageURL = parseImageURLFromMetadata(imageURL);
 
@@ -107,6 +109,7 @@ export async function createAirtablePublicationRecord({
       'Min Price': minPrice,
       'Max Price': maxPrice,
       'DRM-free': isDRMFree,
+      'In Library': isPlusReadingEnabled,
     };
 
     if (priceRangeByCurrency) {
@@ -298,6 +301,7 @@ export async function updateAirtablePublicationRecord({
   isDRMFree,
   isHidden,
   isAdultOnly,
+  isPlusReadingEnabled,
 }: UpdateAirtablePublicationRecordParams): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -329,6 +333,7 @@ export async function updateAirtablePublicationRecord({
       }
     }
     if (isDRMFree !== undefined) fields['DRM-free'] = isDRMFree;
+    if (isPlusReadingEnabled !== undefined) fields['In Library'] = isPlusReadingEnabled;
 
     if (author) fields.Author = author;
     if (publisher) fields.Publisher = publisher;
