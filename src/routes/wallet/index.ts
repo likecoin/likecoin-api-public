@@ -26,7 +26,9 @@ import {
 import { validateBody, validateParams } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { checkAddressValid, checkCosmosAddressValid, sendValidatedJSON } from '../../util/ValidationHelper';
+import {
+  checkAddressValid, checkCosmosAddressValid, filterUserDataMin, sendValidatedJSON,
+} from '../../util/ValidationHelper';
 import { verifyEmailByMagicDIDToken } from '../../util/magic';
 import { createIntercomTokenForUser } from '../../util/intercom';
 
@@ -146,7 +148,9 @@ router.get('/evm/migrate/user/addr/:likeWallet', validateParams(WalletLikeWallet
       getUserWithCivicLikerPropertiesByWallet(likeWallet),
       checkBookUserEVMWallet(likeWallet),
     ]);
-    res.json({ likerIdInfo, evmWallet });
+    // This endpoint is unauthenticated; filter to the public-safe field set
+    // so email, phone and Stripe ids never leak. Mirrors /users/addr/:addr/min.
+    res.json({ likerIdInfo: likerIdInfo ? filterUserDataMin(likerIdInfo) : null, evmWallet });
   } catch (err) {
     next(err);
   }
