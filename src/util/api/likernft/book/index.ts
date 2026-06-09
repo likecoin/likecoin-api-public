@@ -443,7 +443,11 @@ export async function syncNFTBookInfoWithISCN(classId) {
 
   try {
     const {
-      ownerWallet, hideDownload, isHidden, isAdultOnly,
+      ownerWallet,
+      hideDownload,
+      isHidden,
+      isAdultOnly,
+      isPlusReadingEnabled,
     } = bookInfo;
     const minPrice = prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100;
     const maxPrice = prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100;
@@ -472,6 +476,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       isDRMFree: !hideDownload,
       isHidden: !!isHidden,
       isAdultOnly: !!isAdultOnly,
+      isPlusReadingEnabled: !!isPlusReadingEnabled,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
