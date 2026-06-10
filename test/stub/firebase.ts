@@ -70,9 +70,11 @@ let txData: StubData[] = [];
 let missionData: StubData[] = [];
 let likerNftData: StubData[] = [];
 // Not JSON-backed: seeded per-test. Kept as stable references (mutated in place on reset, see
-// resetTestData) so `dbData` and their collections never lose the binding. `likeNftBookData` is
-// in `dbData` so collectionGroup() reaches book subcollections (e.g. plusUsage).
+// resetTestData) so `dbData` and their collections never lose the binding. `likeNftBookData`
+// and `likeNftBookUserData` are in `dbData` so collectionGroup() reaches their subcollections
+// (e.g. plusUsage, plusReadingPayouts).
 const likeNftBookData: StubData[] = [];
+const likeNftBookUserData: StubData[] = [];
 const configData: StubData[] = [];
 
 // Load test data
@@ -109,6 +111,7 @@ export function resetTestData() {
   }
   // Clear per-test seeded (non-JSON) collections in place — keep the array references intact.
   likeNftBookData.length = 0;
+  likeNftBookUserData.length = 0;
   configData.length = 0;
 }
 
@@ -367,6 +370,7 @@ const dbData: StubData[][] = [
   missionData,
   likerNftData,
   likeNftBookData,
+  likeNftBookUserData,
 ];
 
 export const userCollection = createCollection(userData) as
@@ -401,7 +405,7 @@ export const likeNFTBookCollection = createCollection(likeNftBookData) as
   CollectionReference<NFTBookListingInfo>;
 export const likeNFTBookCMSTagCollection = createCollection([]) as
   CollectionReference<NFTBookCMSTag>;
-export const likeNFTBookUserCollection = createCollection([]) as
+export const likeNFTBookUserCollection = createCollection(likeNftBookUserData) as
   CollectionReference<NFTBookUserData>;
 export const likeButtonUrlCollection = createCollection([]) as
   CollectionReference<LikeButtonUrlData>;

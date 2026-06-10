@@ -9,6 +9,11 @@ import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
+import { getPlusReadingReportForWallet } from '../../../util/api/plus/report';
+import {
+  PlusReadingReportQuerySchema,
+  PlusReadingReportResponseSchema,
+} from '../../../util/api/plus/schemas';
 import {
   StripeConnectNewBodySchema,
   BookIdParamsSchema,
@@ -416,6 +421,27 @@ router.get(
       res.json(filterBookPurchaseCommission(commissionData, {
         includeBuyerEmail: commissionData.ownerWallet === wallet,
       }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/plus-reading/report',
+  jwtAuth('read:nftbook'),
+  validateQuery(PlusReadingReportQuerySchema),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
+      const { period } = req.query;
+      const report = await getPlusReadingReportForWallet(wallet, {
+        periodId: period as string | undefined,
+      });
+      sendValidatedJSON(res, PlusReadingReportResponseSchema, report);
     } catch (err) {
       next(err);
     }
