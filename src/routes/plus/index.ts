@@ -20,7 +20,7 @@ import {
   PlusReadingUsageResponseSchema,
 } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
-import { getUsagePeriodId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
+import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import { getStripeClient } from '../../util/stripe';
 import {
@@ -45,7 +45,7 @@ router.use('/revenuecat', revenueCatRouter);
 
 // Internal: the 3ook.com backend forwards already-paced Plus reading/TTS usage
 // deltas here (service-secret auth, no user JWT) to fund the reading-library
-// revenue share. Recorded into a per-(book, period) ledger with a per-reader grain.
+// revenue share. Recorded into a per-(book, day) ledger with a per-reader grain.
 router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUsageBodySchema), async (req, res, next) => {
   try {
     const {
@@ -60,19 +60,19 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
     if (readingTimeMs <= 0 && ttsTimeMs <= 0) {
       sendValidatedJSON(res, PlusReadingUsageResponseSchema, {
         success: true,
-        periodId: getUsagePeriodId(occurredAt || Date.now()),
+        dayId: getUsageDayId(occurredAt ?? Date.now()),
       });
       return;
     }
 
-    const { periodId } = await recordPlusReadingUsage({
+    const { dayId } = await recordPlusReadingUsage({
       readerWallet,
       classId,
       readingTimeMs,
       ttsTimeMs,
       occurredAt,
     });
-    sendValidatedJSON(res, PlusReadingUsageResponseSchema, { success: true, periodId });
+    sendValidatedJSON(res, PlusReadingUsageResponseSchema, { success: true, dayId });
   } catch (err) {
     next(err);
   }

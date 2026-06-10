@@ -4,8 +4,9 @@ import {
   accruePoolUSD,
   calculatePlusDailyValue,
   getAccrualOverlapDays,
+  getDayStartMs,
+  getUsageDayId,
   getUsageMonthBoundsMs,
-  getUsagePeriodId,
 } from '../../src/util/api/plus/revenueShare';
 
 const monthStart = Date.UTC(2026, 0, 1);
@@ -73,35 +74,37 @@ describe('calculatePlusDailyValue', () => {
   });
 });
 
-describe('getUsagePeriodId', () => {
-  it('buckets a timestamp into its UTC YYYY-MM month', () => {
-    expect(getUsagePeriodId(Date.UTC(2026, 2, 15, 12))).toBe('2026-03');
+describe('getUsageDayId', () => {
+  it('buckets a timestamp into its UTC YYYY-MM-DD day', () => {
+    expect(getUsageDayId(Date.UTC(2026, 2, 15, 12))).toBe('2026-03-15');
   });
 
-  it('zero-pads single-digit months', () => {
-    expect(getUsagePeriodId(Date.UTC(2026, 0, 1))).toBe('2026-01');
+  it('zero-pads single-digit months and days', () => {
+    expect(getUsageDayId(Date.UTC(2026, 0, 5))).toBe('2026-01-05');
   });
 
-  it('keeps the first millisecond of a month in that month', () => {
-    expect(getUsagePeriodId(Date.UTC(2026, 1, 1, 0, 0, 0, 0))).toBe('2026-02');
+  it('keeps the first millisecond of a day in that day', () => {
+    expect(getUsageDayId(Date.UTC(2026, 1, 1, 0, 0, 0, 0))).toBe('2026-02-01');
   });
 
-  it('keeps the last millisecond of a month in that month', () => {
-    expect(getUsagePeriodId(Date.UTC(2026, 1, 1) - 1)).toBe('2026-01');
+  it('keeps the last millisecond of a day in that day', () => {
+    expect(getUsageDayId(Date.UTC(2026, 1, 2) - 1)).toBe('2026-02-01');
   });
 
   it('buckets by UTC, not local time, across a day boundary', () => {
-    // 2026-01-31T23:30 UTC is still January in UTC even though it is February
-    // in any positive-offset local zone (e.g. the project's HK timezone).
-    expect(getUsagePeriodId(Date.UTC(2026, 0, 31, 23, 30))).toBe('2026-01');
+    // 2026-01-31T23:30 UTC is still Jan 31 in UTC even though it is Feb 1 in any
+    // positive-offset local zone (e.g. the project's HK timezone).
+    expect(getUsageDayId(Date.UTC(2026, 0, 31, 23, 30))).toBe('2026-01-31');
   });
 
-  it('round-trips into getUsageMonthBoundsMs bounds', () => {
-    const periodId = getUsagePeriodId(Date.UTC(2026, 11, 25));
-    const { startMs, endMs } = getUsageMonthBoundsMs(periodId);
-    expect(periodId).toBe('2026-12');
-    expect(getUsagePeriodId(startMs)).toBe(periodId);
-    expect(getUsagePeriodId(endMs - 1)).toBe(periodId);
+  it('round-trips through getDayStartMs (start-of-day stays the same day)', () => {
+    const ts = Date.UTC(2026, 11, 25, 9, 30);
+    const dayId = getUsageDayId(ts);
+    const dayMs = getDayStartMs(ts);
+    expect(dayId).toBe('2026-12-25');
+    expect(dayMs).toBe(Date.UTC(2026, 11, 25));
+    expect(getUsageDayId(dayMs)).toBe(dayId);
+    expect(getUsageDayId(dayMs + ONE_DAY_IN_MS - 1)).toBe(dayId);
   });
 });
 
