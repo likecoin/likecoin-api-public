@@ -10,9 +10,12 @@ import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/V
 import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 import { getPlusReadingReportForWallet } from '../../../util/api/plus/report';
+import { getPlusReadingStatsForWallet } from '../../../util/api/plus/stats';
 import {
   PlusReadingReportQuerySchema,
   PlusReadingReportResponseSchema,
+  PlusReadingStatsQuerySchema,
+  PlusReadingStatsResponseSchema,
 } from '../../../util/api/plus/schemas';
 import {
   StripeConnectNewBodySchema,
@@ -442,6 +445,27 @@ router.get(
         periodId: period as string | undefined,
       });
       sendValidatedJSON(res, PlusReadingReportResponseSchema, report);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/plus-reading/stats',
+  jwtAuth('read:nftbook'),
+  validateQuery(PlusReadingStatsQuerySchema),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
+      const { period } = req.query;
+      const stats = await getPlusReadingStatsForWallet(wallet, {
+        periodId: period as string | undefined,
+      });
+      sendValidatedJSON(res, PlusReadingStatsResponseSchema, stats);
     } catch (err) {
       next(err);
     }
