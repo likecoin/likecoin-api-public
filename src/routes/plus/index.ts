@@ -60,7 +60,7 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
     if (readingTimeMs <= 0 && ttsTimeMs <= 0) {
       sendValidatedJSON(res, PlusReadingUsageResponseSchema, {
         success: true,
-        dayId: getUsageDayId(occurredAt || Date.now()),
+        dayId: getUsageDayId(occurredAt ?? Date.now()),
       });
       return;
     }

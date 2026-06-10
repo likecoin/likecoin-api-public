@@ -91,7 +91,7 @@ export async function recordPlusReadingUsage({
   ttsTimeMs: number;
   occurredAt?: number;
 }): Promise<{ dayId: string }> {
-  const ts = occurredAt || Date.now();
+  const ts = occurredAt ?? Date.now();
   const dayId = getUsageDayId(ts);
   const dayMs = getDayStartMs(ts);
   const normalizedClassId = classId.toLowerCase();
