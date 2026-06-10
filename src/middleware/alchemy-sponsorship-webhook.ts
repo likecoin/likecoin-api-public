@@ -10,22 +10,26 @@ import { constantTimeEqual } from '../util/misc';
 export function alchemySponsorshipWebhookAuth(req: Request, res: Response, next: NextFunction) {
   const { secret } = req.params as Record<string, string>;
   if (secret) {
-    // The shared secret rides in the URL path; strip every occurrence from
-    // req.url/originalUrl (and thus req.path) so error logging never records it.
-    // req.params.secret is URL-decoded, so also redact the encoded form in case
-    // the secret contains reserved characters.
+    // Strip the path secret from req.url/originalUrl before any return so it never
+    // reaches logs — even under config drift (secret sent while env var is unset).
+    // params.secret is URL-decoded, so redact the encoded form too.
     const encodedSecret = encodeURIComponent(secret);
     const redact = (s: string) => s.split(secret).join('[REDACTED]')
       .split(encodedSecret).join('[REDACTED]');
     req.url = redact(req.url);
     req.originalUrl = redact(req.originalUrl);
   }
-  // Fail closed: Alchemy treats any non-200 as a failure and falls back to
-  // approveOnFailure (fail-open), so a missing/unconfigured secret must still
-  // answer 200 { approved: false } rather than 401/500.
-  if (!ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET
-    || !secret
-    || !constantTimeEqual(secret, ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET)) {
+  // When no shared secret is configured, leave the webhook open: it only reveals
+  // whether an EVM address is a registered likerId user, which is already public
+  // via the /addr/min endpoint. The secret is opt-in hardening, not confidentiality.
+  if (!ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET) {
+    next();
+    return;
+  }
+  // A secret is configured: require a constant-time match. Fail closed — Alchemy
+  // treats any non-200 as a failure and falls back to approveOnFailure (fail-open),
+  // so a missing/wrong secret must still answer 200 { approved: false }, not 401/500.
+  if (!secret || !constantTimeEqual(secret, ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET)) {
     res.status(200).json({ approved: false });
     return;
   }
