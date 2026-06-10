@@ -247,3 +247,25 @@ export const PlusReadingReportResponseSchema = z.object({
     bookCount: z.number(),
   }),
 });
+
+// Publisher Plus reading engagement stats (GET /likernft/book/user/plus-reading/stats).
+export const PlusReadingStatsQuerySchema = z.object({
+  period: PeriodIdSchema.optional(),
+});
+
+const PlusReadingStatsEntrySchema = z.object({
+  classId: z.string(),
+  periodId: z.string(),
+  readingTimeMs: z.number(),
+  ttsTimeMs: z.number(),
+});
+
+export const PlusReadingStatsResponseSchema = z.object({
+  stats: z.array(PlusReadingStatsEntrySchema),
+  summary: z.object({
+    totalReadingTimeMs: z.number(),
+    totalTTSTimeMs: z.number(),
+    bookCount: z.number(),
+    periodCount: z.number(),
+  }),
+});
