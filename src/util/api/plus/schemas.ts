@@ -153,5 +153,5 @@ export const PlusReadingUsageBodySchema = z.object({
 
 export const PlusReadingUsageResponseSchema = z.object({
   success: z.literal(true),
-  periodId: z.string(),
+  dayId: z.string(),
 });

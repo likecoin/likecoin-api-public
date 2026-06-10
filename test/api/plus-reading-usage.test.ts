@@ -41,20 +41,22 @@ describe('POST /plus/reading/usage', () => {
       classId: mixedCaseClassId,
       readingTimeMs: 1500,
       ttsTimeMs: 4200,
-      occurredAt: Date.UTC(2026, 2, 10, 8), // 2026-03
+      occurredAt: Date.UTC(2026, 2, 10, 8), // 2026-03-10
     }, AUTH_HEADER);
     expect(res.status).toBe(200);
-    expect(res.data).toEqual({ success: true, periodId: '2026-03' });
+    expect(res.data).toEqual({ success: true, dayId: '2026-03-10' });
 
     const doc = await likeNFTBookCollection
       .doc(lowerClassId)
       .collection('plusUsage')
-      .doc('2026-03')
+      .doc('2026-03-10')
       .get();
     // increment() is identity in the stub, so a single write stores the posted value.
     const data = doc.data() as any;
     expect(data.readingTimeMs).toBe(1500);
     expect(data.ttsTimeMs).toBe(4200);
+    // Start-of-day ms stamped so settlement can filter rollups by range.
+    expect(data.dayMs).toBe(Date.UTC(2026, 2, 10));
   });
 
   it('rejects usage for a class id with no book doc', async () => {
@@ -75,9 +77,9 @@ describe('POST /plus/reading/usage', () => {
       classId: CLASS_ID,
       readingTimeMs: 0,
       ttsTimeMs: 0,
-      occurredAt: Date.UTC(2026, 4, 1), // 2026-05
+      occurredAt: Date.UTC(2026, 4, 1), // 2026-05-01
     }, AUTH_HEADER);
     expect(res.status).toBe(200);
-    expect(res.data).toEqual({ success: true, periodId: '2026-05' });
+    expect(res.data).toEqual({ success: true, dayId: '2026-05-01' });
   });
 });

@@ -46,19 +46,30 @@ export function calculatePlusDailyValue({
 }
 
 /**
- * Settlement-period bucket for a usage timestamp: a UTC calendar month, `YYYY-MM`.
- * UTC (not the project's HK timezone) keeps bucketing deterministic and matches the
- * web backend's UTC date handling for reading streaks.
+ * Usage bucket for a timestamp: a UTC calendar day, `YYYY-MM-DD`. Daily granularity lets
+ * settlement run over any range — a single day, or a whole month summed from its days. UTC
+ * (not the project's HK timezone) keeps bucketing deterministic and matches the web backend's
+ * UTC date handling for reading streaks.
  */
-export function getUsagePeriodId(timestampMs: number): string {
+export function getUsageDayId(timestampMs: number): string {
   const date = new Date(timestampMs);
   const year = date.getUTCFullYear();
   const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
-  return `${year}-${month}`;
+  const day = `${date.getUTCDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * Records already-paced (anti-fraud) Plus reading/TTS usage into the period-bucketed
+ * UTC start-of-day ms for a timestamp — stored on each daily usage rollup as `dayMs` so a
+ * settlement range can filter rollups by time without parsing their `YYYY-MM-DD` doc id.
+ */
+export function getDayStartMs(timestampMs: number): number {
+  const date = new Date(timestampMs);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+/**
+ * Records already-paced (anti-fraud) Plus reading/TTS usage into the day-bucketed
  * ledger funding the reading-library revenue share — a trusted write. Dual-writes the
  * book rollup and a per-reader grain in one batch, both hanging off the book doc so
  * settlement reads ownerWallet/connectedWallets live from the parent (no snapshot drift).
@@ -79,8 +90,10 @@ export async function recordPlusReadingUsage({
   readingTimeMs: number;
   ttsTimeMs: number;
   occurredAt?: number;
-}): Promise<{ periodId: string }> {
-  const periodId = getUsagePeriodId(occurredAt || Date.now());
+}): Promise<{ dayId: string }> {
+  const ts = occurredAt || Date.now();
+  const dayId = getUsageDayId(ts);
+  const dayMs = getDayStartMs(ts);
   const normalizedClassId = classId.toLowerCase();
   const normalizedReaderWallet = readerWallet.toLowerCase();
 
@@ -88,8 +101,8 @@ export async function recordPlusReadingUsage({
   const bookDoc = await bookDocRef.get();
   if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
 
-  const periodDocRef = bookDocRef.collection('plusUsage').doc(periodId);
-  const readerDocRef = periodDocRef.collection('readers').doc(normalizedReaderWallet);
+  const dayDocRef = bookDocRef.collection('plusUsage').doc(dayId);
+  const readerDocRef = dayDocRef.collection('readers').doc(normalizedReaderWallet);
 
   const usageIncrement = {
     readingTimeMs: FieldValue.increment(readingTimeMs),
@@ -98,11 +111,12 @@ export async function recordPlusReadingUsage({
   };
 
   const batch = db.batch();
-  batch.set(periodDocRef, usageIncrement, { merge: true });
+  // `dayMs` (UTC start-of-day) lets settlement filter rollups by range without parsing ids.
+  batch.set(dayDocRef, { ...usageIncrement, dayMs }, { merge: true });
   batch.set(readerDocRef, usageIncrement, { merge: true });
   await batch.commit();
 
-  return { periodId };
+  return { dayId };
 }
 
 /**
