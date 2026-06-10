@@ -20,9 +20,10 @@ const buildLoggedReq = (req: Request) => ({
 // Alchemy Gas Manager custom-rules webhook. Alchemy POSTs a userOperation and
 // expects HTTP 200 { approved: boolean }. The decision must always be expressed
 // as a 200 body — a non-200 is treated by Alchemy as a failure and falls through
-// to approveOnFailure. The :secret path segment authenticates the caller.
+// to approveOnFailure. The :secret path segment authenticates the caller, and is
+// optional: when no secret is configured the bare /verify URL is accepted.
 router.post(
-  '/verify/:secret',
+  '/verify{/:secret}',
   alchemySponsorshipWebhookAuth,
   validateBody(VerifySchema),
   async (req, res) => {

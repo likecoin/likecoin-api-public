@@ -87,4 +87,17 @@ describe('POST /likernft/book/sponsorship/verify/:secret', () => {
     expect(res.status).toBe(200);
     expect(res.data).toEqual({ approved: false });
   });
+
+  it('accepts the bare /verify path, failing closed while a secret is configured', async () => {
+    // The :secret segment is optional; with a secret configured, the missing
+    // segment must still fail closed rather than 404.
+    await makeUser('user1registered', REGISTERED_ADDR);
+    const res = await post('/api/likernft/book/sponsorship/verify', {
+      userOperation: { sender: REGISTERED_ADDR },
+      policyId: POLICY_ID,
+      chainId: CHAIN_ID,
+    });
+    expect(res.status).toBe(200);
+    expect(res.data).toEqual({ approved: false });
+  });
 });
