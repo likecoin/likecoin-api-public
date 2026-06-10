@@ -6,6 +6,12 @@ import { ValidationError } from '../../ValidationError';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
+ * Config doc for the reading-library revenue share. Holds the rate/mode/weights and a
+ * `periods/{periodId}` subcollection of settled-period summaries (pool, unit rates, status).
+ */
+export const PLUS_READING_REVSHARE_CONFIG_DOC_ID = 'plusReadingRevShare';
+
+/**
  * Whole paid days in a term, rounding sub-day clock jitter. The stored accrual
  * `paidDays` and the settle-time overlap basis must round identically or pool
  * conservation (Σ monthly overlaps = term paidDays) breaks — so both derive it here.

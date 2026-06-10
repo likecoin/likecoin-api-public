@@ -6,15 +6,19 @@ import {
 import { getStripeClient } from '../../stripe';
 import { getBookUserInfo } from '../likernft/book/user';
 import { ValidationError } from '../../ValidationError';
-import { accruePoolUSD, getPeriodBoundsMs } from './revenueShare';
 import {
-  PLUS_READING_ALLOCATION_MODES, allocateBookUSD, computePlusReadingRates, configNumber,
+  accruePoolUSD, getPeriodBoundsMs, PLUS_READING_REVSHARE_CONFIG_DOC_ID,
+} from './revenueShare';
+import {
+  PLUS_READING_ALLOCATION_MODES,
+  allocateBookUSD,
+  computePlusReadingRates,
+  configNumber,
   splitAmountToWallets,
 } from './settle';
 import type { PlusReadingAllocationConfig, PlusReadingAllocationMode } from './settle';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
-const REVSHARE_CONFIG_DOC_ID = 'plusReadingRevShare';
 const DEFAULT_REVSHARE_RATE = 0.3;
 
 interface BookUsage {
@@ -130,7 +134,7 @@ export async function settlePlusReadingPeriod({
   dryRun: boolean;
   mode?: PlusReadingAllocationMode;
 }) {
-  const configDocRef = configCollection.doc(REVSHARE_CONFIG_DOC_ID);
+  const configDocRef = configCollection.doc(PLUS_READING_REVSHARE_CONFIG_DOC_ID);
   const periodsCol = configDocRef.collection('periods');
   const periodDocRef = periodsCol.doc(periodId);
   const [configSnap, periodSnap] = await Promise.all([configDocRef.get(), periodDocRef.get()]);

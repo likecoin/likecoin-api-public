@@ -159,18 +159,20 @@ export const PlusReadingUsageResponseSchema = z.object({
   dayId: z.string(),
 });
 
-// Admin Plus reading revenue-share settle (POST /plus/admin/reading/settle). `periodId` is a
-// whole month (`YYYY-MM`) or a single day (`YYYY-MM-DD`).
+// A settlement/report period: a whole month (`YYYY-MM`) or a single day (`YYYY-MM-DD`).
+// The `.refine` rejects impossible calendar days (e.g. 2026-02-30) — a YYYY-MM-DD id must
+// round-trip through Date.UTC unchanged. Month-only ids have no day to validate.
+export const PeriodIdSchema = z.string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/, 'INVALID_PERIOD_ID')
+  .refine((id) => {
+    const [y, m, d] = id.split('-').map(Number);
+    if (d === undefined) return true;
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDate() === d;
+  }, 'INVALID_PERIOD_ID');
+
+// Admin Plus reading revenue-share settle (POST /plus/admin/reading/settle).
 export const PlusSettleBodySchema = z.object({
-  periodId: z.string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/, 'INVALID_PERIOD_ID')
-    // Reject impossible calendar days (e.g. 2026-02-30): a YYYY-MM-DD id must round-trip
-    // through Date.UTC unchanged. Month-only ids have no day to validate.
-    .refine((id) => {
-      const [y, m, d] = id.split('-').map(Number);
-      if (d === undefined) return true;
-      return new Date(Date.UTC(y, m - 1, d)).getUTCDate() === d;
-    }, 'INVALID_PERIOD_ID'),
+  periodId: PeriodIdSchema,
   dryRun: z.boolean().optional(),
   mode: z.enum(PLUS_READING_ALLOCATION_MODES).optional(),
 });
@@ -214,4 +216,34 @@ export const PlusSweepResponseSchema = z.object({
   paidCount: z.number(),
   stillPendingCount: z.number(),
   paidCents: z.number(),
+});
+
+// Publisher Plus reading revenue-share report (GET /likernft/book/user/plus-reading/report).
+export const PlusReadingReportQuerySchema = z.object({
+  period: PeriodIdSchema.optional(),
+});
+
+const PlusReadingReportEntrySchema = z.object({
+  periodId: z.string(),
+  classId: z.string(),
+  amountCents: z.number(),
+  currency: z.string(),
+  status: z.enum(['paid', 'pending']),
+  readingTimeMs: z.number(),
+  ttsTimeMs: z.number(),
+  readRatePerMin: z.number(),
+  ttsRatePerMin: z.number(),
+  transferId: z.string().optional(),
+  updatedAt: z.number().optional(),
+});
+
+export const PlusReadingReportResponseSchema = z.object({
+  payouts: z.array(PlusReadingReportEntrySchema),
+  summary: z.object({
+    totalCents: z.number(),
+    paidCents: z.number(),
+    pendingCents: z.number(),
+    periodCount: z.number(),
+    bookCount: z.number(),
+  }),
 });
