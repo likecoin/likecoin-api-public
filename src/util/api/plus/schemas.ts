@@ -251,6 +251,7 @@ export const PlusReadingReportResponseSchema = z.object({
 // Publisher Plus reading engagement stats (GET /likernft/book/user/plus-reading/stats).
 export const PlusReadingStatsQuerySchema = z.object({
   period: PeriodIdSchema.optional(),
+  classId: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_CLASS_ID').optional(),
 });
 
 const PlusReadingStatsEntrySchema = z.object({

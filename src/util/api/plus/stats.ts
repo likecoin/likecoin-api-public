@@ -1,6 +1,10 @@
 import { likeNFTBookCollection } from '../../firebase';
 import { getPeriodBoundsMs } from './revenueShare';
 
+// When no `period` is requested, bound the per-book usage read to this trailing window of
+// calendar months (rather than an unbounded all-history scan that grows days × books).
+const DEFAULT_STATS_WINDOW_MONTHS = 12;
+
 export interface PlusReadingStatsEntry {
   classId: string;
   periodId: string;
@@ -44,10 +48,12 @@ export function summarizePlusReadingStats(
  * Plus reading-library engagement for a publisher's own books: per book+period reading and
  * TTS durations from the daily usage rollups (`likeNFTBookCollection/{classId}/plusUsage/
  * {YYYY-MM-DD}`). Live — covers the current, not-yet-settled period, unlike the payout-ledger
- * report. Scoped to books the wallet owns (`ownerWallet`). By default each day rolls up to its
- * calendar month (`periodId` = `YYYY-MM`); an optional `period` (a `YYYY-MM` month or a
- * `YYYY-MM-DD` day) sums just that window into one entry per book. Sorted newest period first,
- * then by book.
+ * report. Scoped to books the wallet owns (`ownerWallet`); an optional `classId` narrows to a
+ * single owned book (e.g. a per-book detail page) without trusting the caller for ownership.
+ * By default each day rolls up to its calendar month (`periodId` = `YYYY-MM`) over a trailing
+ * window (the last DEFAULT_STATS_WINDOW_MONTHS months) so the read stays bounded; an optional
+ * `period` (a `YYYY-MM` month or a `YYYY-MM-DD` day) sums just that window into one entry per
+ * book. Sorted newest period first, then by book.
  *
  * Usage is written under the lowercase canonical classId (recordPlusReadingUsage lowercases
  * on write and requires that book doc), so the usage read and the returned `classId` are
@@ -55,10 +61,23 @@ export function summarizePlusReadingStats(
  */
 export async function getPlusReadingStatsForWallet(
   wallet: string,
-  { periodId }: { periodId?: string } = {},
+  { periodId, classId: filterClassId }: { periodId?: string; classId?: string } = {},
 ): Promise<PlusReadingStats> {
-  const bookSnap = await likeNFTBookCollection.where('ownerWallet', '==', wallet).get();
+  let bookQuery = likeNFTBookCollection.where('ownerWallet', '==', wallet);
+  // Narrow to one owned book via the lowercased canonical `classId` (always stored lowercase).
+  // Ownership still comes from the `ownerWallet` query, so the caller can't read another's book.
+  if (filterClassId) bookQuery = bookQuery.where('classId', '==', filterClassId.toLowerCase());
+  const bookSnap = await bookQuery.get();
   const bounds = periodId ? getPeriodBoundsMs(periodId) : null;
+  // No period requested: still bound the read to the trailing window's first-of-month start,
+  // so an active book's whole history isn't scanned. Date.UTC normalizes the negative-month
+  // overflow (e.g. month -6 rolls back into the previous year).
+  const now = new Date();
+  const defaultStartMs = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth() - (DEFAULT_STATS_WINDOW_MONTHS - 1),
+    1,
+  );
 
   const perBook = await Promise.all(bookSnap.docs.map(async (bookDoc) => {
     const classId = bookDoc.id.toLowerCase();
@@ -67,7 +86,7 @@ export async function getPlusReadingStatsForWallet(
     // job uses) so an active book's whole usage history isn't read just to drop most of it.
     const usageQuery = bounds
       ? usageCol.where('dayMs', '>=', bounds.startMs).where('dayMs', '<', bounds.endMs)
-      : usageCol;
+      : usageCol.where('dayMs', '>=', defaultStartMs);
     const usageDocs = (await usageQuery.get()).docs;
     // Sum daily rollups into the reported bucket: the requested period when filtered to one
     // window, else each day's own calendar month (`YYYY-MM`).

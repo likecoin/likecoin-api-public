@@ -461,9 +461,10 @@ router.get(
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
-      const { period } = req.query;
+      const { period, classId } = req.query;
       const stats = await getPlusReadingStatsForWallet(wallet, {
         periodId: period as string | undefined,
+        classId: classId as string | undefined,
       });
       sendValidatedJSON(res, PlusReadingStatsResponseSchema, stats);
     } catch (err) {

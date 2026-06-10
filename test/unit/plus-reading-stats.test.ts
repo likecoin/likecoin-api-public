@@ -103,6 +103,21 @@ describe('getPlusReadingStatsForWallet', () => {
     });
   });
 
+  it('narrows to one owned book when given a classId', async () => {
+    const { stats, summary } = await getPlusReadingStatsForWallet(OWNER, { classId: '0xaaa' });
+    expect(stats.map((s) => `${s.periodId}/${s.classId}`)).toEqual([
+      '2026-03/0xaaa',
+      '2026-02/0xaaa',
+    ]);
+    expect(summary).toMatchObject({ bookCount: 1, periodCount: 2 });
+  });
+
+  it('does not leak another wallet\'s book when filtered by its classId', async () => {
+    const { stats, summary } = await getPlusReadingStatsForWallet(OWNER, { classId: '0xddd' });
+    expect(stats).toEqual([]);
+    expect(summary).toMatchObject({ bookCount: 0, periodCount: 0 });
+  });
+
   it('returns empty stats for a wallet that owns no books', async () => {
     const { stats, summary } = await getPlusReadingStatsForWallet('0x0000000000000000000000000000000000000000');
     expect(stats).toEqual([]);

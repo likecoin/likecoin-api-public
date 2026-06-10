@@ -21,6 +21,12 @@ describe('GET /likernft/book/user/plus-reading/stats', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects a malformed classId query', async () => {
+    const token = jwtSign({ wallet: WALLET });
+    const res = await get('?classId=not-an-address', token);
+    expect(res.status).toBe(400);
+  });
+
   it('returns empty stats when the wallet owns no books', async () => {
     const token = jwtSign({ wallet: WALLET });
     const res = await get('', token);
