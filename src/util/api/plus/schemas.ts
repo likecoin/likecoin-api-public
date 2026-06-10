@@ -157,9 +157,18 @@ export const PlusReadingUsageResponseSchema = z.object({
   dayId: z.string(),
 });
 
-// Admin Plus reading revenue-share settle (POST /plus/admin/reading/settle).
+// Admin Plus reading revenue-share settle (POST /plus/admin/reading/settle). `periodId` is a
+// whole month (`YYYY-MM`) or a single day (`YYYY-MM-DD`).
 export const PlusSettleBodySchema = z.object({
-  periodId: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'INVALID_PERIOD_ID'),
+  periodId: z.string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/, 'INVALID_PERIOD_ID')
+    // Reject impossible calendar days (e.g. 2026-02-30): a YYYY-MM-DD id must round-trip
+    // through Date.UTC unchanged. Month-only ids have no day to validate.
+    .refine((id) => {
+      const [y, m, d] = id.split('-').map(Number);
+      if (d === undefined) return true;
+      return new Date(Date.UTC(y, m - 1, d)).getUTCDate() === d;
+    }, 'INVALID_PERIOD_ID'),
   dryRun: z.boolean().optional(),
   mode: z.enum(PLUS_READING_ALLOCATION_MODES).optional(),
 });

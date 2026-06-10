@@ -84,9 +84,10 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
   }
 });
 
-// Admin/cron: settle the Plus reading revenue share for a `YYYY-MM` period — accrue the
-// pool, freeze usage, price each book, and pay payees via Stripe Connect. `dryRun` returns
-// the full allocation without writing or transferring (run it first to eyeball the split).
+// Admin/cron: settle the Plus reading revenue share for a `YYYY-MM` (month) or `YYYY-MM-DD`
+// (day) period — accrue the pool, freeze usage, price each book, and pay payees via Stripe
+// Connect. `dryRun` returns the full allocation without writing or transferring (run it first
+// to eyeball the split, or to preview an in-progress day).
 router.post('/admin/reading/settle', plusSettleAdminAuth, validateBody(PlusSettleBodySchema), async (req, res, next) => {
   try {
     const { periodId, dryRun = false, mode } = req.body;
