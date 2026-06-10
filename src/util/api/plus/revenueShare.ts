@@ -172,14 +172,17 @@ export async function recordPlusSubscriptionAccrual({
 }
 
 /**
- * UTC millisecond bounds `[startMs, endMs)` of a `YYYY-MM` settlement period.
+ * UTC millisecond bounds `[startMs, endMs)` of a settlement period — either a whole month
+ * (`YYYY-MM`) or a single day (`YYYY-MM-DD`). A 2-part id is a month, a 3-part id a day;
+ * format/validity is enforced upstream by `PlusSettleBodySchema`. `Date.UTC` normalizes the
+ * end bound's overflow, so a month-end or Dec-31 day rolls into the next month/year.
  */
-export function getUsageMonthBoundsMs(periodId: string): { startMs: number; endMs: number } {
-  const [year, month] = periodId.split('-').map(Number);
-  return {
-    startMs: Date.UTC(year, month - 1, 1),
-    endMs: Date.UTC(year, month, 1),
-  };
+export function getPeriodBoundsMs(periodId: string): { startMs: number; endMs: number } {
+  const [year, month, day] = periodId.split('-').map(Number);
+  if (day === undefined) {
+    return { startMs: Date.UTC(year, month - 1, 1), endMs: Date.UTC(year, month, 1) };
+  }
+  return { startMs: Date.UTC(year, month - 1, day), endMs: Date.UTC(year, month - 1, day + 1) };
 }
 
 /**
@@ -202,15 +205,15 @@ export function getAccrualOverlapDays(
 }
 
 /**
- * Sums the USD funding attributable to a settlement period: each accrual term
- * contributes `dailyValueUSD × overlapDays(term, month)`. Pure — settlement reads the
+ * Sums the USD funding attributable to a settlement window `[startMs, endMs)`: each accrual
+ * term contributes `dailyValueUSD × overlapDays(term, window)`. Pure — settlement reads the
  * accrual docs from Firestore and passes them in.
  */
 export function accruePoolUSD(
   accruals: Array<Pick<PlusReadingAccrualData, 'dailyValueUSD' | 'currentPeriodStart' | 'currentPeriodEnd'>>,
-  periodId: string,
+  startMs: number,
+  endMs: number,
 ): number {
-  const { startMs, endMs } = getUsageMonthBoundsMs(periodId);
   return accruals.reduce(
     (sum, a) => sum + a.dailyValueUSD * getAccrualOverlapDays(
       a.currentPeriodStart,

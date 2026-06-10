@@ -5,8 +5,8 @@ import {
   calculatePlusDailyValue,
   getAccrualOverlapDays,
   getDayStartMs,
+  getPeriodBoundsMs,
   getUsageDayId,
-  getUsageMonthBoundsMs,
 } from '../../src/util/api/plus/revenueShare';
 
 const monthStart = Date.UTC(2026, 0, 1);
@@ -108,17 +108,38 @@ describe('getUsageDayId', () => {
   });
 });
 
-describe('getUsageMonthBoundsMs', () => {
-  it('returns UTC [start, end) bounds for a YYYY-MM period', () => {
-    expect(getUsageMonthBoundsMs('2026-03')).toEqual({
+describe('getPeriodBoundsMs', () => {
+  it('returns UTC [start, end) bounds for a YYYY-MM month', () => {
+    expect(getPeriodBoundsMs('2026-03')).toEqual({
       startMs: Date.UTC(2026, 2, 1),
       endMs: Date.UTC(2026, 3, 1),
     });
   });
 
-  it('rolls December into the next year for the end bound', () => {
-    expect(getUsageMonthBoundsMs('2026-12')).toEqual({
+  it('rolls December into the next year for the month end bound', () => {
+    expect(getPeriodBoundsMs('2026-12')).toEqual({
       startMs: Date.UTC(2026, 11, 1),
+      endMs: Date.UTC(2027, 0, 1),
+    });
+  });
+
+  it('returns UTC [start, end) bounds for a YYYY-MM-DD day', () => {
+    expect(getPeriodBoundsMs('2026-03-10')).toEqual({
+      startMs: Date.UTC(2026, 2, 10),
+      endMs: Date.UTC(2026, 2, 11),
+    });
+  });
+
+  it('rolls a month-end day into the next month for the end bound', () => {
+    expect(getPeriodBoundsMs('2026-01-31')).toEqual({
+      startMs: Date.UTC(2026, 0, 31),
+      endMs: Date.UTC(2026, 1, 1),
+    });
+  });
+
+  it('rolls Dec 31 into the next year for the end bound', () => {
+    expect(getPeriodBoundsMs('2026-12-31')).toEqual({
+      startMs: Date.UTC(2026, 11, 31),
       endMs: Date.UTC(2027, 0, 1),
     });
   });
@@ -156,7 +177,9 @@ describe('getAccrualOverlapDays', () => {
 });
 
 describe('accruePoolUSD', () => {
-  it('sums dailyValueUSD × overlap days across terms for the period', () => {
+  const mar = getPeriodBoundsMs('2026-03');
+
+  it('sums dailyValueUSD × overlap days across terms for the window', () => {
     const accruals = [
       // Fully in March (31 days) → 0.3 × 31 = 9.3
       {
@@ -171,10 +194,21 @@ describe('accruePoolUSD', () => {
         currentPeriodEnd: Date.UTC(2026, 3, 20),
       },
     ];
-    expect(accruePoolUSD(accruals, '2026-03')).toBeCloseTo(9.3 + 6, 6);
+    expect(accruePoolUSD(accruals, mar.startMs, mar.endMs)).toBeCloseTo(9.3 + 6, 6);
   });
 
-  it('excludes terms outside the settlement month', () => {
+  it('prorates a term to a single-day window', () => {
+    const day = getPeriodBoundsMs('2026-03-10');
+    // Term spans all of March (31 days) at 0.3/day → one day contributes exactly 0.3.
+    const accruals = [{
+      dailyValueUSD: 0.3,
+      currentPeriodStart: Date.UTC(2026, 2, 1),
+      currentPeriodEnd: Date.UTC(2026, 3, 1),
+    }];
+    expect(accruePoolUSD(accruals, day.startMs, day.endMs)).toBeCloseTo(0.3, 6);
+  });
+
+  it('excludes terms outside the settlement window', () => {
     const accruals = [
       // Entirely in April → contributes nothing to March.
       {
@@ -183,10 +217,10 @@ describe('accruePoolUSD', () => {
         currentPeriodEnd: Date.UTC(2026, 4, 1),
       },
     ];
-    expect(accruePoolUSD(accruals, '2026-03')).toBe(0);
+    expect(accruePoolUSD(accruals, mar.startMs, mar.endMs)).toBe(0);
   });
 
   it('returns 0 for no accruals', () => {
-    expect(accruePoolUSD([], '2026-03')).toBe(0);
+    expect(accruePoolUSD([], mar.startMs, mar.endMs)).toBe(0);
   });
 });

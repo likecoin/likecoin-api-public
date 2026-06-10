@@ -6,7 +6,7 @@ import {
 import { getStripeClient } from '../../stripe';
 import { getBookUserInfo } from '../likernft/book/user';
 import { ValidationError } from '../../ValidationError';
-import { accruePoolUSD, getUsageMonthBoundsMs } from './revenueShare';
+import { accruePoolUSD, getPeriodBoundsMs } from './revenueShare';
 import {
   PLUS_READING_ALLOCATION_MODES, allocateBookUSD, computePlusReadingRates, configNumber,
   splitAmountToWallets,
@@ -112,11 +112,13 @@ async function settleWalletPayout({
 }
 
 /**
- * Settles the Plus reading-library revenue share for one `YYYY-MM` period: accrues the
- * funding pool, freezes the usage snapshot, prices each book, and pays its payees via
- * Stripe Connect (carrying forward anyone not yet Connect-ready). `dryRun` computes and
- * returns the full allocation without writing or transferring. Idempotent: a completed
- * period is refused, and per-payout records guard against double payment on re-run.
+ * Settles the Plus reading-library revenue share for one period — a whole month (`YYYY-MM`)
+ * or a single day (`YYYY-MM-DD`): accrues the funding pool, freezes the usage snapshot,
+ * prices each book, and pays its payees via Stripe Connect (carrying forward anyone not yet
+ * Connect-ready). `dryRun` computes and returns the full allocation without writing or
+ * transferring. Idempotent and non-overlapping: a completed or overlapping period is refused,
+ * a window whose last day hasn't elapsed is refused, and per-payout records guard against
+ * double payment on re-run.
  */
 export async function settlePlusReadingPeriod({
   periodId,
@@ -128,11 +130,32 @@ export async function settlePlusReadingPeriod({
   mode?: PlusReadingAllocationMode;
 }) {
   const configDocRef = configCollection.doc(REVSHARE_CONFIG_DOC_ID);
-  const periodDocRef = configDocRef.collection('periods').doc(periodId);
+  const periodsCol = configDocRef.collection('periods');
+  const periodDocRef = periodsCol.doc(periodId);
   const [configSnap, periodSnap] = await Promise.all([configDocRef.get(), periodDocRef.get()]);
 
   if (!dryRun && periodSnap.exists && periodSnap.data()?.status === 'completed') {
     throw new ValidationError('PLUS_SETTLE_PERIOD_ALREADY_COMPLETED', 409);
+  }
+
+  const { startMs, endMs } = getPeriodBoundsMs(periodId);
+  // Refuse to settle a window whose last day hasn't fully elapsed — it could still receive
+  // usage that the completed + overlap guards would then lock out. A dry run may still
+  // preview an in-progress day.
+  if (!dryRun && endMs > Date.now()) {
+    throw new ValidationError('PLUS_SETTLE_PERIOD_NOT_ENDED', 400);
+  }
+  // Refuse a window overlapping an already-settled period: settling both a day and the month
+  // containing it would pay the overlap twice (different periodId → different idempotency
+  // keys). Each completed period stores its [startMs, endMs) for this interval test.
+  if (!dryRun) {
+    const completedSnap = await periodsCol.where('status', '==', 'completed').get();
+    const hasOverlap = completedSnap.docs.some((d) => {
+      if (d.id === periodId) return false;
+      const { startMs: s, endMs: e } = d.data();
+      return typeof s === 'number' && typeof e === 'number' && s < endMs && e > startMs;
+    });
+    if (hasOverlap) throw new ValidationError('PLUS_SETTLE_PERIOD_OVERLAP', 409);
   }
 
   const cfg = (configSnap.data() || {}) as {
@@ -161,30 +184,37 @@ export async function settlePlusReadingPeriod({
     ttsWeight: cfg.ttsWeight,
   };
 
-  // Pool: sum each accrual term's USD overlap with the settlement month. Full
-  // collection-group scan (monthly batch) — bound with an index on currentPeriodEnd
-  // if the accrual ledger grows large.
-  const { startMs, endMs } = getUsageMonthBoundsMs(periodId);
-  const accrualSnap = await db.collectionGroup('plusReadingAccrual').get();
+  // Pool: sum each accrual term's USD overlap with the settlement window. Push the
+  // currentPeriodEnd > startMs bound server-side; the other half (currentPeriodStart < endMs)
+  // is a second field, so it stays an in-memory filter.
+  const accrualSnap = await db.collectionGroup('plusReadingAccrual')
+    .where('currentPeriodEnd', '>', startMs)
+    .get();
   const accruals = accrualSnap.docs
     .map((doc) => doc.data() as PlusReadingAccrualData)
-    .filter((a) => a.currentPeriodStart < endMs && a.currentPeriodEnd > startMs);
-  const poolUSD = accruePoolUSD(accruals, periodId);
+    .filter((a) => a.currentPeriodStart < endMs);
+  const poolUSD = accruePoolUSD(accruals, startMs, endMs);
   const allocatableUSD = poolUSD * revShareRate;
 
-  // Freeze the period's per-book usage snapshot.
-  const usageSnap = await db.collectionGroup('plusUsage').get();
-  const bookUsages: BookUsage[] = usageSnap.docs
-    .filter((doc) => doc.id === periodId)
-    .map((doc) => {
-      const data = doc.data() || {};
-      return {
-        classId: doc.ref.parent.parent?.id || '',
-        readingTimeMs: data.readingTimeMs || 0,
-        ttsTimeMs: data.ttsTimeMs || 0,
-      };
-    })
-    .filter((b) => b.classId && (b.readingTimeMs > 0 || b.ttsTimeMs > 0));
+  // Freeze the window's per-book usage snapshot: sum every daily rollup whose `dayMs` falls in
+  // [startMs, endMs) per book (a month sums its days; a single day reads one doc). Both bounds
+  // are on `dayMs` so the range pushes server-side (needs a `dayMs` collection-group index).
+  const usageSnap = await db.collectionGroup('plusUsage')
+    .where('dayMs', '>=', startMs)
+    .where('dayMs', '<', endMs)
+    .get();
+  const usageByClass = new Map<string, BookUsage>();
+  for (const doc of usageSnap.docs) {
+    const data = doc.data() || {};
+    const classId = doc.ref.parent.parent?.id || '';
+    if (!classId) continue;
+    const acc = usageByClass.get(classId) || { classId, readingTimeMs: 0, ttsTimeMs: 0 };
+    acc.readingTimeMs += data.readingTimeMs || 0;
+    acc.ttsTimeMs += data.ttsTimeMs || 0;
+    usageByClass.set(classId, acc);
+  }
+  const bookUsages: BookUsage[] = [...usageByClass.values()]
+    .filter((b) => b.readingTimeMs > 0 || b.ttsTimeMs > 0);
 
   const totals = bookUsages.reduce(
     (acc, b) => ({
@@ -276,6 +306,8 @@ export async function settlePlusReadingPeriod({
   if (!dryRun) {
     await periodDocRef.set({
       ...summary,
+      startMs,
+      endMs,
       status: 'completed',
       settledAt: FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -292,10 +324,14 @@ export async function settlePlusReadingPeriod({
  * own cadence, independent of the monthly period settle.
  */
 export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boolean }) {
-  const snap = await db.collectionGroup('plusReadingPayouts').get();
+  // Only pending payouts need re-attempting — filter server-side rather than scanning every
+  // historical payout doc (needs a single-field `status` collection-group index).
+  const snap = await db.collectionGroup('plusReadingPayouts')
+    .where('status', '==', 'pending')
+    .get();
   const pending = snap.docs
     .map((doc) => doc.data())
-    .filter((p) => p.status === 'pending' && p.wallet && p.classId && p.periodId);
+    .filter((p) => p.wallet && p.classId && p.periodId);
 
   let paidCount = 0;
   let stillPendingCount = 0;

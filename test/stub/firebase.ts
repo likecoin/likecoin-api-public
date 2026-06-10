@@ -69,6 +69,11 @@ let subscriptionData: StubData[] = [];
 let txData: StubData[] = [];
 let missionData: StubData[] = [];
 let likerNftData: StubData[] = [];
+// Not JSON-backed: seeded per-test. Kept as stable references (mutated in place on reset, see
+// resetTestData) so `dbData` and their collections never lose the binding. `likeNftBookData` is
+// in `dbData` so collectionGroup() reaches book subcollections (e.g. plusUsage).
+const likeNftBookData: StubData[] = [];
+const configData: StubData[] = [];
 
 // Load test data
 try {
@@ -102,6 +107,9 @@ export function resetTestData() {
   } catch (e) {
     // Ignore errors
   }
+  // Clear per-test seeded (non-JSON) collections in place — keep the array references intact.
+  likeNftBookData.length = 0;
+  configData.length = 0;
 }
 
 function docData(obj: StubData): any {
@@ -219,39 +227,26 @@ function resolveField(d: StubData, field: string): unknown {
   return field.split('.').reduce<any>((acc, f) => (acc == null ? acc : acc[f]), d);
 }
 
-function collectionWhere(data: StubData[], field = '', op = '', value: any = ''): any {
-  let whereData = data;
-  if (op === '==') {
-    if (field.includes('.')) {
-      whereData = data.filter((d) => resolveField(d, field) === value);
-    } else {
-      whereData = data.filter((d) => d[field] === value);
-    }
-  } else if (op === 'array-contains') {
-    whereData = data.filter((d) => Array.isArray(d[field]) && d[field].includes(value));
-  } else if (op === '>=') {
-    whereData = data.filter((d) => {
-      const v = resolveField(d, field);
-      return v !== undefined && (v as any) >= value;
-    });
-  } else if (op === '<=') {
-    whereData = data.filter((d) => {
-      const v = resolveField(d, field);
-      return v !== undefined && (v as any) <= value;
-    });
-  } else if (op === '!=') {
-    // Real Firestore excludes docs missing the field;
-    // match that, else `undefined !== value` would let them leak through.
-    whereData = data.filter((d) => {
-      const v = resolveField(d, field);
-      return v !== undefined && v !== value;
-    });
-  } else if (op === 'in') {
-    whereData = data.filter((d) => {
-      const v = resolveField(d, field);
-      return v !== undefined && (value as any[]).includes(v);
-    });
+// Evaluate one where() clause against a doc. Range ops exclude docs missing the field,
+// matching Firestore (a missing field never satisfies an inequality / equality / membership).
+function matchesWhereClause(d: StubData, field: string, op: string, value: any): boolean {
+  const v = resolveField(d, field);
+  switch (op) {
+    case '==': return v === value;
+    case '!=': return v !== undefined && v !== value;
+    case '>': return v !== undefined && (v as any) > value;
+    case '>=': return v !== undefined && (v as any) >= value;
+    case '<': return v !== undefined && (v as any) < value;
+    case '<=': return v !== undefined && (v as any) <= value;
+    case 'in': return v !== undefined && (value as any[]).includes(v);
+    case 'array-contains': return Array.isArray(v) && (v as any[]).includes(value);
+    default: throw new Error(`stub firestore: unsupported where operator '${op}'`);
   }
+}
+
+function collectionWhere(data: StubData[], field = '', op = '', value: any = ''): any {
+  // Empty op (orderBy/startAt/limit call this with no clause) means no filtering.
+  const whereData = op ? data.filter((d) => matchesWhereClause(d, field, op, value)) : data;
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField: string, sOp: string, sValue: any) => (
@@ -371,6 +366,7 @@ const dbData: StubData[][] = [
   txData,
   missionData,
   likerNftData,
+  likeNftBookData,
 ];
 
 export const userCollection = createCollection(userData) as
@@ -388,7 +384,7 @@ export const missionCollection = createCollection(missionData) as
   CollectionReference<MissionData>;
 export const payoutCollection = createCollection([]) as
   CollectionReference<PayoutData>;
-export const configCollection = createCollection([]) as
+export const configCollection = createCollection(configData) as
   CollectionReference<ConfigData>;
 export const oAuthClientCollection = createCollection([]) as
   CollectionReference<OAuthClientInfo>;
@@ -401,7 +397,7 @@ export const likeNFTFreeMintTxCollection = createCollection([]) as
   CollectionReference<FreeMintTxData>;
 export const likeNFTBookCartCollection = createCollection([]) as
   CollectionReference<BookPurchaseCartData>;
-export const likeNFTBookCollection = createCollection([]) as
+export const likeNFTBookCollection = createCollection(likeNftBookData) as
   CollectionReference<NFTBookListingInfo>;
 export const likeNFTBookCMSTagCollection = createCollection([]) as
   CollectionReference<NFTBookCMSTag>;
@@ -515,20 +511,41 @@ function createDb(): Firestore {
       return Promise.resolve();
     },
     collectionGroup: (group: string) => {
-      let data: StubData[] = [];
-      dbData.forEach((root) => {
-        root.forEach((d) => {
-          if (d.collection) {
-            if (d.collection[group]) data = data.concat(d.collection[group]);
-            Object.values(d.collection).forEach((c: any) => {
-              c.forEach((cd: StubData) => {
-                if (cd.collection && cd.collection[group]) data = data.concat(cd.collection[group]);
-              });
-            });
-          }
-        });
-      });
-      return collectionWhere(data);
+      // Flatten every `group` subcollection across roots, tagging each doc with its owning
+      // doc id so `doc.ref.parent.parent.id` resolves (settlement reads the book classId
+      // from a plusUsage doc this way). Real Firestore exposes the full ref chain; the stub
+      // only carries the one hop callers actually use.
+      const entries: Array<{ d: StubData; parentId: string }> = [];
+      const collect = (owner: StubData) => {
+        if (!owner.collection) return;
+        if (owner.collection[group]) {
+          owner.collection[group].forEach((d) => entries.push({ d, parentId: owner.id }));
+        }
+        Object.values(owner.collection).forEach((c) => c.forEach(collect));
+      };
+      dbData.forEach((root) => root.forEach(collect));
+      // Build a chainable query that keeps the parentId tagging through where() so a filtered
+      // collection-group snapshot still resolves doc.ref.parent.parent.id (real Firestore does).
+      const makeQuery = (rows: Array<{ d: StubData; parentId: string }>): any => {
+        const docs = rows.map(({ d, parentId }) => ({
+          id: d.id,
+          data: () => docData(d),
+          exists: true,
+          ref: { parent: { parent: { id: parentId } } },
+        }));
+        return {
+          get: () => Promise.resolve({
+            size: docs.length,
+            docs,
+            empty: docs.length === 0,
+            forEach: (f: (doc: any) => void) => docs.forEach(f),
+          }),
+          where: (field: string, op: string, value: any) => (
+            makeQuery(rows.filter(({ d }) => matchesWhereClause(d, field, op, value)))
+          ),
+        };
+      };
+      return makeQuery(entries);
     },
   } as unknown as Firestore;
 }
