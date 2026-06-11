@@ -42,9 +42,6 @@ async function settleWalletPayout({
   walletCents: number;
   dryRun: boolean;
 }): Promise<PayoutOutcome> {
-  const userInfo = await getBookUserInfo(wallet);
-  const isReady = !!userInfo?.isStripeConnectReady && !!userInfo.stripeConnectAccountId;
-
   const payoutDocRef = likeNFTBookUserCollection
     .doc(wallet)
     .collection('plusReadingPayouts')
@@ -52,9 +49,13 @@ async function settleWalletPayout({
   // Two-layer idempotency: this `paid` record skips re-processing on a clean re-run,
   // and the Stripe idempotencyKey below is the real backstop — if a transfer succeeded
   // but its Firestore write failed, the retry reuses the same transfer (no double pay).
-  // Checked before the dryRun return so a preview also reports already-paid as skipped.
+  // Checked before the user-info read and the dryRun return so a preview, and a re-run over
+  // an already-paid split, both short-circuit without the extra Firestore read.
   const existing = await payoutDocRef.get();
   if (existing.exists && existing.data()?.status === 'paid') return 'skipped';
+
+  const userInfo = await getBookUserInfo(wallet);
+  const isReady = !!userInfo?.isStripeConnectReady && !!userInfo.stripeConnectAccountId;
 
   if (dryRun) return isReady ? 'paid' : 'pending';
 
