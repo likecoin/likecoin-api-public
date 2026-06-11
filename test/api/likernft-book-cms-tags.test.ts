@@ -256,10 +256,12 @@ describe('GET /cms/list?tag=…', () => {
     expect(res.status).toBe(404);
   });
 
-  it('404s when the tag exists but is marked isPublic:false', async () => {
+  it('lists books when the tag exists but is marked isPublic:false', async () => {
     await post(`${BASE_URL}/cms/tags/private`, tagBody({ isPublic: false }), AUTHORIZATION);
-    await makeNFTBookStub(mockEVMAddress(0x91), { cmsTags: { private: 0 } });
+    const classId = mockEVMAddress(0x91);
+    await makeNFTBookStub(classId, { cmsTags: { private: 0 } });
     const res = await get(`${BASE_URL}/cms/list?tag=private&limit=10`);
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((b: any) => b.classId)).toContain(classId);
   });
 });
