@@ -125,12 +125,16 @@ export function splitAmountToWallets(
   amountCents: number,
   connectedWallets: Record<string, number>,
 ): Array<{ wallet: string; amountCents: number }> {
-  const wallets = Object.keys(connectedWallets);
-  const totalWeight = wallets.reduce((sum, w) => sum + connectedWallets[w], 0);
+  // Keep only finite, positive weights: a malformed split (negative / NaN / Infinity weight
+  // from the book doc) could otherwise pass the totalWeight guard and inflate another wallet
+  // past `amountCents` — and this feeds Stripe transfers from the platform balance.
+  const entries = Object.entries(connectedWallets)
+    .filter(([, weight]) => Number.isFinite(weight) && weight > 0);
+  const totalWeight = entries.reduce((sum, [, weight]) => sum + weight, 0);
   if (!(amountCents > 0) || !(totalWeight > 0)) return [];
 
-  const parts = wallets.map((wallet) => {
-    const exact = (amountCents * connectedWallets[wallet]) / totalWeight;
+  const parts = entries.map(([wallet, weight]) => {
+    const exact = (amountCents * weight) / totalWeight;
     const floored = Math.floor(exact);
     return { wallet, amountCents: floored, frac: exact - floored };
   });
