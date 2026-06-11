@@ -332,10 +332,8 @@ router.get('/cms/tags/:tagId', validateParams(BookCMSTagIdParamsSchema), async (
 router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req, res, next) => {
   try {
     const { tag, offset, limit } = req.query as unknown as BookCMSTagListQuery;
-    // Treat missing or non-public tags as 404,
-    // to prevent discovery of internal curation lists by guessing tag ids.
     const tagDoc = await getNFTBookCMSTag(tag);
-    if (!tagDoc || !tagDoc.isPublic) throw new ValidationError('TAG_NOT_FOUND', 404);
+    if (!tagDoc) throw new ValidationError('TAG_NOT_FOUND', 404);
     const books = await listNFTBookInfoByCMSTag(tag, { offset, limit });
     const list = books
       .filter((b) => !b.isHidden && !b.redirectClassId)
