@@ -92,6 +92,7 @@ const AffiliateCustomVoiceSchema = z.object({
 export const AffiliateConfigSchema = z.object({
   active: z.boolean(),
   affiliateClassIds: z.array(z.string()),
+  affiliatePublisherWallets: z.array(z.string()).optional(),
   giftBooks: z.array(AffiliateGiftBookSchema).optional(),
   giftOnTrial: z.boolean(),
   customVoices: z.array(AffiliateCustomVoiceSchema),
@@ -104,6 +105,7 @@ export const PlusAffiliateResponseSchema = z.discriminatedUnion('active', [
   }),
   AffiliateConfigSchema.omit({ active: true }).extend({
     active: z.literal(true),
+    affiliatePublisherWallets: z.array(z.string()),
     giftBooks: z.array(AffiliateGiftBookSchema),
     isPlusDiscountAllowed: z.boolean(),
   }),

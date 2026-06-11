@@ -502,6 +502,10 @@ router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), asy
     sendValidatedJSON(res, PlusAffiliateResponseSchema, {
       active: true,
       affiliateClassIds: affiliateConfig.affiliateClassIds || [],
+      affiliatePublisherWallets: (Array.isArray(affiliateConfig.affiliatePublisherWallets)
+        ? affiliateConfig.affiliatePublisherWallets : [])
+        .filter((w): w is string => typeof w === 'string')
+        .map((w) => w.toLowerCase()),
       giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
         classId: b.classId,
         priceIndex: b.priceIndex || 0,
