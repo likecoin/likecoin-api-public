@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterUserDataMin,
+  sendValidatedJSON,
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
@@ -12,7 +13,7 @@ import {
 } from '../../util/api/users/getPublicInfo';
 import { ONE_DAY_IN_S, AVATAR_DEFAULT_PATH, DEFAULT_AVATAR_SIZE } from '../../constant';
 import { validateParams } from '../../middleware/validate';
-import { UsersAddrParamsSchema, UsersIdParamsSchema } from '../../util/api/users/schemas';
+import { UsersAddrParamsSchema, UsersIdParamsSchema, UserDataMinResponseSchema } from '../../util/api/users/schemas';
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get('/id/:id/min', validateParams(UsersIdParamsSchema), async (req, res, 
       return;
     }
     res.set('Cache-Control', `public, max-age=30, stale-while-revalidate=${ONE_DAY_IN_S}`);
-    res.json(filterUserDataMin(payload, types));
+    sendValidatedJSON(res, UserDataMinResponseSchema, filterUserDataMin(payload, types));
   } catch (err) {
     next(err);
   }
@@ -101,7 +102,7 @@ router.get('/addr/:addr/min', validateParams(UsersAddrParamsSchema), async (req,
       return;
     }
     res.set('Cache-Control', `public, max-age=30, stale-while-revalidate=${ONE_DAY_IN_S}`);
-    res.json(filterUserDataMin(payload, types));
+    sendValidatedJSON(res, UserDataMinResponseSchema, filterUserDataMin(payload, types));
   } catch (err) {
     next(err);
   }

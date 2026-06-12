@@ -1,10 +1,10 @@
 import { Router } from 'express';
 
-import { filterLikeNFTISCNData } from '../../util/ValidationHelper';
+import { filterLikeNFTISCNData, sendValidatedJSON } from '../../util/ValidationHelper';
 import { getISCNDocByClassId } from '../../util/api/likernft';
 import { fetchISCNPrefixAndClassId } from '../../middleware/likernft';
 import { validateQuery } from '../../middleware/validate';
-import { LikernftClassQuerySchema } from '../../util/api/likernft/schemas';
+import { LikernftClassQuerySchema, LikeNFTISCNDataResponseSchema } from '../../util/api/likernft/schemas';
 
 const router = Router();
 
@@ -23,7 +23,11 @@ router.get(
       }
       const iscnPrefix = decodeURIComponent(doc.id);
       const data = doc.data();
-      res.json(filterLikeNFTISCNData({ ...data, iscnId: iscnPrefix }));
+      sendValidatedJSON(
+        res,
+        LikeNFTISCNDataResponseSchema,
+        filterLikeNFTISCNData({ ...data, iscnId: iscnPrefix }),
+      );
     } catch (err) {
       next(err);
     }

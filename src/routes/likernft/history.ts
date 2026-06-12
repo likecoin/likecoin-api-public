@@ -7,7 +7,9 @@ import { validateQuery } from '../../middleware/validate';
 import {
   LikernftClassQuerySchema,
   LikernftHistoryQuerySchema,
+  LikernftHistoryListResponseSchema,
 } from '../../util/api/likernft/schemas';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { COSMOS_LCD_INDEXER_ENDPOINT } from '../../../config/config';
 import { ONE_DAY_IN_S } from '../../constant';
 
@@ -35,7 +37,7 @@ router.get(
       const query = await queryObj.orderBy('timestamp', 'desc').get();
       list = query.docs.map((d) => ({ txHash: d.id, ...(d.data() || {}) }));
       res.set('Cache-Control', `public, max-age=${6}, s-maxage=${6}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.json({
+      sendValidatedJSON(res, LikernftHistoryListResponseSchema, {
         list,
       });
     } catch (err) {
@@ -84,7 +86,7 @@ router.get(
           timestamp,
         };
       }).sort((a, b) => b.timestamp - a.timestamp);
-      res.json({
+      sendValidatedJSON(res, LikernftHistoryListResponseSchema, {
         list,
       });
     } catch (err) {

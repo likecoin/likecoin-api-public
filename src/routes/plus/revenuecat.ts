@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 
 import { jwtAuth } from '../../middleware/jwt';
 import {
@@ -8,7 +8,8 @@ import {
 import { processRevenueCatEvent } from '../../util/api/plus/revenuecat';
 import type { RevenueCatEvent } from '../../util/api/plus/revenuecat';
 import { constantTimeEqual } from '../../util/misc';
-import { RevenueCatConfigResponseSchema } from '../../util/api/plus/schemas';
+import { validateBody } from '../../middleware/validate';
+import { RevenueCatConfigResponseSchema, RevenueCatWebhookBodySchema } from '../../util/api/plus/schemas';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
 
 const router = Router();
@@ -20,12 +21,18 @@ function isAuthorized(header?: string): boolean {
   return constantTimeEqual(header, REVENUECAT_WEBHOOK_AUTHORIZATION);
 }
 
-router.post('/webhook', async (req, res, next) => {
+// Shared-secret check is the trust boundary, so it runs before Zod body validation:
+// unauthorized callers get 401 without us attempting to validate or process the event.
+const revenueCatWebhookAuth: RequestHandler = (req, res, next) => {
+  if (!isAuthorized(req.headers.authorization)) {
+    res.sendStatus(401);
+    return;
+  }
+  next();
+};
+
+router.post('/webhook', revenueCatWebhookAuth, validateBody(RevenueCatWebhookBodySchema), async (req, res, next) => {
   try {
-    if (!isAuthorized(req.headers.authorization)) {
-      res.sendStatus(401);
-      return;
-    }
     const { event } = (req.body || {}) as { event?: RevenueCatEvent };
     if (event) {
       await processRevenueCatEvent(event, req);

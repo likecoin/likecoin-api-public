@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UserDataMinResponseSchema } from '../users/schemas';
 
 export const WalletAuthorizeBodySchema = z.object({
   wallet: z.string().optional(),
@@ -57,4 +58,16 @@ export const WalletEvmMigrateResponseSchema = z.object({
   migrateBookOwnerError: z.string().nullable(),
   migrateLikerIdError: z.string().nullable(),
   migrateLikerLandError: z.unknown().nullable(),
+});
+
+export const WalletEvmMigrateBookResponseSchema = z.object({
+  migratedClassIds: z.array(z.string()).optional(),
+  error: z.string().nullable().optional(),
+});
+
+// Unauthenticated endpoint: likerIdInfo is the public-safe filterUserDataMin set
+// (or null when no user); evmWallet may be null/undefined when unmigrated.
+export const WalletEvmMigrateUserResponseSchema = z.object({
+  likerIdInfo: UserDataMinResponseSchema.nullable(),
+  evmWallet: z.string().nullable().optional(),
 });

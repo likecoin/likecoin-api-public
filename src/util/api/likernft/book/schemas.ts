@@ -511,6 +511,37 @@ export const BookUserCommissionsResponseSchema = z.object({
   commissions: z.array(BookPurchaseCommissionFilteredSchema),
 });
 
+// Stripe Connect onboarding-refresh returns only the readiness flag.
+export const BookUserConnectRefreshResponseSchema = z.object({
+  isReady: z.boolean(),
+});
+
+// claimNFTBook returns the claimed NFT id (absent when nothing was auto-minted).
+export const BookClaimResponseSchema = z.object({
+  nftId: z.string().optional(),
+});
+
+// Mirrors MetaCatalogItem (src/util/api/likernft/book/metaCatalog.ts); Meta feed
+// field names are snake_case per spec.
+export const BookCatalogMetaResponseSchema = z.object({
+  items: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    availability: z.enum(['in stock', 'out of stock']),
+    condition: z.literal('new'),
+    price: z.string(),
+    link: z.string(),
+    image_link: z.string(),
+    brand: z.string(),
+    item_group_id: z.string(),
+    google_product_category: z.string(),
+    fb_product_category: z.string(),
+    gtin: z.string().optional(),
+    custom_label_0: z.string().optional(),
+  })),
+});
+
 const StripePayoutSummarySchema = z.object({
   amount: z.number(),
   currency: z.string(),

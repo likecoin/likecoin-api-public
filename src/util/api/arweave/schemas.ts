@@ -49,3 +49,18 @@ export const ArweaveRegisterResponseSchema = z.object({
   accessToken: z.string(),
   isRequireAuth: z.boolean(),
 });
+
+export const ArweavePublicKeyResponseSchema = z.object({
+  publicKey: z.string(),
+});
+
+export const ArweaveLinkResponseSchema = z.object({
+  arweaveId: z.string().optional(),
+  txHash: z.string().optional(),
+  key: z.string().optional(),
+  link: z.string(),
+});
+
+export const ArweaveAccessTokenResponseSchema = z.object({
+  accessToken: z.string(),
+});

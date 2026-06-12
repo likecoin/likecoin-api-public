@@ -14,11 +14,13 @@ import {
   TxHistoryUserParamsSchema,
   TxHistoryAddrParamsSchema,
   TxHistoryQuerySchema,
+  TxHistoryListResponseSchema,
 } from '../../util/api/tx/schemas';
 import { ValidationError } from '../../util/ValidationError';
 import {
   filterTxData,
   checkAddressValid,
+  sendValidatedJSON,
 } from '../../util/ValidationHelper';
 
 const router = Router();
@@ -68,7 +70,7 @@ router.get('/history/user/:id', jwtAuth('read'), validateParams(TxHistoryUserPar
     });
     results.sort((a: any, b: any) => (b.ts - a.ts));
     results.splice(count);
-    res.json(results);
+    sendValidatedJSON(res, TxHistoryListResponseSchema, results);
   } catch (err) {
     next(err);
   }
@@ -133,7 +135,7 @@ router.get('/history/addr/:addr', jwtAuth('read'), validateParams(TxHistoryAddrP
     });
     results.sort((a: any, b: any) => (b.ts - a.ts));
     results.splice(count);
-    res.json(results);
+    sendValidatedJSON(res, TxHistoryListResponseSchema, results);
   } catch (err) {
     next(err);
   }

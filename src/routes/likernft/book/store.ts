@@ -35,6 +35,7 @@ import {
   BookSearchQuerySchema,
   BookListQuerySchema,
   BookCatalogMetaQuerySchema,
+  BookCatalogMetaResponseSchema,
   BookListResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
@@ -136,7 +137,7 @@ router.get('/catalog/meta', validateQuery(BookCatalogMetaQuerySchema), async (re
       res.send(formatMetaProductCatalogCSV(items));
       return;
     }
-    res.json({ items });
+    sendValidatedJSON(res, BookCatalogMetaResponseSchema, { items });
   } catch (err) {
     next(err);
   }

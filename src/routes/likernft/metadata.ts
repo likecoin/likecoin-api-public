@@ -4,7 +4,7 @@ import {
   ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
 } from '../../constant';
 import { iscnInfoCollection } from '../../util/firebase';
-import { filterLikeNFTMetadata } from '../../util/ValidationHelper';
+import { filterLikeNFTMetadata, sendValidatedJSON } from '../../util/ValidationHelper';
 import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import {
   getClassMetadata,
@@ -20,6 +20,7 @@ import {
   LikernftClassQuerySchema,
   LikernftClassIdParamsSchema,
   LikernftImageQuerySchema,
+  LikeNFTMetadataResponseSchema,
 } from '../../util/api/likernft/schemas';
 import { ValidationError } from '../../util/ValidationError';
 import { sleep } from '../../util/misc';
@@ -42,7 +43,7 @@ router.get(
         metadata,
       } = await getClassMetadata({ classId, iscnPrefix });
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.json(filterLikeNFTMetadata({
+      sendValidatedJSON(res, LikeNFTMetadataResponseSchema, filterLikeNFTMetadata({
         iscnId: iscnPrefix,
         iscnOwner,
         iscnStakeholders: iscnData.stakeholders,

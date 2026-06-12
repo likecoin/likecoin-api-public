@@ -140,6 +140,47 @@ export const RevenueCatConfigResponseSchema = z.object({
   entitlementId: z.string(),
 });
 
+// RevenueCat webhook body. Deliberately lenient: the request is authorized by the
+// shared-secret header (the real trust boundary), and a 400 here can drop a real
+// event. `event` itself is optional (the handler no-ops when it's missing); when
+// present, only `event.type` is required and everything else is .nullish() with
+// .passthrough(). Two checks against the official docs (verified against
+// revenuecat.com/docs/.../event-types-and-fields):
+//   - period_type/environment/store are plain strings, not enums — RevenueCat ships
+//     values our TS interface omits (e.g. period_type PREPAID), and an enum would
+//     reject those valid deliveries.
+//   - product_id/price/price_in_purchased_currency/currency are explicitly nullable
+//     in the docs, so every scalar is .nullish() (accepts null AND missing).
+export const RevenueCatWebhookBodySchema = z.object({
+  event: z.object({
+    type: z.string(),
+    id: z.string().nullish(),
+    app_user_id: z.string().nullish(),
+    aliases: z.array(z.string()).nullish(),
+    original_app_user_id: z.string().nullish(),
+    product_id: z.string().nullish(),
+    entitlement_id: z.string().nullish(),
+    entitlement_ids: z.array(z.string()).nullish(),
+    period_type: z.string().nullish(),
+    purchased_at_ms: z.number().nullish(),
+    expiration_at_ms: z.number().nullish(),
+    store: z.string().nullish(),
+    environment: z.string().nullish(),
+    price: z.number().nullish(),
+    price_in_purchased_currency: z.number().nullish(),
+    currency: z.string().nullish(),
+    original_transaction_id: z.string().nullish(),
+    cancel_reason: z.string().nullish(),
+    expiration_reason: z.string().nullish(),
+    transferred_from: z.array(z.string()).nullish(),
+    transferred_to: z.array(z.string()).nullish(),
+    subscriber_attributes: z.record(z.string(), z.object({
+      value: z.string().nullish(),
+      updated_at_ms: z.number().nullish(),
+    }).passthrough()).nullish(),
+  }).passthrough().optional(),
+}).passthrough();
+
 // Internal Plus reading-usage ingest (POST /plus/reading/usage), called
 // server-to-server by 3ook.com. Durations are already paced (anti-fraud)
 // upstream; cap each at 4h — the reader's per-session ceiling — as a sanity bound.

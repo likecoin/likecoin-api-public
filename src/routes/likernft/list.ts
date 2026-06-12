@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { ONE_DAY_IN_S } from '../../constant';
 import { likeNFTCollection } from '../../util/firebase';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
+import { LikernftFreeListResponseSchema } from '../../util/api/likernft/schemas';
 
 const router = Router();
 
@@ -18,7 +20,7 @@ router.get(
         .filter((d) => !d.collectExpiryAt || d.collectExpiryAt > Date.now())
         .map((d) => d.classId);
       res.set('Cache-Control', `public, max-age=${60}, s-maxage=${60}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.json({
+      sendValidatedJSON(res, LikernftFreeListResponseSchema, {
         list,
       });
     } catch (err) {

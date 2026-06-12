@@ -4,9 +4,10 @@ import {
 } from '../../util/firebase';
 import { jwtAuth } from '../../middleware/jwt';
 import { validateParams } from '../../middleware/validate';
-import { UsersIdParamsSchema } from '../../util/api/users/schemas';
+import { UsersIdParamsSchema, UserDataFilteredResponseSchema } from '../../util/api/users/schemas';
 import {
   filterUserData,
+  sendValidatedJSON,
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
@@ -30,7 +31,7 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         console.log(`Locked user: ${username}`);
         throw new Error('USER_LOCKED');
       }
-      res.json(filterUserData(payload));
+      sendValidatedJSON(res, UserDataFilteredResponseSchema, filterUserData(payload));
       await dbRef.doc(username).collection('session').doc(req.user.jti).set({
         lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
@@ -60,7 +61,7 @@ router.get('/id/:id', jwtAuth('read'), validateParams(UsersIdParamsSchema), asyn
         res.sendStatus(404);
         return;
       }
-      res.json(filterUserData(payload));
+      sendValidatedJSON(res, UserDataFilteredResponseSchema, filterUserData(payload));
     } else {
       res.sendStatus(404);
     }

@@ -61,6 +61,7 @@ import {
   BookFreeClaimResponseSchema,
   BookOrdersResponseSchema,
   BookPurchaseMessagesResponseSchema,
+  BookClaimResponseSchema,
 } from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
@@ -671,7 +672,7 @@ router.post(
         req,
       );
 
-      res.json({ nftId });
+      sendValidatedJSON(res, BookClaimResponseSchema, { nftId });
     } catch (err) {
       next(err);
     }

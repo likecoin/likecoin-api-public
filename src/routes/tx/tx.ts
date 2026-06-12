@@ -2,13 +2,14 @@ import { Router } from 'express';
 import type { DocumentSnapshot } from '@google-cloud/firestore';
 import { txCollection as txLogRef, userCollection } from '../../util/firebase';
 import { filterMultipleTxData } from '../../util/api/tx';
-import { filterTxData } from '../../util/ValidationHelper';
+import { filterTxData, sendValidatedJSON } from '../../util/ValidationHelper';
 import { jwtOptionalAuth } from '../../middleware/jwt';
 import { validateParams, validateQuery, validateBody } from '../../middleware/validate';
 import {
   TxIdParamsSchema,
   TxIdQuerySchema,
   TxMetadataBodySchema,
+  TxDataResponseSchema,
 } from '../../util/api/tx/schemas';
 import {
   TX_METADATA_TYPES,
@@ -35,7 +36,7 @@ router.get('/id/:id', validateParams(TxIdParamsSchema), validateQuery(TxIdQueryS
       const payload = data.toIds
         ? filterMultipleTxData(data, { to: { addresses: address ? [address] : null } })
         : data;
-      res.json(filterTxData(payload));
+      sendValidatedJSON(res, TxDataResponseSchema, filterTxData(payload));
       return;
     }
     res.sendStatus(404);

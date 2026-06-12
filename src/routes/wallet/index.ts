@@ -22,6 +22,8 @@ import {
   WalletLikeWalletParamsSchema,
   WalletAuthorizeResponseSchema,
   WalletEvmMigrateResponseSchema,
+  WalletEvmMigrateBookResponseSchema,
+  WalletEvmMigrateUserResponseSchema,
 } from '../../util/api/wallet/schemas';
 import { validateBody, validateParams } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
@@ -129,7 +131,7 @@ router.post('/evm/migrate/book', validateBody(WalletEvmMigrateBookBodySchema), a
       migratedClassIds,
       error,
     });
-    res.json({
+    sendValidatedJSON(res, WalletEvmMigrateBookResponseSchema, {
       migratedClassIds,
       error,
     });
@@ -150,7 +152,10 @@ router.get('/evm/migrate/user/addr/:likeWallet', validateParams(WalletLikeWallet
     ]);
     // This endpoint is unauthenticated; filter to the public-safe field set
     // so email, phone and Stripe ids never leak. Mirrors /users/addr/:addr/min.
-    res.json({ likerIdInfo: likerIdInfo ? filterUserDataMin(likerIdInfo) : null, evmWallet });
+    sendValidatedJSON(res, WalletEvmMigrateUserResponseSchema, {
+      likerIdInfo: likerIdInfo ? filterUserDataMin(likerIdInfo) : null,
+      evmWallet,
+    });
   } catch (err) {
     next(err);
   }

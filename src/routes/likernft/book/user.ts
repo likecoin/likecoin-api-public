@@ -27,6 +27,8 @@ import {
   BookUserPayoutsListResponseSchema,
   BookUserPayoutResponseSchema,
   BookUserCommissionsResponseSchema,
+  BookUserConnectRefreshResponseSchema,
+  BookPurchaseCommissionFilteredSchema,
   type BookUserConnectStatusResponse,
   type StripeConnectSite,
 } from '../../../util/api/likernft/book/schemas';
@@ -135,7 +137,7 @@ router.post(
         stripeConnectAccountId,
       });
 
-      res.json({ url: loginLink.url });
+      sendValidatedJSON(res, StripeConnectNewResponseSchema, { url: loginLink.url });
     } catch (err) {
       next(err);
     }
@@ -254,7 +256,9 @@ router.post(
         email,
       });
 
-      res.json({ isReady: isStripeConnectReady });
+      sendValidatedJSON(res, BookUserConnectRefreshResponseSchema, {
+        isReady: isStripeConnectReady,
+      });
     } catch (err) {
       next(err);
     }
@@ -421,9 +425,13 @@ router.get(
         throw new ValidationError('COMMISSION_NOT_FOUND', 404);
       }
       const commissionData = commissionDoc.data() as BookPurchaseCommission;
-      res.json(filterBookPurchaseCommission(commissionData, {
-        includeBuyerEmail: commissionData.ownerWallet === wallet,
-      }));
+      sendValidatedJSON(
+        res,
+        BookPurchaseCommissionFilteredSchema,
+        filterBookPurchaseCommission(commissionData, {
+          includeBuyerEmail: commissionData.ownerWallet === wallet,
+        }),
+      );
     } catch (err) {
       next(err);
     }
