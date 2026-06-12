@@ -180,6 +180,7 @@ export interface NFTBookCMSTag {
   name: { zh: string; en: string };
   description: { zh: string; en: string };
   isPublic: boolean;
+  isForLibrary?: boolean;
   order: string;
   timestamp?: any;
   lastUpdateTimestamp?: any;
