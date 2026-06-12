@@ -27,6 +27,9 @@ import {
   ArweaveSignPaymentBodySchema,
   ArweaveSignPaymentResponseSchema,
   ArweaveTxHashParamsSchema,
+  ArweavePublicKeyResponseSchema,
+  ArweaveLinkResponseSchema,
+  ArweaveAccessTokenResponseSchema,
 } from '../../util/api/arweave/schemas';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { validateBody, validateParams } from '../../middleware/validate';
@@ -40,7 +43,7 @@ router.get(
   async (req, res, next) => {
     try {
       const publicKey = await getPublicKey();
-      res.json({ publicKey: publicKey.toString('base64') });
+      sendValidatedJSON(res, ArweavePublicKeyResponseSchema, { publicKey: publicKey.toString('base64') });
     } catch (error) {
       next(error);
     }
@@ -277,7 +280,7 @@ router.get(
         link.searchParams.set('key', key);
       }
       if (req.accepts('application/json')) {
-        res.json({
+        sendValidatedJSON(res, ArweaveLinkResponseSchema, {
           arweaveId,
           txHash,
           key,
@@ -306,7 +309,7 @@ router.post(
       if (req.user.wallet !== ownerWallet) throw new ValidationError('NOT_OWNER', 403);
       if (status !== 'complete') throw new ValidationError('TX_NOT_COMPLETE', 409);
       const accessToken = await rotateArweaveTxAccessToken(txHash);
-      res.json({ accessToken });
+      sendValidatedJSON(res, ArweaveAccessTokenResponseSchema, { accessToken });
     } catch (error) {
       next(error);
     }

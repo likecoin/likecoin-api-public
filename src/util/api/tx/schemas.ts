@@ -29,3 +29,37 @@ export const TxIdQuerySchema = z.object({
 export const TxMetadataBodySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
+
+// Mirrors filterTxData's output. For multi-recipient txs (filterMultipleTxData)
+// to/toId become arrays and amount is wrapped into Coin objects via LIKEToAmount,
+// so keep those unions; status/ts optional for legacy rows.
+const CoinSchema = z.object({
+  denom: z.string(),
+  amount: z.union([z.string(), z.number()]),
+});
+const TxAmountSchema = z.union([
+  z.string(),
+  z.number(),
+  CoinSchema,
+  z.array(z.union([z.string(), z.number(), CoinSchema])),
+]);
+
+export const TxDataResponseSchema = z.object({
+  from: z.string().optional(),
+  fromId: z.string().optional(),
+  to: z.union([z.string(), z.array(z.string())]).optional(),
+  toId: z.union([z.string(), z.array(z.string())]).optional(),
+  value: TxAmountSchema.optional(),
+  amount: TxAmountSchema.optional(),
+  status: z.string().optional(),
+  type: z.string().optional(),
+  remarks: z.string().optional(),
+  httpReferrer: z.string().optional(),
+  completeTs: z.number().optional(),
+  ts: z.number().optional(),
+  txHash: z.string().optional(),
+});
+
+export const TxHistoryListResponseSchema = z.array(
+  TxDataResponseSchema.extend({ id: z.string() }),
+);

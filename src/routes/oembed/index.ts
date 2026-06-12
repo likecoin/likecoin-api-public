@@ -10,7 +10,8 @@ import {
   userCollection as dbRef,
 } from '../../util/firebase';
 import { validateQuery } from '../../middleware/validate';
-import { OembedQuerySchema } from '../../util/api/oembed/schemas';
+import { OembedQuerySchema, OembedResponseSchema } from '../../util/api/oembed/schemas';
+import { sendValidatedJSON } from '../../util/ValidationHelper';
 
 const allowedSubdomains = ['www.', 'rinkeby.', 'button.', 'button.rinkeby.', 'widget.'];
 const domainRegexp = /^((?:[a-z0-9]+\.)+)?like\.co$/;
@@ -228,7 +229,7 @@ router.get('/', validateQuery(OembedQuerySchema), async (req, res, next) => {
           };
           switch (format) {
             case 'json':
-              res.json(oEmbedResponse);
+              sendValidatedJSON(res, OembedResponseSchema, oEmbedResponse);
               break;
             case 'xml': {
               res.set('Content-Type', 'text/xml');
