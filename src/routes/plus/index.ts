@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { checksumAddress, isAddress } from 'viem';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { validateBody, validateParams, validateQuery } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
@@ -501,11 +502,14 @@ router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), asy
     }
     sendValidatedJSON(res, PlusAffiliateResponseSchema, {
       active: true,
-      affiliateClassIds: affiliateConfig.affiliateClassIds || [],
+      affiliateClassIds: (Array.isArray(affiliateConfig.affiliateClassIds)
+        ? affiliateConfig.affiliateClassIds : [])
+        .filter((id): id is string => typeof id === 'string')
+        .map((id) => id.toLowerCase()),
       affiliatePublisherWallets: (Array.isArray(affiliateConfig.affiliatePublisherWallets)
         ? affiliateConfig.affiliatePublisherWallets : [])
-        .filter((w): w is string => typeof w === 'string')
-        .map((w) => w.toLowerCase()),
+        .filter((w): w is `0x${string}` => typeof w === 'string' && isAddress(w))
+        .map((w) => checksumAddress(w)),
       giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
         classId: b.classId,
         priceIndex: b.priceIndex || 0,
