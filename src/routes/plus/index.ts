@@ -460,25 +460,26 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
     if (!userInfo?.likerPlus) {
       throw new ValidationError('No Liker Plus subscription found for this user.', 404);
     }
-    const { subscriptionId } = userInfo.likerPlus;
-    if (!subscriptionId) {
-      throw new ValidationError('No subscription Id found for this user.', 404);
-    }
-    const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId);
-    const metadata = subscription.metadata || {};
-    const {
-      giftClassId,
-      giftCartId,
-      giftPaymentId,
-      giftClaimToken,
-      affiliateFrom,
-    } = metadata;
+    const { likerPlus } = userInfo;
+    const { subscriptionId } = likerPlus;
+    // Stripe (web) keeps the gift in the subscription metadata; RevenueCat (mobile)
+    // has no Stripe subscription, so the grant handler persisted it on the shared
+    // record. Read the same fields from whichever owns the record.
+    const giftSource: {
+      giftClassId?: string;
+      giftCartId?: string;
+      giftPaymentId?: string;
+      giftClaimToken?: string;
+      affiliateFrom?: string;
+    } = subscriptionId
+      ? (await getStripeClient().subscriptions.retrieve(subscriptionId)).metadata
+      : likerPlus;
     sendValidatedJSON(res, PlusGiftStatusResponseSchema, {
-      giftClassId,
-      giftCartId,
-      giftPaymentId,
-      giftClaimToken,
-      affiliateFrom,
+      giftClassId: giftSource.giftClassId,
+      giftCartId: giftSource.giftCartId,
+      giftPaymentId: giftSource.giftPaymentId,
+      giftClaimToken: giftSource.giftClaimToken,
+      affiliateFrom: giftSource.affiliateFrom,
     });
   } catch (error) {
     next(error);

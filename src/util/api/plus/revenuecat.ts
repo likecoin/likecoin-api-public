@@ -1,8 +1,12 @@
+import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusData } from '../../../types/user';
 
 import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
 import { userCollection } from '../../firebase';
+import { normalizeLikerId } from '../../ValidationHelper';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
+import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
+import { mapAttributionExtraProperties, resolveAffiliateGift } from './index';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -43,6 +47,9 @@ export interface RevenueCatEvent {
   // TRANSFER events only
   transferred_from?: string[];
   transferred_to?: string[];
+  // Custom subscriber attributes the native app sets before purchase (gift book,
+  // affiliate channel, ad-attribution ids). Each is { value, updated_at_ms }.
+  subscriber_attributes?: Record<string, { value?: string; updated_at_ms?: number }>;
 }
 /* eslint-enable camelcase */
 
@@ -60,6 +67,13 @@ export function getRevenueCatPaymentAmount(
     return { amount: event.price, currency: 'USD' };
   }
   return {};
+}
+
+// Read a custom subscriber attribute the native app set before purchase. Empty
+// strings (RevenueCat's tombstone for a cleared attribute) collapse to undefined.
+function getSubscriberAttribute(event: RevenueCatEvent, key: string): string | undefined {
+  const value = event.subscriber_attributes?.[key]?.value;
+  return value === '' ? undefined : value;
 }
 
 const RC_ANONYMOUS_ID_PREFIX = '$RCAnonymousID:';
@@ -147,7 +161,11 @@ const GRANT_EVENT_TYPES = new Set([
 async function handleGrant(
   event: RevenueCatEvent,
   likerId: string,
-  user: { email?: string; evmWallet?: string; likerPlus?: LikerPlusData },
+  user: {
+    email?: string;
+    evmWallet?: string;
+    likerPlus?: LikerPlusData;
+  },
   isSandbox: boolean,
 ) {
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
@@ -156,6 +174,12 @@ async function handleGrant(
   const isTrial = event.period_type === 'TRIAL';
   const purchasedAtMs = event.purchased_at_ms || Date.now();
   const transactionId = event.original_transaction_id || event.id;
+  // Gift attribution is keyed to one subscription's original_transaction_id. A
+  // cancel→resubscribe is a fresh INITIAL_PURCHASE with a new id, so it starts clean;
+  // renewals and redelivered events match the stored id and keep their gift.
+  const isSameSubscription = !isInitial
+    || (!!event.original_transaction_id
+      && user.likerPlus?.originalTransactionId === event.original_transaction_id);
   const currentPeriodEnd = event.expiration_at_ms || user.likerPlus?.currentPeriodEnd;
   // A subscription grant must resolve to a real period end. Persisting 0/undefined
   // alongside subscriptionStatus 'active' yields an active-but-expired record that
@@ -206,12 +230,107 @@ async function handleGrant(
     likerPlus.originalTransactionId = event.original_transaction_id;
   }
   if (isSandbox) likerPlus.environment = 'SANDBOX';
+  // Carry sticky gift attribution forward so this whole-object overwrite doesn't
+  // wipe it (GET /plus/gift reads these for RevenueCat users). A resubscribe is a
+  // new subscription, so it's not carried — the gift block reassigns instead.
+  if (isSameSubscription) {
+    if (user.likerPlus?.giftClassId) likerPlus.giftClassId = user.likerPlus.giftClassId;
+    if (user.likerPlus?.giftCartId) likerPlus.giftCartId = user.likerPlus.giftCartId;
+    if (user.likerPlus?.giftPaymentId) likerPlus.giftPaymentId = user.likerPlus.giftPaymentId;
+    if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
+    if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
+  }
   await userCollection.doc(likerId).update({ likerPlus });
 
   // Quarantine reviewer (sandbox-on-prod) traffic out of CRM, Slack, revenue
   // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
   // own testnet-scoped integrations still fire as usual.
   if (isQuarantinedSandbox(isSandbox)) return;
+
+  // Gift book + affiliate attribution conveyed by the native app as RevenueCat
+  // subscriber attributes (set before purchase, delivered in subscriber_attributes).
+  // Mirrors the Stripe checkout: resolveAffiliateGift turns the channel `from` and
+  // the upsell `giftClassId` into the resolved gift book, and affiliate attribution
+  // is persisted to `plusAffiliateFrom`. Stripe stores the gift in the subscription
+  // metadata; RevenueCat has no subscription, so we persist it on the shared record
+  // for GET /plus/gift to read back. Only on the initial purchase.
+  if (isInitial) {
+    const fromAttr = getSubscriberAttribute(event, 'plusFrom');
+    const giftClassIdAttr = getSubscriberAttribute(event, 'plusGiftClassId');
+    if (fromAttr || giftClassIdAttr) {
+      try {
+        const planPeriod = period === 'year' ? 'yearly' : 'monthly';
+        const {
+          giftClassId: resolvedGiftClassId,
+          giftPriceIndex: resolvedGiftPriceIndex,
+          affiliateFrom,
+          affiliateGiftOnTrial,
+        } = await resolveAffiliateGift({
+          from: fromAttr,
+          giftClassId: giftClassIdAttr,
+          period: planPeriod,
+        });
+
+        const userUpdate: { plusAffiliateFrom?: string; likerPlus?: LikerPlusData } = {};
+        // Affiliate attribution applies to any plan, mirroring the Stripe path
+        // which sets plusAffiliateFrom at subscription creation. Also persist it onto
+        // likerPlus so GET /plus/gift (which reads likerPlus for RevenueCat users) sees
+        // it even when no gift cart is created — e.g. monthly plans or trials. The gift
+        // block below re-includes affiliateFrom, so its overwrite keeps this.
+        if (affiliateFrom) {
+          userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
+          userUpdate.likerPlus = { ...likerPlus, affiliateFrom };
+        }
+
+        // Gift books only attach to yearly, on a real charge — except an affiliate
+        // `giftOnTrial` gift granted at trial start. The giftCartId guard keeps a
+        // re-delivered INITIAL_PURCHASE idempotent, but only for the same
+        // subscription — a resubscribe earns a fresh gift even though the lapsed
+        // sub's giftCartId still lingers on the record.
+        const hasCharge = !isTrial && event.price != null && event.price > 0;
+        const isGiftEligible = hasCharge || (!!affiliateGiftOnTrial && isTrial);
+        if (
+          planPeriod === 'yearly'
+          && resolvedGiftClassId
+          && !(isSameSubscription && user.likerPlus?.giftCartId)
+          && isGiftEligible
+        ) {
+          const result = await createFreeBookCartFromSubscription({
+            cartId: uuidv4(),
+            classId: resolvedGiftClassId,
+            priceIndex: parseInt(resolvedGiftPriceIndex || '0', 10) || 0,
+            // RevenueCat's `price` is USD-normalized, matching the USD book-price
+            // ceiling the cart helper checks against. 0 for trial gifts (no charge).
+            amountPaid: event.price || 0,
+            isTrialGift: !!affiliateGiftOnTrial && isTrial,
+          }, {
+            evmWallet: user.evmWallet,
+            // Coerce to null for wallet-only accounts: Firestore rejects
+            // `undefined`, which would fail the cart write under the best-effort catch.
+            email: user.email ?? null,
+          });
+          if (result) {
+            userUpdate.likerPlus = {
+              ...likerPlus,
+              giftClassId: resolvedGiftClassId,
+              giftCartId: result.cartId,
+              giftPaymentId: result.paymentId,
+              giftClaimToken: result.claimToken,
+              ...(affiliateFrom ? { affiliateFrom } : {}),
+            };
+          }
+        }
+        if (Object.keys(userUpdate).length) {
+          await userCollection.doc(likerId).update(userUpdate);
+        }
+      } catch (err) {
+        // Best-effort: a failed gift/affiliate write must not fail the webhook
+        // (RevenueCat would otherwise retry the whole grant).
+        // eslint-disable-next-line no-console
+        console.error(`Error applying IAP gift/affiliate for ${likerId}:`, err);
+      }
+    }
+  }
 
   // Accrue this term's value to the rev-share pool. Only on a real new charge
   // (`price` present) — never trials or uncancel/extend grants, which carry no price
@@ -272,6 +391,10 @@ async function handleGrant(
     }),
   ];
   if (logEvent) {
+    // Ad-attribution the native app forwarded as subscriber attributes, so the
+    // IAP server-side conversion (Meta CAPI / GA / PostHog) carries the same
+    // attribution the Stripe Subscribe/StartTrial event does (see index.ts).
+    const referrer = getSubscriberAttribute(event, 'referrer');
     sideEffects.push(logServerEvents(logEvent, {
       email: user.email,
       evmWallet: user.evmWallet,
@@ -279,12 +402,31 @@ async function handleGrant(
       currency: paymentCurrency,
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
+      referrer,
+      fbClickId: getSubscriberAttribute(event, 'fbClickId'),
+      fbp: getSubscriberAttribute(event, 'fbp'),
+      fbc: getSubscriberAttribute(event, 'fbc'),
+      gaClientId: getSubscriberAttribute(event, 'gaClientId'),
+      gaSessionId: getSubscriberAttribute(event, 'gaSessionId'),
+      posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
       extraProperties: {
         provider: 'revenuecat',
         store: event.store,
         product_id: event.product_id,
         period,
+        ...mapAttributionExtraProperties({
+          utmSource: getSubscriberAttribute(event, 'utmSource'),
+          utmMedium: getSubscriberAttribute(event, 'utmMedium'),
+          utmCampaign: getSubscriberAttribute(event, 'utmCampaign'),
+          utmContent: getSubscriberAttribute(event, 'utmContent'),
+          utmTerm: getSubscriberAttribute(event, 'utmTerm'),
+          from: getSubscriberAttribute(event, 'plusFrom'),
+        }),
+        gad_click_id: getSubscriberAttribute(event, 'gadClickId'),
+        gad_source: getSubscriberAttribute(event, 'gadSource'),
+        $referrer: referrer,
       },
+      setOnce: referrer ? { $initial_referrer: referrer } : undefined,
     }));
     // Mirror the Stripe path's Airtable payment record. RevenueCat carries no Stripe
     // customer/invoice/coupon/price-id, so those columns stay empty; record only on

@@ -48,7 +48,73 @@ function getCouponFromDiscounts(
   return coupon && typeof coupon !== 'string' ? coupon : undefined;
 }
 
-function mapAttributionExtraProperties({
+// Resolve the gift book attached to a subscription from an affiliate `from`
+// handle. Shared by the Stripe checkout (createNewPlusCheckoutSession) and the
+// RevenueCat IAP grant handler (revenuecat.ts) so both resolve identically. A
+// non-affiliate `giftClassId` (the upsell "subscribe to get this book" flow)
+// passes through untouched. Gift books only attach to yearly plans; for affiliate
+// gifts, the priceIndex comes from the affiliate config (never the client) since
+// the gift is free.
+export async function resolveAffiliateGift({
+  from,
+  giftClassId,
+  giftPriceIndex,
+  period,
+}: {
+  from?: string;
+  giftClassId?: string;
+  giftPriceIndex?: string;
+  period: 'monthly' | 'yearly';
+}): Promise<{
+  giftClassId?: string;
+  giftPriceIndex?: string;
+  affiliateFrom?: string;
+  affiliateGiftOnTrial?: boolean;
+}> {
+  const result: {
+    giftClassId?: string;
+    giftPriceIndex?: string;
+    affiliateFrom?: string;
+    affiliateGiftOnTrial?: boolean;
+  } = { giftClassId, giftPriceIndex };
+  // Require the `@` prefix so plain UTM/channel values don't trigger affiliate lookups.
+  if (from && from.startsWith('@')) {
+    try {
+      const normalizedFrom = normalizeLikerId(from);
+      if (checkUserNameValid(normalizedFrom)) {
+        const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
+        const affiliateConfig = affiliateUserInfo?.wallet
+          && affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
+          ? affiliateUserInfo.bookUserInfo.affiliateConfig
+          : null;
+        if (affiliateConfig) {
+          result.affiliateFrom = from;
+          const giftBooks = affiliateConfig.giftBooks || [];
+          if (giftBooks.length && period === 'yearly') {
+            // No pick defaults to the first book so plain affiliate links still
+            // grant a gift. An explicit `giftClassId` outside the list stays
+            // untouched, keeping the non-affiliate gift flow (upsell
+            // "subscribe to get this book") working.
+            const chosen = giftClassId
+              ? giftBooks.find((b) => b.classId === giftClassId)
+              : giftBooks[0];
+            if (chosen) {
+              result.giftClassId = chosen.classId;
+              result.giftPriceIndex = String(chosen.priceIndex || 0);
+              result.affiliateGiftOnTrial = !!affiliateConfig.giftOnTrial;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Error resolving affiliate config for from:', from, err);
+    }
+  }
+  return result;
+}
+
+export function mapAttributionExtraProperties({
   utmSource,
   utmMedium,
   utmCampaign,
@@ -591,44 +657,17 @@ export async function createNewPlusCheckoutSession(
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
 
-  // Require the `@` prefix so plain UTM/channel values don't trigger affiliate lookups.
-  let resolvedGiftClassId = giftClassId;
-  let resolvedGiftPriceIndex = giftPriceIndex;
-  if (from && from.startsWith('@')) {
-    try {
-      const normalizedFrom = normalizeLikerId(from);
-      if (checkUserNameValid(normalizedFrom)) {
-        const affiliateUserInfo = await getBookUserInfoFromLikerId(normalizedFrom);
-        const affiliateConfig = affiliateUserInfo?.wallet
-          && affiliateUserInfo.bookUserInfo?.affiliateConfig?.active
-          ? affiliateUserInfo.bookUserInfo.affiliateConfig
-          : null;
-        if (affiliateConfig) {
-          subscriptionMetadata.affiliateFrom = from;
-          const giftBooks = affiliateConfig.giftBooks || [];
-          if (giftBooks.length && period === 'yearly') {
-            // No pick defaults to the first book so plain affiliate links still
-            // grant a gift. An explicit `giftClassId` outside the list stays
-            // untouched, keeping the non-affiliate gift flow (upsell
-            // "subscribe to get this book") working.
-            const chosen = giftClassId
-              ? giftBooks.find((b) => b.classId === giftClassId)
-              : giftBooks[0];
-            if (chosen) {
-              // priceIndex is from the affiliate config, never the client —
-              // the gift is free, so a client-supplied index is pure attack
-              // surface.
-              resolvedGiftClassId = chosen.classId;
-              resolvedGiftPriceIndex = String(chosen.priceIndex || 0);
-              subscriptionMetadata.affiliateGiftOnTrial = affiliateConfig.giftOnTrial ? 'true' : 'false';
-            }
-          }
-        }
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('Error resolving affiliate config for from:', from, err);
-    }
+  const {
+    giftClassId: resolvedGiftClassId,
+    giftPriceIndex: resolvedGiftPriceIndex,
+    affiliateFrom,
+    affiliateGiftOnTrial,
+  } = await resolveAffiliateGift({
+    from, giftClassId, giftPriceIndex, period,
+  });
+  if (affiliateFrom) subscriptionMetadata.affiliateFrom = affiliateFrom;
+  if (affiliateGiftOnTrial !== undefined) {
+    subscriptionMetadata.affiliateGiftOnTrial = affiliateGiftOnTrial ? 'true' : 'false';
   }
 
   if (resolvedGiftClassId) subscriptionMetadata.giftClassId = resolvedGiftClassId;
