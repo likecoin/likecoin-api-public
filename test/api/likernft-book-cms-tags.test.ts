@@ -89,6 +89,20 @@ describe('POST /cms/tags/:tagId (upsert)', () => {
     expect(data.lastUpdateTimestamp).toBeTruthy();
   });
 
+  it('defaults isForLibrary to false when omitted', async () => {
+    const res = await post(`${BASE_URL}/cms/tags/featured`, tagBody(), AUTHORIZATION);
+    expect(res.status).toBe(200);
+    const data = (await likeNFTBookCMSTagCollection.doc('featured').get()).data() as any;
+    expect(data.isForLibrary).toBe(false);
+  });
+
+  it('stores isForLibrary:true when set in the payload', async () => {
+    const res = await post(`${BASE_URL}/cms/tags/featured`, tagBody({ isForLibrary: true }), AUTHORIZATION);
+    expect(res.status).toBe(200);
+    const data = (await likeNFTBookCMSTagCollection.doc('featured').get()).data() as any;
+    expect(data.isForLibrary).toBe(true);
+  });
+
   it('merges on subsequent call: updates fields without overwriting the original timestamp', async () => {
     const path = `${BASE_URL}/cms/tags/featured`;
     await post(path, tagBody({ order: '10' }), AUTHORIZATION);
@@ -212,6 +226,20 @@ describe('GET /cms/tags/:tagId (single fetch)', () => {
   it('404s when the tag is missing', async () => {
     const res = await get(`${BASE_URL}/cms/tags/does-not-exist`);
     expect(res.status).toBe(404);
+  });
+
+  it('returns isForLibrary:false for legacy docs missing the field', async () => {
+    await likeNFTBookCMSTagCollection.doc('legacy').set(tagBody() as any);
+    const res = await get(`${BASE_URL}/cms/tags/legacy`);
+    expect(res.status).toBe(200);
+    expect(res.data.isForLibrary).toBe(false);
+  });
+
+  it('returns isForLibrary:true when set via upsert', async () => {
+    await post(`${BASE_URL}/cms/tags/lib`, tagBody({ isForLibrary: true }), AUTHORIZATION);
+    const res = await get(`${BASE_URL}/cms/tags/lib`);
+    expect(res.status).toBe(200);
+    expect(res.data.isForLibrary).toBe(true);
   });
 });
 

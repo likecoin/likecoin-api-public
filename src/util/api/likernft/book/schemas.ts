@@ -227,6 +227,7 @@ export const BookCMSTagUpsertBodySchema = z.object({
   description: BookCMSLocalizedStringSchema,
   order: z.string(),
   isPublic: z.boolean(),
+  isForLibrary: z.boolean().default(false),
 });
 
 export const BookCMSTagIdParamsSchema = z.object({
