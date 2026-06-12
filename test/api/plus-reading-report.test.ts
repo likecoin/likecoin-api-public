@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 import { jwtSign } from './jwt';
+import mockEVMAddress from './address';
 
 const PATH = '/api/likernft/book/user/plus-reading/report';
-const WALLET = '0x1111111111111111111111111111111111111111';
+const WALLET = mockEVMAddress(0x1111);
 
 const get = (query: string, token?: string) => axiosist
   .get(`${PATH}${query}`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)

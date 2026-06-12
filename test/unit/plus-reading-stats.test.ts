@@ -1,5 +1,5 @@
 import {
-  describe, it, expect, beforeEach,
+  describe, it, expect, beforeEach, afterEach, vi,
 } from 'vitest';
 import { likeNFTBookCollection } from '../../src/util/firebase';
 import { getPlusReadingStatsForWallet, summarizePlusReadingStats } from '../../src/util/api/plus/stats';
@@ -45,7 +45,12 @@ describe('getPlusReadingStatsForWallet', () => {
     await likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId)
       .set({ readingTimeMs, ttsTimeMs, dayMs } as any);
   }
+  // Pin "now" so the default trailing window (DEFAULT_STATS_WINDOW_MONTHS) always spans the
+  // seeded 2026-02/03 usage; otherwise the no-period tests would flap once wall-clock time
+  // moves past the window. Only Date is faked, leaving the seeding's async awaits untouched.
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(Date.UTC(2026, 2, 25)));
     // Book A (owned) — March across two days + one February day.
     await likeNFTBookCollection.doc('0xaaa').set({ ownerWallet: OWNER, classId: '0xaaa' } as any);
     await day('0xaaa', '2026-03-05', Date.UTC(2026, 2, 5), 4000, 600);
@@ -59,6 +64,9 @@ describe('getPlusReadingStatsForWallet', () => {
     // Book D (other owner) — must not leak into OWNER's stats.
     await likeNFTBookCollection.doc('0xddd').set({ ownerWallet: OTHER, classId: '0xddd' } as any);
     await day('0xddd', '2026-03-01', Date.UTC(2026, 2, 1), 9999, 9999);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('rolls daily usage up to its month, sorted newest period first then by book', async () => {

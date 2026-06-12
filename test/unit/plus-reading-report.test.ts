@@ -3,17 +3,20 @@ import {
 } from 'vitest';
 import { likeNFTBookUserCollection, configCollection } from '../../src/util/firebase';
 import { getPlusReadingReportForWallet } from '../../src/util/api/plus/report';
+import mockEVMAddress from '../api/address';
 
-const WALLET = '0x9999999999999999999999999999999999999999';
+const WALLET = mockEVMAddress(0x9999);
+const BOOK_A = mockEVMAddress('aaa');
+const BOOK_B = mockEVMAddress('bbb');
 
 // Reseed per test: the firebase stub clears these collections before each test.
 beforeEach(async () => {
   // Parent docs must exist before their subcollections persist in the firebase stub.
   await likeNFTBookUserCollection.doc(WALLET).set({ wallet: WALLET } as any);
   const payouts = likeNFTBookUserCollection.doc(WALLET).collection('plusReadingPayouts');
-  await payouts.doc('2026-03_0xbbb').set({
+  await payouts.doc(`2026-03_${BOOK_B}`).set({
     periodId: '2026-03',
-    classId: '0xbbb',
+    classId: BOOK_B,
     amountCents: 300,
     currency: 'usd',
     status: 'paid',
@@ -21,18 +24,18 @@ beforeEach(async () => {
     ttsTimeMs: 0,
     transferId: 'tr_1',
   } as any);
-  await payouts.doc('2026-03_0xaaa').set({
+  await payouts.doc(`2026-03_${BOOK_A}`).set({
     periodId: '2026-03',
-    classId: '0xaaa',
+    classId: BOOK_A,
     amountCents: 200,
     currency: 'usd',
     status: 'pending',
     readingTimeMs: 0,
     ttsTimeMs: 120000,
   } as any);
-  await payouts.doc('2026-02_0xaaa').set({
+  await payouts.doc(`2026-02_${BOOK_A}`).set({
     periodId: '2026-02',
-    classId: '0xaaa',
+    classId: BOOK_A,
     amountCents: 100,
     currency: 'usd',
     status: 'paid',
@@ -52,9 +55,9 @@ describe('getPlusReadingReportForWallet', () => {
     const report = await getPlusReadingReportForWallet(WALLET);
 
     expect(report.payouts.map((p) => `${p.periodId}/${p.classId}`)).toEqual([
-      '2026-03/0xaaa',
-      '2026-03/0xbbb',
-      '2026-02/0xaaa',
+      `2026-03/${BOOK_A}`,
+      `2026-03/${BOOK_B}`,
+      `2026-02/${BOOK_A}`,
     ]);
     // Settled period's unit rates joined onto its payouts; the unsettled period stays at 0.
     expect(report.payouts[0]).toMatchObject({ readRatePerMin: 0.5, ttsRatePerMin: 0.25 });
@@ -82,7 +85,7 @@ describe('getPlusReadingReportForWallet', () => {
   });
 
   it('returns an empty report for a wallet with no payouts', async () => {
-    const report = await getPlusReadingReportForWallet('0x0000000000000000000000000000000000000000');
+    const report = await getPlusReadingReportForWallet(mockEVMAddress(0));
     expect(report.payouts).toEqual([]);
     expect(report.summary).toEqual({
       totalCents: 0,
