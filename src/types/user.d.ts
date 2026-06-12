@@ -40,6 +40,15 @@ export interface LikerPlusData {
   // to filter sandbox traffic out of revenue metrics, and by the RC handlers
   // to prevent sandbox events from mutating production records.
   environment?: 'SANDBOX' | 'PRODUCTION';
+  // Free gift book attached to a yearly subscription. On the Stripe (web) path
+  // these live in the Stripe subscription metadata; on the RevenueCat (mobile)
+  // path there is no Stripe subscription, so the grant handler persists them
+  // here. GET /plus/gift reads from whichever source owns the record.
+  giftClassId?: string;
+  giftCartId?: string;
+  giftPaymentId?: string;
+  giftClaimToken?: string;
+  affiliateFrom?: string;
 }
 
 /**
