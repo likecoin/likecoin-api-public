@@ -148,6 +148,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       wallet,
       chain,
       exclude_wallet: excludedWallet,
+      library,
       before,
       limit,
       key,
@@ -156,6 +157,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       ownerWallet: wallet,
       chain,
       excludedOwnerWallet: excludedWallet,
+      isPlusReadingEnabled: library === '1' || undefined,
       before,
       limit,
       key,
@@ -196,9 +198,15 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
 function createDerivedListHandler(filter: 'free' | 'drm-free') {
   return async (req, res, next) => {
     try {
-      const { before, limit, key } = req.query as unknown as BookListPaginationQuery;
+      const {
+        library,
+        before,
+        limit,
+        key,
+      } = req.query as unknown as BookListPaginationQuery;
       const conditions = {
         filter,
+        isPlusReadingEnabled: library === '1' || undefined,
         before,
         limit,
         key,
@@ -331,12 +339,21 @@ router.get('/cms/tags/:tagId', validateParams(BookCMSTagIdParamsSchema), async (
 
 router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req, res, next) => {
   try {
-    const { tag, offset, limit } = req.query as unknown as BookCMSTagListQuery;
+    const {
+      tag,
+      library,
+      offset,
+      limit,
+    } = req.query as unknown as BookCMSTagListQuery;
     const tagDoc = await getNFTBookCMSTag(tag);
     if (!tagDoc) throw new ValidationError('TAG_NOT_FOUND', 404);
     const books = await listNFTBookInfoByCMSTag(tag, { offset, limit });
+    const isLibraryOnly = library === '1';
     const list = books
-      .filter((b) => !b.isHidden && !b.redirectClassId)
+      .filter((b) => (
+        !b.isHidden
+        && !b.redirectClassId
+        && (!isLibraryOnly || b.isPlusReadingEnabled)))
       .map((b) => filterNFTBookListingInfo(b, false));
 
     res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);

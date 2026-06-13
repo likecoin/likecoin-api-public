@@ -179,6 +179,7 @@ export const BookSearchQuerySchema = z.object({
 }).passthrough();
 
 export const BookListPaginationQuerySchema = z.object({
+  library: z.literal('1').optional(),
   before: z.coerce.number().int().optional(),
   key: z.coerce.number().int().optional(),
   limit: z.coerce.number().int().min(1).max(100)
@@ -236,6 +237,7 @@ export const BookCMSTagIdParamsSchema = z.object({
 
 export const BookCMSTagListQuerySchema = z.object({
   tag: BookCMSTagIdSchema,
+  library: z.literal('1').optional(),
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(100)
     .default(10),

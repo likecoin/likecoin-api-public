@@ -551,6 +551,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet,
   excludedOwnerWallet,
   chain,
+  isPlusReadingEnabled,
   before,
   limit,
   key,
@@ -558,6 +559,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet?: string;
   excludedOwnerWallet?: string;
   chain?: string;
+  isPlusReadingEnabled?: boolean;
   before?: number;
   limit?: number;
   key?: number;
@@ -566,6 +568,9 @@ export async function listLatestNFTBookInfo({
   if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
   if (excludedOwnerWallet) snapshot = snapshot.where('ownerWallet', '!=', excludedOwnerWallet);
   if (chain) snapshot = snapshot.where('chain', '==', chain);
+  if (isPlusReadingEnabled !== undefined) {
+    snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
+  }
   // `??` (not `||`) so a legitimate cursor of 0 is preserved; routes are
   // expected to reject NaN/array inputs before reaching this function.
   const tsNumber = before ?? key;
@@ -584,11 +589,13 @@ export async function listLatestNFTBookInfo({
 
 export async function listFilteredNFTBookInfo({
   filter,
+  isPlusReadingEnabled,
   before,
   limit,
   key,
 }: {
   filter: 'free' | 'drm-free';
+  isPlusReadingEnabled?: boolean;
   before?: number;
   limit?: number;
   key?: number;
@@ -596,6 +603,9 @@ export async function listFilteredNFTBookInfo({
   let snapshot = filter === 'free'
     ? likeNFTBookCollection.where('minPriceInDecimal', '==', 0)
     : likeNFTBookCollection.where('hideDownload', '==', false);
+  if (isPlusReadingEnabled !== undefined) {
+    snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
+  }
   snapshot = snapshot.orderBy('timestamp', 'desc');
   const tsNumber = before ?? key;
   if (tsNumber !== undefined) {
