@@ -549,7 +549,6 @@ export async function updateNftBookInfo(classId: string, {
 
 export async function listLatestNFTBookInfo({
   ownerWallet,
-  excludedOwnerWallet,
   chain,
   isPlusReadingEnabled,
   before,
@@ -557,7 +556,6 @@ export async function listLatestNFTBookInfo({
   key,
 }: {
   ownerWallet?: string;
-  excludedOwnerWallet?: string;
   chain?: string;
   isPlusReadingEnabled?: boolean;
   before?: number;
@@ -566,7 +564,6 @@ export async function listLatestNFTBookInfo({
 } = {}) {
   let snapshot = likeNFTBookCollection.orderBy('timestamp', 'desc');
   if (ownerWallet) snapshot = snapshot.where('ownerWallet', '==', ownerWallet);
-  if (excludedOwnerWallet) snapshot = snapshot.where('ownerWallet', '!=', excludedOwnerWallet);
   if (chain) snapshot = snapshot.where('chain', '==', chain);
   if (isPlusReadingEnabled !== undefined) {
     snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);

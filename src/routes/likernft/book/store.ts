@@ -147,7 +147,6 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     const {
       wallet,
       chain,
-      exclude_wallet: excludedWallet,
       library,
       before,
       limit,
@@ -156,7 +155,6 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     const conditions = {
       ownerWallet: wallet,
       chain,
-      excludedOwnerWallet: excludedWallet,
       isPlusReadingEnabled: library === '1' || undefined,
       before,
       limit,
