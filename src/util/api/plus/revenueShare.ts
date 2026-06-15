@@ -1,3 +1,4 @@
+import { checksumAddress } from 'viem';
 import { ONE_DAY_IN_MS } from '../../../constant';
 import {
   FieldValue, db, likeNFTBookCollection, userCollection,
@@ -81,8 +82,9 @@ export function getDayStartMs(timestampMs: number): number {
  * settlement reads ownerWallet/connectedWallets live from the parent (no snapshot drift).
  * Requires the parent book doc to exist — Firestore would otherwise happily create an
  * orphan ledger under a missing parent that settlement could never attribute.
- * `classId` and `readerWallet` are lowercased to canonical keys so EIP-55 casing variants
- * don't split the same book/reader across docs (the web backend lowercases the same ids).
+ * `classId` (a contract address) is lowercased and `readerWallet` is EIP-55 checksummed
+ * per repo convention, so casing variants don't split the same book/reader across docs and
+ * reader keys match `likeNFTBookUserCollection`/`userCollection` (both checksummed).
  */
 export async function recordPlusReadingUsage({
   readerWallet,
@@ -101,7 +103,7 @@ export async function recordPlusReadingUsage({
   const dayId = getUsageDayId(ts);
   const dayMs = getDayStartMs(ts);
   const normalizedClassId = classId.toLowerCase();
-  const normalizedReaderWallet = readerWallet.toLowerCase();
+  const normalizedReaderWallet = checksumAddress(readerWallet as `0x${string}`);
 
   const bookDocRef = likeNFTBookCollection.doc(normalizedClassId);
   const bookDoc = await bookDocRef.get();
