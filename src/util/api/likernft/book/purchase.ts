@@ -215,6 +215,9 @@ export async function handleStripeConnectedAccount({
             const { stripeConnectAccountId } = userInfo;
             const currency = 'usd'; // stripe balance are setteled in USD in source tx
             const amountSplit = Math.floor((amountToSplit * connectedWallets[wallet]) / totalSplit);
+            // Stripe rejects transfers with amount < 1; a wallet's floored share can round to 0
+            // (e.g. tiny weight, or sub-cent split), so skip rather than fire a doomed transfer.
+            if (amountSplit <= 0) return null;
             const transfer = await stripe.transfers.create({
               amount: amountSplit,
               currency,
