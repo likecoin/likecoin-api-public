@@ -1,4 +1,4 @@
-import { Stripe } from 'stripe';
+import Stripe from 'stripe';
 import { ValidationError } from '../../../ValidationError';
 import { likeNFTBookUserCollection } from '../../../firebase';
 import {

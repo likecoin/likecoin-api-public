@@ -333,7 +333,7 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), validateParams(BookIdParamsS
       throw new ValidationError('USER_NOT_COMPLETED_ONBOARD', 409);
     }
     const stripe = getStripeClient();
-    const payout = await stripe.payouts.retrieve(id as string, {
+    const payout = await stripe.payouts.retrieve(id as string, {}, {
       stripeAccount: stripeConnectAccountId,
     });
     const balanceTransactionRes = await stripe.balanceTransactions.list({
@@ -345,7 +345,7 @@ router.get('/payouts/:id', jwtAuth('read:nftbook'), validateParams(BookIdParamsS
     });
     const balanceTransactions = balanceTransactionRes.data;
     const charges = await Promise.all(balanceTransactions.map(
-      async (data) => stripe.charges.retrieve(data.source as string, {
+      async (data) => stripe.charges.retrieve(data.source as string, {}, {
         stripeAccount: stripeConnectAccountId,
       }),
     ));

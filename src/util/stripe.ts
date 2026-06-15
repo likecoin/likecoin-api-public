@@ -6,7 +6,7 @@ let stripeClient: Stripe | null = null;
 
 export function getStripeClient(): Stripe {
   if (!stripeClient) {
-    stripeClient = new Stripe(STRIPE_KEY, { apiVersion: '2026-01-28.clover', typescript: true });
+    stripeClient = new Stripe(STRIPE_KEY, { apiVersion: '2026-06-24.dahlia', typescript: true });
   }
   return stripeClient;
 }
