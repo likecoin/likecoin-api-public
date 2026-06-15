@@ -765,7 +765,7 @@ export async function createNewPlusCheckoutSession(
     payment_method_collection: mustCollectPaymentMethod ? 'always' : 'if_required',
   };
   if (uiMode === 'embedded') {
-    payload.ui_mode = 'embedded';
+    payload.ui_mode = 'embedded_page';
     payload.return_url = successUrl;
     payload.redirect_on_completion = 'if_required';
   } else {
