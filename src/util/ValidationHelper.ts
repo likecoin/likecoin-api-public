@@ -4,7 +4,6 @@ import type { z } from 'zod';
 import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
-  TEST_MODE,
 } from '../constant';
 import type { UserCivicLikerProperties } from '../types/user';
 import type {
@@ -37,23 +36,22 @@ import type {
 
 /**
  * Send `data` as a JSON response, type-checked at compile time against `schema`
- * (`data` must satisfy `z.infer<typeof schema>`). In dev/CI (`TEST_MODE`) it
- * also runs a `safeParse` so response-schema drift fails fast; deployed
- * production never parses, so legacy datastore values can't 500 a live
- * response. Pairs with the request-side validators in `middleware/validate.ts`.
+ * (`data` must satisfy `z.infer<typeof schema>`) and parsed at runtime: the
+ * parsed result is sent, so undeclared keys are stripped (except on
+ * `.passthrough()` schemas, which keep them). A mismatch throws
+ * `RESPONSE_SCHEMA_MISMATCH`, surfacing schema drift as an error in prod and
+ * dev/CI alike. Pairs with the request-side validators in `middleware/validate.ts`.
  */
 export function sendValidatedJSON<S extends z.ZodTypeAny>(
   res: Response,
   schema: S,
   data: z.infer<S>,
 ): void {
-  if (TEST_MODE) {
-    const result = schema.safeParse(data);
-    if (!result.success) {
-      throw new Error(`RESPONSE_SCHEMA_MISMATCH: ${JSON.stringify(result.error.issues)}`);
-    }
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    throw new Error(`RESPONSE_SCHEMA_MISMATCH: ${JSON.stringify(result.error.issues)}`);
   }
-  res.json(data);
+  res.json(result.data);
 }
 
 export function checkAddressValid(addr: string): boolean {
