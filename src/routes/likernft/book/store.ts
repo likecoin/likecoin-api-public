@@ -456,7 +456,7 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     prices.push(newPrice);
 
     const enableCustomMessagePage = docEnableCustomMessagePage
-      || enableSignatureImage
+      || !!enableSignatureImage
       || !!signedMessageText
       || prices.some((p) => !p.isAutoDeliver);
     await updateNftBookInfo(
@@ -558,7 +558,7 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
 
     prices[priceIndex] = newPriceInfo;
     const enableCustomMessagePage = docEnableCustomMessagePage
-      || enableSignatureImage
+      || !!enableSignatureImage
       || !!signedMessageText
       || prices.some((p) => !p.isAutoDeliver);
     await updateNftBookInfo(

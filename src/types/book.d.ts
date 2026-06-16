@@ -142,7 +142,7 @@ export interface NFTBookListingInfo {
   enableCustomMessagePage?: boolean;
   tableOfContents?: any;
   signedMessageText?: string;
-  enableSignatureImage?: boolean;
+  enableSignatureImage?: boolean | 'signed';
   recommendedClassIds?: string[];
   inLanguage?: string;
   name?: string;
