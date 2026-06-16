@@ -98,18 +98,37 @@ export const AffiliateConfigSchema = z.object({
   customVoices: z.array(AffiliateCustomVoiceSchema),
 });
 
+const PlusAffiliateInactiveSchema = z.object({
+  active: z.literal(false),
+  isPlusDiscountAllowed: z.boolean(),
+});
+
+const PlusAffiliateActiveSchema = AffiliateConfigSchema.omit({ active: true }).extend({
+  active: z.literal(true),
+  affiliatePublisherWallets: z.array(z.string()),
+  giftBooks: z.array(AffiliateGiftBookSchema),
+  isPlusDiscountAllowed: z.boolean(),
+});
+
 export const PlusAffiliateResponseSchema = z.discriminatedUnion('active', [
-  z.object({
-    active: z.literal(false),
-    isPlusDiscountAllowed: z.boolean(),
-  }),
-  AffiliateConfigSchema.omit({ active: true }).extend({
-    active: z.literal(true),
-    affiliatePublisherWallets: z.array(z.string()),
-    giftBooks: z.array(AffiliateGiftBookSchema),
-    isPlusDiscountAllowed: z.boolean(),
-  }),
+  PlusAffiliateInactiveSchema,
+  PlusAffiliateActiveSchema,
 ]);
+
+// Self view: the authenticated user's effective affiliate-voice sources. A Plus
+// subscriber draws voices from their `plusAffiliateFrom` affiliate; if the user
+// is themselves an active affiliate, their own config is added too (self first).
+const affiliateSourceFields = { likerId: z.string(), isSelf: z.boolean() };
+export const PlusSelfAffiliateEntrySchema = z.discriminatedUnion('active', [
+  PlusAffiliateInactiveSchema.extend(affiliateSourceFields),
+  PlusAffiliateActiveSchema.extend(affiliateSourceFields),
+]);
+
+export const PlusSelfAffiliateResponseSchema = z.object({
+  affiliates: z.array(PlusSelfAffiliateEntrySchema),
+});
+
+export type PlusSelfAffiliateEntry = z.infer<typeof PlusSelfAffiliateEntrySchema>;
 
 export const PlusGiftStatusResponseSchema = z.object({
   giftClassId: z.string().optional(),
