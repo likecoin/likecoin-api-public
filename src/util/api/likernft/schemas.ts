@@ -69,7 +69,7 @@ export const LikeNFTMetadataResponseSchema = z.object({
   youtube_url: z.string().optional(),
   iscn_id: z.string().optional(),
   iscn_owner: z.string().optional(),
-  iscn_record_timestamp: z.number().optional(),
+  iscn_record_timestamp: z.string().optional(),
   iscn_stakeholders: z.any(),
 }).passthrough();
 

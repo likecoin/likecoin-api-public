@@ -26,7 +26,7 @@ export interface LikeNFTMetadata {
   iscnOwner?: string;
   iscnStakeholders?: any;
   iscnId?: string;
-  iscnRecordTimestamp?: number;
+  iscnRecordTimestamp?: string;
   [key: string]: any;
 }
 
@@ -41,7 +41,7 @@ export interface LikeNFTMetadataFiltered {
   youtube_url?: string;
   iscn_id?: string;
   iscn_owner?: string;
-  iscn_record_timestamp?: number;
+  iscn_record_timestamp?: string;
   iscn_stakeholders?: any;
   /* eslint-enable camelcase */
   [key: string]: any;
