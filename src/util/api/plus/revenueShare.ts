@@ -93,6 +93,9 @@ const GRPC_ALREADY_EXISTS = 6;
  * `classId` (a contract address) is lowercased and `readerWallet` is EIP-55 checksummed
  * per repo convention, so casing variants don't split the same book/reader across docs and
  * reader keys match `likeNFTBookUserCollection`/`userCollection` (both checksummed).
+ * Reads of a free book (`minPriceInDecimal === 0`) are recorded as non-library
+ * engagement (publisher stats only): the pool funds paid library reading, so a free
+ * book draws no payout. Settlement ignores the non-library fields, so this keeps it out.
  * An `id` makes the write idempotent (see the receipt in the batch below).
  */
 export async function recordPlusReadingUsage({
@@ -130,12 +133,20 @@ export async function recordPlusReadingUsage({
   const bookDoc = await bookDocRef.get();
   if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
 
+  // Free books aren't rev-share eligible, so fold their reads into the non-library
+  // buckets — recorded for stats but ignored by settlement (`minPriceInDecimal === 0`).
+  const isFreeBook = bookDoc.data()?.minPriceInDecimal === 0;
+  const libraryReadingTimeMs = isFreeBook ? 0 : readingTimeMs;
+  const libraryTtsTimeMs = isFreeBook ? 0 : ttsTimeMs;
+  const statsNonLibraryReadingTimeMs = nonLibraryReadingTimeMs + (isFreeBook ? readingTimeMs : 0);
+  const statsNonLibraryTtsTimeMs = nonLibraryTtsTimeMs + (isFreeBook ? ttsTimeMs : 0);
+
   const dayDocRef = bookDocRef.collection('plusUsage').doc(dayId);
   const readerDocRef = dayDocRef.collection('readers').doc(normalizedReaderWallet);
 
   const usageIncrement = {
-    readingTimeMs: FieldValue.increment(readingTimeMs),
-    ttsTimeMs: FieldValue.increment(ttsTimeMs),
+    readingTimeMs: FieldValue.increment(libraryReadingTimeMs),
+    ttsTimeMs: FieldValue.increment(libraryTtsTimeMs),
     updatedAt: FieldValue.serverTimestamp(),
   };
 
@@ -157,13 +168,13 @@ export async function recordPlusReadingUsage({
   // The day rollup also carries the non-library engagement totals (settlement ignores them).
   batch.set(dayDocRef, {
     ...usageIncrement,
-    nonLibraryReadingTimeMs: FieldValue.increment(nonLibraryReadingTimeMs),
-    nonLibraryTtsTimeMs: FieldValue.increment(nonLibraryTtsTimeMs),
+    nonLibraryReadingTimeMs: FieldValue.increment(statsNonLibraryReadingTimeMs),
+    nonLibraryTtsTimeMs: FieldValue.increment(statsNonLibraryTtsTimeMs),
     dayMs,
   }, { merge: true });
   // Per-reader grain is rev-share audit only — skip it for pure non-library
-  // engagement so non-Plus readers don't each spawn a reader doc.
-  if (readingTimeMs > 0 || ttsTimeMs > 0) {
+  // engagement (including free-book reads) so non-payout reads don't spawn reader docs.
+  if (libraryReadingTimeMs > 0 || libraryTtsTimeMs > 0) {
     batch.set(readerDocRef, usageIncrement, { merge: true });
   }
 

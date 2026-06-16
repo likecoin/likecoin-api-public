@@ -96,6 +96,34 @@ describe('POST /plus/reading/usage', () => {
     expect(readers.size).toBe(0);
   });
 
+  it('reclassifies free-book reads as non-library engagement (no payout)', async () => {
+    const classId = '0xcdef033333333333333333333333333333333333';
+    // Free book: minPriceInDecimal === 0 → reads fund no rev-share pool.
+    await likeNFTBookCollection.doc(classId)
+      .set({ classId, ownerWallet: OWNER, minPriceInDecimal: 0 } as any);
+
+    const res = await post({
+      readerWallet: READER,
+      classId,
+      readingTimeMs: 1500,
+      ttsTimeMs: 4200,
+      occurredAt: Date.UTC(2026, 2, 12, 8), // 2026-03-12
+    }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data.results).toEqual([{ dayId: '2026-03-12', applied: true }]);
+
+    const dayDocRef = likeNFTBookCollection.doc(classId).collection('plusUsage').doc('2026-03-12');
+    const day = (await dayDocRef.get()).data() as any;
+    // Library time settlement totals stay 0; engagement is parked under non-library.
+    expect(day.readingTimeMs).toBe(0);
+    expect(day.ttsTimeMs).toBe(0);
+    expect(day.nonLibraryReadingTimeMs).toBe(1500);
+    expect(day.nonLibraryTtsTimeMs).toBe(4200);
+    // No rev-share-eligible time → no per-reader audit doc.
+    const readers = await dayDocRef.collection('readers').get();
+    expect(readers.size).toBe(0);
+  });
+
   it('rejects usage for a class id with no book doc', async () => {
     const orphanClassId = mockEVMAddress(0x44);
     const res = await post({
