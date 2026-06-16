@@ -416,7 +416,8 @@ export const BookPurchaseDataFilteredSchema = z.object({
 
 export const BookPurchaseCommissionFilteredSchema = z.object({
   type: z.string(),
-  ownerWallet: z.string(),
+  // Legacy commission docs predate the ownerWallet field.
+  ownerWallet: z.string().optional(),
   classId: z.string().optional(),
   priceIndex: z.number().int().optional(),
   collectionId: z.string().optional(),

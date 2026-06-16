@@ -78,7 +78,7 @@ export type PlusGiftCartDataFiltered = z.infer<typeof PlusGiftCartStatusResponse
 
 export interface BookPurchaseCommission {
   type: string;
-  ownerWallet: string;
+  ownerWallet?: string;
   classId?: string;
   priceIndex?: number;
   collectionId?: string;
