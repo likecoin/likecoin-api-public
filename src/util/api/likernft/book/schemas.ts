@@ -402,7 +402,7 @@ export const BookPurchaseDataFilteredSchema = z.object({
   priceIndex: z.number().int().optional(),
   priceName: z.string().optional(),
   coupon: z.string().optional(),
-  txHash: z.string().optional(),
+  txHash: z.string().nullish(),
   message: z.string().optional(),
   from: z.string().optional(),
   giftInfo: BookGiftInfoSchema.optional(),
