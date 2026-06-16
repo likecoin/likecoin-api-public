@@ -507,7 +507,7 @@ export async function updateNftBookInfo(classId: string, {
   hideAudio?: boolean;
   hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
-  enableSignatureImage?: boolean;
+  enableSignatureImage?: boolean | 'signed';
   signedMessageText?: string;
   tableOfContents?: string;
   isAdultOnly?: boolean;
