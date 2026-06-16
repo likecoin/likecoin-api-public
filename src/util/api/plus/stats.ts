@@ -10,6 +10,10 @@ export interface PlusReadingStatsEntry {
   periodId: string;
   readingTimeMs: number;
   ttsTimeMs: number;
+  // Non-rev-share engagement (owned/non-Plus reads); reported alongside the
+  // library figures so publishers see total, not just payout-eligible, usage.
+  nonLibraryReadingTimeMs: number;
+  nonLibraryTtsTimeMs: number;
 }
 
 export interface PlusReadingStats {
@@ -17,6 +21,8 @@ export interface PlusReadingStats {
   summary: {
     totalReadingTimeMs: number;
     totalTTSTimeMs: number;
+    totalNonLibraryReadingTimeMs: number;
+    totalNonLibraryTTSTimeMs: number;
     bookCount: number;
     periodCount: number;
   };
@@ -33,9 +39,16 @@ export function summarizePlusReadingStats(
     (acc, e) => {
       acc.totalReadingTimeMs += e.readingTimeMs;
       acc.totalTTSTimeMs += e.ttsTimeMs;
+      acc.totalNonLibraryReadingTimeMs += e.nonLibraryReadingTimeMs;
+      acc.totalNonLibraryTTSTimeMs += e.nonLibraryTtsTimeMs;
       return acc;
     },
-    { totalReadingTimeMs: 0, totalTTSTimeMs: 0 },
+    {
+      totalReadingTimeMs: 0,
+      totalTTSTimeMs: 0,
+      totalNonLibraryReadingTimeMs: 0,
+      totalNonLibraryTTSTimeMs: 0,
+    },
   );
   return {
     ...totals,
@@ -96,10 +109,17 @@ export async function getPlusReadingStatsForWallet(
       const bucket = periodId || doc.id.slice(0, 7);
       const entry = byPeriod.get(bucket)
         || {
-          classId, periodId: bucket, readingTimeMs: 0, ttsTimeMs: 0,
+          classId,
+          periodId: bucket,
+          readingTimeMs: 0,
+          ttsTimeMs: 0,
+          nonLibraryReadingTimeMs: 0,
+          nonLibraryTtsTimeMs: 0,
         };
       entry.readingTimeMs += Number(data.readingTimeMs) || 0;
       entry.ttsTimeMs += Number(data.ttsTimeMs) || 0;
+      entry.nonLibraryReadingTimeMs += Number(data.nonLibraryReadingTimeMs) || 0;
+      entry.nonLibraryTtsTimeMs += Number(data.nonLibraryTtsTimeMs) || 0;
       byPeriod.set(bucket, entry);
     });
     return [...byPeriod.values()];
@@ -107,7 +127,8 @@ export async function getPlusReadingStatsForWallet(
 
   const stats = perBook
     .flat()
-    .filter((e) => e.readingTimeMs > 0 || e.ttsTimeMs > 0)
+    .filter((e) => e.readingTimeMs > 0 || e.ttsTimeMs > 0
+      || e.nonLibraryReadingTimeMs > 0 || e.nonLibraryTtsTimeMs > 0)
     .sort((a, b) => (a.periodId === b.periodId
       ? a.classId.localeCompare(b.classId)
       : b.periodId.localeCompare(a.periodId)));

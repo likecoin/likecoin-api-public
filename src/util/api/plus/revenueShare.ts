@@ -1,7 +1,7 @@
 import { checksumAddress } from 'viem';
 import { ONE_DAY_IN_MS } from '../../../constant';
 import {
-  FieldValue, db, likeNFTBookCollection, userCollection,
+  FieldValue, Timestamp, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import type { PlusReadingAccrualData } from '../../../types/user';
@@ -75,6 +75,14 @@ export function getDayStartMs(timestampMs: number): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+// How long a dedup receipt is kept. Retries of a dropped forward arrive within
+// seconds; days of margin covers a stuck queue. A Firestore TTL policy on
+// `plusUsageReceipts.expireAt` purges them so they don't grow unbounded.
+const USAGE_RECEIPT_TTL_MS = 7 * ONE_DAY_IN_MS;
+// gRPC ALREADY_EXISTS: a batched create() of a doc that already exists rejects
+// commit with this code — how the idempotency gate detects a duplicate delivery.
+const GRPC_ALREADY_EXISTS = 6;
+
 /**
  * Records already-paced (anti-fraud) Plus reading/TTS usage into the day-bucketed
  * ledger funding the reading-library revenue share — a trusted write. Dual-writes the
@@ -85,20 +93,33 @@ export function getDayStartMs(timestampMs: number): number {
  * `classId` (a contract address) is lowercased and `readerWallet` is EIP-55 checksummed
  * per repo convention, so casing variants don't split the same book/reader across docs and
  * reader keys match `likeNFTBookUserCollection`/`userCollection` (both checksummed).
+ * An `id` makes the write idempotent (see the receipt in the batch below).
  */
 export async function recordPlusReadingUsage({
+  id,
   readerWallet,
   classId,
   readingTimeMs,
   ttsTimeMs,
+  nonLibraryReadingTimeMs = 0,
+  nonLibraryTtsTimeMs = 0,
   occurredAt,
 }: {
+  // Idempotency key. When present, a repeat delivery (e.g. a retried forward after
+  // a lost response) is detected and skipped, so the non-idempotent increments below
+  // can't double-count. Absent → no dedup.
+  id?: string;
   readerWallet: string;
   classId: string;
   readingTimeMs: number;
   ttsTimeMs: number;
+  // Non-rev-share engagement (owned/non-Plus reads): rolled up per book+day for
+  // publisher stats, but never written to the per-reader grain and never read by
+  // settlement, so payouts stay library-only.
+  nonLibraryReadingTimeMs?: number;
+  nonLibraryTtsTimeMs?: number;
   occurredAt?: number;
-}): Promise<{ dayId: string }> {
+}): Promise<{ dayId: string; applied: boolean }> {
   const ts = occurredAt ?? Date.now();
   const dayId = getUsageDayId(ts);
   const dayMs = getDayStartMs(ts);
@@ -119,12 +140,42 @@ export async function recordPlusReadingUsage({
   };
 
   const batch = db.batch();
+  // Idempotency gate: claim the key with create() in the SAME batch as the increments,
+  // so the whole write is atomic — a duplicate id fails commit with ALREADY_EXISTS and
+  // nothing is applied (no double-count, no claim-without-increment window). Receipts hang
+  // off the (always-present) book doc, not the day rollup, so the first delta of a day still
+  // dedups.
+  if (id) {
+    batch.create(bookDocRef.collection('plusUsageReceipts').doc(id), {
+      createdAt: FieldValue.serverTimestamp(),
+      // Base the TTL on ingest time, not `ts` (which may be a historical `occurredAt`),
+      // so a backfilled delivery still gets the full retry-dedup window.
+      expireAt: Timestamp.fromMillis(Date.now() + USAGE_RECEIPT_TTL_MS),
+    });
+  }
   // `dayMs` (UTC start-of-day) lets settlement filter rollups by range without parsing ids.
-  batch.set(dayDocRef, { ...usageIncrement, dayMs }, { merge: true });
-  batch.set(readerDocRef, usageIncrement, { merge: true });
-  await batch.commit();
+  // The day rollup also carries the non-library engagement totals (settlement ignores them).
+  batch.set(dayDocRef, {
+    ...usageIncrement,
+    nonLibraryReadingTimeMs: FieldValue.increment(nonLibraryReadingTimeMs),
+    nonLibraryTtsTimeMs: FieldValue.increment(nonLibraryTtsTimeMs),
+    dayMs,
+  }, { merge: true });
+  // Per-reader grain is rev-share audit only — skip it for pure non-library
+  // engagement so non-Plus readers don't each spawn a reader doc.
+  if (readingTimeMs > 0 || ttsTimeMs > 0) {
+    batch.set(readerDocRef, usageIncrement, { merge: true });
+  }
 
-  return { dayId };
+  try {
+    await batch.commit();
+  } catch (err) {
+    // Duplicate id — the delta was already recorded, so this is a no-op retry.
+    if ((err as { code?: number }).code === GRPC_ALREADY_EXISTS) return { dayId, applied: false };
+    throw err;
+  }
+
+  return { dayId, applied: true };
 }
 
 /**

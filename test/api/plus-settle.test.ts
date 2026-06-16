@@ -91,6 +91,26 @@ describe('POST /plus/admin/reading/settle — range allocation', () => {
     });
   });
 
+  it('ignores non-library engagement when pricing payouts', async () => {
+    await likeNFTBookCollection.doc(CLASS_ID)
+      .set({ classId: CLASS_ID, ownerWallet: mockEVMAddress(0x66) } as any, { merge: true });
+    // Library reading min(100), but huge non-library totals that settlement must not price.
+    await likeNFTBookCollection.doc(CLASS_ID).collection('plusUsage').doc('2026-03-05')
+      .set({
+        readingTimeMs: min(100),
+        ttsTimeMs: 0,
+        nonLibraryReadingTimeMs: min(9999),
+        nonLibraryTtsTimeMs: min(9999),
+        dayMs: Date.UTC(2026, 2, 5),
+      } as any);
+
+    const res = await post({ periodId: '2026-03', dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data.totalReadingTimeMs).toBe(min(100));
+    // static $0.01/min × 100 library min = 100 cents; non-library is inert.
+    expect(res.data.books[0]).toMatchObject({ classId: CLASS_ID, amountCents: 100 });
+  });
+
   it('a single-day settle reads only that day', async () => {
     await seedUsage(CLASS_ID, '2026-03-05', Date.UTC(2026, 2, 5), min(60));
     await seedUsage(CLASS_ID, '2026-03-20', Date.UTC(2026, 2, 20), min(40));
