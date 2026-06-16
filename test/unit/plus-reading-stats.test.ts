@@ -11,17 +11,19 @@ describe('summarizePlusReadingStats', () => {
   it('sums durations and counts distinct books and periods', () => {
     expect(summarizePlusReadingStats([
       {
-        classId: '0xa', periodId: '2026-03', readingTimeMs: 100, ttsTimeMs: 50,
+        classId: '0xa', periodId: '2026-03', readingTimeMs: 100, ttsTimeMs: 50, nonLibraryReadingTimeMs: 5, nonLibraryTtsTimeMs: 2,
       },
       {
-        classId: '0xb', periodId: '2026-03', readingTimeMs: 200, ttsTimeMs: 0,
+        classId: '0xb', periodId: '2026-03', readingTimeMs: 200, ttsTimeMs: 0, nonLibraryReadingTimeMs: 0, nonLibraryTtsTimeMs: 0,
       },
       {
-        classId: '0xa', periodId: '2026-02', readingTimeMs: 30, ttsTimeMs: 10,
+        classId: '0xa', periodId: '2026-02', readingTimeMs: 30, ttsTimeMs: 10, nonLibraryReadingTimeMs: 1, nonLibraryTtsTimeMs: 3,
       },
     ])).toEqual({
       totalReadingTimeMs: 330,
       totalTTSTimeMs: 60,
+      totalNonLibraryReadingTimeMs: 6,
+      totalNonLibraryTTSTimeMs: 5,
       bookCount: 2,
       periodCount: 2,
     });
@@ -31,6 +33,8 @@ describe('summarizePlusReadingStats', () => {
     expect(summarizePlusReadingStats([])).toEqual({
       totalReadingTimeMs: 0,
       totalTTSTimeMs: 0,
+      totalNonLibraryReadingTimeMs: 0,
+      totalNonLibraryTTSTimeMs: 0,
       bookCount: 0,
       periodCount: 0,
     });
@@ -41,9 +45,19 @@ describe('getPlusReadingStatsForWallet', () => {
   // Usage is bucketed daily (`YYYY-MM-DD` + dayMs); the endpoint rolls days up to their month
   // by default. Book A's two March days sum to 6000/1000 — the same totals the monthly view
   // reports. Reseeded per test (the firebase stub clears these collections before each test).
-  async function day(classId, dayId, dayMs, readingTimeMs, ttsTimeMs) {
+  async function day(
+    classId,
+    dayId,
+    dayMs,
+    readingTimeMs,
+    ttsTimeMs,
+    nonLibraryReadingTimeMs = 0,
+    nonLibraryTtsTimeMs = 0,
+  ) {
     await likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId)
-      .set({ readingTimeMs, ttsTimeMs, dayMs } as any);
+      .set({
+        readingTimeMs, ttsTimeMs, dayMs, nonLibraryReadingTimeMs, nonLibraryTtsTimeMs,
+      } as any);
   }
   // Pin "now" so the default trailing window (DEFAULT_STATS_WINDOW_MONTHS) always spans the
   // seeded 2026-02/03 usage; otherwise the no-period tests would flap once wall-clock time
@@ -53,7 +67,7 @@ describe('getPlusReadingStatsForWallet', () => {
     vi.setSystemTime(new Date(Date.UTC(2026, 2, 25)));
     // Book A (owned) — March across two days + one February day.
     await likeNFTBookCollection.doc('0xaaa').set({ ownerWallet: OWNER, classId: '0xaaa' } as any);
-    await day('0xaaa', '2026-03-05', Date.UTC(2026, 2, 5), 4000, 600);
+    await day('0xaaa', '2026-03-05', Date.UTC(2026, 2, 5), 4000, 600, 1000, 200);
     await day('0xaaa', '2026-03-20', Date.UTC(2026, 2, 20), 2000, 400);
     await day('0xaaa', '2026-02-10', Date.UTC(2026, 1, 10), 3000, 0);
     // Book B (owned) — one March day.
@@ -76,11 +90,15 @@ describe('getPlusReadingStatsForWallet', () => {
       '2026-03/0xbbb',
       '2026-02/0xaaa',
     ]);
-    // Book A's two March days summed into one month entry.
-    expect(stats[0]).toMatchObject({ readingTimeMs: 6000, ttsTimeMs: 1000 });
+    // Book A's two March days summed into one month entry (non-library from the first day).
+    expect(stats[0]).toMatchObject({
+      readingTimeMs: 6000, ttsTimeMs: 1000, nonLibraryReadingTimeMs: 1000, nonLibraryTtsTimeMs: 200,
+    });
     expect(summary).toEqual({
       totalReadingTimeMs: 11000,
       totalTTSTimeMs: 1500,
+      totalNonLibraryReadingTimeMs: 1000,
+      totalNonLibraryTTSTimeMs: 200,
       bookCount: 2,
       periodCount: 2,
     });
@@ -101,7 +119,12 @@ describe('getPlusReadingStatsForWallet', () => {
   it('reads a single day when given a YYYY-MM-DD period', async () => {
     const { stats, summary } = await getPlusReadingStatsForWallet(OWNER, { periodId: '2026-03-05' });
     expect(stats).toEqual([{
-      classId: '0xaaa', periodId: '2026-03-05', readingTimeMs: 4000, ttsTimeMs: 600,
+      classId: '0xaaa',
+      periodId: '2026-03-05',
+      readingTimeMs: 4000,
+      ttsTimeMs: 600,
+      nonLibraryReadingTimeMs: 1000,
+      nonLibraryTtsTimeMs: 200,
     }]);
     expect(summary).toMatchObject({
       totalReadingTimeMs: 4000,
@@ -132,8 +155,32 @@ describe('getPlusReadingStatsForWallet', () => {
     expect(summary).toEqual({
       totalReadingTimeMs: 0,
       totalTTSTimeMs: 0,
+      totalNonLibraryReadingTimeMs: 0,
+      totalNonLibraryTTSTimeMs: 0,
       bookCount: 0,
       periodCount: 0,
+    });
+  });
+
+  it('surfaces a book whose only usage is non-library (zero rev-share time)', async () => {
+    await likeNFTBookCollection.doc('0xeee').set({ ownerWallet: OWNER, classId: '0xeee' } as any);
+    await day('0xeee', '2026-03-12', Date.UTC(2026, 2, 12), 0, 0, 5000, 1500);
+
+    const { stats, summary } = await getPlusReadingStatsForWallet(OWNER, { classId: '0xeee' });
+    expect(stats).toEqual([{
+      classId: '0xeee',
+      periodId: '2026-03',
+      readingTimeMs: 0,
+      ttsTimeMs: 0,
+      nonLibraryReadingTimeMs: 5000,
+      nonLibraryTtsTimeMs: 1500,
+    }]);
+    expect(summary).toMatchObject({
+      totalReadingTimeMs: 0,
+      totalTTSTimeMs: 0,
+      totalNonLibraryReadingTimeMs: 5000,
+      totalNonLibraryTTSTimeMs: 1500,
+      bookCount: 1,
     });
   });
 });

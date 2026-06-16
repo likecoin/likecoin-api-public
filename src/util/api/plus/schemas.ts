@@ -186,18 +186,45 @@ export const RevenueCatWebhookBodySchema = z.object({
 // upstream; cap each at 4h — the reader's per-session ceiling — as a sanity bound.
 const MAX_USAGE_DELTA_MS = 4 * 60 * 60 * 1000;
 const UsageDurationSchema = z.number().int().min(0).max(MAX_USAGE_DELTA_MS);
+// Cap a batched forward so one request can't fan out into an unbounded write set.
+const MAX_USAGE_BATCH = 100;
 
-export const PlusReadingUsageBodySchema = z.object({
+const PlusReadingUsageEntrySchema = z.object({
+  // Idempotency key: the ledger increments are non-idempotent, so the API dedups
+  // retries of the same delta (see recordPlusReadingUsage) — that's what lets the
+  // forwarder retry a dropped request without double-counting. Optional: a forwarder
+  // that omits it simply gets no dedup (and must not enable retry).
+  // Reject `/` so a bad id can't become an invalid Firestore doc path (a 500 instead
+  // of a clean 400) when used as `.doc(id)`.
+  id: z.string().min(1).max(200).regex(/^[^/]+$/, 'INVALID_ID')
+    .optional(),
   readerWallet: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_READER_WALLET'),
   classId: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_CLASS_ID'),
+  // Rev-share-eligible (paid Plus, borrowed) durations that fund the payout pool.
   readingTimeMs: UsageDurationSchema,
   ttsTimeMs: UsageDurationSchema,
+  // Non-rev-share engagement (owned copies, trial/non-Plus reads). Recorded for
+  // publisher stats only; settlement never reads these. Default 0 so an older
+  // forwarder that omits them keeps working.
+  nonLibraryReadingTimeMs: UsageDurationSchema.default(0),
+  nonLibraryTtsTimeMs: UsageDurationSchema.default(0),
   occurredAt: z.number().int().positive().optional(),
 });
 
+// Accept a single entry (legacy flat body) or a batch. Backward compatible: an old
+// forwarder's flat body still validates as one entry; the `entries` form lets a
+// future coalescer flush several deltas in one request.
+export const PlusReadingUsageBodySchema = z.union([
+  PlusReadingUsageEntrySchema,
+  z.object({ entries: z.array(PlusReadingUsageEntrySchema).min(1).max(MAX_USAGE_BATCH) }),
+]);
+
 export const PlusReadingUsageResponseSchema = z.object({
   success: z.literal(true),
+  // Legacy convenience: the first entry's dayId. Batch callers should read `results`.
   dayId: z.string(),
+  // Per-entry outcome; `applied: false` means a no-op or a deduped retry.
+  results: z.array(z.object({ dayId: z.string(), applied: z.boolean() })),
 });
 
 // A settlement/report period: a whole month (`YYYY-MM`) or a single day (`YYYY-MM-DD`).
@@ -300,6 +327,8 @@ const PlusReadingStatsEntrySchema = z.object({
   periodId: z.string(),
   readingTimeMs: z.number(),
   ttsTimeMs: z.number(),
+  nonLibraryReadingTimeMs: z.number(),
+  nonLibraryTtsTimeMs: z.number(),
 });
 
 export const PlusReadingStatsResponseSchema = z.object({
@@ -307,6 +336,8 @@ export const PlusReadingStatsResponseSchema = z.object({
   summary: z.object({
     totalReadingTimeMs: z.number(),
     totalTTSTimeMs: z.number(),
+    totalNonLibraryReadingTimeMs: z.number(),
+    totalNonLibraryTTSTimeMs: z.number(),
     bookCount: z.number(),
     periodCount: z.number(),
   }),

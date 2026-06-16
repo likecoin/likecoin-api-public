@@ -55,31 +55,48 @@ router.use('/revenuecat', revenueCatRouter);
 // revenue share. Recorded into a per-(book, day) ledger with a per-reader grain.
 router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUsageBodySchema), async (req, res, next) => {
   try {
-    const {
-      readerWallet,
-      classId,
-      readingTimeMs,
-      ttsTimeMs,
-      occurredAt,
-    } = req.body;
+    // Accept either a single (legacy flat) entry or a batch under `entries`.
+    const entries = Array.isArray(req.body.entries) ? req.body.entries : [req.body];
 
-    // Nothing to record, but ack so the forwarder doesn't retry.
-    if (readingTimeMs <= 0 && ttsTimeMs <= 0) {
-      sendValidatedJSON(res, PlusReadingUsageResponseSchema, {
-        success: true,
-        dayId: getUsageDayId(occurredAt ?? Date.now()),
+    const results: Array<{ dayId: string; applied: boolean }> = [];
+    for (const entry of entries) {
+      const {
+        id,
+        readerWallet,
+        classId,
+        readingTimeMs,
+        ttsTimeMs,
+        nonLibraryReadingTimeMs,
+        nonLibraryTtsTimeMs,
+        occurredAt,
+      } = entry;
+
+      // Nothing to record, but report a dayId so the forwarder treats it as acked.
+      if (readingTimeMs <= 0 && ttsTimeMs <= 0
+        && nonLibraryReadingTimeMs <= 0 && nonLibraryTtsTimeMs <= 0) {
+        results.push({ dayId: getUsageDayId(occurredAt ?? Date.now()), applied: false });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const { dayId, applied } = await recordPlusReadingUsage({
+        id,
+        readerWallet,
+        classId,
+        readingTimeMs,
+        ttsTimeMs,
+        nonLibraryReadingTimeMs,
+        nonLibraryTtsTimeMs,
+        occurredAt,
       });
-      return;
+      results.push({ dayId, applied });
     }
 
-    const { dayId } = await recordPlusReadingUsage({
-      readerWallet,
-      classId,
-      readingTimeMs,
-      ttsTimeMs,
-      occurredAt,
+    sendValidatedJSON(res, PlusReadingUsageResponseSchema, {
+      success: true,
+      dayId: results[0].dayId,
+      results,
     });
-    sendValidatedJSON(res, PlusReadingUsageResponseSchema, { success: true, dayId });
   } catch (err) {
     next(err);
   }
