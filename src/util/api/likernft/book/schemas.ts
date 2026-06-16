@@ -352,7 +352,14 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   reviewURL: z.string().optional(),
   keywords: z.array(z.string()).optional(),
   thumbnailUrl: z.string().optional(),
-  author: z.string().optional(),
+  author: z.union([
+    z.string(),
+    z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      url: z.string().optional(),
+    }).passthrough(),
+  ]).optional(),
   usageInfo: z.string().optional(),
   isbn: z.string().optional(),
   genre: z.string().optional(),
