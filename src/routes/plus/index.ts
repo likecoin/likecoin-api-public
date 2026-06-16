@@ -19,16 +19,19 @@ import {
   PlusPriceBodySchema,
   PlusReadingUsageBodySchema,
   PlusReadingUsageResponseSchema,
+  PlusSelfAffiliateResponseSchema,
   PlusSettleBodySchema,
   PlusSettleResponseSchema,
   PlusSweepBodySchema,
   PlusSweepResponseSchema,
 } from '../../util/api/plus/schemas';
+import type { PlusSelfAffiliateEntry } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
 import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
 import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
 import { settlePlusReadingPeriod, sweepPlusReadingPendingPayouts } from '../../util/api/plus/settleJob';
-import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
+import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
+import type { NFTBookUserData } from '../../types/book';
 import { getStripeClient } from '../../util/stripe';
 import {
   BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
@@ -503,6 +506,79 @@ router.get('/gift', jwtAuth('read:plus'), async (req, res, next) => {
   }
 });
 
+// Shape a single affiliate's book-user config into the public response. Shared by
+// the per-likerId lookup and the authenticated self view so both stay in sync.
+function buildAffiliateConfigResponse(bookUserInfo: NFTBookUserData | null | undefined) {
+  const affiliateConfig = bookUserInfo?.affiliateConfig;
+  const isPlusDiscountAllowed = !!bookUserInfo?.isPlusDiscountAllowed;
+  if (!affiliateConfig?.active) {
+    return { active: false as const, isPlusDiscountAllowed };
+  }
+  return {
+    active: true as const,
+    affiliateClassIds: (Array.isArray(affiliateConfig.affiliateClassIds)
+      ? affiliateConfig.affiliateClassIds : [])
+      .filter((id): id is string => typeof id === 'string')
+      .map((id) => id.toLowerCase()),
+    affiliatePublisherWallets: (Array.isArray(affiliateConfig.affiliatePublisherWallets)
+      ? affiliateConfig.affiliatePublisherWallets : [])
+      .filter((w): w is `0x${string}` => typeof w === 'string' && isAddress(w))
+      .map((w) => checksumAddress(w)),
+    giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
+      classId: b.classId,
+      priceIndex: b.priceIndex || 0,
+    })),
+    giftOnTrial: !!affiliateConfig.giftOnTrial,
+    isPlusDiscountAllowed,
+    customVoices: (affiliateConfig.customVoices || []).map((v) => ({
+      id: v.id,
+      name: v.name,
+      language: v.language,
+      avatarUrl: v.avatarUrl,
+      providerVoiceId: v.providerVoiceId,
+    })),
+  };
+}
+
+// Authenticated self view: the affiliate-voice sources the caller may use. An
+// active affiliate may use their own voices as if attributed to themselves
+// (self first), plus their real `plusAffiliateFrom` affiliate if any (additive).
+router.get('/affiliate', jwtAuth('read:plus'), async (req, res, next) => {
+  try {
+    const { wallet } = req.user;
+    const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+    if (!userInfo) {
+      throw new ValidationError('USER_NOT_FOUND', 404);
+    }
+    const selfLikerId = userInfo.user ? normalizeLikerId(userInfo.user) : undefined;
+    const selfWallet = userInfo.evmWallet || userInfo.likeWallet;
+    const realAffiliateFrom = userInfo.plusAffiliateFrom
+      ? normalizeLikerId(userInfo.plusAffiliateFrom)
+      : undefined;
+    // Self first, then the real affiliate (skipped when it is the user themselves).
+    // Self is only offered when its own config is active.
+    const affiliates: PlusSelfAffiliateEntry[] = [];
+    if (selfLikerId && selfWallet && checkUserNameValid(selfLikerId)) {
+      const selfConfig = buildAffiliateConfigResponse(await getBookUserInfo(selfWallet));
+      if (selfConfig.active) {
+        affiliates.push({ likerId: selfLikerId, isSelf: true, ...selfConfig });
+      }
+    }
+    if (realAffiliateFrom && realAffiliateFrom !== selfLikerId
+      && checkUserNameValid(realAffiliateFrom)) {
+      const realInfo = await getBookUserInfoFromLikerId(realAffiliateFrom);
+      affiliates.push({
+        likerId: realAffiliateFrom,
+        isSelf: false,
+        ...buildAffiliateConfigResponse(realInfo?.bookUserInfo),
+      });
+    }
+    sendValidatedJSON(res, PlusSelfAffiliateResponseSchema, { affiliates });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), async (req, res, next) => {
   try {
     const { likerId } = req.params as Record<string, string>;
@@ -511,37 +587,8 @@ router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), asy
       throw new ValidationError('Invalid likerId', 400);
     }
     const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
-    const bookUserInfo = userInfo?.bookUserInfo;
-    const affiliateConfig = bookUserInfo?.affiliateConfig;
-    const isPlusDiscountAllowed = !!bookUserInfo?.isPlusDiscountAllowed;
-    if (!affiliateConfig?.active) {
-      sendValidatedJSON(res, PlusAffiliateResponseSchema, { active: false, isPlusDiscountAllowed });
-      return;
-    }
-    sendValidatedJSON(res, PlusAffiliateResponseSchema, {
-      active: true,
-      affiliateClassIds: (Array.isArray(affiliateConfig.affiliateClassIds)
-        ? affiliateConfig.affiliateClassIds : [])
-        .filter((id): id is string => typeof id === 'string')
-        .map((id) => id.toLowerCase()),
-      affiliatePublisherWallets: (Array.isArray(affiliateConfig.affiliatePublisherWallets)
-        ? affiliateConfig.affiliatePublisherWallets : [])
-        .filter((w): w is `0x${string}` => typeof w === 'string' && isAddress(w))
-        .map((w) => checksumAddress(w)),
-      giftBooks: (affiliateConfig.giftBooks || []).map((b) => ({
-        classId: b.classId,
-        priceIndex: b.priceIndex || 0,
-      })),
-      giftOnTrial: !!affiliateConfig.giftOnTrial,
-      isPlusDiscountAllowed,
-      customVoices: (affiliateConfig.customVoices || []).map((v) => ({
-        id: v.id,
-        name: v.name,
-        language: v.language,
-        avatarUrl: v.avatarUrl,
-        providerVoiceId: v.providerVoiceId,
-      })),
-    });
+    const response = buildAffiliateConfigResponse(userInfo?.bookUserInfo);
+    sendValidatedJSON(res, PlusAffiliateResponseSchema, response);
   } catch (error) {
     next(error);
   }
