@@ -319,6 +319,16 @@ export const NFTBookPricesInfoFilteredSchema = z.object({
   prices: z.array(NFTBookPriceFilteredSchema),
 });
 
+// author/publisher are stored as a plain string on legacy docs, an object on newer ones.
+export const BookContributorSchema = z.union([
+  z.string(),
+  z.object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    url: z.string().optional(),
+  }).passthrough(),
+]);
+
 export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
@@ -352,16 +362,10 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   reviewURL: z.string().optional(),
   keywords: z.array(z.string()).optional(),
   thumbnailUrl: z.string().optional(),
-  author: z.union([
-    z.string(),
-    z.object({
-      name: z.string().optional(),
-      description: z.string().optional(),
-      url: z.string().optional(),
-    }).passthrough(),
-  ]).optional(),
+  author: BookContributorSchema.optional(),
   usageInfo: z.string().optional(),
   isbn: z.string().optional(),
+  publisher: BookContributorSchema.optional(),
   genre: z.string().optional(),
   timestamp: z.number().optional(),
   isHidden: z.boolean().optional(),

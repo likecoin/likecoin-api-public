@@ -27,7 +27,7 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
-import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
+import type { BookContributor, NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getNameFromMetadata(value: unknown): string {
@@ -88,8 +88,8 @@ export interface NFTClassData {
   inLanguage?: string;
   datePublished?: string;
   keywords?: string | string[];
-  author?: string | { name?: string; description?: string; url?: string };
-  publisher?: string | { name?: string; description?: string; url?: string };
+  author?: BookContributor;
+  publisher?: BookContributor;
   usageInfo?: string;
   isbn?: string;
   thumbnailUrl?: string;

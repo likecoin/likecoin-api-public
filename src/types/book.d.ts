@@ -2,6 +2,7 @@
 
 import type { z } from 'zod';
 import type {
+  BookContributorSchema,
   BookFreeClaimResponseSchema,
   BookGiftInfoSchema,
   BookPurchaseCommissionFilteredSchema,
@@ -17,6 +18,8 @@ import type {
 } from '../util/api/plus/schemas';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
+
+export type BookContributor = z.infer<typeof BookContributorSchema>;
 
 export interface BookPurchaseData {
   id?: string;
@@ -156,11 +159,11 @@ export interface NFTBookListingInfo {
   reviewURL?: string;
   keywords?: string[];
   thumbnailUrl?: string;
-  author?: string;
+  author?: BookContributor;
   usageInfo?: string;
   isbn?: string;
   image?: string;
-  publisher?: string;
+  publisher?: BookContributor;
   genre?: string;
   timestamp?: { toMillis: () => number };
   isHidden?: boolean;
