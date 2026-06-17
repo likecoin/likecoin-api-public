@@ -517,10 +517,12 @@ export async function processNFTBookCart(
           promoOwnerDisplayName = ownerLikerInfo.displayName;
           const ownerAffiliateConfig = ownerInfo?.bookUserInfo?.affiliateConfig;
           if (ownerAffiliateConfig?.active && ownerAffiliateConfig.customVoices?.length) {
-            promoOwnerVoices = ownerAffiliateConfig.customVoices.map((v) => ({
-              name: v.name,
-              language: v.language,
-            }));
+            promoOwnerVoices = ownerAffiliateConfig.customVoices
+              .filter((v): v is typeof v & { name: string } => !!v.name)
+              .map((v) => ({
+                name: v.name,
+                language: v.language,
+              }));
           }
         }
       }

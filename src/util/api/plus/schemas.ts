@@ -76,17 +76,20 @@ export const PlusPortalResponseSchema = z.object({
   url: z.string().url(),
 });
 
+// Fields are optional to tolerate legacy/partial affiliate records: entries
+// saved before these were required must still pass response validation rather
+// than 500 the whole endpoint. Consumers filter out entries they can't use.
 const AffiliateGiftBookSchema = z.object({
-  classId: z.string(),
+  classId: z.string().optional(),
   priceIndex: z.number().int().min(0),
 });
 
 const AffiliateCustomVoiceSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+  id: z.string().optional(),
+  name: z.string().optional(),
   language: z.string().optional(),
   avatarUrl: z.string().optional(),
-  providerVoiceId: z.string(),
+  providerVoiceId: z.string().optional(),
 });
 
 export const AffiliateConfigSchema = z.object({
