@@ -27,7 +27,9 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
-import type { BookContributor, NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
+import type {
+  BookContributor, BookSignatureImage, NFTBookListingInfo, NFTBookPrice,
+} from '../../../../types/book';
 import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getNameFromMetadata(value: unknown): string {
@@ -507,7 +509,7 @@ export async function updateNftBookInfo(classId: string, {
   hideAudio?: boolean;
   hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
-  enableSignatureImage?: boolean | 'signed';
+  enableSignatureImage?: BookSignatureImage;
   signedMessageText?: string;
   tableOfContents?: string;
   isAdultOnly?: boolean;

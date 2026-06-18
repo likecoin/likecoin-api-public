@@ -329,6 +329,11 @@ export const BookContributorSchema = z.union([
   }).passthrough(),
 ]);
 
+// `true` once a signature image is attached; the literal 'signed' marks docs whose
+// signature was applied without an uploaded image. Shared so the response schema and
+// the NFTBookListingInfo source type can't drift apart.
+export const BookSignatureImageSchema = z.union([z.boolean(), z.literal('signed')]);
+
 export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
@@ -348,7 +353,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   enableCustomMessagePage: z.boolean().optional(),
   tableOfContents: z.unknown().optional(),
   signedMessageText: z.string().optional(),
-  enableSignatureImage: z.union([z.boolean(), z.literal('signed')]).optional(),
+  enableSignatureImage: BookSignatureImageSchema.optional(),
   recommendedClassIds: z.array(z.string()).optional(),
   inLanguage: z.string().optional(),
   name: z.string().optional(),
