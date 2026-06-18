@@ -10,11 +10,6 @@ import {
   userCollection as dbRef,
 } from '../../util/firebase';
 import {
-  getAuthCoreUser,
-  updateAuthCoreUserById,
-  createAuthCoreCosmosWalletViaUserToken,
-} from '../../util/authcore';
-import {
   checkCosmosSignPayload,
   setAuthCookies,
   clearAuthCookies,
@@ -34,10 +29,9 @@ import {
   UsersUpdateBodySchema,
   UsersRegisterBodySchema,
   UsersLoginBodySchema,
-  UsersSyncAuthcoreBodySchema,
   UsersUpdateAvatarResponseSchema,
 } from '../../util/api/users/schemas';
-import { authCoreJwtSignToken, authCoreJwtVerify } from '../../util/jwt';
+import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   REGISTER_LIMIT_WINDOW,
@@ -45,7 +39,6 @@ import {
 } from '../../../config/config';
 
 import {
-  changeAddressPrefix,
   isValidLikeAddress,
 } from '../../util/cosmos';
 import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
@@ -141,65 +134,6 @@ router.post(
           payload.email = email;
           break;
         }
-        case 'authcore': {
-          const {
-            idToken,
-            accessToken,
-          } = req.body;
-          if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
-          if (!accessToken) throw new ValidationError('ACCESS_TOKEN_MISSING');
-          let authCoreUser;
-          try {
-            authCoreUser = authCoreJwtVerify(idToken);
-            if (!authCoreUser) throw new ValidationError('AUTHCORE_USER_NOT_EXIST');
-          } catch (err) {
-            throw new ValidationError('ID_TOKEN_INVALID');
-          }
-
-          const {
-            sub: authCoreUserId,
-            email: authCoreEmail,
-            email_verified: isAuthCoreEmailVerified,
-            phone_number: authCorePhone,
-            phone_number_verified: isAuthCorePhoneVerified,
-          } = authCoreUser;
-          payload = req.body;
-          payload.authCoreUserId = authCoreUserId;
-          if (!payload.cosmosWallet) {
-            try {
-              const cosmosWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-              payload.cosmosWallet = cosmosWallet;
-            } catch (err) {
-              // eslint-disable-next-line no-console
-              console.error('Cannot create cosmos wallet');
-              // eslint-disable-next-line no-console
-              console.error(err);
-              throw new ValidationError('COSMOS_WALLET_PENDING');
-            }
-          }
-          if (!payload.likeWallet && payload.cosmosWallet) {
-            try {
-              const likeWallet = await changeAddressPrefix(payload.cosmosWallet, 'like');
-              payload.likeWallet = likeWallet;
-            } catch (err) {
-              // eslint-disable-next-line no-console
-              console.error('Cannot create cosmos wallet');
-              // eslint-disable-next-line no-console
-              console.error(err);
-              throw new ValidationError('COSMOS_WALLET_PENDING');
-            }
-          }
-          email = authCoreEmail;
-          // TODO: remove this displayname hack after authcore fix default name privacy issue
-          payload.displayName = user;
-          payload.email = email;
-          payload.isEmailVerified = isAuthCoreEmailVerified;
-          if (authCorePhone) {
-            payload.phone = authCorePhone;
-            payload.isPhoneVerified = isAuthCorePhoneVerified;
-          }
-          break;
-        }
         default:
           throw new ValidationError('INVALID_PLATFORM');
       }
@@ -215,26 +149,6 @@ router.post(
         req,
         res,
       });
-
-      if (platform === 'authcore' && !TEST_MODE) {
-        try {
-          const authCoreToken = await authCoreJwtSignToken();
-          await updateAuthCoreUserById(
-            payload.authCoreUserId,
-            {
-              user,
-              displayName: payload.displayName || user,
-            },
-            authCoreToken,
-          );
-        } catch (err) {
-          /* no update will return 400 error */
-          if (!(err as any).response || (err as any).response.status !== 400) {
-            // eslint-disable-next-line no-console
-            console.error(err);
-          }
-        }
-      }
 
       await setAuthCookies(req, res, { user, platform });
       res.sendStatus(200);
@@ -418,55 +332,10 @@ router.post(
   },
 );
 
-router.post('/sync/authcore', jwtAuth('write'), validateBody(UsersSyncAuthcoreBodySchema), async (req, res, next) => {
-  try {
-    const { user } = req.user;
-    const {
-      authCoreAccessToken,
-    } = req.body;
-    const {
-      email,
-      displayName,
-      isEmailVerified,
-      phone,
-      isPhoneVerified,
-    } = await getAuthCoreUser(authCoreAccessToken);
-    const updateObj: any = {
-      email,
-      displayName,
-      isEmailVerified,
-      phone,
-      isPhoneVerified,
-    };
-    if (email) {
-      const {
-        normalizedEmail,
-        isEmailBlacklisted,
-        isEmailDuplicated,
-      } = await normalizeUserEmail(user, email);
-      if (normalizedEmail) updateObj.normalizedEmail = normalizedEmail;
-      if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
-      if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
-    }
-    await dbRef.doc(user).update(updateObj);
-    res.sendStatus(200);
-
-    publisher.publish(PUBSUB_TOPIC_MISC, req, {
-      logType: 'eventUserSync',
-      type: 'authcore',
-      user,
-      ...updateObj,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next) => {
   try {
     let user;
     let wallet;
-    let authCoreUserName;
     let authCoreUserId;
     const {
       platform,
@@ -527,8 +396,6 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
         const authCoreUser = authCoreJwtVerify(idToken);
         ({
           sub: authCoreUserId,
-          /* TODO: remove after most lazy update of user id is done */
-          preferred_username: authCoreUserName,
         } = authCoreUser);
         const userQuery = await (
           dbRef
@@ -571,41 +438,8 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
             displayName,
             referrer,
             locale,
-            cosmosWallet,
-            likeWallet,
             timestamp: registerTime,
           } = docData;
-          if (platform === 'authcore' && req.body.accessToken && !TEST_MODE) {
-            const { accessToken } = req.body;
-            if (!cosmosWallet) {
-              const newWallet = await createAuthCoreCosmosWalletViaUserToken(accessToken);
-              const newLikeWallet = changeAddressPrefix(newWallet, 'like');
-              await dbRef.doc(user).update({ cosmosWallet: newWallet, likeWallet: newLikeWallet });
-            }
-            if (!likeWallet && cosmosWallet) {
-              const newLikeWallet = changeAddressPrefix(cosmosWallet, 'like');
-              await dbRef.doc(user).update({ likeWallet: newLikeWallet });
-            }
-            if (!authCoreUserName) {
-              try {
-                const authCoreToken = await authCoreJwtSignToken();
-                await updateAuthCoreUserById(
-                  authCoreUserId,
-                  {
-                    user,
-                    displayName,
-                  },
-                  authCoreToken,
-                );
-              } catch (err) {
-              /* no update will return 400 error */
-                if (!(err as any).response || (err as any).response.status !== 400) {
-                // eslint-disable-next-line no-console
-                  console.error(err);
-                }
-              }
-            }
-          }
           publisher.publish(PUBSUB_TOPIC_MISC, req, {
             logType: 'eventUserLogin',
             user,
