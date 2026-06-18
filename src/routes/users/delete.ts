@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { jwtAuth } from '../../middleware/jwt';
 import { validateBody, validateParams } from '../../middleware/validate';
-import { getAuthCoreUser } from '../../util/authcore';
 import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users/getPublicInfo';
@@ -21,7 +20,6 @@ router.post('/delete/:id', jwtAuth('write'), validateParams(UsersIdParamsSchema)
       return;
     }
     const {
-      authCoreAccessToken,
       signature: { signature, publicKey = '', message },
       signMethod,
     } = req.body;
@@ -31,17 +29,9 @@ router.post('/delete/:id', jwtAuth('write'), validateParams(UsersIdParamsSchema)
       return;
     }
     const {
-      authCoreUserId,
       likeWallet,
       evmWallet,
     } = userData;
-    if (authCoreUserId) {
-      if (!authCoreAccessToken) throw new ValidationError('MISSING_AUTHCORE_TOKEN');
-      const {
-        authCoreUserId: tokenUserId,
-      } = await getAuthCoreUser(authCoreAccessToken);
-      if (tokenUserId !== authCoreUserId) throw new ValidationError('INVALID_AUTHCORE_TOKEN');
-    }
     const isEVMWallet = signMethod === 'personal_sign';
     if (isEVMWallet) {
       if (!evmWallet) throw new ValidationError('EVM_WALLET_NOT_FOUND');
