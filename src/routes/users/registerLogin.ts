@@ -200,26 +200,6 @@ router.post(
           }
           break;
         }
-        case 'likeWallet': {
-          const {
-            from: inputWallet, signature, publicKey, message, signMethod,
-          } = req.body;
-          ({ email } = req.body);
-          if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-          if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
-          if (!checkCosmosSignPayload({
-            signature, publicKey, message, inputWallet, signMethod,
-          })) {
-            throw new ValidationError('INVALID_SIGN');
-          }
-          payload = req.body;
-          payload.cosmosWallet = changeAddressPrefix(inputWallet, 'cosmos');
-          payload.likeWallet = changeAddressPrefix(inputWallet, 'like');
-          payload.displayName = displayName || user;
-          payload.email = email;
-          payload.isEmailVerified = false;
-          break;
-        }
         default:
           throw new ValidationError('INVALID_PLATFORM');
       }
