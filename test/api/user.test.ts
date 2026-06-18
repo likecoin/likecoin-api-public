@@ -68,7 +68,7 @@ describe('USER tests', () => {
     expect(res.status).toBe(400);
   });
 
-  it('USER: Register like user. Case: success', async () => {
+  it('USER: Register like user. Case: fail, platform removed', async () => {
     const likeWallet = testingLikeWallet0;
     const payload = {
       ts: Date.now(),
@@ -87,7 +87,7 @@ describe('USER tests', () => {
       user: 'testing-new-user',
       email: 'test@like.user',
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 
   it('USER: Login like user. Case: success', async () => {

@@ -166,6 +166,11 @@
           "normalizedEmail": "john.roe@proton.me",
           "likeWallet": "like1protonlegacy0000000000000000000000000",
           "isEmailVerified": true
+        },
+        {
+          "id": "testinglikeuser",
+          "displayName": "testinglikeuser",
+          "likeWallet": "like187290tx4vj6npyl7fdfgdvxr2n9d5qyevrgdww"
         }
     ]
 }
