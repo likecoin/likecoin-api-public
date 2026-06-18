@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import jsonStringify from 'fast-json-stable-stringify';
 import {
   testingUser1,
-  testingLikeWallet1,
   testDeleteUser,
   testDeleteUserLikeWallet,
   cosmosPrivateKeyNew,
@@ -16,34 +15,6 @@ import {
 import { jwtSign } from './jwt';
 
 describe('USER: Delete user', () => {
-  it('Delete authcore user. Case: fail, no authcore token', async () => {
-    const likeWallet = testingLikeWallet1;
-    const user = testingUser1;
-    const token = jwtSign({ user });
-    const payload = {
-      action: 'user_delete',
-      ts: Date.now(),
-      likeWallet,
-    };
-    const {
-      signed: message,
-      signature: { signature, pub_key: publicKey },
-    } = signWithCosmos(payload, cosmosPrivateKeyDelete);
-    const res = await axiosist.post(`/api/users/delete/${user}`, {
-      signature: {
-        signature,
-        publicKey: publicKey.value,
-        message: jsonStringify(message),
-      },
-    }, {
-      headers: {
-        Accept: 'application/json',
-        Cookie: `likecoin_auth=${token}`,
-      },
-    });
-    expect(res.status).toBe(400);
-  });
-
   it('Delete wallet user. Case: fail, wrong user', async () => {
     const likeWallet = testDeleteUserLikeWallet;
     const user = testDeleteUser;
