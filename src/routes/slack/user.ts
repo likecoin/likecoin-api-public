@@ -13,8 +13,6 @@ import {
   userCollection,
 } from '../../util/firebase';
 import { formatUserCivicLikerProperies } from '../../util/api/users';
-import { getAuthCoreUserById, getAuthCoreUserContactById, getAuthCoreUserOAuthFactorsById } from '../../util/authcore';
-import { authCoreJwtSignToken } from '../../util/jwt';
 import { getBookUserInfo } from '../../util/api/likernft/book/user';
 
 const router = Router();
@@ -70,32 +68,9 @@ async function getUserInfo(req, res, query) {
       }
     }
     const civicInfo = formatUserCivicLikerProperies(userDoc);
-    if (userData.authCoreUserId) {
-      userData.authcoreInfo = {};
-      try {
-        const authCoreToken = await authCoreJwtSignToken();
-        const [authcoreUser, contacts, oAuthFactors] = await Promise.all([
-          getAuthCoreUserById(userData.authCoreUserId, authCoreToken),
-          getAuthCoreUserContactById(userData.authCoreUserId, authCoreToken),
-          getAuthCoreUserOAuthFactorsById(userData.authCoreUserId, authCoreToken),
-        ]);
-        userData.authcoreInfo.user = authcoreUser;
-        userData.authcoreInfo.contacts = contacts
-          .map((c) => ({ type: c.type, value: c.value, verified: c.verified }));
-        userData.authcoreInfo.oAuthFactors = oAuthFactors
-          .map((f) => ({ service: f.service, lastUsedAt: f.lastUsedAt, createdAt: f.createdAt }));
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-    }
     Object.assign(userInfo, userData, civicInfo);
   }
   const attachments: Array<ReturnType<typeof getSlackAttachmentForMap>> = [];
-  if (userInfo.authcoreInfo) {
-    attachments.push(getSlackAttachmentForMap('Authcore Info', userInfo.authcoreInfo));
-    delete userInfo.authcoreInfo;
-  }
   if (userInfo.civicLiker) {
     attachments.push(getSlackAttachmentForMap('CivicLiker Info', userInfo.civicLiker));
     delete userInfo.civicLiker;

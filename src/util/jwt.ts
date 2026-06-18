@@ -18,7 +18,6 @@ const internalVerifyAlgorithms: string[] = [];
 const internalVerifySecrets: any = {};
 let internalDefaultSignAlgorithm;
 let internalDefaultVerifyAlgorithm;
-let authCoreSignSecret;
 let authCoreVerifySecret;
 
 const publicCertPath = config.JWT_PUBLIC_CERT_PATH;
@@ -26,8 +25,6 @@ const secretCertPath = config.JWT_PRIVATE_KEY_PATH;
 const publicECDSACertPath = config.ECDSA_JWT_PUBLIC_CERT_PATH;
 const secretECDSACertPath = config.ECDSA_JWT_PRIVATE_KEY_PATH;
 const authCorePublicCertPath = config.AUTHCORE_PUBLIC_CERT_PATH;
-const authCoreSecretCertPath = config.AUTHCORE_PRIVATE_KEY_PATH;
-const authCoreServiceAccountIss = `serviceaccount:${config.AUTHCORE_SERVICE_ACCOUNT_ID}`;
 
 if (publicECDSACertPath) {
   try {
@@ -92,17 +89,6 @@ if (secretCertPath) {
 if (authCorePublicCertPath) {
   try {
     authCoreVerifySecret = fs.readFileSync(authCorePublicCertPath);
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(err);
-    // eslint-disable-next-line no-console
-    console.error('auth core cert not exist for jwt');
-  }
-}
-
-if (authCoreSecretCertPath) {
-  try {
-    authCoreSignSecret = fs.readFileSync(authCoreSecretCertPath);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -204,15 +190,6 @@ export const jwtSignForAZP = (
   const opt: any = { algorithm: 'HS256', audience };
   if (expiresIn) opt.expiresIn = expiresIn;
   return internalSign({ ...payload, azp }, secret, opt);
-};
-
-export const authCoreJwtSignToken = () => {
-  const token = jwt.sign({}, authCoreSignSecret, {
-    algorithm: 'ES256',
-    issuer: authCoreServiceAccountIss,
-    expiresIn: 60,
-  });
-  return token;
 };
 
 export const authCoreJwtVerify = (token) => {
