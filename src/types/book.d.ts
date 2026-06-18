@@ -3,6 +3,7 @@
 import type { z } from 'zod';
 import type {
   BookContributorSchema,
+  BookSignatureImageSchema,
   BookFreeClaimResponseSchema,
   BookGiftInfoSchema,
   BookPurchaseCommissionFilteredSchema,
@@ -20,6 +21,8 @@ import type {
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
 export type BookContributor = z.infer<typeof BookContributorSchema>;
+
+export type BookSignatureImage = z.infer<typeof BookSignatureImageSchema>;
 
 export interface BookPurchaseData {
   id?: string;
@@ -145,7 +148,7 @@ export interface NFTBookListingInfo {
   enableCustomMessagePage?: boolean;
   tableOfContents?: any;
   signedMessageText?: string;
-  enableSignatureImage?: boolean | 'signed';
+  enableSignatureImage?: BookSignatureImage;
   recommendedClassIds?: string[];
   inLanguage?: string;
   name?: string;
