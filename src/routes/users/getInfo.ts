@@ -11,9 +11,7 @@ import {
 } from '../../util/ValidationHelper';
 import {
   getUserWithCivicLikerProperties,
-  getUserAgentIsApp,
 } from '../../util/api/users';
-import { lazyUpdateAppMetaData } from '../../util/api/users/app';
 
 const router = Router();
 
@@ -37,9 +35,6 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
         lastAccessedTs: Date.now(),
       }, { merge: true });
-      if (getUserAgentIsApp(req)) {
-        lazyUpdateAppMetaData(req, payload);
-      }
     } else {
       res.sendStatus(404);
     }

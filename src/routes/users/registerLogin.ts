@@ -20,11 +20,9 @@ import {
   clearAuthCookies,
   userOrWalletByEmailQuery,
   normalizeUserEmail,
-  getUserAgentIsApp,
   checkEVMSignPayload,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
-import { handleAppReferrer, handleUpdateAppMetaData } from '../../util/api/users/app';
 import { ValidationError } from '../../util/ValidationError';
 import { supportedLocales, defaultLocale } from '../../locales';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
@@ -99,7 +97,6 @@ router.post(
   async (req, res, next) => {
     const {
       platform,
-      appReferrer,
       user,
       displayName,
       description,
@@ -265,13 +262,6 @@ router.post(
         ...userPayload,
         logType: 'eventUserRegister',
       });
-      if (getUserAgentIsApp(req)) {
-        if (appReferrer) {
-          await handleAppReferrer(req, userPayload, appReferrer);
-        } else {
-          await handleUpdateAppMetaData(req, userPayload);
-        }
-      }
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'eventRegisterError',
@@ -500,7 +490,6 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
     let authCoreUserId;
     const {
       platform,
-      appReferrer,
       sourceURL,
       utmSource,
     } = req.body;
@@ -650,14 +639,6 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
             sourceURL,
             utmSource,
           });
-        }
-      }
-      if (getUserAgentIsApp(req)) {
-        const userObject = { user, ...doc.data() };
-        if (appReferrer) {
-          await handleAppReferrer(req, userObject, appReferrer);
-        } else {
-          await handleUpdateAppMetaData(req, userObject);
         }
       }
     } else {

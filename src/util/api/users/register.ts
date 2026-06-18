@@ -7,7 +7,6 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
   IS_TESTNET,
-  EXTERNAL_HOSTNAME,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -16,7 +15,6 @@ import {
   normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
-  getUserAgentIsApp,
 } from '.';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
@@ -94,13 +92,11 @@ export async function handleUserRegistration({
     email,
     phone,
     utmSource,
+    sourceURL,
   } = payload;
-  let { sourceURL, isEmailEnabled = true } = payload;
+  let { isEmailEnabled = true } = payload;
 
   isEmailEnabled = getBool(isEmailEnabled);
-  if (getUserAgentIsApp(req) && !sourceURL) {
-    sourceURL = `https://${EXTERNAL_HOSTNAME}/in/getapp`;
-  }
 
   if (!checkUserNameValid(user)) throw new ValidationError('INVALID_USER_ID');
   if (!cosmosWallet && !likeWallet && !rawEvmWallet) {

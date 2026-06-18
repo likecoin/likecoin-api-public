@@ -53,20 +53,6 @@ function getAuthCookieOptions(req) {
   };
 }
 
-export function getUserAgentIsApp(req) {
-  const { 'user-agent': userAgent = '' } = req.headers;
-  return (userAgent.includes('LikeCoinApp'));
-}
-
-export function getUserAgentPlatform(req) {
-  const { 'user-agent': userAgent = '' } = req.headers;
-  if (userAgent.includes('LikeCoinApp')) {
-    if (userAgent.includes('Android')) return 'android';
-    if (userAgent.includes('iOS')) return 'ios';
-  }
-  return 'web';
-}
-
 export function clearAuthCookies(req, res) {
   res.clearCookie('likecoin_auth', getAuthCookieOptions(req));
   res.clearCookie('likecoin_auth', getOldAuthCookieOptions(req));
