@@ -2,28 +2,21 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { parseImageURLFromMetadata } from '../metadata';
 import { buildItemId } from '../../../analyticsEvents';
 import {
-  getAuthorNameFromMetadata,
-  getPublisherNameFromMetadata,
-  getLocalizedTextWithFallback,
-  listLatestNFTBookInfo,
-} from './index';
+  listCatalogEligibleBooks,
+  isBookPriceInStock,
+  getCatalogVariantTitle,
+  formatCatalogPriceUSD,
+  normalizeISBNToGTIN,
+  resolveCatalogBrand,
+} from './catalogSource';
+import { buildCatalogCSV } from './catalogCSV';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
-
-const META_CATALOG_LOCALE = 'en';
-// Per Meta's catalog spec, `brand` should be the product's real brand, not the
-// storefront name. On an independent-author storefront the author is the
-// strongest brand signal, so prefer author, fall back to publisher/imprint,
-// then `3ook.com` as a last resort. Category mirrors `product:category` in
-// liker-land-v3's use-structured-data.ts.
-const META_CATALOG_FALLBACK_BRAND = '3ook.com';
+// Category mirrors `product:category` in liker-land-v3's use-structured-data.ts.
 const META_CATALOG_GOOGLE_PRODUCT_CATEGORY = 'Media > Books > E-Books';
 // `fb_product_category` uses Meta's own product taxonomy (distinct from Google's
 // taxonomy above) and is a required column in Meta's official catalog CSV
 // template. Books map to "Media > Books".
 const META_CATALOG_FB_PRODUCT_CATEGORY = 'Media > Books';
-// Meta limits a single catalog feed to 200k products; books listings are
-// nowhere near that today, but cap defensively to keep the response bounded.
-const META_CATALOG_MAX_BOOKS = 5000;
 
 /* eslint-disable camelcase -- Meta product catalog field names must be snake_case per spec */
 export interface MetaCatalogItem {
@@ -72,12 +65,6 @@ const META_CATALOG_CSV_COLUMNS: Array<keyof MetaCatalogItem> = [
 ];
 /* eslint-enable camelcase */
 
-function formatPrice(price: NFTBookPrice): string {
-  // priceInDecimal is in USD minor units (cents) — matches the Stripe
-  // product created in createStripeProductFromNFTBookPrice.
-  return `${(price.priceInDecimal / 100).toFixed(2)} USD`;
-}
-
 function buildItem(
   book: NFTBookListingInfo,
   classId: string,
@@ -92,26 +79,17 @@ function buildItem(
   if (!imageSource) return null;
   const image = parseImageURLFromMetadata(imageSource);
 
-  const priceName = price.name
-    ? getLocalizedTextWithFallback(price.name, META_CATALOG_LOCALE)
-    : '';
-  const title = priceName ? `${baseTitle} - ${priceName}` : baseTitle;
   const description = book.descriptionFull || book.description || baseTitle;
-  // `price.stock` is a remaining counter (decremented at sale time in
-  // purchase.ts), not a total. Mirrors the canonical sold-out check in
-  // cart.ts and ValidationHelper.ts.
-  const inStock = price.isAutoDeliver || price.stock === undefined || price.stock > 0;
-  const author = getAuthorNameFromMetadata(book.author);
-  const publisher = getPublisherNameFromMetadata(book.publisher);
-  const brand = author || publisher || META_CATALOG_FALLBACK_BRAND;
+  const inStock = isBookPriceInStock(price);
+  const { author, publisher, brand } = resolveCatalogBrand(book);
 
   const item: MetaCatalogItem = {
     id: buildItemId(classId, priceIndex),
-    title,
+    title: getCatalogVariantTitle(baseTitle, price),
     description,
     availability: inStock ? 'in stock' : 'out of stock',
     condition: 'new',
-    price: formatPrice(price),
+    price: formatCatalogPriceUSD(price),
     link: getBook3NFTClassPageURL({ classId, priceIndex }),
     image_link: image,
     brand,
@@ -125,60 +103,23 @@ function buildItem(
   // stay filterable in Commerce Manager regardless of which won the brand slot.
   if (author) item.custom_label_1 = author;
   if (publisher) item.custom_label_2 = publisher;
-  // `book.isbn` holds an ISBN, and only ISBN-13 (13 digits) is a valid GTIN.
-  // Normalize to bare digits and drop hyphenated/ISBN-10/malformed values
-  // rather than risk Meta feed validation errors.
-  if (book.isbn) {
-    const gtin = book.isbn.replace(/\D/g, '');
-    if (gtin.length === 13) item.gtin = gtin;
-  }
+  const gtin = normalizeISBNToGTIN(book.isbn);
+  if (gtin) item.gtin = gtin;
   return item;
 }
 
 export async function getMetaProductCatalogItems(): Promise<MetaCatalogItem[]> {
-  const books = await listLatestNFTBookInfo({
-    chain: 'base',
-    limit: META_CATALOG_MAX_BOOKS,
-  });
+  const books = await listCatalogEligibleBooks();
   const items: MetaCatalogItem[] = [];
-  books.forEach((book) => {
-    const data = book as NFTBookListingInfo;
-    // `isApprovedForAds === false` is an explicit admin denial; `undefined` means legacy/unset
-    // and defaults to approved (see ValidationHelper.ts), so we filter only on the explicit false.
-    if (
-      data.isHidden
-      || data.redirectClassId
-      || data.isAdultOnly
-      || data.isApprovedForAds === false
-    ) return;
-    const classId = data.classId || book.id;
-    (data.prices || []).forEach((p, priceIndex) => {
-      const item = buildItem(data, classId, p, priceIndex);
+  books.forEach(({ book, classId }) => {
+    (book.prices || []).forEach((p, priceIndex) => {
+      const item = buildItem(book, classId, p, priceIndex);
       if (item) items.push(item);
     });
   });
   return items;
 }
 
-// Defang spreadsheet formula injection (CWE-1236): publisher-supplied fields
-// (title/description/brand/author/publisher) could start with a formula trigger.
-// Meta ingests
-// the value as-is, but an admin opening the downloaded feed in Excel/Sheets
-// would otherwise evaluate it. Prefix a single quote per OWASP, before the
-// RFC 4180 quoting below so quoted cells are defanged too.
-// RFC 4180: wrap a field in double quotes when it contains a comma, quote, or
-// line break, and escape embedded quotes by doubling them. Book descriptions
-// routinely contain all three, so this keeps columns from shifting.
-function escapeCSVField(value: string | undefined): string {
-  if (!value) return '';
-  const defanged = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(defanged) ? `"${defanged.replace(/"/g, '""')}"` : defanged;
-}
-
 export function formatMetaProductCatalogCSV(items: MetaCatalogItem[]): string {
-  const header = META_CATALOG_CSV_COLUMNS.join(',');
-  const rows = items.map((item) => META_CATALOG_CSV_COLUMNS
-    .map((col) => escapeCSVField(item[col]))
-    .join(','));
-  return `${header}\n${rows.join('\n')}`;
+  return buildCatalogCSV(META_CATALOG_CSV_COLUMNS, items);
 }

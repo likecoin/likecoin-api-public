@@ -196,7 +196,8 @@ export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
-export const BookCatalogMetaQuerySchema = z.object({
+// Shared by the Meta and OpenAI catalog routes — both select output via `format`.
+export const BookCatalogQuerySchema = z.object({
   format: z.string().optional(),
 }).passthrough();
 
@@ -561,6 +562,70 @@ export const BookCatalogMetaResponseSchema = z.object({
     custom_label_0: z.string().optional(),
     custom_label_1: z.string().optional(),
     custom_label_2: z.string().optional(),
+  })),
+});
+
+// Mirrors the OpenAI commerce API product schema (Product → Variant) built in
+// src/util/api/likernft/book/openaiCatalog.ts. Field names are snake_case per spec.
+const OpenAICatalogMediaSchema = z.object({
+  type: z.literal('image'),
+  url: z.string(),
+});
+export const BookCatalogOpenAIResponseSchema = z.object({
+  products: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.object({ plain: z.string() }),
+    url: z.string(),
+    media: z.array(OpenAICatalogMediaSchema),
+    variants: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      url: z.string(),
+      price: z.object({
+        amount: z.number(),
+        currency: z.string(),
+      }),
+      availability: z.object({
+        available: z.boolean(),
+        status: z.enum(['in_stock', 'out_of_stock']),
+      }),
+      condition: z.array(z.string()),
+      categories: z.array(z.object({ name: z.string() })),
+      media: z.array(OpenAICatalogMediaSchema),
+      barcodes: z.array(z.object({
+        type: z.string(),
+        value: z.string(),
+      })).optional(),
+    })),
+  })),
+});
+
+// Mirrors OpenAIFeedItem (openaiCatalog.ts) — the flat file-upload feed. Boolean
+// and list fields are emitted as strings so one item serializes to CSV or JSON.
+export const BookCatalogOpenAIFeedResponseSchema = z.object({
+  products: z.array(z.object({
+    item_id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    url: z.string(),
+    brand: z.string(),
+    image_url: z.string(),
+    price: z.string(),
+    availability: z.enum(['in_stock', 'out_of_stock']),
+    condition: z.string(),
+    product_category: z.string(),
+    group_id: z.string(),
+    listing_has_variations: z.string(),
+    is_digital: z.string(),
+    is_eligible_search: z.string(),
+    is_eligible_checkout: z.string(),
+    seller_name: z.string(),
+    seller_url: z.string(),
+    return_policy: z.string(),
+    store_country: z.string(),
+    target_countries: z.string().optional(),
+    gtin: z.string().optional(),
   })),
 });
 
