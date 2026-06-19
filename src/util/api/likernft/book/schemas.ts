@@ -12,6 +12,9 @@ const LocalizedTextMap = z.record(z.string(), z.string())
     { message: `default locale "${NFT_BOOK_TEXT_DEFAULT_LOCALE}" is required` },
   );
 
+// EVM auto-deliver books use a numeric placeholder (0); Cosmos NFTs use string ids.
+const NFTIdSchema = z.union([z.string(), z.number()]).optional();
+
 export const PriceInDecimalByCurrencySchema = z.record(
   z.enum(BOOK_PRICE_OVERRIDE_CURRENCIES),
   z.number().int().min(0),
@@ -262,7 +265,7 @@ export const BookCartClaimResponseSchema = z.object({
   classIds: z.array(z.string()),
   newClaimedNFTs: z.array(z.object({
     classId: z.string(),
-    nftId: z.string().optional(),
+    nftId: NFTIdSchema,
   })),
   allItemsAutoClaimed: z.boolean(),
   errors: z.array(z.object({
@@ -530,7 +533,7 @@ export const BookUserConnectRefreshResponseSchema = z.object({
 
 // claimNFTBook returns the claimed NFT id (absent when nothing was auto-minted).
 export const BookClaimResponseSchema = z.object({
-  nftId: z.string().optional(),
+  nftId: NFTIdSchema,
 });
 
 // Mirrors MetaCatalogItem (src/util/api/likernft/book/metaCatalog.ts); Meta feed
