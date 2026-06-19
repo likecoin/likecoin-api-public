@@ -34,8 +34,10 @@ import {
   BookClassIdPriceIndexParamsSchema,
   BookSearchQuerySchema,
   BookListQuerySchema,
-  BookCatalogMetaQuerySchema,
+  BookCatalogQuerySchema,
   BookCatalogMetaResponseSchema,
+  BookCatalogOpenAIResponseSchema,
+  BookCatalogOpenAIFeedResponseSchema,
   BookListResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
@@ -88,6 +90,11 @@ import {
 } from '../../../util/pricing';
 import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
 import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../../util/api/likernft/book/metaCatalog';
+import {
+  getOpenAIProductCatalogItems,
+  getOpenAIFeedItems,
+  formatOpenAIFeedCSV,
+} from '../../../util/api/likernft/book/openaiCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -127,7 +134,7 @@ router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, nex
   }
 });
 
-router.get('/catalog/meta', validateQuery(BookCatalogMetaQuerySchema), async (req, res, next) => {
+router.get('/catalog/meta', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
   try {
     const items = await getMetaProductCatalogItems();
     res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
@@ -138,6 +145,30 @@ router.get('/catalog/meta', validateQuery(BookCatalogMetaQuerySchema), async (re
       return;
     }
     sendValidatedJSON(res, BookCatalogMetaResponseSchema, { items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Search-only OpenAI catalog. `format` selects the representation, mirroring
+// the Meta route: default → flat file-upload feed (JSON), `csv` → that feed as
+// CSV, `api` → the nested API model (Product → Variant) JSON.
+router.get('/catalog/openai', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
+  try {
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    if (req.query.format === 'api') {
+      const products = await getOpenAIProductCatalogItems();
+      sendValidatedJSON(res, BookCatalogOpenAIResponseSchema, { products });
+      return;
+    }
+    const items = await getOpenAIFeedItems();
+    if (req.query.format === 'csv') {
+      res.type('text/csv; charset=utf-8');
+      res.set('Content-Disposition', 'attachment; filename="openai-catalog.csv"');
+      res.send(formatOpenAIFeedCSV(items));
+      return;
+    }
+    sendValidatedJSON(res, BookCatalogOpenAIFeedResponseSchema, { products: items });
   } catch (err) {
     next(err);
   }
