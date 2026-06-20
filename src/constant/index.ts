@@ -197,7 +197,7 @@ export type SupportedPlusCurrency = typeof SUPPORTED_PLUS_CURRENCIES[number];
 export const SUPPORTED_CHECKOUT_UI_MODES = ['hosted', 'embedded'] as const;
 export type SupportedCheckoutUIMode = typeof SUPPORTED_CHECKOUT_UI_MODES[number];
 
-export const PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD = 14;
+export const PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD = 7;
 export const PLUS_PAID_TRIAL_PRICE = 1;
 
 export const CHAIN_EXPLORER_URL = IS_TESTNET ? 'https://sepolia.basescan.org' : 'https://basescan.org';
