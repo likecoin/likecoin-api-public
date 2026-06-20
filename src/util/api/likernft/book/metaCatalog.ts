@@ -11,10 +11,10 @@ import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
 const META_CATALOG_LOCALE = 'en';
 // Per Meta's catalog spec, `brand` should be the product's real brand, not the
-// storefront name. For books the brand convention is the publisher/imprint, so
-// prefer publisher, fall back to author (self-published), then `3ook.com` as a
-// last resort. Category mirrors `product:category` in liker-land-v3's
-// use-structured-data.ts.
+// storefront name. On an independent-author storefront the author is the
+// strongest brand signal, so prefer author, fall back to publisher/imprint,
+// then `3ook.com` as a last resort. Category mirrors `product:category` in
+// liker-land-v3's use-structured-data.ts.
 const META_CATALOG_FALLBACK_BRAND = '3ook.com';
 const META_CATALOG_GOOGLE_PRODUCT_CATEGORY = 'Media > Books > E-Books';
 // `fb_product_category` uses Meta's own product taxonomy (distinct from Google's
@@ -41,6 +41,8 @@ export interface MetaCatalogItem {
   fb_product_category: string;
   gtin?: string;
   custom_label_0?: string;
+  custom_label_1?: string;
+  custom_label_2?: string;
 }
 /* eslint-enable camelcase */
 
@@ -65,6 +67,8 @@ const META_CATALOG_CSV_COLUMNS: Array<keyof MetaCatalogItem> = [
   'item_group_id',
   'gtin',
   'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
 ];
 /* eslint-enable camelcase */
 
@@ -99,7 +103,7 @@ function buildItem(
   const inStock = price.isAutoDeliver || price.stock === undefined || price.stock > 0;
   const author = getAuthorNameFromMetadata(book.author);
   const publisher = getPublisherNameFromMetadata(book.publisher);
-  const brand = publisher || author || META_CATALOG_FALLBACK_BRAND;
+  const brand = author || publisher || META_CATALOG_FALLBACK_BRAND;
 
   const item: MetaCatalogItem = {
     id: buildItemId(classId, priceIndex),
@@ -117,6 +121,10 @@ function buildItem(
   };
   // Mirrors `product:custom_label_0` in liker-land-v3 (owner wallet address).
   if (book.ownerWallet) item.custom_label_0 = book.ownerWallet;
+  // Expose author/publisher as their own labels (separate from `brand`) so both
+  // stay filterable in Commerce Manager regardless of which won the brand slot.
+  if (author) item.custom_label_1 = author;
+  if (publisher) item.custom_label_2 = publisher;
   // `book.isbn` holds an ISBN, and only ISBN-13 (13 digits) is a valid GTIN.
   // Normalize to bare digits and drop hyphenated/ISBN-10/malformed values
   // rather than risk Meta feed validation errors.
@@ -153,7 +161,8 @@ export async function getMetaProductCatalogItems(): Promise<MetaCatalogItem[]> {
 }
 
 // Defang spreadsheet formula injection (CWE-1236): publisher-supplied fields
-// (title/description/brand) could start with a formula trigger. Meta ingests
+// (title/description/brand/author/publisher) could start with a formula trigger.
+// Meta ingests
 // the value as-is, but an admin opening the downloaded feed in Excel/Sheets
 // would otherwise evaluate it. Prefix a single quote per OWASP, before the
 // RFC 4180 quoting below so quoted cells are defanged too.
