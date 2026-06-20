@@ -554,6 +554,8 @@ export const BookCatalogMetaResponseSchema = z.object({
     fb_product_category: z.string(),
     gtin: z.string().optional(),
     custom_label_0: z.string().optional(),
+    custom_label_1: z.string().optional(),
+    custom_label_2: z.string().optional(),
   })),
 });
 

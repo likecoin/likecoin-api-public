@@ -67,18 +67,21 @@ describe('getMetaProductCatalogItems', () => {
     expect(item.availability).toBe('in stock');
     expect(item.condition).toBe('new');
     expect(item.price).toBe('15.00 USD');
-    // publisher wins over author for `brand`
-    expect(item.brand).toBe('Penguin');
+    // author wins over publisher for `brand`
+    expect(item.brand).toBe('Jane Doe');
     expect(item.item_group_id).toBe('class-a');
     expect(item.google_product_category).toBe('Media > Books > E-Books');
     expect(item.fb_product_category).toBe('Media > Books');
     // hyphenated ISBN-13 normalized to a 13-digit GTIN
     expect(item.gtin).toBe('9783161484100');
     expect(item.custom_label_0).toBe('0xabc');
+    // author and publisher emitted as their own labels regardless of brand
+    expect(item.custom_label_1).toBe('Jane Doe');
+    expect(item.custom_label_2).toBe('Penguin');
     expect(item.link).toContain('/store/class-a');
   });
 
-  it('falls back brand to author, then 3ook.com, and drops invalid GTINs', async () => {
+  it('uses author when present; otherwise falls back brand to publisher, then 3ook.com, and drops invalid GTINs', async () => {
     setBooks([
       {
         id: 'class-f',
@@ -90,6 +93,16 @@ describe('getMetaProductCatalogItems', () => {
         ownerWallet: '0xfff',
         description: 'short',
         prices: [{ priceInDecimal: 999, stock: 0, isAutoDeliver: false }],
+      },
+      {
+        id: 'class-p',
+        classId: 'class-p',
+        name: 'Imprint Work',
+        image: 'https://img.example/p.jpg',
+        publisher: 'Penguin', // no author → publisher
+        ownerWallet: '0xppp',
+        description: 'desc',
+        prices: [{ priceInDecimal: 700, stock: 2 }],
       },
       {
         id: 'class-i',
@@ -110,6 +123,10 @@ describe('getMetaProductCatalogItems', () => {
     expect(solo?.availability).toBe('out of stock');
     expect(solo?.price).toBe('9.99 USD');
     expect(solo?.title).toBe('Solo Work');
+
+    const imprint = items.find((i) => i.id === 'class-p-0');
+    expect(imprint?.brand).toBe('Penguin');
+    expect(imprint?.custom_label_2).toBe('Penguin');
 
     const anon = items.find((i) => i.id === 'class-i-0');
     expect(anon?.brand).toBe('3ook.com');
@@ -171,19 +188,22 @@ describe('formatMetaProductCatalogCSV', () => {
     price: '15.00 USD',
     link: 'https://3ook.com/store/class-a?priceIndex=0',
     image_link: 'https://img.example/a.jpg',
-    brand: 'Penguin',
+    brand: 'Jane Doe',
     item_group_id: 'class-a',
     google_product_category: 'Media > Books > E-Books',
     fb_product_category: 'Media > Books',
     gtin: '9783161484100',
     custom_label_0: '0xabc',
+    custom_label_1: 'Jane Doe',
+    custom_label_2: 'Penguin',
   };
 
   it('emits the template header in column order', () => {
     const [header] = formatMetaProductCatalogCSV([]).split('\n');
     expect(header).toBe(
       'id,title,description,availability,condition,price,link,image_link,brand,'
-      + 'google_product_category,fb_product_category,item_group_id,gtin,custom_label_0',
+      + 'google_product_category,fb_product_category,item_group_id,gtin,'
+      + 'custom_label_0,custom_label_1,custom_label_2',
     );
   });
 
@@ -191,8 +211,8 @@ describe('formatMetaProductCatalogCSV', () => {
     const [, row] = formatMetaProductCatalogCSV([baseItem]).split('\n');
     expect(row).toBe(
       'class-a-0,The Great Book,Full description,in stock,new,15.00 USD,'
-      + 'https://3ook.com/store/class-a?priceIndex=0,https://img.example/a.jpg,Penguin,'
-      + 'Media > Books > E-Books,Media > Books,class-a,9783161484100,0xabc',
+      + 'https://3ook.com/store/class-a?priceIndex=0,https://img.example/a.jpg,Jane Doe,'
+      + 'Media > Books > E-Books,Media > Books,class-a,9783161484100,0xabc,Jane Doe,Penguin',
     );
   });
 
@@ -222,8 +242,10 @@ describe('formatMetaProductCatalogCSV', () => {
     const withoutOptional: MetaCatalogItem = { ...baseItem };
     delete withoutOptional.gtin;
     delete withoutOptional.custom_label_0;
+    delete withoutOptional.custom_label_1;
+    delete withoutOptional.custom_label_2;
     const [, row] = formatMetaProductCatalogCSV([withoutOptional]).split('\n');
-    // trailing gtin and custom_label_0 columns are empty
-    expect(row.endsWith('class-a,,')).toBe(true);
+    // trailing gtin and custom_label_0/1/2 columns are empty
+    expect(row.endsWith('class-a,,,,')).toBe(true);
   });
 });
