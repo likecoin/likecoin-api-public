@@ -81,7 +81,7 @@ describe('getMetaProductCatalogItems', () => {
     expect(item.link).toContain('/store/class-a');
   });
 
-  it('falls back brand to publisher, then 3ook.com, and drops invalid GTINs', async () => {
+  it('uses author when present; otherwise falls back brand to publisher, then 3ook.com, and drops invalid GTINs', async () => {
     setBooks([
       {
         id: 'class-f',
