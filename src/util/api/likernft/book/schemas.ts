@@ -523,7 +523,7 @@ export const BookUserConnectStatusResponseSchema = z.object({
   hasAccount: z.boolean(),
   isReady: z.boolean().optional(),
   stripeConnectAccountId: z.string().optional(),
-  email: z.string().optional(),
+  email: z.string().nullable().optional(),
 });
 export type BookUserConnectStatusResponse = z.infer<typeof BookUserConnectStatusResponseSchema>;
 
