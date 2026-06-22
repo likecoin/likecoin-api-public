@@ -196,7 +196,7 @@ export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
-// Shared by the Meta and OpenAI catalog routes — both select output via `format`.
+// Shared by the Meta, OpenAI, and Stripe catalog routes — output is selected via `format`.
 export const BookCatalogQuerySchema = z.object({
   format: z.string().optional(),
 }).passthrough();
@@ -626,6 +626,30 @@ export const BookCatalogOpenAIFeedResponseSchema = z.object({
     store_country: z.string(),
     target_countries: z.string().optional(),
     gtin: z.string().optional(),
+  })),
+});
+
+// Mirrors StripeFeedItem (stripeCatalog.ts) — the Stripe Agentic Commerce feed.
+// Google-Shopping field dialect; boolean fields are strings so one item
+// serializes to CSV or JSON.
+export const BookCatalogStripeResponseSchema = z.object({
+  products: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    link: z.string(),
+    image_link: z.string(),
+    price: z.string(),
+    availability: z.enum(['in_stock', 'out_of_stock']),
+    inventory_not_tracked: z.string(),
+    condition: z.string(),
+    brand: z.string(),
+    google_product_category: z.string(),
+    item_group_id: z.string(),
+    item_group_title: z.string(),
+    disable_checkout: z.string(),
+    gtin: z.string().optional(),
+    stripe_product_tax_code: z.string().optional(),
   })),
 });
 
