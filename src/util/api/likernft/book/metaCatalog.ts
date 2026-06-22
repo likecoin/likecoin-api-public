@@ -1,16 +1,6 @@
-import { getBook3NFTClassPageURL } from '../../../liker-land';
-import { parseImageURLFromMetadata } from '../metadata';
-import { buildItemId } from '../../../analyticsEvents';
-import {
-  listCatalogEligibleBooks,
-  isBookPriceInStock,
-  getCatalogVariantTitle,
-  formatCatalogPriceUSD,
-  normalizeISBNToGTIN,
-  resolveCatalogBrand,
-} from './catalogSource';
+import { listCatalogVariants } from './catalogSource';
+import type { CatalogVariant } from './catalogSource';
 import { buildCatalogCSV } from './catalogCSV';
-import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 // Category mirrors `product:category` in liker-land-v3's use-structured-data.ts.
 const META_CATALOG_GOOGLE_PRODUCT_CATEGORY = 'Media > Books > E-Books';
 // `fb_product_category` uses Meta's own product taxonomy (distinct from Google's
@@ -65,59 +55,34 @@ const META_CATALOG_CSV_COLUMNS: Array<keyof MetaCatalogItem> = [
 ];
 /* eslint-enable camelcase */
 
-function buildItem(
-  book: NFTBookListingInfo,
-  classId: string,
-  price: NFTBookPrice,
-  priceIndex: number,
-): MetaCatalogItem | null {
-  if (price.isUnlisted) return null;
-  if (!Number.isFinite(price.priceInDecimal) || price.priceInDecimal <= 0) return null;
-  const baseTitle = book.name;
-  if (!baseTitle) return null;
-  const imageSource = book.image || book.thumbnailUrl;
-  if (!imageSource) return null;
-  const image = parseImageURLFromMetadata(imageSource);
-
-  const description = book.descriptionFull || book.description || baseTitle;
-  const inStock = isBookPriceInStock(price);
-  const { author, publisher, brand } = resolveCatalogBrand(book);
-
+function buildItem(v: CatalogVariant): MetaCatalogItem {
   const item: MetaCatalogItem = {
-    id: buildItemId(classId, priceIndex),
-    title: getCatalogVariantTitle(baseTitle, price),
-    description,
-    availability: inStock ? 'in stock' : 'out of stock',
+    id: v.id,
+    title: v.title,
+    description: v.description,
+    availability: v.inStock ? 'in stock' : 'out of stock',
     condition: 'new',
-    price: formatCatalogPriceUSD(price),
-    link: getBook3NFTClassPageURL({ classId, priceIndex }),
-    image_link: image,
-    brand,
-    item_group_id: classId,
+    price: v.priceUSD,
+    link: v.link,
+    image_link: v.image,
+    brand: v.brand,
+    item_group_id: v.classId,
     google_product_category: META_CATALOG_GOOGLE_PRODUCT_CATEGORY,
     fb_product_category: META_CATALOG_FB_PRODUCT_CATEGORY,
   };
   // Mirrors `product:custom_label_0` in liker-land-v3 (owner wallet address).
-  if (book.ownerWallet) item.custom_label_0 = book.ownerWallet;
+  if (v.book.ownerWallet) item.custom_label_0 = v.book.ownerWallet;
   // Expose author/publisher as their own labels (separate from `brand`) so both
   // stay filterable in Commerce Manager regardless of which won the brand slot.
-  if (author) item.custom_label_1 = author;
-  if (publisher) item.custom_label_2 = publisher;
-  const gtin = normalizeISBNToGTIN(book.isbn);
-  if (gtin) item.gtin = gtin;
+  if (v.author) item.custom_label_1 = v.author;
+  if (v.publisher) item.custom_label_2 = v.publisher;
+  if (v.gtin) item.gtin = v.gtin;
   return item;
 }
 
 export async function getMetaProductCatalogItems(): Promise<MetaCatalogItem[]> {
-  const books = await listCatalogEligibleBooks();
-  const items: MetaCatalogItem[] = [];
-  books.forEach(({ book, classId }) => {
-    (book.prices || []).forEach((p, priceIndex) => {
-      const item = buildItem(book, classId, p, priceIndex);
-      if (item) items.push(item);
-    });
-  });
-  return items;
+  const variants = await listCatalogVariants();
+  return variants.map(buildItem);
 }
 
 export function formatMetaProductCatalogCSV(items: MetaCatalogItem[]): string {

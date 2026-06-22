@@ -1,3 +1,6 @@
+import { getBook3NFTClassPageURL } from '../../../liker-land';
+import { parseImageURLFromMetadata } from '../metadata';
+import { buildItemId } from '../../../analyticsEvents';
 import {
   listLatestNFTBookInfo,
   getLocalizedTextWithFallback,
@@ -85,4 +88,72 @@ export async function listCatalogEligibleBooks(): Promise<CatalogBook[]> {
     result.push({ book: data, classId: data.classId || book.id });
   });
   return result;
+}
+
+// A single sellable variant, normalized once so the flat feeds (Meta, OpenAI,
+// Stripe) are pure schema mappers and share one definition of which variants
+// are valid (listed, positively priced, on a book with a name and image).
+export interface CatalogVariant {
+  book: NFTBookListingInfo;
+  classId: string;
+  priceIndex: number;
+  price: NFTBookPrice;
+  id: string;
+  title: string;
+  baseTitle: string;
+  description: string;
+  link: string;
+  image: string;
+  brand: string;
+  author: string;
+  publisher: string;
+  inStock: boolean;
+  priceUSD: string;
+  hasVariations: boolean;
+  gtin?: string;
+}
+
+export async function listCatalogVariants(): Promise<CatalogVariant[]> {
+  const books = await listCatalogEligibleBooks();
+  const variants: CatalogVariant[] = [];
+  books.forEach(({ book, classId }) => {
+    const baseTitle = book.name;
+    if (!baseTitle) return;
+    const imageSource = book.image || book.thumbnailUrl;
+    if (!imageSource) return;
+    const image = parseImageURLFromMetadata(imageSource);
+    const { author, publisher, brand } = resolveCatalogBrand(book);
+    const description = book.descriptionFull || book.description || baseTitle;
+    const gtin = normalizeISBNToGTIN(book.isbn);
+    // Keep the original priceIndex (used for ids/URLs) while filtering to the
+    // sellable prices, so hasVariations reflects emitted variants, not raw count.
+    const eligiblePrices = (book.prices || [])
+      .map((price, priceIndex) => ({ price, priceIndex }))
+      .filter(({ price }) => !price.isUnlisted
+        && Number.isFinite(price.priceInDecimal)
+        && price.priceInDecimal > 0);
+    const hasVariations = eligiblePrices.length > 1;
+    eligiblePrices.forEach(({ price, priceIndex }) => {
+      variants.push({
+        book,
+        classId,
+        priceIndex,
+        price,
+        id: buildItemId(classId, priceIndex),
+        title: getCatalogVariantTitle(baseTitle, price),
+        baseTitle,
+        description,
+        link: getBook3NFTClassPageURL({ classId, priceIndex }),
+        image,
+        brand,
+        author,
+        publisher,
+        inStock: isBookPriceInStock(price),
+        priceUSD: formatCatalogPriceUSD(price),
+        hasVariations,
+        gtin,
+      });
+    });
+  });
+  return variants;
 }

@@ -38,6 +38,7 @@ import {
   BookCatalogMetaResponseSchema,
   BookCatalogOpenAIResponseSchema,
   BookCatalogOpenAIFeedResponseSchema,
+  BookCatalogStripeResponseSchema,
   BookListResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
@@ -95,6 +96,7 @@ import {
   getOpenAIFeedItems,
   formatOpenAIFeedCSV,
 } from '../../../util/api/likernft/book/openaiCatalog';
+import { getStripeFeedItems, formatStripeFeedCSV } from '../../../util/api/likernft/book/stripeCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -169,6 +171,25 @@ router.get('/catalog/openai', validateQuery(BookCatalogQuerySchema), async (req,
       return;
     }
     sendValidatedJSON(res, BookCatalogOpenAIFeedResponseSchema, { products: items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Stripe Agentic Commerce product feed (Google-Shopping field dialect, uploaded
+// via Stripe's product_catalog import API). Mirrors the Meta route: default
+// JSON, `csv` returns the upload file.
+router.get('/catalog/stripe', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
+  try {
+    const items = await getStripeFeedItems();
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    if (req.query.format === 'csv') {
+      res.type('text/csv; charset=utf-8');
+      res.set('Content-Disposition', 'attachment; filename="stripe-catalog.csv"');
+      res.send(formatStripeFeedCSV(items));
+      return;
+    }
+    sendValidatedJSON(res, BookCatalogStripeResponseSchema, { products: items });
   } catch (err) {
     next(err);
   }

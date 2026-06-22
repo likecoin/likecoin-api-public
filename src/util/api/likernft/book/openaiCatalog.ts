@@ -3,12 +3,12 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { buildItemId } from '../../../analyticsEvents';
 import {
   listCatalogEligibleBooks,
+  listCatalogVariants,
   isBookPriceInStock,
   getCatalogVariantTitle,
-  formatCatalogPriceUSD,
   normalizeISBNToGTIN,
-  resolveCatalogBrand,
 } from './catalogSource';
+import type { CatalogVariant } from './catalogSource';
 import { buildCatalogCSV } from './catalogCSV';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
@@ -222,34 +222,20 @@ const OPENAI_FEED_CSV_COLUMNS: Array<keyof OpenAIFeedItem> = [
 ];
 /* eslint-enable camelcase */
 
-function buildFeedItem(
-  book: NFTBookListingInfo,
-  baseTitle: string,
-  description: string,
-  brand: string,
-  image: string,
-  classId: string,
-  hasVariations: boolean,
-  price: NFTBookPrice,
-  priceIndex: number,
-): OpenAIFeedItem | null {
-  if (price.isUnlisted) return null;
-  if (!Number.isFinite(price.priceInDecimal) || price.priceInDecimal <= 0) return null;
-
-  const inStock = isBookPriceInStock(price);
+function buildFeedItem(v: CatalogVariant): OpenAIFeedItem {
   const item: OpenAIFeedItem = {
-    item_id: buildItemId(classId, priceIndex),
-    title: getCatalogVariantTitle(baseTitle, price),
-    description,
-    url: getBook3NFTClassPageURL({ classId, priceIndex }),
-    brand,
-    image_url: image,
-    price: formatCatalogPriceUSD(price),
-    availability: inStock ? 'in_stock' : 'out_of_stock',
+    item_id: v.id,
+    title: v.title,
+    description: v.description,
+    url: v.link,
+    brand: v.brand,
+    image_url: v.image,
+    price: v.priceUSD,
+    availability: v.inStock ? 'in_stock' : 'out_of_stock',
     condition: 'new',
     product_category: OPENAI_FEED_CATEGORY,
-    group_id: classId,
-    listing_has_variations: hasVariations ? 'true' : 'false',
+    group_id: v.classId,
+    listing_has_variations: v.hasVariations ? 'true' : 'false',
     is_digital: 'true',
     is_eligible_search: 'true',
     is_eligible_checkout: 'false',
@@ -260,40 +246,13 @@ function buildFeedItem(
   };
   // Omitted by default to keep availability global (see constant above).
   if (OPENAI_FEED_TARGET_COUNTRIES) item.target_countries = OPENAI_FEED_TARGET_COUNTRIES;
-  const gtin = normalizeISBNToGTIN(book.isbn);
-  if (gtin) item.gtin = gtin;
+  if (v.gtin) item.gtin = v.gtin;
   return item;
 }
 
 export async function getOpenAIFeedItems(): Promise<OpenAIFeedItem[]> {
-  const books = await listCatalogEligibleBooks();
-  const items: OpenAIFeedItem[] = [];
-  books.forEach(({ book, classId }) => {
-    const baseTitle = book.name;
-    if (!baseTitle) return;
-    const imageSource = book.image || book.thumbnailUrl;
-    if (!imageSource) return;
-    const image = parseImageURLFromMetadata(imageSource);
-    const { brand } = resolveCatalogBrand(book);
-    const description = book.descriptionFull || book.description || baseTitle;
-    const prices = book.prices || [];
-    const hasVariations = prices.length > 1;
-    prices.forEach((p, priceIndex) => {
-      const item = buildFeedItem(
-        book,
-        baseTitle,
-        description,
-        brand,
-        image,
-        classId,
-        hasVariations,
-        p,
-        priceIndex,
-      );
-      if (item) items.push(item);
-    });
-  });
-  return items;
+  const variants = await listCatalogVariants();
+  return variants.map(buildFeedItem);
 }
 
 export function formatOpenAIFeedCSV(items: OpenAIFeedItem[]): string {
