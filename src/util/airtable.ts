@@ -104,13 +104,16 @@ export async function createAirtablePublicationRecord({
       ID: id,
       Name: typeof name === 'string' ? name : name.zh,
       Description: typeof description === 'string' ? description : description.zh,
-      Image: [{ url: normalizedImageURL }],
-      'Image URL': normalizedImageURL,
       'Min Price': minPrice,
       'Max Price': maxPrice,
       'DRM-free': isDRMFree,
       'In Library': isPlusReadingEnabled,
     };
+
+    if (normalizedImageURL) {
+      fields.Image = [{ url: normalizedImageURL }];
+      fields['Image URL'] = normalizedImageURL;
+    }
 
     if (priceRangeByCurrency) {
       for (const [currency, range] of Object.entries(priceRangeByCurrency)) {
