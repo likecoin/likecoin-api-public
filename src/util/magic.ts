@@ -38,7 +38,8 @@ export function verifyEmailByMagicUserMetadata(
   email: string,
   magicUserMetadata: MagicUserMetadata,
 ): boolean {
-  return !!magicUserMetadata.email && email === magicUserMetadata.email;
+  return !!email && !!magicUserMetadata.email
+    && email.toLowerCase() === magicUserMetadata.email.toLowerCase();
 }
 
 export async function verifyEmailByMagicDIDToken(

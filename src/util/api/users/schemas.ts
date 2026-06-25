@@ -32,10 +32,15 @@ export const UsersDeleteBodySchema = z.object({
 
 export const UsersUpdateBodySchema = z.object({
   email: z.string().email().optional(),
+  magicDIDToken: z.string().optional(),
   displayName: z.string().optional(),
   description: z.string().optional(),
   locale: z.string().optional(),
   isEmailEnabled: z.union([z.boolean(), z.string()]).optional(),
+});
+
+export const UsersEmailCheckBodySchema = z.object({
+  email: z.string().email(),
 });
 
 export const UsersUpdateAvatarBodySchema = z.object({

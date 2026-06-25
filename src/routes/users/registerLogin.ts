@@ -27,6 +27,7 @@ import { validateBody } from '../../middleware/validate';
 import {
   UsersUpdateAvatarBodySchema,
   UsersUpdateBodySchema,
+  UsersEmailCheckBodySchema,
   UsersRegisterBodySchema,
   UsersLoginBodySchema,
   UsersUpdateAvatarResponseSchema,
@@ -178,6 +179,7 @@ router.post(
       const { user } = req.user;
       const {
         email,
+        magicDIDToken,
         displayName,
         description,
         locale: inputLocale,
@@ -212,6 +214,7 @@ router.post(
         email: oldEmail,
         locale: oldLocale,
         authCoreUserId,
+        magicUserId,
       } = oldUserData;
 
       const updateObj: any = {
@@ -223,21 +226,39 @@ router.post(
 
       if (email) {
         if (authCoreUserId && oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
-        await userOrWalletByEmailQuery({ user }, email);
-        const {
-          normalizedEmail,
-          isEmailBlacklisted,
-          isEmailDuplicated,
-        } = await normalizeUserEmail(user, email);
-        if (normalizedEmail) {
-          updateObj.email = email;
-          updateObj.normalizedEmail = normalizedEmail;
-          updateObj.isEmailVerified = false;
-        } else {
-          throw new ValidationError('EMAIL_FORMAT_INCORRECT');
+        // Only re-run uniqueness/verification when the email actually changes, so
+        // resubmitting an unchanged email doesn't reset isEmailVerified for wallet users.
+        if (email.toLowerCase() !== (oldEmail || '').toLowerCase()) {
+          await userOrWalletByEmailQuery({ user }, email);
+          // Magic OTP-verifies email changes, so a DID token whose issuer matches the
+          // user's magicUserId lets us keep isEmailVerified; wallet users (no token)
+          // reset it. The issuer match stops a wallet user claiming verification.
+          let isEmailVerified = false;
+          if (magicDIDToken) {
+            const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
+            if (!magicUserId || magicUserMetadata.issuer !== magicUserId) {
+              throw new ValidationError('MAGIC_USER_MISMATCH');
+            }
+            if (!verifyEmailByMagicUserMetadata(email, magicUserMetadata)) {
+              throw new ValidationError('MAGIC_EMAIL_MISMATCH');
+            }
+            isEmailVerified = true;
+          }
+          const {
+            normalizedEmail,
+            isEmailBlacklisted,
+            isEmailDuplicated,
+          } = await normalizeUserEmail(user, email);
+          if (normalizedEmail) {
+            updateObj.email = email;
+            updateObj.normalizedEmail = normalizedEmail;
+            updateObj.isEmailVerified = isEmailVerified;
+          } else {
+            throw new ValidationError('EMAIL_FORMAT_INCORRECT');
+          }
+          if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
+          if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
         }
-        if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
-        if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
       }
 
       Object.keys(updateObj).forEach((key) => {
@@ -264,6 +285,24 @@ router.post(
         locale: locale || oldLocale,
         registerTime: timestamp,
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/email/check',
+  jwtAuth('write:profile'),
+  validateBody(UsersEmailCheckBodySchema),
+  async (req, res, next) => {
+    try {
+      const { user } = req.user;
+      const { email } = req.body;
+      // Advisory pre-check before triggering a Magic email change: throws
+      // EMAIL_ALREADY_USED if another user holds the email (self is excluded).
+      await userOrWalletByEmailQuery({ user }, email);
+      res.sendStatus(200);
     } catch (err) {
       next(err);
     }
