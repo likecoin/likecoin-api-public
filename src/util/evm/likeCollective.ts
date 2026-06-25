@@ -211,6 +211,7 @@ export async function depositLikeCollectiveReward(
       bookNFTAddress,
       rewardAmountInLIKE: rewardAmount.toString(),
       priceInUSD: (priceInDecimal / 100).toString(),
+      amountUSD: priceInDecimal / 100,
       customPriceDiffInUSD: (customPriceDiffInDecimal / 100).toString(),
       likePrice: likePrice.toString(),
       txHash,

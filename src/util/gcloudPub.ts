@@ -17,6 +17,15 @@ const topics = [
 const publisherWrapper = {};
 const ethNetwork = ETH_NETWORK_NAME;
 
+// A raw BigInt throws in JSON.stringify and would drop the whole message;
+// non-finite numbers are normalized to null so downstream sinks (ElasticSearch
+// dynamic mapping / BigQuery) get stable types.
+function pubsubJSONReplacer(_key: string, value: unknown) {
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number' && !Number.isFinite(value)) return null;
+  return value;
+}
+
 topics.forEach((topic) => {
   publisherWrapper[topic] = pubsub.topic(topic, {
     batching: {
@@ -54,7 +63,7 @@ const publisher = {
       });
     }
 
-    const data = JSON.stringify(obj);
+    const data = JSON.stringify(obj, pubsubJSONReplacer);
     const dataBuffer = Buffer.from(data);
     try {
       await publisherWrapper[publishTopic].publish(dataBuffer);
