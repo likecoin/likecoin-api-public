@@ -2,6 +2,7 @@
 import { readContract } from 'viem/actions';
 import { getAddress } from 'viem';
 import axios from 'axios';
+import LRU from 'lru-cache';
 import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client';
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
 import { sendWriteContractWithNonce } from './tx';
@@ -102,12 +103,22 @@ export function isEVMClassId(classId) {
   return classId.startsWith('0x');
 }
 
-export async function getNFTClassOwner(classId) {
+const nftClassOwnerCache = new LRU({ max: 4096, ttl: 10 * 60 * 1000 }); // 10 min
+
+export async function getNFTClassOwner(classId, { skipCache = false }: {
+  skipCache?: boolean;
+} = {}) {
+  const address = getAddress(classId);
+  if (!skipCache) {
+    const cachedOwner = nftClassOwnerCache.get(address);
+    if (cachedOwner !== undefined) return cachedOwner as string;
+  }
   const owner = await readContract(getEVMClient(), {
-    address: getAddress(classId),
+    address,
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'owner',
   });
+  nftClassOwnerCache.set(address, owner);
   return owner as string;
 }
 
@@ -121,9 +132,18 @@ export async function getNFTOwner(classId, tokenId: number) {
   return owner as string;
 }
 
-export async function getNFTClassDataById(classId) {
+const nftClassDataCache = new LRU({ max: 4096, ttl: 10 * 60 * 1000 }); // 10 min
+
+export async function getNFTClassDataById(classId, { skipCache = false }: {
+  skipCache?: boolean;
+} = {}) {
+  const address = getAddress(classId);
+  if (!skipCache) {
+    const cachedData = nftClassDataCache.get(address);
+    if (cachedData !== undefined) return cachedData;
+  }
   let dataString = await readContract(getEVMClient(), {
-    address: getAddress(classId),
+    address,
     abi: LIKE_NFT_CLASS_ABI,
     functionName: 'contractURI',
   }) as string;
@@ -137,7 +157,9 @@ export async function getNFTClassDataById(classId) {
   if (isBase64) {
     dataString = Buffer.from(dataString, 'base64').toString('utf-8');
   }
-  return JSON.parse(dataString);
+  const data = JSON.parse(dataString);
+  nftClassDataCache.set(address, data);
+  return data;
 }
 
 export async function getNFTClassBalanceOf(classId, wallet) {

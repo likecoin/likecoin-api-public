@@ -736,9 +736,11 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
     let ownerWallet = '';
 
+    // Bypass cache: a stale owner could let a prior owner pass the
+    // authorization check below for up to 10 min after a transfer.
     const [classData, classOwner] = await Promise.all([
-      getEVMNFTClassDataById(classId),
-      getEVMNFTClassOwner(classId),
+      getEVMNFTClassDataById(classId, { skipCache: true }),
+      getEVMNFTClassOwner(classId, { skipCache: true }),
     ]);
     const metadata = classData;
     ownerWallet = classOwner;
