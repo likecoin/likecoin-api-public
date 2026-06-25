@@ -19,10 +19,8 @@ export async function getMagicUserMetadataByDIDToken(didToken: string): Promise<
   try {
     return await magic.users.getMetadataByToken(didToken);
   } catch (err) {
-    // Magic SDK errors (expired/malformed token, or SERVICE_ERROR from the Magic
-    // API) are not ValidationErrors, so they would surface as an opaque 500 and
-    // the nested `data` cause would be lost. Log the cause for diagnosis, then
-    // translate to a clean 401. Fails closed: email stays unverified on failure.
+    // Magic SDK errors aren't ValidationErrors, so they'd surface as 500s and lose `data`.
+    // Log the code/data for diagnosis and translate to a 401; verification fails closed.
     if (err instanceof SDKError) {
       // eslint-disable-next-line no-console
       console.error(JSON.stringify({
