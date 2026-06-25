@@ -116,10 +116,13 @@ export function getPreviewContentFromHasPart(
   return previewPart?.text;
 }
 
-export async function getNFTClassDataById(classId: string): Promise<NFTClassData | null> {
+export async function getNFTClassDataById(
+  classId: string,
+  { skipCache = false }: { skipCache?: boolean } = {},
+): Promise<NFTClassData | null> {
   if (isEVMClassId(classId)) {
     try {
-      return (await getEVMNftClassDataById(classId)) as NFTClassData;
+      return (await getEVMNftClassDataById(classId, { skipCache })) as NFTClassData;
     } catch (error) {
       return null;
     }
@@ -368,8 +371,10 @@ export async function getNftBookInfo(classId: string): Promise<NFTBookListingInf
 }
 
 export async function syncNFTBookInfoWithISCN(classId) {
+  // Bypass cache: this sync runs after the user updated on-chain metadata,
+  // so it must read fresh chain data to refresh the DB.
   const [classData, bookInfo] = await Promise.all([
-    getNFTClassDataById(classId),
+    getNFTClassDataById(classId, { skipCache: true }),
     getNftBookInfo(classId),
   ]);
   const metadata = {
