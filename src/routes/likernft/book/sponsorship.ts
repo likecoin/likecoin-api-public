@@ -35,7 +35,7 @@ router.post(
           reason: decision.reason,
           sender: req.body?.userOperation?.sender,
           policyId: req.body?.policyId,
-          chainId: req.body?.chainId,
+          chainId: req.body?.chainId?.toString(),
         });
       }
       res.json({ approved: decision.approved });
@@ -48,7 +48,7 @@ router.post(
         error: (err as Error)?.message || String(err),
         sender: req.body?.userOperation?.sender,
         policyId: req.body?.policyId,
-        chainId: req.body?.chainId,
+        chainId: req.body?.chainId?.toString(),
       });
       res.status(200).json({ approved: false });
     }

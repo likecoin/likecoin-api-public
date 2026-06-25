@@ -551,6 +551,7 @@ export async function processStripeSubscriptionInvoice(
     likerId,
     period: item.plan.interval,
     price: amountPaid,
+    amountUSD: amountPaid,
     customerId,
     evmWallet,
     likeWallet,
