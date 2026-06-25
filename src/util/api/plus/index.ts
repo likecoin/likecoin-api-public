@@ -254,6 +254,14 @@ export async function processStripeSubscriptionInvoice(
   }
   const priceName = item.price.nickname || '';
   const currency = invoice.currency.toUpperCase();
+  // Stripe settles in USD, so the charge's balance transaction amount is the real
+  // converted USD value (actual FX, net of spread). Prefer it; fall back to tier-based
+  // conversion only when the balance transaction couldn't be fetched.
+  const amountPaidUSD = balanceTxAmount
+    ?? convertCurrencyToUSDPrice(
+      amountPaid,
+      currency.toLowerCase() as SupportedPlusCurrency,
+    );
   // Prefer the invoice's own discounts (immutable, correct for `once`/expired
   // coupons that Stripe removes from the subscription after applying them);
   // fall back to the subscription-level discount.
@@ -378,14 +386,6 @@ export async function processStripeSubscriptionInvoice(
   // trials fund nothing. The charge is normalized from its invoice currency to USD so
   // the pool stays single-currency.
   if (isFullTermInvoice && !isTrial && dailyValue > 0) {
-    // Stripe settles in USD, so the charge's balance transaction amount is the real
-    // converted USD value (actual FX, net of spread). Prefer it; fall back to tier-based
-    // conversion only when the balance transaction couldn't be fetched.
-    const amountPaidUSD = balanceTxAmount
-      ?? convertCurrencyToUSDPrice(
-        amountPaid,
-        currency.toLowerCase() as SupportedPlusCurrency,
-      );
     const dailyValueUSD = calculatePlusDailyValue({
       amountPaid: amountPaidUSD,
       currentPeriodStart,
@@ -551,7 +551,7 @@ export async function processStripeSubscriptionInvoice(
     likerId,
     period: item.plan.interval,
     price: amountPaid,
-    amountUSD: amountPaid,
+    amountUSD: amountPaidUSD,
     customerId,
     evmWallet,
     likeWallet,
