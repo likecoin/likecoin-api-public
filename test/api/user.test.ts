@@ -1,5 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
 import FormData from 'form-data';
 import fs from 'fs';
 import { createHash } from 'crypto';
@@ -31,6 +33,8 @@ import {
   cosmosPrivateKeyNew,
 } from './data';
 import axiosist from './axiosist';
+import { userCollection, FieldValue } from '../../src/util/firebase';
+import { getMagicUserMetadataByDIDToken } from '../../src/util/magic';
 import {
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../src/constant';
@@ -40,9 +44,33 @@ import {
 
 import { jwtSign } from './jwt';
 
+// Override only the network call; keep verifyEmailByMagicUserMetadata real.
+vi.mock('../../src/util/magic', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/magic')>();
+  return {
+    ...actual,
+    getMagicUserMetadataByDIDToken: vi.fn(),
+  };
+});
+const mockGetMagicMetadata = vi.mocked(getMagicUserMetadataByDIDToken);
+
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
   return sigUtil.personalSign(privKey, { data: web3Utils.utf8ToHex(signData) });
+}
+
+// The stub re-seeds fixtures by reference, so an email write leaks into later
+// tests; restore every email-related field a test touches (deleting ones absent
+// in the snapshot) to keep the suite order-safe.
+async function restoreEmailFields(user: string, before: any) {
+  await userCollection.doc(user).update({
+    email: before.email ?? FieldValue.delete(),
+    magicUserId: before.magicUserId ?? FieldValue.delete(),
+    normalizedEmail: before.normalizedEmail ?? FieldValue.delete(),
+    isEmailVerified: before.isEmailVerified ?? FieldValue.delete(),
+    isEmailBlacklisted: before.isEmailBlacklisted ?? FieldValue.delete(),
+    isEmailDuplicated: before.isEmailDuplicated ?? FieldValue.delete(),
+  });
 }
 
 describe('USER tests', () => {
@@ -205,6 +233,163 @@ describe('USER tests', () => {
 
     expect(res.status).toBe(400);
     expect(res.data).toBe('EMAIL_CANNOT_BE_CHANGED');
+  });
+
+  it('USER: Edit user by JSON from Web. Case: change email for wallet user', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const newEmail = 'changed-login-email@example.com';
+    const before = { ...(await userCollection.doc(user).get()).data() } as any;
+    try {
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        email: newEmail,
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(200);
+      const data = (await userCollection.doc(user).get()).data() as any;
+      expect(data.email).toBe(newEmail);
+      expect(data.isEmailVerified).toBe(false);
+    } finally {
+      await restoreEmailFields(user, before);
+    }
+  });
+
+  it('USER: Edit user by JSON from Web. Case: magic DID token keeps email verified', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const newEmail = 'magic-changed-email@example.com';
+    const magicUserId = 'did:ethr:0xMagicIssuer';
+    const before = { ...(await userCollection.doc(user).get()).data() } as any;
+    try {
+      await userCollection.doc(user).update({ magicUserId });
+      mockGetMagicMetadata.mockResolvedValue({ issuer: magicUserId, email: newEmail } as any);
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        email: newEmail,
+        magicDIDToken: 'valid-token',
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(200);
+      const data = (await userCollection.doc(user).get()).data() as any;
+      expect(data.email).toBe(newEmail);
+      expect(data.isEmailVerified).toBe(true);
+    } finally {
+      await restoreEmailFields(user, before);
+    }
+  });
+
+  it('USER: Edit user by JSON from Web. Case: magic DID token issuer mismatch', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const newEmail = 'magic-issuer-mismatch@example.com';
+    const before = { ...(await userCollection.doc(user).get()).data() } as any;
+    try {
+      await userCollection.doc(user).update({ magicUserId: 'did:ethr:0xOwnIssuer' });
+      mockGetMagicMetadata.mockResolvedValue({ issuer: 'did:ethr:0xOtherIssuer', email: newEmail } as any);
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        email: newEmail,
+        magicDIDToken: 'valid-token',
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(400);
+      expect(res.data).toBe('MAGIC_USER_MISMATCH');
+    } finally {
+      await restoreEmailFields(user, before);
+    }
+  });
+
+  it('USER: Edit user by JSON from Web. Case: magic DID token for non-magic user rejected', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const newEmail = 'magic-no-binding@example.com';
+    // testingUser2 has no magicUserId; a wallet user must not be able to mark an
+    // email verified by supplying any valid Magic token.
+    mockGetMagicMetadata.mockResolvedValue({ issuer: 'did:ethr:0xAnyIssuer', email: newEmail } as any);
+    const res = await axiosist.post('/api/users/update', {
+      user,
+      email: newEmail,
+      magicDIDToken: 'valid-token',
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(400);
+    expect(res.data).toBe('MAGIC_USER_MISMATCH');
+  });
+
+  it('USER: Edit user by JSON from Web. Case: email already used by another user', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const res = await axiosist.post('/api/users/update', {
+      user,
+      email: testingEmail1,
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(400);
+    expect(res.data).toBe('EMAIL_ALREADY_USED');
+  });
+
+  it('USER: Email availability pre-check. Case: available', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const res = await axiosist.post('/api/users/email/check', {
+      email: 'brand-new-unused-email@example.com',
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(200);
+  });
+
+  it('USER: Email availability pre-check. Case: already used', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const res = await axiosist.post('/api/users/email/check', {
+      email: testingEmail1,
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(400);
+    expect(res.data).toBe('EMAIL_ALREADY_USED');
+  });
+
+  it('USER: Email availability pre-check. Case: own email is self-excluded', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const res = await axiosist.post('/api/users/email/check', {
+      email: testingEmail2,
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(200);
   });
 
   it('USER: Edit user by JSON from Web. Case: Incorrect email format', async () => {
