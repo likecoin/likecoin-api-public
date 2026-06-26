@@ -34,10 +34,9 @@ export async function sendWriteContractWithNonce(
   const pendingNonce = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const d = await t.get(counterRef);
     const stored = d.data()?.value as number | undefined;
-    // The on-chain confirmed nonce is the floor; the counter only tracks
-    // reservations ahead of it for pipelining. Taking the max lets the chain
-    // reclaim the counter if it ever falls behind (e.g. reset after a halt)
-    // instead of the counter drifting away from chain permanently.
+    // The on-chain confirmed nonce is the floor; the counter tracks reservations ahead of it.
+    // Using max lets the chain reclaim the counter if it ever falls behind (e.g. reset after a halt).
+    // This prevents the counter from drifting away from chain permanently.
     const next = Math.max(transactionCount, stored ?? transactionCount);
     t.set(counterRef, { value: next + 1 } as any, { merge: true });
     return next;
