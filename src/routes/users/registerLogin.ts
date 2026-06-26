@@ -213,6 +213,7 @@ router.post(
         displayName: oldDisplayName,
         email: oldEmail,
         locale: oldLocale,
+        evmWallet,
         magicUserId,
       } = oldUserData;
 
@@ -228,17 +229,27 @@ router.post(
         // resubmitting an unchanged email doesn't reset isEmailVerified for wallet users.
         if (email.toLowerCase() !== (oldEmail || '').toLowerCase()) {
           await userOrWalletByEmailQuery({ user }, email);
-          // Magic OTP-verifies email changes, so a DID token whose issuer matches the
-          // user's magicUserId lets us keep isEmailVerified; wallet users (no token)
-          // reset it. The issuer match stops a wallet user claiming verification.
+          // Magic OTP-verifies email changes, so a DID token lets us keep
+          // isEmailVerified; wallet users (no token) reset it. When the user
+          // already has a magicUserId the token issuer must match it.
           let isEmailVerified = false;
           if (magicDIDToken) {
             const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
-            if (!magicUserId || magicUserMetadata.issuer !== magicUserId) {
+            if (magicUserId && magicUserMetadata.issuer !== magicUserId) {
               throw new ValidationError('MAGIC_USER_MISMATCH');
             }
             if (!verifyEmailByMagicUserMetadata(email, magicUserMetadata)) {
               throw new ValidationError('MAGIC_EMAIL_MISMATCH');
+            }
+            // Some users were migrated without a magicUserId. Backfill it from the
+            // token only when its wallet matches the account's evmWallet, so an
+            // authenticated session can't bind an unrelated Magic identity.
+            if (!magicUserId) {
+              if (!evmWallet
+                || magicUserMetadata.publicAddress?.toLowerCase() !== evmWallet.toLowerCase()) {
+                throw new ValidationError('MAGIC_USER_MISMATCH');
+              }
+              updateObj.magicUserId = magicUserMetadata.issuer;
             }
             isEmailVerified = true;
           }

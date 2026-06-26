@@ -311,13 +311,49 @@ describe('USER tests', () => {
     }
   });
 
-  it('USER: Edit user by JSON from Web. Case: magic DID token for non-magic user rejected', async () => {
+  it('USER: Edit user by JSON from Web. Case: magic DID token backfills missing magicUserId', async () => {
     const user = testingUser2;
     const token = jwtSign({ user });
     const newEmail = 'magic-no-binding@example.com';
-    // testingUser2 has no magicUserId; a wallet user must not be able to mark an
-    // email verified by supplying any valid Magic token.
-    mockGetMagicMetadata.mockResolvedValue({ issuer: 'did:ethr:0xAnyIssuer', email: newEmail } as any);
+    const issuer = 'did:ethr:0xAnyIssuer';
+    const before = { ...(await userCollection.doc(user).get()).data() } as any;
+    try {
+      // testingUser2 has no magicUserId (migrated without it); a valid Magic
+      // token whose wallet matches the account backfills the binding and verifies.
+      mockGetMagicMetadata.mockResolvedValue({
+        issuer, email: newEmail, publicAddress: testingWallet2,
+      } as any);
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        email: newEmail,
+        magicDIDToken: 'valid-token',
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(200);
+      const data = (await userCollection.doc(user).get()).data() as any;
+      expect(data.email).toBe(newEmail);
+      expect(data.magicUserId).toBe(issuer);
+      expect(data.isEmailVerified).toBe(true);
+    } finally {
+      await restoreEmailFields(user, before);
+    }
+  });
+
+  it('USER: Edit user by JSON from Web. Case: magic token from unrelated wallet rejected', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const newEmail = 'magic-wrong-wallet@example.com';
+    // Without a stored magicUserId, a token whose wallet differs from the
+    // account's evmWallet must not bind an unrelated Magic identity.
+    mockGetMagicMetadata.mockResolvedValue({
+      issuer: 'did:ethr:0xUnrelated',
+      email: newEmail,
+      publicAddress: '0x0000000000000000000000000000000000000001',
+    } as any);
     const res = await axiosist.post('/api/users/update', {
       user,
       email: newEmail,
