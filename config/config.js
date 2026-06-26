@@ -70,6 +70,9 @@ config.REPLICA_IPFS_ENDPOINTS = [];
 config.ARWEAVE_LINK_INTERNAL_TOKEN = '';
 config.ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT = 10;
 config.ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT = 100 * 1024 * 1024; // 100MB
+// Cloud KMS cryptoKey resource name used to wrap content keys at rest in
+// Firestore. Empty = passthrough (dev/test store plaintext); prod sets this.
+config.ARWEAVE_KEY_KMS_NAME = process.env.ARWEAVE_KEY_KMS_NAME || '';
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
 

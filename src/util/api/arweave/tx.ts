@@ -1,5 +1,6 @@
 import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
+import { wrapKey, unwrapKey } from '../../kms';
 import type { ArweaveTxData } from '../../../types/transaction';
 
 export async function createNewArweaveTx(docId: string, {
@@ -47,16 +48,32 @@ export async function updateArweaveTxStatus(txHash: string, {
   isRequireAuth?: boolean;
 }): Promise<string> {
   const accessToken = uuidv4();
+  // Wrap the content key at rest. AAD = txHash binds it to this doc.
+  // Empty key (DRM-free) is left unset so existing `if (key)` guards hold.
+  const keyFields = key
+    ? { encryptedKey: await wrapKey(key, txHash) }
+    : {};
   await iscnArweaveTxCollection.doc(txHash).update({
     status: 'complete',
     arweaveId,
     isRequireAuth,
     ownerWallet,
-    key,
+    ...keyFields,
     accessToken,
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });
   return accessToken;
+}
+
+// Dual-read content-key resolver. New docs carry `encryptedKey` (KMS-wrapped,
+// AAD = txHash); legacy docs carry plaintext `key`. txHash is the doc ID, not a
+// stored field, so callers must pass it explicitly for AAD to bind correctly.
+export async function resolveArweaveTxKey(
+  tx: ArweaveTxData,
+  txHash: string,
+): Promise<string> {
+  if (tx.encryptedKey) return unwrapKey(tx.encryptedKey, txHash);
+  return tx.key || '';
 }
 
 export async function rotateArweaveTxAccessToken(txHash: string): Promise<string> {

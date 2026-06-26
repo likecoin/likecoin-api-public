@@ -17,6 +17,7 @@ import {
   getArweaveTxInfo,
   updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
+  resolveArweaveTxKey,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
 import {
@@ -264,7 +265,7 @@ router.get(
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
       const {
-        arweaveId, token: docToken, isRequireAuth, ownerWallet, key,
+        arweaveId, token: docToken, isRequireAuth, ownerWallet,
         accessToken: docAccessToken,
       } = tx;
       if (isRequireAuth) {
@@ -275,6 +276,9 @@ router.get(
           || (docAccessToken && token === docAccessToken);
         if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       }
+      // Unwrap only after access checks pass, so we never call KMS for a request
+      // that isn't authorized to receive the key.
+      const key = await resolveArweaveTxKey(tx, txHash);
       const link = new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`);
       if (key) {
         link.searchParams.set('key', key);
