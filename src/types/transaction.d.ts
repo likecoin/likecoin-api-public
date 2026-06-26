@@ -39,7 +39,8 @@ export interface ArweaveTxData {
   lastUpdateTimestamp?: any;
   arweaveId?: string;
   isRequireAuth?: boolean;
-  key?: string;
+  key?: string; // legacy plaintext content key; superseded by encryptedKey
+  encryptedKey?: string; // base64 KMS-wrapped content key (AAD = txHash)
   accessToken?: string;
   isSponsored?: boolean;
   sponsoredETH?: string;

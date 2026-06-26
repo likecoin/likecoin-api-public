@@ -1,5 +1,6 @@
 import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
+import { wrapKey, unwrapKey, isKMSEnabled } from '../../kms';
 import type { ArweaveTxData } from '../../../types/transaction';
 
 export async function createNewArweaveTx(docId: string, {
@@ -47,16 +48,36 @@ export async function updateArweaveTxStatus(txHash: string, {
   isRequireAuth?: boolean;
 }): Promise<string> {
   const accessToken = uuidv4();
+  // Under KMS store wrapped ciphertext in `encryptedKey` (AAD = txHash); in
+  // passthrough store plaintext in legacy `key` so enabling KMS later never
+  // decrypts non-ciphertext. Delete the opposite field to leave no plaintext.
+  let keyFields = {};
+  if (key) {
+    keyFields = isKMSEnabled()
+      ? { encryptedKey: await wrapKey(key, txHash), key: FieldValue.delete() }
+      : { key, encryptedKey: FieldValue.delete() };
+  }
   await iscnArweaveTxCollection.doc(txHash).update({
     status: 'complete',
     arweaveId,
     isRequireAuth,
     ownerWallet,
-    key,
+    ...keyFields,
     accessToken,
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });
   return accessToken;
+}
+
+// Dual-read: KMS-wrapped `encryptedKey` (AAD = txHash) vs legacy plaintext `key`.
+// Gate unwrap on isKMSEnabled() — a passthrough unwrapKey returns ciphertext
+// verbatim, so a KMS-written doc read without KMS yields '' not leaked ciphertext.
+export async function resolveArweaveTxKey(
+  tx: ArweaveTxData,
+  txHash: string,
+): Promise<string> {
+  if (tx.encryptedKey && isKMSEnabled()) return unwrapKey(tx.encryptedKey, txHash);
+  return tx.key || '';
 }
 
 export async function rotateArweaveTxAccessToken(txHash: string): Promise<string> {
