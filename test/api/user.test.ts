@@ -368,6 +368,37 @@ describe('USER tests', () => {
     expect(res.data).toBe('MAGIC_USER_MISMATCH');
   });
 
+  it('USER: Edit user by JSON from Web. Case: magic token backfills magicUserId without email change', async () => {
+    const user = testingUser2;
+    const token = jwtSign({ user });
+    const issuer = 'did:ethr:0xSameWallet';
+    const before = { ...(await userCollection.doc(user).get()).data() } as any;
+    try {
+      // Resubmitting the unchanged email with a wallet-matching Magic token still
+      // backfills magicUserId and re-verifies, instead of returning INVALID_PAYLOAD.
+      mockGetMagicMetadata.mockResolvedValue({
+        issuer, email: testingEmail2, publicAddress: testingWallet2,
+      } as any);
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        email: testingEmail2,
+        magicDIDToken: 'valid-token',
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(200);
+      const data = (await userCollection.doc(user).get()).data() as any;
+      expect(data.email).toBe(testingEmail2);
+      expect(data.magicUserId).toBe(issuer);
+      expect(data.isEmailVerified).toBe(true);
+    } finally {
+      await restoreEmailFields(user, before);
+    }
+  });
+
   it('USER: Edit user by JSON from Web. Case: email already used by another user', async () => {
     const user = testingUser2;
     const token = jwtSign({ user });
