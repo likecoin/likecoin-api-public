@@ -225,13 +225,13 @@ router.post(
       };
 
       if (email) {
-        // Only re-run uniqueness/verification when the email actually changes, so
-        // resubmitting an unchanged email doesn't reset isEmailVerified for wallet users.
-        if (email.toLowerCase() !== (oldEmail || '').toLowerCase()) {
-          await userOrWalletByEmailQuery({ user }, email);
+        const isEmailChanged = email.toLowerCase() !== (oldEmail || '').toLowerCase();
+        // Process when the email changes, or when a Magic token is present so an
+        // unchanged email can still re-verify and backfill magicUserId. A wallet
+        // user resubmitting an unchanged email (no token) keeps isEmailVerified.
+        if (isEmailChanged || magicDIDToken) {
           // Magic OTP-verifies email changes, so a DID token lets us keep
-          // isEmailVerified; wallet users (no token) reset it. When the user
-          // already has a magicUserId the token issuer must match it.
+          // isEmailVerified; wallet users (no token) reset it.
           let isEmailVerified = false;
           if (magicDIDToken) {
             const magicUserMetadata = await getMagicUserMetadataByDIDToken(magicDIDToken);
@@ -253,20 +253,23 @@ router.post(
             }
             isEmailVerified = true;
           }
-          const {
-            normalizedEmail,
-            isEmailBlacklisted,
-            isEmailDuplicated,
-          } = await normalizeUserEmail(user, email);
-          if (normalizedEmail) {
+          // Uniqueness and normalization only matter when the email actually changes.
+          if (isEmailChanged) {
+            await userOrWalletByEmailQuery({ user }, email);
+            const {
+              normalizedEmail,
+              isEmailBlacklisted,
+              isEmailDuplicated,
+            } = await normalizeUserEmail(user, email);
+            if (!normalizedEmail) {
+              throw new ValidationError('EMAIL_FORMAT_INCORRECT');
+            }
             updateObj.email = email;
             updateObj.normalizedEmail = normalizedEmail;
-            updateObj.isEmailVerified = isEmailVerified;
-          } else {
-            throw new ValidationError('EMAIL_FORMAT_INCORRECT');
+            if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
+            if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
           }
-          if (isEmailBlacklisted !== undefined) updateObj.isEmailBlacklisted = isEmailBlacklisted;
-          if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
+          updateObj.isEmailVerified = isEmailVerified;
         }
       }
 
