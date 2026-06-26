@@ -213,7 +213,6 @@ router.post(
         displayName: oldDisplayName,
         email: oldEmail,
         locale: oldLocale,
-        authCoreUserId,
         magicUserId,
       } = oldUserData;
 
@@ -225,7 +224,6 @@ router.post(
       };
 
       if (email) {
-        if (authCoreUserId && oldEmail) throw new ValidationError('EMAIL_CANNOT_BE_CHANGED');
         // Only re-run uniqueness/verification when the email actually changes, so
         // resubmitting an unchanged email doesn't reset isEmailVerified for wallet users.
         if (email.toLowerCase() !== (oldEmail || '').toLowerCase()) {
@@ -299,8 +297,9 @@ router.post(
     try {
       const { user } = req.user;
       const { email } = req.body;
-      // Advisory pre-check before triggering a Magic email change: throws
-      // EMAIL_ALREADY_USED if another user holds the email (self is excluded).
+      // Advisory pre-check before a Magic email change, mirroring /update's only
+      // reachable error here: EMAIL_ALREADY_USED if another user holds the email
+      // (self excluded). Format is already rejected by the shared zod .email() schema.
       await userOrWalletByEmailQuery({ user }, email);
       res.sendStatus(200);
     } catch (err) {

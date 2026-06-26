@@ -215,7 +215,7 @@ describe('USER tests', () => {
     expect(res.status).toBe(200);
   });
 
-  it('USER: Edit user by JSON from Web. Case: editing existing email', async () => {
+  it('USER: Edit user by JSON from Web. Case: authCore user resubmitting existing email is allowed', async () => {
     const user = testingUser1;
     const token = jwtSign({ user });
     const payload = {
@@ -231,8 +231,7 @@ describe('USER tests', () => {
       },
     }).catch((err) => (err as any).response);
 
-    expect(res.status).toBe(400);
-    expect(res.data).toBe('EMAIL_CANNOT_BE_CHANGED');
+    expect(res.status).toBe(200);
   });
 
   it('USER: Edit user by JSON from Web. Case: change email for wallet user', async () => {
