@@ -60,6 +60,7 @@ export const ListingSettingsBodySchema = z.object({
   hideUpsell: z.boolean().optional(),
   enableCustomMessagePage: z.boolean().optional(),
   tableOfContents: z.string().optional(),
+  descriptionFull: z.string().optional(),
   isAdultOnly: z.boolean().optional(),
   isPlusReadingEnabled: z.boolean().optional(),
 });

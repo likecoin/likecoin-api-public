@@ -384,7 +384,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
     inLanguage,
     name,
     description,
-    descriptionFull,
     keywords: keywordString = '',
     thumbnailUrl,
     author,
@@ -408,7 +407,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
-  if (descriptionFull) payload.descriptionFull = descriptionFull;
+  // descriptionFull is now a listing-owned field edited via /settings; do not
+  // overwrite it from on-chain metadata on refresh.
   payload.previewContent = previewContent || FieldValue.delete();
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
@@ -503,6 +503,7 @@ export async function updateNftBookInfo(classId: string, {
   enableSignatureImage,
   signedMessageText,
   tableOfContents,
+  descriptionFull,
   isAdultOnly,
   isPlusReadingEnabled,
 }: {
@@ -517,6 +518,7 @@ export async function updateNftBookInfo(classId: string, {
   enableSignatureImage?: BookSignatureImage;
   signedMessageText?: string;
   tableOfContents?: string;
+  descriptionFull?: string;
   isAdultOnly?: boolean;
   isPlusReadingEnabled?: boolean;
 } = {}) {
@@ -545,6 +547,7 @@ export async function updateNftBookInfo(classId: string, {
   if (enableSignatureImage !== undefined) { payload.enableSignatureImage = enableSignatureImage; }
   if (signedMessageText !== undefined) { payload.signedMessageText = signedMessageText; }
   if (tableOfContents !== undefined) { payload.tableOfContents = tableOfContents; }
+  if (descriptionFull !== undefined) { payload.descriptionFull = descriptionFull; }
   if (isAdultOnly !== undefined) {
     payload.isAdultOnly = isAdultOnly;
     if (isAdultOnly) { payload.isApprovedForAds = false; }
