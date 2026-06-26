@@ -9,6 +9,11 @@ import { getEVMClient } from './client';
 import publisher from '../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
 
+// Reserved-but-unconfirmed nonces at or above this signal a stuck counter the
+// tip-rollback can't self-heal. Base history: legit in-flight ~6-11 vs 100+ in
+// the incident; 10 may fire on the busiest bursts but catches runaway early.
+const NONCE_DRIFT_ALERT_THRESHOLD = 10;
+
 export async function sendWriteContractWithNonce(
   walletClient: WalletClient,
   params: WriteContractParameters,
@@ -28,17 +33,27 @@ export async function sendWriteContractWithNonce(
   const counterRef = txLogRef.doc(`!counter_${address}`);
   const pendingNonce = await db.runTransaction(async (t: admin.firestore.Transaction) => {
     const d = await t.get(counterRef);
-    const data = d.data();
-    if (!data) {
-      const count = transactionCount;
-      t.create(counterRef, { value: count + 1 } as any);
-      return count;
-    }
-    const v = (data.value as number) + 1;
-    t.update(counterRef, { value: v } as any);
-    return v - 1;
+    const stored = d.data()?.value as number | undefined;
+    // The on-chain confirmed nonce is the floor; the counter tracks reservations ahead of it.
+    // Using max lets the chain reclaim the counter if it falls behind (e.g. reset after a halt).
+    // This prevents the counter from drifting away from chain permanently.
+    const next = Math.max(transactionCount, stored ?? transactionCount);
+    t.set(counterRef, { value: next + 1 } as any, { merge: true });
+    return next;
   });
 
+  const drift = pendingNonce - transactionCount;
+  if (drift >= NONCE_DRIFT_ALERT_THRESHOLD) {
+    // eslint-disable-next-line no-console
+    console.error('EVM_NONCE_DRIFT', JSON.stringify({
+      address,
+      confirmed: transactionCount,
+      reserved: pendingNonce,
+      drift,
+    }));
+  }
+
+  let didBroadcast = false;
   try {
     const {
       address: toAddress,
@@ -68,6 +83,9 @@ export async function sendWriteContractWithNonce(
         account: walletClient.account,
       });
     const hash = await walletClient.sendRawTransaction({ serializedTransaction });
+    // The tx is now on the wire, so the reserved nonce is consumed even if we
+    // never see a receipt below. Never roll it back from here on.
+    didBroadcast = true;
     await db.runTransaction((t: admin.firestore.Transaction) => t.get(counterRef).then((d) => {
       const data = d.data();
       if (data && pendingNonce + 1 > (data.value as number)) {
@@ -91,6 +109,21 @@ export async function sendWriteContractWithNonce(
       nonce: pendingNonce,
     };
   } catch (err) {
+    // Roll back the reserved nonce on a pre-broadcast failure so it isn't left a
+    // permanent gap; skip once broadcast since the nonce is consumed (reuse clashes
+    // with the pending tx). Tip check avoids erasing a gap a concurrent send moved past.
+    if (!didBroadcast) {
+      await db.runTransaction((t: admin.firestore.Transaction) => t.get(counterRef)
+        .then((d) => {
+          const data = d.data();
+          if (data && (data.value as number) === pendingNonce + 1) {
+            t.update(counterRef, { value: pendingNonce });
+          }
+        }))
+        // Best-effort: never let a rollback failure mask the original send error.
+        // eslint-disable-next-line no-console
+        .catch((rollbackErr) => console.error('Failed to roll back nonce', rollbackErr));
+    }
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
       logType: 'eventCosmosError',
       fromWallet: address,
