@@ -410,6 +410,9 @@ async function handleGrant(
       gaSessionId: getSubscriberAttribute(event, 'gaSessionId'),
       posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
       extraProperties: {
+        // transactionId is original_transaction_id (stable across the sub lifetime),
+        // so it serves as subscription_id here — parity with the Stripe path.
+        subscription_id: transactionId,
         provider: 'revenuecat',
         store: event.store,
         product_id: event.product_id,
