@@ -3,6 +3,7 @@ export type ServerEventName =
   | 'InitiateCheckout'
   | 'StartTrial'
   | 'Subscribe'
+  | 'PlusAcquisition'
   | 'SubscriptionCancelled'
   | 'TrialEnded'
   | 'SubscriptionRenewed'
@@ -19,6 +20,7 @@ export const SERVER_EVENT_MAP: Record<ServerEventName, string> = {
   InitiateCheckout: 'begin_checkout',
   StartTrial: 'start_trial',
   Subscribe: 'subscribe',
+  PlusAcquisition: 'plus_acquisition',
   SubscriptionCancelled: 'subscription_cancelled',
   TrialEnded: 'trial_ended',
   SubscriptionRenewed: 'subscription_renewed',

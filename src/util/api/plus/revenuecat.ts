@@ -411,7 +411,11 @@ async function handleGrant(
     // IAP server-side conversion (Meta CAPI / GA / PostHog) carries the same
     // attribution the Stripe Subscribe/StartTrial event does (see index.ts).
     const referrer = getSubscriberAttribute(event, 'referrer');
-    sideEffects.push(logServerEvents(logEvent, {
+    // Shared payload for the Subscribe/StartTrial/Renewed event and PlusAcquisition,
+    // which mirror the Stripe path and must carry identical attribution and value. The
+    // isInitial-conditional fields resolve to their unconditional form in the
+    // PlusAcquisition branch below (which only fires when isInitial), so it reuses them.
+    const acquisitionEventPayload = {
       email: user.email,
       evmWallet: user.evmWallet,
       value: isTrial ? predictedLTV : paymentAmount,
@@ -451,7 +455,17 @@ async function handleGrant(
         $referrer: referrer,
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
-    }));
+    };
+    sideEffects.push(logServerEvents(logEvent, acquisitionEventPayload));
+    // Unified acquisition event — one per new subscription, the single signal to
+    // optimize Meta on (mirrors the Stripe path; app has no browser pixel to mirror).
+    // Gated on isInitial so renewals never inflate it.
+    if (isInitial) {
+      sideEffects.push(logServerEvents('PlusAcquisition', {
+        ...acquisitionEventPayload,
+        extraProperties: { ...acquisitionEventPayload.extraProperties, is_trial: isTrial },
+      }));
+    }
     // Mirror the Stripe path's Airtable payment record. RevenueCat carries no Stripe
     // customer/invoice/coupon/price-id, so those columns stay empty; record only on
     // payment-bearing events (initial purchase + renewal) — the same gate as the
