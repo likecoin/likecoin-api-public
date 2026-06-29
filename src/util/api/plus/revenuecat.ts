@@ -5,7 +5,7 @@ import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../
 import { userCollection } from '../../firebase';
 import { normalizeLikerId } from '../../ValidationHelper';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
-import { getCustomerType } from '../users/payment';
+import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { getPlusPredictedLTV, mapAttributionExtraProperties, resolveAffiliateGift } from './index';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
@@ -242,7 +242,16 @@ async function handleGrant(
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
   }
-  await userCollection.doc(likerId).update({ likerPlus });
+  // A real charge: priced, non-trial grants. Trials and no-charge grants
+  // (uncancel/extend/product-change) carry no price. Reused by the gift block below.
+  const hasCharge = !isTrial && event.price != null && event.price > 0;
+  const grantUpdate: Record<string, unknown> = { likerPlus };
+  // Track first/last real payment like the Stripe path so getCustomerType can tell
+  // resubscribers from first-time buyers.
+  if (hasCharge) {
+    Object.assign(grantUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
+  }
+  await userCollection.doc(likerId).update(grantUpdate);
 
   // Quarantine reviewer (sandbox-on-prod) traffic out of CRM, Slack, revenue
   // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
@@ -289,7 +298,6 @@ async function handleGrant(
         // re-delivered INITIAL_PURCHASE idempotent, but only for the same
         // subscription — a resubscribe earns a fresh gift even though the lapsed
         // sub's giftCartId still lingers on the record.
-        const hasCharge = !isTrial && event.price != null && event.price > 0;
         const isGiftEligible = hasCharge || (!!affiliateGiftOnTrial && isTrial);
         if (
           planPeriod === 'yearly'
@@ -407,9 +415,9 @@ async function handleGrant(
       email: user.email,
       evmWallet: user.evmWallet,
       value: isTrial ? predictedLTV : paymentAmount,
-      // ltvCurrency is a lowercase Plus currency; uppercase it so the analytics
-      // currency dimension stays ISO 4217 like paymentCurrency and the Stripe path.
-      currency: isTrial ? ltvCurrency.toUpperCase() : paymentCurrency,
+      // ltvCurrency is a lowercase Plus currency; uppercase both branches so the
+      // analytics currency dimension stays ISO 4217 like the Stripe path.
+      currency: isTrial ? ltvCurrency.toUpperCase() : paymentCurrency?.toUpperCase(),
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
       referrer,
