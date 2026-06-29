@@ -469,6 +469,45 @@ export async function processStripeSubscriptionInvoice(
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
     });
+
+    // Unified acquisition event — fired once per new subscription (creation only,
+    // NOT on trial→paid upgrade) so it counts each subscription exactly once. This is
+    // the single signal to optimize Meta on; mirrored by the browser pixel.
+    if (isSubscriptionCreation) {
+      await logServerEvents('PlusAcquisition', {
+        email: user.email || stripeCustomer.email || undefined,
+        items: [{
+          productId: `plus-${period}ly`,
+          quantity: 1,
+        }],
+        value: isTrial ? predictedLTV : amountPaid,
+        currency,
+        userAgent,
+        clientIp,
+        fbClickId,
+        fbp,
+        fbc,
+        paymentId,
+        evmWallet,
+        predictedLTV,
+        gaClientId,
+        gaSessionId,
+        customerType: isNewSubscription ? getCustomerType(user) : 'returning',
+        extraProperties: {
+          subscription_id: subscriptionId,
+          is_trial: isTrial,
+          platform: 'web',
+          provider: 'stripe',
+          period,
+          price_id: item.price.id,
+          ...mapAttributionExtraProperties({
+            utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
+          }),
+          $referrer: referrer,
+        },
+        setOnce: referrer ? { $initial_referrer: referrer } : undefined,
+      });
+    }
   } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
     await logServerEvents('SubscriptionRenewed', {
       evmWallet,

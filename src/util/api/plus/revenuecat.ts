@@ -458,6 +458,47 @@ async function handleGrant(
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
     }));
+    // Unified acquisition event — one per new subscription, the single signal to
+    // optimize Meta on (mirrors the Stripe path; app has no browser pixel to mirror).
+    // Gated on isInitial so renewals never inflate it.
+    if (isInitial) {
+      sideEffects.push(logServerEvents('PlusAcquisition', {
+        email: user.email,
+        evmWallet: user.evmWallet,
+        value: paymentAmount,
+        currency: paymentCurrency,
+        paymentId: transactionId,
+        items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
+        referrer,
+        fbClickId: getSubscriberAttribute(event, 'fbClickId'),
+        fbp: getSubscriberAttribute(event, 'fbp'),
+        fbc: getSubscriberAttribute(event, 'fbc'),
+        gaClientId: getSubscriberAttribute(event, 'gaClientId'),
+        gaSessionId: getSubscriberAttribute(event, 'gaSessionId'),
+        posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+        extraProperties: {
+          subscription_id: transactionId,
+          is_trial: isTrial,
+          platform: 'app',
+          provider: 'revenuecat',
+          store: event.store,
+          product_id: event.product_id,
+          period,
+          ...mapAttributionExtraProperties({
+            utmSource: getSubscriberAttribute(event, 'utmSource'),
+            utmMedium: getSubscriberAttribute(event, 'utmMedium'),
+            utmCampaign: getSubscriberAttribute(event, 'utmCampaign'),
+            utmContent: getSubscriberAttribute(event, 'utmContent'),
+            utmTerm: getSubscriberAttribute(event, 'utmTerm'),
+            from: getSubscriberAttribute(event, 'plusFrom'),
+          }),
+          gad_click_id: getSubscriberAttribute(event, 'gadClickId'),
+          gad_source: getSubscriberAttribute(event, 'gadSource'),
+          $referrer: referrer,
+        },
+        setOnce: referrer ? { $initial_referrer: referrer } : undefined,
+      }));
+    }
     // Mirror the Stripe path's Airtable payment record. RevenueCat carries no Stripe
     // customer/invoice/coupon/price-id, so those columns stay empty; record only on
     // payment-bearing events (initial purchase + renewal) — the same gate as the
