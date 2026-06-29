@@ -8,6 +8,7 @@ import {
   PLUS_PAID_TRIAL_PRICE,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+  SUPPORTED_PLUS_CURRENCIES,
 } from '../../../constant';
 import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
 import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
@@ -136,6 +137,26 @@ export function mapAttributionExtraProperties({
     utm_content: utmContent,
     utm_term: utmTerm,
     channel: from,
+  };
+}
+
+// Predicted LTV in `currency` for Plus acquisition events; trials are discounted
+// by the expected trial→paid rate. Shared by the Stripe and IAP paths so both
+// report the same value signal (IAP trials charge 0 and would otherwise send 0).
+export function getPlusPredictedLTV(
+  isTrial: boolean,
+  currency?: string,
+): { value: number; currency: SupportedPlusCurrency } {
+  const ltvUSD = LIKER_PLUS_LTV || 100;
+  const predictedLTVUSD = isTrial ? ltvUSD * (LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.5) : ltvUSD;
+  // convertUSDPriceToCurrency only knows Plus currencies and silently returns USD
+  // for the rest; normalize so the returned currency always matches the value.
+  const normalized = (currency || 'usd').toLowerCase();
+  const ltvCurrency: SupportedPlusCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[])
+    .includes(normalized) ? (normalized as SupportedPlusCurrency) : 'usd';
+  return {
+    value: convertUSDPriceToCurrency(predictedLTVUSD, ltvCurrency),
+    currency: ltvCurrency,
   };
 }
 
@@ -432,13 +453,7 @@ export async function processStripeSubscriptionInvoice(
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
-    const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.5;
-    const ltvUSD = LIKER_PLUS_LTV || 100;
-    const predictedLTVUSD = isTrial ? ltvUSD * trialConversionRate : ltvUSD;
-    const predictedLTV = convertUSDPriceToCurrency(
-      predictedLTVUSD,
-      currency.toLowerCase() as SupportedPlusCurrency,
-    );
+    const { value: predictedLTV } = getPlusPredictedLTV(isTrial, currency);
     await logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
@@ -460,8 +475,11 @@ export async function processStripeSubscriptionInvoice(
       customerType: isNewSubscription ? getCustomerType(user) : 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
+        provider: 'stripe',
+        platform: 'web',
         period,
         price_id: item.price.id,
+        product_id: productId,
         ...mapAttributionExtraProperties({
           utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
         }),

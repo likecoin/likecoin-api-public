@@ -5,8 +5,9 @@ import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../
 import { userCollection } from '../../firebase';
 import { normalizeLikerId } from '../../ValidationHelper';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
+import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
-import { mapAttributionExtraProperties, resolveAffiliateGift } from './index';
+import { getPlusPredictedLTV, mapAttributionExtraProperties, resolveAffiliateGift } from './index';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -165,6 +166,7 @@ async function handleGrant(
     email?: string;
     evmWallet?: string;
     likerPlus?: LikerPlusData;
+    firstPaidAt?: unknown;
   },
   isSandbox: boolean,
 ) {
@@ -240,7 +242,16 @@ async function handleGrant(
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
   }
-  await userCollection.doc(likerId).update({ likerPlus });
+  // A real charge: priced, non-trial grants. Trials and no-charge grants
+  // (uncancel/extend/product-change) carry no price. Reused by the gift block below.
+  const hasCharge = !isTrial && event.price != null && event.price > 0;
+  const grantUpdate: Record<string, unknown> = { likerPlus };
+  // Track first/last real payment like the Stripe path so getCustomerType can tell
+  // resubscribers from first-time buyers.
+  if (hasCharge) {
+    Object.assign(grantUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
+  }
+  await userCollection.doc(likerId).update(grantUpdate);
 
   // Quarantine reviewer (sandbox-on-prod) traffic out of CRM, Slack, revenue
   // analytics, and Airtable so it doesn't contaminate prod metrics. Testnet's
@@ -287,7 +298,6 @@ async function handleGrant(
         // re-delivered INITIAL_PURCHASE idempotent, but only for the same
         // subscription — a resubscribe earns a fresh gift even though the lapsed
         // sub's giftCartId still lingers on the record.
-        const hasCharge = !isTrial && event.price != null && event.price > 0;
         const isGiftEligible = hasCharge || (!!affiliateGiftOnTrial && isTrial);
         if (
           planPeriod === 'yearly'
@@ -391,6 +401,12 @@ async function handleGrant(
     }),
   ];
   if (logEvent) {
+    // Mirror the Stripe path's value signal so Meta/GA optimize the same for web
+    // and IAP — app IAP trials charge 0, so value falls back to predicted LTV.
+    const {
+      value: predictedLTV,
+      currency: ltvCurrency,
+    } = getPlusPredictedLTV(isTrial, paymentCurrency);
     // Ad-attribution the native app forwarded as subscriber attributes, so the
     // IAP server-side conversion (Meta CAPI / GA / PostHog) carries the same
     // attribution the Stripe Subscribe/StartTrial event does (see index.ts).
@@ -398,8 +414,10 @@ async function handleGrant(
     sideEffects.push(logServerEvents(logEvent, {
       email: user.email,
       evmWallet: user.evmWallet,
-      value: paymentAmount,
-      currency: paymentCurrency,
+      value: isTrial ? predictedLTV : paymentAmount,
+      // ltvCurrency is a lowercase Plus currency; uppercase both branches so the
+      // analytics currency dimension stays ISO 4217 like the Stripe path.
+      currency: isTrial ? ltvCurrency.toUpperCase() : paymentCurrency?.toUpperCase(),
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
       referrer,
@@ -409,11 +427,14 @@ async function handleGrant(
       gaClientId: getSubscriberAttribute(event, 'gaClientId'),
       gaSessionId: getSubscriberAttribute(event, 'gaSessionId'),
       posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+      predictedLTV: isInitial ? predictedLTV : undefined,
+      customerType: isInitial ? getCustomerType(user) : 'returning',
       extraProperties: {
         // transactionId is original_transaction_id (stable across the sub lifetime),
         // so it serves as subscription_id here — parity with the Stripe path.
         subscription_id: transactionId,
         provider: 'revenuecat',
+        platform: 'app',
         store: event.store,
         product_id: event.product_id,
         period,
