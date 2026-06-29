@@ -139,6 +139,18 @@ export function mapAttributionExtraProperties({
   };
 }
 
+// Predicted LTV in `currency` for Plus acquisition events; trials are discounted
+// by the expected trial→paid rate. Shared by the Stripe and IAP paths so both
+// report the same value signal (IAP trials charge 0 and would otherwise send 0).
+export function getPlusPredictedLTV(isTrial: boolean, currency?: string): number {
+  const ltvUSD = LIKER_PLUS_LTV || 100;
+  const predictedLTVUSD = isTrial ? ltvUSD * (LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.5) : ltvUSD;
+  return convertUSDPriceToCurrency(
+    predictedLTVUSD,
+    (currency || 'USD').toLowerCase() as SupportedPlusCurrency,
+  );
+}
+
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
   req: Express.Request,
@@ -432,13 +444,7 @@ export async function processStripeSubscriptionInvoice(
 
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
-    const trialConversionRate = LIKER_PLUS_TRIAL_CONVERSION_RATE || 0.5;
-    const ltvUSD = LIKER_PLUS_LTV || 100;
-    const predictedLTVUSD = isTrial ? ltvUSD * trialConversionRate : ltvUSD;
-    const predictedLTV = convertUSDPriceToCurrency(
-      predictedLTVUSD,
-      currency.toLowerCase() as SupportedPlusCurrency,
-    );
+    const predictedLTV = getPlusPredictedLTV(isTrial, currency);
     await logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
@@ -460,8 +466,11 @@ export async function processStripeSubscriptionInvoice(
       customerType: isNewSubscription ? getCustomerType(user) : 'returning',
       extraProperties: {
         subscription_id: subscriptionId,
+        provider: 'stripe',
+        platform: 'web',
         period,
         price_id: item.price.id,
+        product_id: productId,
         ...mapAttributionExtraProperties({
           utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
         }),

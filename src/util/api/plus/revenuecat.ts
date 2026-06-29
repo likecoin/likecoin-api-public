@@ -5,8 +5,9 @@ import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../
 import { userCollection } from '../../firebase';
 import { normalizeLikerId } from '../../ValidationHelper';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
+import { getCustomerType } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
-import { mapAttributionExtraProperties, resolveAffiliateGift } from './index';
+import { getPlusPredictedLTV, mapAttributionExtraProperties, resolveAffiliateGift } from './index';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -165,6 +166,7 @@ async function handleGrant(
     email?: string;
     evmWallet?: string;
     likerPlus?: LikerPlusData;
+    firstPaidAt?: unknown;
   },
   isSandbox: boolean,
 ) {
@@ -391,6 +393,9 @@ async function handleGrant(
     }),
   ];
   if (logEvent) {
+    // Mirror the Stripe path's value signal so Meta/GA optimize the same for web
+    // and IAP — app IAP trials charge 0, so value falls back to predicted LTV.
+    const predictedLTV = getPlusPredictedLTV(isTrial, paymentCurrency);
     // Ad-attribution the native app forwarded as subscriber attributes, so the
     // IAP server-side conversion (Meta CAPI / GA / PostHog) carries the same
     // attribution the Stripe Subscribe/StartTrial event does (see index.ts).
@@ -398,7 +403,7 @@ async function handleGrant(
     sideEffects.push(logServerEvents(logEvent, {
       email: user.email,
       evmWallet: user.evmWallet,
-      value: paymentAmount,
+      value: isTrial ? predictedLTV : paymentAmount,
       currency: paymentCurrency,
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
@@ -409,11 +414,14 @@ async function handleGrant(
       gaClientId: getSubscriberAttribute(event, 'gaClientId'),
       gaSessionId: getSubscriberAttribute(event, 'gaSessionId'),
       posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+      predictedLTV: isInitial ? predictedLTV : undefined,
+      customerType: isInitial ? getCustomerType(user) : 'returning',
       extraProperties: {
         // transactionId is original_transaction_id (stable across the sub lifetime),
         // so it serves as subscription_id here — parity with the Stripe path.
         subscription_id: transactionId,
         provider: 'revenuecat',
+        platform: 'app',
         store: event.store,
         product_id: event.product_id,
         period,
