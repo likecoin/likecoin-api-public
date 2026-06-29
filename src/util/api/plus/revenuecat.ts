@@ -395,7 +395,10 @@ async function handleGrant(
   if (logEvent) {
     // Mirror the Stripe path's value signal so Meta/GA optimize the same for web
     // and IAP — app IAP trials charge 0, so value falls back to predicted LTV.
-    const predictedLTV = getPlusPredictedLTV(isTrial, paymentCurrency);
+    const {
+      value: predictedLTV,
+      currency: ltvCurrency,
+    } = getPlusPredictedLTV(isTrial, paymentCurrency);
     // Ad-attribution the native app forwarded as subscriber attributes, so the
     // IAP server-side conversion (Meta CAPI / GA / PostHog) carries the same
     // attribution the Stripe Subscribe/StartTrial event does (see index.ts).
@@ -404,7 +407,9 @@ async function handleGrant(
       email: user.email,
       evmWallet: user.evmWallet,
       value: isTrial ? predictedLTV : paymentAmount,
-      currency: paymentCurrency,
+      // ltvCurrency is a lowercase Plus currency; uppercase it so the analytics
+      // currency dimension stays ISO 4217 like paymentCurrency and the Stripe path.
+      currency: isTrial ? ltvCurrency.toUpperCase() : paymentCurrency,
       paymentId: transactionId,
       items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
       referrer,
