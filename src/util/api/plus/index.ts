@@ -454,7 +454,9 @@ export async function processStripeSubscriptionInvoice(
   // Trial to paid upgrade is handled in processStripeSubscriptionUpdate
   if (isSubscriptionCreation || isTrialToPaidUpgrade) {
     const { value: predictedLTV } = getPlusPredictedLTV(isTrial, currency);
-    await logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', {
+    // Shared payload for the Subscribe/StartTrial and PlusAcquisition events; they must
+    // carry identical attribution and value so the browser pixel can dedup against them.
+    const acquisitionEventPayload = {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
         productId: `plus-${period}ly`,
@@ -486,7 +488,19 @@ export async function processStripeSubscriptionInvoice(
         $referrer: referrer,
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
-    });
+    };
+    // Independent analytics emits — fire in parallel (matches the renewal/Airtable paths).
+    const events = [logServerEvents(isTrial ? 'StartTrial' : 'Subscribe', acquisitionEventPayload)];
+    // Unified acquisition event — fired once per new subscription (creation only,
+    // NOT on trial→paid upgrade) so it counts each subscription exactly once. This is
+    // the single signal to optimize Meta on; mirrored by the browser pixel.
+    if (isSubscriptionCreation) {
+      events.push(logServerEvents('PlusAcquisition', {
+        ...acquisitionEventPayload,
+        extraProperties: { ...acquisitionEventPayload.extraProperties, is_trial: isTrial },
+      }));
+    }
+    await Promise.all(events);
   } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
     await logServerEvents('SubscriptionRenewed', {
       evmWallet,
