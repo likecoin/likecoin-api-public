@@ -7,6 +7,7 @@ import {
   filterBookPurchaseCommission,
   filterLikeNFTMetadata,
   filterLikeNFTISCNData,
+  filterUserData,
 } from '../../src/util/ValidationHelper';
 import {
   BookContributorSchema,
@@ -22,6 +23,9 @@ import {
   AffiliateConfigSchema,
   PlusAffiliateResponseSchema,
 } from '../../src/util/api/plus/schemas';
+import {
+  UserDataFilteredResponseSchema,
+} from '../../src/util/api/users/schemas';
 
 // Regression guard for the recurring "response schema stricter than real data" 500s.
 // Each case reproduces a legacy/partial Firestore shape that 500'd a live endpoint
@@ -126,6 +130,13 @@ describe('Response schema ↔ legacy data alignment', () => {
 
     it('still accepts the inactive-affiliate variant of the discriminated union', () => {
       expectParses(PlusAffiliateResponseSchema, { active: false, isPlusDiscountAllowed: false });
+    });
+  });
+
+  describe('UserDataFilteredResponseSchema (filter→schema)', () => {
+    it('accepts a legacy locale code outside supportedLocales (e.g. "cn")', () => {
+      const filtered = filterUserData({ user: 'legacyuser', locale: 'cn' } as any);
+      expectParses(UserDataFilteredResponseSchema, filtered);
     });
   });
 });

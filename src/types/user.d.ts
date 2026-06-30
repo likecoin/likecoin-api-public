@@ -1,5 +1,5 @@
 import type { Timestamp } from '@google-cloud/firestore';
-import type { SupportedLocale } from '../locales';
+import type { StoredLocale } from '../locales';
 import type { LIKER_PLUS_SUBSCRIPTION_STATUSES } from '../util/api/users/schemas';
 
 export interface CivicLikerData {
@@ -118,7 +118,8 @@ export interface UserData {
   lastPaidAt?: Timestamp;
 
   // Metadata fields
-  locale?: SupportedLocale;
+  // Stored locale may include legacy codes (e.g. 'cn') beyond supportedLocales.
+  locale?: StoredLocale;
   timestamp?: number;
   bonusCooldown?: number;
   referrer?: string;
