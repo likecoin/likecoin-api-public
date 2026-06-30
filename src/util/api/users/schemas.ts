@@ -1,9 +1,11 @@
 import { z } from 'zod';
-import { supportedLocales } from '../../../locales';
+import { storedLocales } from '../../../locales';
 
 export const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
 const LikerPlusSubscriptionStatusSchema = z.enum(LIKER_PLUS_SUBSCRIPTION_STATUSES);
-const LocaleSchema = z.enum(supportedLocales);
+// Response locale reflects stored data, which includes legacy codes (e.g. 'cn').
+// Input locale is guarded against supportedLocales separately.
+const LocaleSchema = z.enum(storedLocales);
 
 export const UsersNewCheckBodySchema = z.object({
   user: z.string().optional(),
