@@ -4,7 +4,7 @@ import type { File } from '@google-cloud/storage';
 
 import { ARWEAVE_GATEWAY, API_HOSTNAME } from '../../../../constant';
 import { bookCacheBucket } from '../../../gcloudStorage';
-import { getArweaveTxInfo } from '../../arweave/tx';
+import { getArweaveTxInfo, resolveArweaveTxKey } from '../../arweave/tx';
 import type { NFTClassData } from './index';
 
 // Mirrors the gateway lists in likecoin-cloud-functions/ebook-cors/nft/http.js.
@@ -71,7 +71,8 @@ async function resolveBookFileCacheURL(
     const tx = await getArweaveTxInfo(txHash);
     if (!tx?.arweaveId) return undefined;
     const link = new URL(`${ARWEAVE_GATEWAY}/${tx.arweaveId}`);
-    if (tx.key) link.searchParams.set('key', tx.key);
+    const key = await resolveArweaveTxKey(tx, txHash);
+    if (key) link.searchParams.set('key', key);
     parsedURL = link;
   }
 
