@@ -229,6 +229,74 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
   });
 
+  it('revokes a prior Liker ID that holds Plus tied to the same original_transaction_id on grant', async () => {
+    // Simulates: same iOS/Play subscription previously granted Plus to Liker A
+    // (via missed TRANSFER, Family Sharing, etc.); a fresh grant for Liker B
+    // must revoke A so only one Liker ID holds the entitlement at a time.
+    // currentPeriodEnd must be in the future or the helper treats the record as
+    // already-expired and skips the revoke.
+    const futureEnd = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    await userCollection.doc('testuser').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: futureEnd,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        provider: 'revenuecat',
+        originalTransactionId: 'txn_123',
+      },
+    });
+    const res = await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
+    expect(res.status).toBe(200);
+    const granted = await getUserWithCivicLikerProperties('testing');
+    expect(granted?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(granted?.likerPlus?.originalTransactionId).toBe('txn_123');
+    const revoked = await getUserWithCivicLikerProperties('testuser');
+    expect(revoked?.likerPlus?.subscriptionStatus).toBe('canceled');
+    expect((revoked?.likerPlus?.currentPeriodEnd || 0)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('does not revoke a Stripe-owned prior holder of the same original_transaction_id', async () => {
+    await userCollection.doc('testuser').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: EXPIRATION_AT_MS,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        subscriptionId: 'sub_stripe',
+        customerId: 'cus_stripe',
+        originalTransactionId: 'txn_123',
+      },
+    });
+    const res = await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
+    expect(res.status).toBe(200);
+    const stripeHolder = await getUserWithCivicLikerProperties('testuser');
+    expect(stripeHolder?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(stripeHolder?.likerPlus?.subscriptionId).toBe('sub_stripe');
+  });
+
+  it('does not touch other holders when the grant event has no original_transaction_id', async () => {
+    await userCollection.doc('testuser').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: EXPIRATION_AT_MS,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        provider: 'revenuecat',
+        originalTransactionId: 'txn_other',
+      },
+    });
+    const eventWithoutTxn: Record<string, unknown> = { ...baseEvent, type: 'INITIAL_PURCHASE' };
+    delete eventWithoutTxn.original_transaction_id;
+    const res = await post(eventWithoutTxn, { Authorization: AUTH });
+    expect(res.status).toBe(200);
+    const untouched = await getUserWithCivicLikerProperties('testuser');
+    expect(untouched?.likerPlus?.subscriptionStatus).toBe('active');
+  });
+
   it('returns 200 for an unknown app_user_id without writing', async () => {
     const res = await post(
       { ...baseEvent, app_user_id: 'nonexistent-user', type: 'INITIAL_PURCHASE' },
