@@ -35,9 +35,9 @@ export default async function logPixelEvents(event: ServerEventName, {
   items?: AnalyticsItem[];
   userAgent?: string;
   clientIp?: string;
-  value: number;
+  value?: number;
   predictedLTV?: number;
-  currency: string;
+  currency?: string;
   likeWallet?: string;
   paymentId?: string;
   referrer?: string;
@@ -67,7 +67,7 @@ export default async function logPixelEvents(event: ServerEventName, {
             action_source: 'website',
             referrer_url: referrer,
             user_data: {
-              em: email ? [sha256(email)] : undefined,
+              em: email ? [sha256(email.trim().toLowerCase())] : undefined,
               client_user_agent: userAgent,
               client_ip_address: clientIp,
               external_id: evmWallet && evmWallet.startsWith('0x')
@@ -82,7 +82,7 @@ export default async function logPixelEvents(event: ServerEventName, {
               currency,
               order_id: paymentId,
               customer_type: customerType,
-              content_type: 'product',
+              content_type: items ? 'product' : undefined,
               content_ids: items
                 ? items.map((item) => buildItemId(item.productId, item.priceIndex))
                 : undefined,

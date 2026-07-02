@@ -1,6 +1,7 @@
 export type ServerEventName =
   | 'Purchase'
   | 'InitiateCheckout'
+  | 'CompleteRegistration'
   | 'StartTrial'
   | 'Subscribe'
   | 'PlusAcquisition'
@@ -18,6 +19,7 @@ export interface AnalyticsItem {
 export const SERVER_EVENT_MAP: Record<ServerEventName, string> = {
   Purchase: 'purchase',
   InitiateCheckout: 'begin_checkout',
+  CompleteRegistration: 'sign_up',
   StartTrial: 'start_trial',
   Subscribe: 'subscribe',
   PlusAcquisition: 'plus_acquisition',

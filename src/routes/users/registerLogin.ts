@@ -18,6 +18,7 @@ import {
   checkEVMSignPayload,
 } from '../../util/api/users';
 import { handleUserRegistration } from '../../util/api/users/register';
+import logPixelEvents from '../../util/fbq';
 import { ValidationError } from '../../util/ValidationError';
 import { supportedLocales, defaultLocale } from '../../locales';
 import { handleAvatarUploadAndGetURL } from '../../util/fileupload';
@@ -156,6 +157,19 @@ router.post(
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         ...userPayload,
         logType: 'eventUserRegister',
+      });
+      // Server-side Meta CAPI CompleteRegistration (Pixel only); browser fires GA4/PostHog sign_up.
+      // Meta dedups on event_id — the lowercased wallet matches the browser key, merging the pair.
+      // PostHog can't dedup sign_up: it fires pre-identify, so distinct_id differs from the wallet.
+      logPixelEvents('CompleteRegistration', {
+        email: userPayload.email,
+        evmWallet: userPayload.evmWallet,
+        paymentId: userPayload.evmWallet
+          ? userPayload.evmWallet.toLowerCase()
+          : undefined,
+        userAgent: req.get('User-Agent'),
+        clientIp: (req.headers['x-real-ip'] as string) || req.ip,
+        referrer: userPayload.sourceURL,
       });
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
