@@ -654,6 +654,28 @@ export const BookCatalogStripeResponseSchema = z.object({
   })),
 });
 
+// Mirrors GoogleMerchantItem (googleMerchantCatalog.ts) — the Google Merchant
+// Center product feed. Google-Shopping field dialect; the XML feed is the
+// primary representation, this JSON mirror backs `?format=json` for debugging.
+export const BookCatalogGoogleResponseSchema = z.object({
+  products: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    link: z.string(),
+    image_link: z.string(),
+    price: z.string(),
+    availability: z.enum(['in_stock', 'out_of_stock']),
+    condition: z.literal('new'),
+    brand: z.string(),
+    google_product_category: z.string(),
+    gtin: z.string().optional(),
+    identifier_exists: z.literal('no').optional(),
+    item_group_id: z.string().optional(),
+    item_group_title: z.string().optional(),
+  })),
+});
+
 const StripePayoutSummarySchema = z.object({
   amount: z.number(),
   currency: z.string(),

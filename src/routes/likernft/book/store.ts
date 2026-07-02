@@ -39,6 +39,7 @@ import {
   BookCatalogOpenAIResponseSchema,
   BookCatalogOpenAIFeedResponseSchema,
   BookCatalogStripeResponseSchema,
+  BookCatalogGoogleResponseSchema,
   BookListResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
@@ -97,6 +98,7 @@ import {
   formatOpenAIFeedCSV,
 } from '../../../util/api/likernft/book/openaiCatalog';
 import { getStripeFeedItems, formatStripeFeedCSV } from '../../../util/api/likernft/book/stripeCatalog';
+import { getGoogleMerchantFeedItems, formatGoogleMerchantFeedXML } from '../../../util/api/likernft/book/googleMerchantCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -190,6 +192,24 @@ router.get('/catalog/stripe', validateQuery(BookCatalogQuerySchema), async (req,
       return;
     }
     sendValidatedJSON(res, BookCatalogStripeResponseSchema, { products: items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Google Merchant Center product feed (RSS 2.0 XML in the Google-Shopping field
+// dialect). Google fetches this URL on a schedule; default returns XML, and
+// `?format=json` returns the same items as JSON for debugging.
+router.get('/catalog/google', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
+  try {
+    const items = await getGoogleMerchantFeedItems();
+    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+    if (req.query.format === 'json') {
+      sendValidatedJSON(res, BookCatalogGoogleResponseSchema, { products: items });
+      return;
+    }
+    res.type('application/xml; charset=utf-8');
+    res.send(formatGoogleMerchantFeedXML(items));
   } catch (err) {
     next(err);
   }

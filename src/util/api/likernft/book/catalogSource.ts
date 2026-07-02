@@ -19,8 +19,10 @@ const CATALOG_FALLBACK_BRAND = '3ook.com';
 // Per the catalog specs, `brand` should be the product's real brand, not the
 // storefront name. On an independent-author storefront the author is the
 // strongest brand signal, so prefer author, fall back to publisher/imprint,
-// then 3ook.com. Returns author/publisher too so feeds can also expose them
-// as their own labels.
+// then 3ook.com. This must stay in sync with the storefront landing page brand
+// (liker-land-v3 use-book-info.ts `brandName`), since Google Merchant Center
+// compares the feed `brand` against the crawled page. Returns author/publisher
+// too so feeds can also expose them as their own labels.
 export function resolveCatalogBrand(book: NFTBookListingInfo): {
   author: string;
   publisher: string;
