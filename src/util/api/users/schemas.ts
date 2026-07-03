@@ -67,6 +67,10 @@ export const UsersRegisterBodySchema = z.object({
   description: z.string().optional(),
   locale: z.string().optional(),
   email: z.string().optional(),
+  sourceURL: z.string().optional(),
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmCampaign: z.string().optional(),
 }).passthrough();
 
 export const UsersLoginBodySchema = z.object({

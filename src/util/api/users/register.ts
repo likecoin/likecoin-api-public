@@ -92,6 +92,8 @@ export async function handleUserRegistration({
     email,
     phone,
     utmSource,
+    utmMedium,
+    utmCampaign,
     sourceURL,
   } = payload;
   let { isEmailEnabled = true } = payload;
@@ -299,6 +301,8 @@ export async function handleUserRegistration({
       registerMethod: platform,
       sourceURL,
       utmSource,
+      utmMedium,
+      utmCampaign,
       mediaChannels: createObj.mediaChannels,
     },
   };
