@@ -4,7 +4,7 @@ import { getAddress } from 'viem';
 import axios from 'axios';
 import LRU from 'lru-cache';
 import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client';
-import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from './LikeNFT';
+import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from '../../constant/contract/likeNFT';
 import { sendWriteContractWithNonce } from './tx';
 import { logEVMMintNFTsTx } from '../txLogger';
 import { BOOK3_HOSTNAME } from '../../constant';

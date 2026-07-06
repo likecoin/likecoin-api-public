@@ -596,11 +596,6 @@ export const LIKE_NFT_ABI: Abi = [
   },
 ];
 
-export const LIKE_NFT_CONTRACT = {
-  address: LIKE_NFT_CONTRACT_ADDRESS,
-  abi: LIKE_NFT_ABI,
-};
-
 export const LIKE_NFT_CLASS_ABI: Abi = [
   {
     inputs: [],
