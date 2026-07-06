@@ -317,6 +317,21 @@ export async function processStripeSubscriptionInvoice(
       && giftClassId
       && !existingGiftCartId
       && canCreateGiftCart) {
+    // Best-effort: drop the giftCartId pointer written before cart creation and
+    // restore isUpgradingPrice, so a later invoice can retry the gift cart.
+    const revertGiftCartMetadata = async () => {
+      try {
+        await stripe.subscriptions.update(subscriptionId, {
+          metadata: {
+            giftCartId: '',
+            ...(isUpgradingPrice ? { isUpgradingPrice } : {}),
+          },
+        });
+      } catch (revertError) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to revert gift cart metadata for subscription ${subscriptionId}:`, revertError);
+      }
+    };
     try {
       giftCartId = uuidv4();
       const metadata: Stripe.MetadataParam = {
@@ -342,19 +357,33 @@ export async function processStripeSubscriptionInvoice(
           paymentId: giftPaymentId,
           claimToken,
         } = result;
-        await stripe.subscriptions.update(subscriptionId, {
-          metadata: {
-            ...subscriptionMetadata,
-            giftClassId,
-            giftCartId: cartId,
-            giftPaymentId,
-            giftClaimToken: claimToken,
-          },
-        });
+        // Best-effort: the cart already exists, so a failure persisting payment
+        // pointers must not fall into the outer catch and revert giftCartId,
+        // which would orphan the cart and let a later invoice duplicate it.
+        try {
+          // Don't respread subscriptionMetadata here; merging per-key keeps the
+          // isUpgradingPrice key cleared above from being restored.
+          await stripe.subscriptions.update(subscriptionId, {
+            metadata: {
+              giftClassId,
+              giftCartId: cartId,
+              giftPaymentId,
+              giftClaimToken: claimToken,
+            },
+          });
+        } catch (metadataError) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to persist gift cart payment metadata for subscription ${subscriptionId}:`, metadataError);
+        }
+      } else {
+        giftCartId = '';
+        await revertGiftCartMetadata();
       }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error creating gift cart from subscription:', error);
+      giftCartId = '';
+      await revertGiftCartMetadata();
     }
   }
 
