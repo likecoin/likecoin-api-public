@@ -1222,7 +1222,8 @@ export async function updateNFTBookPostDeliveryData({
   quantity?: number,
   isAutoDeliver?: boolean,
 }, t: any) {
-  // TODO: check tx content contains valid nft info and address
+  // Manual /sent txHashes are verified on-chain in the route before this
+  // transaction (verifyNFTTransferTxHash); RPC can't run inside a Firestore tx.
   const bookDocRef = likeNFTBookCollection.doc(classId);
   const paymentDocRef = bookDocRef.collection('transactions').doc(paymentId);
   const paymentDoc = await t.get(paymentDocRef);

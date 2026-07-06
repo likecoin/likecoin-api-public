@@ -35,7 +35,7 @@ import {
 import { claimNFTBookCart, handleNewCartStripeCheckout } from '../../../util/api/likernft/book/cart';
 import logServerEvents from '../../../util/logServerEvents';
 import { getBook3CartURL, getBook3NFTClassPageURL } from '../../../util/liker-land';
-import { isEVMClassId, triggerNFTIndexerUpdate } from '../../../util/evm/nft';
+import { isEVMClassId, triggerNFTIndexerUpdate, verifyNFTTransferTxHash } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
 import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
@@ -726,6 +726,29 @@ router.post(
       const { ownerWallet, moderatorWallets = [] } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
+      // Verify a seller-reported delivery txHash actually transfers the NFT on-chain.
+      // Auto-deliver mints server-side via claimNFTBook and never reaches this route.
+      if (isEVMClassId(classId) && txHash) {
+        try {
+          const paymentDoc = await likeNFTBookCollection.doc(classId)
+            .collection('transactions').doc(paymentId).get();
+          if (!paymentDoc.exists) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+          const toWallet = paymentDoc.data()?.wallet;
+          // Claim enforces a valid EVM wallet, so a legit delivery always has one.
+          // Fail closed on empty/invalid wallet to avoid an unverified /sent bypass.
+          if (!toWallet || !isValidEVMAddress(toWallet)) {
+            throw new ValidationError('INVALID_WALLET_ADDRESS', 400);
+          }
+          await verifyNFTTransferTxHash({
+            classId, txHash, toWallet, quantity,
+          });
+        } catch (err) {
+          if (err instanceof ValidationError) throw err;
+          // Tolerate RPC/network failures so a flaky node does not block delivery.
+          // eslint-disable-next-line no-console
+          console.error(`Failed to verify delivery tx ${txHash} for class ${classId}:`, err);
+        }
+      }
       const result = await db.runTransaction(async (t: admin.firestore.Transaction) => {
         const paymentData = await updateNFTBookPostDeliveryData({
           classId,

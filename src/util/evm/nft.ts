@@ -1,9 +1,10 @@
 /* eslint-disable camelcase */
 import { readContract } from 'viem/actions';
-import { getAddress } from 'viem';
+import { getAddress, parseEventLogs } from 'viem';
 import axios from 'axios';
 import LRU from 'lru-cache';
 import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client';
+import { ValidationError } from '../ValidationError';
 import { LIKE_NFT_ABI, LIKE_NFT_CLASS_ABI, LIKE_NFT_CONTRACT_ADDRESS } from '../../constant/contract/likeNFT';
 import { sendWriteContractWithNonce } from './tx';
 import { logEVMMintNFTsTx } from '../txLogger';
@@ -409,4 +410,55 @@ export async function getTokenById(booknftId: string, tokenId: string): Promise<
     `${LIKE_NFT_EVM_INDEXER_API}/token/${booknftId}/${tokenId}`,
   );
   return data;
+}
+
+// Verify that txHash is an on-chain transfer of the class's NFT to toWallet.
+// Throws ValidationError on a definitive mismatch (malformed hash, failed tx, or
+// too few matching transfers). RPC/network errors bubble up as plain errors for
+// the caller to tolerate.
+export async function verifyNFTTransferTxHash({
+  classId,
+  txHash,
+  toWallet,
+  quantity = 1,
+}: {
+  classId: string,
+  txHash: string,
+  toWallet: string,
+  quantity?: number,
+}): Promise<bigint[]> {
+  // Reject malformed hashes up front as a definitive mismatch, so an invalid
+  // input is not swallowed as a tolerated RPC/network error by the caller.
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    throw new ValidationError('DELIVERY_TX_HASH_INVALID', 400);
+  }
+  const client = getEVMClient();
+  const receipt = await client.waitForTransactionReceipt({
+    hash: txHash as `0x${string}`,
+    timeout: 60000,
+  });
+  if (receipt.status !== 'success') {
+    throw new ValidationError('DELIVERY_TX_FAILED', 400);
+  }
+  const classAddress = getAddress(classId);
+  const recipient = getAddress(toWallet);
+  // Manual sends use batchTransferWithMemo (TransferWithMemo); mints/plain
+  // transfers emit standard Transfer. Accept either to cover both paths.
+  const transferLogs = parseEventLogs({
+    abi: LIKE_NFT_CLASS_ABI,
+    eventName: ['Transfer', 'TransferWithMemo'],
+    logs: receipt.logs,
+  });
+  const matched = transferLogs
+    .map((log) => ({ address: log.address, args: log.args as { to: string, tokenId: bigint } }))
+    .filter(({ address, args }) => (
+      getAddress(address) === classAddress && getAddress(args.to) === recipient
+    ));
+  // Dedupe by tokenId: Transfer and TransferWithMemo can both fire for one
+  // transfer, which would otherwise double-count against quantity.
+  const tokenIds = [...new Set(matched.map(({ args }) => args.tokenId))];
+  if (tokenIds.length < quantity) {
+    throw new ValidationError('DELIVERY_TX_NFT_MISMATCH', 400);
+  }
+  return tokenIds;
 }
