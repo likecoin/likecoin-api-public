@@ -26,6 +26,9 @@ import {
 import {
   UserDataFilteredResponseSchema,
 } from '../../src/util/api/users/schemas';
+import {
+  WalletEvmMigrateResponseSchema,
+} from '../../src/util/api/wallet/schemas';
 
 // Regression guard for the recurring "response schema stricter than real data" 500s.
 // Each case reproduces a legacy/partial Firestore shape that 500'd a live endpoint
@@ -137,6 +140,57 @@ describe('Response schema ↔ legacy data alignment', () => {
     it('accepts a legacy locale code outside supportedLocales (e.g. "cn")', () => {
       const filtered = filterUserData({ user: 'legacyuser', locale: 'cn' } as any);
       expectParses(UserDataFilteredResponseSchema, filtered);
+    });
+  });
+
+  describe('WalletEvmMigrateResponseSchema (migratedLikerLandUser allowlist)', () => {
+    const base = {
+      isMigratedBookUser: true,
+      isMigratedBookOwner: true,
+      isMigratedLikerId: true,
+      isMigratedLikerLand: true,
+      migratedLikerId: 'liker-1',
+      migrateBookUserError: null,
+      migrateBookOwnerError: null,
+      migrateLikerIdError: null,
+      migrateLikerLandError: null,
+    };
+
+    it('strips extra (potentially PII) keys from the raw liker-land user object', () => {
+      // migratedLikerLandUser is the raw liker-land migrate body (commit 49dfbddd);
+      // only the allowlisted fields should survive.
+      const parsed = WalletEvmMigrateResponseSchema.parse({
+        ...base,
+        migratedLikerLandUser: {
+          id: 'u1',
+          likeWallet: 'like1',
+          lastLoginMethod: 'magic',
+          registerLoginMethod: 'wallet',
+          email: 'secret@pii.com',
+          displayName: 'Bob',
+        },
+      });
+      expect(parsed.migratedLikerLandUser).toEqual({
+        id: 'u1',
+        likeWallet: 'like1',
+        lastLoginMethod: 'magic',
+        registerLoginMethod: 'wallet',
+      });
+    });
+
+    it('accepts null (migration not run) and partial/missing inner fields', () => {
+      expectParses(WalletEvmMigrateResponseSchema, { ...base, migratedLikerLandUser: null });
+      expectParses(WalletEvmMigrateResponseSchema, {
+        ...base,
+        migratedLikerLandUser: { likeWallet: 'like1' },
+      });
+    });
+
+    it('coerces a non-object upstream body to null instead of 500ing', () => {
+      // liker-land could 200 with an empty string / array body; must not throw.
+      const S = WalletEvmMigrateResponseSchema;
+      expect(S.parse({ ...base, migratedLikerLandUser: '' }).migratedLikerLandUser).toBeNull();
+      expect(S.parse({ ...base, migratedLikerLandUser: [] }).migratedLikerLandUser).toBeNull();
     });
   });
 });
