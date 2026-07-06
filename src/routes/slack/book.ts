@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { slackTokenChecker } from '../../middleware/slack';
+import { slackTokenChecker, slackCommandHandler } from '../../middleware/slack';
 import {
   SLACK_COMMAND_TOKEN,
   BOOK_ADMIN_ALLOWED_CHANNEL_IDS,
   BOOK_ADMIN_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
-  getSlackAttachmentFromError,
   sendNFTBookApprovalUpdateSlackNotification,
 } from '../../util/slack';
 import { likeNFTBookCollection } from '../../util/firebase';
@@ -105,32 +104,27 @@ router.post(
     BOOK_ADMIN_ALLOWED_CHANNEL_IDS,
     BOOK_ADMIN_ALLOWED_USER_IDS,
   ),
-  async (req, res) => {
-    try {
-      const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
+  slackCommandHandler({
+    approve: async ({ params, req, res }) => {
       const slackUserId = req.body.user_id;
+      const [classId, action = 'approve_with_ads'] = params;
+      if (!classId) {
+        throw new Error('Missing classId. Usage: /book approve <classId> <approve_with_ads|approve_no_ads|reject>');
+      }
+      if (action && !['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'].includes(action)) {
+        throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, approve_hidden, reject');
+      }
+      const result = await approveBook(classId, action, slackUserId);
 
-      switch (command) {
-        case 'approve': {
-          const [classId, action = 'approve_with_ads'] = params;
-          if (!classId) {
-            throw new Error('Missing classId. Usage: /book approve <classId> <approve_with_ads|approve_no_ads|reject>');
-          }
-          if (action && !['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'].includes(action)) {
-            throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, approve_hidden, reject');
-          }
-          const result = await approveBook(classId, action, slackUserId);
-
-          res.json({
-            response_type: 'in_channel',
-            text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
-          });
-          break;
-        }
-        case 'help': {
-          res.json({
-            response_type: 'ephemeral',
-            text: `\`/book approve <classId> <approve_with_ads|approve_no_ads|reject>\` Approve or reject a book listing
+      res.json({
+        response_type: 'in_channel',
+        text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
+      });
+    },
+    help: ({ res }) => {
+      res.json({
+        response_type: 'ephemeral',
+        text: `\`/book approve <classId> <approve_with_ads|approve_no_ads|reject>\` Approve or reject a book listing
 
 Examples:
   \`/book approve 0x1234...5678 \` - Approve for listing & ads (default)
@@ -138,21 +132,9 @@ Examples:
   \`/book approve 0x1234...5678  approve_no_ads\` - Approve for listing (no ads)
   \`/book approve 0x1234...5678  approve_hidden\` - Approve but keep hidden (no ads)
   \`/book approve 0x1234...5678  reject\` - Reject/hide listing`,
-          });
-          break;
-        }
-        default:
-          throw new Error('Invalid command. Use `/book help` for usage.');
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      res.json({
-        response_type: 'ephemeral',
-        attachments: [getSlackAttachmentFromError((err as any).message || err)],
       });
-    }
-  },
+    },
+  }, 'Invalid command. Use `/book help` for usage.'),
 );
 
 export default router;

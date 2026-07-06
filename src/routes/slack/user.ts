@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { slackTokenChecker } from '../../middleware/slack';
+import { slackTokenChecker, slackCommandHandler } from '../../middleware/slack';
 import {
   SLACK_COMMAND_TOKEN,
   USER_ALLOWED_CHANNEL_IDS,
@@ -7,7 +7,6 @@ import {
 } from '../../../config/config';
 import {
   getSlackAttachmentForMap,
-  getSlackAttachmentFromError,
 } from '../../util/slack';
 import {
   userCollection,
@@ -91,40 +90,27 @@ async function getUserInfo(req, res, query) {
   });
 }
 
+const getUserCommand = async ({ params, req, res }) => {
+  if (params.length < 1) {
+    throw new Error('Invalid params length. Missing id.');
+  }
+  await getUserInfo(req, res, params.join(' '));
+};
+
 router.post(
   '/user',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  async (req, res) => {
-    try {
-      const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
-      switch (command) {
-        case 'get': {
-          if (params.length < 1) {
-            throw new Error('Invalid params length. Missing id.');
-          }
-          await getUserInfo(req, res, params.join(' '));
-          break;
-        }
-        case 'help': {
-          res.json({
-            response_type: 'ephemeral',
-            text: `\`/user get \${liker id}\` Get user info e.g. \`/user get likerid\`
-\`/user find \${param} Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\``,
-          });
-          break;
-        }
-        default:
-          throw new Error('Invalid command');
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
+  slackCommandHandler({
+    get: getUserCommand,
+    find: getUserCommand,
+    help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
-        attachments: [getSlackAttachmentFromError((err as any).message || err)],
+        text: `\`/user get \${liker id}\` Get user info e.g. \`/user get likerid\`
+\`/user find \${param} Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\``,
       });
-    }
-  },
+    },
+  }),
 );
 
 export default router;

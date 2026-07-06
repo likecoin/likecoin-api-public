@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { slackTokenChecker } from '../../middleware/slack';
+import { slackTokenChecker, slackCommandHandler } from '../../middleware/slack';
 import {
   SLACK_COMMAND_TOKEN,
   USER_ALLOWED_CHANNEL_IDS,
   USER_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
-  getSlackAttachmentFromError,
   createPaymentSlackBlocks,
   mapTransactionDocsToSlackSections,
 } from '../../util/slack';
@@ -123,12 +122,11 @@ async function handleTxsQuery({
 router.post(
   '/payment',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  async (req, res) => {
-    try {
-      const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
+  slackCommandHandler({
+    txs: async ({ params, res }) => {
       const [mainParam, additionalFilter] = params;
 
-      if (!mainParam && command !== 'help') {
+      if (!mainParam) {
         throw new Error('Invalid query, type help to see the list of available commands');
       }
 
@@ -139,16 +137,14 @@ router.post(
       let paymentId = '';
       let status = '';
 
-      if (mainParam) {
-        if (mainParam.includes('@') && mainParam.includes('.')) {
-          email = mainParam;
-        } else if (mainParam.startsWith('like1') && mainParam.length === 43) {
-          wallet = mainParam;
-        } else if (classIdRegex.test(mainParam)) {
-          classId = mainParam;
-        } else if (paymentIdRegex.test(mainParam)) {
-          cartId = mainParam;
-        }
+      if (mainParam.includes('@') && mainParam.includes('.')) {
+        email = mainParam;
+      } else if (mainParam.startsWith('like1') && mainParam.length === 43) {
+        wallet = mainParam;
+      } else if (classIdRegex.test(mainParam)) {
+        classId = mainParam;
+      } else if (paymentIdRegex.test(mainParam)) {
+        cartId = mainParam;
       }
 
       if (additionalFilter) {
@@ -161,56 +157,42 @@ router.post(
         }
       }
 
-      switch (command) {
-        case 'txs':
-          return await handleTxsQuery({
-            email, wallet, classId, status, cartId, paymentId, res,
-          });
-        case 'help': {
-          res.json({
-            response_type: 'ephemeral',
-            blocks: [
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: '*Available Command: `txs`*',
-                },
-              },
-              {
-                type: 'divider',
-              },
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
-                },
-              },
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId}`\n- Retrieve transaction details for a specific cart or class item using the `cartId` or `classId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
-                },
-              },
-            ],
-          });
-          break;
-        }
-        default:
-          throw new Error('Invalid command. Please use `/payment help` to see the list of valid commands.');
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
+      await handleTxsQuery({
+        email, wallet, classId, status, cartId, paymentId, res,
+      });
+    },
+    help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
-        attachments: [getSlackAttachmentFromError((err as any).message || err)],
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*Available Command: `txs`*',
+            },
+          },
+          {
+            type: 'divider',
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
+            },
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId}`\n- Retrieve transaction details for a specific cart or class item using the `cartId` or `classId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
+            },
+          },
+        ],
       });
-    }
-    return null;
-  },
+    },
+  }, 'Invalid command. Please use `/payment help` to see the list of valid commands.'),
 );
 
 export default router;
