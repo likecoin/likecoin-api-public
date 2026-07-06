@@ -51,9 +51,10 @@ export const WalletEvmMigrateResponseSchema = z.object({
   isMigratedLikerId: z.boolean(),
   isMigratedLikerLand: z.boolean(),
   // migrateLikeWalletToEVMWallet returns null (not undefined) for absent values,
-  // and the liker-land error is an untyped axios response body.
+  // and both the migrated liker-land user and the error are untyped axios
+  // response bodies (the user is the raw liker-land migrate response object).
   migratedLikerId: z.string().nullable(),
-  migratedLikerLandUser: z.string().nullable(),
+  migratedLikerLandUser: z.unknown().nullable(),
   migrateBookUserError: z.string().nullable(),
   migrateBookOwnerError: z.string().nullable(),
   migrateLikerIdError: z.string().nullable(),
