@@ -45,6 +45,72 @@ import { checkIsFromLikerLand, calculateItemPrices } from './price';
 // Re-export pure functions for backward compatibility
 export { checkIsFromLikerLand, calculateItemPrices } from './price';
 
+type CommissionType = 'channelCommission' | 'connectedWallet' | 'artFee';
+
+type CommissionEmailMap = Record<string, {
+  payments: { amount: number, type: CommissionType }[];
+  locale?: string;
+}>;
+
+async function recordCommission(wallet: string, {
+  type,
+  ownerWallet,
+  classId,
+  priceIndex,
+  transferId,
+  chargeId,
+  stripeConnectAccountId,
+  paymentId,
+  amountTotal,
+  amount,
+  currency,
+  buyerEmail,
+}: {
+  type: CommissionType,
+  ownerWallet: string,
+  classId: string,
+  priceIndex: number,
+  transferId: string,
+  chargeId: string,
+  stripeConnectAccountId: string,
+  paymentId: string,
+  amountTotal: number,
+  amount: number,
+  currency: string,
+  buyerEmail: string | null,
+}) {
+  await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+    type,
+    ownerWallet,
+    classId,
+    priceIndex,
+    transferId,
+    chargeId,
+    stripeConnectAccountId,
+    paymentId,
+    amountTotal,
+    amount,
+    currency,
+    ...(buyerEmail ? { buyerEmail } : {}),
+    timestamp: FieldValue.serverTimestamp(),
+  });
+}
+
+function queueCommissionEmail(emailMap: CommissionEmailMap, {
+  email,
+  locale,
+  amount,
+  type,
+}: {
+  email: string,
+  locale?: string,
+  amount: number,
+  type: CommissionType,
+}) {
+  emailMap[email] ??= { payments: [], locale }; // eslint-disable-line no-param-reassign
+  emailMap[email].payments.push({ amount, type });
+}
+
 export async function handleStripeConnectedAccount({
   classId = '',
   priceIndex = -1,
@@ -85,7 +151,17 @@ export async function handleStripeConnectedAccount({
   };
   if (classId) metadata.classId = classId;
   if (priceIndex !== undefined) metadata.priceIndex = priceIndex.toString();
-  const emailMap: Record<string, { payments: any[]; locale?: string }> = {};
+  const emailMap: CommissionEmailMap = {};
+  const commissionBase = {
+    ownerWallet,
+    classId,
+    priceIndex,
+    chargeId,
+    paymentId,
+    amountTotal,
+    currency: 'usd', // Stripe balances are settled in USD in source tx
+    buyerEmail,
+  };
   if (channelCommission) {
     let fromUser: any = null;
     if (from && !checkIsFromLikerLand(from)) {
@@ -140,27 +216,20 @@ export async function handleStripeConnectedAccount({
         });
         if (transfer) {
           transfers.push(transfer);
-          await likeNFTBookUserCollection.doc(fromWallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+          await recordCommission(fromWallet, {
+            ...commissionBase,
             type: 'channelCommission',
-            ownerWallet,
-            classId,
-            priceIndex,
             transferId: transfer.id,
-            chargeId,
             stripeConnectAccountId,
-            paymentId,
-            amountTotal,
             amount: channelCommission,
-            currency,
-            ...(buyerEmail ? { buyerEmail } : {}),
-            timestamp: FieldValue.serverTimestamp(),
           });
           const shouldSendNotificationEmailToChannel = !isOwner
             && email
             && isEmailVerified;
           if (shouldSendNotificationEmailToChannel) {
-            emailMap[email] ??= { payments: [], locale: (likerUserInfo as any)?.locale };
-            emailMap[email].payments.push({
+            queueCommissionEmail(emailMap, {
+              email,
+              locale: (likerUserInfo as any)?.locale,
               amount: channelCommission / 100,
               type: 'channelCommission',
             });
@@ -238,20 +307,12 @@ export async function handleStripeConnectedAccount({
               console.error(e);
             });
             if (!transfer) return null;
-            await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+            await recordCommission(wallet, {
+              ...commissionBase,
               type: 'connectedWallet',
-              ownerWallet,
-              classId,
-              priceIndex,
               transferId: transfer.id,
-              chargeId,
               stripeConnectAccountId,
-              paymentId,
-              amountTotal,
               amount: amountSplit,
-              currency,
-              ...(buyerEmail ? { buyerEmail } : {}),
-              timestamp: FieldValue.serverTimestamp(),
             });
             const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
             const {
@@ -261,10 +322,10 @@ export async function handleStripeConnectedAccount({
             const isOwner = wallet === ownerWallet;
             const shouldSendNotificationEmailToChannel = !isOwner && email && isEmailVerified;
             if (shouldSendNotificationEmailToChannel) {
-              emailMap[email] ??= { payments: [], locale: (likerUserInfo as any)?.locale };
-              const walletAmount = amountSplit / 100;
-              emailMap[email].payments.push({
-                amount: walletAmount,
+              queueCommissionEmail(emailMap, {
+                email,
+                locale: (likerUserInfo as any)?.locale,
+                amount: amountSplit / 100,
                 type: 'connectedWallet',
               });
             }
@@ -307,20 +368,12 @@ export async function handleStripeConnectedAccount({
           idempotencyKey: `transfer-${paymentId}-${classId}-${priceIndex}-artFee`,
         });
         transfers.push(transfer);
-        await likeNFTBookUserCollection.doc(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
+        await recordCommission(NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET, {
+          ...commissionBase,
           type: 'artFee',
-          ownerWallet,
-          classId,
-          priceIndex,
           transferId: transfer.id,
-          chargeId,
           stripeConnectAccountId,
-          paymentId,
-          amountTotal,
           amount: likerLandArtFee,
-          currency,
-          ...(buyerEmail ? { buyerEmail } : {}),
-          timestamp: FieldValue.serverTimestamp(),
         });
       } catch (e) {
         // eslint-disable-next-line no-console
