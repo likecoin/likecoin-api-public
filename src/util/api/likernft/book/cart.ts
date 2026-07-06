@@ -177,16 +177,18 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       likerLandCommission: likerLandCommission * quantity,
       channelCommission: channelCommission * quantity,
       likerLandArtFee: likerLandArtFee * quantity,
+      // stripeFeeAmount is prorated for the whole line (already includes quantity),
+      // so subtract it once from the line total, not from the per-unit price.
       royaltyToSplit: Math.max(
-        priceInDecimal
-        - stripeFeeAmount
+        (priceInDecimal
         - likerLandFeeAmount
         - likerLandTipFeeAmount
         - likerLandCommission
         - channelCommission
-        - likerLandArtFee,
+        - likerLandArtFee) * quantity
+        - stripeFeeAmount,
         0,
-      ) * quantity,
+      ),
     };
     if (classId && priceIndex !== undefined) {
       return createNewNFTBookPayment(classId, paymentId, {
