@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import type Stripe from 'stripe';
 import uuidv4 from 'uuid/v4';
 
-import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
+import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
+import type { PlusCheckoutTrackingInfo, PlusPeriod } from '.';
 import {
   FieldValue, likeNFTBookUserCollection, likePlusGiftCartCollection, userCollection, db,
 } from '../../firebase';
@@ -34,7 +35,7 @@ export async function createPlusGiftCheckoutSession(
     currency,
     isApp,
   }: {
-    period: 'monthly' | 'yearly',
+    period: PlusPeriod,
     giftInfo: BookGiftInfo,
     coupon?: string,
     language?: 'en' | 'zh',
@@ -55,27 +56,7 @@ export async function createPlusGiftCheckoutSession(
     clientIp,
     ipCountry,
     utm,
-  }: {
-    from?: string,
-    gaClientId?: string,
-    gaSessionId?: string,
-    gadClickId?: string,
-    gadSource?: string,
-    fbClickId?: string,
-    fbp?: string,
-    fbc?: string,
-    referrer?: string,
-    userAgent?: string,
-    clientIp?: string,
-    ipCountry?: string,
-    utm?: {
-      campaign?: string,
-      source?: string,
-      medium?: string,
-      content?: string,
-      term?: string,
-    },
-  },
+  }: PlusCheckoutTrackingInfo,
   req,
 ) {
   const paymentId = uuidv4();
@@ -134,18 +115,7 @@ export async function createPlusGiftCheckoutSession(
   if (referrer) sessionMetadata.referrer = referrer.substring(0, 500);
   if (language) sessionMetadata.language = language;
 
-  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (coupon) {
-    try {
-      const promotion = await getStripePromotionFromCode(coupon);
-      if (promotion) {
-        discounts.push({ promotion_code: promotion.id });
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
-    }
-  }
+  const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
 
   const isYearly = period === 'yearly';
 
@@ -235,7 +205,7 @@ export async function createPlusGiftCart({
   claimToken,
   ipCountry,
 }: {
-  period?: 'monthly' | 'yearly',
+  period?: PlusPeriod,
   giftInfo: BookGiftInfo,
   email: string,
   paymentId: string,

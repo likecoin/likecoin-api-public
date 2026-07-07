@@ -39,7 +39,7 @@ import {
 } from '../../constant';
 import type { SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
-import { createNewPlusCheckoutSession, updateSubscriptionPeriod } from '../../util/api/plus';
+import { createNewPlusCheckoutSession, updateSubscriptionPeriod, type PlusPeriod } from '../../util/api/plus';
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
@@ -178,7 +178,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       email,
     } = await createNewPlusCheckoutSession(
       {
-        period: period as 'monthly' | 'yearly',
+        period: period as PlusPeriod,
         trialPeriodDays,
         mustCollectPaymentMethod,
         giftClassId,
@@ -310,7 +310,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
       email,
     } = await createPlusGiftCheckoutSession(
       {
-        period: period as 'monthly' | 'yearly',
+        period: period as PlusPeriod,
         giftInfo,
         coupon,
         currency: checkoutCurrency,

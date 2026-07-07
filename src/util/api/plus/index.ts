@@ -13,7 +13,7 @@ import {
 import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
 import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
-import { getStripeClient, getStripePromotionFromCode } from '../../stripe';
+import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
 import { userCollection } from '../../firebase';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import publisher from '../../gcloudPub';
@@ -34,6 +34,8 @@ import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
+
+export type PlusPeriod = 'monthly' | 'yearly';
 
 function findStripeDefaultPayment(payments?: Stripe.ApiList<Stripe.InvoicePayment>) {
   return payments?.data?.find((p) => p.is_default);
@@ -65,7 +67,7 @@ export async function resolveAffiliateGift({
   from?: string;
   giftClassId?: string;
   giftPriceIndex?: string;
-  period: 'monthly' | 'yearly';
+  period: PlusPeriod;
 }): Promise<{
   giftClassId?: string;
   giftPriceIndex?: string;
@@ -854,72 +856,12 @@ export async function processStripeSubscriptionInvoice(
   });
 }
 
-export async function createNewPlusCheckoutSession(
-  {
-    period,
-    trialPeriodDays = 0,
-    mustCollectPaymentMethod = true,
-    giftClassId,
-    giftPriceIndex,
-    coupon,
-    currency,
-    isApp,
-    uiMode = 'hosted',
-  }: {
-    period: 'monthly' | 'yearly',
-    trialPeriodDays?: number,
-    mustCollectPaymentMethod?: boolean,
-    giftClassId?: string,
-    giftPriceIndex?: string,
-    coupon?: string,
-    currency?: SupportedPlusCurrency,
-    isApp?: boolean,
-    uiMode?: SupportedCheckoutUIMode,
-  },
-  {
-    from,
-    gaClientId,
-    gaSessionId,
-    gadClickId,
-    gadSource,
-    fbClickId,
-    fbp,
-    fbc,
-    referrer,
-    userAgent,
-    clientIp,
-    ipCountry,
-    utm,
-  }: {
-    from?: string,
-    gaClientId?: string,
-    gaSessionId?: string,
-    gadClickId?: string,
-    gadSource?: string,
-    fbClickId?: string,
-    fbp?: string,
-    fbc?: string,
-    referrer?: string,
-    userAgent?: string,
-    clientIp?: string,
-    ipCountry?: string,
-    utm?: {
-      campaign?: string,
-      source?: string,
-      medium?: string,
-      content?: string,
-      term?: string,
-    },
-  },
-  req,
-) {
-  const paymentId = uuidv4();
-  const {
-    wallet,
-    likeWallet,
-    evmWallet,
-    user: appUserId,
-  } = req.user;
+// Look up the checkout user's email and Stripe customer id from their wallet.
+// Throws 429 when the user already has an active Plus subscription.
+async function resolvePlusCheckoutCustomer(wallet?: string): Promise<{
+  userEmail?: string;
+  customerId?: string;
+}> {
   let userEmail;
   let customerId;
   if (wallet) {
@@ -937,6 +879,74 @@ export async function createNewPlusCheckoutSession(
       }
     }
   }
+  return { userEmail, customerId };
+}
+
+type PlusCheckoutUTMInfo = {
+  campaign?: string,
+  source?: string,
+  medium?: string,
+  content?: string,
+  term?: string,
+};
+
+// Client-side attribution forwarded into Stripe metadata and the checkout
+// success/cancel URLs.
+export type PlusCheckoutTrackingInfo = {
+  from?: string,
+  gaClientId?: string,
+  gaSessionId?: string,
+  gadClickId?: string,
+  gadSource?: string,
+  fbClickId?: string,
+  fbp?: string,
+  fbc?: string,
+  referrer?: string,
+  userAgent?: string,
+  clientIp?: string,
+  ipCountry?: string,
+  utm?: PlusCheckoutUTMInfo,
+};
+
+// Build the subscription metadata and the session metadata (a superset that
+// additionally carries the Google Ads click info). Every key is set only when
+// present, and fbp/fbc/referrer are truncated to Stripe's value limits.
+function buildPlusCheckoutMetadata({
+  likeWallet,
+  evmWallet,
+  appUserId,
+  paymentId,
+  affiliateFrom,
+  affiliateGiftOnTrial,
+  giftClassId,
+  giftPriceIndex,
+  tracking,
+}: {
+  likeWallet?: string,
+  evmWallet?: string,
+  appUserId?: string,
+  paymentId: string,
+  affiliateFrom?: string,
+  affiliateGiftOnTrial?: boolean,
+  giftClassId?: string,
+  giftPriceIndex?: string,
+  tracking: PlusCheckoutTrackingInfo,
+}): { subscriptionMetadata: Stripe.MetadataParam; metadata: Stripe.MetadataParam } {
+  const {
+    from,
+    utm,
+    userAgent,
+    clientIp,
+    ipCountry,
+    fbClickId,
+    fbp,
+    fbc,
+    gaClientId,
+    gaSessionId,
+    referrer,
+    gadClickId,
+    gadSource,
+  } = tracking;
   const subscriptionMetadata: Stripe.MetadataParam = {
     store: 'plus',
   };
@@ -948,23 +958,13 @@ export async function createNewPlusCheckoutSession(
   if (appUserId) subscriptionMetadata.appUserId = appUserId;
   if (from) subscriptionMetadata.from = from;
   if (paymentId) subscriptionMetadata.paymentId = paymentId;
-
-  const {
-    giftClassId: resolvedGiftClassId,
-    giftPriceIndex: resolvedGiftPriceIndex,
-    affiliateFrom,
-    affiliateGiftOnTrial,
-  } = await resolveAffiliateGift({
-    from, giftClassId, giftPriceIndex, period,
-  });
   if (affiliateFrom) subscriptionMetadata.affiliateFrom = affiliateFrom;
   if (affiliateGiftOnTrial !== undefined) {
     subscriptionMetadata.affiliateGiftOnTrial = affiliateGiftOnTrial ? 'true' : 'false';
   }
-
-  if (resolvedGiftClassId) subscriptionMetadata.giftClassId = resolvedGiftClassId;
-  if (resolvedGiftPriceIndex !== undefined) {
-    subscriptionMetadata.giftPriceIndex = resolvedGiftPriceIndex;
+  if (giftClassId) subscriptionMetadata.giftClassId = giftClassId;
+  if (giftPriceIndex !== undefined) {
+    subscriptionMetadata.giftPriceIndex = giftPriceIndex;
   }
   if (utm?.campaign) subscriptionMetadata.utmCampaign = utm.campaign;
   if (utm?.source) subscriptionMetadata.utmSource = utm.source;
@@ -983,7 +983,44 @@ export async function createNewPlusCheckoutSession(
   const metadata: Stripe.MetadataParam = { ...subscriptionMetadata };
   if (gadClickId) metadata.gadClickId = gadClickId;
   if (gadSource) metadata.gadSource = gadSource;
+  return { subscriptionMetadata, metadata };
+}
 
+// Pure assembly of the Stripe checkout session payload: line items (with the
+// paid-trial one-time charge), trial settings, success/cancel URLs by UI mode,
+// discounts vs promotion-code entry, and customer vs plain email.
+function buildPlusCheckoutSessionPayload({
+  period,
+  trialPeriodDays,
+  mustCollectPaymentMethod,
+  currency,
+  isApp,
+  uiMode,
+  paymentId,
+  subscriptionMetadata,
+  metadata,
+  discounts,
+  customerId,
+  userEmail,
+  tracking,
+}: {
+  period: PlusPeriod,
+  trialPeriodDays: number,
+  mustCollectPaymentMethod: boolean,
+  currency?: SupportedPlusCurrency,
+  isApp?: boolean,
+  uiMode: SupportedCheckoutUIMode,
+  paymentId: string,
+  subscriptionMetadata: Stripe.MetadataParam,
+  metadata: Stripe.MetadataParam,
+  discounts: Stripe.Checkout.SessionCreateParams.Discount[],
+  customerId?: string,
+  userEmail?: string,
+  tracking: PlusCheckoutTrackingInfo,
+}): Stripe.Checkout.SessionCreateParams {
+  const {
+    gaClientId, gaSessionId, gadClickId, gadSource, utm,
+  } = tracking;
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: subscriptionMetadata,
   };
@@ -997,18 +1034,6 @@ export async function createNewPlusCheckoutSession(
           missing_payment_method: 'cancel',
         },
       };
-    }
-  }
-  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (coupon) {
-    try {
-      const promotion = await getStripePromotionFromCode(coupon);
-      if (promotion) {
-        discounts.push({ promotion_code: promotion.id });
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
     }
   }
 
@@ -1035,10 +1060,7 @@ export async function createNewPlusCheckoutSession(
     } as Stripe.Checkout.SessionCreateParams.LineItem);
   }
 
-  const successUrl = getPlusSuccessPageURL({
-    period,
-    paymentId,
-    hasFreeTrial,
+  const urlTrackingParams = {
     utmCampaign: utm?.campaign,
     utmSource: utm?.source,
     utmMedium: utm?.medium,
@@ -1046,6 +1068,12 @@ export async function createNewPlusCheckoutSession(
     gaSessionId,
     gadClickId,
     gadSource,
+  };
+  const successUrl = getPlusSuccessPageURL({
+    period,
+    paymentId,
+    hasFreeTrial,
+    ...urlTrackingParams,
   });
   const payload: Stripe.Checkout.SessionCreateParams = {
     billing_address_collection: 'auto',
@@ -1062,15 +1090,7 @@ export async function createNewPlusCheckoutSession(
     payload.redirect_on_completion = 'if_required';
   } else {
     payload.success_url = successUrl;
-    payload.cancel_url = getPlusPageURL({
-      utmCampaign: utm?.campaign,
-      utmSource: utm?.source,
-      utmMedium: utm?.medium,
-      gaClientId,
-      gaSessionId,
-      gadClickId,
-      gadSource,
-    });
+    payload.cancel_url = getPlusPageURL(urlTrackingParams);
   }
   if (discounts.length) {
     payload.discounts = discounts;
@@ -1082,6 +1102,80 @@ export async function createNewPlusCheckoutSession(
   } else {
     payload.customer_email = userEmail;
   }
+  return payload;
+}
+
+export async function createNewPlusCheckoutSession(
+  {
+    period,
+    trialPeriodDays = 0,
+    mustCollectPaymentMethod = true,
+    giftClassId,
+    giftPriceIndex,
+    coupon,
+    currency,
+    isApp,
+    uiMode = 'hosted',
+  }: {
+    period: PlusPeriod,
+    trialPeriodDays?: number,
+    mustCollectPaymentMethod?: boolean,
+    giftClassId?: string,
+    giftPriceIndex?: string,
+    coupon?: string,
+    currency?: SupportedPlusCurrency,
+    isApp?: boolean,
+    uiMode?: SupportedCheckoutUIMode,
+  },
+  tracking: PlusCheckoutTrackingInfo,
+  req,
+) {
+  const paymentId = uuidv4();
+  const {
+    wallet,
+    likeWallet,
+    evmWallet,
+    user: appUserId,
+  } = req.user;
+  const { from } = tracking;
+  const { userEmail, customerId } = await resolvePlusCheckoutCustomer(wallet);
+
+  const {
+    giftClassId: resolvedGiftClassId,
+    giftPriceIndex: resolvedGiftPriceIndex,
+    affiliateFrom,
+    affiliateGiftOnTrial,
+  } = await resolveAffiliateGift({
+    from, giftClassId, giftPriceIndex, period,
+  });
+  const { subscriptionMetadata, metadata } = buildPlusCheckoutMetadata({
+    likeWallet,
+    evmWallet,
+    appUserId,
+    paymentId,
+    affiliateFrom,
+    affiliateGiftOnTrial,
+    giftClassId: resolvedGiftClassId,
+    giftPriceIndex: resolvedGiftPriceIndex,
+    tracking,
+  });
+
+  const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
+  const payload = buildPlusCheckoutSessionPayload({
+    period,
+    trialPeriodDays,
+    mustCollectPaymentMethod,
+    currency,
+    isApp,
+    uiMode,
+    paymentId,
+    subscriptionMetadata,
+    metadata,
+    discounts,
+    customerId,
+    userEmail,
+    tracking,
+  });
   const session = await getStripeClient().checkout.sessions.create(payload);
   return {
     session,
@@ -1287,7 +1381,7 @@ export async function processStripeSubscriptionStatusUpdate(
 
 export async function updateSubscriptionPeriod(
   subscriptionId: string,
-  period: 'monthly' | 'yearly',
+  period: PlusPeriod,
   {
     giftClassId,
     giftPriceIndex,

@@ -14,7 +14,8 @@ import {
   getBookUserInfoFromWallet,
 } from './user';
 import {
-  getStripeClient, calculateStripeFee, getStripePromotionFromCode, normalizeLanguageForStripeLocale,
+  getStripeClient, calculateStripeFee, resolveCheckoutDiscountsFromCoupon,
+  normalizeLanguageForStripeLocale,
 } from '../../../stripe';
 import {
   admin, likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
@@ -785,18 +786,7 @@ export async function formatStripeCheckoutSession({
     }
   });
 
-  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (coupon) {
-    try {
-      const promotion = await getStripePromotionFromCode(coupon);
-      if (promotion) {
-        discounts.push({ promotion_code: promotion.id });
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
-    }
-  }
+  const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
   if (!discounts.length && couponId) {
     discounts.push({ coupon: couponId });
   }
