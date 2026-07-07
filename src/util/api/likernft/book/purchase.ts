@@ -42,7 +42,7 @@ import {
 } from '../../../evm/nft';
 import { getCurrencyPriceInDecimal } from '../../../pricing';
 import { checkIsFromLikerLand, calculateItemPrices } from './price';
-import { buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
+import { assertClaimable, buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
 
 // Re-export pure functions for backward compatibility
 export { checkIsFromLikerLand, calculateItemPrices } from './price';
@@ -950,24 +950,7 @@ export async function claimNFTBook(
     if (!docData) {
       throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
     }
-    const {
-      claimToken,
-      status,
-      wallet: claimedWallet,
-    } = docData;
-    if (token !== claimToken) {
-      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
-    }
-    if (claimedWallet && claimedWallet !== wallet) {
-      throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_OTHER', 403);
-    }
-
-    if (status !== 'paid') {
-      if (claimedWallet) {
-        throw new ValidationError('PAYMENT_ALREADY_CLAIMED_BY_WALLET', 409);
-      }
-      throw new ValidationError('PAYMENT_ALREADY_CLAIMED', 403);
-    }
+    assertClaimable(docData, { token, wallet }, 'PAYMENT');
     t.update(docRef, {
       isPendingClaim: false,
       status: 'pendingNFT',

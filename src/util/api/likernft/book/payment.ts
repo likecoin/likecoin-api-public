@@ -1,4 +1,5 @@
 import { FieldValue } from '../../../firebase';
+import { ValidationError } from '../../../ValidationError';
 import type { ItemPriceInfo, TransactionFeeInfo } from './type';
 
 export type BookPaymentGiftInfo = {
@@ -7,6 +8,39 @@ export type BookPaymentGiftInfo = {
   fromName: string,
   message?: string,
 };
+
+// Validate the token before leaking any claim state, so callers with an
+// invalid token only ever see INVALID_CLAIM_TOKEN.
+export function assertClaimable(
+  docData: {
+    claimToken?: string;
+    status?: string;
+    wallet?: string;
+  },
+  { token, wallet }: { token: string; wallet: string },
+  errorPrefix: 'PAYMENT' | 'CART',
+): void {
+  const {
+    claimToken,
+    status,
+    wallet: claimedWallet,
+  } = docData;
+
+  if (token !== claimToken) {
+    throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+  }
+
+  if (claimedWallet && claimedWallet !== wallet) {
+    throw new ValidationError(`${errorPrefix}_ALREADY_CLAIMED_BY_OTHER`, 403);
+  }
+
+  if (status !== 'paid') {
+    if (claimedWallet) {
+      throw new ValidationError(`${errorPrefix}_ALREADY_CLAIMED_BY_WALLET`, 409);
+    }
+    throw new ValidationError(`${errorPrefix}_ALREADY_CLAIMED`, 403);
+  }
+}
 
 export function calculateItemFeeInfo(item: ItemPriceInfo, {
   totalStripeFeeAmount,

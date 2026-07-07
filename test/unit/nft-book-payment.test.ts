@@ -2,11 +2,13 @@ import {
   describe, it, expect,
 } from 'vitest';
 import {
+  assertClaimable,
   buildBasePaymentPayload,
   calculateItemFeeInfo,
   sumFeeInfo,
 } from '../../src/util/api/likernft/book/payment';
 import type { ItemPriceInfo } from '../../src/util/api/likernft/book/type';
+import { ValidationError } from '../../src/util/ValidationError';
 
 const createMockItemPrice = (overrides: Partial<ItemPriceInfo> = {}): ItemPriceInfo => ({
   quantity: 1,
@@ -22,6 +24,104 @@ const createMockItemPrice = (overrides: Partial<ItemPriceInfo> = {}): ItemPriceI
   classId: 'test-class-id',
   priceIndex: 0,
   ...overrides,
+});
+
+describe('assertClaimable', () => {
+  const TOKEN = 'valid-token';
+  const WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+  const OTHER_WALLET = '0xffffffffffffffffffffffffffffffffffffffff';
+
+  const expectClaimError = (
+    run: () => void,
+    message: string,
+    status: number,
+  ) => {
+    let error: ValidationError | undefined;
+    try {
+      run();
+    } catch (err) {
+      error = err as ValidationError;
+    }
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error?.message).toBe(message);
+    expect(error?.status).toBe(status);
+  };
+
+  (['PAYMENT', 'CART'] as const).forEach((prefix) => {
+    describe(`with ${prefix} prefix`, () => {
+      it('should pass for a paid unclaimed doc with a valid token', () => {
+        expect(() => assertClaimable(
+          { claimToken: TOKEN, status: 'paid' },
+          { token: TOKEN, wallet: WALLET },
+          prefix,
+        )).not.toThrow();
+      });
+
+      it('should pass when re-claimed by the same wallet while still paid', () => {
+        expect(() => assertClaimable(
+          { claimToken: TOKEN, status: 'paid', wallet: WALLET },
+          { token: TOKEN, wallet: WALLET },
+          prefix,
+        )).not.toThrow();
+      });
+
+      it('should reject an invalid token before leaking any claim state', () => {
+        const claimedStates = [
+          { claimToken: TOKEN, status: 'paid' },
+          { claimToken: TOKEN, status: 'paid', wallet: OTHER_WALLET },
+          { claimToken: TOKEN, status: 'pending', wallet: OTHER_WALLET },
+          { claimToken: TOKEN, status: 'completed', wallet: WALLET },
+        ];
+        claimedStates.forEach((docData) => {
+          expectClaimError(
+            () => assertClaimable(docData, { token: 'bad-token', wallet: WALLET }, prefix),
+            'INVALID_CLAIM_TOKEN',
+            403,
+          );
+        });
+      });
+
+      it('should reject when claimed by another wallet regardless of status', () => {
+        ['paid', 'pending', 'completed'].forEach((status) => {
+          expectClaimError(
+            () => assertClaimable(
+              { claimToken: TOKEN, status, wallet: OTHER_WALLET },
+              { token: TOKEN, wallet: WALLET },
+              prefix,
+            ),
+            `${prefix}_ALREADY_CLAIMED_BY_OTHER`,
+            403,
+          );
+        });
+      });
+
+      it('should report already claimed by wallet when the same wallet re-claims', () => {
+        expectClaimError(
+          () => assertClaimable(
+            { claimToken: TOKEN, status: 'pending', wallet: WALLET },
+            { token: TOKEN, wallet: WALLET },
+            prefix,
+          ),
+          `${prefix}_ALREADY_CLAIMED_BY_WALLET`,
+          409,
+        );
+      });
+
+      it('should report already claimed when not paid and no wallet recorded', () => {
+        ['new', 'pending', 'completed', 'error'].forEach((status) => {
+          expectClaimError(
+            () => assertClaimable(
+              { claimToken: TOKEN, status },
+              { token: TOKEN, wallet: WALLET },
+              prefix,
+            ),
+            `${prefix}_ALREADY_CLAIMED`,
+            403,
+          );
+        });
+      });
+    });
+  });
 });
 
 describe('calculateItemFeeInfo', () => {

@@ -27,6 +27,7 @@ import {
   checkIsFromLikerLand,
 } from './purchase';
 import {
+  assertClaimable,
   buildBasePaymentPayload,
   BookPaymentGiftInfo,
   calculateItemFeeInfo,
@@ -192,26 +193,7 @@ export async function claimNFTBookCart(
     if (!cartDoc.exists) throw new ValidationError('CART_ID_NOT_FOUND');
     const docData = cartDoc.data();
     if (!docData) throw new ValidationError('CART_ID_NOT_FOUND');
-    const {
-      claimToken,
-      status,
-      wallet: claimedWallet,
-    } = docData;
-
-    if (token !== claimToken) {
-      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
-    }
-
-    if (claimedWallet && claimedWallet !== wallet) {
-      throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
-    }
-
-    if (status !== 'paid') {
-      if (claimedWallet) {
-        throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
-      }
-      throw new ValidationError('CART_ALREADY_CLAIMED', 403);
-    }
+    assertClaimable(docData, { token, wallet }, 'CART');
 
     t.update(cartRef, {
       status: 'pending',
@@ -250,7 +232,7 @@ export async function claimNFTBookCart(
   }
 
   const allItemsAutoClaimed = newClaimedNFTs.filter(
-    (nft) => !!(nft.nftIds?.length || nft.nftId !== undefined),
+    (nft) => nft.nftId !== undefined,
   ).length === unclaimedClassIds.length;
   if (!errors.length) {
     await cartRef.update({
