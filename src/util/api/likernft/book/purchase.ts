@@ -936,6 +936,7 @@ export async function claimNFTBook(
   const docRef = likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId);
   const {
     email,
+    cartId,
     coupon,
     isAutoDeliver,
     nftId,
@@ -1092,24 +1093,27 @@ export async function claimNFTBook(
     loginMethod,
   });
 
-  const { priceInDecimal } = feeInfo as TransactionFeeInfo;
-  let likerId: string | undefined;
-  try {
-    const user = await getUserWithCivicLikerPropertiesByWallet(wallet);
-    likerId = user?.user;
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn('Failed to fetch likerId for wallet', wallet, e);
-  }
-  if (likerId) {
-    if (priceInDecimal === 0) {
-      await updateIntercomUserAttributes(likerId, {
-        has_claimed_free_book: true,
-      });
-    } else if (priceInDecimal > 0) {
-      await updateIntercomUserAttributes(likerId, {
-        has_purchased_paid_book: true,
-      });
+  // Cart claims update Intercom once at the cart level; skip per-class updates
+  if (!cartId) {
+    const { priceInDecimal } = feeInfo as TransactionFeeInfo;
+    let likerId: string | undefined;
+    try {
+      const user = await getUserWithCivicLikerPropertiesByWallet(wallet);
+      likerId = user?.user;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Failed to fetch likerId for wallet', wallet, e);
+    }
+    if (likerId) {
+      if (priceInDecimal === 0) {
+        await updateIntercomUserAttributes(likerId, {
+          has_claimed_free_book: true,
+        });
+      } else if (priceInDecimal > 0) {
+        await updateIntercomUserAttributes(likerId, {
+          has_purchased_paid_book: true,
+        });
+      }
     }
   }
 

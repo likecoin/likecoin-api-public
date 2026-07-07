@@ -206,6 +206,7 @@ export async function claimNFTBookCart(
     status: oldStatus,
     email,
     classIds = [],
+    classIdsWithPrice = [],
     claimedClassIds = [],
   } = cartData;
 
@@ -249,6 +250,29 @@ export async function claimNFTBookCart(
       errors,
       loginMethod: loginMethod || '',
     });
+  }
+
+  // Cart items skip per-class Intercom updates in claimNFTBook; send one
+  // aggregate update per cart claim here so manual claims are covered too.
+  const hasFreeBooks = classIdsWithPrice.some((item) => item.priceInDecimal === 0);
+  const hasPaidBooks = classIdsWithPrice.some((item) => item.priceInDecimal > 0);
+  if (hasFreeBooks || hasPaidBooks) {
+    const attributes: IntercomUserCustomAttributes = {};
+    if (hasFreeBooks) attributes.has_claimed_free_book = true;
+    if (hasPaidBooks) attributes.has_purchased_paid_book = true;
+    try {
+      const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
+      const likerId = userInfo?.user;
+      if (likerId) {
+        await updateIntercomUserAttributes(likerId, attributes);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(`Could not update Intercom user attributes: likerId not found for wallet ${wallet}`);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Failed to update Intercom attributes for cart claim:', err);
+    }
   }
 
   return {
@@ -774,25 +798,6 @@ export async function processNFTBookCart(
         loginMethod: 'autoClaim',
         allItemsAutoClaimed,
       });
-
-      const hasFreeBooks = itemPrices.some((item) => item.priceInDecimal === 0);
-      const hasPaidBooks = itemPrices.some((item) => item.priceInDecimal > 0);
-
-      if (hasFreeBooks || hasPaidBooks) {
-        const attributes: IntercomUserCustomAttributes = {};
-        if (hasFreeBooks) attributes.has_claimed_free_book = true;
-        if (hasPaidBooks) attributes.has_purchased_paid_book = true;
-
-        const userInfo = buyerUserInfo
-          ?? await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-        const likerId = userInfo?.user;
-        if (likerId) {
-          await updateIntercomUserAttributes(likerId, attributes);
-        } else {
-          // eslint-disable-next-line no-console
-          console.warn(`Could not update Intercom user attributes: likerId not found for wallet ${evmWallet}`);
-        }
-      }
     }
   } catch (err) {
     // eslint-disable-next-line no-console
