@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
-import type { LikerPlusSubscriptionStatus } from '../../../types/user';
+import type { LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../../../types/user';
 
 import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
 import {
@@ -160,20 +160,34 @@ export function getPlusPredictedLTV(
   };
 }
 
-export async function processStripeSubscriptionInvoice(
+interface PlusInvoiceContext {
+  subscriptionId: string;
+  evmWallet?: string;
+  likeWallet?: string;
+  user: UserCivicLikerProperties;
+  likerId: string;
+  subscription: Stripe.Subscription;
+  stripeCustomer: Stripe.Customer;
+  item: Stripe.SubscriptionItem;
+  subscriptionMetadata: Stripe.Metadata;
+  startDate: number;
+  status: Stripe.Subscription.Status;
+  productId: string;
+}
+
+// Resolve everything the invoice webhook needs to process a Plus subscription
+// charge; warns and returns null for unprocessable invoices (no subscription,
+// no wallet in metadata, unknown user, or a non-Plus product).
+async function resolvePlusInvoiceContext(
   invoice: Stripe.Invoice,
-  req: Express.Request,
-) {
-  const {
-    billing_reason: billingReason,
-    parent,
-  } = invoice;
+): Promise<PlusInvoiceContext | null> {
+  const { parent } = invoice;
   const subscriptionDetails = parent?.type === 'subscription_details' ? parent.subscription_details : null;
   const subscriptionId = subscriptionDetails?.subscription as string;
   if (!subscriptionId) {
     // eslint-disable-next-line no-console
     console.warn(`No subscription ID found in invoice parent: ${invoice.id}`);
-    return;
+    return null;
   }
   const {
     evmWallet,
@@ -182,15 +196,14 @@ export async function processStripeSubscriptionInvoice(
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
     console.warn(`No evmWallet or likeWallet found in subscription: ${subscriptionId}`);
-    return;
+    return null;
   }
   const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
   if (!user) {
     // eslint-disable-next-line no-console
     console.warn(`No likerId found for evmWallet: ${evmWallet}, likeWallet: ${likeWallet}, subscription: ${subscriptionId}`);
-    return;
+    return null;
   }
-  const likerId = user.user;
   const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer', 'discounts.source.coupon'] });
   const {
@@ -199,47 +212,50 @@ export async function processStripeSubscriptionInvoice(
     metadata: subscriptionMetadata,
     customer,
     status,
-    discounts,
   } = subscription;
-  const stripeCustomer = customer as Stripe.Customer;
-  const {
-    from,
-    giftClassId,
-    giftPriceIndex = '0',
-    giftCartId: existingGiftCartId,
-    utmCampaign,
-    utmSource,
-    utmMedium,
-    utmContent,
-    utmTerm,
-    paymentId,
-    isUpgradingPrice,
-    userAgent,
-    clientIp,
-    fbClickId,
-    fbp,
-    fbc,
-    gaClientId,
-    gaSessionId,
-    referrer,
-    affiliateGiftOnTrial,
-    affiliateFrom,
-  } = subscriptionMetadata || {};
   const productId = item.price.product as string;
   if (productId !== LIKER_PLUS_PRODUCT_ID) {
     // eslint-disable-next-line no-console
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
-    return;
+    return null;
   }
+  return {
+    subscriptionId,
+    evmWallet,
+    likeWallet,
+    user,
+    likerId: user.user,
+    subscription,
+    stripeCustomer: customer as Stripe.Customer,
+    item,
+    subscriptionMetadata: subscriptionMetadata || {},
+    startDate,
+    status,
+    productId,
+  };
+}
 
-  const isNewSubscription = !user.likerPlus || user.likerPlus.since !== startDate * 1000;
-  const amountPaid = invoice.amount_paid / 100;
-  const isTrial = status === 'trialing';
-  const price = amountPaid;
+// Fetch the paid charge's balance transaction (real USD settlement) and the
+// applied coupon. One helper on purpose: both lookups reuse the same expanded
+// invoice fetch. Both are best-effort and return undefined on Stripe errors.
+async function fetchInvoicePaymentDetails({
+  invoice,
+  subscriptionId,
+  subscriptionDiscounts,
+}: {
+  invoice: Stripe.Invoice;
+  subscriptionId: string;
+  subscriptionDiscounts: Stripe.Subscription['discounts'];
+}): Promise<{
+  balanceTxAmount?: number;
+  balanceTxExchangeRate?: number;
+  coupon?: Stripe.Coupon;
+}> {
+  const stripe = getStripeClient();
   let balanceTxAmount: number | undefined;
   let balanceTxExchangeRate: number | undefined;
   let expandedInvoice: Stripe.Invoice | undefined;
-  if (amountPaid > 0) {
+  if (invoice.amount_paid > 0) {
     try {
       let defaultPayment = findStripeDefaultPayment(invoice.payments);
       if (!defaultPayment) {
@@ -273,16 +289,6 @@ export async function processStripeSubscriptionInvoice(
       console.error(`Error retrieving balance transaction for invoice ${invoice.id} of subscription ${subscriptionId}:`, err);
     }
   }
-  const priceName = item.price.nickname || '';
-  const currency = invoice.currency.toUpperCase();
-  // Stripe settles in USD, so the charge's balance transaction amount is the real
-  // converted USD value (actual FX, net of spread). Prefer it; fall back to tier-based
-  // conversion only when the balance transaction couldn't be fetched.
-  const amountPaidUSD = balanceTxAmount
-    ?? convertCurrencyToUSDPrice(
-      amountPaid,
-      currency.toLowerCase() as SupportedPlusCurrency,
-    );
   // Prefer the invoice's own discounts (immutable, correct for `once`/expired
   // coupons that Stripe removes from the subscription after applying them);
   // fall back to the subscription-level discount.
@@ -299,105 +305,140 @@ export async function processStripeSubscriptionInvoice(
     // eslint-disable-next-line no-console
     console.error(`Error retrieving invoice discounts for invoice ${invoice.id}:`, err);
   }
-  if (!coupon) coupon = getCouponFromDiscounts(discounts);
-  const couponId = coupon?.id || '';
-  const couponName = coupon?.name || '';
-  const priceWithCurrency = `${price.toFixed(2)} ${currency}`;
-  const isSubscriptionCreation = billingReason === 'subscription_create';
-  const isYearlySubscription = item.plan.interval === 'year';
+  if (!coupon) coupon = getCouponFromDiscounts(subscriptionDiscounts);
+  return { balanceTxAmount, balanceTxExchangeRate, coupon };
+}
 
+// Create the gift book cart for a yearly subscription and persist its pointers
+// into the subscription metadata. Returns the new cart id, or '' when creation
+// failed (metadata reverted so a later invoice can retry). Whether a gift cart
+// is due at all is decided by the caller.
+async function maybeCreateSubscriptionGiftCart({
+  subscriptionId,
+  giftClassId,
+  giftPriceIndex,
+  isUpgradingPrice,
+  amountPaid,
+  isTrialGift,
+  evmWallet,
+  email,
+}: {
+  subscriptionId: string;
+  giftClassId: string;
+  giftPriceIndex: string;
+  isUpgradingPrice?: string;
+  amountPaid: number;
+  isTrialGift: boolean;
+  evmWallet?: string;
+  email: string | null;
+}): Promise<string> {
+  const stripe = getStripeClient();
+  // Best-effort: drop the giftCartId pointer written before cart creation and
+  // restore isUpgradingPrice, so a later invoice can retry the gift cart.
+  const revertGiftCartMetadata = async () => {
+    try {
+      await stripe.subscriptions.update(subscriptionId, {
+        metadata: {
+          giftCartId: '',
+          ...(isUpgradingPrice ? { isUpgradingPrice } : {}),
+        },
+      });
+    } catch (revertError) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to revert gift cart metadata for subscription ${subscriptionId}:`, revertError);
+    }
+  };
   let giftCartId = '';
-  const isTrialToPaidUpgrade = subscription.trial_end
-    && subscription.trial_end === item.current_period_start;
-  const isAffiliateGiftOnTrial = affiliateGiftOnTrial === 'true';
-  const canCreateGiftCart = (!isTrial && amountPaid > 0)
-    || (isAffiliateGiftOnTrial && isSubscriptionCreation);
-  if ((isSubscriptionCreation || isTrialToPaidUpgrade || isUpgradingPrice)
-      && isYearlySubscription
-      && giftClassId
-      && !existingGiftCartId
-      && canCreateGiftCart) {
-    // Best-effort: drop the giftCartId pointer written before cart creation and
-    // restore isUpgradingPrice, so a later invoice can retry the gift cart.
-    const revertGiftCartMetadata = async () => {
+  try {
+    giftCartId = uuidv4();
+    const metadata: Stripe.MetadataParam = {
+      giftCartId,
+    };
+    if (isUpgradingPrice) metadata.isUpgradingPrice = '';
+    await stripe.subscriptions.update(subscriptionId, {
+      metadata,
+    });
+    const result = await createFreeBookCartFromSubscription({
+      cartId: giftCartId,
+      classId: giftClassId,
+      priceIndex: parseInt(giftPriceIndex, 10) || 0,
+      amountPaid,
+      isTrialGift,
+    }, {
+      evmWallet,
+      email,
+    });
+    if (result) {
+      const {
+        cartId,
+        paymentId: giftPaymentId,
+        claimToken,
+      } = result;
+      // Best-effort: the cart already exists, so a failure persisting payment
+      // pointers must not fall into the outer catch and revert giftCartId,
+      // which would orphan the cart and let a later invoice duplicate it.
       try {
+        // Don't respread subscriptionMetadata here; merging per-key keeps the
+        // isUpgradingPrice key cleared above from being restored.
         await stripe.subscriptions.update(subscriptionId, {
           metadata: {
-            giftCartId: '',
-            ...(isUpgradingPrice ? { isUpgradingPrice } : {}),
+            giftClassId,
+            giftCartId: cartId,
+            giftPaymentId,
+            giftClaimToken: claimToken,
           },
         });
-      } catch (revertError) {
+      } catch (metadataError) {
         // eslint-disable-next-line no-console
-        console.error(`Failed to revert gift cart metadata for subscription ${subscriptionId}:`, revertError);
+        console.error(`Failed to persist gift cart payment metadata for subscription ${subscriptionId}:`, metadataError);
       }
-    };
-    try {
-      giftCartId = uuidv4();
-      const metadata: Stripe.MetadataParam = {
-        giftCartId,
-      };
-      if (isUpgradingPrice) metadata.isUpgradingPrice = '';
-      await stripe.subscriptions.update(subscriptionId, {
-        metadata,
-      });
-      const result = await createFreeBookCartFromSubscription({
-        cartId: giftCartId,
-        classId: giftClassId,
-        priceIndex: parseInt(giftPriceIndex, 10) || 0,
-        amountPaid,
-        isTrialGift: isAffiliateGiftOnTrial && isTrial,
-      }, {
-        evmWallet,
-        email: stripeCustomer.email,
-      });
-      if (result) {
-        const {
-          cartId,
-          paymentId: giftPaymentId,
-          claimToken,
-        } = result;
-        // Best-effort: the cart already exists, so a failure persisting payment
-        // pointers must not fall into the outer catch and revert giftCartId,
-        // which would orphan the cart and let a later invoice duplicate it.
-        try {
-          // Don't respread subscriptionMetadata here; merging per-key keeps the
-          // isUpgradingPrice key cleared above from being restored.
-          await stripe.subscriptions.update(subscriptionId, {
-            metadata: {
-              giftClassId,
-              giftCartId: cartId,
-              giftPaymentId,
-              giftClaimToken: claimToken,
-            },
-          });
-        } catch (metadataError) {
-          // eslint-disable-next-line no-console
-          console.error(`Failed to persist gift cart payment metadata for subscription ${subscriptionId}:`, metadataError);
-        }
-      } else {
-        giftCartId = '';
-        await revertGiftCartMetadata();
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error creating gift cart from subscription:', error);
+    } else {
       giftCartId = '';
       await revertGiftCartMetadata();
     }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error creating gift cart from subscription:', error);
+    giftCartId = '';
+    await revertGiftCartMetadata();
   }
+  return giftCartId;
+}
 
-  const customerId = stripeCustomer.id;
-  const period = item.plan.interval;
-  const since = startDate * 1000; // Convert to milliseconds
-  const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
-  const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
-  // A proration invoice pays a partial amount that doesn't match the full
-  // current_period_start/end term, so dividing would understate per-day value;
-  // recompute only for full-term charges, else preserve the stored value.
-  const isFullTermInvoice = isSubscriptionCreation
-    || isTrialToPaidUpgrade
-    || billingReason === 'subscription_cycle';
+// Write the user's likerPlus record (plus payment/affiliate fields) and accrue
+// this term's USD value to the rev-share pool.
+async function writePlusUserRecordAndAccrual({
+  ctx,
+  since,
+  currentPeriodStart,
+  currentPeriodEnd,
+  isTrial,
+  isFullTermInvoice,
+  isSubscriptionCreation,
+  amountPaid,
+  amountPaidUSD,
+  currency,
+}: {
+  ctx: PlusInvoiceContext;
+  since: number;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  isTrial: boolean;
+  isFullTermInvoice: boolean;
+  isSubscriptionCreation: boolean;
+  amountPaid: number;
+  amountPaidUSD: number;
+  currency: string;
+}): Promise<void> {
+  const {
+    user,
+    likerId,
+    subscriptionId,
+    stripeCustomer,
+    item,
+    subscriptionMetadata,
+  } = ctx;
+  const { affiliateFrom } = subscriptionMetadata;
   const dailyValue = isFullTermInvoice
     ? calculatePlusDailyValue({
       amountPaid: isTrial ? 0 : amountPaid,
@@ -410,7 +451,7 @@ export async function processStripeSubscriptionInvoice(
     : (user.likerPlus?.dailyValueCurrency ?? currency);
   const userUpdate: Record<string, unknown> = {
     likerPlus: {
-      period,
+      period: item.plan.interval,
       since,
       currentPeriodStart,
       currentPeriodEnd,
@@ -418,7 +459,7 @@ export async function processStripeSubscriptionInvoice(
       dailyValue,
       dailyValueCurrency,
       subscriptionId,
-      customerId,
+      customerId: stripeCustomer.id,
       subscriptionStatus: 'active',
       provider: 'stripe',
     },
@@ -458,6 +499,80 @@ export async function processStripeSubscriptionInvoice(
       console.error(`Error recording Plus reading accrual for ${likerId}:`, err);
     }
   }
+}
+
+// Emit every post-write notification for a processed subscription invoice:
+// Intercom attributes/events, acquisition or renewal analytics, Slack,
+// Airtable, and the PubSub log. The awaits are deliberately sequential, and
+// failures propagate so the Stripe webhook retries.
+async function emitPlusInvoiceAnalytics({
+  req,
+  invoice,
+  ctx,
+  isTrial,
+  isNewSubscription,
+  isTrialToPaidUpgrade,
+  amountPaid,
+  amountPaidUSD,
+  currency,
+  coupon,
+  balanceTxAmount,
+  balanceTxExchangeRate,
+  since,
+  currentPeriodStart,
+  currentPeriodEnd,
+  giftCartId,
+}: {
+  req: Express.Request;
+  invoice: Stripe.Invoice;
+  ctx: PlusInvoiceContext;
+  isTrial: boolean;
+  isNewSubscription: boolean;
+  isTrialToPaidUpgrade: boolean;
+  amountPaid: number;
+  amountPaidUSD: number;
+  currency: string;
+  coupon?: Stripe.Coupon;
+  balanceTxAmount?: number;
+  balanceTxExchangeRate?: number;
+  since: number;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  giftCartId: string;
+}) {
+  const {
+    user,
+    likerId,
+    subscriptionId,
+    stripeCustomer,
+    item,
+    productId,
+    subscriptionMetadata,
+    evmWallet,
+    likeWallet,
+  } = ctx;
+  const {
+    from,
+    utmCampaign,
+    utmSource,
+    utmMedium,
+    utmContent,
+    utmTerm,
+    paymentId,
+    userAgent,
+    clientIp,
+    fbClickId,
+    fbp,
+    fbc,
+    gaClientId,
+    gaSessionId,
+    referrer,
+  } = subscriptionMetadata;
+  const { billing_reason: billingReason } = invoice;
+  const isSubscriptionCreation = billingReason === 'subscription_create';
+  const customerId = stripeCustomer.id;
+  const period = item.plan.interval;
+  const priceWithCurrency = `${amountPaid.toFixed(2)} ${currency}`;
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
@@ -567,7 +682,7 @@ export async function processStripeSubscriptionInvoice(
       priceWithCurrency,
       // Treat the first payment converted from a trial as a new subscription,
       // not a renewal (start_date is unchanged so isNewSubscription is false).
-      isNew: isNewSubscription || !!isTrialToPaidUpgrade,
+      isNew: isNewSubscription || isTrialToPaidUpgrade,
       userId: likerId,
       stripeCustomerId: customerId,
       method: 'stripe',
@@ -581,14 +696,14 @@ export async function processStripeSubscriptionInvoice(
       customerWallet: user.evmWallet || '',
       productId,
       priceId: item.price.id,
-      priceName,
-      price,
+      priceName: item.price.nickname || '',
+      price: amountPaid,
       currency,
       balanceTxAmount,
       balanceTxExchangeRate,
       invoiceId: invoice.id,
-      couponId,
-      couponName,
+      couponId: coupon?.id || '',
+      couponName: coupon?.name || '',
       since,
       periodInterval: period,
       periodStartAt: currentPeriodStart,
@@ -610,7 +725,7 @@ export async function processStripeSubscriptionInvoice(
     subscriptionId,
     invoiceId: invoice.id,
     likerId,
-    period: item.plan.interval,
+    period,
     price: amountPaid,
     amountUSD: amountPaidUSD,
     customerId,
@@ -621,6 +736,121 @@ export async function processStripeSubscriptionInvoice(
     utmMedium,
     utmContent,
     utmTerm,
+  });
+}
+
+export async function processStripeSubscriptionInvoice(
+  invoice: Stripe.Invoice,
+  req: Express.Request,
+) {
+  const { billing_reason: billingReason } = invoice;
+  const ctx = await resolvePlusInvoiceContext(invoice);
+  if (!ctx) return;
+  const {
+    subscriptionId,
+    evmWallet,
+    user,
+    subscription,
+    stripeCustomer,
+    item,
+    subscriptionMetadata,
+    startDate,
+    status,
+  } = ctx;
+  const {
+    giftClassId,
+    giftPriceIndex = '0',
+    giftCartId: existingGiftCartId,
+    isUpgradingPrice,
+    affiliateGiftOnTrial,
+  } = subscriptionMetadata;
+
+  const since = startDate * 1000; // Convert to milliseconds
+  const isNewSubscription = !user.likerPlus || user.likerPlus.since !== since;
+  const amountPaid = invoice.amount_paid / 100;
+  const isTrial = status === 'trialing';
+  const {
+    balanceTxAmount,
+    balanceTxExchangeRate,
+    coupon,
+  } = await fetchInvoicePaymentDetails({
+    invoice,
+    subscriptionId,
+    subscriptionDiscounts: subscription.discounts,
+  });
+  const currency = invoice.currency.toUpperCase();
+  // Stripe settles in USD, so the charge's balance transaction amount is the real
+  // converted USD value (actual FX, net of spread). Prefer it; fall back to tier-based
+  // conversion only when the balance transaction couldn't be fetched.
+  const amountPaidUSD = balanceTxAmount
+    ?? convertCurrencyToUSDPrice(
+      amountPaid,
+      currency.toLowerCase() as SupportedPlusCurrency,
+    );
+  const isSubscriptionCreation = billingReason === 'subscription_create';
+  const isYearlySubscription = item.plan.interval === 'year';
+
+  const isTrialToPaidUpgrade = !!(subscription.trial_end
+    && subscription.trial_end === item.current_period_start);
+  const isAffiliateGiftOnTrial = affiliateGiftOnTrial === 'true';
+  const canCreateGiftCart = (!isTrial && amountPaid > 0)
+    || (isAffiliateGiftOnTrial && isSubscriptionCreation);
+  let giftCartId = '';
+  if ((isSubscriptionCreation || isTrialToPaidUpgrade || isUpgradingPrice)
+      && isYearlySubscription
+      && giftClassId
+      && !existingGiftCartId
+      && canCreateGiftCart) {
+    giftCartId = await maybeCreateSubscriptionGiftCart({
+      subscriptionId,
+      giftClassId,
+      giftPriceIndex,
+      isUpgradingPrice,
+      amountPaid,
+      isTrialGift: isAffiliateGiftOnTrial && isTrial,
+      evmWallet,
+      email: stripeCustomer.email,
+    });
+  }
+
+  const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
+  const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
+  // A proration invoice pays a partial amount that doesn't match the full
+  // current_period_start/end term, so dividing would understate per-day value;
+  // recompute only for full-term charges, else preserve the stored value.
+  const isFullTermInvoice = isSubscriptionCreation
+    || isTrialToPaidUpgrade
+    || billingReason === 'subscription_cycle';
+  await writePlusUserRecordAndAccrual({
+    ctx,
+    since,
+    currentPeriodStart,
+    currentPeriodEnd,
+    isTrial,
+    isFullTermInvoice,
+    isSubscriptionCreation,
+    amountPaid,
+    amountPaidUSD,
+    currency,
+  });
+
+  await emitPlusInvoiceAnalytics({
+    req,
+    invoice,
+    ctx,
+    isTrial,
+    isNewSubscription,
+    isTrialToPaidUpgrade,
+    amountPaid,
+    amountPaidUSD,
+    currency,
+    coupon,
+    balanceTxAmount,
+    balanceTxExchangeRate,
+    since,
+    currentPeriodStart,
+    currentPeriodEnd,
+    giftCartId,
   });
 }
 
