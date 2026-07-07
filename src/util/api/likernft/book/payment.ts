@@ -1,4 +1,5 @@
 import { FieldValue } from '../../../firebase';
+import type { ItemPriceInfo, TransactionFeeInfo } from './type';
 
 export type BookPaymentGiftInfo = {
   toName: string,
@@ -6,6 +7,81 @@ export type BookPaymentGiftInfo = {
   fromName: string,
   message?: string,
 };
+
+export function calculateItemFeeInfo(item: ItemPriceInfo, {
+  totalStripeFeeAmount,
+  totalPriceInDecimal,
+}: {
+  totalStripeFeeAmount: number;
+  totalPriceInDecimal: number;
+}): TransactionFeeInfo {
+  const {
+    quantity,
+    priceInDecimal,
+    customPriceDiffInDecimal,
+    originalPriceInDecimal,
+    likerLandTipFeeAmount,
+    likerLandFeeAmount,
+    likerLandCommission,
+    channelCommission,
+    likerLandArtFee,
+  } = item;
+  const stripeFeeAmount = (totalStripeFeeAmount > 0 && totalPriceInDecimal > 0)
+    ? Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity) / totalPriceInDecimal)
+    : 0;
+  return {
+    stripeFeeAmount,
+    priceInDecimal: priceInDecimal * quantity,
+    originalPriceInDecimal: originalPriceInDecimal * quantity,
+    customPriceDiffInDecimal: customPriceDiffInDecimal * quantity,
+    likerLandTipFeeAmount: likerLandTipFeeAmount * quantity,
+    likerLandFeeAmount: likerLandFeeAmount * quantity,
+    likerLandCommission: likerLandCommission * quantity,
+    channelCommission: channelCommission * quantity,
+    likerLandArtFee: likerLandArtFee * quantity,
+    // stripeFeeAmount is prorated for the whole line (already includes quantity),
+    // so subtract it once from the line total, not from the per-unit price.
+    royaltyToSplit: Math.max(
+      (priceInDecimal
+      - likerLandFeeAmount
+      - likerLandTipFeeAmount
+      - likerLandCommission
+      - channelCommission
+      - likerLandArtFee) * quantity
+      - stripeFeeAmount,
+      0,
+    ),
+  };
+}
+
+export function sumFeeInfo(itemFeeInfos: TransactionFeeInfo[]): TransactionFeeInfo {
+  return itemFeeInfos.reduce(
+    (acc, item) => ({
+      priceInDecimal: acc.priceInDecimal + item.priceInDecimal,
+      originalPriceInDecimal: acc.originalPriceInDecimal + item.originalPriceInDecimal,
+      stripeFeeAmount: acc.stripeFeeAmount + item.stripeFeeAmount,
+      likerLandTipFeeAmount: acc.likerLandTipFeeAmount + item.likerLandTipFeeAmount,
+      likerLandFeeAmount: acc.likerLandFeeAmount + item.likerLandFeeAmount,
+      likerLandCommission: acc.likerLandCommission + item.likerLandCommission,
+      channelCommission: acc.channelCommission + item.channelCommission,
+      likerLandArtFee: acc.likerLandArtFee + item.likerLandArtFee,
+      customPriceDiffInDecimal: acc.customPriceDiffInDecimal + item.customPriceDiffInDecimal,
+      royaltyToSplit: acc.royaltyToSplit + item.royaltyToSplit,
+    }),
+    {
+      priceInDecimal: 0,
+      originalPriceInDecimal: 0,
+      stripeFeeAmount: 0,
+      likerLandTipFeeAmount: 0,
+      likerLandFeeAmount: 0,
+      likerLandCommission: 0,
+      channelCommission: 0,
+      likerLandArtFee: 0,
+      customPriceDiffInDecimal: 0,
+      royaltyToSplit: 0,
+    },
+  );
+}
 
 export function buildBasePaymentPayload({
   type,

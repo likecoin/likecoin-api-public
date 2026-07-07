@@ -26,7 +26,12 @@ import {
   calculateItemPrices,
   checkIsFromLikerLand,
 } from './purchase';
-import { buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
+import {
+  buildBasePaymentPayload,
+  BookPaymentGiftInfo,
+  calculateItemFeeInfo,
+  sumFeeInfo,
+} from './payment';
 import { depositLikeCollectiveReward } from '../../../evm/likeCollective';
 import { getLIKEPrice } from '../likePrice';
 import {
@@ -135,39 +140,12 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
       priceIndex,
       quantity = 1,
       priceInDecimal,
-      customPriceDiffInDecimal,
       originalPriceInDecimal,
-      likerLandTipFeeAmount,
-      likerLandFeeAmount,
-      likerLandCommission,
-      channelCommission,
-      likerLandArtFee,
     } = item;
-    const stripeFeeAmount = Math.ceil((totalStripeFeeAmount * priceInDecimal * quantity)
-        / totalPriceInDecimal) || 0;
-    const itemFeeInfo: TransactionFeeInfo = {
-      stripeFeeAmount,
-      priceInDecimal: priceInDecimal * quantity,
-      originalPriceInDecimal: originalPriceInDecimal * quantity,
-      customPriceDiffInDecimal: customPriceDiffInDecimal * quantity,
-      likerLandTipFeeAmount: likerLandTipFeeAmount * quantity,
-      likerLandFeeAmount: likerLandFeeAmount * quantity,
-      likerLandCommission: likerLandCommission * quantity,
-      channelCommission: channelCommission * quantity,
-      likerLandArtFee: likerLandArtFee * quantity,
-      // stripeFeeAmount is prorated for the whole line (already includes quantity),
-      // so subtract it once from the line total, not from the per-unit price.
-      royaltyToSplit: Math.max(
-        (priceInDecimal
-        - likerLandFeeAmount
-        - likerLandTipFeeAmount
-        - likerLandCommission
-        - channelCommission
-        - likerLandArtFee) * quantity
-        - stripeFeeAmount,
-        0,
-      ),
-    };
+    const itemFeeInfo = calculateItemFeeInfo(item, {
+      totalStripeFeeAmount,
+      totalPriceInDecimal,
+    });
     if (classId && priceIndex !== undefined) {
       return createNewNFTBookPayment(classId, paymentId, {
         type,
@@ -1377,44 +1355,16 @@ export async function formatCartItemInfosFromSession(
   }
   const itemInfos = await formatCartItemsWithInfo(items);
   const itemPrices = await calculateItemPrices(itemInfos, from);
-  const feeInfo: TransactionFeeInfo = itemPrices.reduce(
-    (acc, item) => ({
-      priceInDecimal: acc.priceInDecimal + item.priceInDecimal * item.quantity,
-      originalPriceInDecimal: acc.originalPriceInDecimal
-        + item.originalPriceInDecimal * item.quantity,
-      likerLandTipFeeAmount: acc.likerLandTipFeeAmount + item.likerLandTipFeeAmount * item.quantity,
-      likerLandFeeAmount: acc.likerLandFeeAmount + item.likerLandFeeAmount * item.quantity,
-      likerLandCommission: acc.likerLandCommission + item.likerLandCommission * item.quantity,
-      channelCommission: acc.channelCommission + item.channelCommission * item.quantity,
-      likerLandArtFee: acc.likerLandArtFee + item.likerLandArtFee * item.quantity,
-      customPriceDiffInDecimal: acc.customPriceDiffInDecimal
-        + item.customPriceDiffInDecimal * item.quantity,
-      stripeFeeAmount: acc.stripeFeeAmount,
-      royaltyToSplit:
-        acc.royaltyToSplit
-        + Math.max(
-          item.priceInDecimal
-          - item.likerLandFeeAmount
-          - item.likerLandTipFeeAmount
-          - item.likerLandCommission
-          - item.channelCommission
-          - item.likerLandArtFee,
-          0,
-        ) * item.quantity,
-    }),
-    {
-      priceInDecimal: 0,
-      originalPriceInDecimal: 0,
-      stripeFeeAmount,
-      likerLandTipFeeAmount: 0,
-      likerLandFeeAmount: 0,
-      likerLandCommission: 0,
-      channelCommission: 0,
-      likerLandArtFee: 0,
-      customPriceDiffInDecimal: 0,
-      royaltyToSplit: 0,
-    },
+  const totalPriceInDecimal = itemPrices.reduce(
+    (acc, item) => acc + item.priceInDecimal * item.quantity,
+    0,
   );
+  const feeInfo: TransactionFeeInfo = sumFeeInfo(itemPrices.map(
+    (item) => calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: stripeFeeAmount,
+      totalPriceInDecimal,
+    }),
+  ));
   const [coupon = ''] = await getStripePromotionCodesFromCheckoutSession(sessionId);
   return {
     itemInfos,

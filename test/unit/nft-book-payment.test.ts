@@ -1,7 +1,137 @@
 import {
   describe, it, expect,
 } from 'vitest';
-import { buildBasePaymentPayload } from '../../src/util/api/likernft/book/payment';
+import {
+  buildBasePaymentPayload,
+  calculateItemFeeInfo,
+  sumFeeInfo,
+} from '../../src/util/api/likernft/book/payment';
+import type { ItemPriceInfo } from '../../src/util/api/likernft/book/type';
+
+const createMockItemPrice = (overrides: Partial<ItemPriceInfo> = {}): ItemPriceInfo => ({
+  quantity: 1,
+  currency: 'usd',
+  priceInDecimal: 10000,
+  customPriceDiffInDecimal: 0,
+  originalPriceInDecimal: 10000,
+  likerLandTipFeeAmount: 0,
+  likerLandFeeAmount: 500,
+  likerLandCommission: 3000,
+  channelCommission: 0,
+  likerLandArtFee: 0,
+  classId: 'test-class-id',
+  priceIndex: 0,
+  ...overrides,
+});
+
+describe('calculateItemFeeInfo', () => {
+  it('should prorate stripe fee by line share and subtract it once from royaltyToSplit', () => {
+    const item = createMockItemPrice({ quantity: 2 });
+    const result = calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: 900,
+      totalPriceInDecimal: 30000,
+    });
+
+    // line total is 20000 of a 30000 cart, so 2/3 of the 900 fee
+    expect(result.stripeFeeAmount).toBe(600);
+    expect(result.priceInDecimal).toBe(20000);
+    expect(result.originalPriceInDecimal).toBe(20000);
+    expect(result.likerLandFeeAmount).toBe(1000);
+    expect(result.likerLandCommission).toBe(6000);
+    expect(result.royaltyToSplit).toBe((10000 - 500 - 3000) * 2 - 600);
+  });
+
+  it('should return zero stripe fee and royalty for zero-price items', () => {
+    const item = createMockItemPrice({
+      priceInDecimal: 0,
+      originalPriceInDecimal: 0,
+      likerLandFeeAmount: 0,
+      likerLandCommission: 0,
+    });
+    const result = calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: 0,
+      totalPriceInDecimal: 0,
+    });
+
+    expect(result.stripeFeeAmount).toBe(0);
+    expect(result.priceInDecimal).toBe(0);
+    expect(result.royaltyToSplit).toBe(0);
+
+    // guard against Infinity when a fee exists but the total price is zero
+    const zeroTotal = calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: 100,
+      totalPriceInDecimal: 0,
+    });
+    expect(zeroTotal.stripeFeeAmount).toBe(0);
+  });
+
+  it('should clamp royaltyToSplit at zero when fees exceed the price', () => {
+    const item = createMockItemPrice({
+      priceInDecimal: 1000,
+      likerLandFeeAmount: 500,
+      likerLandCommission: 600,
+    });
+    const result = calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: 100,
+      totalPriceInDecimal: 1000,
+    });
+
+    expect(result.royaltyToSplit).toBe(0);
+  });
+
+  it('should bound the summed ceil-prorated stripe fees within one cent per item', () => {
+    const totalStripeFeeAmount = 101;
+    const items = [
+      createMockItemPrice({ priceInDecimal: 3333 }),
+      createMockItemPrice({ priceInDecimal: 3333 }),
+      createMockItemPrice({ priceInDecimal: 3334 }),
+    ];
+    const totalPriceInDecimal = items
+      .reduce((acc, item) => acc + item.priceInDecimal * item.quantity, 0);
+    const summed = items
+      .map((item) => calculateItemFeeInfo(item, { totalStripeFeeAmount, totalPriceInDecimal }))
+      .reduce((acc, feeInfo) => acc + feeInfo.stripeFeeAmount, 0);
+
+    expect(summed).toBeGreaterThanOrEqual(totalStripeFeeAmount);
+    expect(summed).toBeLessThan(totalStripeFeeAmount + items.length);
+  });
+});
+
+describe('sumFeeInfo', () => {
+  it('should sum every field so totals equal the sum of items', () => {
+    const items = [
+      createMockItemPrice({ priceInDecimal: 10000, quantity: 1 }),
+      createMockItemPrice({
+        priceInDecimal: 23000,
+        originalPriceInDecimal: 20000,
+        customPriceDiffInDecimal: 3000,
+        likerLandTipFeeAmount: 300,
+        likerLandFeeAmount: 1000,
+        likerLandCommission: 0,
+        channelCommission: 6000,
+        likerLandArtFee: 2000,
+        quantity: 2,
+      }),
+    ];
+    const totalPriceInDecimal = items
+      .reduce((acc, item) => acc + item.priceInDecimal * item.quantity, 0);
+    const itemFeeInfos = items.map((item) => calculateItemFeeInfo(item, {
+      totalStripeFeeAmount: 1900,
+      totalPriceInDecimal,
+    }));
+    const total = sumFeeInfo(itemFeeInfos);
+
+    (Object.keys(total) as (keyof typeof total)[]).forEach((key) => {
+      expect(total[key]).toBe(itemFeeInfos.reduce((acc, feeInfo) => acc + feeInfo[key], 0));
+    });
+    expect(total.priceInDecimal).toBe(totalPriceInDecimal);
+  });
+
+  it('should return all zeros for an empty list', () => {
+    const total = sumFeeInfo([]);
+    expect(Object.values(total).every((value) => value === 0)).toBe(true);
+  });
+});
 
 const BASE_INPUT = {
   type: 'stripe',
