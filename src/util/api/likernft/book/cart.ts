@@ -26,6 +26,7 @@ import {
   calculateItemPrices,
   checkIsFromLikerLand,
 } from './purchase';
+import { buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
 import { depositLikeCollectiveReward } from '../../../evm/likeCollective';
 import { getLIKEPrice } from '../likePrice';
 import {
@@ -84,12 +85,7 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
   claimToken: string;
   sessionId?: string;
   from?: string;
-  giftInfo?: {
-    toName: string,
-    toEmail: string,
-    fromName: string,
-    message?: string,
-  };
+  giftInfo?: BookPaymentGiftInfo;
   itemPrices: ItemPriceInfo[];
   itemInfos: CartItemWithInfo[];
   feeInfo: TransactionFeeInfo,
@@ -111,41 +107,23 @@ export async function createNewNFTBookCartPayment(cartId: string, paymentId: str
     originalPriceInDecimal: totalOriginalPriceInDecimal = 0,
   } = feeInfo;
   const payload: any = {
-    type,
-    email,
-    isPaid: false,
-    isPendingClaim: false,
-    claimToken,
-    sessionId,
-    from,
-    status: 'new',
+    ...buildBasePaymentPayload({
+      type,
+      email,
+      claimToken,
+      sessionId,
+      from,
+      priceInDecimal: totalPriceInDecimal,
+      originalPriceInDecimal: totalOriginalPriceInDecimal,
+      coupon,
+      ipCountry,
+      giftInfo,
+    }),
     itemPrices,
     classIds,
     classIdsWithPrice,
-    timestamp: FieldValue.serverTimestamp(),
-    price: totalPriceInDecimal / 100,
-    priceInDecimal: totalPriceInDecimal,
-    originalPriceInDecimal: totalOriginalPriceInDecimal,
     feeInfo,
   };
-  if (coupon) payload.coupon = coupon;
-  if (ipCountry) payload.ipCountry = ipCountry;
-  const isGift = !!giftInfo;
-  if (isGift) {
-    const {
-      toEmail = '',
-      toName = '',
-      fromName = '',
-      message = '',
-    } = giftInfo;
-    payload.isGift = true;
-    payload.giftInfo = {
-      toEmail,
-      toName,
-      fromName,
-      message,
-    };
-  }
   await likeNFTBookCartCollection.doc(cartId).create(payload);
   await Promise.all(itemPrices.map((item, index) => {
     const {

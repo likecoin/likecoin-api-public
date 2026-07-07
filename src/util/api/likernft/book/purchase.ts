@@ -42,6 +42,7 @@ import {
 } from '../../../evm/nft';
 import { getCurrencyPriceInDecimal } from '../../../pricing';
 import { checkIsFromLikerLand, calculateItemPrices } from './price';
+import { buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
 
 // Re-export pure functions for backward compatibility
 export { checkIsFromLikerLand, calculateItemPrices } from './price';
@@ -427,58 +428,33 @@ export async function createNewNFTBookPayment(classId, paymentId, {
   priceName: string;
   priceIndex: number;
   from?: string;
-  giftInfo?: {
-    toName: string,
-    toEmail: string,
-    fromName: string,
-    message?: string,
-  };
+  giftInfo?: BookPaymentGiftInfo;
   itemPrices?: any[],
   feeInfo?: TransactionFeeInfo,
   ipCountry?: string,
 }) {
   const payload: any = {
-    type,
-    email,
-    isPaid: false,
-    isPendingClaim: false,
-    claimToken,
-    sessionId,
+    ...buildBasePaymentPayload({
+      type,
+      email,
+      claimToken,
+      sessionId,
+      from,
+      priceInDecimal,
+      originalPriceInDecimal,
+      coupon,
+      ipCountry,
+      giftInfo,
+    }),
     classId,
-    priceInDecimal,
-    originalPriceInDecimal,
-    price: priceInDecimal / 100,
     originalPrice: originalPriceInDecimal / 100,
     priceName,
     priceIndex,
     quantity,
-    from,
-    status: 'new',
-    timestamp: FieldValue.serverTimestamp(),
   };
   if (cartId) payload.cartId = cartId;
-  if (coupon) payload.coupon = coupon;
   if (itemPrices) payload.itemPrices = itemPrices;
   if (feeInfo) payload.feeInfo = feeInfo;
-  if (ipCountry) payload.ipCountry = ipCountry;
-
-  const isGift = !!giftInfo;
-
-  if (isGift) {
-    const {
-      toEmail = '',
-      toName = '',
-      fromName = '',
-      message = '',
-    } = giftInfo;
-    payload.isGift = true;
-    payload.giftInfo = {
-      toEmail,
-      toName,
-      fromName,
-      message,
-    };
-  }
   await likeNFTBookCollection.doc(classId).collection('transactions').doc(paymentId).create(payload);
 }
 
