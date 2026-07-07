@@ -242,6 +242,10 @@ export async function claimNFTBookCart(
       wallet: claimedWallet,
     } = docData;
 
+    if (token !== claimToken) {
+      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
+    }
+
     if (claimedWallet && claimedWallet !== wallet) {
       throw new ValidationError('CART_ALREADY_CLAIMED_BY_OTHER', 403);
     }
@@ -251,10 +255,6 @@ export async function claimNFTBookCart(
         throw new ValidationError('CART_ALREADY_CLAIMED_BY_WALLET', 409);
       }
       throw new ValidationError('CART_ALREADY_CLAIMED', 403);
-    }
-
-    if (token !== claimToken) {
-      throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
     }
 
     t.update(cartRef, {
