@@ -53,7 +53,7 @@ export async function resolveCheckoutDiscountsFromCoupon(
   return discounts;
 }
 
-export async function getStripePromotoionCodesFromCheckoutSession(sessionId: string) {
+export async function getStripePromotionCodesFromCheckoutSession(sessionId: string) {
   const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ['total_details.breakdown.discounts.discount'],

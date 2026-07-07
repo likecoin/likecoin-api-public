@@ -36,7 +36,7 @@ import {
   likeNFTBookCollection,
   userCollection,
 } from '../../../firebase';
-import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotoionCodesFromCheckoutSession } from '../../../stripe';
+import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotionCodesFromCheckoutSession } from '../../../stripe';
 import {
   convertObjectToAirtableLongText,
   createAirtableBookSalesRecordFromFreePurchase,
@@ -1437,7 +1437,7 @@ export async function formatCartItemInfosFromSession(
       royaltyToSplit: 0,
     },
   );
-  const [coupon = ''] = await getStripePromotoionCodesFromCheckoutSession(sessionId);
+  const [coupon = ''] = await getStripePromotionCodesFromCheckoutSession(sessionId);
   return {
     itemInfos,
     itemPrices,
