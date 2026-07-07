@@ -508,7 +508,7 @@ export async function processNFTBookCart(
       );
 
       const ownerInfo = await getBookUserInfoFromWallet(ownerWallet);
-      const ownerLikerInfo = ownerInfo?.likerUserInfo as any;
+      const ownerLikerInfo = ownerInfo?.likerUserInfo;
       if (
         (listingData as any)?.plusPromoEnabled === true
         && ownerLikerInfo?.user

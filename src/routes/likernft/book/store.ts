@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import type { NextFunction, Request, Response } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 import multer from 'multer';
 import {
   formatPriceInfo,
@@ -102,6 +104,9 @@ import { getGoogleMerchantFeedItems, formatGoogleMerchantFeedXML } from '../../.
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
+
+// Request whose query has been narrowed by a validateQuery zod schema
+type QueryRequest<Q> = Request<ParamsDictionary, unknown, unknown, Q>;
 
 router.param('classId', normalizeClassIdParam);
 
@@ -215,7 +220,7 @@ router.get('/catalog/google', validateQuery(BookCatalogQuerySchema), async (req,
   }
 });
 
-router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuerySchema), async (req, res, next) => {
+router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuerySchema), async (req: QueryRequest<BookListQuery>, res, next) => {
   try {
     const {
       wallet,
@@ -224,7 +229,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       before,
       limit,
       key,
-    } = req.query as unknown as BookListQuery;
+    } = req.query;
     const conditions = {
       ownerWallet: wallet,
       chain,
@@ -267,14 +272,18 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
 });
 
 function createDerivedListHandler(filter: 'free' | 'drm-free') {
-  return async (req, res, next) => {
+  return async (
+    req: QueryRequest<BookListPaginationQuery>,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const {
         library,
         before,
         limit,
         key,
-      } = req.query as unknown as BookListPaginationQuery;
+      } = req.query;
       const conditions = {
         filter,
         isPlusReadingEnabled: library === '1' || undefined,
@@ -408,14 +417,14 @@ router.get('/cms/tags/:tagId', validateParams(BookCMSTagIdParamsSchema), async (
   }
 });
 
-router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req, res, next) => {
+router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req: QueryRequest<BookCMSTagListQuery>, res, next) => {
   try {
     const {
       tag,
       library,
       offset,
       limit,
-    } = req.query as unknown as BookCMSTagListQuery;
+    } = req.query;
     const tagDoc = await getNFTBookCMSTag(tag);
     if (!tagDoc) throw new ValidationError('TAG_NOT_FOUND', 404);
     const books = await listNFTBookInfoByCMSTag(tag, { offset, limit });

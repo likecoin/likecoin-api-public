@@ -152,7 +152,7 @@ export function checkIsAuthorized({
 } : {
   ownerWallet: string;
   moderatorWallets?: string[];
-}, req: Request): boolean {
+}, req: Pick<Request, 'user'>): boolean {
   if (!req.user) return false;
   const {
     wallet,

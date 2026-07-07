@@ -13,7 +13,7 @@ function formatIssues(issues: ZodIssue[]) {
 }
 
 function makeValidator(target: Target) {
-  return <T>(schema: ZodSchema<T>): RequestHandler => (req, _res, next) => {
+  return <T>(schema: ZodSchema<T>): RequestHandler<any, any, any, any> => (req, _res, next) => {
     const result = schema.safeParse(req[target]);
     if (!result.success) {
       next(new ValidationError('INVALID_INPUT', 400, {

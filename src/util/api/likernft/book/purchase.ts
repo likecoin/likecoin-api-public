@@ -229,7 +229,7 @@ export async function handleStripeConnectedAccount({
           if (shouldSendNotificationEmailToChannel) {
             queueCommissionEmail(emailMap, {
               email,
-              locale: (likerUserInfo as any)?.locale,
+              locale: likerUserInfo?.locale,
               amount: channelCommission / 100,
               type: 'channelCommission',
             });
@@ -324,7 +324,7 @@ export async function handleStripeConnectedAccount({
             if (shouldSendNotificationEmailToChannel) {
               queueCommissionEmail(emailMap, {
                 email,
-                locale: (likerUserInfo as any)?.locale,
+                locale: likerUserInfo?.locale,
                 amount: amountSplit / 100,
                 type: 'connectedWallet',
               });
@@ -894,7 +894,7 @@ export async function sendNFTBookClaimedEmailNotification(
   const ownerEmail = ownerInfo?.likerUserInfo?.isEmailVerified
     ? ownerInfo?.likerUserInfo?.email
     : undefined;
-  const ownerLocale = (ownerInfo?.likerUserInfo as any)?.locale || 'zh';
+  const ownerLocale = ownerInfo?.likerUserInfo?.locale || 'zh';
   const classData = await getNFTClassDataById(classId).catch(() => null);
   const className = classData?.name || classId;
   if (ownerEmail) {

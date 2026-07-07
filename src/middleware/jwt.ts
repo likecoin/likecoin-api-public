@@ -106,7 +106,7 @@ export const jwtAuth = (
     audience = defaultAudience,
     algorithm: inputAlgorithm = defaultVerifyAlgorithm,
   } = {},
-) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+) => async (req: Request<any, any, any, any>, res: Response, next: NextFunction): Promise<void> => {
   setNoCacheHeader(res);
   let secret = inputSecret;
   let algorithm = inputAlgorithm;
@@ -164,7 +164,7 @@ export const jwtOptionalAuth = (
     audience = defaultAudience,
     algorithm: inputAlgorithm = defaultVerifyAlgorithm,
   } = {},
-) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+) => async (req: Request<any, any, any, any>, res: Response, next: NextFunction): Promise<void> => {
   setNoCacheHeader(res);
   let secret = inputSecret;
   let algorithm = inputAlgorithm;
