@@ -2,9 +2,8 @@ version: 2.1
 
 executors:
   gcp:
-    # Safe to bump to the latest cimg/gcp tag and smoke-test on the test env.
     docker:
-      - image: cimg/gcp:2022.09
+      - image: cimg/gcp:2026.07.1
     working_directory: ~/likecoin-api-public
     environment:
       DEBIAN_FRONTEND: noninteractive
