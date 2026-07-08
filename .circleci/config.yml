@@ -1,4 +1,16 @@
-version: 2
+version: 2.1
+
+executors:
+  gcp:
+    # Safe to bump to the latest cimg/gcp tag and smoke-test on the test env.
+    docker:
+      - image: cimg/gcp:2022.09
+    working_directory: ~/likecoin-api-public
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+      TERM: dumb
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
+
 jobs:
   test:
     working_directory: ~/likecoin-api-public
@@ -8,10 +20,16 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+          keys:
+            - npm-cache-{{ checksum "package-lock.json" }}
+            - npm-cache-
       - run:
           name: Dependencies
-          command: npm install
+          command: npm ci
+      - save_cache:
+          key: npm-cache-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
       - run:
           name: Lint Test
           command: npm run lint
@@ -30,123 +48,65 @@ jobs:
       - run:
           name: API Test
           command: npm run test
-      - save_cache:
-          key: likecoin-api-public-{{ .Environment.CACHE_UUID }}-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
-          paths:
-            - ./node_modules
-  deploy_rinkeby_api:
-    working_directory: ~/like-api-public
-    docker:
-      - image: cimg/gcp:2022.09
-    environment:
-      - DEBIAN_FRONTEND: noninteractive
-      - TERM: dumb
-      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
+
+  # Reusable deploy job. `us.gcr.io` image paths are kept intentionally —
+  # they resolve whether backed by classic GCR or Artifact Registry's
+  # gcr.io domain support, so no image-name change is needed on the cluster.
+  deploy_api:
+    parameters:
+      service_key:
+        type: env_var_name
+      project:
+        type: env_var_name
+      cluster:
+        type: env_var_name
+      deployment:
+        type: string
+    executor: gcp
     steps:
       - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
       - run:
           name: Setup gcloud
           command: |
-            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
+            echo ${<< parameters.service_key >>} | base64 -d > /tmp/account-auth.json
             gcloud auth activate-service-account --key-file /tmp/account-auth.json
-            gcloud config set project ${TEST_PROJECT_NAME}
-            gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
+            gcloud config set project ${<< parameters.project >>}
             gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
-            gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
-      - setup_docker_engine:
-          docker_layer_caching: true
+            gcloud --quiet container clusters get-credentials ${<< parameters.cluster >>}
+            gcloud --quiet auth configure-docker us.gcr.io
+            echo "export IMAGE=us.gcr.io/${<< parameters.project >>}/like-api-public" >> $BASH_ENV
       - run:
-          name: Build image
+          name: Build and push image
           command: |
-            gcloud docker -- pull us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest || true
-            docker build . -t like-api-public --cache-from us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Push images
-          command: |
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
+            # BuildKit + inline cache so the pushed images carry cache metadata;
+            # cache the builder stage separately (its npm ci + native compile is
+            # the expensive part and never lands in the final runtime image).
+            export DOCKER_BUILDKIT=1
+            docker pull ${IMAGE}:builder || true
+            docker pull ${IMAGE}:latest || true
+            docker build --target builder \
+              --cache-from ${IMAGE}:builder \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              -t ${IMAGE}:builder .
+            docker build \
+              --cache-from ${IMAGE}:builder \
+              --cache-from ${IMAGE}:latest \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              -t ${IMAGE}:latest \
+              -t ${IMAGE}:${CIRCLE_SHA1} .
+            docker push ${IMAGE}:builder
+            docker push ${IMAGE}:latest
+            docker push ${IMAGE}:${CIRCLE_SHA1}
       - run:
           name: Deploy
           command: |
-            kubectl patch deployment like-api-public-rinkeby -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
-  deploy_testnet_api:
-    working_directory: ~/like-api-public
-    docker:
-      - image: cimg/gcp:2022.09
-    environment:
-      - DEBIAN_FRONTEND: noninteractive
-      - TERM: dumb
-      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
-    steps:
-      - checkout
-      - run:
-          name: Setup gcloud
-          command: |
-            echo ${TEST_GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
-            gcloud auth activate-service-account --key-file /tmp/account-auth.json
-            gcloud config set project ${TEST_PROJECT_NAME}
-            gcloud --quiet config set container/cluster ${POC_CLUSTER_NAME}
-            gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
-            gcloud --quiet container clusters get-credentials ${POC_CLUSTER_NAME}
-      - setup_docker_engine:
-          docker_layer_caching: true
-      - run:
-          name: Build image
-          command: |
-            gcloud docker -- pull us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest || true
-            docker build . -t like-api-public --cache-from us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Push images
-          command: |
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:latest
-            gcloud docker -- push us.gcr.io/${TEST_PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Deploy
-          command: |
-            kubectl patch deployment like-api-public-testnet -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$TEST_PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
-  deploy_mainnet_api:
-    working_directory: ~/like-api-public
-    docker:
-      - image: cimg/gcp:2022.09
-    environment:
-      - DEBIAN_FRONTEND: noninteractive
-      - TERM: dumb
-      - GOOGLE_APPLICATION_CREDENTIALS: /tmp/account-auth.json
-    steps:
-      - checkout
-      - run:
-          name: Setup gcloud
-          command: |
-            echo ${GCLOUD_SERVICE_KEY} | base64 -d > /tmp/account-auth.json
-            gcloud auth activate-service-account --key-file /tmp/account-auth.json
-            gcloud config set project ${PROJECT_NAME}
-            gcloud --quiet config set container/cluster ${PROD_CLUSTER_NAME}
-            gcloud config set compute/zone ${CLOUDSDK_COMPUTE_ZONE}
-            gcloud --quiet container clusters get-credentials ${PROD_CLUSTER_NAME}
-      - setup_docker_engine:
-          docker_layer_caching: true
-      - run:
-          name: Build image
-          command: |
-            gcloud docker -- pull us.gcr.io/${PROJECT_NAME}/like-api-public:latest || true
-            docker build . -t like-api-public --cache-from us.gcr.io/${PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${PROJECT_NAME}/like-api-public:latest
-            docker tag like-api-public:latest us.gcr.io/${PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Push images
-          command: |
-            gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:latest
-            gcloud docker -- push us.gcr.io/${PROJECT_NAME}/like-api-public:${CIRCLE_SHA1}
-      - run:
-          name: Deploy
-          command: |
-            kubectl patch deployment like-api-public-main -p '{"spec":{"template":{"spec":{"containers":[{"name":"like-api-public","image":"us.gcr.io/'"$PROJECT_NAME"'/like-api-public:'"$CIRCLE_SHA1"'"}]}}}}'
+            kubectl set image deployment/<< parameters.deployment >> \
+              like-api-public=${IMAGE}:${CIRCLE_SHA1}
+            kubectl rollout status deployment/<< parameters.deployment >> --timeout=300s
+
 workflows:
-  version: 2
   build_and_test:
     jobs:
       - test
@@ -159,7 +119,7 @@ workflows:
                 - develop
                 - deployment/rinkeby
           requires:
-           - test
+            - test
       - hold_deploy_testnet_api:
           type: approval
           filters:
@@ -169,20 +129,35 @@ workflows:
                 - develop
                 - deployment/testnet
           requires:
-           - test
+            - test
       - hold_deploy_mainnet_api:
           type: approval
           filters:
             branches:
               only: master
           requires:
-           - test
-      - deploy_rinkeby_api:
+            - test
+      - deploy_api:
+          name: deploy_rinkeby_api
+          service_key: TEST_GCLOUD_SERVICE_KEY
+          project: TEST_PROJECT_NAME
+          cluster: POC_CLUSTER_NAME
+          deployment: like-api-public-rinkeby
           requires:
             - hold_deploy_rinkeby_api
-      - deploy_testnet_api:
+      - deploy_api:
+          name: deploy_testnet_api
+          service_key: TEST_GCLOUD_SERVICE_KEY
+          project: TEST_PROJECT_NAME
+          cluster: POC_CLUSTER_NAME
+          deployment: like-api-public-testnet
           requires:
             - hold_deploy_testnet_api
-      - deploy_mainnet_api:
+      - deploy_api:
+          name: deploy_mainnet_api
+          service_key: GCLOUD_SERVICE_KEY
+          project: PROJECT_NAME
+          cluster: PROD_CLUSTER_NAME
+          deployment: like-api-public-main
           requires:
             - hold_deploy_mainnet_api

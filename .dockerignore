@@ -4,3 +4,15 @@
 node_modules/
 dist
 webpack-cache
+
+# config/secret.js, serviceAccountKey.json, arweave-key.json and aws.json are
+# committed as empty placeholder stubs and imported statically by the TS source,
+# so tsc needs them at build time. Real values are mounted at runtime (k8s),
+# never baked in — so these stubs must stay in the build context.
+
+# CI / docs / tests are not needed in the image build context
+.circleci
+.github
+test
+coverage
+*.md

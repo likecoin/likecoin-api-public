@@ -1,8 +1,9 @@
+# syntax=docker/dockerfile:1
 FROM node:24.10
 WORKDIR /app
-COPY package.json package-lock.json /app/
-RUN npm install
-ADD . /app
-ENV HOST 0.0.0.0
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+ENV HOST=0.0.0.0
 EXPOSE 3000
-CMD npm dev
+CMD ["npm", "run", "dev"]
