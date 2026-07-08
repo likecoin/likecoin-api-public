@@ -42,6 +42,7 @@ export interface ArweaveTxData {
   key?: string; // legacy plaintext content key; superseded by encryptedKey
   encryptedKey?: string; // base64 KMS-wrapped content key (AAD = txHash)
   fileSHA256?: string; // hex SHA-256 of the plaintext content (provenance anchor)
+  contentBucketPath?: string; // object path in the protected GCS bucket once ingested
   accessToken?: string;
   isSponsored?: boolean;
   sponsoredETH?: string;

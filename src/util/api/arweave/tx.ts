@@ -72,6 +72,23 @@ export async function updateArweaveTxStatus(txHash: string, {
   return accessToken;
 }
 
+// Record the outcome of a protected-content ingest: where the plaintext lives
+// in the private bucket, and the plaintext hash when it was computed server-side
+// (i.e. the client never supplied a provenance anchor).
+export async function markArweaveTxIngested(txHash: string, {
+  contentBucketPath,
+  fileSHA256,
+}: {
+  contentBucketPath: string;
+  fileSHA256?: string;
+}): Promise<void> {
+  await iscnArweaveTxCollection.doc(txHash).update({
+    contentBucketPath,
+    ...(fileSHA256 ? { fileSHA256: fileSHA256.toLowerCase() } : {}),
+    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+  });
+}
+
 // Dual-read: KMS-wrapped `encryptedKey` (AAD = txHash) vs legacy plaintext `key`.
 // Gate unwrap on isKMSEnabled() — a passthrough unwrapKey returns ciphertext
 // verbatim, so a KMS-written doc read without KMS yields '' not leaked ciphertext.

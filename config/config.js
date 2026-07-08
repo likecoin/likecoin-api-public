@@ -78,6 +78,9 @@ config.ARWEAVE_IRYS_FUND_MULTIPLIER = Number(process.env.ARWEAVE_IRYS_FUND_MULTI
 config.ARWEAVE_IRYS_DEPOSIT_ADDRESS = process.env.ARWEAVE_IRYS_DEPOSIT_ADDRESS || '';
 // Bearer secret for the admin/cron funding-reconcile endpoint.
 config.ARWEAVE_RECONCILE_ADMIN_TOKEN = process.env.ARWEAVE_RECONCILE_ADMIN_TOKEN || '';
+// Private CMEK-protected GCS bucket holding plaintext-at-rest protected ebooks
+// (ADR 0001 Phase 3). Empty = ingest disabled.
+config.EBOOK_PROTECTED_BUCKET = process.env.EBOOK_PROTECTED_BUCKET || '';
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
 

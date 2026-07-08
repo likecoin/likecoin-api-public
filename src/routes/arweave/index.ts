@@ -21,6 +21,7 @@ import {
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
 import { reconcilePendingIrysFunding, fundUploadIfNeeded } from '../../util/api/arweave/funding';
+import { ingestProtectedContent } from '../../util/api/arweave/ingest';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -248,6 +249,32 @@ router.post(
         arweaveId,
         txHash,
       });
+      // Dual-store protected uploads into the private CMEK bucket (Phase 3).
+      // Best-effort: a failure here leaves Arweave as the only copy, which is
+      // today's status quo; Phase 4's re-ingest sweep catches stragglers.
+      if (key) {
+        try {
+          const ingested = await ingestProtectedContent(txHash, {
+            arweaveId, key, ipfsHash, fileSize, fileSHA256,
+          });
+          if (ingested) {
+            publisher.publish(PUBSUB_TOPIC_MISC, req, {
+              logType: 'arweaveProtectedIngestCompleteV2',
+              arweaveId,
+              txHash,
+              contentBucketPath: ingested.contentBucketPath,
+              fileSHA256: ingested.fileSHA256,
+            });
+          }
+        } catch (error) {
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'arweaveProtectedIngestErrorV2',
+            arweaveId,
+            txHash,
+            error: (error as Error).message,
+          });
+        }
+      }
     } catch (error) {
       next(error);
     }
