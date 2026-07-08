@@ -1346,12 +1346,23 @@ export async function formatCartItemInfosFromSession(
     (acc, item) => acc + item.priceInDecimal * item.quantity,
     0,
   );
-  const feeInfo: TransactionFeeInfo = sumFeeInfo(itemPrices.map(
+  const summedFeeInfo = sumFeeInfo(itemPrices.map(
     (item) => calculateItemFeeInfo(item, {
       totalStripeFeeAmount: stripeFeeAmount,
       totalPriceInDecimal,
     }),
   ));
+  // Each per-line Stripe fee is ceil-prorated, so their sum can exceed the real
+  // fee. Pin the cart total to the actual fee (and re-derive royalty from it) so
+  // createNewNFTBookCartPayment doesn't inflate the per-class proration again.
+  const feeInfo: TransactionFeeInfo = {
+    ...summedFeeInfo,
+    stripeFeeAmount,
+    royaltyToSplit: Math.max(
+      summedFeeInfo.royaltyToSplit + summedFeeInfo.stripeFeeAmount - stripeFeeAmount,
+      0,
+    ),
+  };
   const [coupon = ''] = await getStripePromotionCodesFromCheckoutSession(sessionId);
   return {
     itemInfos,
