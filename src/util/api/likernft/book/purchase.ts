@@ -141,8 +141,8 @@ export async function handleStripeConnectedAccount({
 
   const stripe = getStripeClient();
   let connectedWallets = connectedWalletsInput;
-  if (!connectedWallets) {
-    // if connectedWallets is not set before, default to ownerWallet
+  if (!connectedWallets || !Object.keys(connectedWallets).length) {
+    // if connectedWallets is not set (or empty), default to ownerWallet
     connectedWallets = {
       [ownerWallet]: 1,
     };
