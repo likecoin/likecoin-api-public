@@ -595,7 +595,7 @@ export function filterNFTBookListingInfo(
     chain,
     prices,
     minPrice: Number.isFinite(minPriceInDecimal) ? (minPriceInDecimal as number) / 100 : undefined,
-    isSoldOut: stock <= 0,
+    isSoldOut: prices.every((p) => p.isSoldOut),
     stock,
     ownerWallet,
     mustClaimToView,
