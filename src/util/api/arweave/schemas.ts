@@ -19,6 +19,7 @@ export const ArweaveRegisterBodySchema = z.object({
   token: z.string().optional(),
   key: z.string().optional(),
   isRequireAuth: z.boolean().optional(),
+  fileSHA256: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
 });
 
 export const ArweaveTxHashParamsSchema = z.object({

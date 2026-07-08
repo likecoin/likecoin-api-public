@@ -41,11 +41,13 @@ export async function updateArweaveTxStatus(txHash: string, {
   ownerWallet,
   key = '',
   isRequireAuth = false,
+  fileSHA256 = '',
 }: {
   arweaveId: string;
   ownerWallet: string;
   key?: string;
   isRequireAuth?: boolean;
+  fileSHA256?: string;
 }): Promise<string> {
   const accessToken = uuidv4();
   // Under KMS store wrapped ciphertext in `encryptedKey` (AAD = txHash); in
@@ -63,6 +65,7 @@ export async function updateArweaveTxStatus(txHash: string, {
     isRequireAuth,
     ownerWallet,
     ...keyFields,
+    ...(fileSHA256 ? { fileSHA256: fileSHA256.toLowerCase() } : {}),
     accessToken,
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });

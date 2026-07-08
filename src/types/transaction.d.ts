@@ -41,6 +41,7 @@ export interface ArweaveTxData {
   isRequireAuth?: boolean;
   key?: string; // legacy plaintext content key; superseded by encryptedKey
   encryptedKey?: string; // base64 KMS-wrapped content key (AAD = txHash)
+  fileSHA256?: string; // hex SHA-256 of the plaintext content (provenance anchor)
   accessToken?: string;
   isSponsored?: boolean;
   sponsoredETH?: string;

@@ -208,7 +208,7 @@ router.post(
   async (req, res, next) => {
     try {
       const {
-        txHash, arweaveId, token, key, isRequireAuth = true,
+        txHash, arweaveId, token, key, isRequireAuth = true, fileSHA256,
       } = req.body;
       if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
       const tx = await getArweaveTxInfo(txHash);
@@ -224,6 +224,7 @@ router.post(
         ownerWallet: req.user?.wallet || '',
         key,
         isRequireAuth,
+        fileSHA256,
       });
       sendValidatedJSON(res, ArweaveRegisterResponseSchema, {
         link: `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`,
