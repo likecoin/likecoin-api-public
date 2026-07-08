@@ -1,4 +1,5 @@
 import { FieldValue } from '../../../firebase';
+import { constantTimeEqual } from '../../../misc';
 import { ValidationError } from '../../../ValidationError';
 import type { ItemPriceInfo, TransactionFeeInfo } from './type';
 
@@ -26,7 +27,7 @@ export function assertClaimable(
     wallet: claimedWallet,
   } = docData;
 
-  if (token !== claimToken) {
+  if (!token || !claimToken || !constantTimeEqual(token, claimToken)) {
     throw new ValidationError('INVALID_CLAIM_TOKEN', 403);
   }
 
