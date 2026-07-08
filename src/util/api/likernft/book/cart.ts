@@ -254,8 +254,15 @@ export async function claimNFTBookCart(
 
   // Cart items skip per-class Intercom updates in claimNFTBook; send one
   // aggregate update per cart claim here so manual claims are covered too.
-  const hasFreeBooks = classIdsWithPrice.some((item) => item.priceInDecimal === 0);
-  const hasPaidBooks = classIdsWithPrice.some((item) => item.priceInDecimal > 0);
+  // Derive flags from successfully claimed items only so Intercom state does
+  // not diverge from reality when some item claims fail in the loop above.
+  const claimedClassIdSet = new Set([
+    ...claimedClassIds,
+    ...newClaimedNFTs.map((nft) => nft.classId),
+  ]);
+  const claimedItems = classIdsWithPrice.filter((item) => claimedClassIdSet.has(item.classId));
+  const hasFreeBooks = claimedItems.some((item) => item.priceInDecimal === 0);
+  const hasPaidBooks = claimedItems.some((item) => item.priceInDecimal > 0);
   if (hasFreeBooks || hasPaidBooks) {
     const attributes: IntercomUserCustomAttributes = {};
     if (hasFreeBooks) attributes.has_claimed_free_book = true;
