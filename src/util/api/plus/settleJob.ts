@@ -18,8 +18,15 @@ import {
 } from './settle';
 import type { PlusReadingAllocationConfig, PlusReadingAllocationMode } from './settle';
 import type { PlusReadingAccrualData } from '../../../types/user';
+import type { NFTBookListingInfo } from '../../../types/book';
 
 const DEFAULT_REVSHARE_RATE = 0.3;
+
+// Payouts are IO-bound (Firestore reads + Stripe transfers), so they run in bounded
+// chunks rather than one at a time — the same shape as the CMS bulk update. Kept modest
+// so a large period doesn't burst past Stripe's rate limit and leave transfers
+// spuriously carried forward as `pending`.
+const SETTLE_CONCURRENCY = 20;
 
 interface BookUsage {
   classId: string;
@@ -27,7 +34,29 @@ interface BookUsage {
   ttsTimeMs: number;
 }
 
+interface WalletPayout {
+  book: BookUsage;
+  wallet: string;
+  walletCents: number;
+}
+
 type PayoutOutcome = 'paid' | 'pending' | 'skipped';
+
+/**
+ * Per-run cache of `getBookUserInfo`, keyed by wallet. One publisher usually owns many
+ * books, so the payout loop would otherwise re-read the same user doc once per book.
+ * Holds the in-flight promise, not the resolved value, so concurrent payouts for the same
+ * wallet share a single read instead of racing to issue their own.
+ */
+type WalletUserInfoCache = Map<string, ReturnType<typeof getBookUserInfo>>;
+
+function getCachedBookUserInfo(wallet: string, cache: WalletUserInfoCache) {
+  const cached = cache.get(wallet);
+  if (cached) return cached;
+  const pending = getBookUserInfo(wallet);
+  cache.set(wallet, pending);
+  return pending;
+}
 
 /**
  * Pays one payee its share of a book for the period, returning how it resolved.
@@ -38,13 +67,14 @@ type PayoutOutcome = 'paid' | 'pending' | 'skipped';
  * - otherwise: a Stripe Connect transfer (idempotency-keyed) + a `paid` payout record.
  */
 async function settleWalletPayout({
-  periodId, book, wallet, walletCents, dryRun,
+  periodId, book, wallet, walletCents, dryRun, userInfoCache,
 }: {
   periodId: string;
   book: BookUsage;
   wallet: string;
   walletCents: number;
   dryRun: boolean;
+  userInfoCache: WalletUserInfoCache;
 }): Promise<PayoutOutcome> {
   const payoutDocRef = likeNFTBookUserCollection
     .doc(wallet)
@@ -58,7 +88,7 @@ async function settleWalletPayout({
   const existing = await payoutDocRef.get();
   if (existing.exists && existing.data()?.status === 'paid') return 'skipped';
 
-  const userInfo = await getBookUserInfo(wallet);
+  const userInfo = await getCachedBookUserInfo(wallet, userInfoCache);
   const isReady = !!userInfo?.isStripeConnectReady && !!userInfo.stripeConnectAccountId;
 
   if (dryRun) return isReady ? 'paid' : 'pending';
@@ -114,6 +144,49 @@ async function settleWalletPayout({
     stripeConnectAccountId,
   }, { merge: true });
   return 'paid';
+}
+
+/**
+ * Reads the payable books' docs in bounded-concurrency chunks, before the payout loop, so a
+ * book lookup isn't one serialized round trip per book. A book with no doc maps to
+ * `undefined` — the caller skips its usage.
+ */
+async function getBookDataByClassId(
+  classIds: string[],
+): Promise<Map<string, NFTBookListingInfo | undefined>> {
+  const bookDataByClassId = new Map<string, NFTBookListingInfo | undefined>();
+  for (let i = 0; i < classIds.length; i += SETTLE_CONCURRENCY) {
+    const chunk = classIds.slice(i, i + SETTLE_CONCURRENCY);
+    const snaps = await Promise.all(
+      chunk.map((classId) => likeNFTBookCollection.doc(classId).get()),
+    );
+    snaps.forEach((snap, index) => bookDataByClassId.set(chunk[index], snap.data()));
+  }
+  return bookDataByClassId;
+}
+
+/**
+ * Settles each (book, wallet) payout in bounded-concurrency chunks, returning the outcomes in
+ * `payouts` order. Fail-fast like the sequential loop it replaces: a Firestore error aborts
+ * the settle, leaving the period uncompleted so a re-run resumes it (already-paid splits
+ * short-circuit, and the Stripe idempotency key covers a transfer whose write was lost).
+ */
+async function settleWalletPayouts(
+  payouts: WalletPayout[],
+  { periodId, dryRun }: { periodId: string; dryRun: boolean },
+): Promise<PayoutOutcome[]> {
+  const userInfoCache: WalletUserInfoCache = new Map();
+  const outcomes: PayoutOutcome[] = [];
+  for (let i = 0; i < payouts.length; i += SETTLE_CONCURRENCY) {
+    const chunk = payouts.slice(i, i + SETTLE_CONCURRENCY);
+    const chunkOutcomes = await Promise.all(chunk.map(({ book, wallet, walletCents }) => (
+      settleWalletPayout({
+        periodId, book, wallet, walletCents, dryRun, userInfoCache,
+      })
+    )));
+    outcomes.push(...chunkOutcomes);
+  }
+  return outcomes;
 }
 
 /**
@@ -230,21 +303,21 @@ export async function settlePlusReadingPeriod({
   );
   const rates = computePlusReadingRates(allocatableUSD, totals, allocConfig);
 
-  let paidCount = 0;
-  let pendingCount = 0;
-  let paidCents = 0;
-  let pendingCents = 0;
-  const books: Array<BookUsage & { amountCents: number }> = [];
+  // Round each book down: per-book rounding then never sums past the pool (under the
+  // pool modes), so we can't overpay from the platform balance. The sub-cent dust just
+  // stays unallocated. Sub-cent allocations floor to 0 and are skipped below.
+  const books: Array<BookUsage & { amountCents: number }> = bookUsages.map((book) => ({
+    ...book,
+    amountCents: Math.floor(allocateBookUSD(rates, book) * 100),
+  }));
+  const payableBooks = books.filter((b) => b.amountCents > 0);
+  const bookDataByClassId = await getBookDataByClassId(payableBooks.map((b) => b.classId));
 
-  for (const book of bookUsages) {
-    // Round each book down: per-book rounding then never sums past the pool (under the
-    // pool modes), so we can't overpay from the platform balance. The sub-cent dust just
-    // stays unallocated. Sub-cent allocations floor to 0 and are skipped below.
-    const amountCents = Math.floor(allocateBookUSD(rates, book) * 100);
-    books.push({ ...book, amountCents });
-    if (amountCents <= 0) continue;
-
-    const bookData = (await likeNFTBookCollection.doc(book.classId).get()).data();
+  // Resolve every (book, wallet) payout up front, in book order, so the skip warnings stay
+  // deterministic and the transfers below can then run concurrently.
+  const payouts: WalletPayout[] = [];
+  for (const book of payableBooks) {
+    const bookData = bookDataByClassId.get(book.classId);
     if (!bookData) continue; // usage with no book doc — skip
     const hasConnected = bookData.connectedWallets
       && Object.keys(bookData.connectedWallets).length > 0;
@@ -259,7 +332,7 @@ export async function settlePlusReadingPeriod({
       ? bookData.connectedWallets
       : { [bookData.ownerWallet]: 1 };
 
-    const splits = splitAmountToWallets(amountCents, connectedWallets);
+    const splits = splitAmountToWallets(book.amountCents, connectedWallets);
     if (splits.length === 0) {
       // connectedWallets present but no positive weight — surface rather than silently
       // drop it. The amount (guaranteed > 0 above) stays unallocated, like the no-payee case.
@@ -268,18 +341,26 @@ export async function settlePlusReadingPeriod({
       continue;
     }
     for (const { wallet, amountCents: walletCents } of splits) {
-      const outcome = await settleWalletPayout({
-        periodId, book, wallet, walletCents, dryRun,
-      });
-      if (outcome === 'paid') {
-        paidCount += 1;
-        paidCents += walletCents;
-      } else if (outcome === 'pending') {
-        pendingCount += 1;
-        pendingCents += walletCents;
-      }
+      payouts.push({ book, wallet, walletCents });
     }
   }
+
+  const outcomes = await settleWalletPayouts(payouts, { periodId, dryRun });
+
+  let paidCount = 0;
+  let pendingCount = 0;
+  let paidCents = 0;
+  let pendingCents = 0;
+  outcomes.forEach((outcome, index) => {
+    const { walletCents } = payouts[index];
+    if (outcome === 'paid') {
+      paidCount += 1;
+      paidCents += walletCents;
+    } else if (outcome === 'pending') {
+      pendingCount += 1;
+      pendingCents += walletCents;
+    }
+  });
 
   // What we actually pay out this period (pre cent-rounding), and how it compares to
   // the Plus revenue it draws from. Under `static` the rate is fixed, so this fraction
@@ -341,6 +422,7 @@ export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boole
   let paidCount = 0;
   let stillPendingCount = 0;
   let paidCents = 0;
+  const userInfoCache: WalletUserInfoCache = new Map();
   for (const p of pending) {
     const walletCents = Number(p.amountCents) || 0;
     if (walletCents <= 0) continue;
@@ -355,6 +437,7 @@ export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boole
       wallet: String(p.wallet),
       walletCents,
       dryRun,
+      userInfoCache,
     });
     if (outcome === 'paid') {
       paidCount += 1;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
-import { configCollection, likeNFTBookCollection } from '../../src/util/firebase';
+import { configCollection, likeNFTBookCollection, likeNFTBookUserCollection } from '../../src/util/firebase';
 import { ONE_MINUTE_IN_MS } from '../../src/constant';
 
 const PATH = '/api/plus/admin/reading/settle';
@@ -109,6 +109,66 @@ describe('POST /plus/admin/reading/settle — range allocation', () => {
     expect(res.data.totalReadingTimeMs).toBe(min(100));
     // static $0.01/min × 100 library min = 100 cents; non-library is inert.
     expect(res.data.books[0]).toMatchObject({ classId: CLASS_ID, amountCents: 100 });
+  });
+
+  // More books than SETTLE_CONCURRENCY (20), so the payout loop spans several chunks.
+  it('keeps each book\'s allocation intact across concurrency chunks', async () => {
+    const classIds = Array.from({ length: 25 }, (_, i) => mockEVMAddress(0x100 + i));
+    // Distinct minutes per book, so a book that picked up a neighbour's usage or amount
+    // (chunk index misalignment) mismatches rather than coincidentally agreeing.
+    await Promise.all(classIds.map((classId, i) => seedUsage(
+      classId,
+      '2026-04-05',
+      Date.UTC(2026, 3, 5),
+      min(10 * (i + 1)),
+    )));
+
+    const res = await post({ periodId: '2026-04', dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data.books).toHaveLength(classIds.length);
+    const byClassId = new Map(res.data.books.map((b) => [b.classId, b]));
+    classIds.forEach((classId, i) => {
+      // static $0.01/min → amountCents === minutes.
+      expect(byClassId.get(classId)).toMatchObject({
+        classId, readingTimeMs: min(10 * (i + 1)), amountCents: 10 * (i + 1),
+      });
+    });
+
+    // `books` order is the usage-query discovery order, not payout-completion order.
+    const second = await post({ periodId: '2026-04', dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(second.data.books.map((b) => b.classId)).toEqual(res.data.books.map((b) => b.classId));
+  });
+
+  // The concurrent payout loop reduces its counters positionally over the outcomes array,
+  // so a chunk-index drift would attribute one book's cents to another book's outcome.
+  it('attributes paid vs pending cents to the right book across chunks', async () => {
+    const books = Array.from({ length: 25 }, (_, i) => ({
+      classId: mockEVMAddress(0x300 + i),
+      ownerWallet: mockEVMAddress(0x400 + i),
+      cents: 10 * (i + 1),
+      isReady: i % 2 === 0, // alternate, so an off-by-one flips every classification
+    }));
+    await Promise.all(books.map(async ({
+      classId, ownerWallet, cents, isReady,
+    }) => {
+      await likeNFTBookUserCollection.doc(ownerWallet).set({
+        isStripeConnectReady: isReady,
+        ...(isReady ? { stripeConnectAccountId: `acct_${classId}` } : {}),
+      } as any, { merge: true });
+      await likeNFTBookCollection.doc(classId)
+        .set({ classId, ownerWallet } as any, { merge: true });
+      await likeNFTBookCollection.doc(classId).collection('plusUsage').doc('2026-05-05')
+        .set({ readingTimeMs: min(cents), ttsTimeMs: 0, dayMs: Date.UTC(2026, 4, 5) } as any);
+    }));
+
+    const res = await post({ periodId: '2026-05', dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    const ready = books.filter((b) => b.isReady);
+    const notReady = books.filter((b) => !b.isReady);
+    expect(res.data.paidCount).toBe(ready.length);
+    expect(res.data.pendingCount).toBe(notReady.length);
+    expect(res.data.paidCents).toBe(ready.reduce((sum, b) => sum + b.cents, 0));
+    expect(res.data.pendingCents).toBe(notReady.reduce((sum, b) => sum + b.cents, 0));
   });
 
   it('a single-day settle reads only that day', async () => {
