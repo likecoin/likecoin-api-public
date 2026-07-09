@@ -12,9 +12,15 @@ const AUTH_HEADER = { Authorization: `Bearer ${AUTH}` };
 const min = (n: number) => n * ONE_MINUTE_IN_MS;
 
 // Seed a book with a daily usage rollup (the shape recordPlusReadingUsage writes).
-async function seedUsage(classId: string, dayId: string, dayMs: number, readingTimeMs: number) {
+async function seedUsage(
+  classId: string,
+  dayId: string,
+  dayMs: number,
+  readingTimeMs: number,
+  ownerWallet = mockEVMAddress(0x66),
+) {
   await likeNFTBookCollection.doc(classId)
-    .set({ classId, ownerWallet: mockEVMAddress(0x66) } as any, { merge: true });
+    .set({ classId, ownerWallet } as any, { merge: true });
   await likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId)
     .set({ readingTimeMs, ttsTimeMs: 0, dayMs } as any);
 }
@@ -155,10 +161,7 @@ describe('POST /plus/admin/reading/settle — range allocation', () => {
         isStripeConnectReady: isReady,
         ...(isReady ? { stripeConnectAccountId: `acct_${classId}` } : {}),
       } as any, { merge: true });
-      await likeNFTBookCollection.doc(classId)
-        .set({ classId, ownerWallet } as any, { merge: true });
-      await likeNFTBookCollection.doc(classId).collection('plusUsage').doc('2026-05-05')
-        .set({ readingTimeMs: min(cents), ttsTimeMs: 0, dayMs: Date.UTC(2026, 4, 5) } as any);
+      await seedUsage(classId, '2026-05-05', Date.UTC(2026, 4, 5), min(cents), ownerWallet);
     }));
 
     const res = await post({ periodId: '2026-05', dryRun: true, mode: 'static' }, AUTH_HEADER);
@@ -217,5 +220,47 @@ describe('POST /plus/admin/reading/sweep', () => {
       stillPendingCount: 0,
       paidCents: 0,
     });
+  });
+
+  // Like the settle, the sweep reduces its counters positionally over the outcomes of a
+  // concurrent payout run, and it spans periods rather than settling just one.
+  it('attributes swept cents to the right payout across chunks and periods', async () => {
+    const payouts = Array.from({ length: 25 }, (_, i) => ({
+      periodId: i % 2 === 0 ? '2026-01' : '2026-02-14',
+      classId: mockEVMAddress(0x500 + i),
+      wallet: mockEVMAddress(0x600 + i),
+      amountCents: 10 * (i + 1),
+      isReady: i % 3 === 0, // 1-in-3, so an off-by-one shifts the paid/pending boundary
+    }));
+    await Promise.all(payouts.map(async ({
+      periodId, classId, wallet, amountCents, isReady,
+    }) => {
+      await likeNFTBookUserCollection.doc(wallet).set({
+        isStripeConnectReady: isReady,
+        ...(isReady ? { stripeConnectAccountId: `acct_${wallet}` } : {}),
+      } as any, { merge: true });
+      await likeNFTBookUserCollection.doc(wallet)
+        .collection('plusReadingPayouts').doc(`${periodId}_${classId}`)
+        .set({
+          periodId, classId, wallet, amountCents, status: 'pending',
+        } as any);
+    }));
+    // A zero-cent record is swept over but has no payout to attempt.
+    const zeroWallet = mockEVMAddress(0x6ff);
+    await likeNFTBookUserCollection.doc(zeroWallet)
+      .set({ isStripeConnectReady: false } as any, { merge: true });
+    await likeNFTBookUserCollection.doc(zeroWallet)
+      .collection('plusReadingPayouts').doc('2026-01_zero')
+      .set({
+        periodId: '2026-01', classId: 'zero', wallet: zeroWallet, amountCents: 0, status: 'pending',
+      } as any);
+
+    const res = await postSweep({ dryRun: true }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    const ready = payouts.filter((p) => p.isReady);
+    expect(res.data.sweptCount).toBe(payouts.length + 1);
+    expect(res.data.paidCount).toBe(ready.length);
+    expect(res.data.stillPendingCount).toBe(payouts.length - ready.length);
+    expect(res.data.paidCents).toBe(ready.reduce((sum, p) => sum + p.amountCents, 0));
   });
 });

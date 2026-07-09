@@ -22,10 +22,8 @@ import type { NFTBookListingInfo } from '../../../types/book';
 
 const DEFAULT_REVSHARE_RATE = 0.3;
 
-// Payouts are IO-bound (Firestore reads + Stripe transfers), so they run in bounded
-// chunks rather than one at a time — the same shape as the CMS bulk update. Kept modest
-// so a large period doesn't burst past Stripe's rate limit and leave transfers
-// spuriously carried forward as `pending`.
+// Kept modest so a large period doesn't burst past Stripe's rate limit and leave
+// transfers spuriously carried forward as `pending`.
 const SETTLE_CONCURRENCY = 20;
 
 interface BookUsage {
@@ -35,12 +33,27 @@ interface BookUsage {
 }
 
 interface WalletPayout {
+  periodId: string;
   book: BookUsage;
   wallet: string;
   walletCents: number;
 }
 
 type PayoutOutcome = 'paid' | 'pending' | 'skipped';
+
+/**
+ * Maps `items` in bounded-concurrency chunks, preserving input order — the settle's
+ * Firestore reads and Stripe transfers are IO-bound, so they run wide rather than one at
+ * a time. Fail-fast: a rejection aborts the remaining chunks.
+ */
+async function mapInChunks<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += SETTLE_CONCURRENCY) {
+    const chunk = items.slice(i, i + SETTLE_CONCURRENCY);
+    results.push(...await Promise.all(chunk.map((item) => fn(item))));
+  }
+  return results;
+}
 
 /**
  * Per-run cache of `getBookUserInfo`, keyed by wallet. One publisher usually owns many
@@ -147,46 +160,35 @@ async function settleWalletPayout({
 }
 
 /**
- * Reads the payable books' docs in bounded-concurrency chunks, before the payout loop, so a
- * book lookup isn't one serialized round trip per book. A book with no doc maps to
- * `undefined` — the caller skips its usage.
+ * Reads the payable books' docs. A book with no doc maps to `undefined` — the caller skips
+ * its usage.
  */
 async function getBookDataByClassId(
   classIds: string[],
 ): Promise<Map<string, NFTBookListingInfo | undefined>> {
+  const snaps = await mapInChunks(classIds, (classId) => likeNFTBookCollection.doc(classId).get());
   const bookDataByClassId = new Map<string, NFTBookListingInfo | undefined>();
-  for (let i = 0; i < classIds.length; i += SETTLE_CONCURRENCY) {
-    const chunk = classIds.slice(i, i + SETTLE_CONCURRENCY);
-    const snaps = await Promise.all(
-      chunk.map((classId) => likeNFTBookCollection.doc(classId).get()),
-    );
-    snaps.forEach((snap, index) => bookDataByClassId.set(chunk[index], snap.data()));
-  }
+  snaps.forEach((snap, index) => bookDataByClassId.set(classIds[index], snap.data()));
   return bookDataByClassId;
 }
 
 /**
- * Settles each (book, wallet) payout in bounded-concurrency chunks, returning the outcomes in
- * `payouts` order. Fail-fast like the sequential loop it replaces: a Firestore error aborts
- * the settle, leaving the period uncompleted so a re-run resumes it (already-paid splits
- * short-circuit, and the Stripe idempotency key covers a transfer whose write was lost).
+ * Settles each payout, returning the outcomes in `payouts` order. Fail-fast: a Firestore
+ * error aborts the run, leaving the period uncompleted so a re-run resumes it (already-paid
+ * splits short-circuit, and the Stripe idempotency key covers a transfer whose write was
+ * lost). The user-info cache lives for one run, so a payee's Connect status is read fresh
+ * each time.
  */
-async function settleWalletPayouts(
+function settleWalletPayouts(
   payouts: WalletPayout[],
-  { periodId, dryRun }: { periodId: string; dryRun: boolean },
+  { dryRun }: { dryRun: boolean },
 ): Promise<PayoutOutcome[]> {
   const userInfoCache: WalletUserInfoCache = new Map();
-  const outcomes: PayoutOutcome[] = [];
-  for (let i = 0; i < payouts.length; i += SETTLE_CONCURRENCY) {
-    const chunk = payouts.slice(i, i + SETTLE_CONCURRENCY);
-    const chunkOutcomes = await Promise.all(chunk.map(({ book, wallet, walletCents }) => (
-      settleWalletPayout({
-        periodId, book, wallet, walletCents, dryRun, userInfoCache,
-      })
-    )));
-    outcomes.push(...chunkOutcomes);
-  }
-  return outcomes;
+  return mapInChunks(payouts, ({
+    periodId, book, wallet, walletCents,
+  }) => settleWalletPayout({
+    periodId, book, wallet, walletCents, dryRun, userInfoCache,
+  }));
 }
 
 /**
@@ -313,8 +315,8 @@ export async function settlePlusReadingPeriod({
   const payableBooks = books.filter((b) => b.amountCents > 0);
   const bookDataByClassId = await getBookDataByClassId(payableBooks.map((b) => b.classId));
 
-  // Resolve every (book, wallet) payout up front, in book order, so the skip warnings stay
-  // deterministic and the transfers below can then run concurrently.
+  // Resolved in book order, so the skip warnings below stay deterministic even though the
+  // transfers themselves run concurrently.
   const payouts: WalletPayout[] = [];
   for (const book of payableBooks) {
     const bookData = bookDataByClassId.get(book.classId);
@@ -341,11 +343,13 @@ export async function settlePlusReadingPeriod({
       continue;
     }
     for (const { wallet, amountCents: walletCents } of splits) {
-      payouts.push({ book, wallet, walletCents });
+      payouts.push({
+        periodId, book, wallet, walletCents,
+      });
     }
   }
 
-  const outcomes = await settleWalletPayouts(payouts, { periodId, dryRun });
+  const outcomes = await settleWalletPayouts(payouts, { dryRun });
 
   let paidCount = 0;
   let pendingCount = 0;
@@ -405,7 +409,7 @@ export async function settlePlusReadingPeriod({
 /**
  * Re-attempts payouts left `pending` by earlier runs — typically payees who have since
  * completed Stripe Connect onboarding (or whose earlier transfer failed). Reuses
- * settleWalletPayout with the same idempotency key, so a payout that already went through
+ * settleWalletPayouts with the same idempotency keys, so a payout that already went through
  * is never double-paid. `dryRun` classifies without writing or transferring. Run on its
  * own cadence, independent of the monthly period settle.
  */
@@ -419,33 +423,33 @@ export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boole
     .map((doc) => doc.data())
     .filter((p) => p.wallet && p.classId && p.periodId);
 
+  // Each record carries its own periodId, so a sweep settles payouts across many periods.
+  const payouts: WalletPayout[] = pending
+    .map((p) => ({
+      periodId: String(p.periodId),
+      book: {
+        classId: String(p.classId),
+        readingTimeMs: Number(p.readingTimeMs) || 0,
+        ttsTimeMs: Number(p.ttsTimeMs) || 0,
+      },
+      wallet: String(p.wallet),
+      walletCents: Number(p.amountCents) || 0,
+    }))
+    .filter((p) => p.walletCents > 0);
+
+  const outcomes = await settleWalletPayouts(payouts, { dryRun });
+
   let paidCount = 0;
   let stillPendingCount = 0;
   let paidCents = 0;
-  const userInfoCache: WalletUserInfoCache = new Map();
-  for (const p of pending) {
-    const walletCents = Number(p.amountCents) || 0;
-    if (walletCents <= 0) continue;
-    const book = {
-      classId: String(p.classId),
-      readingTimeMs: Number(p.readingTimeMs) || 0,
-      ttsTimeMs: Number(p.ttsTimeMs) || 0,
-    };
-    const outcome = await settleWalletPayout({
-      periodId: String(p.periodId),
-      book,
-      wallet: String(p.wallet),
-      walletCents,
-      dryRun,
-      userInfoCache,
-    });
+  outcomes.forEach((outcome, index) => {
     if (outcome === 'paid') {
       paidCount += 1;
-      paidCents += walletCents;
+      paidCents += payouts[index].walletCents;
     } else if (outcome === 'pending') {
       stillPendingCount += 1;
     }
-  }
+  });
 
   return {
     dryRun,
