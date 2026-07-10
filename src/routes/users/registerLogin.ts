@@ -170,6 +170,9 @@ router.post(
         userAgent: req.get('User-Agent'),
         clientIp: (req.headers['x-real-ip'] as string) || req.ip,
         referrer: userPayload.sourceURL,
+        fbClickId: req.body.fbClickId,
+        fbp: req.body.fbp,
+        fbc: req.body.fbc,
       });
     } catch (err) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {

@@ -71,6 +71,9 @@ export const UsersRegisterBodySchema = z.object({
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
+  fbClickId: z.string().optional(),
+  fbp: z.string().optional(),
+  fbc: z.string().optional(),
 }).passthrough();
 
 export const UsersLoginBodySchema = z.object({
