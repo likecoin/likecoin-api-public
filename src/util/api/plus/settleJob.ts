@@ -131,7 +131,7 @@ async function settleWalletPayout({
     currency: 'usd',
     destination: stripeConnectAccountId,
     transfer_group: `plus-revshare-${periodId}`,
-    description: `Plus reading revenue share ${periodId} (${book.classId})`,
+    description: `Li3rary revenue share ${periodId} (${book.classId})`,
     metadata: {
       type: 'plusReadingRevShare',
       periodId,
