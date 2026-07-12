@@ -28,12 +28,9 @@ config.FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
 config.COSMOS_LCD_INDEXER_ENDPOINT = 'https://node.testnet.like.co';
 config.COSMOS_LCD_ENDPOINT = 'https://node.testnet.like.co';
 config.COSMOS_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
-config.COSMOS_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 config.COSMOS_CHAIN_ID = 'likecoin-public-testnet-5';
 config.COSMOS_DENOM = 'nanoekil';
 config.NFT_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
-config.NFT_SIGNING_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
-config.NFT_COSMOS_DENOM = 'nanoekil';
 
 config.LIKE_NFT_EVM_INDEXER_API = 'https://likenft-indexer.pandawork.com/api';
 config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
@@ -93,9 +90,6 @@ config.NFT_BOOK_FREE_CLASS_IDS = [];
 
 config.LIKER_NFT_FIAT_MIN_RATIO = 0.01;
 
-config.LIKER_NFT_SUBSCRIPTION_PRICE_ID = '';
-config.LIKER_NFT_SUBSCRIPTION_MINT_SECRET = '';
-
 config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 
 config.NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK = '';
@@ -107,9 +101,6 @@ config.NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET = '';
 config.SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD = 5;
 
 config.AUTHCORE_PUBLIC_CERT_PATH = '';
-
-config.LIKECO_INTERNAL_API_ENDPOINT = '';
-config.LIKECO_INTERNAL_API_KEY = '';
 
 config.JWT_PUBLIC_CERT_PATH = '';
 config.JWT_PRIVATE_KEY_PATH = '';
@@ -146,12 +137,7 @@ config.GCLOUD_PUBSUB_MAX_WAIT = 1000;
 config.GCLOUD_PUBSUB_ENABLE = false;
 config.APP_SERVER = 'likecoin-api-public';
 
-config.GOOGLE_RETAIL_PROJECT_ID = '';
-
-config.CMC_PRO_API_KEY = '';
 config.CMC_API_CACHE_S = 300;
-
-config.IS_CHAIN_UPGRADING = false;
 
 config.LIKER_LAND_GET_WALLET_SECRET = '';
 
