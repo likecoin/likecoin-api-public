@@ -12,6 +12,13 @@ export function isEbookProtectedBucketEnabled(): boolean {
   return !!EBOOK_PROTECTED_BUCKET;
 }
 
+// gs:// URI of an ingested protected file, for trusted readers (ebook-cors)
+// to fetch plaintext directly; '' when not ingested or bucket unconfigured.
+export function getProtectedContentUri(contentBucketPath?: string): string {
+  if (!isEbookProtectedBucketEnabled() || !contentBucketPath) return '';
+  return `gs://${EBOOK_PROTECTED_BUCKET}/${contentBucketPath}`;
+}
+
 // Lazy accessor — storage.bucket('') throws, and dev/test runs without the
 // protected bucket configured must still import this module.
 let ebookProtectedBucket: Bucket | undefined;

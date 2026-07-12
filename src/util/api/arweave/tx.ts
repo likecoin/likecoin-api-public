@@ -73,17 +73,21 @@ export async function updateArweaveTxStatus(txHash: string, {
 }
 
 // Record the outcome of a protected-content ingest: where the plaintext lives
-// in the private bucket, and the plaintext hash when it was computed server-side
+// in the private bucket, its MIME type (so readers can skip a GCS metadata
+// round-trip), and the plaintext hash when it was computed server-side
 // (i.e. the client never supplied a provenance anchor).
 export async function markArweaveTxIngested(txHash: string, {
   contentBucketPath,
+  contentType,
   fileSHA256,
 }: {
   contentBucketPath: string;
+  contentType: string;
   fileSHA256?: string;
 }): Promise<void> {
   await iscnArweaveTxCollection.doc(txHash).update({
     contentBucketPath,
+    contentType,
     ...(fileSHA256 ? { fileSHA256: fileSHA256.toLowerCase() } : {}),
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });

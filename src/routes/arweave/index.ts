@@ -22,6 +22,7 @@ import {
 import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
 import { reconcilePendingIrysFunding, fundUploadIfNeeded } from '../../util/api/arweave/funding';
 import { ingestProtectedContent } from '../../util/api/arweave/ingest';
+import { getProtectedContentUri } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -312,11 +313,16 @@ router.get(
         link.searchParams.set('key', key);
       }
       if (req.accepts('application/json')) {
+        // Advertise the private-bucket plaintext copy (ADR 0001 Phase 3) so
+        // readers with bucket access can go GCS-first; key + link remain the
+        // fallback. contentType rides along so they can skip a metadata call.
+        const contentUri = getProtectedContentUri(tx.contentBucketPath);
         sendValidatedJSON(res, ArweaveLinkResponseSchema, {
           arweaveId,
           txHash,
           key,
           link: link.toString(),
+          ...(contentUri ? { contentUri, contentType: tx.contentType } : {}),
         });
         return;
       }

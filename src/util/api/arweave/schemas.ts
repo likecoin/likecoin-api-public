@@ -60,6 +60,8 @@ export const ArweaveLinkResponseSchema = z.object({
   txHash: z.string().optional(),
   key: z.string().optional(),
   link: z.string(),
+  contentUri: z.string().optional(),
+  contentType: z.string().optional(),
 });
 
 export const ArweaveAccessTokenResponseSchema = z.object({

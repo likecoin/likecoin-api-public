@@ -97,6 +97,7 @@ export async function ingestProtectedContent(txHash: string, {
   });
   await markArweaveTxIngested(txHash, {
     contentBucketPath,
+    contentType,
     // Only backfill the doc hash when the client supplied none; a client
     // anchor was already stored at register and verified above.
     ...(fileSHA256 ? {} : { fileSHA256: computedSHA256 }),
