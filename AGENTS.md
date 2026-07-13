@@ -68,7 +68,16 @@ Route handlers stay thin and delegate to the util layer.
 
 ### Configuration — `config/`
 
-Runtime config is plain `config/config.js` (CommonJS) with values pulled from environment variables. Secrets (`config/secret.js`, `config/serviceAccountKey.json`, `config/arweave-key.json`, `config/aws.json`) are gitignored. Tests `vi.mock` `../../config/config` directly in `test/setup.ts`, so adding a new config key means adding it to **both** `config/config.js` (for runtime) and `test/setup.ts` (for tests).
+Runtime config is plain `config/config.js` (CommonJS) with values pulled from environment variables. Secrets (`config/secret.js`, `config/serviceAccountKey.json`, `config/arweave-key.json`, `config/aws.json`) are gitignored.
+
+**Adding a config key: edit `config/config.js` only.** Tests read the *real* `config.js`, so a key with an env-driven default needs nothing else.
+
+Two ways to control config in tests:
+
+- **Suite-wide** — set `process.env.*` at the top of `test/setup.ts`, before any import. `config/config.js` reads env at import time, so this is the only thing that reaches the whole suite.
+- **Per-file** — `vi.mock('../../config/config', () => ({ ... }))` in an individual test file, as `test/util/kms.test.ts` and `test/middleware/alchemy-sponsorship-webhook.test.ts` do. The factory replaces the *entire* module, so only the keys you list exist — fine for a narrow unit test, not for the `test/api/` suites.
+
+The catch is path depth: `vi.mock` resolves relative to the calling file and only intercepts when it lands on the same resolved module as the source file's import. Source files two levels deep import `'../../config/config'` → `<repo>/config/config.js`, and a test at `test/<dir>/*.test.ts` is also two levels deep, so the same specifier hits the same file. A one-level-deep caller (`test/setup.ts`) resolves `'../../config/config'` *outside* the repo — it registers a mock nobody imports and fails silently. That is exactly why the old `setup.ts` config mock was dead and got deleted; don't reintroduce it there.
 
 Many keys are `FIRESTORE_*_ROOT` collection roots — they're env-driven so testnet vs. mainnet collections don't collide.
 
@@ -83,10 +92,10 @@ Many keys are `FIRESTORE_*_ROOT` collection roots — they're env-driven so test
 Vitest, single-fork pool (`pool: 'forks'`, `singleFork: true`) so tests share state safely. Test files: `test/**/*.test.ts`. The setup file `test/setup.ts` is loaded globally and:
 
 - Sets `IS_TESTNET=true`.
-- `vi.mock`s `../../config/config`, `firebase-admin`, `../src/util/firebase` (replaced with the in-memory stub at `test/stub/firebase.ts`), `@sendgrid/mail`, `@aws-sdk/client-ses`, `../src/util/cosmos/api`, `../src/util/api/likernft/likePrice`, and `../src/util/fileupload`.
+- `vi.mock`s `firebase-admin`, `../src/util/firebase` (replaced with the in-memory stub at `test/stub/firebase.ts`), `@sendgrid/mail`, `@aws-sdk/client-ses`, `../src/util/cosmos/api`, `../src/util/api/likernft/likePrice`, and `../src/util/fileupload`. It does **not** mock `config/config` — see [Configuration](#configuration--config) for why that has to happen per-file.
 - Resets the in-memory Firestore stub before every test from JSON fixtures in `test/data/` (`user.json`, `subscription.json`, `tx.json`, `mission.json`, `likernft.json`).
 
-When adding new mocks, add them in `test/setup.ts`, not in individual test files. When adding new fixtures, place them in `test/data/` and load them via `test/stub/firebase.ts`.
+When adding new mocks, add them in `test/setup.ts`, not in individual test files — the one exception is `config/config`, which only works per-file (see above). When adding new fixtures, place them in `test/data/` and load them via `test/stub/firebase.ts`.
 
 External network calls in tests (e.g. `kickbox.com`) are expected to fail and don't fail the suite.
 

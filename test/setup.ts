@@ -16,48 +16,6 @@ process.env.ALCHEMY_GAS_POLICY_ID = 'test-alchemy-policy-id';
 process.env.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET = 'test-alchemy-webhook-secret';
 process.env.PLUS_SETTLE_ADMIN_TOKEN = 'test-plus-settle-admin-token';
 
-// Mock config files
-vi.mock('../../config/config', () => ({
-  AIRTABLE_AUTOMATION_TOKEN: 'test-airtable-automation-token',
-  PLUS_READING_SERVICE_TOKEN: 'test-plus-reading-service-token',
-  ALCHEMY_GAS_POLICY_ID: 'test-alchemy-policy-id',
-  ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET: 'test-alchemy-webhook-secret',
-  PLUS_SETTLE_ADMIN_TOKEN: 'test-plus-settle-admin-token',
-  FIREBASE_STORAGE_BUCKET: 'test-bucket',
-  FIRESTORE_USER_ROOT: 'users',
-  FIRESTORE_USER_AUTH_ROOT: 'user-auth',
-  FIRESTORE_SUBSCRIPTION_USER_ROOT: 'subscriptions',
-  FIRESTORE_SUPERLIKE_USER_ROOT: 'superlike',
-  FIRESTORE_TX_ROOT: 'tx',
-  FIRESTORE_IAP_ROOT: 'iap',
-  FIRESTORE_MISSION_ROOT: 'missions',
-  FIRESTORE_PAYOUT_ROOT: 'payout',
-  FIRESTORE_COUPON_ROOT: 'coupon',
-  FIRESTORE_CONFIG_ROOT: 'config',
-  FIRESTORE_OAUTH_CLIENT_ROOT: 'oauth-client',
-  FIRESTORE_LIKER_NFT_ROOT: 'likenft',
-  FIRESTORE_NFT_SUBSCRIPTION_USER_ROOT: 'nft-subscription',
-  FIRESTORE_NFT_FREE_MINT_TX_ROOT: 'nft-free-mint-tx',
-  FIRESTORE_LIKER_NFT_BOOK_CART_ROOT: 'nft-book-cart',
-  FIRESTORE_LIKER_NFT_BOOK_CMS_TAG_ROOT: 'nft-book-cms-tag',
-  FIRESTORE_LIKER_NFT_BOOK_ROOT: 'nft-book',
-  FIRESTORE_LIKER_NFT_BOOK_USER_ROOT: 'nft-book-user',
-  FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT: 'plus-gift-cart',
-  FIRESTORE_LIKE_URL_ROOT: 'like-button',
-  FIRESTORE_ISCN_INFO_ROOT: 'iscn-info',
-  FIRESTORE_ISCN_ARWEAVE_TX_ROOT: 'iscn-arweave-tx',
-  FIRESTORE_ISCN_LIKER_URL_ROOT: 'iscn-like-button',
-  ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT: 10,
-  ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT: 100 * 1024 * 1024,
-  ARWEAVE_IRYS_FUND_MULTIPLIER: 2,
-  ARWEAVE_IRYS_DEPOSIT_ADDRESS: '',
-  ARWEAVE_RECONCILE_ADMIN_TOKEN: 'test-arweave-reconcile-token',
-  REVENUECAT_WEBHOOK_AUTHORIZATION: 'test-rc-webhook-secret',
-  REVENUECAT_PLUS_ENTITLEMENT_ID: 'plus',
-  REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS: 'rc_plus_monthly',
-  REVENUECAT_PLUS_YEARLY_PRODUCT_IDS: 'rc_plus_yearly',
-}));
-
 vi.mock('../../config/serviceAccountKey.json', () => ({}));
 
 // Mock firebase-admin
