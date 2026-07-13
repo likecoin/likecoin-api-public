@@ -95,10 +95,9 @@ export async function resolveBookFileCacheURL(
     parsedURL = new URL(`${ARWEAVE_GATEWAY}/${tx.arweaveId}`);
   }
 
-  // Legacy metadata embeds ?key= in the URL itself. We cache ciphertext, so the
-  // gateway never needs it — dropping it keeps the key out of the gateway's access
-  // logs too. Guarded: delete() re-serialises the whole query (%20 becomes +) even
-  // when nothing matches, which would rename already-cached objects.
+  // Legacy metadata embeds ?key=; we cache ciphertext, so the gateway never needs it,
+  // and dropping it keeps the key out of the gateway's access logs. Guarded: delete()
+  // re-serialises the query even on no match (%20 becomes +), renaming cached objects.
   if (parsedURL.searchParams.has('key')) parsedURL.searchParams.delete('key');
 
   switch (parsedURL.protocol) {
