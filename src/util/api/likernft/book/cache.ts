@@ -4,7 +4,7 @@ import type { File } from '@google-cloud/storage';
 import { ARWEAVE_GATEWAY, ARWEAVE_GATEWAYS, API_HOSTNAME } from '../../../../constant';
 import { fetchStreamWithFallback } from '../../../fetchStream';
 import { bookCacheBucket } from '../../../gcloudStorage';
-import { getArweaveTxInfo, resolveArweaveTxKey } from '../../arweave/tx';
+import { getArweaveTxInfo } from '../../arweave/tx';
 import type { NFTClassData } from './index';
 
 // Mirrors the gateway lists in likecoin-cloud-functions/ebook-cors/nft/http.js.
@@ -28,9 +28,26 @@ const MAX_CACHE_FILES_PER_CLASS = 10;
 // so without this a gateway could stream any amount into the bucket.
 const MAX_CACHE_FILE_BYTES = 1024 * 1024 * 1024;
 
-function getCacheFilePath(classId: string, url: string) {
-  // Must match ebook-cors nft/cache.js getCacheFilePath() exactly.
-  return `${classId}/${encodeURIComponent(url)}`;
+// A key in an object name would sit in bucket listings and audit logs beside the
+// ciphertext it opens. Key-less URLs are returned verbatim rather than
+// re-serialised, so objects cached before this existed stay addressable.
+function stripKeyFromCacheURL(url: string): string {
+  if (!url.includes('key=')) return url;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('key')) return url;
+    parsed.searchParams.delete('key');
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+// Must match ebook-cors nft/cache.js exactly — both repos address the same GCS
+// objects, so any drift is a permanent cache miss on every protected book.
+// Exported to keep that contract pinned by test.
+export function getCacheFilePath(classId: string, url: string) {
+  return `${classId}/${encodeURIComponent(stripKeyFromCacheURL(url))}`;
 }
 
 function getFallbackURLs(url: string): string[] {
@@ -52,10 +69,11 @@ function getFallbackURLs(url: string): string[] {
  * write is byte-for-byte identical to the one ebook-cors will look up.
  *
  * The api/arweave/v2/link/<txHash> case is resolved locally via Firestore
- * (getArweaveTxInfo) instead of an HTTP round-trip — it yields the same
- * `${ARWEAVE_GATEWAY}/${arweaveId}` (+ ?key=) link the endpoint returns.
+ * (getArweaveTxInfo) instead of an HTTP round-trip. That endpoint's link also
+ * carries ?key=, but we cache ciphertext and strip the key from the path, so it
+ * is never unwrapped here.
  */
-async function resolveBookFileCacheURL(
+export async function resolveBookFileCacheURL(
   targetURI: string,
 ): Promise<string | undefined> {
   if (!targetURI) return undefined;
@@ -74,11 +92,14 @@ async function resolveBookFileCacheURL(
     if (!txHash) return undefined;
     const tx = await getArweaveTxInfo(txHash);
     if (!tx?.arweaveId) return undefined;
-    const link = new URL(`${ARWEAVE_GATEWAY}/${tx.arweaveId}`);
-    const key = await resolveArweaveTxKey(tx, txHash);
-    if (key) link.searchParams.set('key', key);
-    parsedURL = link;
+    parsedURL = new URL(`${ARWEAVE_GATEWAY}/${tx.arweaveId}`);
   }
+
+  // Legacy metadata embeds ?key= in the URL itself. We cache ciphertext, so the
+  // gateway never needs it — dropping it keeps the key out of the gateway's access
+  // logs too. Guarded: delete() re-serialises the whole query (%20 becomes +) even
+  // when nothing matches, which would rename already-cached objects.
+  if (parsedURL.searchParams.has('key')) parsedURL.searchParams.delete('key');
 
   switch (parsedURL.protocol) {
     case 'ar:':
