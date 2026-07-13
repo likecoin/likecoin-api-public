@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import type { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { File } from '@google-cloud/storage';
 
@@ -23,6 +24,10 @@ const IPFS_GATEWAYS = ['https://ipfs.io/ipfs/', 'https://w3s.link/ipfs/', 'https
 // concurrent downloads — pre-warming is best-effort and ebook-cors still
 // serves any uncached file on demand.
 const MAX_CACHE_FILES_PER_CLASS = 10;
+
+// Ceiling on a single cached file; axios defaults maxContentLength to unlimited,
+// so without this a gateway could stream any amount into the bucket.
+const MAX_CACHE_FILE_BYTES = 1024 * 1024 * 1024;
 
 function getCacheFilePath(classId: string, url: string) {
   // Must match ebook-cors nft/cache.js getCacheFilePath() exactly.
@@ -112,12 +117,16 @@ async function isAlreadyCached(fileRef: File): Promise<boolean> {
 
 async function fetchStreamWithFallback(url: string, fallbackURLs: string[]) {
   try {
-    return await axios.get(url, {
+    return await axios.get<Readable>(url, {
       responseType: 'stream',
       timeout: 60000,
+      maxContentLength: MAX_CACHE_FILE_BYTES,
       headers: { accept: 'application/pdf, application/epub+zip' },
     });
   } catch (err) {
+    // A stream response body is left open on a non-2xx; drop it or the socket
+    // is held until the gateway times out.
+    (err as AxiosError<Readable>).response?.data?.destroy?.();
     if (fallbackURLs.length > 0) {
       return fetchStreamWithFallback(fallbackURLs[0], fallbackURLs.slice(1));
     }
@@ -133,7 +142,14 @@ async function cacheBookFile(classId: string, targetURI: string) {
 
   const { data, headers } = await fetchStreamWithFallback(url, getFallbackURLs(url));
   const contentType = String(headers['content-type'] || '');
-  assertSupportedContentType(contentType);
+  try {
+    assertSupportedContentType(contentType);
+  } catch (err) {
+    // Nothing will consume the response, so release the socket rather than
+    // leaving it open until the gateway or the timeout closes it.
+    data.destroy();
+    throw err;
+  }
 
   // Stream straight to GCS (the raw, still-encrypted bytes — ebook-cors caches
   // before decryption) so large ebooks never get fully buffered in memory.
