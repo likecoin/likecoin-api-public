@@ -305,14 +305,18 @@ router.get(
           || (docAccessToken && token === docAccessToken);
         if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       }
-      // Unwrap only after access checks pass, so we never call KMS for a request
-      // that isn't authorized to receive the key.
-      const key = await resolveArweaveTxKey(tx, txHash);
       const link = new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`);
-      if (key) {
-        link.searchParams.set('key', key);
-      }
-      if (req.accepts('application/json')) {
+      // A browser's */*;q=0.8 satisfies accepts('application/json'), so plain negotiation
+      // hands it the key below. Take the JSON branch only when JSON outranks HTML; every
+      // programmatic caller (*/*, no header, axios, explicit JSON) still lands there.
+      if (req.accepts(['application/json', 'text/html']) === 'application/json') {
+        // The key must never reach the browser: a redirect target lands in history, the
+        // Referer chain and the gateway's access logs. Only the JSON branch may carry it
+        // (ebook-cors reads it back off `link`).
+        const key = await resolveArweaveTxKey(tx, txHash);
+        if (key) {
+          link.searchParams.set('key', key);
+        }
         // Advertise the private-bucket plaintext copy (ADR 0001 Phase 3) so
         // readers with bucket access can go GCS-first; key + link remain the
         // fallback. contentType rides along so they can skip a metadata call.
