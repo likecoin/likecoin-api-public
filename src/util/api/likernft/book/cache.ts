@@ -1,9 +1,8 @@
-import axios, { AxiosError } from 'axios';
-import type { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { File } from '@google-cloud/storage';
 
-import { ARWEAVE_GATEWAY, API_HOSTNAME } from '../../../../constant';
+import { ARWEAVE_GATEWAY, ARWEAVE_GATEWAYS, API_HOSTNAME } from '../../../../constant';
+import { fetchStreamWithFallback } from '../../../fetchStream';
 import { bookCacheBucket } from '../../../gcloudStorage';
 import { getArweaveTxInfo, resolveArweaveTxKey } from '../../arweave/tx';
 import type { NFTClassData } from './index';
@@ -15,8 +14,8 @@ const PERMANENT_CACHE_TIME_IN_S = 31536000;
 
 const LIKECOIN_API_LINK_PREFIX = `https://${API_HOSTNAME}/arweave/v2/link/`;
 
-// Arweave / IPFS gateway fallbacks, same ordering as ebook-cors.
-const ARWEAVE_GATEWAYS = ['https://arweave.net/', 'https://gateway.irys.xyz/'];
+// IPFS gateway fallbacks, same ordering as ebook-cors. The Arweave set is
+// shared with the protected-content ingest; only membership matters here.
 const IPFS_GATEWAYS = ['https://ipfs.io/ipfs/', 'https://w3s.link/ipfs/', 'https://gateway.irys.xyz/ipfs/'];
 
 // A real book class points at a handful of files (e.g. epub + pdf). Cap the
@@ -115,45 +114,32 @@ async function isAlreadyCached(fileRef: File): Promise<boolean> {
   }
 }
 
-async function fetchStreamWithFallback(url: string, fallbackURLs: string[]) {
-  try {
-    return await axios.get<Readable>(url, {
-      responseType: 'stream',
-      timeout: 60000,
-      maxContentLength: MAX_CACHE_FILE_BYTES,
-      headers: { accept: 'application/pdf, application/epub+zip' },
-    });
-  } catch (err) {
-    // A stream response body is left open on a non-2xx; drop it or the socket
-    // is held until the gateway times out.
-    (err as AxiosError<Readable>).response?.data?.destroy?.();
-    if (fallbackURLs.length > 0) {
-      return fetchStreamWithFallback(fallbackURLs[0], fallbackURLs.slice(1));
-    }
-    throw err;
-  }
-}
-
 async function cacheBookFile(classId: string, targetURI: string) {
   const url = await resolveBookFileCacheURL(targetURI);
   if (!url) return;
   const fileRef = bookCacheBucket.file(getCacheFilePath(classId, url));
   if (await isAlreadyCached(fileRef)) return;
 
-  const { data, headers } = await fetchStreamWithFallback(url, getFallbackURLs(url));
-  const contentType = String(headers['content-type'] || '');
+  const { stream, contentType } = await fetchStreamWithFallback(
+    [url, ...getFallbackURLs(url)],
+    {
+      timeout: 60000,
+      maxContentLength: MAX_CACHE_FILE_BYTES,
+      headers: { accept: 'application/pdf, application/epub+zip' },
+    },
+  );
   try {
     assertSupportedContentType(contentType);
   } catch (err) {
     // Nothing will consume the response, so release the socket rather than
     // leaving it open until the gateway or the timeout closes it.
-    data.destroy();
+    stream.destroy();
     throw err;
   }
 
   // Stream straight to GCS (the raw, still-encrypted bytes — ebook-cors caches
   // before decryption) so large ebooks never get fully buffered in memory.
-  await pipeline(data, fileRef.createWriteStream({
+  await pipeline(stream, fileRef.createWriteStream({
     metadata: {
       contentType,
       cacheControl: `public, max-age=${PERMANENT_CACHE_TIME_IN_S}`,

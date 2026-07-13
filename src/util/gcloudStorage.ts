@@ -23,7 +23,7 @@ export function getProtectedContentUri(contentBucketPath?: string): string {
 // protected bucket configured must still import this module.
 let ebookProtectedBucket: Bucket | undefined;
 export function getEbookProtectedBucket(): Bucket {
-  if (!EBOOK_PROTECTED_BUCKET) throw new Error('EBOOK_PROTECTED_BUCKET_NOT_CONFIGURED');
+  if (!isEbookProtectedBucketEnabled()) throw new Error('EBOOK_PROTECTED_BUCKET_NOT_CONFIGURED');
   if (!ebookProtectedBucket) {
     ebookProtectedBucket = storage.bucket(EBOOK_PROTECTED_BUCKET);
   }

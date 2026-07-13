@@ -72,10 +72,9 @@ export async function updateArweaveTxStatus(txHash: string, {
   return accessToken;
 }
 
-// Record the outcome of a protected-content ingest: where the plaintext lives
-// in the private bucket, its MIME type (so readers can skip a GCS metadata
-// round-trip), and the plaintext hash when it was computed server-side
-// (i.e. the client never supplied a provenance anchor).
+// Record a protected-content ingest: the plaintext's path in the private
+// bucket, its MIME type (so readers skip a GCS metadata round-trip), and the
+// plaintext hash only when computed server-side (client supplied no anchor).
 export async function markArweaveTxIngested(txHash: string, {
   contentBucketPath,
   contentType,
