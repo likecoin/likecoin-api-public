@@ -124,6 +124,7 @@ function serializeCMSTagDoc(
     ...data,
     id,
     isForLibrary: data.isForLibrary ?? false,
+    isForStore: data.isForStore ?? false,
     timestamp: data.timestamp?.toMillis?.() ?? data.timestamp,
     lastUpdateTimestamp: data.lastUpdateTimestamp?.toMillis?.() ?? data.lastUpdateTimestamp,
   };
