@@ -8,6 +8,33 @@ import {
   iscnMappingCollection,
   db,
 } from '../../firebase';
+import { getStripeClient } from '../../stripe';
+
+// Deleting the Liker ID must also stop its active Plus subscription from
+// renewing; otherwise Stripe keeps billing and future invoices can no longer
+// resolve the now-deleted wallet, so the webhook drops them silently. Cancel at
+// period end so the already-paid term is honoured.
+async function cancelActivePlusSubscription(user) {
+  const doc = await userCollection.doc(user).get();
+  const { likerPlus } = doc.data() || {};
+  const subscriptionId = likerPlus?.subscriptionId;
+  if (!subscriptionId) return;
+  if (likerPlus.provider && likerPlus.provider !== 'stripe') {
+    // App-store IAP and other providers can't be cancelled through Stripe here.
+    // eslint-disable-next-line no-console
+    console.warn(`Skipping non-stripe Plus subscription ${subscriptionId} for deleted user ${user}`);
+    return;
+  }
+  try {
+    await getStripeClient().subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+  } catch (err) {
+    // Best-effort: an already-cancelled subscription throws; don't block deletion.
+    // eslint-disable-next-line no-console
+    console.error(`Failed to cancel Plus subscription ${subscriptionId} for deleted user ${user}:`, err);
+  }
+}
 
 async function clearUserButtonData(user) {
   const query = await likeButtonUrlCollection
@@ -44,6 +71,7 @@ async function clearUserMappingData(user) {
 }
 
 export async function deleteAllUserData(user) {
+  await cancelActivePlusSubscription(user);
   await Promise.all([
     db.recursiveDelete(userCollection
       .doc(user)),
