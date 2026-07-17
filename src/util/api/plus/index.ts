@@ -14,7 +14,7 @@ import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../co
 import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
-import { userCollection } from '../../firebase';
+import { db, userCollection, FieldValue } from '../../firebase';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import publisher from '../../gcloudPub';
 
@@ -741,6 +741,27 @@ async function emitPlusInvoiceAnalytics({
   });
 }
 
+// Atomically claim an invoice's side effects, returning true only for the first caller.
+async function claimPlusInvoiceEmit(
+  likerId: string,
+  invoiceId: string,
+  subscriptionId: string,
+): Promise<boolean> {
+  const ref = userCollection
+    .doc(likerId)
+    .collection('processedStripeInvoices')
+    .doc(invoiceId);
+  return db.runTransaction(async (t) => {
+    const doc = await t.get(ref);
+    if (doc.exists) return false;
+    t.create(ref, {
+      subscriptionId,
+      processedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+}
+
 export async function processStripeSubscriptionInvoice(
   invoice: Stripe.Invoice,
   req: Express.Request,
@@ -750,6 +771,7 @@ export async function processStripeSubscriptionInvoice(
   if (!ctx) return;
   const {
     subscriptionId,
+    likerId,
     evmWallet,
     user,
     subscription,
@@ -835,6 +857,14 @@ export async function processStripeSubscriptionInvoice(
     amountPaidUSD,
     currency,
   });
+
+  // Emit once per invoice so retries don't duplicate side effects.
+  const isFirstEmit = await claimPlusInvoiceEmit(likerId, invoice.id, subscriptionId);
+  if (!isFirstEmit) {
+    // eslint-disable-next-line no-console
+    console.warn(`Stripe invoice ${invoice.id} already emitted for ${likerId}; skipping duplicate side effects.`);
+    return;
+  }
 
   await emitPlusInvoiceAnalytics({
     req,
