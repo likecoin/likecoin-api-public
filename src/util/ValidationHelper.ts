@@ -576,6 +576,7 @@ export function filterNFTBookListingInfo(
     genre,
     timestamp,
     isHidden,
+    isPendingReview,
     isAdultOnly,
     isApprovedForSale,
     isApprovedForIndexing,
@@ -628,6 +629,7 @@ export function filterNFTBookListingInfo(
     genre,
     timestamp: timestamp?.toMillis(),
     isHidden,
+    isPendingReview,
     isAdultOnly,
     // Approval flags - default to true for backward compatibility with existing books
     isApprovedForSale: isApprovedForSale !== undefined ? isApprovedForSale : true,

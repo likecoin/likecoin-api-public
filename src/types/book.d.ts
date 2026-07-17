@@ -170,6 +170,9 @@ export interface NFTBookListingInfo {
   genre?: string;
   timestamp?: { toMillis: () => number };
   isHidden?: boolean;
+  // Unlike `isHidden`, which only unlists, this 404s the listing to the public
+  // while it awaits review. Owners and moderators still see it.
+  isPendingReview?: boolean;
   isAdultOnly?: boolean;
   isLikerLandArt?: boolean;
   isApprovedForSale?: boolean;

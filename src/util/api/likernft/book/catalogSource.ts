@@ -83,6 +83,7 @@ export async function listCatalogEligibleBooks(): Promise<CatalogBook[]> {
     // and defaults to approved (see ValidationHelper.ts), so we filter only on the explicit false.
     if (
       data.isHidden
+      || data.isPendingReview
       || data.redirectClassId
       || data.isAdultOnly
       || data.isApprovedForAds === false

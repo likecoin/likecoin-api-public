@@ -394,6 +394,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   genre: z.string().optional(),
   timestamp: z.number().optional(),
   isHidden: z.boolean().optional(),
+  isPendingReview: z.boolean().optional(),
   isAdultOnly: z.boolean().optional(),
   sold: z.number().int().optional(),
   pendingNFTCount: z.number().int().optional(),

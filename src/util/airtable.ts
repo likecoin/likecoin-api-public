@@ -34,6 +34,7 @@ interface AirtablePublicationRecordParams {
   metadata?: any;
   isDRMFree?: boolean;
   isHidden?: boolean;
+  isPendingReview?: boolean;
   isAdultOnly?: boolean;
   isPlusReadingEnabled?: boolean;
 }
@@ -89,6 +90,7 @@ export async function createAirtablePublicationRecord({
   metadata,
   isDRMFree = false,
   isHidden = false,
+  isPendingReview = false,
   isAdultOnly = false,
   isPlusReadingEnabled = false,
 }: CreateAirtablePublicationRecordParams): Promise<void> {
@@ -161,6 +163,9 @@ export async function createAirtablePublicationRecord({
 
     if (isHidden) {
       fields.Hidden = true;
+    }
+    if (isPendingReview) {
+      fields['Pending Review'] = true;
     }
     if (isAdultOnly) {
       fields['Adult Only'] = true;
@@ -303,6 +308,7 @@ export async function updateAirtablePublicationRecord({
   metadata,
   isDRMFree,
   isHidden,
+  isPendingReview,
   isAdultOnly,
   isPlusReadingEnabled,
 }: UpdateAirtablePublicationRecordParams): Promise<void> {
@@ -376,6 +382,9 @@ export async function updateAirtablePublicationRecord({
 
     if (isHidden !== undefined) {
       fields.Hidden = isHidden;
+    }
+    if (isPendingReview !== undefined) {
+      fields['Pending Review'] = isPendingReview;
     }
     if (isAdultOnly !== undefined) {
       fields['Adult Only'] = isAdultOnly;

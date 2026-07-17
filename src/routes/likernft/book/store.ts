@@ -247,13 +247,14 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     const list = ownedBookInfos.flatMap((b: NFTBookListingInfo) => {
       const {
         isHidden,
+        isPendingReview,
         redirectClassId,
         moderatorWallets = [],
         ownerWallet,
       } = b;
       if (redirectClassId) return [];
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-      if (!isAuthorized && isHidden) return [];
+      if (!isAuthorized && (isHidden || isPendingReview)) return [];
       return [filterNFTBookListingInfo(b, isAuthorized)];
     });
     // Use the unfiltered Firestore result for the cursor — filtered-out
@@ -299,11 +300,11 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
       const bookInfos = await listFilteredNFTBookInfo(conditions);
       const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
         const {
-          isHidden, redirectClassId, moderatorWallets = [], ownerWallet,
+          isHidden, isPendingReview, redirectClassId, moderatorWallets = [], ownerWallet,
         } = b;
         if (redirectClassId) return [];
         const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        if (!isAuthorized && isHidden) return [];
+        if (!isAuthorized && (isHidden || isPendingReview)) return [];
         return [filterNFTBookListingInfo(b, isAuthorized)];
       });
       // Use the unfiltered Firestore result for the cursor:
@@ -341,11 +342,11 @@ router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookP
     });
     const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
       const {
-        isHidden, redirectClassId, moderatorWallets = [], ownerWallet,
+        isHidden, isPendingReview, redirectClassId, moderatorWallets = [], ownerWallet,
       } = b;
       if (redirectClassId) return [];
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-      if (!isAuthorized && isHidden) return [];
+      if (!isAuthorized && (isHidden || isPendingReview)) return [];
       return [filterNFTBookListingInfo(b, isAuthorized)];
     });
     // Cursor off the unfiltered Firestore result: filtered-out docs (hidden / redirected)
@@ -471,6 +472,7 @@ router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req: Qu
     const list = books
       .filter((b) => (
         !b.isHidden
+        && !b.isPendingReview
         && !b.redirectClassId
         && (!isLibraryOnly || b.isPlusReadingEnabled)))
       .map((b) => filterNFTBookListingInfo(b, false));
@@ -501,8 +503,13 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), va
     const {
       ownerWallet,
       moderatorWallets = [],
+      isPendingReview,
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized && isPendingReview) {
+      res.status(404).send('BOOK_NOT_FOUND');
+      return;
+    }
     const payload = filterNFTBookListingInfo(bookInfo, isAuthorized);
     sendValidatedJSON(res, BookInfoResponseSchema, payload);
   } catch (err) {
@@ -519,10 +526,15 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
       prices = [],
       ownerWallet,
       moderatorWallets = [],
+      isPendingReview,
     } = bookInfo;
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized && isPendingReview) {
+      res.status(404).send('BOOK_NOT_FOUND');
+      return;
+    }
     const priceInfo = prices[priceIndex];
     if (!priceInfo) throw new ValidationError('PRICE_NOT_FOUND', 404);
-    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     const { prices: [price] } = filterNFTBookPricesInfo([{
       ...priceInfo,
       index: priceIndex,

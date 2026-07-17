@@ -29,8 +29,18 @@ async function approveBook(classId: string, action: string, slackUserId: string)
   let approvalUpdate: any = {};
 
   switch (action) {
+    case 'pending_review':
+      approvalUpdate = {
+        isPendingReview: true,
+        isApprovedForSale: false,
+        isApprovedForIndexing: false,
+        isApprovedForAds: false,
+        approvalStatus: 'pending_review',
+      };
+      break;
     case 'approve_with_ads':
       approvalUpdate = {
+        isPendingReview: false,
         isHidden: false,
         isApprovedForSale: true,
         isApprovedForIndexing: true,
@@ -40,6 +50,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
       break;
     case 'approve_no_ads':
       approvalUpdate = {
+        isPendingReview: false,
         isHidden: false,
         isApprovedForSale: true,
         isApprovedForIndexing: true,
@@ -49,6 +60,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
       break;
     case 'approve_hidden':
       approvalUpdate = {
+        isPendingReview: false,
         isHidden: true,
         isApprovedForSale: true,
         isApprovedForIndexing: false,
@@ -58,6 +70,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
       break;
     case 'reject':
       approvalUpdate = {
+        isPendingReview: false,
         isHidden: true,
         isApprovedForSale: false,
         isApprovedForIndexing: false,
@@ -73,6 +86,7 @@ async function approveBook(classId: string, action: string, slackUserId: string)
   await updateAirtablePublicationRecord({
     id: classId,
     isHidden: approvalUpdate.isHidden,
+    isPendingReview: approvalUpdate.isPendingReview,
   });
 
   await Promise.all([
@@ -109,10 +123,10 @@ router.post(
       const slackUserId = req.body.user_id;
       const [classId, action = 'approve_with_ads'] = params;
       if (!classId) {
-        throw new Error('Missing classId. Usage: /book approve <classId> <approve_with_ads|approve_no_ads|reject>');
+        throw new Error('Missing classId. Usage: /book approve <classId> <approve_with_ads|approve_no_ads|approve_hidden|pending_review|reject>');
       }
-      if (action && !['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'].includes(action)) {
-        throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, approve_hidden, reject');
+      if (action && !['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'pending_review', 'reject'].includes(action)) {
+        throw new Error('Invalid action. Must be one of approve_with_ads, approve_no_ads, approve_hidden, pending_review, reject');
       }
       const result = await approveBook(classId, action, slackUserId);
 
@@ -124,13 +138,14 @@ router.post(
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
-        text: `\`/book approve <classId> <approve_with_ads|approve_no_ads|reject>\` Approve or reject a book listing
+        text: `\`/book approve <classId> <approve_with_ads|approve_no_ads|approve_hidden|pending_review|reject>\` Approve or reject a book listing
 
 Examples:
   \`/book approve 0x1234...5678 \` - Approve for listing & ads (default)
   \`/book approve 0x1234...5678  approve_with_ads\` - Approve for listing & ads
   \`/book approve 0x1234...5678  approve_no_ads\` - Approve for listing (no ads)
   \`/book approve 0x1234...5678  approve_hidden\` - Approve but keep hidden (no ads)
+  \`/book approve 0x1234...5678  pending_review\` - Hold for review; 404 to public until approved
   \`/book approve 0x1234...5678  reject\` - Reject/hide listing`,
       });
     },

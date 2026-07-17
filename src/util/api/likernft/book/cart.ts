@@ -1162,10 +1162,15 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         isLikerLandArt,
         chain,
         isApprovedForSale,
+        isPendingReview,
       } = bookInfo;
 
       if (isApprovedForSale === false) {
         throw new ValidationError('BOOK_NOT_APPROVED_FOR_SALE');
+      }
+
+      if (isPendingReview) {
+        throw new ValidationError('NFT_NOT_FOUND');
       }
 
       if (!prices[priceIndex]) throw new ValidationError('NFT_PRICE_NOT_FOUND');

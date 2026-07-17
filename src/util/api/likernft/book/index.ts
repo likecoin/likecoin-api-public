@@ -328,6 +328,7 @@ export async function newNftBookInfo(
     isApprovedForIndexing: true,
     isApprovedForAds: (isAdultOnly ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
+    isPendingReview: false,
     // Seed the popularity sort key: Firestore drops documents missing an `orderBy`
     // field, so an unseeded book would never surface in the popular listing at all.
     plusReadingTotalMs: 0,
