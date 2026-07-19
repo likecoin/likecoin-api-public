@@ -15,6 +15,7 @@ import { getPublicKey, signData as signArweaveData } from '../../util/arweave/si
 import {
   createNewArweaveTx,
   getArweaveTxInfo,
+  isArweaveTxOwner,
   updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
   resolveArweaveTxKey,
@@ -217,7 +218,7 @@ router.post(
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
       const { ownerWallet, authToken } = tx;
       const userWallet = req.user?.wallet || '';
-      const isAuthed = (ownerWallet && userWallet === ownerWallet)
+      const isAuthed = (await isArweaveTxOwner(userWallet, ownerWallet))
         || (authToken && authToken === token);
       if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
@@ -299,7 +300,7 @@ router.get(
       } = tx;
       if (isRequireAuth) {
         if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
-        const isUserAuthed = req.user?.wallet === ownerWallet;
+        const isUserAuthed = await isArweaveTxOwner(req.user?.wallet, ownerWallet);
         const isTokenAuthed = token === docToken
           || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN)
           || (docAccessToken && token === docAccessToken);
@@ -348,7 +349,7 @@ router.post(
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
       const { ownerWallet, status } = tx;
-      if (req.user.wallet !== ownerWallet) throw new ValidationError('NOT_OWNER', 403);
+      if (!(await isArweaveTxOwner(req.user.wallet, ownerWallet))) throw new ValidationError('NOT_OWNER', 403);
       if (status !== 'complete') throw new ValidationError('TX_NOT_COMPLETE', 409);
       const accessToken = await rotateArweaveTxAccessToken(txHash);
       sendValidatedJSON(res, ArweaveAccessTokenResponseSchema, { accessToken });

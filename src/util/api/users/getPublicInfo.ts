@@ -128,9 +128,11 @@ export async function getUserAvatar(id: string): Promise<string | null> {
   return avatar || AVATAR_DEFAULT_PATH;
 }
 
-export async function getUserWithCivicLikerPropertiesByWallet(
+// Resolves a live (non-deleted) user doc by any wallet type, checksumming EVM
+// addresses to match how they are stored. Throws on an unrecognised address.
+async function resolveUserDocByWallet(
   walletAddress: string,
-): Promise<UserCivicLikerProperties | null> {
+): Promise<DocumentSnapshot<UserData> | null> {
   let field: 'evmWallet' | 'likeWallet' | 'cosmosWallet';
   let addr = walletAddress;
   if (checkAddressValid(addr)) {
@@ -145,10 +147,28 @@ export async function getUserWithCivicLikerPropertiesByWallet(
   }
   const query = await dbRef.where(field, '==', addr).limit(1).get();
   if (!query.docs.length) return null;
-  const userDoc = query.docs[0];
-  if (!isValidUserDoc(userDoc)) return null;
-  const payload = formatUserCivicLikerProperies(userDoc as DocumentSnapshot<UserData>);
-  return payload;
+  const userDoc = query.docs[0] as DocumentSnapshot<UserData>;
+  return isValidUserDoc(userDoc) ? userDoc : null;
+}
+
+export async function getUserWithCivicLikerPropertiesByWallet(
+  walletAddress: string,
+): Promise<UserCivicLikerProperties | null> {
+  const userDoc = await resolveUserDocByWallet(walletAddress);
+  if (!userDoc) return null;
+  return formatUserCivicLikerProperies(userDoc);
+}
+
+// Lean sibling of getUserWithCivicLikerPropertiesByWallet: returns only the
+// linked wallets, skipping the Civic Liker / Liker Plus computation. For
+// cross-wallet ownership checks.
+export async function getUserWalletsByWallet(
+  walletAddress: string,
+): Promise<Pick<UserData, 'evmWallet' | 'likeWallet' | 'cosmosWallet'> | null> {
+  const userDoc = await resolveUserDocByWallet(walletAddress);
+  if (!userDoc) return null;
+  const { evmWallet, likeWallet, cosmosWallet } = userDoc.data() as UserData;
+  return { evmWallet, likeWallet, cosmosWallet };
 }
 
 export default getUserWithCivicLikerProperties;
