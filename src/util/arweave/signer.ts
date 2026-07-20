@@ -35,7 +35,9 @@ const EXPECTED_DEPOSIT_ADDRESS = ARWEAVE_IRYS_DEPOSIT_ADDRESS || DEFAULT_IRYS_DE
 // Fund a multiple of a single file's price when topping up, so one stranded credit
 // can't drop the node balance below the next upload's price and 402 it. Floor at 1:
 // a sub-1 multiple would top up below the upload's own price and 402 it immediately.
-const FUND_MULTIPLIER = Math.max(1, ARWEAVE_IRYS_FUND_MULTIPLIER);
+// The `|| 2` also covers the key missing from a deployed config.js: Number(undefined)
+// is NaN, and NaN would otherwise survive Math.max and poison the multiplier.
+const FUND_MULTIPLIER = Math.max(1, Number(ARWEAVE_IRYS_FUND_MULTIPLIER) || 2);
 
 let signer: TypedEthereumSigner | null = null;
 let fundingWalletClient: WalletClient<HttpTransport, Chain, LocalAccount> | undefined;
