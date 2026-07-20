@@ -4,6 +4,7 @@ import type { LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../.
 
 import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
 import {
+  ONE_DAY_IN_MS,
   PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD,
   PLUS_PAID_TRIAL_PRICE,
   PUBSUB_TOPIC_MISC,
@@ -14,7 +15,9 @@ import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../co
 import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
-import { db, userCollection, FieldValue } from '../../firebase';
+import {
+  userCollection, FieldValue, Timestamp,
+} from '../../firebase';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import publisher from '../../gcloudPub';
 
@@ -741,25 +744,41 @@ async function emitPlusInvoiceAnalytics({
   });
 }
 
-// Atomically claim an invoice's side effects, returning true only for the first caller.
-async function claimPlusInvoiceEmit(
-  likerId: string,
-  invoiceId: string,
-  subscriptionId: string,
-): Promise<boolean> {
+// Stripe retries a webhook for up to ~3 days; keep the dedupe marker past that so
+// late retries stay deduped, then let a Firestore TTL policy (on `expireAt`) purge
+// it so the subcollection doesn't grow unbounded. Matches the plusUsageReceipts window.
+const PROCESSED_INVOICE_TTL_MS = 7 * ONE_DAY_IN_MS;
+// gRPC ALREADY_EXISTS: create() of an existing doc rejects with this code — how the
+// idempotency gate detects a duplicate delivery (mirrors revenueShare.ts).
+const GRPC_ALREADY_EXISTS = 6;
+
+// Atomically claim an invoice's side effects, returning the claim doc ref only for
+// the first caller (null if already claimed). The caller releases the claim if the
+// emit fails so a Stripe retry can re-run the side effects instead of dropping them.
+async function claimPlusInvoiceEmit({
+  likerId,
+  invoiceId,
+  subscriptionId,
+}: {
+  likerId: string;
+  invoiceId: string;
+  subscriptionId: string;
+}) {
   const ref = userCollection
     .doc(likerId)
     .collection('processedStripeInvoices')
     .doc(invoiceId);
-  return db.runTransaction(async (t) => {
-    const doc = await t.get(ref);
-    if (doc.exists) return false;
-    t.create(ref, {
+  try {
+    await ref.create({
       subscriptionId,
       processedAt: FieldValue.serverTimestamp(),
+      expireAt: Timestamp.fromMillis(Date.now() + PROCESSED_INVOICE_TTL_MS),
     });
-    return true;
-  });
+    return ref;
+  } catch (err) {
+    if ((err as { code?: number }).code === GRPC_ALREADY_EXISTS) return null;
+    throw err;
+  }
 }
 
 export async function processStripeSubscriptionInvoice(
@@ -859,31 +878,42 @@ export async function processStripeSubscriptionInvoice(
   });
 
   // Emit once per invoice so retries don't duplicate side effects.
-  const isFirstEmit = await claimPlusInvoiceEmit(likerId, invoice.id, subscriptionId);
-  if (!isFirstEmit) {
+  const claimRef = await claimPlusInvoiceEmit({ likerId, invoiceId: invoice.id, subscriptionId });
+  if (!claimRef) {
     // eslint-disable-next-line no-console
     console.warn(`Stripe invoice ${invoice.id} already emitted for ${likerId}; skipping duplicate side effects.`);
     return;
   }
 
-  await emitPlusInvoiceAnalytics({
-    req,
-    invoice,
-    ctx,
-    isTrial,
-    isNewSubscription,
-    isTrialToPaidUpgrade,
-    amountPaid,
-    amountPaidUSD,
-    currency,
-    coupon,
-    balanceTxAmount,
-    balanceTxExchangeRate,
-    since,
-    currentPeriodStart,
-    currentPeriodEnd,
-    giftCartId,
-  });
+  try {
+    await emitPlusInvoiceAnalytics({
+      req,
+      invoice,
+      ctx,
+      isTrial,
+      isNewSubscription,
+      isTrialToPaidUpgrade,
+      amountPaid,
+      amountPaidUSD,
+      currency,
+      coupon,
+      balanceTxAmount,
+      balanceTxExchangeRate,
+      since,
+      currentPeriodStart,
+      currentPeriodEnd,
+      giftCartId,
+    });
+  } catch (err) {
+    // Release the claim so the retried webhook re-runs the side effects rather than
+    // skipping them (emitPlusInvoiceAnalytics relies on Stripe retrying on failure).
+    // A failed release strands the claim and permanently drops those effects — log it.
+    await claimRef.delete().catch((delErr) => {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to release Stripe invoice claim ${invoice.id} for ${likerId}:`, delErr);
+    });
+    throw err;
+  }
 }
 
 // Look up the checkout user's email and Stripe customer id from their wallet.
