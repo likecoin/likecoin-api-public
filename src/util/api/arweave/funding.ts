@@ -12,17 +12,21 @@ export interface ReconcileResult {
   error?: string;
 }
 
-// Top up Irys for this upload, persisting the funding tx on the doc before notify so
-// a stranded credit is replayable, then marking it credited once notify succeeds.
-// No-op when the balance cushion already covers the upload (fund returns null).
-export async function fundUploadIfNeeded(uploadId: string, ETH: string): Promise<void> {
-  if (!ETH || ETH === '0') return;
-  const fundingTxHash = await fund(ETH, {
-    onSent: (h) => setArweaveTxFundingSent(uploadId, { fundingTxHash: h, fundingETH: ETH }),
-  });
-  // Funding + notify already succeeded; marking credited is best-effort since
-  // reconcile re-notifies idempotently and marks it later if this write fails.
-  if (fundingTxHash) await markArweaveTxFundingCredited(uploadId).catch(() => undefined);
+// Pass-through funding: forward the user's payment into the Irys balance in the background;
+// a standing buffer covers this upload, so nothing waits on confirmation. fundingStatus:'sent'
+// persists before notify so reconcile can replay; sponsored uploads (no paidETH) skip this.
+export function fundUploadIfNeeded(uploadId: string, paidETH?: string): void {
+  if (!paidETH || paidETH === '0') return;
+  fund(paidETH, {
+    onSent: (h) => setArweaveTxFundingSent(uploadId, { fundingTxHash: h, fundingETH: paidETH }),
+  })
+    .then(() => markArweaveTxFundingCredited(uploadId).catch(() => undefined))
+    .catch((err) => {
+      // Deposit send/notify failed. The buffer still covers uploads; the funding tx (if
+      // broadcast) stays fundingStatus:'sent' for reconcile to replay. Log so it's visible.
+      // eslint-disable-next-line no-console
+      console.error(`Irys pass-through funding failed for ${uploadId}:`, (err as Error).message);
+    });
 }
 
 // Replay upload docs whose Irys funding was sent but never confirmed credited.

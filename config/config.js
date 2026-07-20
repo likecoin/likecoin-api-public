@@ -70,9 +70,6 @@ config.ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT = 100 * 1024 * 1024; // 100MB
 // Cloud KMS cryptoKey resource name used to wrap content keys at rest in
 // Firestore. Empty = passthrough (dev/test store plaintext); prod sets this.
 config.ARWEAVE_KEY_KMS_NAME = process.env.ARWEAVE_KEY_KMS_NAME || '';
-// Fund this multiple of a single file's price when topping up the Irys node balance,
-// leaving a cushion so one stranded credit can't 402 the next upload.
-config.ARWEAVE_IRYS_FUND_MULTIPLIER = Number(process.env.ARWEAVE_IRYS_FUND_MULTIPLIER) || 2;
 // Optional pin for the Irys base-eth deposit address; asserted against /info. Empty
 // falls back to the built-in per-network default in the signer.
 config.ARWEAVE_IRYS_DEPOSIT_ADDRESS = process.env.ARWEAVE_IRYS_DEPOSIT_ADDRESS || '';

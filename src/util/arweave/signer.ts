@@ -10,12 +10,9 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
-import {
-  ARWEAVE_IRYS_FUND_MULTIPLIER,
-  ARWEAVE_IRYS_DEPOSIT_ADDRESS,
-} from '../../../config/config';
+import { ARWEAVE_IRYS_DEPOSIT_ADDRESS } from '../../../config/config';
 import { getEVMClient, createEVMWalletClient } from '../evm/client';
-import { sleep, scaleBigInt } from '../misc';
+import { sleep } from '../misc';
 import { IS_TESTNET } from '../../constant';
 
 // Irys node the base-eth balance/upload settles against. We talk to it over REST
@@ -32,19 +29,11 @@ const DEFAULT_IRYS_DEPOSIT_ADDRESS = IS_TESTNET
   : '0x62459D34409ABA55b85DD28284cc4e57e0C8ADea';
 const EXPECTED_DEPOSIT_ADDRESS = ARWEAVE_IRYS_DEPOSIT_ADDRESS || DEFAULT_IRYS_DEPOSIT_ADDRESS;
 
-// Fund a multiple of a single file's price when topping up, so one stranded credit
-// can't drop the node balance below the next upload's price and 402 it. Floor at 1:
-// a sub-1 multiple would top up below the upload's own price and 402 it immediately.
-// The `|| 2` also covers the key missing from a deployed config.js: Number(undefined)
-// is NaN, and NaN would otherwise survive Math.max and poison the multiplier.
-const FUND_MULTIPLIER = Math.max(1, Number(ARWEAVE_IRYS_FUND_MULTIPLIER) || 2);
-
 let signer: TypedEthereumSigner | null = null;
 let fundingWalletClient: WalletClient<HttpTransport, Chain, LocalAccount> | undefined;
 let depositAddress: string | undefined;
 
-// Serialize funding ops so concurrent uploads don't race the funding wallet nonce,
-// and so each queued top-up re-checks the balance after the previous credit lands.
+// Serialize funding ops so concurrent uploads don't race the funding wallet nonce.
 let fundingLock: Promise<unknown> = Promise.resolve();
 
 function normalizePrivateKey(key: string): `0x${string}` {
@@ -109,16 +98,6 @@ export async function getPrice(bytes: number): Promise<bigint> {
   return BigInt(String(data).trim().replace(/^"|"$/g, '').split('.')[0]);
 }
 
-// Node-credited balance of our funding wallet in atomic units (wei).
-async function getLoadedBalance(): Promise<bigint> {
-  const account = getFundingWalletClient().account.address;
-  const { data } = await axios.get(`${IRYS_NODE_ENDPOINT}/account/balance/${IRYS_TOKEN}`, {
-    params: { address: account },
-  });
-  const raw = (data && typeof data === 'object') ? (data.balance ?? '0') : data;
-  return BigInt(String(raw).split('.')[0] || '0');
-}
-
 // Notify the indexer that `txHash` funded the node, retrying since the credit is
 // what strands. Idempotent: a re-notify of an already-credited tx is treated as
 // success (the sweep/reconcile relies on this).
@@ -145,53 +124,49 @@ export async function notifyIrys(txHash: string): Promise<void> {
 }
 
 // Send a no-calldata ETH transfer (sidesteps the SDK getFee()/createTx() gas-timing
-// bug), wait for 2 confirmations, persist via onSent, then notify the node.
+// bug), persist via onSent right after broadcast, then confirm and notify the node.
 async function performFunding(
-  requiredWei: bigint,
-  topUpWei: bigint,
+  depositWei: bigint,
   onSent?: (txHash: string) => Promise<void> | void,
-): Promise<string | null> {
-  // A top-up queued ahead of us may have already credited enough cushion.
-  const balance = await getLoadedBalance();
-  if (balance >= requiredWei) return null;
+): Promise<string> {
   const walletClient = getFundingWalletClient();
   const to = await getIrysDepositAddress();
   const txHash = await walletClient.sendTransaction({
     to: to as `0x${string}`,
-    value: topUpWei,
+    value: depositWei,
   });
-  await getEVMClient().waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+  // Persist before the confirmation wait: funds have already left the wallet, so a
+  // crash here must still leave a replayable record for reconcile.
+  let persistError: unknown;
   if (onSent) {
     try {
       await onSent(txHash);
     } catch (err) {
-      // Persist failed, so reconcile can't find this deposit. Notify now (best
-      // effort) to credit it immediately, then surface the persistence error.
-      await notifyIrys(txHash).catch(() => undefined);
-      throw err;
+      persistError = err;
     }
+  }
+  await getEVMClient().waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+  if (persistError) {
+    // Persist failed, so reconcile can't find this deposit. Notify now (best
+    // effort) to credit it immediately, then surface the persistence error.
+    await notifyIrys(txHash).catch(() => undefined);
+    throw persistError;
   }
   await notifyIrys(txHash);
   return txHash;
 }
 
-// Top up the Irys node balance to cover `requiredAmount` ETH, funding FUND_MULTIPLIER×
-// the price as a cushion. `onSent` fires after the send confirms but before the indexer
-// notify, so callers can durably persist the funding tx id (persist-before-notify).
+// Forward `depositAmount` ETH (a user's upload payment) into the Irys node balance —
+// pass-through funding that refills the standing buffer covering uploads. `onSent`
+// fires right after broadcast so callers can durably persist the funding tx id.
 export async function fund(
-  requiredAmount: string,
+  depositAmount: string,
   { onSent }: {
     onSent?: (txHash: string) => Promise<void> | void;
   } = {},
-): Promise<string | null> {
-  const fundAmountWei = parseEther(requiredAmount);
-  const currentBalance = await getLoadedBalance();
-
-  // Cushion already covers this upload — skip funding to keep the tx (and stranding) count down.
-  if (currentBalance >= fundAmountWei) return null;
-
-  const topUpWei = scaleBigInt(fundAmountWei, FUND_MULTIPLIER);
-  const run = fundingLock.then(() => performFunding(fundAmountWei, topUpWei, onSent));
+): Promise<string> {
+  const depositWei = parseEther(depositAmount);
+  const run = fundingLock.then(() => performFunding(depositWei, onSent));
   // Keep the lock chained regardless of this send's outcome.
   fundingLock = run.catch(() => undefined);
   return run;

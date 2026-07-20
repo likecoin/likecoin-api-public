@@ -148,7 +148,8 @@ router.post(
             isSponsored: true,
             sponsoredETH: ETH,
           });
-          await fundUploadIfNeeded(uploadId, ETH);
+          // Sponsored uploads carry no payment to pass through; the standing Irys
+          // balance buffer covers them.
         } catch (err) {
           await rollbackQuota(wallet, fileSize, ETH).catch((e) => {
             // eslint-disable-next-line no-console
@@ -158,7 +159,7 @@ router.post(
         }
       } else {
         uploadId = txHash;
-        await checkArweaveTxV2({
+        const { paidETH } = await checkArweaveTxV2({
           fileSize, ipfsHash, txHash, ETH, txToken,
         });
         try {
@@ -176,7 +177,7 @@ router.post(
           }
           throw error;
         }
-        await fundUploadIfNeeded(uploadId, ETH);
+        fundUploadIfNeeded(uploadId, paidETH);
       }
 
       // TODO: verify signatureData match filesize if possible

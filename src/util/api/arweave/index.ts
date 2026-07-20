@@ -77,7 +77,8 @@ export async function checkArweaveTxV2({
       if (fileSize > ARWEAVE_MAX_SIZE_V2) {
         throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
       }
-      break;
+      // The verified on-chain payment, forwarded into Irys as pass-through funding.
+      return { paidETH: formatEther(value) };
     }
     default:
       throw new ValidationError('INVALID_TX_TOKEN');
