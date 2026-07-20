@@ -140,8 +140,12 @@ async function resolveUserDocByWallet(
     addr = checksumAddress(addr as `0x${string}`);
   } else if (checkCosmosAddressValid(addr, 'like')) {
     field = 'likeWallet';
+    // Bech32 decoding accepts all-uppercase, but Firestore queries are case-sensitive
+    // and addresses are stored lowercase.
+    addr = addr.toLowerCase();
   } else if (checkCosmosAddressValid(addr, 'cosmos')) {
     field = 'cosmosWallet';
+    addr = addr.toLowerCase();
   } else {
     throw new ValidationError('Invalid address');
   }

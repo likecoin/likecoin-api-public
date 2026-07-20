@@ -218,8 +218,9 @@ router.post(
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
       const { ownerWallet, authToken } = tx;
       const userWallet = req.user?.wallet || '';
-      const isAuthed = (await isArweaveTxOwner(userWallet, ownerWallet))
-        || (authToken && authToken === token);
+      // Token match first: it needs no Firestore read, unlike the owner lookup.
+      const isAuthed = !!(authToken && authToken === token)
+        || (await isArweaveTxOwner(userWallet, ownerWallet));
       if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
       if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
       const accessToken = await updateArweaveTxStatus(txHash, {
@@ -300,11 +301,14 @@ router.get(
       } = tx;
       if (isRequireAuth) {
         if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
-        const isUserAuthed = await isArweaveTxOwner(req.user?.wallet, ownerWallet);
-        const isTokenAuthed = token === docToken
-          || (ARWEAVE_LINK_INTERNAL_TOKEN && token === ARWEAVE_LINK_INTERNAL_TOKEN)
-          || (docAccessToken && token === docAccessToken);
-        if (!isUserAuthed && !isTokenAuthed) throw new ValidationError('INVALID_TOKEN', 403);
+        // Guard on `token`: a doc without `token` would otherwise match a
+        // tokenless request on undefined === undefined and skip auth entirely.
+        // Checked before the owner lookup, which costs a Firestore read.
+        const isTokenAuthed = !!token
+          && [docToken, ARWEAVE_LINK_INTERNAL_TOKEN, docAccessToken].includes(token);
+        if (!isTokenAuthed && !(await isArweaveTxOwner(req.user?.wallet, ownerWallet))) {
+          throw new ValidationError('INVALID_TOKEN', 403);
+        }
       }
       const link = new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`);
       // A browser's */*;q=0.8 satisfies accepts('application/json'), so plain negotiation

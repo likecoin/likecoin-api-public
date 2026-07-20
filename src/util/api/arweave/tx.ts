@@ -2,6 +2,7 @@ import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
 import { wrapKey, unwrapKey, isKMSEnabled } from '../../kms';
 import { getUserWalletsByWallet } from '../users/getPublicInfo';
+import { ValidationError } from '../../ValidationError';
 import type { ArweaveTxData } from '../../../types/transaction';
 
 export async function createNewArweaveTx(docId: string, {
@@ -46,16 +47,18 @@ export async function isArweaveTxOwner(
   ownerWallet?: string,
 ): Promise<boolean> {
   if (!reqUserWallet || !ownerWallet) return false;
-  if (reqUserWallet === ownerWallet) return true;
+  const target = reqUserWallet.toLowerCase();
+  if (target === ownerWallet.toLowerCase()) return true;
   let wallets: Awaited<ReturnType<typeof getUserWalletsByWallet>>;
   try {
     wallets = await getUserWalletsByWallet(ownerWallet);
-  } catch {
+  } catch (err) {
     // ownerWallet not a resolvable address — treat as no match, not a 400.
-    return false;
+    // Anything else (Firestore failure) must surface rather than read as a 403.
+    if (err instanceof ValidationError) return false;
+    throw err;
   }
   if (!wallets) return false;
-  const target = reqUserWallet.toLowerCase();
   return [wallets.evmWallet, wallets.likeWallet, wallets.cosmosWallet]
     .some((w) => !!w && w.toLowerCase() === target);
 }
