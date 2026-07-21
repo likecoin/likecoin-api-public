@@ -15,6 +15,7 @@ import {
 import {
   userCollection as dbRef,
   configCollection,
+  FieldValue,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { jwtSign } from '../../jwt';
@@ -76,10 +77,10 @@ export async function setAuthCookies(req, res, { user, platform }) {
   await dbRef.doc(user).collection('session').doc(jwtid).create({
     lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
     lastAccessedIP: req.headers['x-real-ip'] || req.ip,
-    lastAccessedTs: Date.now(),
+    lastAccessedTimestamp: FieldValue.serverTimestamp(),
     jwtid,
     buttonJwtId,
-    ts: Date.now(),
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 

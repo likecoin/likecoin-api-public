@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   userCollection as dbRef,
+  FieldValue,
 } from '../../util/firebase';
 import { jwtAuth } from '../../middleware/jwt';
 import { validateParams } from '../../middleware/validate';
@@ -33,7 +34,8 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
       await dbRef.doc(username).collection('session').doc(req.user.jti).set({
         lastAccessedUserAgent: req.headers['user-agent'] || 'unknown',
         lastAccessedIP: req.headers['x-real-ip'] || req.ip,
-        lastAccessedTs: Date.now(),
+        lastAccessedTimestamp: FieldValue.serverTimestamp(),
+        lastAccessedTs: FieldValue.delete(),
       }, { merge: true });
     } else {
       res.sendStatus(404);
