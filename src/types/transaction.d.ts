@@ -30,6 +30,8 @@ export interface ArweaveTxData {
   txHash?: string;
   iscnId?: string;
   status?: string;
+  source?: 'gcs'; // set only by GCS-direct uploads; absent = Arweave
+  fileName?: string;
   ts?: number;
   token?: string;
   ipfsHash?: string;

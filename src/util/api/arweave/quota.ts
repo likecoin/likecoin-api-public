@@ -108,3 +108,23 @@ export async function rollbackQuota(
     }, { merge: true });
   });
 }
+
+// Reserve quota, run fn, and roll the reservation back (best-effort) when fn
+// throws. The reserve/rollback pairing lives here so handlers cannot forget it.
+export async function withReservedQuota<T>(
+  wallet: string,
+  fileSize: number,
+  ethCost: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await checkAndReserveQuota(wallet, fileSize, ethCost);
+  try {
+    return await fn();
+  } catch (err) {
+    await rollbackQuota(wallet, fileSize, ethCost).catch((e) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to rollback quota', e);
+    });
+    throw err;
+  }
+}

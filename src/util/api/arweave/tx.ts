@@ -33,6 +33,54 @@ export async function createNewArweaveTx(docId: string, {
   return token;
 }
 
+// GCS-direct upload doc (ADR 0001 Phase 3, no-Arweave path): no content key
+// ever exists, and no legacy `token` — the flow is JWT-owner-gated end to end.
+// fileSHA256 is the client-declared plaintext anchor finalize verifies against.
+export async function createNewGcsUploadTx(docId: string, {
+  fileSize,
+  fileSHA256,
+  contentType,
+  fileName,
+  ownerWallet,
+}: {
+  fileSize: number;
+  fileSHA256: string;
+  contentType: string;
+  fileName?: string;
+  ownerWallet: string;
+}): Promise<void> {
+  const data: ArweaveTxData = {
+    source: 'gcs',
+    status: 'pending',
+    fileSize,
+    fileSHA256: fileSHA256.toLowerCase(),
+    contentType,
+    ...(fileName ? { fileName } : {}),
+    ownerWallet,
+    timestamp: FieldValue.serverTimestamp(),
+    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+  };
+  await iscnArweaveTxCollection.doc(docId).create(data);
+}
+
+// Complete a GCS-direct upload: the ingest markers plus the lifecycle fields
+// legacy docs get from updateArweaveTxStatus() at register (status,
+// isRequireAuth, accessToken) — this flow never calls register, and without
+// isRequireAuth the link endpoint would serve the doc unauthenticated.
+export async function markGcsTxCompleted(txHash: string, {
+  contentBucketPath,
+}: {
+  contentBucketPath: string;
+}): Promise<void> {
+  await iscnArweaveTxCollection.doc(txHash).update({
+    status: 'complete',
+    isRequireAuth: true,
+    accessToken: uuidv4(),
+    contentBucketPath,
+    lastUpdateTimestamp: FieldValue.serverTimestamp(),
+  });
+}
+
 export async function getArweaveTxInfo(txHash: string): Promise<ArweaveTxData | undefined> {
   const doc = await iscnArweaveTxCollection.doc(txHash).get();
   return doc.data();
