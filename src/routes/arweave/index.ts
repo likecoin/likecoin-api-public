@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
 import {
+  ARWEAVE_MAX_SIZE_V2,
   checkArweaveTxV2,
   estimateUploadToArweaveV2,
   pushArweaveSingleFileToIPFS,
@@ -14,19 +15,30 @@ import {
 import { getPublicKey, signData as signArweaveData } from '../../util/arweave/signer';
 import {
   createNewArweaveTx,
+  createNewGcsUploadTx,
   getArweaveTxInfo,
   isArweaveTxOwner,
+  markGcsTxCompleted,
   updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
   resolveArweaveTxKey,
 } from '../../util/api/arweave/tx';
-import { getRemainingQuota, checkAndReserveQuota, rollbackQuota } from '../../util/api/arweave/quota';
+import { getRemainingQuota, withReservedQuota } from '../../util/api/arweave/quota';
 import { reconcilePendingIrysFunding, fundUploadIfNeeded } from '../../util/api/arweave/funding';
-import { ingestProtectedContent } from '../../util/api/arweave/ingest';
-import { getProtectedContentUri } from '../../util/gcloudStorage';
+import {
+  deleteStagedObject,
+  getStagedUploadSignedUrl,
+  ingestProtectedContent,
+  promoteStagedObject,
+  verifyStagedObject,
+} from '../../util/api/arweave/ingest';
+import { getProtectedContentUri, isEbookProtectedBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
+  ArweaveGcsFinalizeResponseSchema,
+  ArweaveGcsUploadInitBodySchema,
+  ArweaveGcsUploadInitResponseSchema,
   ArweaveRegisterBodySchema,
   ArweaveRegisterResponseSchema,
   ArweaveSignPaymentBodySchema,
@@ -45,6 +57,10 @@ import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
+
+function getArweaveLinkV2Url(txHash: string): string {
+  return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
+}
 
 router.get(
   '/v2/public_key',
@@ -138,10 +154,9 @@ router.post(
 
       if (isSponsored) {
         const { wallet } = req.user!;
-        await checkAndReserveQuota(wallet, fileSize, ETH);
-        try {
-          uploadId = `sponsored-${uuidv4()}`;
-          token = await createNewArweaveTx(uploadId, {
+        uploadId = `sponsored-${uuidv4()}`;
+        token = await withReservedQuota(wallet, fileSize, ETH, async () => {
+          const newToken = await createNewArweaveTx(uploadId, {
             ipfsHash,
             fileSize,
             ownerWallet: wallet,
@@ -150,13 +165,8 @@ router.post(
           });
           // Sponsored uploads carry no payment to pass through; the standing Irys
           // balance buffer covers them.
-        } catch (err) {
-          await rollbackQuota(wallet, fileSize, ETH).catch((e) => {
-            // eslint-disable-next-line no-console
-            console.error('Failed to rollback quota', e);
-          });
-          throw err;
-        }
+          return newToken;
+        });
       } else {
         uploadId = txHash;
         const { paidETH } = await checkArweaveTxV2({
@@ -232,7 +242,7 @@ router.post(
         fileSHA256,
       });
       sendValidatedJSON(res, ArweaveRegisterResponseSchema, {
-        link: `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`,
+        link: getArweaveLinkV2Url(txHash),
         token,
         accessToken,
         isRequireAuth,
@@ -285,6 +295,88 @@ router.post(
   },
 );
 
+// GCS-direct upload (ADR 0001 Phase 3, no-Arweave path): protected books put
+// plaintext straight into the private CMEK bucket via a signed resumable URL.
+// Inert until EBOOK_PROTECTED_BUCKET is configured — that env is the
+// kill-switch, so the endpoints ship dark.
+router.post(
+  '/v2/gcs/upload_init',
+  jwtAuth('write:iscn'),
+  validateBody(ArweaveGcsUploadInitBodySchema),
+  async (req, res, next) => {
+    try {
+      if (!isEbookProtectedBucketEnabled()) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
+      const {
+        fileSize, fileSHA256, contentType, fileName,
+      } = req.body;
+      if (fileSize > ARWEAVE_MAX_SIZE_V2) throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
+      const { wallet } = req.user;
+      const id = `gcs-${uuidv4()}`;
+      // GCS-direct skips the Arweave fee entirely, so the sponsored-upload
+      // quota is all that stands between write:iscn and unlimited free
+      // private storage.
+      const uploadUrl = await withReservedQuota(wallet, fileSize, '0', async () => {
+        await createNewGcsUploadTx(id, {
+          fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet,
+        });
+        return getStagedUploadSignedUrl(id, contentType);
+      });
+      sendValidatedJSON(res, ArweaveGcsUploadInitResponseSchema, { id, uploadUrl });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveGcsUploadInitV2',
+        wallet,
+        txHash: id,
+        fileSize,
+        contentType,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/v2/gcs/finalize/:txHash',
+  jwtAuth('write:iscn'),
+  validateParams(ArweaveTxHashParamsSchema),
+  async (req, res, next) => {
+    try {
+      if (!isEbookProtectedBucketEnabled()) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
+      const { txHash } = req.params as Record<string, string>;
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      if (tx.source !== 'gcs') throw new ValidationError('NOT_GCS_UPLOAD', 400);
+      if (!(await isArweaveTxOwner(req.user.wallet, tx.ownerWallet))) throw new ValidationError('NOT_OWNER', 403);
+      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
+      const { computedSHA256 } = await verifyStagedObject(txHash, {
+        fileSize: tx.fileSize,
+        fileSHA256: tx.fileSHA256,
+      });
+      const contentBucketPath = await promoteStagedObject(txHash, {
+        contentType: tx.contentType || 'application/octet-stream',
+        fileSHA256: computedSHA256,
+      });
+      await markGcsTxCompleted(txHash, { contentBucketPath });
+      sendValidatedJSON(res, ArweaveGcsFinalizeResponseSchema, {
+        id: txHash,
+        link: getArweaveLinkV2Url(txHash),
+      });
+      // Best-effort and self-swallowing, so it stays off the response path;
+      // only the mark-complete-before-delete ordering matters.
+      deleteStagedObject(txHash);
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveGcsFinalizeV2',
+        wallet: req.user.wallet,
+        txHash,
+        contentBucketPath,
+        fileSHA256: computedSHA256,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.get(
   '/v2/link/:txHash',
   jwtOptionalAuth('read:iscn'),
@@ -311,7 +403,10 @@ router.get(
           throw new ValidationError('INVALID_TOKEN', 403);
         }
       }
-      const link = new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`);
+      // GCS-direct docs have no arweaveId: interpolating undefined would mint
+      // a syntactically valid gateway/undefined URL that every consumer down
+      // to the ebook-cors cache key would silently accept.
+      const link = arweaveId ? new URL(`${ARWEAVE_GATEWAY}/${arweaveId}`) : null;
       // A browser's */*;q=0.8 satisfies accepts('application/json'), so plain negotiation
       // hands it the key below. Take the JSON branch only when JSON outranks HTML; every
       // programmatic caller (*/*, no header, axios, explicit JSON) still lands there.
@@ -320,7 +415,7 @@ router.get(
         // Referer chain and the gateway's access logs. Only the JSON branch may carry it
         // (ebook-cors reads it back off `link`).
         const key = await resolveArweaveTxKey(tx, txHash);
-        if (key) {
+        if (key && link) {
           link.searchParams.set('key', key);
         }
         // Advertise the private-bucket plaintext copy (ADR 0001 Phase 3) so
@@ -331,11 +426,13 @@ router.get(
           arweaveId,
           txHash,
           key,
-          link: link.toString(),
+          ...(link ? { link: link.toString() } : {}),
           ...(contentUri ? { contentUri, contentType: tx.contentType } : {}),
         });
         return;
       }
+      // No public copy exists to redirect a browser to.
+      if (!link) throw new ValidationError('NO_PUBLIC_COPY', 404);
       res.redirect(link.toString());
     } catch (error) {
       next(error);

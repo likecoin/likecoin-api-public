@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/i);
+
 export const ArweaveEstimateBodySchema = z.object({
   fileSize: z.coerce.number().int().positive(),
   ipfsHash: z.string().optional(),
@@ -19,11 +21,30 @@ export const ArweaveRegisterBodySchema = z.object({
   token: z.string().optional(),
   key: z.string().optional(),
   isRequireAuth: z.boolean().optional(),
-  fileSHA256: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
+  fileSHA256: Sha256HexSchema.optional(),
 });
 
 export const ArweaveTxHashParamsSchema = z.object({
   txHash: z.string().min(1),
+});
+
+// GCS-direct upload (ADR 0001 Phase 3, no-Arweave path). The protected tier
+// only ever holds ebooks, so contentType is a closed set.
+export const ArweaveGcsUploadInitBodySchema = z.object({
+  fileSize: z.coerce.number().int().positive(),
+  fileSHA256: Sha256HexSchema,
+  contentType: z.enum(['application/epub+zip', 'application/pdf']),
+  fileName: z.string().min(1).max(256).optional(),
+});
+
+export const ArweaveGcsUploadInitResponseSchema = z.object({
+  id: z.string(),
+  uploadUrl: z.string().url(),
+});
+
+export const ArweaveGcsFinalizeResponseSchema = z.object({
+  id: z.string(),
+  link: z.string().url(),
 });
 
 export const ArweaveEstimateResponseSchema = z.object({
@@ -59,7 +80,9 @@ export const ArweaveLinkResponseSchema = z.object({
   arweaveId: z.string().optional(),
   txHash: z.string().optional(),
   key: z.string().optional(),
-  link: z.string(),
+  // Absent for GCS-direct docs, which have no public Arweave copy; consumers
+  // (ebook-cors parseNFTMetadataURL) already guard on `if (data.link)`.
+  link: z.string().optional(),
   contentUri: z.string().optional(),
   contentType: z.string().optional(),
 });

@@ -3,7 +3,12 @@ import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import { ARWEAVE_GATEWAYS } from '../../../constant';
 import { fetchStreamWithFallback } from '../../fetchStream';
-import { getEbookProtectedBucket, isEbookProtectedBucketEnabled } from '../../gcloudStorage';
+import {
+  getEbookProtectedBucket,
+  getProtectedUploadSignedUrl,
+  isEbookProtectedBucketEnabled,
+} from '../../gcloudStorage';
+import { ValidationError } from '../../ValidationError';
 import { ARWEAVE_MAX_SIZE_V2 } from './index';
 import { markArweaveTxIngested } from './tx';
 
@@ -87,6 +92,96 @@ function createHashTransform(hash: crypto.Hash): Transform {
   });
 }
 
+// txHash doubles as the object name; callers only ever mint an on-chain hash,
+// sponsored-<uuid> or gcs-<uuid>, so reject anything that could traverse paths
+// or collide with the staging prefix. Every staging-path composition goes
+// through here so all call sites share the same defense.
+function stagedObjectPath(txHash: string): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(txHash)) throw new ValidationError('INVALID_TX_HASH');
+  return `${STAGING_PREFIX}${txHash}`;
+}
+
+// Staging-layout knowledge stays in this module: routes mint the id, this
+// composes the object path the browser's resumable upload writes to.
+export function getStagedUploadSignedUrl(
+  txHash: string,
+  contentType: string,
+): Promise<string> {
+  return getProtectedUploadSignedUrl(stagedObjectPath(txHash), contentType);
+}
+
+/**
+ * Verify a client-staged object (GCS-direct flow) against the size and
+ * plaintext hash declared at upload_init. The signed URL alone bounds neither,
+ * so both checks run here before the object can be promoted. Mismatches leave
+ * staging in place — the age-1 lifecycle rule sweeps it.
+ */
+export async function verifyStagedObject(txHash: string, {
+  fileSize,
+  fileSHA256,
+}: {
+  fileSize?: number;
+  fileSHA256?: string;
+}): Promise<{ computedSHA256: string }> {
+  const file = getEbookProtectedBucket().file(stagedObjectPath(txHash));
+  let stagedSize: number;
+  try {
+    const [metadata] = await file.getMetadata();
+    stagedSize = Number(metadata.size);
+  } catch (error) {
+    if ((error as { code?: number }).code === 404) {
+      throw new ValidationError('STAGED_FILE_NOT_FOUND', 404);
+    }
+    throw error;
+  }
+  if (fileSize && stagedSize !== fileSize) {
+    throw new ValidationError('FILE_SIZE_MISMATCH');
+  }
+  const hash = crypto.createHash('sha256');
+  for await (const chunk of file.createReadStream()) hash.update(chunk);
+  const computedSHA256 = hash.digest('hex');
+  if (fileSHA256 && fileSHA256.toLowerCase() !== computedSHA256) {
+    throw new ValidationError('PLAINTEXT_HASH_MISMATCH');
+  }
+  return { computedSHA256 };
+}
+
+// Promote a fully-verified staged object to its final key-free path, stamping
+// provenance metadata. Never deletes staging — callers own that cleanup, since
+// the legacy ingest sweeps it in a finally while finalize deletes on success.
+export async function promoteStagedObject(txHash: string, {
+  contentType,
+  fileSHA256,
+  arweaveId,
+  ipfsHash,
+}: {
+  contentType: string;
+  fileSHA256: string;
+  arweaveId?: string;
+  ipfsHash?: string;
+}): Promise<string> {
+  const bucket = getEbookProtectedBucket();
+  const contentBucketPath = txHash;
+  await bucket.file(stagedObjectPath(txHash)).copy(bucket.file(contentBucketPath), {
+    contentType,
+    metadata: {
+      ...(arweaveId ? { arweaveId } : {}),
+      ...(ipfsHash ? { ipfsHash } : {}),
+      fileSHA256,
+    },
+  });
+  return contentBucketPath;
+}
+
+// Best-effort staging cleanup after a successful promote; a failure is
+// swallowed because the staging lifecycle rule sweeps leftovers anyway.
+export async function deleteStagedObject(txHash: string): Promise<void> {
+  await getEbookProtectedBucket()
+    .file(stagedObjectPath(txHash))
+    .delete({ ignoreNotFound: true })
+    .catch(() => undefined);
+}
+
 /**
  * Ingest a protected upload into the private CMEK bucket (ADR 0001 Phase 3),
  * storing plaintext-at-rest under a key-free path. No-op when the bucket is
@@ -107,16 +202,13 @@ export async function ingestProtectedContent(txHash: string, {
   fileSHA256?: string;
 }): Promise<{ contentBucketPath: string; fileSHA256: string } | null> {
   if (!isEbookProtectedBucketEnabled() || !arweaveId || !key) return null;
-  // txHash is the object name; callers only ever mint an on-chain hash or a
-  // sponsored-<uuid>, so reject anything that could collide with STAGING_PREFIX.
-  if (!/^[A-Za-z0-9_-]+$/.test(txHash)) throw new Error('INVALID_TX_HASH');
   // Ciphertext is plaintext + 28 bytes; fileSize may be either, so pad 1MB.
   const maxContentLength = (fileSize || ARWEAVE_MAX_SIZE_V2) + (1024 * 1024);
   // Throws INVALID_CONTENT_KEY before any network or storage work happens.
   const decrypt = createGcmDecryptTransform(key);
   const hash = crypto.createHash('sha256');
   const bucket = getEbookProtectedBucket();
-  const stagingFile = bucket.file(`${STAGING_PREFIX}${txHash}`);
+  const stagingFile = bucket.file(stagedObjectPath(txHash));
   const { stream, contentType: fetchedContentType } = await fetchStreamWithFallback(
     ARWEAVE_GATEWAYS.map((gateway) => `${gateway}${arweaveId}`),
     { timeout: DOWNLOAD_TIMEOUT_MS, maxContentLength },
@@ -133,14 +225,11 @@ export async function ingestProtectedContent(txHash: string, {
     if (fileSHA256 && fileSHA256.toLowerCase() !== computedSHA256) {
       throw new Error('PLAINTEXT_HASH_MISMATCH');
     }
-    const contentBucketPath = txHash;
-    await stagingFile.copy(bucket.file(contentBucketPath), {
+    const contentBucketPath = await promoteStagedObject(txHash, {
       contentType,
-      metadata: {
-        arweaveId,
-        ...(ipfsHash ? { ipfsHash } : {}),
-        fileSHA256: computedSHA256,
-      },
+      fileSHA256: computedSHA256,
+      arweaveId,
+      ipfsHash,
     });
     await markArweaveTxIngested(txHash, {
       contentBucketPath,
