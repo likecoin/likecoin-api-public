@@ -460,6 +460,8 @@ export const BookPurchaseCommissionFilteredSchema = z.object({
   amountTotal: z.number(),
   amount: z.number(),
   currency: z.string(),
+  // Backfilled commission docs may have no classId, only a description.
+  description: z.string().optional(),
   buyerEmail: z.string().optional(),
   timestamp: z.number().optional(),
 });

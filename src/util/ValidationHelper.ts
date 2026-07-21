@@ -400,6 +400,7 @@ export function filterBookPurchaseCommission({
   amountTotal,
   amount,
   currency,
+  description,
   buyerEmail,
   timestamp,
 }: BookPurchaseCommission, { includeBuyerEmail = false } = {}): BookPurchaseCommissionFiltered {
@@ -415,6 +416,7 @@ export function filterBookPurchaseCommission({
     amountTotal,
     amount,
     currency,
+    description,
     ...(includeBuyerEmail && buyerEmail ? { buyerEmail } : {}),
     timestamp: timestamp?.toMillis(),
   };
