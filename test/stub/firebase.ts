@@ -424,7 +424,9 @@ function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise
   return updateFunc({
     get: (ref: any) => ref.get(),
     create: (ref: any, data: any) => ref.create(data),
-    set: (ref: any, data: any, config = {}) => ref.create(data, config),
+    // Real Transaction.set writes over an existing doc (and honours merge);
+    // only create() rejects one.
+    set: (ref: any, data: any, config = {}) => ref.set(data, config),
     update: (ref: any, data: any) => ref.update(data),
     delete: (ref: any) => ref.delete(),
   });

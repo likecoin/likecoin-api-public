@@ -12,6 +12,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { BUNDLR_MATIC_WALLET_PRIVATE_KEY } from '../../../config/secret';
 import { ARWEAVE_IRYS_DEPOSIT_ADDRESS } from '../../../config/config';
 import { getEVMClient, createEVMWalletClient } from '../evm/client';
+import { sendTransactionWithNonce } from '../evm/tx';
 import { sleep } from '../misc';
 import { IS_TESTNET } from '../../constant';
 
@@ -33,7 +34,8 @@ let signer: TypedEthereumSigner | null = null;
 let fundingWalletClient: WalletClient<HttpTransport, Chain, LocalAccount> | undefined;
 let depositAddress: string | undefined;
 
-// Serialize funding ops so concurrent uploads don't race the funding wallet nonce.
+// Serialize funding ops within this process to keep the deposit count down under a
+// burst. Nonce ordering is not this lock's job — every replica runs its own copy.
 let fundingLock: Promise<unknown> = Promise.resolve();
 
 function normalizePrivateKey(key: string): `0x${string}` {
@@ -131,7 +133,7 @@ async function performFunding(
 ): Promise<string> {
   const walletClient = getFundingWalletClient();
   const to = await getIrysDepositAddress();
-  const txHash = await walletClient.sendTransaction({
+  const txHash = await sendTransactionWithNonce(walletClient, {
     to: to as `0x${string}`,
     value: depositWei,
   });
