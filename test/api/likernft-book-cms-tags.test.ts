@@ -5,20 +5,21 @@ import {
   likeNFTBookCMSTagCollection,
   likeNFTBookCollection,
 } from '../../src/util/firebase';
+import { makeTimestampFromMillis as ts } from '../stub/firebase';
 
 const BASE_URL = '/api/likernft/book/store';
 const AUTHORIZATION = { Authorization: 'Bearer test-airtable-automation-token' };
 
-const ID_ONE = mockEVMAddress(0x01);
-const ID_TWO = mockEVMAddress(0x02);
-const ID_A = mockEVMAddress(0x0a);
-const ID_B = mockEVMAddress(0x0b);
-const ID_C = mockEVMAddress(0x0c);
-const ID_D = mockEVMAddress(0x0d);
-const ID_MISSING = mockEVMAddress('dead');
-const ID_VISIBLE = mockEVMAddress(0x10);
-const ID_HIDDEN = mockEVMAddress(0x11);
-const ID_REDIRECTED = mockEVMAddress(0x12);
+const BOOK_ID_ONE = mockEVMAddress(0x01);
+const BOOK_ID_TWO = mockEVMAddress(0x02);
+const BOOK_ID_A = mockEVMAddress(0x0a);
+const BOOK_ID_B = mockEVMAddress(0x0b);
+const BOOK_ID_C = mockEVMAddress(0x0c);
+const BOOK_ID_D = mockEVMAddress(0x0d);
+const BOOK_ID_MISSING = mockEVMAddress('dead');
+const BOOK_ID_VISIBLE = mockEVMAddress(0x10);
+const BOOK_ID_HIDDEN = mockEVMAddress(0x11);
+const BOOK_ID_REDIRECTED = mockEVMAddress(0x12);
 
 const tagBody = (overrides: Record<string, unknown> = {}) => ({
   name: { zh: '精選', en: 'Featured' },
@@ -119,27 +120,27 @@ describe('POST /cms/tags/:tagId (upsert)', () => {
 
 describe('PUT /:classId/cms/tags (membership sync)', () => {
   it('adds new tagIds with order 0, removes missing tagIds, and preserves existing orders', async () => {
-    await makeNFTBookStub(ID_ONE, { cmsTags: { a: 50, b: 0 } });
+    await makeNFTBookStub(BOOK_ID_ONE, { cmsTags: { a: 50, b: 0 } });
 
-    const res = await put(`${BASE_URL}/${ID_ONE}/cms/tags`, { tagIds: ['a', 'c'] }, AUTHORIZATION);
+    const res = await put(`${BASE_URL}/${BOOK_ID_ONE}/cms/tags`, { tagIds: ['a', 'c'] }, AUTHORIZATION);
     expect(res.status).toBe(200);
 
-    const data = (await likeNFTBookCollection.doc(ID_ONE).get()).data() as any;
+    const data = (await likeNFTBookCollection.doc(BOOK_ID_ONE).get()).data() as any;
     expect(data.cmsTags.a).toBe(50);
     expect(data.cmsTags.b).toBeUndefined();
     expect(data.cmsTags.c).toBe(0);
   });
 
   it('404s when the book does not exist', async () => {
-    const res = await put(`${BASE_URL}/${ID_MISSING}/cms/tags`, { tagIds: ['a'] }, AUTHORIZATION);
+    const res = await put(`${BASE_URL}/${BOOK_ID_MISSING}/cms/tags`, { tagIds: ['a'] }, AUTHORIZATION);
     expect(res.status).toBe(404);
   });
 
   it('clears all cmsTags when called with an empty tagIds array', async () => {
-    await makeNFTBookStub(ID_TWO, { cmsTags: { a: 0, b: 0 } });
-    const res = await put(`${BASE_URL}/${ID_TWO}/cms/tags`, { tagIds: [] }, AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_TWO, { cmsTags: { a: 0, b: 0 } });
+    const res = await put(`${BASE_URL}/${BOOK_ID_TWO}/cms/tags`, { tagIds: [] }, AUTHORIZATION);
     expect(res.status).toBe(200);
-    const data = (await likeNFTBookCollection.doc(ID_TWO).get()).data() as any;
+    const data = (await likeNFTBookCollection.doc(BOOK_ID_TWO).get()).data() as any;
     expect(data.cmsTags || {}).toEqual({});
   });
 });
@@ -152,44 +153,44 @@ describe('POST /bulk/cms/tags', () => {
   });
 
   it('writes order values for each classId in the batch', async () => {
-    await makeNFTBookStub(ID_A);
-    await makeNFTBookStub(ID_B);
+    await makeNFTBookStub(BOOK_ID_A);
+    await makeNFTBookStub(BOOK_ID_B);
     const res = await post(`${BASE_URL}/bulk/cms/tags`, {
       entries: [
-        { classId: ID_A, tagId: 'feat', order: 10 },
-        { classId: ID_B, tagId: 'feat', order: 20 },
+        { classId: BOOK_ID_A, tagId: 'feat', order: 10 },
+        { classId: BOOK_ID_B, tagId: 'feat', order: 20 },
       ],
     }, AUTHORIZATION);
     expect(res.status).toBe(200);
     expect(res.data.updated).toBe(2);
 
-    const a = (await likeNFTBookCollection.doc(ID_A).get()).data() as any;
-    const b = (await likeNFTBookCollection.doc(ID_B).get()).data() as any;
+    const a = (await likeNFTBookCollection.doc(BOOK_ID_A).get()).data() as any;
+    const b = (await likeNFTBookCollection.doc(BOOK_ID_B).get()).data() as any;
     expect(a.cmsTags.feat).toBe(10);
     expect(b.cmsTags.feat).toBe(20);
   });
 
   it('treats order:null as a delete of that tag entry', async () => {
-    await makeNFTBookStub(ID_C, { cmsTags: { feat: 10 } });
+    await makeNFTBookStub(BOOK_ID_C, { cmsTags: { feat: 10 } });
     const res = await post(`${BASE_URL}/bulk/cms/tags`, {
-      entries: [{ classId: ID_C, tagId: 'feat', order: null }],
+      entries: [{ classId: BOOK_ID_C, tagId: 'feat', order: null }],
     }, AUTHORIZATION);
     expect(res.status).toBe(200);
-    const data = (await likeNFTBookCollection.doc(ID_C).get()).data() as any;
+    const data = (await likeNFTBookCollection.doc(BOOK_ID_C).get()).data() as any;
     expect(data.cmsTags.feat).toBeUndefined();
   });
 
   it('skips missing classIds and returns errors map', async () => {
-    await makeNFTBookStub(ID_D);
+    await makeNFTBookStub(BOOK_ID_D);
     const res = await post(`${BASE_URL}/bulk/cms/tags`, {
       entries: [
-        { classId: ID_D, tagId: 'feat', order: 10 },
-        { classId: ID_MISSING, tagId: 'feat', order: 20 },
+        { classId: BOOK_ID_D, tagId: 'feat', order: 10 },
+        { classId: BOOK_ID_MISSING, tagId: 'feat', order: 20 },
       ],
     }, AUTHORIZATION);
     expect(res.status).toBe(200);
     expect(res.data.updated).toBe(1);
-    expect(res.data.errors).toHaveProperty(ID_MISSING);
+    expect(res.data.errors).toHaveProperty(BOOK_ID_MISSING);
   });
 });
 
@@ -246,36 +247,44 @@ describe('GET /cms/tags/:tagId (single fetch)', () => {
 describe('GET /cms/list?tag=…', () => {
   it('excludes hidden and redirected books from the listing', async () => {
     await post(`${BASE_URL}/cms/tags/feat`, tagBody({ isPublic: true }), AUTHORIZATION);
-    await makeNFTBookStub(ID_VISIBLE, { cmsTags: { feat: 0 } });
-    await makeNFTBookStub(ID_HIDDEN, { cmsTags: { feat: 0 }, isHidden: true });
-    await makeNFTBookStub(ID_REDIRECTED, { cmsTags: { feat: 0 }, redirectClassId: ID_VISIBLE });
+    await makeNFTBookStub(BOOK_ID_VISIBLE, { cmsTags: { feat: 0 } });
+    await makeNFTBookStub(BOOK_ID_HIDDEN, { cmsTags: { feat: 0 }, isHidden: true });
+    await makeNFTBookStub(BOOK_ID_REDIRECTED, {
+      cmsTags: { feat: 0 },
+      redirectClassId: BOOK_ID_VISIBLE,
+    });
 
     const res = await get(`${BASE_URL}/cms/list?tag=feat&limit=10`);
     expect(res.status).toBe(200);
     const ids = res.data.list.map((b: any) => b.classId);
-    expect(ids).toContain(ID_VISIBLE);
-    expect(ids).not.toContain(ID_HIDDEN);
-    expect(ids).not.toContain(ID_REDIRECTED);
+    expect(ids).toContain(BOOK_ID_VISIBLE);
+    expect(ids).not.toContain(BOOK_ID_HIDDEN);
+    expect(ids).not.toContain(BOOK_ID_REDIRECTED);
     expect(res.data).toHaveProperty('nextOffset');
   });
 
   it('excludes books that lack the requested tag entry', async () => {
     // Fresh address range: the stub's likeNFTBookCollection persists across tests in the same file,
-    // so reusing earlier IDs (ID_A/B/C) would leak their prior cmsTags state into this query.
-    const ID_TAGGED = mockEVMAddress(0x80);
-    const ID_OTHER_TAG = mockEVMAddress(0x81);
-    const ID_NO_TAGS = mockEVMAddress(0x82);
+    // so reusing earlier IDs (BOOK_ID_A/B/C) would leak their prior cmsTags state into this query.
+    const BOOK_ID_TAGGED = mockEVMAddress(0x80);
+    const BOOK_ID_OTHER_TAG = mockEVMAddress(0x81);
+    const BOOK_ID_NO_TAGS = mockEVMAddress(0x82);
     await post(`${BASE_URL}/cms/tags/feat`, tagBody({ isPublic: true }), AUTHORIZATION);
-    await makeNFTBookStub(ID_TAGGED, { cmsTags: { feat: 0 } });
-    await makeNFTBookStub(ID_OTHER_TAG, { cmsTags: { other: 0 } });
-    await makeNFTBookStub(ID_NO_TAGS);
+    await makeNFTBookStub(BOOK_ID_TAGGED, { cmsTags: { feat: 0 } });
+    await makeNFTBookStub(BOOK_ID_OTHER_TAG, { cmsTags: { other: 0 } });
+    await makeNFTBookStub(BOOK_ID_NO_TAGS);
 
     const res = await get(`${BASE_URL}/cms/list?tag=feat&limit=10`);
     expect(res.status).toBe(200);
     const ids = res.data.list.map((b: any) => b.classId);
-    expect(ids).toContain(ID_TAGGED);
-    expect(ids).not.toContain(ID_OTHER_TAG);
-    expect(ids).not.toContain(ID_NO_TAGS);
+    expect(ids).toContain(BOOK_ID_TAGGED);
+    expect(ids).not.toContain(BOOK_ID_OTHER_TAG);
+    expect(ids).not.toContain(BOOK_ID_NO_TAGS);
+  });
+
+  it('rejects an offset above the cap', async () => {
+    const res = await get(`${BASE_URL}/cms/list?tag=feat&offset=10001&limit=10`);
+    expect(res.status).toBe(400);
   });
 
   it('404s when the tag does not exist', async () => {
@@ -291,5 +300,246 @@ describe('GET /cms/list?tag=…', () => {
     const res = await get(`${BASE_URL}/cms/list?tag=private&limit=10`);
     expect(res.status).toBe(200);
     expect(res.data.list.map((b: any) => b.classId)).toContain(classId);
+  });
+});
+
+describe('CMS tag conditions (upsert + serialization)', () => {
+  it('stores conditions and returns them with isConditional:true', async () => {
+    const res = await post(`${BASE_URL}/cms/tags/conditional-tag`, tagBody({
+      conditions: { publishers: ['出版社甲'], authors: ['作者乙'] },
+    }), AUTHORIZATION);
+    expect(res.status).toBe(200);
+
+    const tag = (await get(`${BASE_URL}/cms/tags/conditional-tag`)).data;
+    expect(tag.conditions).toEqual({ publishers: ['出版社甲'], authors: ['作者乙'] });
+    expect(tag.isConditional).toBe(true);
+  });
+
+  it('returns isConditional:false for tags without conditions', async () => {
+    await post(`${BASE_URL}/cms/tags/featured`, tagBody(), AUTHORIZATION);
+    const tag = (await get(`${BASE_URL}/cms/tags/featured`)).data;
+    expect(tag.isConditional).toBe(false);
+  });
+
+  it('clears conditions when upserted with conditions:{}', async () => {
+    const path = `${BASE_URL}/cms/tags/conditional-tag`;
+    await post(path, tagBody({ conditions: { publishers: ['出版社甲'] } }), AUTHORIZATION);
+    await post(path, tagBody({ conditions: {} }), AUTHORIZATION);
+    const tag = (await get(path)).data;
+    expect(tag.conditions).toEqual({ publishers: [], authors: [] });
+    expect(tag.isConditional).toBe(false);
+  });
+
+  it('normalizes conditions:null on hand-edited docs instead of failing serialization', async () => {
+    await likeNFTBookCMSTagCollection.doc('legacy-null').set({
+      ...tagBody(),
+      conditions: null,
+    } as any);
+    const res = await get(`${BASE_URL}/cms/tags/legacy-null`);
+    expect(res.status).toBe(200);
+    expect(res.data.isConditional).toBe(false);
+    expect(res.data.conditions).toEqual({ publishers: [], authors: [] });
+
+    // The list endpoint serializes every tag; one bad doc must not 500 it.
+    const listRes = await get(`${BASE_URL}/cms/tags`);
+    expect(listRes.status).toBe(200);
+    expect(listRes.data.list.map((t: any) => t.id)).toContain('legacy-null');
+  });
+
+  it('trims condition names and rejects whitespace-only entries', async () => {
+    const path = `${BASE_URL}/cms/tags/conditional-tag`;
+    const trimmed = await post(path, tagBody({
+      conditions: { publishers: [' 出版社甲 '] },
+    }), AUTHORIZATION);
+    expect(trimmed.status).toBe(200);
+    expect((await get(path)).data.conditions.publishers).toEqual(['出版社甲']);
+
+    const blank = await post(path, tagBody({
+      conditions: { publishers: ['   '] },
+    }), AUTHORIZATION);
+    expect(blank.status).toBe(400);
+  });
+
+  it('rejects more publishers than the Firestore in-query limit', async () => {
+    const publishers = Array.from({ length: 11 }, (_, i) => `pub-${i}`);
+    const res = await post(`${BASE_URL}/cms/tags/conditional-tag`, tagBody({
+      conditions: { publishers },
+    }), AUTHORIZATION);
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /cms/list with conditions', () => {
+  const PUB_A = '動態出版社';
+  const AUTH_B = '動態作者';
+
+  // Fresh address range; the stub's book collection persists across tests in this file.
+  const BOOK_ID_MANUAL_FIRST = mockEVMAddress(0xa0);
+  const BOOK_ID_MANUAL_SECOND = mockEVMAddress(0xa1);
+  const BOOK_ID_BOTH = mockEVMAddress(0xa2);
+  const BOOK_ID_PUB_STRING = mockEVMAddress(0xa3);
+  const BOOK_ID_PUB_OBJ = mockEVMAddress(0xa4);
+  const BOOK_ID_AUTH_STRING = mockEVMAddress(0xa5);
+  const BOOK_ID_AUTH_OBJ = mockEVMAddress(0xa6);
+  const BOOK_ID_NO_MATCH = mockEVMAddress(0xa7);
+
+  async function seedConditionBooks() {
+    await post(`${BASE_URL}/cms/tags/conditional`, tagBody({
+      conditions: { publishers: [PUB_A], authors: [AUTH_B] },
+    }), AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_MANUAL_FIRST, {
+      cmsTags: { conditional: 0 },
+      timestamp: ts(100),
+    });
+    await makeNFTBookStub(BOOK_ID_MANUAL_SECOND, {
+      cmsTags: { conditional: 1 },
+      timestamp: ts(500),
+    });
+    await makeNFTBookStub(BOOK_ID_BOTH, {
+      cmsTags: { conditional: 2 },
+      publisher: PUB_A,
+      timestamp: ts(5000),
+    });
+    await makeNFTBookStub(BOOK_ID_PUB_STRING, { publisher: PUB_A, timestamp: ts(3000) });
+    await makeNFTBookStub(BOOK_ID_PUB_OBJ, { publisher: { name: PUB_A }, timestamp: ts(1000) });
+    await makeNFTBookStub(BOOK_ID_AUTH_STRING, { author: AUTH_B, timestamp: ts(2000) });
+    await makeNFTBookStub(BOOK_ID_AUTH_OBJ, { author: { name: AUTH_B }, timestamp: ts(4000) });
+    await makeNFTBookStub(BOOK_ID_NO_MATCH, { publisher: '別家出版社', timestamp: ts(9000) });
+  }
+
+  it('lists handpicked books first (curated order), then condition matches by timestamp desc', async () => {
+    await seedConditionBooks();
+    const res = await get(`${BASE_URL}/cms/list?tag=conditional&limit=10`);
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([
+      BOOK_ID_MANUAL_FIRST,
+      BOOK_ID_MANUAL_SECOND,
+      BOOK_ID_BOTH,
+      BOOK_ID_AUTH_OBJ,
+      BOOK_ID_PUB_STRING,
+      BOOK_ID_AUTH_STRING,
+      BOOK_ID_PUB_OBJ,
+    ]);
+  });
+
+  it('paginates across the handpicked/condition-matched boundary with a stable nextOffset', async () => {
+    await seedConditionBooks();
+    const first = await get(`${BASE_URL}/cms/list?tag=conditional&limit=5&offset=0`);
+    expect(first.data.list.map((b: any) => b.classId)).toEqual([
+      BOOK_ID_MANUAL_FIRST,
+      BOOK_ID_MANUAL_SECOND,
+      BOOK_ID_BOTH,
+      BOOK_ID_AUTH_OBJ,
+      BOOK_ID_PUB_STRING,
+    ]);
+    expect(first.data.nextOffset).toBe(5);
+
+    const second = await get(`${BASE_URL}/cms/list?tag=conditional&limit=5&offset=5`);
+    expect(second.data.list.map((b: any) => b.classId)).toEqual([
+      BOOK_ID_AUTH_STRING,
+      BOOK_ID_PUB_OBJ,
+    ]);
+    expect(second.data.nextOffset).toBe(null);
+  });
+
+  it('excludes hidden and redirected condition matches', async () => {
+    const BOOK_ID_HIDDEN_MATCH = mockEVMAddress(0xb0);
+    const BOOK_ID_REDIRECTED_MATCH = mockEVMAddress(0xb1);
+    const BOOK_ID_VISIBLE_MATCH = mockEVMAddress(0xb2);
+    await post(`${BASE_URL}/cms/tags/conditional-vis`, tagBody({
+      conditions: { publishers: ['vis-pub'] },
+    }), AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_HIDDEN_MATCH, {
+      publisher: 'vis-pub',
+      isHidden: true,
+      timestamp: ts(300),
+    });
+    await makeNFTBookStub(BOOK_ID_REDIRECTED_MATCH, {
+      publisher: 'vis-pub',
+      redirectClassId: BOOK_ID_VISIBLE_MATCH,
+      timestamp: ts(200),
+    });
+    await makeNFTBookStub(BOOK_ID_VISIBLE_MATCH, { publisher: 'vis-pub', timestamp: ts(100) });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=conditional-vis&limit=10`);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_VISIBLE_MATCH]);
+  });
+
+  it('keeps only Plus-reading books when library=1', async () => {
+    const BOOK_ID_PLUS = mockEVMAddress(0xb3);
+    const BOOK_ID_NO_PLUS = mockEVMAddress(0xb4);
+    await post(`${BASE_URL}/cms/tags/conditional-lib`, tagBody({
+      conditions: { publishers: ['lib-pub'] },
+    }), AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_PLUS, { publisher: 'lib-pub', isPlusReadingEnabled: true, timestamp: ts(200) });
+    await makeNFTBookStub(BOOK_ID_NO_PLUS, { publisher: 'lib-pub', timestamp: ts(100) });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=conditional-lib&library=1&limit=10`);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_PLUS]);
+  });
+
+  it('treats malformed hand-edited conditions as non-conditional', async () => {
+    const BOOK_ID_LEGACY = mockEVMAddress(0xb6);
+    await likeNFTBookCMSTagCollection.doc('legacy-cond').set({
+      ...tagBody(),
+      conditions: { publishers: 'not-an-array', authors: 42 },
+    } as any);
+    await makeNFTBookStub(BOOK_ID_LEGACY, { cmsTags: { 'legacy-cond': 0 } });
+
+    const tagRes = await get(`${BASE_URL}/cms/tags/legacy-cond`);
+    expect(tagRes.status).toBe(200);
+    expect(tagRes.data.isConditional).toBe(false);
+    expect(tagRes.data.conditions).toEqual({ publishers: [], authors: [] });
+
+    const listRes = await get(`${BASE_URL}/cms/list?tag=legacy-cond&limit=10`);
+    expect(listRes.status).toBe(200);
+    expect(listRes.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_LEGACY]);
+  });
+
+  it('trims hand-edited condition names and drops whitespace-only entries', async () => {
+    const BOOK_ID_HAND_TRIMMED = mockEVMAddress(0xc0);
+    await likeNFTBookCMSTagCollection.doc('legacy-trim').set({
+      ...tagBody(),
+      conditions: { publishers: [' hand-pub ', '   '], authors: [] },
+    } as any);
+    await makeNFTBookStub(BOOK_ID_HAND_TRIMMED, { publisher: 'hand-pub', timestamp: ts(100) });
+
+    const tagRes = await get(`${BASE_URL}/cms/tags/legacy-trim`);
+    expect(tagRes.data.conditions).toEqual({ publishers: ['hand-pub'], authors: [] });
+    expect(tagRes.data.isConditional).toBe(true);
+
+    const listRes = await get(`${BASE_URL}/cms/list?tag=legacy-trim&limit=10`);
+    expect(listRes.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_HAND_TRIMMED]);
+  });
+
+  it('caps hand-edited condition lists at the Firestore in-query limit', async () => {
+    const BOOK_ID_WITHIN_CAP = mockEVMAddress(0xb7);
+    const BOOK_ID_BEYOND_CAP = mockEVMAddress(0xb8);
+    const publishers = Array.from({ length: 11 }, (_, i) => `cap-pub-${i}`);
+    await likeNFTBookCMSTagCollection.doc('legacy-cap').set({
+      ...tagBody(),
+      conditions: { publishers, authors: [] },
+    } as any);
+    await makeNFTBookStub(BOOK_ID_WITHIN_CAP, { publisher: 'cap-pub-0', timestamp: ts(200) });
+    await makeNFTBookStub(BOOK_ID_BEYOND_CAP, { publisher: 'cap-pub-10', timestamp: ts(100) });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=legacy-cap&limit=10`);
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_WITHIN_CAP]);
+  });
+
+  it('lists a book matching both publisher and author conditions only once', async () => {
+    const BOOK_ID_PUB_AND_AUTH = mockEVMAddress(0xb5);
+    await post(`${BASE_URL}/cms/tags/conditional-overlap`, tagBody({
+      conditions: { publishers: ['overlap-pub'], authors: ['overlap-auth'] },
+    }), AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_PUB_AND_AUTH, {
+      publisher: 'overlap-pub',
+      author: 'overlap-auth',
+      timestamp: ts(100),
+    });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=conditional-overlap&limit=10`);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_PUB_AND_AUTH]);
   });
 });

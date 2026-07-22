@@ -24,6 +24,9 @@ function makeTimestampStub(d: Date) {
   return { toDate: () => d, toMillis: () => d.getTime() };
 }
 
+// Timestamp stand-in for test fixtures; response filters call `.toMillis()`.
+export const makeTimestampFromMillis = (millis: number) => makeTimestampStub(new Date(millis));
+
 // Sentinel distinct from null,
 // so the stub can distinguish a null write from a FieldValue.delete().
 // Matches real Firestore: null is stored as null, only the delete sentinel removes the field.

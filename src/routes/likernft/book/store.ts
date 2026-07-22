@@ -58,6 +58,7 @@ import {
   type BookListQuery,
   BookListPaginationQuerySchema,
   type BookListPaginationQuery,
+  BOOK_CMS_LIST_OFFSET_MAX,
   BookCMSTagSyncBodySchema,
   BookCMSTagBulkBodySchema,
   BookCMSTagUpsertBodySchema,
@@ -467,7 +468,11 @@ router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req: Qu
     } = req.query;
     const tagDoc = await getNFTBookCMSTag(tag);
     if (!tagDoc) throw new ValidationError('TAG_NOT_FOUND', 404);
-    const books = await listNFTBookInfoByCMSTag(tag, { offset, limit });
+    const books = await listNFTBookInfoByCMSTag(tag, {
+      offset,
+      limit,
+      conditions: tagDoc.conditions,
+    });
     const isLibraryOnly = library === '1';
     const list = books
       .filter((b) => (
@@ -480,7 +485,9 @@ router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req: Qu
     res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
     sendValidatedJSON(res, BookCMSTagBookListResponseSchema, {
       list,
-      nextOffset: books.length < limit ? null : offset + limit,
+      nextOffset: books.length < limit || offset + limit > BOOK_CMS_LIST_OFFSET_MAX
+        ? null
+        : offset + limit,
     });
   } catch (err) {
     next(err);
