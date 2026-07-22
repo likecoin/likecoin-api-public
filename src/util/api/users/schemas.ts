@@ -3,7 +3,11 @@ import { storedLocales } from '../../../locales';
 import { LIKER_PLUS_TIERS } from '../../../constant';
 
 export const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
+// Billing system owning the record; 'shared' is a seat granted by a Civic-tier
+// giver (see plus/sharedMember.ts). LikerPlusProvider is derived from this.
+export const LIKER_PLUS_PROVIDERS = ['stripe', 'revenuecat', 'shared'] as const;
 const LikerPlusSubscriptionStatusSchema = z.enum(LIKER_PLUS_SUBSCRIPTION_STATUSES);
+const LikerPlusProviderSchema = z.enum(LIKER_PLUS_PROVIDERS);
 const LikerPlusTierSchema = z.enum(LIKER_PLUS_TIERS);
 // Response locale reflects stored data, which includes legacy codes (e.g. 'cn').
 // Input locale is guarded against supportedLocales separately.
@@ -145,7 +149,7 @@ export const UserDataFilteredResponseSchema = z.object({
   isExpiredLikerPlus: z.boolean().optional(),
   likerPlusPeriod: z.string().optional(),
   likerPlusTier: LikerPlusTierSchema.optional(),
-  likerPlusProvider: z.enum(['stripe', 'revenuecat', 'shared']).optional(),
+  likerPlusProvider: LikerPlusProviderSchema.optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   locale: LocaleSchema.optional(),
@@ -155,7 +159,7 @@ export const UserDataScopedResponseSchema = UserDataMinResponseSchema.extend({
   email: z.string().optional(),
   likerPlusPeriod: z.string().optional(),
   likerPlusTier: LikerPlusTierSchema.optional(),
-  likerPlusProvider: z.enum(['stripe', 'revenuecat', 'shared']).optional(),
+  likerPlusProvider: LikerPlusProviderSchema.optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   isCivicLikerRenewalPeriod: z.boolean().optional(),

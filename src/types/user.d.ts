@@ -1,7 +1,7 @@
 import type { Timestamp } from '@google-cloud/firestore';
 import type { StoredLocale } from '../locales';
 import type { LikerPlusTier } from '../constant';
-import type { LIKER_PLUS_SUBSCRIPTION_STATUSES } from '../util/api/users/schemas';
+import type { LIKER_PLUS_PROVIDERS, LIKER_PLUS_SUBSCRIPTION_STATUSES } from '../util/api/users/schemas';
 
 export interface CivicLikerData {
   currentPeriodStart: number;
@@ -13,7 +13,7 @@ export interface CivicLikerData {
 
 export type LikerPlusSubscriptionStatus = typeof LIKER_PLUS_SUBSCRIPTION_STATUSES[number];
 
-export type LikerPlusProvider = 'stripe' | 'revenuecat' | 'shared';
+export type LikerPlusProvider = typeof LIKER_PLUS_PROVIDERS[number];
 
 export interface LikerPlusData {
   currentPeriodStart: number;
