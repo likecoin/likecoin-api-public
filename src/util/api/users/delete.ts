@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import { FIRESTORE_BATCH_SIZE } from '../../../constant';
 import {
   userCollection,
@@ -9,6 +10,8 @@ import {
   db,
 } from '../../firebase';
 import { getStripeClient } from '../../stripe';
+
+const TERMINAL_SUBSCRIPTION_STATUSES: Stripe.Subscription.Status[] = ['canceled', 'incomplete_expired'];
 
 // Deleting the Liker ID must also stop its active Plus subscription from
 // renewing; otherwise Stripe keeps billing and future invoices can no longer
@@ -25,12 +28,24 @@ async function cancelActivePlusSubscription(user) {
     console.warn(`Skipping non-stripe Plus subscription ${subscriptionId} for deleted user ${user}`);
     return;
   }
+  const stripe = getStripeClient();
   try {
-    await getStripeClient().subscriptions.update(subscriptionId, {
+    await stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: true,
     });
   } catch (err) {
-    // Best-effort: an already-cancelled subscription throws; don't block deletion.
+    // Subscription no longer exists in Stripe; nothing left to cancel.
+    if (
+      err instanceof Stripe.errors.StripeInvalidRequestError
+      && err.code === 'resource_missing'
+    ) return;
+    // Stripe's terminal-status update error carries no machine-readable code,
+    // so check the status to tell already-ended apart from a real failure.
+    const status = await stripe.subscriptions.retrieve(subscriptionId)
+      .then((subscription) => subscription.status)
+      .catch(() => null);
+    if (status && TERMINAL_SUBSCRIPTION_STATUSES.includes(status)) return;
+    // Best-effort: don't block deletion on Stripe errors.
     // eslint-disable-next-line no-console
     console.error(`Failed to cancel Plus subscription ${subscriptionId} for deleted user ${user}:`, err);
   }
