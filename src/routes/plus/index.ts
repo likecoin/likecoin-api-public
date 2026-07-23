@@ -34,10 +34,11 @@ import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId 
 import type { NFTBookUserData } from '../../types/book';
 import { getStripeClient } from '../../util/stripe';
 import {
-  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PLUS_CIVIC_MONTHLY_PRICE, PLUS_CIVIC_YEARLY_PRICE,
+  PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../constant';
-import type { SupportedPlusCurrency } from '../../constant';
+import type { LikerPlusTier, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
 import { createNewPlusCheckoutSession, updateSubscriptionPeriod, type PlusPeriod } from '../../util/api/plus';
 import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
@@ -132,7 +133,7 @@ router.post('/admin/reading/sweep', plusSettleAdminAuth, validateBody(PlusSweepB
 });
 
 router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), validateBody(PlusNewBodySchema), async (req, res, next) => {
-  const { period = 'monthly' } = req.query as Record<string, string>;
+  const { period = 'monthly', tier = 'plus' } = req.query as Record<string, string>;
   const { from, currency } = req.query as Record<string, string>;
   const {
     gaClientId,
@@ -164,6 +165,9 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
     if (period === 'yearly' && trialPeriodDays > 0 && giftClassId) {
       throw new ValidationError('Gift subscriptions cannot have a trial period.', 400);
     }
+    if (tier === 'civic' && trialPeriodDays > 0) {
+      throw new ValidationError('Civic subscriptions do not support trial periods.', 400);
+    }
     if (currency !== undefined
       && !SUPPORTED_PLUS_CURRENCIES.includes(currency as SupportedPlusCurrency)) {
       throw new ValidationError('UNSUPPORTED_CURRENCY', 400);
@@ -179,6 +183,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
     } = await createNewPlusCheckoutSession(
       {
         period: period as PlusPeriod,
+        tier: tier as LikerPlusTier,
         trialPeriodDays,
         mustCollectPaymentMethod,
         giftClassId,
@@ -218,18 +223,19 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       paymentId,
     });
 
+    let tierPriceUSD = period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE;
+    if (tier === 'civic') {
+      tierPriceUSD = period === 'yearly' ? PLUS_CIVIC_YEARLY_PRICE : PLUS_CIVIC_MONTHLY_PRICE;
+    }
     await logServerEvents('InitiateCheckout', {
       email,
       items: [{
-        productId: `plus-${period}`,
+        productId: `${tier}-${period}`,
         quantity: 1,
       }],
       userAgent,
       clientIp,
-      value: convertUSDPriceToCurrency(
-        period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
-        checkoutCurrency,
-      ),
+      value: convertUSDPriceToCurrency(tierPriceUSD, checkoutCurrency),
       currency: checkoutCurrency.toUpperCase(),
       paymentId,
       referrer,
@@ -245,6 +251,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       logType: 'PlusCheckoutSessionCreated',
       sessionId: session.id,
       period,
+      tier,
       uiMode: uiMode || 'hosted',
       wallet: req.user?.wallet,
       likeWallet: req.user?.likeWallet,
@@ -264,6 +271,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionError',
       period,
+      tier,
       wallet: req.user?.wallet,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
@@ -424,6 +432,7 @@ router.post('/gift/:cartId/claim', jwtAuth('write:plus'), validateParams(PlusCar
 router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), async (req, res, next) => {
   const {
     period,
+    tier,
     giftClassId,
     giftPriceIndex = '0',
   } = req.body;
@@ -440,14 +449,28 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
     if (!subscriptionId) {
       throw new ValidationError('No subscription found for this user.', 404);
     }
-    if (period === `${existingPeriod}ly`) {
-      throw new ValidationError('Subscription period is already set to this value.', 400);
+    // Pre-Civic records have no tier; they are Plus.
+    const existingTier: LikerPlusTier = userInfo.likerPlus.tier || 'plus';
+    const targetTier: LikerPlusTier = tier || existingTier;
+    if (period === `${existingPeriod}ly` && targetTier === existingTier) {
+      throw new ValidationError('Subscription plan is already set to this value.', 400);
     }
     await updateSubscriptionPeriod(subscriptionId, period, {
+      tier: targetTier,
       giftClassId,
       giftPriceIndex,
     });
     res.sendStatus(200);
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'PlusSubscriptionPlanUpdated',
+      subscriptionId,
+      period,
+      tier: targetTier,
+      previousPeriod: existingPeriod,
+      previousTier: existingTier,
+      wallet,
+    });
   } catch (error) {
     next(error);
   }

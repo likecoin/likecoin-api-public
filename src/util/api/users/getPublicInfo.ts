@@ -100,6 +100,8 @@ export function formatUserCivicLikerProperies(
       payload.isLikerPlusTrial = currentType === 'trial';
       payload.isSubscribedCivicLiker = true;
       payload.likerPlusPeriod = period;
+      // Pre-Civic records have no tier; they are Plus.
+      payload.likerPlusTier = likerPlus.tier || 'plus';
       payload.likerPlusSubscriptionStatus = likerPlus.subscriptionStatus || 'active';
     } else if (now > renewalLast) {
       payload.isExpiredLikerPlus = true;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SUPPORTED_CHECKOUT_UI_MODES } from '../../../constant';
+import { LIKER_PLUS_TIERS, SUPPORTED_CHECKOUT_UI_MODES } from '../../../constant';
 import { EVM_ADDRESS_REGEX } from '../../evm';
 import {
   BookGiftInfoBodySchema,
@@ -32,6 +32,8 @@ export const PlusNewBodySchema = TrackingFieldsSchema.extend({
 
 export const PlusPriceBodySchema = z.object({
   period: z.enum(['monthly', 'yearly']),
+  // Target tier; omitted keeps the subscription's current tier.
+  tier: z.enum(LIKER_PLUS_TIERS).optional(),
   giftClassId: z.string().optional(),
   giftPriceIndex: GiftPriceIndexSchema.optional(),
 });
@@ -53,6 +55,7 @@ export const PlusAffiliateParamsSchema = z.object({
 // invalid `period` falls back to the default instead of returning 400.
 export const PlusNewQuerySchema = z.object({
   period: z.enum(['monthly', 'yearly']).default('monthly').catch('monthly'),
+  tier: z.enum(LIKER_PLUS_TIERS).default('plus').catch('plus'),
   from: z.string().optional(),
   currency: z.string().optional(),
 }).passthrough();

@@ -193,6 +193,14 @@ export const MAX_PNG_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
 export const PLUS_MONTHLY_PRICE = 9.99;
 export const PLUS_YEARLY_PRICE = 99.99;
+export const PLUS_CIVIC_MONTHLY_PRICE = 99.99;
+export const PLUS_CIVIC_YEARLY_PRICE = 999.99;
+
+// Subscription tiers. Civic is a superset of Plus: a Civic member always reads
+// as isLikerPlus, with `tier` as the discriminator. Named LIKER_PLUS_TIERS (not
+// "civic*") to stay distinct from the legacy Civic Liker program fields.
+export const LIKER_PLUS_TIERS = ['plus', 'civic'] as const;
+export type LikerPlusTier = typeof LIKER_PLUS_TIERS[number];
 
 export const SUPPORTED_PLUS_CURRENCIES = ['usd', 'hkd', 'twd'] as const;
 export type SupportedPlusCurrency = typeof SUPPORTED_PLUS_CURRENCIES[number];

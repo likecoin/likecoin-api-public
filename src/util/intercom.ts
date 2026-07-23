@@ -15,6 +15,8 @@ export interface IntercomUserCustomAttributes {
   login_method?: string;
   is_liker_plus?: boolean;
   is_liker_plus_trial?: boolean;
+  // 'plus' | 'civic'; '' clears the attribute on cancellation.
+  liker_plus_tier?: string;
   has_claimed_free_book?: boolean;
   has_purchased_paid_book?: boolean;
   [key: string]: unknown;

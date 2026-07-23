@@ -53,6 +53,11 @@ config.LIKER_PLUS_YEARLY_PRICE_ID = '';
 config.LIKER_PLUS_GIFT_MONTHLY_PRICE_ID = '';
 config.LIKER_PLUS_GIFT_YEARLY_PRICE_ID = '';
 config.LIKER_PLUS_BOOK_PROMO_COUPON_CODE = '';
+// Civic tier (above Plus). Empty ids leave Civic checkout/webhook paths inert
+// until the Stripe product and prices are created and configured.
+config.LIKER_PLUS_CIVIC_PRODUCT_ID = '';
+config.LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID = '';
+config.LIKER_PLUS_CIVIC_YEARLY_PRICE_ID = '';
 
 // RevenueCat (mobile IAP) — bridges App/Play Store Plus subscriptions.
 config.REVENUECAT_WEBHOOK_AUTHORIZATION = process.env.REVENUECAT_WEBHOOK_AUTHORIZATION || ''; // shared secret set in RC dashboard's webhook Authorization header
@@ -60,6 +65,11 @@ config.REVENUECAT_PLUS_ENTITLEMENT_ID = process.env.REVENUECAT_PLUS_ENTITLEMENT_
 // Product-id lists stay raw comma-separated strings here; the consumer parses them.
 config.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS || ''; // comma-separated store product ids for the monthly period
 config.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS || ''; // comma-separated store product ids for the yearly period
+// Civic tier IAP. Civic store products must grant BOTH the plus and civic
+// entitlements in the RC dashboard; empty product-id lists leave Civic inert.
+config.REVENUECAT_CIVIC_ENTITLEMENT_ID = process.env.REVENUECAT_CIVIC_ENTITLEMENT_ID || 'civic'; // RC entitlement identifier that marks the Civic tier
+config.REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS = process.env.REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS || ''; // comma-separated Civic store product ids, monthly
+config.REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS = process.env.REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS || ''; // comma-separated Civic store product ids, yearly
 
 config.ARWEAVE_EVM_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';

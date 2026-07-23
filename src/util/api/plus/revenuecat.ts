@@ -2,12 +2,18 @@ import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusData } from '../../../types/user';
 
 import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
+import type { LikerPlusTier } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { normalizeLikerId } from '../../ValidationHelper';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
-import { getPlusPredictedLTV, mapAttributionExtraProperties, resolveAffiliateGift } from './index';
+import {
+  getPlusEquivalentUSDPrice,
+  getPlusPredictedLTV,
+  mapAttributionExtraProperties,
+  resolveAffiliateGift,
+} from './index';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -19,6 +25,9 @@ import {
   REVENUECAT_PLUS_ENTITLEMENT_ID,
   REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS,
   REVENUECAT_PLUS_YEARLY_PRODUCT_IDS,
+  REVENUECAT_CIVIC_ENTITLEMENT_ID,
+  REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS,
+  REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS,
 } from '../../../../config/config';
 
 // Unified RevenueCat webhook event. Only the fields we consume are typed; the
@@ -94,23 +103,37 @@ function resolveAppUserId(event: RevenueCatEvent): string | undefined {
 // config exposes the raw comma-separated env strings; parse them into id lists once.
 const monthlyProductIds = splitByComma(REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS);
 const yearlyProductIds = splitByComma(REVENUECAT_PLUS_YEARLY_PRODUCT_IDS);
+const civicMonthlyProductIds = splitByComma(REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS);
+const civicYearlyProductIds = splitByComma(REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS);
 
-function mapProductIdToPeriod(productId?: string): 'month' | 'year' | undefined {
+function mapProductIdToTierAndPeriod(
+  productId?: string,
+): { tier: LikerPlusTier; period: 'month' | 'year' } | undefined {
   if (!productId) return undefined;
-  if (monthlyProductIds.includes(productId)) return 'month';
-  if (yearlyProductIds.includes(productId)) return 'year';
+  if (civicMonthlyProductIds.includes(productId)) return { tier: 'civic', period: 'month' };
+  if (civicYearlyProductIds.includes(productId)) return { tier: 'civic', period: 'year' };
+  if (monthlyProductIds.includes(productId)) return { tier: 'plus', period: 'month' };
+  if (yearlyProductIds.includes(productId)) return { tier: 'plus', period: 'year' };
   return undefined;
+}
+
+function getEventEntitlementIds(event: RevenueCatEvent): string[] {
+  return event.entitlement_ids || (event.entitlement_id ? [event.entitlement_id] : []);
 }
 
 function isPlusEntitlement(event: RevenueCatEvent): boolean {
   if (!REVENUECAT_PLUS_ENTITLEMENT_ID) return true;
-  const ids = event.entitlement_ids
-    || (event.entitlement_id ? [event.entitlement_id] : []);
-  // When the entitlement list is present, require our Plus entitlement.
-  if (ids.length) return ids.includes(REVENUECAT_PLUS_ENTITLEMENT_ID);
-  // When entitlement info is absent, fall back to a known Plus product id so an
+  const ids = getEventEntitlementIds(event);
+  // When the entitlement list is present, require our Plus entitlement. Civic
+  // products should grant both entitlements (dashboard convention), but accept
+  // a civic-only list so a misconfigured product still lands as a grant.
+  if (ids.length) {
+    return ids.includes(REVENUECAT_PLUS_ENTITLEMENT_ID)
+      || (!!REVENUECAT_CIVIC_ENTITLEMENT_ID && ids.includes(REVENUECAT_CIVIC_ENTITLEMENT_ID));
+  }
+  // When entitlement info is absent, fall back to a known product id so an
   // unrelated product's subscription event can't be granted Plus by mistake.
-  return !!mapProductIdToPeriod(event.product_id);
+  return !!mapProductIdToTierAndPeriod(event.product_id);
 }
 
 // A record is Stripe-owned (web) if the Stripe path wrote it. Legacy records
@@ -204,7 +227,16 @@ async function handleGrant(
     console.warn(`RevenueCat ${event.type} for ${likerId} has no resolvable currentPeriodEnd; skipping grant`);
     return;
   }
-  const period = mapProductIdToPeriod(event.product_id) || user.likerPlus?.period;
+  const productMapping = mapProductIdToTierAndPeriod(event.product_id);
+  const period = productMapping?.period || user.likerPlus?.period;
+  // Tier: the product mapping is authoritative; else the civic entitlement on
+  // the event; else preserve the stored tier (renewals may omit product info).
+  let tier: LikerPlusTier | undefined = productMapping?.tier;
+  if (!tier && REVENUECAT_CIVIC_ENTITLEMENT_ID
+    && getEventEntitlementIds(event).includes(REVENUECAT_CIVIC_ENTITLEMENT_ID)) {
+    tier = 'civic';
+  }
+  if (!tier) tier = user.likerPlus?.tier || 'plus';
   const since = isInitial
     ? purchasedAtMs
     : (user.likerPlus?.since || purchasedAtMs);
@@ -215,11 +247,17 @@ async function handleGrant(
   // price still captures intro/promotional and monthly/yearly differences.
   // Uncancel/extend/product-change grants carry no `price` (no new charge); preserve
   // the stored dailyValue rather than zeroing accrual until the next priced renewal.
+  // Civic funds at the Plus-tier rate (see getPlusEquivalentUSDPrice), never
+  // its own 10× charge.
   let dailyValue = 0;
   if (!isTrial) {
-    dailyValue = event.price != null
+    let fundingAmount = event.price;
+    if (tier === 'civic') {
+      fundingAmount = getPlusEquivalentUSDPrice(period);
+    }
+    dailyValue = event.price != null && fundingAmount != null
       ? calculatePlusDailyValue({
-        amountPaid: event.price,
+        amountPaid: fundingAmount,
         currentPeriodStart: purchasedAtMs,
         currentPeriodEnd,
       })
@@ -228,6 +266,7 @@ async function handleGrant(
 
   const likerPlus: LikerPlusData = {
     since,
+    tier,
     currentPeriodStart: purchasedAtMs,
     currentPeriodEnd,
     currentType: isTrial ? 'trial' : 'paid',
@@ -415,6 +454,7 @@ async function handleGrant(
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
     is_liker_plus_trial: isTrial,
+    liker_plus_tier: tier,
   });
   if (isInitial) {
     await sendIntercomEvent({
@@ -467,7 +507,7 @@ async function handleGrant(
       // analytics currency dimension stays ISO 4217 like the Stripe path.
       currency: isTrial ? ltvCurrency.toUpperCase() : paymentCurrency?.toUpperCase(),
       paymentId: transactionId,
-      items: period ? [{ productId: `plus-${period}ly`, quantity: 1 }] : undefined,
+      items: period ? [{ productId: `${tier}-${period}ly`, quantity: 1 }] : undefined,
       referrer,
       fbClickId: getSubscriberAttribute(event, 'fbClickId'),
       fbp: getSubscriberAttribute(event, 'fbp'),
@@ -486,6 +526,7 @@ async function handleGrant(
         store: event.store,
         product_id: event.product_id,
         period,
+        tier,
         ...mapAttributionExtraProperties({
           utmSource: getSubscriberAttribute(event, 'utmSource'),
           utmMedium: getSubscriberAttribute(event, 'utmMedium'),
@@ -551,6 +592,7 @@ async function clearIntercomPlusFlags(likerId: string) {
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: false,
     is_liker_plus_trial: false,
+    liker_plus_tier: '',
   });
 }
 

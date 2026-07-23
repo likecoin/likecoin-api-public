@@ -388,6 +388,7 @@ export const getPlusPageURL = ({
 
 export const getPlusSuccessPageURL = ({
   period,
+  tier,
   paymentId,
   hasFreeTrial,
   language,
@@ -400,6 +401,7 @@ export const getPlusSuccessPageURL = ({
   gadSource,
 }: {
   period: string;
+  tier?: string;
   paymentId: string;
   hasFreeTrial: boolean;
   language?: string;
@@ -417,6 +419,11 @@ export const getPlusSuccessPageURL = ({
     payment_id: paymentId,
     trial: hasFreeTrial ? '1' : '0',
   };
+  // Only Civic needs signalling; Plus success URLs stay unchanged. The success
+  // page reads this to poll for the tier and land Civic buyers on /account.
+  if (tier === 'civic') {
+    qsPayload.tier = tier;
+  }
   if (utmCampaign) {
     qsPayload.utm_campaign = utmCampaign;
   }

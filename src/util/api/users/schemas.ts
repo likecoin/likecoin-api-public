@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { storedLocales } from '../../../locales';
+import { LIKER_PLUS_TIERS } from '../../../constant';
 
 export const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
 const LikerPlusSubscriptionStatusSchema = z.enum(LIKER_PLUS_SUBSCRIPTION_STATUSES);
+const LikerPlusTierSchema = z.enum(LIKER_PLUS_TIERS);
 // Response locale reflects stored data, which includes legacy codes (e.g. 'cn').
 // Input locale is guarded against supportedLocales separately.
 const LocaleSchema = z.enum(storedLocales);
@@ -142,6 +144,7 @@ export const UserDataFilteredResponseSchema = z.object({
   isLikerPlusTrial: z.boolean().optional(),
   isExpiredLikerPlus: z.boolean().optional(),
   likerPlusPeriod: z.string().optional(),
+  likerPlusTier: LikerPlusTierSchema.optional(),
   likerPlusProvider: z.enum(['stripe', 'revenuecat']).optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
@@ -151,6 +154,7 @@ export const UserDataFilteredResponseSchema = z.object({
 export const UserDataScopedResponseSchema = UserDataMinResponseSchema.extend({
   email: z.string().optional(),
   likerPlusPeriod: z.string().optional(),
+  likerPlusTier: LikerPlusTierSchema.optional(),
   likerPlusProvider: z.enum(['stripe', 'revenuecat']).optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),

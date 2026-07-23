@@ -1,5 +1,6 @@
 import type { Timestamp } from '@google-cloud/firestore';
 import type { StoredLocale } from '../locales';
+import type { LikerPlusTier } from '../constant';
 import type { LIKER_PLUS_SUBSCRIPTION_STATUSES } from '../util/api/users/schemas';
 
 export interface CivicLikerData {
@@ -20,6 +21,9 @@ export interface LikerPlusData {
   currentType?: string;
   since: number;
   period?: string;
+  // Subscription tier. Absent on records written before Civic existed — read
+  // it as 'plus'. Civic keeps every Plus flag true (superset semantics).
+  tier?: LikerPlusTier;
   // Per-day value of the current term (in `dailyValueCurrency`), used to fund the
   // reading-library revenue-share pool. 0 for trials. See calculatePlusDailyValue.
   dailyValue?: number;
@@ -149,6 +153,7 @@ export interface UserCivicLikerProperties extends UserData {
   isLikerPlusTrial?: boolean;
   isExpiredLikerPlus?: boolean;
   likerPlusPeriod?: string;
+  likerPlusTier?: LikerPlusTier;
   likerPlusProvider?: LikerPlusProvider;
   likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
   plusAffiliateFrom?: string;

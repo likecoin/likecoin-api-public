@@ -5,13 +5,18 @@ import type { LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../.
 import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
 import {
   ONE_DAY_IN_MS,
+  LIKER_PLUS_TIERS,
+  PLUS_CIVIC_MONTHLY_PRICE,
+  PLUS_CIVIC_YEARLY_PRICE,
+  PLUS_MONTHLY_PRICE,
   PLUS_PAID_TRIAL_PERIOD_DAYS_THRESHOLD,
   PLUS_PAID_TRIAL_PRICE,
+  PLUS_YEARLY_PRICE,
   PUBSUB_TOPIC_MISC,
   STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../../constant';
-import type { SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
+import type { LikerPlusTier, SupportedCheckoutUIMode, SupportedPlusCurrency } from '../../../constant';
 import { convertCurrencyToUSDPrice, convertUSDPriceToCurrency } from '../../pricing';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../likernft/book/user';
 import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
@@ -25,6 +30,9 @@ import {
   LIKER_PLUS_MONTHLY_PRICE_ID,
   LIKER_PLUS_YEARLY_PRICE_ID,
   LIKER_PLUS_PRODUCT_ID,
+  LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID,
+  LIKER_PLUS_CIVIC_YEARLY_PRICE_ID,
+  LIKER_PLUS_CIVIC_PRODUCT_ID,
   LIKER_PLUS_TRIAL_CONVERSION_RATE,
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
@@ -39,6 +47,28 @@ import logServerEvents from '../../logServerEvents';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export type PlusPeriod = 'monthly' | 'yearly';
+
+export function getPlusPriceId(tier: LikerPlusTier, period: PlusPeriod): string {
+  if (tier === 'civic') {
+    return period === 'yearly' ? LIKER_PLUS_CIVIC_YEARLY_PRICE_ID : LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID;
+  }
+  return period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID;
+}
+
+// The Plus-tier USD price for a Stripe plan interval. Civic funds the reading
+// rev-share pool at this rate instead of its own 10× price (flat rev-share,
+// product decision). Do NOT refactor callers back to "derive from the charge".
+export function getPlusEquivalentUSDPrice(interval?: string): number {
+  return interval === 'year' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE;
+}
+
+// Sticker USD price of a tier/period pair, for analytics value signals.
+export function getPlusTierUSDPrice(tier: LikerPlusTier, period: PlusPeriod): number {
+  if (tier === 'civic') {
+    return period === 'yearly' ? PLUS_CIVIC_YEARLY_PRICE : PLUS_CIVIC_MONTHLY_PRICE;
+  }
+  return period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE;
+}
 
 function findStripeDefaultPayment(payments?: Stripe.ApiList<Stripe.InvoicePayment>) {
   return payments?.data?.find((p) => p.is_default);
@@ -178,6 +208,7 @@ interface PlusInvoiceContext {
   startDate: number;
   status: Stripe.Subscription.Status;
   productId: string;
+  tier: LikerPlusTier;
 }
 
 // Resolve everything the invoice webhook needs to process a Plus subscription
@@ -219,7 +250,14 @@ async function resolvePlusInvoiceContext(
     status,
   } = subscription;
   const productId = item.price.product as string;
-  if (productId !== LIKER_PLUS_PRODUCT_ID) {
+  // The non-empty guard on the Civic id keeps an unconfigured deployment (both
+  // ids '') from ever tier-matching a foreign product.
+  let tier: LikerPlusTier;
+  if (productId === LIKER_PLUS_PRODUCT_ID) {
+    tier = 'plus';
+  } else if (LIKER_PLUS_CIVIC_PRODUCT_ID && productId === LIKER_PLUS_CIVIC_PRODUCT_ID) {
+    tier = 'civic';
+  } else {
     // eslint-disable-next-line no-console
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return null;
@@ -237,6 +275,7 @@ async function resolvePlusInvoiceContext(
     startDate,
     status,
     productId,
+    tier,
   };
 }
 
@@ -444,19 +483,28 @@ async function writePlusUserRecordAndAccrual({
     subscriptionMetadata,
   } = ctx;
   const { affiliateFrom } = subscriptionMetadata;
+  const isCivic = ctx.tier === 'civic';
+  // Flat rev-share: Civic funds the pool at the Plus-tier USD price, so its
+  // 10× sticker never inflates author payouts (see getPlusEquivalentUSDPrice).
+  const fundingAmountPaid = isCivic
+    ? getPlusEquivalentUSDPrice(item.plan.interval)
+    : amountPaid;
   const dailyValue = isFullTermInvoice
     ? calculatePlusDailyValue({
-      amountPaid: isTrial ? 0 : amountPaid,
+      amountPaid: isTrial ? 0 : fundingAmountPaid,
       currentPeriodStart,
       currentPeriodEnd,
     })
     : (user.likerPlus?.dailyValue ?? 0);
-  const dailyValueCurrency = isFullTermInvoice
-    ? currency
-    : (user.likerPlus?.dailyValueCurrency ?? currency);
+  let dailyValueCurrency = user.likerPlus?.dailyValueCurrency ?? currency;
+  if (isFullTermInvoice) {
+    // Civic's pinned funding basis is a USD constant, whatever the invoice currency.
+    dailyValueCurrency = isCivic ? 'USD' : currency;
+  }
   const userUpdate: Record<string, unknown> = {
     likerPlus: {
       period: item.plan.interval,
+      tier: ctx.tier,
       since,
       currentPeriodStart,
       currentPeriodEnd,
@@ -483,7 +531,8 @@ async function writePlusUserRecordAndAccrual({
   // the pool stays single-currency.
   if (isFullTermInvoice && !isTrial && dailyValue > 0) {
     const dailyValueUSD = calculatePlusDailyValue({
-      amountPaid: amountPaidUSD,
+      // Civic accrues at the Plus-equivalent rate (already USD), see above.
+      amountPaid: isCivic ? fundingAmountPaid : amountPaidUSD,
       currentPeriodStart,
       currentPeriodEnd,
     });
@@ -555,6 +604,7 @@ async function emitPlusInvoiceAnalytics({
     subscriptionMetadata,
     evmWallet,
     likeWallet,
+    tier,
   } = ctx;
   const {
     from,
@@ -582,6 +632,7 @@ async function emitPlusInvoiceAnalytics({
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
     is_liker_plus_trial: isTrial,
+    liker_plus_tier: tier,
   });
 
   if (isSubscriptionCreation) {
@@ -608,7 +659,7 @@ async function emitPlusInvoiceAnalytics({
     const acquisitionEventPayload = {
       email: user.email || stripeCustomer.email || undefined,
       items: [{
-        productId: `plus-${period}ly`,
+        productId: `${tier}-${period}ly`,
         quantity: 1,
       }],
       value: isTrial ? predictedLTV : amountPaid,
@@ -629,6 +680,7 @@ async function emitPlusInvoiceAnalytics({
         provider: 'stripe',
         platform: 'web',
         period,
+        tier,
         price_id: item.price.id,
         product_id: productId,
         ...mapAttributionExtraProperties({
@@ -658,7 +710,7 @@ async function emitPlusInvoiceAnalytics({
       currency,
       paymentId: invoice.id,
       items: [{
-        productId: `plus-${period}ly`,
+        productId: `${tier}-${period}ly`,
         quantity: 1,
       }],
       userAgent,
@@ -672,6 +724,7 @@ async function emitPlusInvoiceAnalytics({
       extraProperties: {
         subscription_id: subscriptionId,
         period,
+        tier,
         price_id: item.price.id,
         ...mapAttributionExtraProperties({
           utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
@@ -976,6 +1029,7 @@ function buildPlusCheckoutMetadata({
   evmWallet,
   appUserId,
   paymentId,
+  tier,
   affiliateFrom,
   affiliateGiftOnTrial,
   giftClassId,
@@ -986,6 +1040,7 @@ function buildPlusCheckoutMetadata({
   evmWallet?: string,
   appUserId?: string,
   paymentId: string,
+  tier: LikerPlusTier,
   affiliateFrom?: string,
   affiliateGiftOnTrial?: boolean,
   giftClassId?: string,
@@ -1009,6 +1064,8 @@ function buildPlusCheckoutMetadata({
   } = tracking;
   const subscriptionMetadata: Stripe.MetadataParam = {
     store: 'plus',
+    // Informational — the webhook derives the tier from the product id, not this.
+    tier,
   };
   if (likeWallet) subscriptionMetadata.likeWallet = likeWallet;
   if (evmWallet) subscriptionMetadata.evmWallet = evmWallet;
@@ -1051,6 +1108,7 @@ function buildPlusCheckoutMetadata({
 // discounts vs promotion-code entry, and customer vs plain email.
 function buildPlusCheckoutSessionPayload({
   period,
+  tier,
   trialPeriodDays,
   mustCollectPaymentMethod,
   currency,
@@ -1065,6 +1123,7 @@ function buildPlusCheckoutSessionPayload({
   tracking,
 }: {
   period: PlusPeriod,
+  tier: LikerPlusTier,
   trialPeriodDays: number,
   mustCollectPaymentMethod: boolean,
   currency?: SupportedPlusCurrency,
@@ -1099,7 +1158,7 @@ function buildPlusCheckoutSessionPayload({
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
-      price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+      price: getPlusPriceId(tier, period),
       quantity: 1,
     },
   ];
@@ -1131,6 +1190,7 @@ function buildPlusCheckoutSessionPayload({
   };
   const successUrl = getPlusSuccessPageURL({
     period,
+    tier,
     paymentId,
     hasFreeTrial,
     ...urlTrackingParams,
@@ -1168,6 +1228,7 @@ function buildPlusCheckoutSessionPayload({
 export async function createNewPlusCheckoutSession(
   {
     period,
+    tier = 'plus',
     trialPeriodDays = 0,
     mustCollectPaymentMethod = true,
     giftClassId,
@@ -1178,6 +1239,7 @@ export async function createNewPlusCheckoutSession(
     uiMode = 'hosted',
   }: {
     period: PlusPeriod,
+    tier?: LikerPlusTier,
     trialPeriodDays?: number,
     mustCollectPaymentMethod?: boolean,
     giftClassId?: string,
@@ -1190,6 +1252,17 @@ export async function createNewPlusCheckoutSession(
   tracking: PlusCheckoutTrackingInfo,
   req,
 ) {
+  if (tier === 'civic') {
+    // No trial for Civic (product decision) — its headline benefits (gifting,
+    // premium voices) are instantly extractable, so a free window is an abuse vector.
+    if (trialPeriodDays > 0) {
+      throw new ValidationError('Civic subscriptions do not support trial periods.', 400);
+    }
+    // Inert until the Stripe product/prices are configured.
+    if (!getPlusPriceId(tier, period)) {
+      throw new ValidationError('CIVIC_TIER_NOT_AVAILABLE', 400);
+    }
+  }
   const paymentId = uuidv4();
   const {
     wallet,
@@ -1213,6 +1286,7 @@ export async function createNewPlusCheckoutSession(
     evmWallet,
     appUserId,
     paymentId,
+    tier,
     affiliateFrom,
     affiliateGiftOnTrial,
     giftClassId: resolvedGiftClassId,
@@ -1223,6 +1297,7 @@ export async function createNewPlusCheckoutSession(
   const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
   const payload = buildPlusCheckoutSessionPayload({
     period,
+    tier,
     trialPeriodDays,
     mustCollectPaymentMethod,
     currency,
@@ -1285,6 +1360,7 @@ export async function processStripeSubscriptionCancellation(
     await updateIntercomUserAttributes(user.user, {
       is_liker_plus: false,
       is_liker_plus_trial: false,
+      liker_plus_tier: '',
     });
   } else {
     // eslint-disable-next-line no-console
@@ -1441,24 +1517,38 @@ export async function updateSubscriptionPeriod(
   subscriptionId: string,
   period: PlusPeriod,
   {
+    // Required: a 'plus' default would silently downgrade Civic subscribers
+    // on a period-only change. Callers resolve the current tier themselves.
+    tier,
     giftClassId,
     giftPriceIndex,
   }: {
+    tier: LikerPlusTier;
     giftClassId?: string;
     giftPriceIndex?: string;
   },
 ) {
+  if (tier === 'civic' && !getPlusPriceId(tier, period)) {
+    throw new ValidationError('CIVIC_TIER_NOT_AVAILABLE', 400);
+  }
   const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const { metadata } = subscription;
+  // An unrecognised metadata tier must fall back to 'plus', not to indexOf -1,
+  // which would make every switch look like an upgrade and force an invoice.
+  const previousTier: LikerPlusTier = LIKER_PLUS_TIERS
+    .includes(metadata.tier as LikerPlusTier) ? metadata.tier as LikerPlusTier : 'plus';
+  const isTierUpgrade = LIKER_PLUS_TIERS.indexOf(tier) > LIKER_PLUS_TIERS.indexOf(previousTier);
+  metadata.tier = tier;
   if (giftClassId) metadata.giftClassId = giftClassId;
   if (giftPriceIndex) metadata.giftPriceIndex = giftPriceIndex;
   if (period === 'yearly') metadata.isUpgradingPrice = 'true';
+  // Tier and period switches apply immediately; proration_behavior is resolved below.
   const updatePayload: Stripe.SubscriptionUpdateParams = {
     items: [
       {
         id: subscription.items.data[0].id,
-        price: period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID,
+        price: getPlusPriceId(tier, period),
       },
     ],
     metadata,
@@ -1468,6 +1558,12 @@ export async function updateSubscriptionPeriod(
     updatePayload.trial_end = 'now';
     updatePayload.proration_behavior = 'none';
     updatePayload.billing_cycle_anchor = 'now';
+  } else if (isTierUpgrade) {
+    // Force an immediate prorated invoice on a tier upgrade (e.g. Plus -> Civic)
+    // so invoice.paid fires now and the webhook writes likerPlus.tier promptly.
+    // Stripe's default proration would defer the charge, and the tier flip, to
+    // the next renewal. Downgrades keep the default so they credit at renewal.
+    updatePayload.proration_behavior = 'always_invoice';
   }
   await stripe.subscriptions.update(
     subscriptionId,

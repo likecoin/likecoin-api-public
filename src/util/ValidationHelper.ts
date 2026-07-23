@@ -107,6 +107,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isLikerPlusTrial,
     isExpiredLikerPlus,
     likerPlusPeriod,
+    likerPlusTier,
     likerPlusProvider,
     likerPlusSubscriptionStatus,
     plusAffiliateFrom,
@@ -141,6 +142,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isLikerPlusTrial,
     isExpiredLikerPlus,
     likerPlusPeriod,
+    likerPlusTier,
     likerPlusProvider,
     likerPlusSubscriptionStatus,
     plusAffiliateFrom,
@@ -203,6 +205,7 @@ export function filterUserDataScoped(
   let output: UserDataScopedFiltered = filterUserDataMin(u);
   if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
+    output.likerPlusTier = user.likerPlusTier;
     output.likerPlusProvider = user.likerPlusProvider;
     output.likerPlusSubscriptionStatus = user.likerPlusSubscriptionStatus;
     output.plusAffiliateFrom = user.plusAffiliateFrom;
