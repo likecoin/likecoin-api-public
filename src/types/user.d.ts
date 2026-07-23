@@ -13,7 +13,7 @@ export interface CivicLikerData {
 
 export type LikerPlusSubscriptionStatus = typeof LIKER_PLUS_SUBSCRIPTION_STATUSES[number];
 
-export type LikerPlusProvider = 'stripe' | 'revenuecat';
+export type LikerPlusProvider = 'stripe' | 'revenuecat' | 'shared';
 
 export interface LikerPlusData {
   currentPeriodStart: number;
@@ -32,8 +32,12 @@ export interface LikerPlusData {
   customerId?: string;
   subscriptionStatus?: LikerPlusSubscriptionStatus;
   // Platform that last wrote this record. Stripe (web) and RevenueCat (mobile)
-  // share one record on a latest-write-wins basis.
+  // share one record on a latest-write-wins basis; 'shared' marks a record
+  // granted by a shared-membership seat (see src/util/api/plus/sharedMember.ts).
   provider?: LikerPlusProvider;
+  // Shared-granted records only: the giver's liker id. Lifecycle hooks
+  // (extend/revoke) only touch records whose grantedBy matches the giver.
+  grantedBy?: string;
   // RevenueCat-only: originating store (e.g. 'APP_STORE', 'PLAY_STORE') and the
   // store's original transaction id, used for debugging and idempotency.
   store?: string;
@@ -70,6 +74,27 @@ export interface PlusReadingAccrualData {
   paidDays: number;
   provider: LikerPlusProvider;
   subscriptionId: string;
+}
+
+// A seat is occupied while the invite is active; revoking frees it.
+export type SharedMemberActiveStatus = 'pending' | 'claimed';
+export type SharedMemberInviteStatus = SharedMemberActiveStatus | 'revoked';
+
+// A shared-membership seat invite, stored under
+// `userCollection/{giverLikerId}/sharedMembers/{inviteId}`. A seat is occupied
+// while status is 'pending' or 'claimed'; revoking frees it.
+export interface SharedMemberInviteData {
+  id: string;
+  email: string;
+  name?: string;
+  message?: string;
+  token: string;
+  status: SharedMemberInviteStatus;
+  memberLikerId?: string;
+  memberWallet?: string;
+  timestamp: { toMillis: () => number };
+  claimTimestamp?: { toMillis: () => number };
+  revokeTimestamp?: { toMillis: () => number };
 }
 
 export interface UserData {

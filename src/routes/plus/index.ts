@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { checksumAddress, isAddress } from 'viem';
+import type { z } from 'zod';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { validateBody, validateParams, validateQuery } from '../../middleware/validate';
 import { ValidationError } from '../../util/ValidationError';
@@ -24,7 +25,9 @@ import {
   PlusSettleResponseSchema,
   PlusSweepBodySchema,
   PlusSweepResponseSchema,
+  PlusVoicesResponseSchema,
 } from '../../util/api/plus/schemas';
+import { likeNFTBookUserCollection } from '../../util/firebase';
 import type { PlusSelfAffiliateEntry } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
 import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
@@ -34,14 +37,22 @@ import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId 
 import type { NFTBookUserData } from '../../types/book';
 import { getStripeClient } from '../../util/stripe';
 import {
-  BOOK3_HOSTNAME, PLUS_CIVIC_MONTHLY_PRICE, PLUS_CIVIC_YEARLY_PRICE,
-  PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
+  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../constant';
 import type { LikerPlusTier, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
-import { createNewPlusCheckoutSession, updateSubscriptionPeriod, type PlusPeriod } from '../../util/api/plus';
-import { claimPlusGiftCart, createPlusGiftCheckoutSession, getPlusGiftCartData } from '../../util/api/plus/gift';
+import {
+  createNewPlusCheckoutSession,
+  getPlusTierUSDPrice,
+  updateSubscriptionPeriod,
+  type PlusPeriod,
+} from '../../util/api/plus';
+import {
+  claimPlusGiftCart,
+  createPlusGiftCheckoutSession,
+  getPlusGiftCartData,
+} from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
 import logServerEvents from '../../util/logServerEvents';
@@ -49,10 +60,12 @@ import {
   checkUserNameValid, filterPlusGiftCartData, normalizeLikerId, sendValidatedJSON,
 } from '../../util/ValidationHelper';
 import revenueCatRouter from './revenuecat';
+import sharedMemberRouter from './shared';
 
 const router = Router();
 
 router.use('/revenuecat', revenueCatRouter);
+router.use('/shared', sharedMemberRouter);
 
 // Internal: the 3ook.com backend forwards already-paced Plus reading/TTS usage
 // deltas here (service-secret auth, no user JWT) to fund the reading-library
@@ -223,10 +236,6 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       paymentId,
     });
 
-    let tierPriceUSD = period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE;
-    if (tier === 'civic') {
-      tierPriceUSD = period === 'yearly' ? PLUS_CIVIC_YEARLY_PRICE : PLUS_CIVIC_MONTHLY_PRICE;
-    }
     await logServerEvents('InitiateCheckout', {
       email,
       items: [{
@@ -235,7 +244,10 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       }],
       userAgent,
       clientIp,
-      value: convertUSDPriceToCurrency(tierPriceUSD, checkoutCurrency),
+      value: convertUSDPriceToCurrency(
+        getPlusTierUSDPrice(tier as LikerPlusTier, period as PlusPeriod),
+        checkoutCurrency,
+      ),
       currency: checkoutCurrency.toUpperCase(),
       paymentId,
       referrer,
@@ -612,6 +624,55 @@ router.get('/affiliate/:likerId', validateParams(PlusAffiliateParamsSchema), asy
     const userInfo = await getBookUserInfoFromLikerId(normalizedLikerId);
     const response = buildAffiliateConfigResponse(userInfo?.bookUserInfo);
     sendValidatedJSON(res, PlusAffiliateResponseSchema, response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+type PlusVoicesResponse = z.infer<typeof PlusVoicesResponseSchema>;
+// In-process cache: the affiliate set is small and changes rarely, and the
+// 3ook.com backend caches its own copy too, so 5 minutes of staleness is fine.
+// The in-flight promise is cached (not just the result) so concurrent misses
+// on this unauthenticated route share one Firestore rebuild.
+const ALL_VOICES_CACHE_TTL_MS = 5 * 60 * 1000;
+let allVoicesCache: { data: Promise<PlusVoicesResponse>; expiresAt: number } | null = null;
+
+async function fetchAllAffiliateVoices(): Promise<PlusVoicesResponse> {
+  const snapshot = await likeNFTBookUserCollection
+    .where('affiliateConfig.active', '==', true)
+    .get();
+  const entries = await Promise.all(snapshot.docs.map(async (doc) => {
+    const config = buildAffiliateConfigResponse(doc.data());
+    if (!config.active || !config.customVoices.length) return null;
+    // Doc id is the affiliate's wallet; voices need the likerId identity.
+    const likerUser = await getUserWithCivicLikerPropertiesByWallet(doc.id)
+      .catch(() => null);
+    if (!likerUser) return null;
+    return {
+      likerId: likerUser.user,
+      affiliateClassIds: config.affiliateClassIds,
+      affiliatePublisherWallets: config.affiliatePublisherWallets,
+      customVoices: config.customVoices,
+    };
+  }));
+  return {
+    affiliates: entries.filter((entry): entry is NonNullable<typeof entry> => !!entry),
+  };
+}
+
+// All active affiliate voice configs — the Civic premium-voice pool. Public:
+// every field here is already exposed per-likerId by GET /plus/affiliate/:likerId.
+router.get('/voices', async (req, res, next) => {
+  try {
+    if (!allVoicesCache || allVoicesCache.expiresAt <= Date.now()) {
+      const data = fetchAllAffiliateVoices();
+      const entry = { data, expiresAt: Date.now() + ALL_VOICES_CACHE_TTL_MS };
+      allVoicesCache = entry;
+      // A failed rebuild must not be served for the whole TTL, but a stale
+      // rejection must not evict a newer entry either.
+      data.catch(() => { if (allVoicesCache === entry) allVoicesCache = null; });
+    }
+    sendValidatedJSON(res, PlusVoicesResponseSchema, await allVoicesCache.data);
   } catch (error) {
     next(error);
   }

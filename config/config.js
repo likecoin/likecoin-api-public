@@ -65,8 +65,9 @@ config.REVENUECAT_PLUS_ENTITLEMENT_ID = process.env.REVENUECAT_PLUS_ENTITLEMENT_
 // Product-id lists stay raw comma-separated strings here; the consumer parses them.
 config.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_MONTHLY_PRODUCT_IDS || ''; // comma-separated store product ids for the monthly period
 config.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS = process.env.REVENUECAT_PLUS_YEARLY_PRODUCT_IDS || ''; // comma-separated store product ids for the yearly period
-// Civic tier IAP. Civic store products must grant BOTH the plus and civic
-// entitlements in the RC dashboard; empty product-id lists leave Civic inert.
+// Civic tier IAP. Civic store products should grant BOTH the plus and civic
+// entitlements in the RC dashboard; a matching civic product id (below) marks an
+// event as Civic, with the civic entitlement id as fallback when it's absent.
 config.REVENUECAT_CIVIC_ENTITLEMENT_ID = process.env.REVENUECAT_CIVIC_ENTITLEMENT_ID || 'civic'; // RC entitlement identifier that marks the Civic tier
 config.REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS = process.env.REVENUECAT_CIVIC_MONTHLY_PRODUCT_IDS || ''; // comma-separated Civic store product ids, monthly
 config.REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS = process.env.REVENUECAT_CIVIC_YEARLY_PRODUCT_IDS || ''; // comma-separated Civic store product ids, yearly

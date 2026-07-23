@@ -43,6 +43,47 @@ export const PlusGiftNewBodySchema = TrackingFieldsSchema.extend({
   giftInfo: BookGiftInfoBodySchema,
 });
 
+// Shared-membership seat invite (POST /plus/shared/members): the member's email
+// is the invite identity; name/message only personalize the invite email.
+export const PlusSharedMemberNewBodySchema = z.object({
+  email: z.string().email(),
+  name: z.string().optional(),
+  message: z.string().optional(),
+});
+
+export const PlusSharedMemberNewResponseSchema = z.object({
+  inviteId: z.string(),
+  remainingSeats: z.number().int().min(0),
+});
+
+// Shared-membership seat usage (GET /plus/shared/members): revoked invites free
+// their seat, so only pending/claimed invites are listed and counted.
+export const PlusSharedMembersResponseSchema = z.object({
+  used: z.number().int().min(0),
+  total: z.number().int(),
+  remaining: z.number().int().min(0),
+  members: z.array(z.object({
+    inviteId: z.string(),
+    email: z.string(),
+    name: z.string().optional(),
+    status: z.enum(['pending', 'claimed']),
+    timestamp: z.number().optional(),
+    claimTimestamp: z.number().optional(),
+  })),
+});
+
+// Claim a member seat (POST /plus/shared/members/claim). giverLikerId addresses
+// the invite directly (no collection-group lookup); token authorizes the claim.
+export const PlusSharedMemberClaimBodySchema = z.object({
+  giverLikerId: z.string().min(1),
+  inviteId: z.string().min(1),
+  token: z.string().min(1),
+});
+
+export const PlusSharedMemberInviteIdParamsSchema = z.object({
+  inviteId: z.string().min(1),
+});
+
 export const PlusCartIdParamsSchema = z.object({
   cartId: z.string().min(1),
 });
@@ -120,6 +161,17 @@ export const PlusAffiliateResponseSchema = z.discriminatedUnion('active', [
   PlusAffiliateInactiveSchema,
   PlusAffiliateActiveSchema,
 ]);
+
+// All active affiliate voice configs (GET /plus/voices) — the Civic premium
+// voice pool. Voice/scope fields mirror the public per-likerId affiliate view.
+export const PlusVoicesResponseSchema = z.object({
+  affiliates: z.array(z.object({
+    likerId: z.string(),
+    affiliateClassIds: z.array(z.string()),
+    affiliatePublisherWallets: z.array(z.string()),
+    customVoices: z.array(AffiliateCustomVoiceSchema),
+  })),
+});
 
 // Self view: the authenticated user's effective affiliate-voice sources. A Plus
 // subscriber draws voices from their `plusAffiliateFrom` affiliate; if the user

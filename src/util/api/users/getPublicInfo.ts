@@ -87,7 +87,11 @@ export function formatUserCivicLikerProperies(
     // subscriptionId/customerId; gifts carry them too (Stripe-managed). Mirrors
     // isStripeOwnedLikerPlus in plus/revenuecat.ts (inlined to avoid an import
     // cycle — revenuecat.ts already imports from this module).
-    if (likerPlus.provider === 'stripe' || likerPlus.subscriptionId || likerPlus.customerId) {
+    // Shared-granted records carry no Stripe/RevenueCat objects; check first
+    // so they can never be misread as either billing system.
+    if (likerPlus.provider === 'shared') {
+      payload.likerPlusProvider = 'shared';
+    } else if (likerPlus.provider === 'stripe' || likerPlus.subscriptionId || likerPlus.customerId) {
       payload.likerPlusProvider = 'stripe';
     } else if (likerPlus.provider === 'revenuecat') {
       payload.likerPlusProvider = 'revenuecat';

@@ -196,6 +196,11 @@ export const PLUS_YEARLY_PRICE = 99.99;
 export const PLUS_CIVIC_MONTHLY_PRICE = 99.99;
 export const PLUS_CIVIC_YEARLY_PRICE = 999.99;
 
+// Civic-tier benefit: revocable shared-membership seats. A seat is held by a
+// pending or claimed invite; member access follows the giver's own Civic
+// subscription lifecycle (see src/util/api/plus/sharedMember.ts).
+export const SHARED_MEMBER_SEATS = 9;
+
 // Subscription tiers. Civic is a superset of Plus: a Civic member always reads
 // as isLikerPlus, with `tier` as the discriminator. Named LIKER_PLUS_TIERS (not
 // "civic*") to stay distinct from the legacy Civic Liker program fields.

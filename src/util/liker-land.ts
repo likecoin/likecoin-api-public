@@ -548,6 +548,23 @@ export const getPlusGiftPageClaimURL = ({
   return getBook3URL(`/gift/plus/claim?${qs}`, { language });
 };
 
+// Claim page for a shared-membership invite. Deliberately not locale-prefixed:
+// the client contract is exactly /shared/claim?giver=...&invite=...&token=....
+// `giver` is required — the claim endpoint addresses the invite doc under the
+// giver's user record, so a link without it cannot be claimed.
+export const getSharedMemberClaimURL = ({
+  giverLikerId,
+  inviteId,
+  token,
+}: {
+  giverLikerId: string;
+  inviteId: string;
+  token: string;
+}): string => {
+  const qs = new URLSearchParams({ giver: giverLikerId, invite: inviteId, token }).toString();
+  return `https://${BOOK3_HOSTNAME}/shared/claim?${qs}`;
+};
+
 export async function findLikerLandWalletUserWithVerifiedEmail(email) {
   try {
     const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {

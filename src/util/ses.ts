@@ -14,6 +14,7 @@ import {
 } from '../constant';
 import { convertUSDPriceToCurrency } from './pricing';
 import {
+  getSharedMemberClaimURL,
   getPlusGiftPageClaimURL,
   getPlusPageURL,
   getBook3NFTClaimPageURL,
@@ -1027,6 +1028,75 @@ export function sendPlusGiftPendingClaimEmail({
     }).body;
   return sendSESTemplateEmail({
     functionName: 'sendPlusGiftPendingClaimEmail',
+    to: [toEmail],
+    cc: ccAddresses,
+    bcc: SALES_BCC,
+    title,
+    html,
+  });
+}
+
+// Shared-membership seat invite. Sibling of sendPlusGiftPendingClaimEmail: same
+// template, but the claim link is the /shared/claim invite URL.
+export function sendSharedMemberInviteEmail({
+  fromName,
+  fromEmail,
+  toName,
+  toEmail,
+  message,
+  giverLikerId,
+  inviteId,
+  token,
+  language = 'zh',
+}: {
+  fromName: string;
+  fromEmail?: string;
+  toName?: string;
+  toEmail: string;
+  message?: string;
+  giverLikerId: string;
+  inviteId: string;
+  token: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const title = isEn
+    ? `${fromName} has shared a Plus membership with you`
+    : `${fromName} 與你分享了 Plus 會籍`;
+  const claimPageURL = getSharedMemberClaimURL({ giverLikerId, inviteId, token });
+  const ccAddresses: string[] = [];
+  if (fromEmail) {
+    ccAddresses.push(fromEmail);
+  }
+  const html = isEn
+    ? getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>Dear ${toName || 'reader'},</p>
+            <p>${fromName} has shared a Plus membership with you.</p>
+            <p>Please register at <a href="${claimPageURL}">3ook.com</a> to claim your membership and start your AI reading journey.</p>`,
+      messageTitle1: `${fromName}'s message`,
+      messageContent1: message,
+      buttonText1: 'Claim my Plus membership',
+      buttonHref1: claimPageURL,
+      append1: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
+            <br>May you enjoy the pleasure of reading.</p>
+            <p>3ook.com</p>`,
+    }).body
+    : getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>親愛的 ${toName || '讀者'}：</p>
+            <p>${fromName} 與你分享了 Plus 會籍。</p>
+            <p>請在 <a href="${claimPageURL}">3ook.com</a> 註冊獲取會籍，開始你的 AI 閱讀之旅。</p>`,
+      messageTitle1: `${fromName} 的留言`,
+      messageContent1: message,
+      buttonText1: '領取我的 Plus 會籍',
+      buttonHref1: claimPageURL,
+      append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>願你享受閱讀的樂趣。</p>
+            <p>3ook.com</p>`,
+    }).body;
+  return sendSESTemplateEmail({
+    functionName: 'sendSharedMemberInviteEmail',
     to: [toEmail],
     cc: ccAddresses,
     bcc: SALES_BCC,

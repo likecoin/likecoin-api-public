@@ -14,6 +14,13 @@ import {
   mapAttributionExtraProperties,
   resolveAffiliateGift,
 } from './index';
+// A shared-granted record is owned by the giver's lifecycle: terminal RevenueCat
+// events must never mutate it; only a grant (the member buying their own sub) may.
+import {
+  extendSharedMemberAccess,
+  isSharedGrantedLikerPlus,
+  revokeSharedMemberAccess,
+} from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
@@ -302,6 +309,21 @@ async function handleGrant(
     Object.assign(grantUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
   }
   await userCollection.doc(likerId).update(grantUpdate);
+
+  // Shared-membership seats follow the giver's Civic lifecycle: a Civic grant carries
+  // claimed members into the new period; a Civic→Plus product change
+  // (downgrade) revokes them. Skipped for quarantined sandbox traffic, which
+  // must not touch real members. Both helpers never fail the webhook.
+  if (!isQuarantinedSandbox(isSandbox)) {
+    if (tier === 'civic') {
+      await extendSharedMemberAccess(likerId, {
+        currentPeriodStart: purchasedAtMs,
+        currentPeriodEnd,
+      });
+    } else if (user.likerPlus?.tier === 'civic') {
+      await revokeSharedMemberAccess(likerId);
+    }
+  }
 
   // Skip the cross-Liker-ID dedupe query only when this Liker ID already RC-owns
   // this transaction with still-active access (the dominant case for RENEWAL et
@@ -606,6 +628,7 @@ async function revokeIfRevenueCatOwned(
 ): Promise<boolean> {
   if (!likerPlus) return false;
   if (isStripeOwnedLikerPlus(likerPlus)) return false;
+  if (isSharedGrantedLikerPlus(likerPlus)) return false;
   if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
   // Revoke access first — the Firestore write is the source of truth. Only after
   // it succeeds do we report a real revocation (callers audit-log on the return
@@ -687,8 +710,10 @@ async function handleExpiration(
   isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
-  // (web) currently owns. Grants always reclaim the record; terminal events do not.
+  // (web) currently owns, or a shared-granted record owned by a giver's
+  // lifecycle. Grants always reclaim the record; terminal events do not.
   if (isStripeOwnedLikerPlus(user.likerPlus)) return;
+  if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   const expiredAt = event.expiration_at_ms || Date.now();
@@ -696,6 +721,10 @@ async function handleExpiration(
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
     subscriptionStatus: 'canceled',
   });
+  // An expired Civic sub takes its members' access with it.
+  if (user.likerPlus.tier === 'civic') {
+    await revokeSharedMemberAccess(likerId);
+  }
   if (isQuarantinedSandbox(isSandbox)) return;
   await clearIntercomPlusFlags(likerId);
   await sendIntercomEvent({ userId: likerId, eventName: 'plus_subscription_end' });
@@ -707,6 +736,7 @@ async function handleBillingIssue(
   isSandbox: boolean,
 ) {
   if (isStripeOwnedLikerPlus(user.likerPlus)) return;
+  if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (user.likerPlus.subscriptionStatus === 'past_due') return;

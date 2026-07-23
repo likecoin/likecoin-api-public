@@ -37,6 +37,11 @@ import {
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import {
+  extendSharedMemberAccess,
+  isSharedGrantedLikerPlus,
+  revokeSharedMemberAccess,
+} from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
@@ -553,6 +558,15 @@ async function writePlusUserRecordAndAccrual({
       console.error(`Error recording Plus reading accrual for ${likerId}:`, err);
     }
   }
+
+  // Shared-membership seats follow the giver's Civic lifecycle: a Civic charge carries
+  // claimed members into the new period; a Civic→Plus downgrade invoice revokes
+  // them. Both helpers are best-effort and never fail the webhook.
+  if (isCivic) {
+    await extendSharedMemberAccess(likerId, { currentPeriodStart, currentPeriodEnd });
+  } else if (user.likerPlus?.tier === 'civic') {
+    await revokeSharedMemberAccess(likerId);
+  }
 }
 
 // Emit every post-write notification for a processed subscription invoice:
@@ -983,7 +997,11 @@ async function resolvePlusCheckoutCustomer(wallet?: string): Promise<{
       const { bookUserInfo, likerUserInfo } = userInfo;
       if (likerUserInfo) {
         userEmail = likerUserInfo.email;
-        if (likerUserInfo.isLikerPlus) {
+        // A shared-granted member may buy their own subscription: the paid sub
+        // supersedes the shared grant (renewals then skip them — the shared-member
+        // extend/revoke helpers only touch records with currentType 'shared').
+        const isSharedGranted = likerUserInfo.likerPlus?.currentType === 'shared';
+        if (likerUserInfo.isLikerPlus && !isSharedGranted) {
           throw new ValidationError('User already has a Liker Plus subscription.', 429);
         }
       }
@@ -1346,22 +1364,32 @@ export async function processStripeSubscriptionCancellation(
   const isTrialEnd = subscription.trial_end && subscription.cancel_at === subscription.trial_end;
 
   if (user) {
+    // A shared-granted record is owned by the giver's lifecycle, not this
+    // (stale/foreign) Stripe subscription — never let it clobber the record.
+    const isSharedGranted = isSharedGrantedLikerPlus(user.likerPlus);
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
-    if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
-      await userCollection.doc(user.user).update({
-        likerPlus: {
-          ...user.likerPlus,
-          currentPeriodEnd: Date.now(),
-          subscriptionStatus: 'canceled',
-        },
+    if (!isSharedGranted) {
+      if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
+        await userCollection.doc(user.user).update({
+          likerPlus: {
+            ...user.likerPlus,
+            currentPeriodEnd: Date.now(),
+            subscriptionStatus: 'canceled',
+          },
+        });
+      }
+
+      await updateIntercomUserAttributes(user.user, {
+        is_liker_plus: false,
+        is_liker_plus_trial: false,
+        liker_plus_tier: '',
       });
     }
 
-    await updateIntercomUserAttributes(user.user, {
-      is_liker_plus: false,
-      is_liker_plus_trial: false,
-      liker_plus_tier: '',
-    });
+    // A canceled Civic sub takes its members' access with it.
+    if (user.likerPlus?.tier === 'civic') {
+      await revokeSharedMemberAccess(user.user);
+    }
   } else {
     // eslint-disable-next-line no-console
     console.warn(`No user record for evmWallet: ${evmWallet}, likeWallet: ${likeWallet}, subscription: ${subscriptionId}; emitting analytics only`);
