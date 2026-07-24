@@ -38,6 +38,23 @@ export const PlusPriceBodySchema = z.object({
   giftPriceIndex: GiftPriceIndexSchema.optional(),
 });
 
+// POST /plus/portal body. An empty body opens the portal homepage (manage /
+// cancel). The `upgrade_confirm` flow instead deep-links a Stripe-hosted
+// confirmation of a specific tier/period change, so the member sees the
+// prorated charge (and passes 3DS on-session) before the update applies.
+// A union (not optional fields) so an upgrade_confirm request missing its
+// period/tier is a 400, never a silent fall-through to the portal homepage.
+// The homepage variant is optional because a bodyless POST (the plain portal
+// call sends none) reaches Express 5 with req.body undefined, not {}.
+export const PlusPortalBodySchema = z.union([
+  z.object({
+    flow: z.literal('upgrade_confirm'),
+    period: z.enum(['monthly', 'yearly']),
+    tier: z.enum(LIKER_PLUS_TIERS),
+  }),
+  z.object({ flow: z.undefined() }).optional(),
+]);
+
 export const PlusGiftNewBodySchema = TrackingFieldsSchema.extend({
   coupon: z.string().optional(),
   giftInfo: BookGiftInfoBodySchema,

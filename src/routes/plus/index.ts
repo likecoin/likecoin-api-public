@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type Stripe from 'stripe';
 import { checksumAddress, isAddress } from 'viem';
 import type { z } from 'zod';
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
@@ -16,6 +17,7 @@ import {
   PlusNewBodySchema,
   PlusNewQuerySchema,
   PlusNewResponseSchema,
+  PlusPortalBodySchema,
   PlusPortalResponseSchema,
   PlusPriceBodySchema,
   PlusReadingUsageBodySchema,
@@ -37,14 +39,17 @@ import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId 
 import type { NFTBookUserData } from '../../types/book';
 import { getStripeClient } from '../../util/stripe';
 import {
-  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE, PUBSUB_TOPIC_MISC,
-  SUPPORTED_PLUS_CURRENCIES,
+  BOOK3_HOSTNAME, PLUS_MONTHLY_PRICE, PLUS_YEARLY_PRICE,
+  PUBSUB_TOPIC_MISC, SUPPORTED_PLUS_CURRENCIES,
 } from '../../constant';
 import type { LikerPlusTier, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
 import {
+  comparePlusTiers,
   createNewPlusCheckoutSession,
+  createPlusUpgradePortalSession,
   getPlusTierUSDPrice,
+  stripeIntervalToPlusPeriod,
   updateSubscriptionPeriod,
   type PlusPeriod,
 } from '../../util/api/plus';
@@ -441,6 +446,33 @@ router.post('/gift/:cartId/claim', jwtAuth('write:plus'), validateParams(PlusCar
   }
 });
 
+// Shared guards for the plan-change endpoints (/price and /portal
+// upgrade_confirm): resolve the caller's current plan from an already-fetched
+// user record and reject no-op changes. Error strings are API surface the
+// client may match on; keep them in one place.
+function resolveCurrentPlusPlanOrThrow(
+  likerUser: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>>,
+  { period, tier }: { period: PlusPeriod; tier?: LikerPlusTier },
+) {
+  if (!likerUser?.likerPlus) {
+    throw new ValidationError('No Liker Plus subscription found for this user.', 404);
+  }
+  const { subscriptionId, period: existingPeriod } = likerUser.likerPlus;
+  if (!subscriptionId) {
+    throw new ValidationError('No subscription found for this user.', 404);
+  }
+  // Pre-Civic records have no tier; they are Plus.
+  const existingTier: LikerPlusTier = likerUser.likerPlus.tier || 'plus';
+  const targetTier: LikerPlusTier = tier || existingTier;
+  if (existingPeriod && period === stripeIntervalToPlusPeriod(existingPeriod)
+    && targetTier === existingTier) {
+    throw new ValidationError('Subscription plan is already set to this value.', 400);
+  }
+  return {
+    subscriptionId, existingPeriod, existingTier, targetTier,
+  };
+}
+
 router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), async (req, res, next) => {
   const {
     period,
@@ -454,19 +486,9 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
     }
     const { wallet } = req.user;
     const userInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
-    if (!userInfo?.likerPlus) {
-      throw new ValidationError('No Liker Plus subscription found for this user.', 404);
-    }
-    const { subscriptionId, period: existingPeriod } = userInfo.likerPlus;
-    if (!subscriptionId) {
-      throw new ValidationError('No subscription found for this user.', 404);
-    }
-    // Pre-Civic records have no tier; they are Plus.
-    const existingTier: LikerPlusTier = userInfo.likerPlus.tier || 'plus';
-    const targetTier: LikerPlusTier = tier || existingTier;
-    if (period === `${existingPeriod}ly` && targetTier === existingTier) {
-      throw new ValidationError('Subscription plan is already set to this value.', 400);
-    }
+    const {
+      subscriptionId, existingPeriod, existingTier, targetTier,
+    } = resolveCurrentPlusPlanOrThrow(userInfo, { period, tier });
     await updateSubscriptionPeriod(subscriptionId, period, {
       tier: targetTier,
       giftClassId,
@@ -678,11 +700,12 @@ router.get('/voices', async (req, res, next) => {
   }
 });
 
-router.post('/portal', jwtAuth('write:plus'), async (req, res, next) => {
+router.post('/portal', jwtAuth('write:plus'), validateBody(PlusPortalBodySchema), async (req, res, next) => {
   try {
+    const { flow, period, tier } = req.body || {};
     const { wallet } = req.user;
     const userInfo = await getBookUserInfoFromWallet(wallet);
-    const { bookUserInfo } = userInfo || {};
+    const { bookUserInfo, likerUserInfo } = userInfo || {};
     const customerId = bookUserInfo?.stripeCustomerId;
     if (!customerId) {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -691,16 +714,42 @@ router.post('/portal', jwtAuth('write:plus'), async (req, res, next) => {
       });
       throw new ValidationError('No Stripe customer ID found for this user. Please subscribe first.', 400);
     }
-    const session = await getStripeClient().billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `https://${BOOK3_HOSTNAME}/account?action=billing-return`,
-    });
+    let session: Stripe.BillingPortal.Session;
+    let paymentId: string | undefined;
+    if (flow === 'upgrade_confirm') {
+      const { subscriptionId, existingTier } = resolveCurrentPlusPlanOrThrow(
+        likerUserInfo,
+        { period, tier },
+      );
+      // Confirm-flow is for paid upgrades only; downgrades credit at renewal
+      // and are self-served from the portal homepage instead.
+      if (comparePlusTiers(tier, existingTier) < 0) {
+        throw new ValidationError('Only tier upgrades are supported by this flow.', 400);
+      }
+      ({ session, paymentId } = await createPlusUpgradePortalSession({
+        customerId,
+        subscriptionId,
+        tier,
+        period,
+      }));
+    } else {
+      session = await getStripeClient().billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `https://${BOOK3_HOSTNAME}/account?action=billing-return`,
+      });
+    }
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusBillingPortalSessionCreated',
       sessionId: session.id,
       wallet,
       customerId,
+      flow,
+      period,
+      tier,
+      // Embedded in the success return URL as the analytics transaction id;
+      // logged here so the conversion can be correlated server-side.
+      paymentId,
     });
 
     sendValidatedJSON(res, PlusPortalResponseSchema, {
