@@ -296,6 +296,31 @@ export async function settlePlusReadingPeriod({
   const bookUsages: BookUsage[] = [...usageByClass.values()]
     .filter((b) => b.readingTimeMs > 0 || b.ttsTimeMs > 0);
 
+  // Unique library readers, from the per-reader grain under each day rollup in the window
+  // (ID-only listings, no doc reads). Reader docs exist only for payout-eligible usage,
+  // so this undercounts vs publisher engagement stats that include non-library reads.
+  // A zero-library-time rollup can't have reader docs (ingest gates the reader write on
+  // library time), so skip its listing round trip.
+  const readerDayDocs = usageSnap.docs.filter((doc) => {
+    const data = doc.data() || {};
+    return (data.readingTimeMs || 0) > 0 || (data.ttsTimeMs || 0) > 0;
+  });
+  const readerLists = await mapInChunks(readerDayDocs, async (doc) => ({
+    classId: doc.ref.parent.parent?.id || '',
+    refs: await doc.ref.collection('readers').listDocuments(),
+  }));
+  const readersByClass = new Map<string, Set<string>>();
+  const allReaders = new Set<string>();
+  readerLists.forEach(({ classId, refs }) => {
+    if (!classId) return;
+    const readers = readersByClass.get(classId) || new Set<string>();
+    refs.forEach(({ id }) => {
+      readers.add(id);
+      allReaders.add(id);
+    });
+    readersByClass.set(classId, readers);
+  });
+
   const totals = bookUsages.reduce(
     (acc, b) => ({
       readingTimeMs: acc.readingTimeMs + b.readingTimeMs,
@@ -308,10 +333,14 @@ export async function settlePlusReadingPeriod({
   // Round each book down: per-book rounding then never sums past the pool (under the
   // pool modes), so we can't overpay from the platform balance. The sub-cent dust just
   // stays unallocated. Sub-cent allocations floor to 0 and are skipped below.
-  const books: Array<BookUsage & { amountCents: number }> = bookUsages.map((book) => ({
-    ...book,
-    amountCents: Math.floor(allocateBookUSD(rates, book) * 100),
-  }));
+  // A reader of N books counts once per book, so per-book readerCounts can sum past
+  // the summary's unique readerCount.
+  const books: Array<BookUsage & { amountCents: number; readerCount: number }> = bookUsages
+    .map((book) => ({
+      ...book,
+      amountCents: Math.floor(allocateBookUSD(rates, book) * 100),
+      readerCount: readersByClass.get(book.classId)?.size || 0,
+    }));
   const payableBooks = books.filter((b) => b.amountCents > 0);
   const bookDataByClassId = await getBookDataByClassId(payableBooks.map((b) => b.classId));
 
@@ -387,6 +416,7 @@ export async function settlePlusReadingPeriod({
     totalReadingTimeMs: totals.readingTimeMs,
     totalTTSTimeMs: totals.ttsTimeMs,
     bookCount: books.length,
+    readerCount: allReaders.size,
     paidCount,
     pendingCount,
     paidCents,

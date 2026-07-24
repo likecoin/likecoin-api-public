@@ -329,6 +329,8 @@ function createCollection(data: StubData[]): any {
   return {
     where: (field: string, op: string, value: any) => collectionWhere(data, field, op, value),
     doc: (id: string) => collectionDoc(data, id),
+    // ID-only listing, mirroring CollectionReference#listDocuments (refs, no doc reads).
+    listDocuments: () => Promise.resolve(data.map((d) => ({ id: d.id }))),
     get: () => {
       const docs = querySnapshotDocs(data, data);
       return Promise.resolve({
@@ -491,12 +493,24 @@ function createDb(): Firestore {
       // Build a chainable query that keeps the parentId tagging through where() so a filtered
       // collection-group snapshot still resolves doc.ref.parent.parent.id (real Firestore does).
       const makeQuery = (rows: Array<{ d: StubData; parentId: string }>): any => {
-        const docs = rows.map(({ d, parentId }) => ({
-          id: d.id,
-          data: () => docData(d),
-          exists: true,
-          ref: { parent: { parent: { id: parentId } } },
-        }));
+        const docs = rows.map((row) => {
+          const { d, parentId } = row;
+          return {
+            id: d.id,
+            data: () => docData(d),
+            exists: true,
+            ref: {
+              parent: { parent: { id: parentId } },
+              // Settlement descends from a plusUsage group doc into its readers grain.
+              // Lazily attach like collectionDoc does, so writes through this ref persist.
+              collection: (collectionId: string) => {
+                if (!d.collection) d.collection = {};
+                if (!d.collection[collectionId]) d.collection[collectionId] = [];
+                return createCollection(d.collection[collectionId]);
+              },
+            },
+          };
+        });
         return {
           get: () => Promise.resolve({
             size: docs.length,

@@ -6,6 +6,9 @@ import {
   computePlusReadingRates,
   splitAmountToWallets,
 } from '../../src/util/api/plus/settle';
+import { settlePlusReadingPeriod } from '../../src/util/api/plus/settleJob';
+import { PlusSettleResponseSchema } from '../../src/util/api/plus/schemas';
+import { likeNFTBookCollection } from '../../src/util/firebase';
 
 const min = (n: number) => n * ONE_MINUTE_IN_MS;
 const sumCents = (parts: Array<{ amountCents: number }>) => parts
@@ -173,5 +176,51 @@ describe('splitAmountToWallets', () => {
   it('returns empty when there is nothing to split or no weight', () => {
     expect(splitAmountToWallets(0, { a: 1 })).toEqual([]);
     expect(splitAmountToWallets(100, {})).toEqual([]);
+  });
+});
+
+describe('settlePlusReadingPeriod readerCount', () => {
+  // Seeds a book with one plusUsage day rollup and its per-reader grain. The stub's
+  // doc() resolves the stored object at call time, so re-fetch after each set() before
+  // descending into a subcollection.
+  async function seedBookUsageDay(
+    classId: string,
+    dayId: string,
+    readingTimeMs: number,
+    readers: string[],
+  ) {
+    // Date-only ISO strings parse as UTC midnight — the dayMs the settle range filters on.
+    const dayMs = Date.parse(dayId);
+    const bookDocRef = likeNFTBookCollection.doc(classId);
+    if (!(await bookDocRef.get()).exists) {
+      await bookDocRef.set({ classId, ownerWallet: '0xowner' });
+    }
+    const usageCol = likeNFTBookCollection.doc(classId).collection('plusUsage');
+    await usageCol.doc(dayId).set({ readingTimeMs, ttsTimeMs: 0, dayMs });
+    await Promise.all(readers.map((wallet) => usageCol.doc(dayId).collection('readers')
+      .doc(wallet).set({ readingTimeMs, ttsTimeMs: 0 })));
+  }
+
+  it('counts unique library readers per book and across the period', async () => {
+    // book1: reader A on two days (dedup within a book), + B on the second day.
+    await seedBookUsageDay('0xbook1', '2026-01-05', min(10), ['0xreaderA']);
+    await seedBookUsageDay('0xbook1', '2026-01-06', min(20), ['0xreaderA', '0xreaderB']);
+    // book2: reader B again (dedup across books in the summary).
+    await seedBookUsageDay('0xbook2', '2026-01-07', min(5), ['0xreaderB']);
+    // Outside the period — reader C must not leak into January's counts.
+    await seedBookUsageDay('0xbook1', '2025-12-31', min(15), ['0xreaderC']);
+
+    const result = await settlePlusReadingPeriod({ periodId: '2026-01', dryRun: true });
+
+    expect(result.readerCount).toBe(2); // A + B, C excluded, B counted once
+    const byClass = Object.fromEntries(result.books.map((b) => [b.classId, b]));
+    expect(byClass['0xbook1'].readerCount).toBe(2);
+    expect(byClass['0xbook2'].readerCount).toBe(1);
+
+    // Lockstep guard: sendValidatedJSON strips fields the schema doesn't know about,
+    // so the counts must survive a schema parse to actually reach the response.
+    const parsed = PlusSettleResponseSchema.parse({ success: true, ...result });
+    expect(parsed.readerCount).toBe(2);
+    expect(parsed.books.find((b) => b.classId === '0xbook1')?.readerCount).toBe(2);
   });
 });

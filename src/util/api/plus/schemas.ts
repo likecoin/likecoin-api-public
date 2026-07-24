@@ -337,6 +337,9 @@ export const PlusSettleResponseSchema = z.object({
   totalReadingTimeMs: z.number(),
   totalTTSTimeMs: z.number(),
   bookCount: z.number(),
+  // Unique library readers in the period. Non-library/free-book reads spawn no reader
+  // docs, so this undercounts vs publisher engagement stats.
+  readerCount: z.number(),
   paidCount: z.number(),
   pendingCount: z.number(),
   paidCents: z.number(),
@@ -346,6 +349,9 @@ export const PlusSettleResponseSchema = z.object({
     amountCents: z.number(),
     readingTimeMs: z.number(),
     ttsTimeMs: z.number(),
+    // Per-book unique readers; a reader of N books counts in each, so these can sum
+    // past the top-level readerCount.
+    readerCount: z.number(),
   })),
 });
 
