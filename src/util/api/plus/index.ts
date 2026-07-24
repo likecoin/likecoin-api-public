@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../../../types/user';
 
-import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
+import { getPlusPageURL, getPlusSuccessPageURL, getPlusUpgradeSuccessPageURL } from '../../liker-land';
 import {
   ONE_DAY_IN_MS,
   LIKER_PLUS_TIERS,
@@ -35,6 +35,7 @@ import {
   LIKER_PLUS_CIVIC_PRODUCT_ID,
   LIKER_PLUS_TRIAL_CONVERSION_RATE,
   LIKER_PLUS_LTV,
+  LIKER_PLUS_UPGRADE_PORTAL_CONFIG_ID,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import {
@@ -58,6 +59,26 @@ export function getPlusPriceId(tier: LikerPlusTier, period: PlusPeriod): string 
     return period === 'yearly' ? LIKER_PLUS_CIVIC_YEARLY_PRICE_ID : LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID;
   }
   return period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID;
+}
+
+// Map a Stripe product id to its Plus tier; null for non-Plus products. The
+// non-empty guard on the Civic id keeps an unconfigured deployment (both ids
+// '') from ever tier-matching a foreign product.
+export function derivePlusTierFromProductId(productId?: string | null): LikerPlusTier | null {
+  if (productId === LIKER_PLUS_PRODUCT_ID) return 'plus';
+  if (LIKER_PLUS_CIVIC_PRODUCT_ID && productId === LIKER_PLUS_CIVIC_PRODUCT_ID) return 'civic';
+  return null;
+}
+
+// Stripe bills in interval units ('month'/'year'); the API's public plan
+// vocabulary is PlusPeriod ('monthly'/'yearly'). Convert at the boundary.
+export function stripeIntervalToPlusPeriod(interval?: string): PlusPeriod {
+  return interval === 'year' ? 'yearly' : 'monthly';
+}
+
+// LIKER_PLUS_TIERS is ordered lowest to highest; positive means a is above b.
+export function comparePlusTiers(a: LikerPlusTier, b: LikerPlusTier): number {
+  return LIKER_PLUS_TIERS.indexOf(a) - LIKER_PLUS_TIERS.indexOf(b);
 }
 
 // The Plus-tier USD price for a Stripe plan interval. Civic funds the reading
@@ -255,14 +276,8 @@ async function resolvePlusInvoiceContext(
     status,
   } = subscription;
   const productId = item.price.product as string;
-  // The non-empty guard on the Civic id keeps an unconfigured deployment (both
-  // ids '') from ever tier-matching a foreign product.
-  let tier: LikerPlusTier;
-  if (productId === LIKER_PLUS_PRODUCT_ID) {
-    tier = 'plus';
-  } else if (LIKER_PLUS_CIVIC_PRODUCT_ID && productId === LIKER_PLUS_CIVIC_PRODUCT_ID) {
-    tier = 'civic';
-  } else {
+  const tier = derivePlusTierFromProductId(productId);
+  if (!tier) {
     // eslint-disable-next-line no-console
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return null;
@@ -1516,6 +1531,7 @@ const STRIPE_TO_SUBSCRIPTION_STATUS: Partial<Record<
 
 export async function processStripeSubscriptionStatusUpdate(
   subscription: Stripe.Subscription,
+  req?: Express.Request,
 ) {
   const { status } = subscription;
   const { evmWallet, likeWallet } = subscription.metadata || {};
@@ -1535,10 +1551,43 @@ export async function processStripeSubscriptionStatusUpdate(
   }
   const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
   if (!user) return;
-  if (user.likerPlus?.subscriptionStatus === subscriptionStatus) return;
-  await userCollection.doc(user.user).update({
-    'likerPlus.subscriptionStatus': subscriptionStatus,
-  });
+  const userUpdate: Record<string, unknown> = {};
+  if (user.likerPlus?.subscriptionStatus !== subscriptionStatus) {
+    userUpdate['likerPlus.subscriptionStatus'] = subscriptionStatus;
+  }
+  // Mirror tier/period from the live subscription item so a plan change applied
+  // outside /plus/price (Billing Portal confirm flow, Stripe Dashboard) flips
+  // the entitlement without waiting on its invoice.paid, which may lag payment
+  // authentication. invoice.paid stays the money-side source of truth (accrual,
+  // shared-member seats, analytics). Only the record this subscription owns.
+  const item = subscription.items.data[0];
+  const tier = derivePlusTierFromProductId(item?.price.product as string);
+  const period = item?.plan.interval;
+  const previousTier: LikerPlusTier = user.likerPlus?.tier || 'plus';
+  const previousPeriod = user.likerPlus?.period;
+  const isPlanChanged = !!(tier && period)
+    && user.likerPlus?.subscriptionId === subscription.id
+    && (tier !== previousTier || period !== previousPeriod);
+  if (isPlanChanged) {
+    userUpdate['likerPlus.tier'] = tier;
+    userUpdate['likerPlus.period'] = period;
+  }
+  if (!Object.keys(userUpdate).length) return;
+  await userCollection.doc(user.user).update(userUpdate);
+  if (isPlanChanged) {
+    // `source` lets analytics dedupe against the /plus/price route, which logs
+    // the same logType up front for changes it applies itself.
+    publisher.publish(PUBSUB_TOPIC_MISC, req ?? null, {
+      logType: 'PlusSubscriptionPlanUpdated',
+      source: 'stripe-webhook',
+      subscriptionId: subscription.id,
+      period: stripeIntervalToPlusPeriod(period),
+      tier,
+      previousPeriod,
+      previousTier,
+      wallet: evmWallet || likeWallet,
+    });
+  }
 }
 
 export async function updateSubscriptionPeriod(
@@ -1566,7 +1615,7 @@ export async function updateSubscriptionPeriod(
   // which would make every switch look like an upgrade and force an invoice.
   const previousTier: LikerPlusTier = LIKER_PLUS_TIERS
     .includes(metadata.tier as LikerPlusTier) ? metadata.tier as LikerPlusTier : 'plus';
-  const isTierUpgrade = LIKER_PLUS_TIERS.indexOf(tier) > LIKER_PLUS_TIERS.indexOf(previousTier);
+  const isTierUpgrade = comparePlusTiers(tier, previousTier) > 0;
   metadata.tier = tier;
   if (giftClassId) metadata.giftClassId = giftClassId;
   if (giftPriceIndex) metadata.giftPriceIndex = giftPriceIndex;
@@ -1597,4 +1646,71 @@ export async function updateSubscriptionPeriod(
     subscriptionId,
     updatePayload,
   );
+}
+
+// Stripe-hosted confirmation for a paid tier/period upgrade: a Billing Portal
+// deep link (subscription_update_confirm) shows the member the exact prorated
+// charge and the card on file, and runs 3DS on-session, before the update is
+// applied — unlike updateSubscriptionPeriod, which charges off-session with no
+// confirmation. The dedicated portal configuration pins proration to
+// 'always_invoice' so the upgrade invoices immediately and invoice.paid flips
+// likerPlus.tier promptly. Returns the session plus a generated paymentId that
+// the success page uses as its analytics transaction id.
+export async function createPlusUpgradePortalSession({
+  customerId,
+  subscriptionId,
+  tier,
+  period,
+}: {
+  customerId: string;
+  subscriptionId: string;
+  tier: LikerPlusTier;
+  period: PlusPeriod;
+}): Promise<{ session: Stripe.BillingPortal.Session; paymentId: string }> {
+  if (!LIKER_PLUS_UPGRADE_PORTAL_CONFIG_ID) {
+    throw new ValidationError('UPGRADE_PORTAL_NOT_AVAILABLE', 400);
+  }
+  const priceId = getPlusPriceId(tier, period);
+  if (!priceId) {
+    throw new ValidationError('CIVIC_TIER_NOT_AVAILABLE', 400);
+  }
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  // Trials are blocked (the web gates them too): the portal would apply the
+  // configuration's trial_update_behavior instead of the /plus/price trial
+  // handling (trial_end now, no proration, cycle reset).
+  if (subscription.status === 'trialing') {
+    throw new ValidationError('Cannot upgrade a trial subscription.', 400);
+  }
+  const item = subscription.items.data[0];
+  if (!item) {
+    throw new ValidationError('No subscription item found.', 400);
+  }
+  const paymentId = uuidv4();
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    configuration: LIKER_PLUS_UPGRADE_PORTAL_CONFIG_ID,
+    // "Go back" from the portal must land on the pricing page, not a charge.
+    return_url: getPlusPageURL({ plan: period }),
+    flow_data: {
+      type: 'subscription_update_confirm',
+      subscription_update_confirm: {
+        subscription: subscriptionId,
+        items: [
+          {
+            id: item.id,
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+      },
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          return_url: getPlusUpgradeSuccessPageURL({ period, tier, paymentId }),
+        },
+      },
+    },
+  });
+  return { session, paymentId };
 }
