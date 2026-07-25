@@ -67,7 +67,7 @@ Many keys are `FIRESTORE_*_ROOT` collection roots — they're env-driven so test
 
 ## Testing
 
-Vitest. Setup, mocking rules, and fixture conventions live in [`test/CLAUDE.md`](./test/CLAUDE.md), which loads automatically when working under `test/`.
+Vitest. Setup, mocking rules, and fixture conventions live in [`test/CLAUDE.md`](./test/CLAUDE.md). Agents that support directory-level `CLAUDE.md` loading (e.g., Claude Code) will pick it up automatically when working under `test/`.
 
 ## Conventions
 
