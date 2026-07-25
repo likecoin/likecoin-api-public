@@ -10,23 +10,7 @@ For a public-facing overview and quick start, see [README.md](./README.md).
 
 ## Commands
 
-```bash
-npm install              # Install (legacy deps; many deprecation/audit warnings are expected)
-npm run dev              # tsx --watch with IS_TESTNET=true, listens on 127.0.0.1:3000
-npm run lint             # ESLint --fix on src/ and test/ (airbnb-base + @typescript-eslint)
-npm run build            # clean → tsc → copy locale JSON files
-npm start                # NODE_ENV=production node dist/src/index.js (requires build)
-
-npm run test             # Vitest, single fork, 60s timeout per test
-npm run test:watch       # Watch mode
-npm run test:ui          # Vitest UI
-npm run test:coverage    # v8 coverage
-
-# Run a single test file:
-npx vitest run test/api/user.test.ts
-# Run tests matching a name:
-npx vitest run -t "Register"
-```
+Scripts are in `package.json`. `npm install` on these legacy deps produces many deprecation/audit warnings — expected, not a broken install.
 
 CI (CircleCI, `cimg/node:24.10`) runs **lint → build → start (background) → wget /healthz → test** in that order. Replicate this sequence locally before pushing.
 
@@ -47,11 +31,7 @@ Graceful shutdown handles SIGTERM/SIGINT and tears down PostHog + Firebase conne
 
 ### Routes — `src/routes/`
 
-Each top-level surface is a folder; `src/routes/all.ts` mounts them all under `/`:
-
-```
-/app /arweave /civic /cosmos /email /likerland /likernft /misc /oembed /plus /slack /tx /users /wallet
-```
+Each top-level surface is a folder; `src/routes/all.ts` mounts them all under `/`.
 
 Most folders use `index.ts` as a router that mounts subroutes (e.g. `likernft/book`, `likernft/fiat/stripe`). When adding a new surface, register it in `src/routes/all.ts`.
 
@@ -61,9 +41,8 @@ Route handlers stay thin and delegate to the util layer.
 
 `src/util/api/<surface>` mirrors the route tree and contains the actual business logic (validation, Firestore reads/writes, chain calls, Stripe orchestration). Cross-cutting helpers live at `src/util/`:
 
-- `firebase.ts` — exports the Firestore `db` and named collection refs. **Import-time side effect:** calls `admin.initializeApp()` unless `process.env.CI` is set. Tests work by mocking this module entirely (see below).
+- `firebase.ts` — exports the Firestore `db` and named collection refs. **Import-time side effect:** calls `admin.initializeApp()` unless `process.env.CI` is set. Tests work by mocking this module entirely (see [`test/CLAUDE.md`](./test/CLAUDE.md)).
 - `jwt.ts` / `middleware/jwt.ts` — JWT verification with multi-key support. Tokens with an `azp` claim are verified using a per-OAuth-client secret looked up from Firestore (cached in an LRU). Other tokens are verified against the configured public certs (`verifySecrets`/`verifyAlgorithms`).
-- `stripe.ts`, `intercom.ts`, `posthog.ts`, `sendgrid.ts`, `ses.ts`, `magic.ts`, `airtable.ts`, `gcloudPub.ts`, `gcloudStorage.ts`, `arweave/`, `cosmos/`, `evm/`, `web3/` — external integrations. Tests typically mock these.
 - `ValidationError.ts` — throw `new ValidationError(message, status, payload)` from any layer; `src/middleware/errorHandler.ts` converts it into a JSON response with `{ message, ... }`.
 
 ### Configuration — `config/`
@@ -83,21 +62,12 @@ Many keys are `FIRESTORE_*_ROOT` collection roots — they're env-driven so test
 
 ### TypeScript
 
-- `target: es2020`, `module: node16`, `strict: true` but **`noImplicitAny: false`**. `skipLibCheck: true`.
 - Custom type roots include `src/types/` (in addition to `node_modules/@types`). New `.d.ts` files belong there.
 - ESLint rule `no-console: error` is enforced. Existing `console.*` calls have inline `// eslint-disable-next-line no-console`. Use the project's logging utilities (`logServerEvents.ts`, `gcloudPub.ts`, `slack.ts`) for real telemetry instead.
 
 ## Testing
 
-Vitest, single-fork pool (`pool: 'forks'`, `singleFork: true`) so tests share state safely. Test files: `test/**/*.test.ts`. The setup file `test/setup.ts` is loaded globally and:
-
-- Sets `IS_TESTNET=true`.
-- `vi.mock`s `firebase-admin`, `../src/util/firebase` (replaced with the in-memory stub at `test/stub/firebase.ts`), `@sendgrid/mail`, `@aws-sdk/client-ses`, `../src/util/cosmos/api`, `../src/util/api/likernft/likePrice`, and `../src/util/fileupload`. It does **not** mock `config/config` — see [Configuration](#configuration--config) for why that has to happen per-file.
-- Resets the in-memory Firestore stub before every test from JSON fixtures in `test/data/` (`user.json`, `tx.json`, `likernft.json`).
-
-When adding new mocks, add them in `test/setup.ts`, not in individual test files — the one exception is `config/config`, which only works per-file (see above). When adding new fixtures, place them in `test/data/` and load them via `test/stub/firebase.ts`.
-
-External network calls in tests (e.g. `kickbox.com`) are expected to fail and don't fail the suite.
+Vitest. Setup, mocking rules, and fixture conventions live in [`test/CLAUDE.md`](./test/CLAUDE.md), which loads automatically when working under `test/`.
 
 ## Conventions
 
