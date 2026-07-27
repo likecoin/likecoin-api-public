@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   SUPPORTED_PLUS_CURRENCIES,
@@ -241,6 +242,16 @@ export const BookCMSTagBulkBodySchema = z.object({
   })),
 });
 
+// Each name costs 2 OR branches (string + object shape) in the condition query,
+// so combined names must fit half of Firestore's disjunction budget.
+const BookCMSTagConditionsSchema = z.object({
+  publishers: z.array(z.string().trim().min(1)).default([]),
+  authors: z.array(z.string().trim().min(1)).default([]),
+}).refine(
+  (c) => (c.publishers.length + c.authors.length) * 2 <= FIRESTORE_QUERY_DISJUNCTION_LIMIT,
+  { message: `publishers + authors must not exceed ${FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2} names` },
+);
+
 export const BookCMSTagUpsertBodySchema = z.object({
   name: BookCMSLocalizedStringSchema,
   description: BookCMSLocalizedStringSchema,
@@ -248,16 +259,20 @@ export const BookCMSTagUpsertBodySchema = z.object({
   isPublic: z.boolean(),
   isForLibrary: z.boolean().default(false),
   isForStore: z.boolean().default(false),
+  conditions: BookCMSTagConditionsSchema.optional(),
 });
 
 export const BookCMSTagIdParamsSchema = z.object({
   tagId: BookCMSTagIdSchema,
 });
 
+export const BOOK_CMS_LIST_OFFSET_MAX = 10000;
+
 export const BookCMSTagListQuerySchema = z.object({
   tag: BookCMSTagIdSchema,
   library: z.literal('1').optional(),
-  offset: z.coerce.number().int().min(0).default(0),
+  offset: z.coerce.number().int().min(0).max(BOOK_CMS_LIST_OFFSET_MAX)
+    .default(0),
   limit: z.coerce.number().int().min(1).max(100)
     .default(10),
 });
@@ -495,6 +510,8 @@ export const BookListModeratedResponseSchema = z.object({
 // Response mirrors the upsert body plus the server-assigned id and timestamps.
 export const BookCMSTagResponseSchema = BookCMSTagUpsertBodySchema.extend({
   id: BookCMSTagIdSchema,
+  // true when any condition is set.
+  isConditional: z.boolean(),
   // serializeCMSTagDoc converts Firestore Timestamps to millis; absent on legacy docs.
   timestamp: z.number().optional(),
   lastUpdateTimestamp: z.number().optional(),

@@ -24,6 +24,9 @@ function makeTimestampStub(d: Date) {
   return { toDate: () => d, toMillis: () => d.getTime() };
 }
 
+// Timestamp stand-in for test fixtures; response filters call `.toMillis()`.
+export const makeTimestampFromMillis = (millis: number) => makeTimestampStub(new Date(millis));
+
 // Sentinel distinct from null,
 // so the stub can distinguish a null write from a FieldValue.delete().
 // Matches real Firestore: null is stored as null, only the delete sentinel removes the field.
@@ -44,11 +47,17 @@ const admin = {
       fromDate: (d: Date) => makeTimestampStub(d),
       fromMillis: (ms: number) => makeTimestampStub(new Date(ms)),
     },
+    Filter: {
+      where: (field: string, op: string, value: unknown) => ({
+        type: 'where', field, op, value,
+      }),
+      or: (...filters: unknown[]) => ({ type: 'or', filters }),
+    },
   },
 };
 
 export { admin };
-export const { FieldValue, Timestamp } = admin.firestore;
+export const { FieldValue, Timestamp, Filter } = admin.firestore;
 
 interface StubData {
   id: string;
@@ -229,9 +238,21 @@ function matchesWhereClause(d: StubData, field: string, op: string, value: any):
   }
 }
 
-function collectionWhere(data: StubData[], field = '', op = '', value: any = ''): any {
-  // Empty op (orderBy/startAt/limit call this with no clause) means no filtering.
-  const whereData = op ? data.filter((d) => matchesWhereClause(d, field, op, value)) : data;
+// Evaluate a Filter descriptor (see admin.firestore.Filter above) against a doc.
+function matchesFilter(d: StubData, filter: any): boolean {
+  if (filter.type === 'or') return filter.filters.some((f: any) => matchesFilter(d, f));
+  return matchesWhereClause(d, filter.field, filter.op, filter.value);
+}
+
+function collectionWhere(data: StubData[], field: any = '', op = '', value: any = ''): any {
+  let whereData: StubData[];
+  if (field && typeof field === 'object') {
+    // where(Filter.or(...)) form: a single composite filter, no op/value args.
+    whereData = data.filter((d) => matchesFilter(d, field));
+  } else {
+    // Empty op (orderBy/startAt/limit call this with no clause) means no filtering.
+    whereData = op ? data.filter((d) => matchesWhereClause(d, field, op, value)) : data;
+  }
   const docs = querySnapshotDocs(whereData, data);
   const queryObj = {
     where: (sField: string, sOp: string, sValue: any) => (

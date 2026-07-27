@@ -113,4 +113,4 @@ function getBucket(): ReturnType<admin.storage.Storage['bucket']> {
 export const bucket = getBucket();
 
 export { admin };
-export const { FieldValue, Timestamp } = admin.firestore;
+export const { FieldValue, Timestamp, Filter } = admin.firestore;

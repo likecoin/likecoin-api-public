@@ -199,6 +199,7 @@ export interface NFTBookCMSTag {
   isForLibrary?: boolean;
   isForStore?: boolean;
   order: string;
+  conditions?: { publishers: string[]; authors: string[] };
   timestamp?: any;
   lastUpdateTimestamp?: any;
 }

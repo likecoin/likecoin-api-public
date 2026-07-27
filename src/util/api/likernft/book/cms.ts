@@ -1,7 +1,9 @@
 import type { NFTBookListingInfo, NFTBookCMSTag } from '../../../../types/book';
+import { FIRESTORE_QUERY_DISJUNCTION_LIMIT } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import {
   FieldValue,
+  Filter,
   likeNFTBookCollection,
   likeNFTBookCMSTagCollection,
 } from '../../../firebase';
@@ -84,10 +86,88 @@ export async function bulkSetNFTBookCMSTagOrder(
   };
 }
 
+function getBookTimestampMillis(book: NFTBookListingInfo): number {
+  const ts: any = book.timestamp;
+  return ts?.toMillis?.() ?? (typeof ts === 'number' ? ts : 0);
+}
+
+function normalizeConditionNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .filter(Boolean);
+}
+
+function normalizeConditions(conditions: NFTBookCMSTag['conditions']) {
+  // Each name costs 2 OR branches (string + object shape) in the condition query.
+  const maxNames = FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2;
+  const publishers = normalizeConditionNames(conditions?.publishers).slice(0, maxNames);
+  const authors = normalizeConditionNames(conditions?.authors)
+    .slice(0, maxNames - publishers.length);
+  return { publishers, authors };
+}
+
+// Handpicked books first, then condition-matched books by timestamp desc
+async function listNFTBookInfoByCMSTagConditions(
+  tagId: string,
+  conditions: NonNullable<NFTBookCMSTag['conditions']>,
+  { offset, limit }: { offset: number; limit: number },
+) {
+  const manualSnap = await likeNFTBookCollection
+    .where(`cmsTags.${tagId}`, '>=', 0)
+    .orderBy(`cmsTags.${tagId}`, 'asc')
+    .limit(offset + limit)
+    .get();
+  const manualBooks = manualSnap.docs
+    .map((doc) => ({ id: doc.id, ...(doc.data() as NFTBookListingInfo) }))
+    .sort((a, b) => (a.cmsTags?.[tagId] ?? 0) - (b.cmsTags?.[tagId] ?? 0));
+
+  // A full result serves the whole page; otherwise it is the complete handpicked list.
+  if (manualBooks.length >= offset + limit) return manualBooks.slice(offset, offset + limit);
+  const manualIds = new Set(manualBooks.map((b) => b.id));
+
+  // Over-fetch by manualIds.size since duplicates of handpicked books are dropped.
+  const queryLimit = (offset + limit - manualBooks.length) + manualIds.size;
+  // Contributor fields are `string | { name }`, so each field needs a branch per shape.
+  const orFilters: any[] = [];
+  ([
+    ['publisher', conditions.publishers],
+    ['author', conditions.authors],
+  ] as [string, string[]][]).forEach(([field, names]) => {
+    if (!names.length) return;
+    orFilters.push(Filter.where(field, 'in', names));
+    orFilters.push(Filter.where(`${field}.name`, 'in', names));
+  });
+  const conditionSnap = await likeNFTBookCollection
+    .where(Filter.or(...orFilters))
+    .orderBy('timestamp', 'desc')
+    .limit(queryLimit)
+    .get();
+
+  const matchedBooks = conditionSnap.docs
+    .filter((doc: any) => !manualIds.has(doc.id))
+    .map((doc: any) => ({ id: doc.id, ...(doc.data() as NFTBookListingInfo) }))
+    .sort((a: any, b: any) => getBookTimestampMillis(b) - getBookTimestampMillis(a));
+
+  return [...manualBooks, ...matchedBooks].slice(offset, offset + limit);
+}
+
 export async function listNFTBookInfoByCMSTag(
   tagId: string,
-  { offset = 0, limit = 10 }: { offset?: number; limit?: number } = {},
+  {
+    offset = 0,
+    limit = 10,
+    conditions,
+  }: {
+    offset?: number;
+    limit?: number;
+    conditions?: NFTBookCMSTag['conditions'];
+  } = {},
 ) {
+  const { publishers, authors } = normalizeConditions(conditions);
+  if (publishers.length || authors.length) {
+    return listNFTBookInfoByCMSTagConditions(tagId, { publishers, authors }, { offset, limit });
+  }
   // Filter to docs with the tag entry set; orderBy alone misses nested maps.
   // Order values are non-negative ints, so `>= 0` works as an existence check.
   const query = await likeNFTBookCollection
@@ -120,9 +200,12 @@ function serializeCMSTagDoc(
   id: string,
   data: NFTBookCMSTag,
 ) {
+  const { publishers, authors } = normalizeConditions(data.conditions);
   return {
     ...data,
     id,
+    conditions: { publishers, authors },
+    isConditional: !!(publishers.length || authors.length),
     isForLibrary: data.isForLibrary ?? false,
     isForStore: data.isForStore ?? false,
     timestamp: data.timestamp?.toMillis?.() ?? data.timestamp,

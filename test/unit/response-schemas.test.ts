@@ -29,15 +29,13 @@ import {
 import {
   WalletEvmMigrateResponseSchema,
 } from '../../src/util/api/wallet/schemas';
+import { makeTimestampFromMillis as ts } from '../stub/firebase';
 
 // Regression guard for the recurring "response schema stricter than real data" 500s.
 // Each case reproduces a legacy/partial Firestore shape that 500'd a live endpoint
 // (see the matching 🐛 fix commit) and asserts the schema now accepts it. Where a
 // filter function sits in front of the schema, we run the real filter→schema path so
 // the test fails if either side drifts back to being too strict.
-
-// Firestore Timestamp stand-in: the filters call `.toMillis()`.
-const ts = (millis: number) => ({ toMillis: () => millis });
 
 function expectParses(schema: ZodTypeAny, data: unknown) {
   const result = schema.safeParse(data);
