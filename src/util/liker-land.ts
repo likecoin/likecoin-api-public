@@ -1,12 +1,7 @@
-import axios, { AxiosError } from 'axios';
 import {
-  LIKER_LAND_HOSTNAME,
   BOOK3_HOSTNAME,
   BOOK3_CART_PAGES,
 } from '../constant';
-import {
-  LIKER_LAND_GET_WALLET_SECRET,
-} from '../../config/config';
 
 export const getBook3URL = (path = '', { language = 'zh' }: { language?: string } = {}): string => {
   const locale = language.startsWith('zh') ? '' : 'en';
@@ -564,27 +559,3 @@ export const getSharedMemberClaimURL = ({
   const qs = new URLSearchParams({ giver: giverLikerId, invite: inviteId, token }).toString();
   return `https://${BOOK3_HOSTNAME}/shared/claim?${qs}`;
 };
-
-export async function migrateLikerLandEVMWallet(likeWallet: string, evmWallet: string) {
-  try {
-    const { data } = await axios.post(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet/evm/migrate`, {
-      evmWallet,
-    }, {
-      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
-      params: { wallet: likeWallet },
-    });
-    return { user: data, error: null };
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError;
-      const errorBody = axiosError.response?.data;
-      const errorMessage = errorBody || error.message;
-      // eslint-disable-next-line no-console
-      console.error(`Error migrating Liker Land EVM wallet: ${errorMessage}`);
-      return { user: null, error: errorMessage };
-    }
-    // eslint-disable-next-line no-console
-    console.error(error);
-    return { user: null, error: (error as Error).message };
-  }
-}

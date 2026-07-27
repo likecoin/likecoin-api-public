@@ -146,7 +146,7 @@ describe('Response schema ↔ legacy data alignment', () => {
       isMigratedBookUser: true,
       isMigratedBookOwner: true,
       isMigratedLikerId: true,
-      isMigratedLikerLand: true,
+      isMigratedLikerLand: false,
       migratedLikerId: 'liker-1',
       migrateBookUserError: null,
       migrateBookOwnerError: null,
@@ -155,8 +155,8 @@ describe('Response schema ↔ legacy data alignment', () => {
     };
 
     it('strips extra (potentially PII) keys from the raw liker-land user object', () => {
-      // migratedLikerLandUser is the raw liker-land migrate body (commit 49dfbddd);
-      // only the allowlisted fields should survive.
+      // Producers now always send null, but the allowlist stays: only these
+      // fields may survive if the field is ever fed an upstream body again.
       const parsed = WalletEvmMigrateResponseSchema.parse({
         ...base,
         migratedLikerLandUser: {
@@ -185,7 +185,7 @@ describe('Response schema ↔ legacy data alignment', () => {
     });
 
     it('coerces a non-object upstream body to null instead of 500ing', () => {
-      // liker-land could 200 with an empty string / array body; must not throw.
+      // A non-object body must coerce, not throw (the 500 this once caused).
       const S = WalletEvmMigrateResponseSchema;
       expect(S.parse({ ...base, migratedLikerLandUser: '' }).migratedLikerLandUser).toBeNull();
       expect(S.parse({ ...base, migratedLikerLandUser: [] }).migratedLikerLandUser).toBeNull();

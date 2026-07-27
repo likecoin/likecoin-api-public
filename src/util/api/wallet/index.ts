@@ -11,7 +11,6 @@ import {
   likeNFTBookUserCollection,
   userCollection,
 } from '../../firebase';
-import { migrateLikerLandEVMWallet } from '../../liker-land';
 import {
   createStripeProductFromNFTBookPrice,
   getAuthorNameFromMetadata,
@@ -252,9 +251,9 @@ async function linkEVMWalletToLikerId(likerId: string, evmWallet: string, method
   }
 }
 
-// Nothing is keyed by a like-address for a v1 account, so the book user, book
-// owner and liker.land steps have no records to move: linking the EVM wallet
-// onto the user doc is the whole migration.
+// Nothing is keyed by a like-address for a v1 account, so the book user and
+// book owner steps have no records to move: linking the EVM wallet onto the
+// user doc is the whole migration.
 export async function migrateLegacyUserToEVMWallet(
   likerId: string,
   evmWallet: string,
@@ -461,23 +460,21 @@ export async function migrateLikeWalletToEVMWallet(
   const [
     { error: migrateBookOwnerError },
     { error: migrateLikerIdError, likerId },
-    { error: migrateLikerLandError, user: likerLandUser },
   ] = await Promise.all([
     migrateBookOwner(likeWallet, evmWallet),
     migrateLikerId(likeWallet, evmWallet, method),
-    migrateLikerLandEVMWallet(likeWallet, evmWallet),
   ]);
   return {
     isMigratedBookUser: !migrateBookUserError,
     isMigratedBookOwner: !migrateBookOwnerError,
     isMigratedLikerId: !migrateLikerIdError,
-    isMigratedLikerLand: !migrateLikerLandError,
+    isMigratedLikerLand: false,
     migratedLikerId: likerId,
-    migratedLikerLandUser: likerLandUser,
+    migratedLikerLandUser: null,
     migrateBookUserError,
     migrateBookOwnerError,
     migrateLikerIdError,
-    migrateLikerLandError,
+    migrateLikerLandError: null,
   };
 }
 

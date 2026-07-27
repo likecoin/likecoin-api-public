@@ -135,8 +135,6 @@ config.APP_SERVER = 'likecoin-api-public';
 
 config.CMC_API_CACHE_S = 300;
 
-config.LIKER_LAND_GET_WALLET_SECRET = '';
-
 config.AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 config.AIRTABLE_BASE_ID = '';
 config.AIRTABLE_AUTOMATION_TOKEN = process.env.AIRTABLE_AUTOMATION_TOKEN;

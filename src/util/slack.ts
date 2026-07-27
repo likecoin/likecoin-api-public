@@ -4,8 +4,8 @@ import { getBook3NFTClassPageURL } from './liker-land';
 import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
+  EXTERNAL_HOSTNAME,
   IS_TESTNET,
-  LIKER_LAND_HOSTNAME,
 } from '../constant';
 import {
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
@@ -193,7 +193,7 @@ export async function sendPlusSubscriptionSlackNotification({
     } else {
       subscriptionType = 'Plus subscription renewal';
     }
-    const userLink = userId ? `<https://${LIKER_LAND_HOSTNAME}/${userId}|${userId}>` : 'N/A';
+    const userLink = userId ? `<https://${EXTERNAL_HOSTNAME}/${userId}|${userId}>` : 'N/A';
     const stripeEnvironment = IS_TESTNET ? 'test' : '';
     const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
     // Only Stripe ids resolve to a Stripe dashboard URL. Other providers (e.g.
@@ -308,13 +308,7 @@ export function getSlackAttachmentFromError(errMessage) {
 
 function formatValueRecursively(key, value, depth = 0): string {
   const indent = '  '.repeat(depth);
-  switch (key) {
-    case 'evmWallet':
-      return `<https://${BOOK3_HOSTNAME}/shelf/${value}|${value}>`;
-    case 'likeWallet':
-      return `<https://${LIKER_LAND_HOSTNAME}/${value}|${value}>`;
-    default:
-  }
+  if (key === 'evmWallet') return `<https://${BOOK3_HOSTNAME}/shelf/${value}|${value}>`;
   switch (typeof value) {
     case 'object': {
       if (Array.isArray(value)) {
@@ -377,7 +371,8 @@ export function formatTransactionDetailsForBlockKit(data) {
     wallet, txHash,
   } = data;
 
-  const text = `*Payment ID*\n<https://dashboard.stripe.com/test/search?query=${paymentId}|${paymentId}>\n\n*Class ID*\n<https://liker.land/nft/class/${classId}|${classId}>\n\n*Session ID*\n\`${sessionId}\`\n\n*Claim Token*\n\`${claimToken}\``;
+  const classLink = getBook3NFTClassPageURL({ classId });
+  const text = `*Payment ID*\n<https://dashboard.stripe.com/test/search?query=${paymentId}|${paymentId}>\n\n*Class ID*\n<${classLink}|${classId}>\n\n*Session ID*\n\`${sessionId}\`\n\n*Claim Token*\n\`${claimToken}\``;
 
   const fields = [
     {
@@ -405,7 +400,7 @@ export function formatTransactionDetailsForBlockKit(data) {
   if (wallet) {
     fields.push({
       type: 'mrkdwn',
-      text: `*Wallet*\n<https://liker.land/${wallet}|${wallet}>`,
+      text: `*Wallet*\n\`${wallet}\``,
     });
   }
   if (txHash) {
