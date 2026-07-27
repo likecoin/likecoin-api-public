@@ -21,8 +21,6 @@ export const INTERNAL_HOSTNAME = `${HOST}:${PORT}`;
 
 export const API_HOSTNAME = IS_TESTNET ? 'api.rinkeby.like.co' : 'api.like.co';
 
-export const LIKER_LAND_HOSTNAME = IS_TESTNET ? 'rinkeby.liker.land' : 'liker.land';
-
 export const NFT_BOOKSTORE_HOSTNAME = IS_TESTNET ? 'publish.sepolia.3ook.com' : 'publish.3ook.com';
 
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;

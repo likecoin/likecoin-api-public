@@ -9,7 +9,6 @@ import {
 } from '../../../util/firebase';
 import publisher from '../../../util/gcloudPub';
 import {
-  LIKER_LAND_HOSTNAME,
   PUBSUB_TOPIC_MISC,
   SUPPORTED_PLUS_CURRENCIES,
   ONE_DAY_IN_MS,
@@ -420,7 +419,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     if ((err as Error).message === 'OUT_OF_STOCK') {
       // eslint-disable-next-line no-console
       console.error(`OUT_OF_STOCK: ${classId}`);
-      res.redirect(`https://${LIKER_LAND_HOSTNAME}/nft/class/${classId}`);
+      res.redirect(getBook3NFTClassPageURL({ classId }));
     } else {
       next(err);
     }

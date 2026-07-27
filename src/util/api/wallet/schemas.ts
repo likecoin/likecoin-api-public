@@ -49,14 +49,11 @@ export const WalletEvmMigrateResponseSchema = z.object({
   isMigratedBookUser: z.boolean(),
   isMigratedBookOwner: z.boolean(),
   isMigratedLikerId: z.boolean(),
+  // The liker.land step no longer runs: the three LikerLand fields below are
+  // frozen at false/null/null, kept so existing clients keep parsing.
+  // Nullable fields here are always null, never undefined.
   isMigratedLikerLand: z.boolean(),
-  // migrateLikeWalletToEVMWallet returns null (not undefined) for absent values,
-  // and migrateLikerLandError is an untyped axios response body.
   migratedLikerId: z.string().nullable(),
-  // Allowlist the safe fields of the raw liker-land migrate response so
-  // sendValidatedJSON strips any other (potentially PII) fields it returns.
-  // Fields are lenient and non-object bodies coerce to null since the
-  // upstream shape is not guaranteed (never re-trigger the 500).
   migratedLikerLandUser: z.preprocess(
     (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null),
     z.object({
