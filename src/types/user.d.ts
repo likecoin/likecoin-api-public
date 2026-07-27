@@ -134,7 +134,6 @@ export interface UserData {
   migrateTimestamp?: Timestamp;
 
   // Auth provider fields
-  authCoreUserId?: string;
   magicUserId?: string;
 
   // Platform fields

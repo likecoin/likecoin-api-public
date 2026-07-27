@@ -118,7 +118,7 @@ describe('USER tests', () => {
     expect(res.status).toBe(400);
   });
 
-  it('USER: Login like user. Case: success', async () => {
+  it('USER: Login like user. Case: fail, platform removed', async () => {
     const likeWallet = testingLikeWallet0;
     const payload = {
       ts: Date.now(),
@@ -128,26 +128,6 @@ describe('USER tests', () => {
       signed: message,
       signature: { signature, pub_key: publicKey },
     } = signWithCosmos(payload, cosmosPrivateKeyNew);
-    const res = await axiosist.post('/api/users/login', {
-      signature,
-      publicKey: publicKey.value,
-      message: jsonStringify(message),
-      from: testingLikeWallet0,
-      platform: 'likeWallet',
-    });
-    expect(res.status).toBe(200);
-  });
-
-  it('USER: Login like user. Case: fail, wrong signature', async () => {
-    const likeWallet = testingLikeWallet0;
-    const payload = {
-      ts: Date.now(),
-      likeWallet,
-    };
-    const {
-      signed: message,
-      signature: { signature, pub_key: publicKey },
-    } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
     const res = await axiosist.post('/api/users/login', {
       signature,
       publicKey: publicKey.value,
@@ -215,7 +195,7 @@ describe('USER tests', () => {
     expect(res.status).toBe(200);
   });
 
-  it('USER: Edit user by JSON from Web. Case: authCore user resubmitting existing email is allowed', async () => {
+  it('USER: Edit user by JSON from Web. Case: resubmitting existing email is allowed', async () => {
     const user = testingUser1;
     const token = jwtSign({ user });
     const payload = {
