@@ -18,13 +18,6 @@ export async function getStripeSubscriptionDetails(subscriptionId: string) {
   };
 }
 
-export async function getStripeSubscriptionsByCustomerId(customerId: string) {
-  const subscriptions = await getStripeClient().subscriptions.list({
-    customer: customerId,
-  });
-  return subscriptions.data;
-}
-
 export async function syncUserSubscription(data: { evmWallet?: string; subscriptionId?: string }) {
   const { evmWallet, subscriptionId } = data;
 

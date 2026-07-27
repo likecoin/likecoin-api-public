@@ -12,7 +12,6 @@ import {
   defaultAudience,
   getToken,
   issuer,
-  jwtVerify,
 } from '../util/jwt';
 import {
   oAuthClientCollection as oAuthClientDbRef,
@@ -221,24 +220,4 @@ export const jwtOptionalAuth = (
     }
     next(e);
   });
-};
-
-export const getJwtInfo = async (token: string): Promise<Record<string, unknown>> => {
-  try {
-    const decoded = jwt.decode(token);
-    if (decoded && (decoded as JwtPayload).azp) {
-      // Create a minimal request object for fetchProviderClientInfo
-      const mockReq = { auth: {} } as unknown as Request;
-      const clientSecret = await fetchProviderClientInfo(
-        (decoded as JwtPayload).azp,
-        mockReq,
-      );
-      const secret = getProviderJWTSecret(clientSecret);
-      return jwtVerify(token, secret) as JwtPayload;
-    }
-  } catch (err) {
-    if ((err as Error).name === 'TokenExpiredError') throw err;
-    // no op
-  }
-  return {};
 };

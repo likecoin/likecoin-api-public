@@ -5,8 +5,6 @@ export const supportedLocales = [
   'zh',
 ] as const;
 
-export type SupportedLocale = typeof supportedLocales[number];
-
 // Locales that may appear in stored data but are no longer offered as input.
 // 'cn' is the pre-rename code for Chinese (now 'zh') still present on legacy docs.
 export const legacyLocales = [

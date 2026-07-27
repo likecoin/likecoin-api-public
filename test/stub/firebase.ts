@@ -530,4 +530,3 @@ function createDb(): Firestore {
 
 export const db = createDb();
 export const bucket = {} as ReturnType<Storage['bucket']>;
-export const adminApp = {} as any;

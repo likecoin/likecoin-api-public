@@ -193,15 +193,3 @@ export function getNFTClassCollectionType(classMetadata) {
       return '';
   }
 }
-
-export function checkIsWritingNFT(classMetadata) {
-  return (
-    getNFTClassCollectionType(classMetadata) === nftClassCollectionType.WritingNFT
-  );
-}
-
-export function checkIsNFTBook(classMetadata) {
-  return (
-    getNFTClassCollectionType(classMetadata) === nftClassCollectionType.NFTBook
-  );
-}
