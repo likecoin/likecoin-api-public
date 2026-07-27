@@ -6,19 +6,26 @@ import { API_EXTERNAL_HOSTNAME, ARWEAVE_GATEWAY, NFT_GEM_COLOR } from '../../../
 import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
+import { escapeHtml } from '../../misc';
 import { ValidationError } from '../../ValidationError';
+
+// The chain image is the only remote tier left, so bound it: a hung gateway
+// would otherwise hold the request open indefinitely.
+const IMAGE_FETCH_TIMEOUT_MS = 30000;
 
 export const DEFAULT_NFT_IMAGE_SIZE = 1280;
 export const DEFAULT_NFT_IMAGE_WIDTH = 1280;
 export const DEFAULT_NFT_IMAGE_HEIGHT = 768;
 
 async function addTextOnImage(text, color) {
+  // Titles come from on-chain class names; an unescaped `<` yields malformed
+  // XML that sharp refuses to parse.
   const svgImage = `
     <svg width="${DEFAULT_NFT_IMAGE_WIDTH}" height="${DEFAULT_NFT_IMAGE_HEIGHT}">
       <style>
       .title { fill: ${color}; font-size: 100px; font-weight: bold;}
       </style>
-      <text x="50%" y="55%" text-anchor="middle" class="title">${text}</text>
+      <text x="50%" y="55%" text-anchor="middle" class="title">${escapeHtml(text)}</text>
     </svg>
     `;
   return Buffer.from(svgImage);
@@ -51,20 +58,20 @@ export function parseImageURLFromMetadata(image: string): string {
   return image.replace('ar://', `${ARWEAVE_GATEWAY}/`).replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
 
-export async function getBasicImage(iscnImage, chainImage, title) {
+export async function getBasicImage(chainImage: string, title: string) {
   let imageBuffer;
   let contentType;
   let isDefault = true;
-  if (iscnImage) {
-    const imageData = (await axios.get(encodedURL(iscnImage), { responseType: 'stream' }).catch(() => ({} as any)));
-    if (imageData && imageData.data) {
-      imageBuffer = imageData.data;
-      contentType = imageData.headers['content-type'] || 'image/png';
-      isDefault = false;
-    }
-  }
-  if (chainImage && !imageBuffer) {
-    const imageData = (await axios.get(encodedURL(chainImage), { responseType: 'stream' }).catch(() => ({} as any)));
+  if (chainImage) {
+    const imageData = (await axios.get(encodedURL(chainImage), {
+      responseType: 'stream',
+      timeout: IMAGE_FETCH_TIMEOUT_MS,
+    }).catch((error) => {
+      // A stream response body is left open on a non-2xx; drop it or the socket
+      // is held until the gateway times out.
+      error?.response?.data?.destroy?.();
+      return {} as any;
+    }));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
       contentType = imageData.headers['content-type'] || 'image/png';
@@ -72,8 +79,7 @@ export async function getBasicImage(iscnImage, chainImage, title) {
     }
   }
   if (isDefault) {
-    const escapedTitle = title.replace(/&/g, '&amp;');
-    const textDataBuffer = await addTextOnImage(escapedTitle, 'black');
+    const textDataBuffer = await addTextOnImage(title, 'black');
     contentType = 'image/png';
     imageBuffer = await sharp(textDataBuffer)
       .png()

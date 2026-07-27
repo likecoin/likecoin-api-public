@@ -13,6 +13,7 @@ import {
   type SupportedPlusCurrency,
 } from '../constant';
 import { convertUSDPriceToCurrency } from './pricing';
+import { escapeHtml } from './misc';
 import {
   getSharedMemberClaimURL,
   getPlusGiftPageClaimURL,
@@ -831,15 +832,6 @@ function formatPlusMonthlyPrice(currency: SupportedPlusCurrency): string {
   const amount = convertUSDPriceToCurrency(PLUS_MONTHLY_PRICE, currency);
   const formatted = currency === 'usd' ? amount.toFixed(2) : Math.round(amount).toString();
   return `${PLUS_CURRENCY_SYMBOLS[currency]}${formatted}`;
-}
-
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 export function sendPlusBookPromoCodeEmail({
