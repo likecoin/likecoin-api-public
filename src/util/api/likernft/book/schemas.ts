@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  FIRESTORE_IN_QUERY_LIMIT,
+  FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   SUPPORTED_PLUS_CURRENCIES,
@@ -242,10 +242,15 @@ export const BookCMSTagBulkBodySchema = z.object({
   })),
 });
 
+// Each name costs 2 OR branches (string + object shape) in the condition query,
+// so combined names must fit half of Firestore's disjunction budget.
 const BookCMSTagConditionsSchema = z.object({
-  publishers: z.array(z.string().trim().min(1)).max(FIRESTORE_IN_QUERY_LIMIT).default([]),
-  authors: z.array(z.string().trim().min(1)).max(FIRESTORE_IN_QUERY_LIMIT).default([]),
-});
+  publishers: z.array(z.string().trim().min(1)).default([]),
+  authors: z.array(z.string().trim().min(1)).default([]),
+}).refine(
+  (c) => (c.publishers.length + c.authors.length) * 2 <= FIRESTORE_QUERY_DISJUNCTION_LIMIT,
+  { message: `publishers + authors must not exceed ${FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2} names` },
+);
 
 export const BookCMSTagUpsertBodySchema = z.object({
   name: BookCMSLocalizedStringSchema,

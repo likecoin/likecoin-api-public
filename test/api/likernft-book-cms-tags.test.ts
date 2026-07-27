@@ -360,10 +360,19 @@ describe('CMS tag conditions (upsert + serialization)', () => {
     expect(blank.status).toBe(400);
   });
 
-  it('rejects more publishers than the Firestore in-query limit', async () => {
-    const publishers = Array.from({ length: 11 }, (_, i) => `pub-${i}`);
+  it('rejects conditions whose combined names exceed the cap', async () => {
+    const within = await post(`${BASE_URL}/cms/tags/conditional-tag`, tagBody({
+      conditions: {
+        publishers: Array.from({ length: 12 }, (_, i) => `pub-${i}`),
+        authors: Array.from({ length: 3 }, (_, i) => `auth-${i}`),
+      },
+    }), AUTHORIZATION);
+    expect(within.status).toBe(200);
+
+    const publishers = Array.from({ length: 8 }, (_, i) => `pub-${i}`);
+    const authors = Array.from({ length: 8 }, (_, i) => `auth-${i}`);
     const res = await post(`${BASE_URL}/cms/tags/conditional-tag`, tagBody({
-      conditions: { publishers },
+      conditions: { publishers, authors },
     }), AUTHORIZATION);
     expect(res.status).toBe(400);
   });
@@ -512,16 +521,16 @@ describe('GET /cms/list with conditions', () => {
     expect(listRes.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_HAND_TRIMMED]);
   });
 
-  it('caps hand-edited condition lists at the Firestore in-query limit', async () => {
+  it('caps hand-edited condition names at the combined cap', async () => {
     const BOOK_ID_WITHIN_CAP = mockEVMAddress(0xb7);
     const BOOK_ID_BEYOND_CAP = mockEVMAddress(0xb8);
-    const publishers = Array.from({ length: 11 }, (_, i) => `cap-pub-${i}`);
+    const publishers = Array.from({ length: 16 }, (_, i) => `cap-pub-${i}`);
     await likeNFTBookCMSTagCollection.doc('legacy-cap').set({
       ...tagBody(),
       conditions: { publishers, authors: [] },
     } as any);
     await makeNFTBookStub(BOOK_ID_WITHIN_CAP, { publisher: 'cap-pub-0', timestamp: ts(200) });
-    await makeNFTBookStub(BOOK_ID_BEYOND_CAP, { publisher: 'cap-pub-10', timestamp: ts(100) });
+    await makeNFTBookStub(BOOK_ID_BEYOND_CAP, { publisher: 'cap-pub-15', timestamp: ts(100) });
 
     const res = await get(`${BASE_URL}/cms/list?tag=legacy-cap&limit=10`);
     expect(res.status).toBe(200);

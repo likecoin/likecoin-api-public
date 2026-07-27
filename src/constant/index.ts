@@ -161,6 +161,9 @@ export const NFT_GEM_COLOR = [
 
 export const FIRESTORE_IN_QUERY_LIMIT = 10;
 
+// Firestore rejects queries with more than 30 disjunctions; every `in` value counts as one.
+export const FIRESTORE_QUERY_DISJUNCTION_LIMIT = 30;
+
 export const NFT_BOOK_DEFAULT_FROM_CHANNEL = 'liker_land';
 
 export const MAXIMUM_CUSTOM_PRICE_IN_DECIMAL = 99999999;

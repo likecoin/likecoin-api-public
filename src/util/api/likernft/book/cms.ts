@@ -1,8 +1,9 @@
 import type { NFTBookListingInfo, NFTBookCMSTag } from '../../../../types/book';
-import { FIRESTORE_IN_QUERY_LIMIT } from '../../../../constant';
+import { FIRESTORE_QUERY_DISJUNCTION_LIMIT } from '../../../../constant';
 import { ValidationError } from '../../../ValidationError';
 import {
   FieldValue,
+  Filter,
   likeNFTBookCollection,
   likeNFTBookCMSTagCollection,
 } from '../../../firebase';
@@ -94,8 +95,16 @@ function normalizeConditionNames(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((v) => (typeof v === 'string' ? v.trim() : ''))
-    .filter(Boolean)
-    .slice(0, FIRESTORE_IN_QUERY_LIMIT);
+    .filter(Boolean);
+}
+
+function normalizeConditions(conditions: NFTBookCMSTag['conditions']) {
+  // Each name costs 2 OR branches (string + object shape) in the condition query.
+  const maxNames = FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2;
+  const publishers = normalizeConditionNames(conditions?.publishers).slice(0, maxNames);
+  const authors = normalizeConditionNames(conditions?.authors)
+    .slice(0, maxNames - publishers.length);
+  return { publishers, authors };
 }
 
 // Handpicked books first, then condition-matched books by timestamp desc
@@ -119,29 +128,26 @@ async function listNFTBookInfoByCMSTagConditions(
 
   // Over-fetch by manualIds.size since duplicates of handpicked books are dropped.
   const queryLimit = (offset + limit - manualBooks.length) + manualIds.size;
-  const fieldNamePairs: [string, string[]][] = [
+  // Contributor fields are `string | { name }`, so each field needs a branch per shape.
+  const orFilters: any[] = [];
+  ([
     ['publisher', conditions.publishers],
     ['author', conditions.authors],
-  ];
-  const conditionQueries: Promise<any>[] = [];
-  // Contributor fields are `string | { name }`; query both shapes per field.
-  fieldNamePairs.forEach(([field, names]) => {
+  ] as [string, string[]][]).forEach(([field, names]) => {
     if (!names.length) return;
-    conditionQueries.push(likeNFTBookCollection.where(field, 'in', names)
-      .orderBy('timestamp', 'desc').limit(queryLimit).get());
-    conditionQueries.push(likeNFTBookCollection.where(`${field}.name`, 'in', names)
-      .orderBy('timestamp', 'desc').limit(queryLimit).get());
+    orFilters.push(Filter.where(field, 'in', names));
+    orFilters.push(Filter.where(`${field}.name`, 'in', names));
   });
-  const conditionSnaps = await Promise.all(conditionQueries);
+  const conditionSnap = await likeNFTBookCollection
+    .where(Filter.or(...orFilters))
+    .orderBy('timestamp', 'desc')
+    .limit(queryLimit)
+    .get();
 
-  const matchedById = new Map<string, NFTBookListingInfo & { id: string }>();
-  conditionSnaps.forEach((snap) => snap.docs.forEach((doc) => {
-    if (!manualIds.has(doc.id) && !matchedById.has(doc.id)) {
-      matchedById.set(doc.id, { id: doc.id, ...(doc.data() as NFTBookListingInfo) });
-    }
-  }));
-  const matchedBooks = [...matchedById.values()]
-    .sort((a, b) => getBookTimestampMillis(b) - getBookTimestampMillis(a));
+  const matchedBooks = conditionSnap.docs
+    .filter((doc: any) => !manualIds.has(doc.id))
+    .map((doc: any) => ({ id: doc.id, ...(doc.data() as NFTBookListingInfo) }))
+    .sort((a: any, b: any) => getBookTimestampMillis(b) - getBookTimestampMillis(a));
 
   return [...manualBooks, ...matchedBooks].slice(offset, offset + limit);
 }
@@ -158,8 +164,7 @@ export async function listNFTBookInfoByCMSTag(
     conditions?: NFTBookCMSTag['conditions'];
   } = {},
 ) {
-  const publishers = normalizeConditionNames(conditions?.publishers);
-  const authors = normalizeConditionNames(conditions?.authors);
+  const { publishers, authors } = normalizeConditions(conditions);
   if (publishers.length || authors.length) {
     return listNFTBookInfoByCMSTagConditions(tagId, { publishers, authors }, { offset, limit });
   }
@@ -195,8 +200,7 @@ function serializeCMSTagDoc(
   id: string,
   data: NFTBookCMSTag,
 ) {
-  const publishers = normalizeConditionNames(data.conditions?.publishers);
-  const authors = normalizeConditionNames(data.conditions?.authors);
+  const { publishers, authors } = normalizeConditions(data.conditions);
   return {
     ...data,
     id,
