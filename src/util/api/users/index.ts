@@ -333,8 +333,6 @@ async function userInfoQuery({
   likeWallet,
   evmWallet: rawEvmWallet,
   email,
-  platform,
-  authCoreUserId,
   magicUserId,
 }: {
   user?: string;
@@ -342,8 +340,6 @@ async function userInfoQuery({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
-  platform?: string;
-  authCoreUserId?: string;
   magicUserId?: string;
 }, {
   isEmailVerified = false,
@@ -390,21 +386,6 @@ async function userInfoQuery({
     return true;
   }) : Promise.resolve();
 
-  const authCoreQuery = (authCoreUserId && platform !== 'authcore') ? (
-    dbRef
-      .where('authCoreUserId', '==', authCoreUserId)
-      .get()
-      .then((snapshot) => {
-        snapshot.forEach((doc) => {
-          const docUser = doc.id;
-          if (user !== docUser) {
-            throw new ValidationError('AUTHCORE_USER_DUPLICATED');
-          }
-        });
-        return true;
-      })
-  ) : Promise.resolve();
-
   const magicQuery = magicUserId ? (
     dbRef
       .where('magicUserId', '==', magicUserId)
@@ -429,7 +410,6 @@ async function userInfoQuery({
     likeWalletQuery,
     evmWalletQuery,
     emailQuery,
-    authCoreQuery,
     magicQuery,
   ]);
 
@@ -442,8 +422,6 @@ export async function checkUserInfoUniqueness({
   likeWallet,
   evmWallet,
   email,
-  platform,
-  authCoreUserId,
   magicUserId,
 }: {
   user?: string;
@@ -451,8 +429,6 @@ export async function checkUserInfoUniqueness({
   likeWallet?: string;
   evmWallet?: string;
   email?: string;
-  platform?: string;
-  authCoreUserId?: string;
   magicUserId?: string;
 }, {
   isEmailVerified = false,
@@ -467,8 +443,6 @@ export async function checkUserInfoUniqueness({
     likeWallet,
     evmWallet,
     email,
-    platform,
-    authCoreUserId,
     magicUserId,
   }, { isEmailVerified });
 }

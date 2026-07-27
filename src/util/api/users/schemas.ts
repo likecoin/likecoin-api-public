@@ -33,7 +33,6 @@ const SignaturePayloadSchema = z.object({
 });
 
 export const UsersDeleteBodySchema = z.object({
-  authCoreAccessToken: z.string().optional(),
   signature: SignaturePayloadSchema,
   signMethod: z.string().optional(),
 });
@@ -133,7 +132,6 @@ export const UserDataFilteredResponseSchema = z.object({
   referrer: z.boolean(),
   isEmailVerified: z.boolean().optional(),
   isEmailEnabled: z.boolean().optional(),
-  isAuthCore: z.boolean(),
   read: z.record(z.string(), z.unknown()),
   isSubscribedCivicLiker: z.boolean().optional(),
   isCivicLikerTrial: z.boolean().optional(),

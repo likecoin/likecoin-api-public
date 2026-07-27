@@ -10,7 +10,6 @@ import {
   userCollection as dbRef,
 } from '../../util/firebase';
 import {
-  checkCosmosSignPayload,
   setAuthCookies,
   clearAuthCookies,
   userOrWalletByEmailQuery,
@@ -33,16 +32,12 @@ import {
   UsersLoginBodySchema,
   UsersUpdateAvatarResponseSchema,
 } from '../../util/api/users/schemas';
-import { authCoreJwtVerify } from '../../util/jwt';
 import publisher from '../../util/gcloudPub';
 import {
   REGISTER_LIMIT_WINDOW,
   REGISTER_LIMIT_COUNT,
 } from '../../../config/config';
 
-import {
-  isValidLikeAddress,
-} from '../../util/cosmos';
 import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
 
 export const THIRTY_S_IN_MS = 30000;
@@ -405,7 +400,6 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
   try {
     let user;
     let wallet;
-    let authCoreUserId;
     const {
       platform,
       sourceURL,
@@ -429,46 +423,6 @@ router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next)
         const userQuery = await (
           dbRef
             .where('evmWallet', '==', wallet)
-            .get()
-        );
-        if (userQuery.docs.length > 0) {
-          const [userDoc] = userQuery.docs;
-          user = userDoc.id;
-        }
-        break;
-      }
-      case 'likeWallet': {
-        const {
-          from: inputWallet, signature, publicKey, message, signMethod,
-        } = req.body;
-        if (!inputWallet || !signature || !publicKey || !message) throw new ValidationError('INVALID_PAYLOAD');
-        if (platform === 'likeWallet' && !isValidLikeAddress(inputWallet)) throw new ValidationError('INVALID_LIKE_ADDRESS');
-        if (!checkCosmosSignPayload({
-          signature, publicKey, message, inputWallet, signMethod,
-        })) {
-          throw new ValidationError('INVALID_SIGN');
-        }
-        const userQuery = await (
-          dbRef
-            .where('likeWallet', '==', inputWallet)
-            .get()
-        );
-        if (userQuery.docs.length > 0) {
-          const [userDoc] = userQuery.docs;
-          user = userDoc.id;
-        }
-        break;
-      }
-      case 'authcore': {
-        const { idToken } = req.body;
-        if (!idToken) throw new ValidationError('ID_TOKEN_MISSING');
-        const authCoreUser = authCoreJwtVerify(idToken);
-        ({
-          sub: authCoreUserId,
-        } = authCoreUser);
-        const userQuery = await (
-          dbRef
-            .where('authCoreUserId', '==', authCoreUserId)
             .get()
         );
         if (userQuery.docs.length > 0) {

@@ -6,7 +6,6 @@ import {
   PUBSUB_TOPIC_MISC,
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
-  IS_TESTNET,
 } from '../../../constant';
 import {
   userCollection as dbRef,
@@ -84,7 +83,6 @@ export async function handleUserRegistration({
     avatarURL: avatarURLInput,
     referrer,
     platform,
-    authCoreUserId,
     magicUserId,
     isEmailVerified = false,
     isPhoneVerified,
@@ -121,8 +119,6 @@ export async function handleUserRegistration({
     likeWallet,
     evmWallet,
     email,
-    platform,
-    authCoreUserId,
     magicUserId,
   }, { isEmailVerified });
 
@@ -170,7 +166,6 @@ export async function handleUserRegistration({
   const createObj: any = {
     displayName,
     cosmosWallet,
-    authCoreUserId,
     isEmailEnabled,
     locale,
   };
@@ -195,20 +190,9 @@ export async function handleUserRegistration({
     } = await normalizeUserEmail(user, email);
     if (normalizedEmail) createObj.normalizedEmail = normalizedEmail;
     if (isEmailInvalid) createObj.isEmailInvalid = isEmailInvalid;
-    if (isEmailBlacklisted !== undefined) {
-      if (!IS_TESTNET && isEmailBlacklisted && platform === 'authcore') {
-        throw new ValidationError('EMAIL_DOMAIN_LIST');
-      }
-      createObj.isEmailBlacklisted = isEmailBlacklisted;
-    }
-    if (isEmailDuplicated !== undefined) {
-      if (!IS_TESTNET && isEmailDuplicated && platform === 'authcore') {
-        throw new ValidationError('EMAIL_ALREADY_USED');
-      }
-      createObj.isEmailDuplicated = isEmailDuplicated;
-    }
+    if (isEmailBlacklisted !== undefined) createObj.isEmailBlacklisted = isEmailBlacklisted;
+    if (isEmailDuplicated !== undefined) createObj.isEmailDuplicated = isEmailDuplicated;
 
-    // TODO: trigger verify email via authcore?
     if (!(isEmailVerified || isEmailBlacklisted || isEmailInvalid)) {
       // Send verify email
       createObj.lastVerifyTs = Date.now();
