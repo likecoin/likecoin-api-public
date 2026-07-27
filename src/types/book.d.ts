@@ -94,6 +94,7 @@ export interface BookPurchaseCommission {
   amountTotal: number;
   amount: number;
   currency: string;
+  stripeFeeAmount?: number;
   description?: string;
   buyerEmail?: string;
   timestamp?: { toMillis: () => number };

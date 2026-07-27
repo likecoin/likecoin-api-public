@@ -472,6 +472,7 @@ export async function processNFTBookCart(
           channelCommission,
           likerLandArtFee,
           royaltyToSplit,
+          stripeFeeAmount,
         },
         { connectedWallets, from: itemFrom },
       );
