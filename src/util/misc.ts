@@ -34,3 +34,15 @@ export function maskString(
 export function splitByComma(value?: string): string[] {
   return (value || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
+
+// Covers the five XML predefined entities, so this is safe for both HTML email
+// bodies and XML/SVG. `&` must go first or the entities below get double-encoded.
+// `&#39;` rather than `&apos;`: the numeric form is valid in XML and in HTML4.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

@@ -6,6 +6,7 @@ import { API_EXTERNAL_HOSTNAME, ARWEAVE_GATEWAY, NFT_GEM_COLOR } from '../../../
 import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
+import { escapeHtml } from '../../misc';
 import { ValidationError } from '../../ValidationError';
 
 // The chain image is the only remote tier left, so bound it: a hung gateway
@@ -17,12 +18,14 @@ export const DEFAULT_NFT_IMAGE_WIDTH = 1280;
 export const DEFAULT_NFT_IMAGE_HEIGHT = 768;
 
 async function addTextOnImage(text, color) {
+  // Titles come from on-chain class names; an unescaped `<` yields malformed
+  // XML that sharp refuses to parse.
   const svgImage = `
     <svg width="${DEFAULT_NFT_IMAGE_WIDTH}" height="${DEFAULT_NFT_IMAGE_HEIGHT}">
       <style>
       .title { fill: ${color}; font-size: 100px; font-weight: bold;}
       </style>
-      <text x="50%" y="55%" text-anchor="middle" class="title">${text}</text>
+      <text x="50%" y="55%" text-anchor="middle" class="title">${escapeHtml(text)}</text>
     </svg>
     `;
   return Buffer.from(svgImage);
@@ -76,8 +79,7 @@ export async function getBasicImage(chainImage: string, title: string) {
     }
   }
   if (isDefault) {
-    const escapedTitle = title.replace(/&/g, '&amp;');
-    const textDataBuffer = await addTextOnImage(escapedTitle, 'black');
+    const textDataBuffer = await addTextOnImage(title, 'black');
     contentType = 'image/png';
     imageBuffer = await sharp(textDataBuffer)
       .png()
