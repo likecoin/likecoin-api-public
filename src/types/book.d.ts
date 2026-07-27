@@ -207,8 +207,6 @@ export interface NFTBookCMSTag {
 export type NFTBookListingInfoFiltered = z.infer<typeof NFTBookListingInfoFilteredSchema>;
 
 export type AffiliateConfig = z.infer<typeof AffiliateConfigSchema>;
-export type AffiliateGiftBook = NonNullable<AffiliateConfig['giftBooks']>[number];
-export type AffiliateCustomVoice = AffiliateConfig['customVoices'][number];
 
 export interface NFTBookUserData {
   userId?: string;

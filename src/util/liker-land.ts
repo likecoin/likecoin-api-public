@@ -565,38 +565,6 @@ export const getSharedMemberClaimURL = ({
   return `https://${BOOK3_HOSTNAME}/shared/claim?${qs}`;
 };
 
-export async function findLikerLandWalletUserWithVerifiedEmail(email) {
-  try {
-    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
-      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
-      params: { email },
-    });
-    return data;
-  } catch (error) {
-    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-      // eslint-disable-next-line no-console
-      console.error(error);
-    }
-    return null;
-  }
-}
-
-export async function fetchLikerLandWalletUserInfo(wallet) {
-  try {
-    const { data } = await axios.get(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet`, {
-      headers: { 'x-likerland-api-key': LIKER_LAND_GET_WALLET_SECRET },
-      params: { wallet },
-    });
-    return data;
-  } catch (error) {
-    if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-      // eslint-disable-next-line no-console
-      console.error(error);
-    }
-    return null;
-  }
-}
-
 export async function migrateLikerLandEVMWallet(likeWallet: string, evmWallet: string) {
   try {
     const { data } = await axios.post(`https://${LIKER_LAND_HOSTNAME}/api/v2/users/wallet/evm/migrate`, {

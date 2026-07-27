@@ -123,9 +123,6 @@ config.POSTHOG_HOST = '';
 config.INTERCOM_API_SECRET = '';
 config.INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN || '';
 
-config.MATTERS_APP_ID = '';
-config.MATTERS_APP_SECRET = '';
-
 config.SENDGRID_API_KEY = '';
 
 config.REGISTER_LIMIT_WINDOW = 3600000; // 1hour
@@ -140,8 +137,6 @@ config.APP_SERVER = 'likecoin-api-public';
 config.CMC_API_CACHE_S = 300;
 
 config.LIKER_LAND_GET_WALLET_SECRET = '';
-
-config.WNFT_BATCH_PURCHASE_LIMIT = 100;
 
 config.AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 config.AIRTABLE_BASE_ID = '';

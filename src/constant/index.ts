@@ -85,22 +85,6 @@ export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.
 
 export const DEFAULT_AVATAR_SIZE = 400;
 
-export const QUERY_STRING_TO_REMOVE = [
-  'fbclid',
-  'gclid',
-  'gi',
-  'gad_source',
-  'utm_id',
-  'utm_source',
-  'utm_medium',
-  'utm_campaign',
-  'utm_term',
-  'utm_content',
-  '__cf_chl_captcha_tk__',
-  '__cf_chl_jschl_tk__',
-  'ldtag_cl',
-];
-
 export const ONE_HOUR_IN_S = 3600;
 export const ONE_DAY_IN_S = 86400;
 export const ONE_MINUTE_IN_MS = 60000;
@@ -130,9 +114,6 @@ export const RPC_TX_UPDATE_COOKIE_KEY = 'like_rpc_update_token';
 
 // TODO: duplicate with ../../constant.js
 export const W3C_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-export const EMAIL_REGEX = IS_TESTNET ? /.*/ : W3C_EMAIL_REGEX;
-
-export const API_DEFAULT_SIZE_LIMIT = 4096;
 
 export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 

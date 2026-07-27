@@ -20,14 +20,6 @@ export function scaleBigInt(amount: bigint, factor: number): bigint {
   return (amount * BigInt(Math.round(factor * 1e6))) / 1000000n;
 }
 
-export function removeUndefinedObjectKey(obj) {
-  return Object.keys(obj).reduce((acc, key) => {
-    const a = acc;
-    if (obj[key] !== undefined) a[key] = obj[key];
-    return a;
-  }, {});
-}
-
 export function maskString(
   str: string | undefined,
   {

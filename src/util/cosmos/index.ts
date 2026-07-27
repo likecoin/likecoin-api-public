@@ -4,7 +4,6 @@ import secp256k1 from 'secp256k1';
 import createHash from 'create-hash';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
-import { BaseAccount } from 'cosmjs-types/cosmos/auth/v1beta1/auth';
 import {
   AuthExtension,
   BankExtension,
@@ -16,7 +15,6 @@ import {
 } from '@cosmjs/stargate';
 import {
   COSMOS_LCD_ENDPOINT as cosmosLCDEndpoint,
-  ISCN_DEV_LCD_ENDPOINT as iscnDevLCDEndpoint,
   COSMOS_RPC_ENDPOINT as cosmosRpcEndpoint,
   COSMOS_CHAIN_ID as cosmosChainId,
   COSMOS_DENOM,
@@ -68,15 +66,6 @@ export async function getCosmosAccountLIKE(address) {
   return new BigNumber(amount).shiftedBy(-9).toFixed();
 }
 
-export async function getAccountInfo(address) {
-  const queryClient = await getQueryClient();
-  const res = await queryClient.auth.account(address);
-  if (!res) throw new Error('ACCOUNT_NOT_FOUND');
-  const { value } = res;
-  const accountInfo = BaseAccount.decode(value);
-  return accountInfo;
-}
-
 export function publicKeyBinaryToAddresses(publicKey) {
   const sha256 = createHash('sha256');
   const ripemd = createHash('ripemd160');
@@ -116,8 +105,6 @@ export function changeAddressPrefix(address: string, newPrefix: string): string 
 }
 
 export const COSMOS_LCD_ENDPOINT = cosmosLCDEndpoint;
-
-export const ISCN_LCD_ENDPOINT = iscnDevLCDEndpoint;
 
 export const COSMOS_RPC_ENDPOINT = cosmosRpcEndpoint;
 

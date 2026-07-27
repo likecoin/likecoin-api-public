@@ -438,39 +438,6 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
   }
 }
 
-export async function migrateLikeUserToEVMUser(likeWallet: string, evmWallet: string, method: 'manual' | 'auto' = 'manual') {
-  const { error: migrateBookUserError } = await migrateBookUser(likeWallet, evmWallet, method);
-  if (migrateBookUserError) {
-    return {
-      isMigratedBookUser: false,
-      isMigratedLikerId: false,
-      isMigratedLikerLand: false,
-      migratedLikerId: null,
-      migratedLikerLandUser: null,
-      migrateBookUserError,
-      migrateLikerIdError: null,
-      migrateLikerLandError: null,
-    };
-  }
-  const [
-    { error: migrateLikerIdError, likerId },
-    { error: migrateLikerLandError, user: likerLandUser },
-  ] = await Promise.all([
-    migrateLikerId(likeWallet, evmWallet, method),
-    migrateLikerLandEVMWallet(likeWallet, evmWallet),
-  ]);
-  return {
-    isMigratedBookUser: !migrateBookUserError,
-    isMigratedLikerId: !migrateLikerIdError,
-    isMigratedLikerLand: !migrateLikerLandError,
-    migratedLikerId: likerId,
-    migratedLikerLandUser: likerLandUser,
-    migrateBookUserError,
-    migrateLikerIdError,
-    migrateLikerLandError,
-  };
-}
-
 export async function migrateLikeWalletToEVMWallet(
   likeWallet: string,
   evmWallet: string,
