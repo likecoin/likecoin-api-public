@@ -67,6 +67,7 @@ async function recordCommission(wallet: string, {
   amount,
   currency,
   buyerEmail,
+  stripeFeeAmount,
 }: {
   type: CommissionType,
   ownerWallet: string,
@@ -80,6 +81,7 @@ async function recordCommission(wallet: string, {
   amount: number,
   currency: string,
   buyerEmail: string | null,
+  stripeFeeAmount?: number,
 }) {
   await likeNFTBookUserCollection.doc(wallet).collection('commissions').doc(`${paymentId}-${uuidv4()}`).create({
     type,
@@ -94,6 +96,7 @@ async function recordCommission(wallet: string, {
     amount,
     currency,
     ...(buyerEmail ? { buyerEmail } : {}),
+    ...(stripeFeeAmount !== undefined ? { stripeFeeAmount } : {}),
     timestamp: FieldValue.serverTimestamp(),
   });
 }
@@ -135,6 +138,7 @@ export async function handleStripeConnectedAccount({
   likerLandArtFee = 0,
   channelCommission = 0,
   royaltyToSplit = 0,
+  stripeFeeAmount = 0,
 }, { connectedWallets: connectedWalletsInput, from }) {
   const transfers: Stripe.Transfer[] = [];
   if (!amountTotal) return { transfers };
@@ -163,6 +167,7 @@ export async function handleStripeConnectedAccount({
     amountTotal,
     currency: 'usd', // Stripe balances are settled in USD in source tx
     buyerEmail,
+    stripeFeeAmount,
   };
   if (channelCommission) {
     let fromUser: any = null;
