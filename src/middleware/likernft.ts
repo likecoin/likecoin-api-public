@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../util/ValidationError';
-import { getISCNPrefix } from '../util/cosmos/iscn';
+import getISCNPrefix from '../util/cosmos/iscn';
 import {
   getISCNPrefixByClassId,
   getCurrentClassIdByISCNId,

@@ -1,4 +1,4 @@
-import { getISCNPrefix } from '../../cosmos/iscn';
+import getISCNPrefix from '../../cosmos/iscn';
 import { ValidationError } from '../../ValidationError';
 import { likeNFTCollection } from '../../firebase';
 

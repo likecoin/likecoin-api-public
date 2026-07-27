@@ -47,7 +47,6 @@
     "bignumber.js": "^8.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "cosmjs-types": "^0.8.0",
     "create-hash": "^1.2.0",
     "disposable-email-domains": "^1.0.56",
     "eth-sig-util": "^2.5.4",
