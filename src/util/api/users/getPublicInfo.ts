@@ -20,6 +20,7 @@ import type {
   UserData,
   UserCivicLikerProperties,
 } from '../../../types/user';
+import { RC_STORE_TO_LIKER_PLUS_STORE } from './schemas';
 
 function isValidUserDoc(userDoc: DocumentSnapshot<UserData> | undefined): boolean {
   if (!userDoc || !userDoc.exists) {
@@ -95,6 +96,9 @@ export function formatUserCivicLikerProperies(
       payload.likerPlusProvider = 'stripe';
     } else if (likerPlus.provider === 'revenuecat') {
       payload.likerPlusProvider = 'revenuecat';
+      // Lets the client tell an in-app upgrade it can charge from one that would
+      // stack a second subscription on the other platform's store.
+      payload.likerPlusStore = RC_STORE_TO_LIKER_PLUS_STORE[likerPlus.store ?? ''];
     }
     const now = Date.now();
     const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;

@@ -1,13 +1,26 @@
 import { z } from 'zod';
 import { storedLocales } from '../../../locales';
 import { LIKER_PLUS_TIERS } from '../../../constant';
+import type { LikerPlusStore } from '../../../types/user';
 
 export const LIKER_PLUS_SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled'] as const;
 // Billing system owning the record; 'shared' is a seat granted by a Civic-tier
 // giver (see plus/sharedMember.ts). LikerPlusProvider is derived from this.
 export const LIKER_PLUS_PROVIDERS = ['stripe', 'revenuecat', 'shared'] as const;
+// Store owning a 'revenuecat' record. Only the two the app ships on; RevenueCat's
+// other stores (Amazon, promotional, web billing) map to undefined rather than
+// guessing, which the client reads as "unknown" and treats permissively.
+export const LIKER_PLUS_STORES = ['app_store', 'play_store'] as const;
+// `| undefined` is load-bearing: noUncheckedIndexedAccess is off, so a plain
+// Record would type the unmapped-store lookup below as always-present.
+export const RC_STORE_TO_LIKER_PLUS_STORE: Record<string, LikerPlusStore | undefined> = {
+  APP_STORE: 'app_store',
+  MAC_APP_STORE: 'app_store',
+  PLAY_STORE: 'play_store',
+};
 const LikerPlusSubscriptionStatusSchema = z.enum(LIKER_PLUS_SUBSCRIPTION_STATUSES);
 const LikerPlusProviderSchema = z.enum(LIKER_PLUS_PROVIDERS);
+const LikerPlusStoreSchema = z.enum(LIKER_PLUS_STORES);
 const LikerPlusTierSchema = z.enum(LIKER_PLUS_TIERS);
 // Response locale reflects stored data, which includes legacy codes (e.g. 'cn').
 // Input locale is guarded against supportedLocales separately.
@@ -148,6 +161,7 @@ export const UserDataFilteredResponseSchema = z.object({
   likerPlusPeriod: z.string().optional(),
   likerPlusTier: LikerPlusTierSchema.optional(),
   likerPlusProvider: LikerPlusProviderSchema.optional(),
+  likerPlusStore: LikerPlusStoreSchema.optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   locale: LocaleSchema.optional(),
@@ -158,6 +172,7 @@ export const UserDataScopedResponseSchema = UserDataMinResponseSchema.extend({
   likerPlusPeriod: z.string().optional(),
   likerPlusTier: LikerPlusTierSchema.optional(),
   likerPlusProvider: LikerPlusProviderSchema.optional(),
+  likerPlusStore: LikerPlusStoreSchema.optional(),
   likerPlusSubscriptionStatus: LikerPlusSubscriptionStatusSchema.optional(),
   plusAffiliateFrom: z.string().optional(),
   isCivicLikerRenewalPeriod: z.boolean().optional(),

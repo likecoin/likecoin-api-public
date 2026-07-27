@@ -108,6 +108,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     likerPlusPeriod,
     likerPlusTier,
     likerPlusProvider,
+    likerPlusStore,
     likerPlusSubscriptionStatus,
     plusAffiliateFrom,
     locale,
@@ -142,6 +143,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     likerPlusPeriod,
     likerPlusTier,
     likerPlusProvider,
+    likerPlusStore,
     likerPlusSubscriptionStatus,
     plusAffiliateFrom,
     locale,
@@ -205,6 +207,7 @@ export function filterUserDataScoped(
     output.likerPlusPeriod = user.likerPlusPeriod;
     output.likerPlusTier = user.likerPlusTier;
     output.likerPlusProvider = user.likerPlusProvider;
+    output.likerPlusStore = user.likerPlusStore;
     output.likerPlusSubscriptionStatus = user.likerPlusSubscriptionStatus;
     output.plusAffiliateFrom = user.plusAffiliateFrom;
   }
