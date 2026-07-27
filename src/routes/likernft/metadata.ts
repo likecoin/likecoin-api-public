@@ -1,11 +1,8 @@
 import { Router } from 'express';
-import axios from 'axios';
 import {
-  ONE_DAY_IN_S, API_EXTERNAL_HOSTNAME, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
+  ONE_DAY_IN_S, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
 } from '../../constant';
-import { iscnInfoCollection } from '../../util/firebase';
 import { filterLikeNFTMetadata, sendValidatedJSON } from '../../util/ValidationHelper';
-import { getISCNPrefixByClassId } from '../../util/api/likernft';
 import {
   getClassMetadata,
   getBasicImage,
@@ -13,7 +10,7 @@ import {
   DEFAULT_NFT_IMAGE_WIDTH,
   parseImageURLFromMetadata,
 } from '../../util/api/likernft/metadata';
-import { getNFTClassDataById, getNFTISCNData } from '../../util/cosmos/nft';
+import { getNFTClassDataById } from '../../util/cosmos/nft';
 import { fetchISCNPrefixAndClassId, normalizeClassIdParam } from '../../middleware/likernft';
 import { validateParams, validateQuery } from '../../middleware/validate';
 import {
@@ -23,12 +20,20 @@ import {
   LikeNFTMetadataResponseSchema,
 } from '../../util/api/likernft/schemas';
 import { ValidationError } from '../../util/ValidationError';
-import { sleep } from '../../util/misc';
 import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
 
 const router = Router();
 
 router.param('classId', normalizeClassIdParam);
+
+// Classes without decodable ClassData carry no `data`, so default it rather
+// than let the destructure throw a 500 on what is really a 404-ish class.
+async function getClassChainData(classId: string) {
+  const chainData = await getNFTClassDataById(classId);
+  if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+  const { name, data: { metadata = {} } = {} } = chainData;
+  return { name, metadata };
+}
 
 router.get(
   '/metadata',
@@ -69,38 +74,14 @@ router.get(
         throw new ValidationError('Invalid size');
       }
       const size = Math.min(Math.max(inputSizeNum, 1), 1920);
-      const iscnPrefix = await getISCNPrefixByClassId(classId);
-      const [{ data: ISCNData }, chainData] = await Promise.all([
-        getNFTISCNData(iscnPrefix),
-        getNFTClassDataById(classId),
-      ]);
-      if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
-      if (!ISCNData) throw new ValidationError('ISCN_NOT_FOUND', 404);
-      const iscnId = ISCNData && ISCNData['@id'] as string;
-      if (!iscnId) throw new ValidationError('ISCN_ID_NOT_FOUND', 404);
-      const { image: chainImage } = chainData.data.metadata;
-      let iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
-      if (!iscnData.exists) {
-        await axios.post(
-          `https://${API_EXTERNAL_HOSTNAME}/like/info`,
-          { iscnId },
-        );
-        await sleep(1000);
-        iscnData = await iscnInfoCollection.doc(encodeURIComponent(iscnId)).get();
-      }
-      let iscnImage = '';
-      let title = 'Writing NFT';
-      if (iscnData.exists) {
-        const data = iscnData.data();
-        if (data) {
-          ({ image: iscnImage, title = 'Writing NFT' } = data);
-        }
-      }
+      const { name, metadata } = await getClassChainData(classId);
+      const { image: chainImage } = metadata;
+      const title = name || 'Writing NFT';
       const {
         image: basicImage,
         contentType,
         isDefault: isImageMissing,
-      } = await getBasicImage(iscnImage, parseImageURLFromMetadata(chainImage), title);
+      } = await getBasicImage(parseImageURLFromMetadata(chainImage), title);
       const resizedImage = getResizedImage(size);
       // Disable image mask for now
       // const combinedImage = await getCombinedImage();
@@ -124,14 +105,13 @@ router.get(
   async (req, res, next) => {
     try {
       const { classId } = req.params;
-      const chainData = await getNFTClassDataById(classId);
-      if (!chainData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { metadata } = await getClassChainData(classId);
       const {
         is_custom_image: isCustomImage,
         nft_meta_collection_id: collectionId = '',
         uri,
         image = '',
-      } = chainData.data.metadata;
+      } = metadata;
       if (!(collectionId === WRITING_NFT_COLLECTION_ID || collectionId.includes('book'))) {
         throw new ValidationError('NOT_WRITING_NFT_OR_NFT_BOOK');
       }

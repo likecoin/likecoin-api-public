@@ -15,7 +15,6 @@ import type { TxData, ArweaveTxData } from '../../src/types/transaction';
 import type {
   ConfigData,
   OAuthClientInfo,
-  ISCNInfoData,
 } from '../../src/types/firestore';
 
 // Stub a Firestore Timestamp-like object whose closure remembers the captured Date,
@@ -394,8 +393,6 @@ export const likeNFTBookCMSTagCollection = createCollection([]) as
   CollectionReference<NFTBookCMSTag>;
 export const likeNFTBookUserCollection = createCollection(likeNftBookUserData) as
   CollectionReference<NFTBookUserData>;
-export const iscnInfoCollection = createCollection([]) as
-  CollectionReference<ISCNInfoData>;
 export const iscnArweaveTxCollection = createCollection([]) as
   CollectionReference<ArweaveTxData>;
 export const likePlusGiftCartCollection = createCollection([]) as

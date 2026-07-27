@@ -26,14 +26,6 @@ export interface OAuthClientInfo {
   isTrusted?: boolean;
 }
 
-export interface ISCNInfoData {
-  iscnId: string;
-  owner?: string;
-  metadata?: any;
-  ts?: number;
-  [key: string]: any;
-}
-
 export interface BookUserInfoResult {
   wallet: string;
   bookUserInfo: NFTBookUserData | null;

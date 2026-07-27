@@ -8,6 +8,10 @@ import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
 import { ValidationError } from '../../ValidationError';
 
+// The chain image is the only remote tier left, so bound it: a hung gateway
+// would otherwise hold the request open indefinitely.
+const IMAGE_FETCH_TIMEOUT_MS = 30000;
+
 export const DEFAULT_NFT_IMAGE_SIZE = 1280;
 export const DEFAULT_NFT_IMAGE_WIDTH = 1280;
 export const DEFAULT_NFT_IMAGE_HEIGHT = 768;
@@ -51,20 +55,20 @@ export function parseImageURLFromMetadata(image: string): string {
   return image.replace('ar://', `${ARWEAVE_GATEWAY}/`).replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
 
-export async function getBasicImage(iscnImage, chainImage, title) {
+export async function getBasicImage(chainImage: string, title: string) {
   let imageBuffer;
   let contentType;
   let isDefault = true;
-  if (iscnImage) {
-    const imageData = (await axios.get(encodedURL(iscnImage), { responseType: 'stream' }).catch(() => ({} as any)));
-    if (imageData && imageData.data) {
-      imageBuffer = imageData.data;
-      contentType = imageData.headers['content-type'] || 'image/png';
-      isDefault = false;
-    }
-  }
-  if (chainImage && !imageBuffer) {
-    const imageData = (await axios.get(encodedURL(chainImage), { responseType: 'stream' }).catch(() => ({} as any)));
+  if (chainImage) {
+    const imageData = (await axios.get(encodedURL(chainImage), {
+      responseType: 'stream',
+      timeout: IMAGE_FETCH_TIMEOUT_MS,
+    }).catch((error) => {
+      // A stream response body is left open on a non-2xx; drop it or the socket
+      // is held until the gateway times out.
+      error?.response?.data?.destroy?.();
+      return {} as any;
+    }));
     if (imageData && imageData.data) {
       imageBuffer = imageData.data;
       contentType = imageData.headers['content-type'] || 'image/png';
