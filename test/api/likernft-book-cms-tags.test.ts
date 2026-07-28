@@ -311,7 +311,9 @@ describe('CMS tag conditions (upsert + serialization)', () => {
     expect(res.status).toBe(200);
 
     const tag = (await get(`${BASE_URL}/cms/tags/conditional-tag`)).data;
-    expect(tag.conditions).toEqual({ publishers: ['出版社甲'], authors: ['作者乙'] });
+    expect(tag.conditions).toEqual({
+      publishers: ['出版社甲'], authors: ['作者乙'], genres: [], keywords: [],
+    });
     expect(tag.isConditional).toBe(true);
   });
 
@@ -326,7 +328,9 @@ describe('CMS tag conditions (upsert + serialization)', () => {
     await post(path, tagBody({ conditions: { publishers: ['出版社甲'] } }), AUTHORIZATION);
     await post(path, tagBody({ conditions: {} }), AUTHORIZATION);
     const tag = (await get(path)).data;
-    expect(tag.conditions).toEqual({ publishers: [], authors: [] });
+    expect(tag.conditions).toEqual({
+      publishers: [], authors: [], genres: [], keywords: [],
+    });
     expect(tag.isConditional).toBe(false);
   });
 
@@ -338,7 +342,9 @@ describe('CMS tag conditions (upsert + serialization)', () => {
     const res = await get(`${BASE_URL}/cms/tags/legacy-null`);
     expect(res.status).toBe(200);
     expect(res.data.isConditional).toBe(false);
-    expect(res.data.conditions).toEqual({ publishers: [], authors: [] });
+    expect(res.data.conditions).toEqual({
+      publishers: [], authors: [], genres: [], keywords: [],
+    });
 
     // The list endpoint serializes every tag; one bad doc must not 500 it.
     const listRes = await get(`${BASE_URL}/cms/tags`);
@@ -358,6 +364,21 @@ describe('CMS tag conditions (upsert + serialization)', () => {
       conditions: { publishers: ['   '] },
     }), AUTHORIZATION);
     expect(blank.status).toBe(400);
+  });
+
+  it('weights the budget: 2 per publisher/author name, 1 per genre/keyword', async () => {
+    const path = `${BASE_URL}/cms/tags/conditional-tag`;
+    const publishers = Array.from({ length: 13 }, (_, i) => `pub-${i}`);
+    const within = await post(path, tagBody({
+      // 13 × 2 + 2 + 2 = 30, exactly at the budget.
+      conditions: { publishers, genres: ['g1', 'g2'], keywords: ['k1', 'k2'] },
+    }), AUTHORIZATION);
+    expect(within.status).toBe(200);
+
+    const over = await post(path, tagBody({
+      conditions: { publishers, genres: ['g1', 'g2'], keywords: ['k1', 'k2', 'k3'] },
+    }), AUTHORIZATION);
+    expect(over.status).toBe(400);
   });
 
   it('rejects conditions whose combined names exceed the cap', async () => {
@@ -498,7 +519,9 @@ describe('GET /cms/list with conditions', () => {
     const tagRes = await get(`${BASE_URL}/cms/tags/legacy-cond`);
     expect(tagRes.status).toBe(200);
     expect(tagRes.data.isConditional).toBe(false);
-    expect(tagRes.data.conditions).toEqual({ publishers: [], authors: [] });
+    expect(tagRes.data.conditions).toEqual({
+      publishers: [], authors: [], genres: [], keywords: [],
+    });
 
     const listRes = await get(`${BASE_URL}/cms/list?tag=legacy-cond&limit=10`);
     expect(listRes.status).toBe(200);
@@ -514,7 +537,9 @@ describe('GET /cms/list with conditions', () => {
     await makeNFTBookStub(BOOK_ID_HAND_TRIMMED, { publisher: 'hand-pub', timestamp: ts(100) });
 
     const tagRes = await get(`${BASE_URL}/cms/tags/legacy-trim`);
-    expect(tagRes.data.conditions).toEqual({ publishers: ['hand-pub'], authors: [] });
+    expect(tagRes.data.conditions).toEqual({
+      publishers: ['hand-pub'], authors: [], genres: [], keywords: [],
+    });
     expect(tagRes.data.isConditional).toBe(true);
 
     const listRes = await get(`${BASE_URL}/cms/list?tag=legacy-trim&limit=10`);
@@ -535,6 +560,29 @@ describe('GET /cms/list with conditions', () => {
     const res = await get(`${BASE_URL}/cms/list?tag=legacy-cap&limit=10`);
     expect(res.status).toBe(200);
     expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_WITHIN_CAP]);
+  });
+
+  it('matches books by genre and keyword conditions', async () => {
+    const BOOK_ID_GENRE = mockEVMAddress(0xd2);
+    const BOOK_ID_KEYWORD = mockEVMAddress(0xd3);
+    const BOOK_ID_NO_META_MATCH = mockEVMAddress(0xd4);
+    await post(`${BASE_URL}/cms/tags/conditional-meta`, tagBody({
+      conditions: { genres: ['科幻'], keywords: ['太空'] },
+    }), AUTHORIZATION);
+    await makeNFTBookStub(BOOK_ID_GENRE, { genre: '科幻', timestamp: ts(200) });
+    await makeNFTBookStub(BOOK_ID_KEYWORD, { keywords: ['太空', '冒險'], timestamp: ts(100) });
+    await makeNFTBookStub(BOOK_ID_NO_META_MATCH, {
+      genre: '愛情',
+      keywords: ['浪漫'],
+      timestamp: ts(300),
+    });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=conditional-meta&limit=10`);
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((b: any) => b.classId)).toEqual([
+      BOOK_ID_GENRE,
+      BOOK_ID_KEYWORD,
+    ]);
   });
 
   it('lists a book matching both publisher and author conditions only once', async () => {
