@@ -155,4 +155,10 @@ config.BOOK_ADMIN_ALLOWED_USER_IDS = '';
 
 config.MAGIC_SECRET_API_KEY = process.env.MAGIC_SECRET_API_KEY;
 
+// Gemini on Vertex AI, used for book metadata (genre/keywords) suggestions.
+// Project defaults to the service account's own project when unset.
+config.VERTEX_AI_PROJECT_ID = process.env.VERTEX_AI_PROJECT_ID || '';
+config.VERTEX_AI_REGION = process.env.VERTEX_AI_REGION || 'global';
+config.VERTEX_AI_GEMINI_MODEL = process.env.VERTEX_AI_GEMINI_MODEL || 'gemini-2.5-flash-lite';
+
 module.exports = config;

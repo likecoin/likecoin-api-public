@@ -743,3 +743,18 @@ export const BookUserPayoutResponseSchema = StripePayoutSummarySchema.extend({
     metadata: z.record(z.string(), z.string()).optional(),
   })),
 });
+
+// Shared with the frontend's excerpt extraction cap; the schema enforces it
+// so the suggestion prompt never silently truncates.
+export const MAX_CONTENT_EXCERPT_CHARS = 20000;
+
+export const BookMetadataSuggestBodySchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).optional(),
+  language: z.string().max(20).optional(),
+  tableOfContents: z.string().max(10000).optional(),
+  contentExcerpt: z.string().max(MAX_CONTENT_EXCERPT_CHARS).optional(),
+  existingKeywords: z.array(z.string().max(100)).max(50).optional(),
+});
+
+export type BookMetadataSuggestBody = z.infer<typeof BookMetadataSuggestBodySchema>;

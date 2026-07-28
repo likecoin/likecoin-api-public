@@ -268,6 +268,8 @@ function collectionWhere(data: StubData[], field: any = '', op = '', value: any 
     endBefore: () => queryObj,
     limit: () => queryObj,
     offset: () => queryObj,
+    // Projection is a no-op here: returned docs still carry every field.
+    select: () => queryObj,
     get: () => Promise.resolve({
       size: docs.length,
       docs,
@@ -364,6 +366,7 @@ function createCollection(data: StubData[]): any {
     startAt: () => collectionWhere(data),
     startAfter: () => collectionWhere(data),
     limit: () => collectionWhere(data),
+    select: () => collectionWhere(data),
   };
 }
 

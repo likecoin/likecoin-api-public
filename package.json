@@ -33,6 +33,7 @@
     "@google-cloud/kms": "^5.5.1",
     "@google-cloud/pubsub": "^5.2.0",
     "@google-cloud/storage": "^7.16.0",
+    "@google/genai": "^2.13.0",
     "@likecoin/edm": "^10.3.0",
     "@likecoin/iscn-js": "^0.6.9",
     "@magic-sdk/admin": "^2.4.1",
