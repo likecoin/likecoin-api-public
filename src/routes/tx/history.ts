@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import web3Utils from 'web3-utils';
+import { getAddress } from 'viem';
 import {
   TRANSACTION_QUERY_LIMIT,
 } from '../../constant';
@@ -103,20 +103,28 @@ router.get('/history/addr/:addr', jwtAuth('read'), validateParams(TxHistoryAddrP
     if (!count || Number.isNaN(count) || count > TRANSACTION_QUERY_LIMIT) {
       count = TRANSACTION_QUERY_LIMIT;
     }
+    // checkAddressValid only checks length and 0x prefix, so a non-hex
+    // address can still reach getAddress, which throws on invalid input.
+    let checksumAddr: string;
+    try {
+      checksumAddr = getAddress(addr);
+    } catch {
+      throw new ValidationError('Invalid address');
+    }
     const queryTo = txLogRef
-      .where('to', '==', web3Utils.toChecksumAddress(addr))
+      .where('to', '==', checksumAddr)
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)
       .get();
     const queryToArray = txLogRef
-      .where('to', 'array-contains', web3Utils.toChecksumAddress(addr))
+      .where('to', 'array-contains', checksumAddr)
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)
       .get();
     const queryFrom = txLogRef
-      .where('from', '==', web3Utils.toChecksumAddress(addr))
+      .where('from', '==', checksumAddr)
       .orderBy('ts', 'desc')
       .startAt(ts)
       .limit(count)

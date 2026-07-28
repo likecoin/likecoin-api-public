@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import jsonStringify from 'fast-json-stable-stringify';
 import sigUtil from 'eth-sig-util';
-import web3Utils from 'web3-utils';
+import { stringToHex } from 'viem';
 import { ValidationError } from '../../src/util/ValidationError';
 import {
   checkCosmosSignPayload,
@@ -30,7 +30,7 @@ vi.mock('axios', () => ({
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.slice(2), 'hex');
-  return sigUtil.personalSign(privKey, { data: web3Utils.utf8ToHex(signData) });
+  return sigUtil.personalSign(privKey, { data: stringToHex(signData) });
 }
 
 // cosmosPrivateKeyNew from test/api/data.ts is
