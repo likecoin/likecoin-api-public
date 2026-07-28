@@ -8,7 +8,7 @@ import { createHash } from 'crypto';
 import jsonStringify from 'fast-json-stable-stringify';
 import path from 'path';
 import sigUtil from 'eth-sig-util';
-import web3Utils from 'web3-utils';
+import { stringToHex } from 'viem';
 import {
   testingCosmosWallet0,
   testingLikeWallet0,
@@ -56,7 +56,7 @@ const mockGetMagicMetadata = vi.mocked(getMagicUserMetadataByDIDToken);
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
-  return sigUtil.personalSign(privKey, { data: web3Utils.utf8ToHex(signData) });
+  return sigUtil.personalSign(privKey, { data: stringToHex(signData) });
 }
 
 // The stub re-seeds fixtures by reference, so an email write leaks into later
