@@ -1,6 +1,6 @@
 import axios from 'axios';
 import disposableDomains from 'disposable-email-domains';
-import sigUtil from 'eth-sig-util';
+import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import LRU from 'lru-cache';
 import { checksumAddress } from 'viem';
 import {
@@ -149,7 +149,7 @@ export function checkEVMSignPayload({
   signMethod = 'personal_sign',
   action = '',
 }) {
-  const recovered = sigUtil.recoverPersonalSignature({ data: message, sig: signature });
+  const recovered = recoverPersonalSignature({ data: message, signature });
   if (recovered.toLowerCase() !== inputWallet.toLowerCase()) {
     throw new ValidationError('RECOVERED_ADDRESS_NOT_MATCH');
   }
