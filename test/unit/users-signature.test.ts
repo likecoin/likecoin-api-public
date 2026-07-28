@@ -2,7 +2,7 @@ import {
   describe, it, expect, vi,
 } from 'vitest';
 import jsonStringify from 'fast-json-stable-stringify';
-import sigUtil from 'eth-sig-util';
+import { personalSign } from '@metamask/eth-sig-util';
 import { stringToHex } from 'viem';
 import { ValidationError } from '../../src/util/ValidationError';
 import {
@@ -30,7 +30,7 @@ vi.mock('axios', () => ({
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.slice(2), 'hex');
-  return sigUtil.personalSign(privKey, { data: stringToHex(signData) });
+  return personalSign({ privateKey: privKey, data: stringToHex(signData) });
 }
 
 // cosmosPrivateKeyNew from test/api/data.ts is
@@ -282,7 +282,7 @@ describe('User Signature Verification Unit Tests', () => {
       };
       const message = JSON.stringify(payload);
 
-      // When the signature is malformed (not valid hex), sigUtil.recoverPersonalSignature
+      // When the signature is malformed (not valid hex), recoverPersonalSignature
       // throws a generic Error, not ValidationError. The test verifies this behavior.
       expect(() => {
         checkEVMSignPayload({
