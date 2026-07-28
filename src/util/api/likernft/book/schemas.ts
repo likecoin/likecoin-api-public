@@ -242,14 +242,25 @@ export const BookCMSTagBulkBodySchema = z.object({
   })),
 });
 
-// Each name costs 2 OR branches (string + object shape) in the condition query,
-// so combined names must fit half of Firestore's disjunction budget.
+// Disjunction cost per name: publisher/author 2 (string | { name } shapes), genre/keyword 1.
 const BookCMSTagConditionsSchema = z.object({
   publishers: z.array(z.string().trim().min(1)).default([]),
   authors: z.array(z.string().trim().min(1)).default([]),
+  genres: z.array(z.string().trim().min(1)).default([]),
+  keywords: z.array(z.string().trim().min(1)).default([]),
 }).refine(
-  (c) => (c.publishers.length + c.authors.length) * 2 <= FIRESTORE_QUERY_DISJUNCTION_LIMIT,
-  { message: `publishers + authors must not exceed ${FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2} names` },
+  (c) => (
+    (
+      c.publishers.length
+      + c.authors.length
+    ) * 2
+      + c.genres.length
+      + c.keywords.length
+  ) <= FIRESTORE_QUERY_DISJUNCTION_LIMIT,
+  {
+    message: `conditions exceed the ${FIRESTORE_QUERY_DISJUNCTION_LIMIT}-disjunction budget `
+      + '(2 per publisher/author, 1 per genre/keyword)',
+  },
 );
 
 export const BookCMSTagUpsertBodySchema = z.object({

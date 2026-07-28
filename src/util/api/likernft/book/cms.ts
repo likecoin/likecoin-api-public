@@ -98,13 +98,22 @@ function normalizeConditionNames(value: unknown): string[] {
     .filter(Boolean);
 }
 
+// Re-applies the schema's disjunction budget so hand-edited docs can't break queries.
+// Costs mirror the query: publisher/author use 2 OR branches (string | { name }),
+// genre/keyword use 1. Earlier lists take priority when trimming.
 function normalizeConditions(conditions: NFTBookCMSTag['conditions']) {
-  // Each name costs 2 OR branches (string + object shape) in the condition query.
-  const maxNames = FIRESTORE_QUERY_DISJUNCTION_LIMIT / 2;
-  const publishers = normalizeConditionNames(conditions?.publishers).slice(0, maxNames);
-  const authors = normalizeConditionNames(conditions?.authors)
-    .slice(0, maxNames - publishers.length);
-  return { publishers, authors };
+  let budget = FIRESTORE_QUERY_DISJUNCTION_LIMIT;
+  const takeNames = (value: unknown, costPerName: number) => {
+    const names = normalizeConditionNames(value).slice(0, Math.floor(budget / costPerName));
+    budget -= names.length * costPerName;
+    return names;
+  };
+  return {
+    publishers: takeNames(conditions?.publishers, 2),
+    authors: takeNames(conditions?.authors, 2),
+    genres: takeNames(conditions?.genres, 1),
+    keywords: takeNames(conditions?.keywords, 1),
+  };
 }
 
 // Handpicked books first, then condition-matched books by timestamp desc
@@ -138,6 +147,12 @@ async function listNFTBookInfoByCMSTagConditions(
     orFilters.push(Filter.where(field, 'in', names));
     orFilters.push(Filter.where(`${field}.name`, 'in', names));
   });
+  if (conditions.genres.length) {
+    orFilters.push(Filter.where('genre', 'in', conditions.genres));
+  }
+  if (conditions.keywords.length) {
+    orFilters.push(Filter.where('keywords', 'array-contains-any', conditions.keywords));
+  }
   const conditionSnap = await likeNFTBookCollection
     .where(Filter.or(...orFilters))
     .orderBy('timestamp', 'desc')
@@ -164,9 +179,9 @@ export async function listNFTBookInfoByCMSTag(
     conditions?: NFTBookCMSTag['conditions'];
   } = {},
 ) {
-  const { publishers, authors } = normalizeConditions(conditions);
-  if (publishers.length || authors.length) {
-    return listNFTBookInfoByCMSTagConditions(tagId, { publishers, authors }, { offset, limit });
+  const normalizedConditions = normalizeConditions(conditions);
+  if (Object.values(normalizedConditions).some((names) => names.length)) {
+    return listNFTBookInfoByCMSTagConditions(tagId, normalizedConditions, { offset, limit });
   }
   // Filter to docs with the tag entry set; orderBy alone misses nested maps.
   // Order values are non-negative ints, so `>= 0` works as an existence check.
@@ -200,12 +215,12 @@ function serializeCMSTagDoc(
   id: string,
   data: NFTBookCMSTag,
 ) {
-  const { publishers, authors } = normalizeConditions(data.conditions);
+  const conditions = normalizeConditions(data.conditions);
   return {
     ...data,
     id,
-    conditions: { publishers, authors },
-    isConditional: !!(publishers.length || authors.length),
+    conditions,
+    isConditional: Object.values(conditions).some((names) => names.length),
     isForLibrary: data.isForLibrary ?? false,
     isForStore: data.isForStore ?? false,
     timestamp: data.timestamp?.toMillis?.() ?? data.timestamp,

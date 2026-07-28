@@ -233,6 +233,8 @@ function matchesWhereClause(d: StubData, field: string, op: string, value: any):
     case '<=': return v !== undefined && (v as any) <= value;
     case 'in': return v !== undefined && (value as any[]).includes(v);
     case 'array-contains': return Array.isArray(v) && (v as any[]).includes(value);
+    case 'array-contains-any':
+      return Array.isArray(v) && (value as any[]).some((x) => (v as any[]).includes(x));
     default: throw new Error(`stub firestore: unsupported where operator '${op}'`);
   }
 }
