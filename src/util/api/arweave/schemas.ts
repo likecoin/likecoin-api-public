@@ -83,6 +83,11 @@ export const ArweaveLinkResponseSchema = z.object({
   // Absent for GCS-direct docs, which have no public Arweave copy; consumers
   // (ebook-cors parseNFTMetadataURL) already guard on `if (data.link)`.
   link: z.string().optional(),
+  // True iff `link` alone serves readable content, which `!!link` cannot tell:
+  // an encrypted doc whose key failed to resolve still has one. Consumers read a
+  // false as "there is no fallback" — ebook-cors lets a protected bucket read
+  // fail loudly rather than degrade to serving ciphertext as a book.
+  hasPublicCopy: z.boolean(),
   contentUri: z.string().optional(),
   contentType: z.string().optional(),
 });

@@ -22,6 +22,7 @@ import {
   updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
   resolveArweaveTxKey,
+  isArweaveTxEncrypted,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, withReservedQuota } from '../../util/api/arweave/quota';
 import { reconcilePendingIrysFunding, fundUploadIfNeeded } from '../../util/api/arweave/funding';
@@ -422,10 +423,15 @@ router.get(
         // readers with bucket access can go GCS-first; key + link remain the
         // fallback. contentType rides along so they can skip a metadata call.
         const contentUri = getProtectedContentUri(tx.contentBucketPath);
+        // A KMS-written doc read with KMS off resolves no key, so `link` still
+        // goes out but serves ciphertext; only this route can tell that apart
+        // from a genuinely unencrypted doc (see schemas.ts).
+        const hasPublicCopy = !!link && (!isArweaveTxEncrypted(tx) || !!key);
         sendValidatedJSON(res, ArweaveLinkResponseSchema, {
           arweaveId,
           txHash,
           key,
+          hasPublicCopy,
           ...(link ? { link: link.toString() } : {}),
           ...(contentUri ? { contentUri, contentType: tx.contentType } : {}),
         });
