@@ -212,6 +212,16 @@ export const BookPopularListQuerySchema = BookListPaginationQuerySchema
   });
 export type BookPopularListQuery = z.infer<typeof BookPopularListQuerySchema>;
 
+// The bestselling list speaks the same class-id-cursor dialect as `/list/popular`.
+export const BookBestsellingListQuerySchema = BookPopularListQuerySchema;
+export type BookBestsellingListQuery = z.infer<typeof BookBestsellingListQuerySchema>;
+
+export const BookSalesRefreshRequestBodySchema = z.object({
+  seedMissing: z.boolean().default(false),
+  dryRun: z.boolean().default(false),
+});
+export type BookSalesRefreshRequestBody = z.infer<typeof BookSalesRefreshRequestBodySchema>;
+
 // Shared by the Meta, OpenAI, and Stripe catalog routes — output is selected via `format`.
 export const BookCatalogQuerySchema = z.object({
   format: z.string().optional(),
@@ -494,6 +504,15 @@ export const BookListResponseSchema = z.object({
 
 export const BookPopularListResponseSchema = BookListResponseSchema.extend({
   nextKey: z.string().nullable(),
+});
+
+export const BookBestsellingListResponseSchema = BookPopularListResponseSchema;
+
+export const BookSalesRefreshResponseSchema = z.object({
+  success: z.boolean(),
+  scanned: z.number().int().min(0),
+  updated: z.number().int().min(0),
+  seeded: z.number().int().min(0),
 });
 
 export const BookListModeratedResponseSchema = z.object({

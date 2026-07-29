@@ -142,6 +142,8 @@ config.AIRTABLE_AUTOMATION_TOKEN = process.env.AIRTABLE_AUTOMATION_TOKEN;
 config.PLUS_READING_SERVICE_TOKEN = process.env.PLUS_READING_SERVICE_TOKEN;
 // Guards the admin-triggered Plus reading revenue-share settle endpoint.
 config.PLUS_SETTLE_ADMIN_TOKEN = process.env.PLUS_SETTLE_ADMIN_TOKEN;
+// Guards the admin-triggered bestselling books ranking refresh endpoint.
+config.BESTSELLING_BOOKS_ADMIN_TOKEN = process.env.BESTSELLING_BOOKS_ADMIN_TOKEN;
 
 config.SLACK_COMMAND_TOKEN = '';
 

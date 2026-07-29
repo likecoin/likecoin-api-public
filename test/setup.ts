@@ -15,6 +15,7 @@ process.env.PLUS_READING_SERVICE_TOKEN = 'test-plus-reading-service-token';
 process.env.ALCHEMY_GAS_POLICY_ID = 'test-alchemy-policy-id';
 process.env.ALCHEMY_SPONSORSHIP_WEBHOOK_SECRET = 'test-alchemy-webhook-secret';
 process.env.PLUS_SETTLE_ADMIN_TOKEN = 'test-plus-settle-admin-token';
+process.env.BESTSELLING_BOOKS_ADMIN_TOKEN = 'test-bestselling-books-admin-token';
 
 vi.mock('../../config/serviceAccountKey.json', () => ({}));
 
