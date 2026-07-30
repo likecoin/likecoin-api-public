@@ -191,6 +191,21 @@ function isSandboxLockedOut(isSandbox: boolean, likerPlus?: LikerPlusData): bool
   return hasLivePlusAccess(likerPlus);
 }
 
+// A terminal event only speaks for the subscription it names, but `likerPlus` is one
+// flat record per user — without this, an unrelated entitlement's expiry collapses a
+// live paid record. Falls through when either side lacks the field (legacy records).
+function isForOtherSubscription(event: RevenueCatEvent, likerPlus: LikerPlusData): boolean {
+  if (event.original_transaction_id && likerPlus.originalTransactionId) {
+    return event.original_transaction_id !== likerPlus.originalTransactionId;
+  }
+  // Promotional grants may carry no original_transaction_id, so fall back to the
+  // originating store: a 'PROMOTIONAL' expiry cannot terminate an 'APP_STORE' record.
+  if (event.store && likerPlus.store) {
+    return event.store !== likerPlus.store;
+  }
+  return false;
+}
+
 const GRANT_EVENT_TYPES = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -198,6 +213,18 @@ const GRANT_EVENT_TYPES = new Set([
   'PRODUCT_CHANGE',
   'SUBSCRIPTION_EXTENDED',
 ]);
+
+// Mirror of clearIntercomPlusFlags, for paths that hand a record to a Liker ID.
+async function setIntercomPlusFlags(
+  likerId: string,
+  { isTrial, tier }: { isTrial: boolean; tier: LikerPlusTier },
+) {
+  await updateIntercomUserAttributes(likerId, {
+    is_liker_plus: true,
+    is_liker_plus_trial: isTrial,
+    liker_plus_tier: tier,
+  });
+}
 
 async function handleGrant(
   event: RevenueCatEvent,
@@ -473,11 +500,7 @@ async function handleGrant(
     }
   }
 
-  await updateIntercomUserAttributes(likerId, {
-    is_liker_plus: true,
-    is_liker_plus_trial: isTrial,
-    liker_plus_tier: tier,
-  });
+  await setIntercomPlusFlags(likerId, { isTrial, tier });
   if (isInitial) {
     await sendIntercomEvent({
       userId: likerId,
@@ -716,6 +739,7 @@ async function handleExpiration(
   if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
+  if (isForOtherSubscription(event, user.likerPlus)) return;
   const expiredAt = event.expiration_at_ms || Date.now();
   await revokeLikerPlus(likerId, user.likerPlus, {
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
@@ -731,6 +755,7 @@ async function handleExpiration(
 }
 
 async function handleBillingIssue(
+  event: RevenueCatEvent,
   likerId: string,
   user: { likerPlus?: LikerPlusData },
   isSandbox: boolean,
@@ -739,6 +764,7 @@ async function handleBillingIssue(
   if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
+  if (isForOtherSubscription(event, user.likerPlus)) return;
   if (user.likerPlus.subscriptionStatus === 'past_due') return;
   await userCollection.doc(likerId).update({
     likerPlus: {
@@ -749,9 +775,23 @@ async function handleBillingIssue(
   });
 }
 
-// When a subscription's app_user_id changes (e.g. anonymous → logged-in, or
-// account switch), RevenueCat sends a TRANSFER. Revoke from the source identities
-// and let the next grant/renewal event populate the destination.
+// Movable only if RevenueCat owns the record and it still confers access.
+// Stripe-owned/shared-granted records follow their own lifecycles, and
+// isSandboxLockedOut prevents sandbox events copying a live prod subscription.
+function isTransferableLikerPlus(
+  likerPlus: LikerPlusData | undefined,
+  isSandbox: boolean,
+): boolean {
+  if (!likerPlus) return false;
+  if (isStripeOwnedLikerPlus(likerPlus)) return false;
+  if (isSharedGrantedLikerPlus(likerPlus)) return false;
+  if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
+  return hasLivePlusAccess(likerPlus);
+}
+
+// A TRANSFER moves a subscription between app_user_ids. A pure account switch emits
+// TRANSFER and nothing else, and its payload carries no product/expiration data — so
+// the destination must be seeded from the source or holds no Plus until next RENEWAL.
 async function handleTransfer(
   event: RevenueCatEvent,
   req: Express.Request,
@@ -759,16 +799,54 @@ async function handleTransfer(
 ): Promise<void> {
   const fromIds = (event.transferred_from || []).filter((id) => id && !isAnonymousId(id));
   const toIds = (event.transferred_to || []).filter((id) => id && !isAnonymousId(id));
-  await Promise.all(fromIds.map(async (likerId) => {
-    const user = await getUserWithCivicLikerProperties(likerId);
-    await revokeIfRevenueCatOwned(likerId, user?.likerPlus, isSandbox);
-  }));
+
+  const sources = await Promise.all(fromIds.map(async (likerId) => ({
+    likerId,
+    likerPlus: (await getUserWithCivicLikerProperties(likerId))?.likerPlus,
+  })));
+  const source = sources.find((s) => isTransferableLikerPlus(s.likerPlus, isSandbox));
+  const carried = source?.likerPlus;
+
+  let carriedTo: string[] = [];
+  if (carried) {
+    const written = await Promise.all(toIds.map(async (likerId) => {
+      if (fromIds.includes(likerId)) return undefined;
+      const user = await getUserWithCivicLikerProperties(likerId);
+      // Never overwrite a destination that already has access: a TRANSFER is not
+      // proof of a new purchase, and clobbering would discard a Stripe-owned
+      // record's subscriptionId/customerId, which RevenueCat cannot restore.
+      if (!user || hasLivePlusAccess(user.likerPlus)) return undefined;
+      await userCollection.doc(likerId).update({
+        likerPlus: { ...carried, provider: 'revenuecat' },
+      });
+      return likerId;
+    }));
+    carriedTo = written.filter((likerId): likerId is string => !!likerId);
+  }
+
+  // Revoke the source only after the carry, so a failed destination write leaves
+  // the user with access on the old identity rather than none at all.
+  await Promise.all(sources.map(
+    ({ likerId, likerPlus }) => revokeIfRevenueCatOwned(likerId, likerPlus, isSandbox),
+  ));
+
+  // CRM sync trails the Firestore writes: it is best-effort, and RevenueCat retries
+  // this webhook on timeout, so it must not sit between the carry and the revoke.
+  if (carried && !isQuarantinedSandbox(isSandbox)) {
+    await Promise.all(carriedTo.map((likerId) => setIntercomPlusFlags(likerId, {
+      isTrial: carried.currentType === 'trial',
+      tier: carried.tier || 'plus',
+    })));
+  }
+
   try {
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusRevenueCatTransfer',
       eventId: event.id,
       transferredFrom: fromIds,
       transferredTo: toIds,
+      carriedFrom: source?.likerId,
+      carriedTo,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -837,7 +915,7 @@ export async function processRevenueCatEvent(
   } else if (event.type === 'EXPIRATION') {
     await handleExpiration(event, likerId, user, isSandbox);
   } else if (event.type === 'BILLING_ISSUE') {
-    await handleBillingIssue(likerId, user, isSandbox);
+    await handleBillingIssue(event, likerId, user, isSandbox);
   } else if (event.type === 'CANCELLATION') {
     // Auto-renew turned off — the user keeps access until EXPIRATION. Nothing to
     // revoke; fall through to logging only.

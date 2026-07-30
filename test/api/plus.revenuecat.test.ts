@@ -12,6 +12,21 @@ const EXPIRATION_AT_MS = 1778536000000;
 // A prior holder from an earlier billing period than the incoming grant, so the
 // grant's newest-wins dedupe revokes it (rather than yielding to a newer owner).
 const PRIOR_PERIOD_START_MS = PURCHASED_AT_MS - 30 * 24 * 60 * 60 * 1000;
+// EXPIRATION_AT_MS is in the past, so guards keyed on live access need their own end.
+const FUTURE_PERIOD_END_MS = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+// A live, RevenueCat-owned APP_STORE record — the shape the subscription-scoping
+// and transfer-carry guards operate on. Spread it so tests can't share a reference.
+const liveAppStorePlus = {
+  since: PURCHASED_AT_MS,
+  currentPeriodStart: PURCHASED_AT_MS,
+  currentPeriodEnd: FUTURE_PERIOD_END_MS,
+  currentType: 'paid',
+  subscriptionStatus: 'active',
+  provider: 'revenuecat',
+  store: 'APP_STORE',
+  originalTransactionId: 'txn_123',
+};
 
 function rcBody(event: Record<string, unknown>) {
   return { api_version: '1.0', event };
@@ -163,6 +178,45 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
   });
 
+  it('does not revoke a paid store subscription when an unrelated promotional entitlement expires', async () => {
+    // A promotional entitlement revoked from the RevenueCat dashboard emits
+    // CANCELLATION + EXPIRATION with store PROMOTIONAL and no original_transaction_id.
+    // It must not collapse the live APP_STORE record it shares `likerPlus` with.
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const promoExpiry: Record<string, unknown> = {
+      ...baseEvent,
+      id: 'evt_promo_expire',
+      type: 'EXPIRATION',
+      store: 'PROMOTIONAL',
+      product_id: 'rc_promo_plus_daily',
+      expiration_at_ms: Date.now(),
+    };
+    delete promoExpiry.original_transaction_id;
+    const res = await post(promoExpiry, { Authorization: AUTH });
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
+  });
+
+  it('does not revoke on EXPIRATION naming a different original_transaction_id', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_other_txn',
+        type: 'EXPIRATION',
+        original_transaction_id: 'txn_other',
+        expiration_at_ms: Date.now(),
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
+  });
+
   it('sets past_due on BILLING_ISSUE', async () => {
     await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
     const res = await post(
@@ -172,6 +226,22 @@ describe('Plus RevenueCat webhook', () => {
     expect(res.status).toBe(200);
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('past_due');
+  });
+
+  it('does not set past_due on BILLING_ISSUE for a different subscription', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_billing_other',
+        type: 'BILLING_ISSUE',
+        original_transaction_id: 'txn_other',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('active');
   });
 
   it('revokes a RevenueCat-owned record for transferred_from users on TRANSFER', async () => {
@@ -230,6 +300,106 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('active');
     expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
+  });
+
+  it('carries a live subscription to transferred_to on TRANSFER', async () => {
+    // A pure account switch (log into a new account days after buying) emits only
+    // TRANSFER — no grant event follows — so the destination must be populated from
+    // the source record or it holds no Plus until the next RENEWAL.
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus, dailyValue: 0.43, dailyValueCurrency: 'USD', period: 'month',
+      },
+    });
+    await userCollection.doc('testuser').update({ likerPlus: null });
+    const res = await post(
+      {
+        id: 'evt_transfer_carry',
+        type: 'TRANSFER',
+        store: 'APP_STORE',
+        environment: 'SANDBOX',
+        transferred_from: ['$RCAnonymousID:abc', 'testing'],
+        transferred_to: ['testuser'],
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+
+    const destination = await getUserWithCivicLikerProperties('testuser');
+    expect(destination?.likerPlus?.subscriptionStatus).toBe('active');
+    expect(destination?.likerPlus?.provider).toBe('revenuecat');
+    expect(destination?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
+    expect(destination?.likerPlus?.currentPeriodStart).toBe(PURCHASED_AT_MS);
+    expect(destination?.likerPlus?.since).toBe(PURCHASED_AT_MS);
+    expect(destination?.likerPlus?.originalTransactionId).toBe('txn_123');
+    expect(destination?.likerPlus?.store).toBe('APP_STORE');
+    expect(destination?.likerPlus?.period).toBe('month');
+    expect(destination?.likerPlus?.dailyValue).toBe(0.43);
+
+    // The source still loses access — the subscription moved, it wasn't copied.
+    const origin = await getUserWithCivicLikerProperties('testing');
+    expect(origin?.likerPlus?.subscriptionStatus).toBe('canceled');
+    expect((origin?.likerPlus?.currentPeriodEnd || 0)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('does not carry an already-expired source record on TRANSFER', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: EXPIRATION_AT_MS, // in the past
+        currentType: 'paid',
+        subscriptionStatus: 'canceled',
+        provider: 'revenuecat',
+      },
+    });
+    await userCollection.doc('testuser').update({ likerPlus: null });
+    const res = await post(
+      {
+        id: 'evt_transfer_expired',
+        type: 'TRANSFER',
+        store: 'APP_STORE',
+        environment: 'SANDBOX',
+        transferred_from: ['testing'],
+        transferred_to: ['testuser'],
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const destination = await getUserWithCivicLikerProperties('testuser');
+    expect(destination?.likerPlus).toBeFalsy();
+  });
+
+  it('does not overwrite a destination that already has live access on TRANSFER', async () => {
+    // Clobbering would discard the Stripe-owned record's subscriptionId/customerId,
+    // which RevenueCat cannot restore, and the user already has access either way.
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    await userCollection.doc('testuser').update({
+      likerPlus: {
+        since: PURCHASED_AT_MS,
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: FUTURE_PERIOD_END_MS,
+        currentType: 'paid',
+        subscriptionStatus: 'active',
+        subscriptionId: 'sub_stripe',
+        customerId: 'cus_stripe',
+      },
+    });
+    const res = await post(
+      {
+        id: 'evt_transfer_occupied',
+        type: 'TRANSFER',
+        store: 'APP_STORE',
+        environment: 'SANDBOX',
+        transferred_from: ['testing'],
+        transferred_to: ['testuser'],
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const destination = await getUserWithCivicLikerProperties('testuser');
+    expect(destination?.likerPlus?.subscriptionId).toBe('sub_stripe');
+    expect(destination?.likerPlus?.originalTransactionId).toBeFalsy();
   });
 
   it('revokes a prior Liker ID that holds Plus tied to the same original_transaction_id on grant', async () => {
