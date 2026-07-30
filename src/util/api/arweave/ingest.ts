@@ -197,6 +197,11 @@ export function getStagedHashingReadStream(
  * checks run here before the object can be promoted. Mismatches leave staging in
  * place — the age-1 lifecycle rule sweeps it. Hashed as it streams, so memory
  * stays flat at any file size.
+ *
+ * The generation comes back out so the caller can pin the promote to the version
+ * that was verified: the caller still holds a live resumable URL for the same
+ * path, and an overwrite landing between here and the copy would promote bytes
+ * this never saw under the hash it just checked.
  */
 export async function verifyStagedObject(txHash: string, tier: ContentTier, {
   fileSize,
@@ -204,7 +209,7 @@ export async function verifyStagedObject(txHash: string, tier: ContentTier, {
 }: {
   fileSize?: number;
   fileSHA256?: string;
-}): Promise<{ computedSHA256: string }> {
+}): Promise<{ computedSHA256: string; generation: string }> {
   const { generation } = await verifyStagedObjectSize(txHash, tier, fileSize);
   const hash = crypto.createHash('sha256');
   try {
@@ -216,7 +221,7 @@ export async function verifyStagedObject(txHash: string, tier: ContentTier, {
   if (fileSHA256 && fileSHA256.toLowerCase() !== computedSHA256) {
     throw new ValidationError('PLAINTEXT_HASH_MISMATCH');
   }
-  return { computedSHA256 };
+  return { computedSHA256, generation };
 }
 
 // Promote a fully-verified staged object to its final key-free path, stamping
