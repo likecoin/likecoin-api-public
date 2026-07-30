@@ -33,9 +33,12 @@ function makeFile(path: string) {
   };
 }
 
+// One fake bucket serves every tier: these cases only exercise the protected
+// path, and asserting on object names alone keeps the tier plumbing out of them.
 vi.mock('../../src/util/gcloudStorage', () => ({
-  isEbookProtectedBucketEnabled: () => true,
-  getEbookProtectedBucket: () => ({ file: (p: string) => makeFile(p) }),
+  isEbookTierBucketEnabled: () => true,
+  getEbookTierBucket: () => ({ file: (p: string) => makeFile(p) }),
+  getTierUploadSignedUrl: async () => 'https://example.invalid/signed',
 }));
 
 vi.mock('../../src/util/api/arweave/tx', () => ({

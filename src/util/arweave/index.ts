@@ -6,7 +6,9 @@ import { scaleBigInt } from '../misc';
 
 const arweaveIdCache = new LRU({ max: 4096, ttl: 86400000 }); // 1day
 
-const IPFS_KEY = 'IPFS-CID';
+// Tag name the dedup query below matches on. Exported because the server-side
+// uploader must write the same tag it is read by — drift silently kills dedup.
+export const IPFS_KEY = 'IPFS-CID';
 
 const arweaveGraphQL = Arweave.init({
   host: 'arweave.net',

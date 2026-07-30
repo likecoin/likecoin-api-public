@@ -17,6 +17,7 @@ import {
   createNewArweaveTx,
   createNewGcsUploadTx,
   getArweaveTxInfo,
+  getOwnedPendingGcsTx,
   isArweaveTxOwner,
   markGcsTxCompleted,
   updateArweaveTxStatus,
@@ -33,10 +34,13 @@ import {
   promoteStagedObject,
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
-import { getProtectedContentUri, isEbookProtectedBucketEnabled } from '../../util/gcloudStorage';
+import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
+import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
+  ArweaveGcsArweaveBodySchema,
+  ArweaveGcsArweaveResponseSchema,
   ArweaveGcsFinalizeResponseSchema,
   ArweaveGcsUploadInitBodySchema,
   ArweaveGcsUploadInitResponseSchema,
@@ -296,31 +300,31 @@ router.post(
   },
 );
 
-// GCS-direct upload (ADR 0001 Phase 3, no-Arweave path): protected books put
-// plaintext straight into the private CMEK bucket via a signed resumable URL.
-// Inert until EBOOK_PROTECTED_BUCKET is configured — that env is the
-// kill-switch, so the endpoints ship dark.
+// GCS-direct upload (ADR 0001 Phase 3): bytes go straight into the tier's bucket
+// via a signed resumable URL. Inert until that tier's bucket env is configured, so
+// each tier ships dark behind its own kill-switch.
 router.post(
   '/v2/gcs/upload_init',
   jwtAuth('write:iscn'),
   validateBody(ArweaveGcsUploadInitBodySchema),
   async (req, res, next) => {
     try {
-      if (!isEbookProtectedBucketEnabled()) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
       const {
-        fileSize, fileSHA256, contentType, fileName,
+        fileSize, fileSHA256, contentType, fileName, tier,
       } = req.body;
+      if (!isEbookTierBucketEnabled(tier)) throw new ValidationError(`${tier.toUpperCase()}_BUCKET_NOT_CONFIGURED`, 501);
       if (fileSize > ARWEAVE_MAX_SIZE_V2) throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
       const { wallet } = req.user;
       const id = `gcs-${uuidv4()}`;
-      // GCS-direct skips the Arweave fee entirely, so the sponsored-upload
-      // quota is all that stands between write:iscn and unlimited free
-      // private storage.
+      // Both tiers: staging costs the caller nothing up front, so the quota is all
+      // that stands between write:iscn and unbounded free storage. The open tier
+      // releases this once /v2/gcs/arweave settles the real charge; an abandoned
+      // upload keeps it, which is exactly the rate limit we want.
       const uploadUrl = await withReservedQuota(wallet, fileSize, '0', async () => {
         await createNewGcsUploadTx(id, {
-          fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet,
+          fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet, tier,
         });
-        return getStagedUploadSignedUrl(id, contentType);
+        return getStagedUploadSignedUrl(id, tier, contentType);
       });
       sendValidatedJSON(res, ArweaveGcsUploadInitResponseSchema, { id, uploadUrl });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -329,6 +333,7 @@ router.post(
         txHash: id,
         fileSize,
         contentType,
+        tier,
       });
     } catch (error) {
       next(error);
@@ -342,18 +347,14 @@ router.post(
   validateParams(ArweaveTxHashParamsSchema),
   async (req, res, next) => {
     try {
-      if (!isEbookProtectedBucketEnabled()) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
+      if (!isEbookTierBucketEnabled('protected')) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
       const { txHash } = req.params as Record<string, string>;
-      const tx = await getArweaveTxInfo(txHash);
-      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
-      if (tx.source !== 'gcs') throw new ValidationError('NOT_GCS_UPLOAD', 400);
-      if (!(await isArweaveTxOwner(req.user.wallet, tx.ownerWallet))) throw new ValidationError('NOT_OWNER', 403);
-      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
-      const { computedSHA256 } = await verifyStagedObject(txHash, {
+      const tx = await getOwnedPendingGcsTx(txHash, req.user.wallet, 'protected');
+      const { computedSHA256 } = await verifyStagedObject(txHash, 'protected', {
         fileSize: tx.fileSize,
         fileSHA256: tx.fileSHA256,
       });
-      const contentBucketPath = await promoteStagedObject(txHash, {
+      const contentBucketPath = await promoteStagedObject(txHash, 'protected', {
         contentType: tx.contentType || 'application/octet-stream',
         fileSHA256: computedSHA256,
       });
@@ -364,13 +365,56 @@ router.post(
       });
       // Best-effort and self-swallowing, so it stays off the response path;
       // only the mark-complete-before-delete ordering matters.
-      deleteStagedObject(txHash);
+      deleteStagedObject(txHash, 'protected');
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveGcsFinalizeV2',
         wallet: req.user.wallet,
         txHash,
         contentBucketPath,
         fileSHA256: computedSHA256,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Open tier (ADR 0001 Phase 3 amendment): verify the staged upload, then make the
+// Arweave copy server-side, blocking on the node's receipt before returning the
+// arweaveId the client puts on-chain. One endpoint rather than finalize + upload,
+// so no intermediate state is left for the staging/ lifecycle rule to sweep.
+router.post(
+  '/v2/gcs/arweave/:txHash',
+  jwtAuth('write:iscn'),
+  validateParams(ArweaveTxHashParamsSchema),
+  validateBody(ArweaveGcsArweaveBodySchema),
+  async (req, res, next) => {
+    try {
+      if (!isEbookTierBucketEnabled('open')) throw new ValidationError('OPEN_BUCKET_NOT_CONFIGURED', 501);
+      const { txHash } = req.params as Record<string, string>;
+      const { ipfsHash, paymentTxHash, txToken } = req.body;
+      const { wallet } = req.user;
+      const tx = await getOwnedPendingGcsTx(txHash, wallet, 'open');
+      const {
+        arweaveId, contentBucketPath, fileSHA256, isSponsored,
+      } = await uploadStagedObjectToArweave(txHash, tx, {
+        wallet, ipfsHash, paymentTxHash, txToken,
+      });
+      sendValidatedJSON(res, ArweaveGcsArweaveResponseSchema, {
+        id: txHash,
+        arweaveId,
+        link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+      });
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'arweaveGcsArweaveUploadV2',
+        wallet,
+        txHash,
+        arweaveId,
+        ipfsHash,
+        fileSize: tx.fileSize,
+        contentBucketPath,
+        fileSHA256,
+        isSponsored,
       });
     } catch (error) {
       next(error);
@@ -419,10 +463,12 @@ router.get(
         if (key && link) {
           link.searchParams.set('key', key);
         }
-        // Advertise the private-bucket plaintext copy (ADR 0001 Phase 3) so
-        // readers with bucket access can go GCS-first; key + link remain the
-        // fallback. contentType rides along so they can skip a metadata call.
-        const contentUri = getProtectedContentUri(tx.contentBucketPath);
+        // Advertise the GCS plaintext copy (ADR 0001 Phase 3) so readers with
+        // bucket access can go GCS-first; key + link remain the fallback.
+        // contentType rides along so they can skip a metadata call. Tier picks
+        // the bucket — open-tier records point at the DRM-free mirror, which
+        // ebook-cors can also derive itself from an ar:// target.
+        const contentUri = getTierContentUri(tx.tier || 'protected', tx.contentBucketPath);
         // A KMS-written doc read with KMS off resolves no key, so `link` still
         // goes out but serves ciphertext; only this route can tell that apart
         // from a genuinely unencrypted doc (see schemas.ts).
