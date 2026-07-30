@@ -3,6 +3,7 @@ import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
 import { wrapKey, unwrapKey, isKMSEnabled } from '../../kms';
 import { getUserWalletsByWallet } from '../users/getPublicInfo';
 import { ValidationError } from '../../ValidationError';
+import { isAlreadyExistsError } from '../../misc';
 import type { ArweaveTxData } from '../../../types/transaction';
 import type { ContentTier } from '../../gcloudStorage';
 
@@ -123,9 +124,7 @@ export async function claimArweaveTxPayment(paymentTxHash: string, {
       lastUpdateTimestamp: FieldValue.serverTimestamp(),
     });
   } catch (error) {
-    if ((error as Error)?.message?.includes('ALREADY_EXISTS')) {
-      throw new ValidationError('TX_HASH_ALREADY_USED', 429);
-    }
+    if (isAlreadyExistsError(error)) throw new ValidationError('TX_HASH_ALREADY_USED', 429);
     throw error;
   }
 }

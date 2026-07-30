@@ -36,6 +36,7 @@ import {
 } from '../../util/api/arweave/ingest';
 import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
 import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
+import { isAlreadyExistsError } from '../../util/misc';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -184,7 +185,7 @@ router.post(
             ownerWallet: req.user?.wallet || '',
           });
         } catch (error) {
-          if ((error as Error)?.message.includes('ALREADY_EXISTS')) {
+          if (isAlreadyExistsError(error)) {
             // eslint-disable-next-line no-console
             console.warn(error);
             res.status(429).send('TX_HASH_ALREADY_USED');
