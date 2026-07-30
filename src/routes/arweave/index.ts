@@ -351,13 +351,14 @@ router.post(
       if (!isEbookTierBucketEnabled('protected')) throw new ValidationError('PROTECTED_BUCKET_NOT_CONFIGURED', 501);
       const { txHash } = req.params as Record<string, string>;
       const tx = await getOwnedPendingGcsTx(txHash, req.user.wallet, 'protected');
-      const { computedSHA256 } = await verifyStagedObject(txHash, 'protected', {
+      const { computedSHA256, generation } = await verifyStagedObject(txHash, 'protected', {
         fileSize: tx.fileSize,
         fileSHA256: tx.fileSHA256,
       });
       const contentBucketPath = await promoteStagedObject(txHash, 'protected', {
         contentType: tx.contentType || 'application/octet-stream',
         fileSHA256: computedSHA256,
+        generation,
       });
       await markGcsTxCompleted(txHash, { contentBucketPath });
       sendValidatedJSON(res, ArweaveGcsFinalizeResponseSchema, {
