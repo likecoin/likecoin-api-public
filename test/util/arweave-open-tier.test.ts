@@ -53,12 +53,19 @@ describe('getDeterministicAnchor', () => {
 // checkArweaveTxV2 is pure read-only verification and passes the same hash twice,
 // so the claim below is the only thing stopping N staged uploads settling against
 // one payment.
+// The live SDK carries the gRPC code and a message that names no error at all;
+// only older shapes spell ALREADY_EXISTS out. Both must map to 429, so pin each.
+const duplicateErrors = [
+  ['gRPC code', Object.assign(new Error('Document already exists'), { code: 6 })],
+  ['legacy message', new Error('6 ALREADY_EXISTS: entity already exists')],
+] as const;
+
 describe('claimArweaveTxPayment', () => {
-  it('maps a duplicate claim to 429 TX_HASH_ALREADY_USED', async () => {
+  it.each(duplicateErrors)('maps a duplicate claim (%s) to 429 TX_HASH_ALREADY_USED', async (_label, error) => {
     const { claimArweaveTxPayment } = await import('../../src/util/api/arweave/tx');
     const { iscnArweaveTxCollection } = await import('../../src/util/firebase');
     vi.spyOn(iscnArweaveTxCollection, 'doc').mockReturnValue({
-      create: () => Promise.reject(new Error('6 ALREADY_EXISTS: entity already exists')),
+      create: () => Promise.reject(error),
     } as never);
     try {
       await expect(

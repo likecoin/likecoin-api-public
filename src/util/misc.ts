@@ -14,6 +14,16 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
+// Firestore create() — or a batch commit containing one — rejects an existing doc
+// with gRPC ALREADY_EXISTS. The numeric code leads because the message format
+// varies by SDK/gRPC version; the substring is only a fallback for older shapes.
+const GRPC_ALREADY_EXISTS = 6;
+
+export function isAlreadyExistsError(error: unknown): boolean {
+  const err = error as { code?: number; message?: string } | undefined;
+  return err?.code === GRPC_ALREADY_EXISTS || !!err?.message?.includes('ALREADY_EXISTS');
+}
+
 // Multiply a bigint amount by a float factor in fixed-point (1e6) space,
 // avoiding float precision loss on large wei amounts.
 export function scaleBigInt(amount: bigint, factor: number): bigint {
