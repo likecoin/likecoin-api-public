@@ -178,6 +178,13 @@ export async function resolveArweaveTxKey(
   return tx.key || '';
 }
 
+// Kept beside resolveArweaveTxKey so the pair of key-bearing fields is named in
+// one place: a copy that missed a newly added field would report an encrypted
+// doc as plaintext, and callers use that to decide whether ciphertext is safe.
+export function isArweaveTxEncrypted(tx: ArweaveTxData): boolean {
+  return !!(tx.encryptedKey || tx.key);
+}
+
 // Persist the funding top-up tx on the upload doc BEFORE notifying the Irys indexer,
 // so a crash/5xx between send and notify still leaves a replayable record.
 export async function setArweaveTxFundingSent(docId: string, {
