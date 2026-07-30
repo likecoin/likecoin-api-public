@@ -775,10 +775,9 @@ async function handleBillingIssue(
   });
 }
 
-// Movable only if RevenueCat owns the record (Stripe-owned and shared-granted ones
-// follow their own lifecycles) and it still confers access — a lapsed record grants
-// the destination nothing. isSandboxLockedOut stops a sandbox event copying a live
-// production subscription onto a second account.
+// Movable only if RevenueCat owns the record and it still confers access.
+// Stripe-owned/shared-granted records follow their own lifecycles, and
+// isSandboxLockedOut prevents sandbox events copying a live prod subscription.
 function isTransferableLikerPlus(
   likerPlus: LikerPlusData | undefined,
   isSandbox: boolean,
