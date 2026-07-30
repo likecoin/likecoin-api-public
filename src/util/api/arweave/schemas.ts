@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONTENT_TIERS } from '../../gcloudStorage';
 
 const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/i);
 
@@ -28,13 +29,44 @@ export const ArweaveTxHashParamsSchema = z.object({
   txHash: z.string().min(1),
 });
 
-// GCS-direct upload (ADR 0001 Phase 3, no-Arweave path). The protected tier
-// only ever holds ebooks, so contentType is a closed set.
+const EBOOK_CONTENT_TYPES = ['application/epub+zip', 'application/pdf'] as const;
+// Cover types the open tier accepts. `image/svg+xml` is deliberately absent: SVG
+// can carry script, and these objects are served under the content type they were
+// stored with. Mirrors OPEN_IMAGE_FILE_TYPES in publish-3ook-com.
+const OPEN_IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'] as const;
+
+// GCS-direct upload (ADR 0001 Phase 3).
+//
+// `tier` picks the destination bucket and the rest of the flow: 'protected' is the
+// private CMEK store and skips Arweave entirely; 'open' is the public mirror, which
+// continues on to /v2/gcs/arweave/:txHash for the Arweave copy. Defaulted here so
+// existing protected clients are unaffected and no handler restates the fallback.
 export const ArweaveGcsUploadInitBodySchema = z.object({
   fileSize: z.coerce.number().int().positive(),
   fileSHA256: Sha256HexSchema,
-  contentType: z.enum(['application/epub+zip', 'application/pdf']),
+  contentType: z.enum([...EBOOK_CONTENT_TYPES, ...OPEN_IMAGE_CONTENT_TYPES]),
   fileName: z.string().min(1).max(256).optional(),
+  tier: z.enum(CONTENT_TIERS).default('protected'),
+}).superRefine((body, ctx) => {
+  // The protected tier only ever holds ebooks. A cover there would be a bug: CMEK
+  // and a reader gate buy nothing for an image that has to render publicly, and it
+  // would land in the Phase 4 key-destruction sweep's blast radius.
+  if (body.tier === 'protected' && !(EBOOK_CONTENT_TYPES as readonly string[]).includes(body.contentType)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['contentType'],
+      message: 'PROTECTED_TIER_REQUIRES_EBOOK',
+    });
+  }
+});
+
+// Server-side Arweave upload of an already-staged open-tier object. Payment
+// mirrors /v2/sign_payment_data: a Base ETH tx the caller already broadcast, or
+// SPONSORED against the daily quota.
+export const ArweaveGcsArweaveBodySchema = z.object({
+  ipfsHash: z.string().min(1),
+  paymentTxHash: z.string().optional(),
+  txToken: z.enum(['BASEETH', 'SPONSORED']).optional(),
 });
 
 export const ArweaveGcsUploadInitResponseSchema = z.object({
@@ -45,6 +77,12 @@ export const ArweaveGcsUploadInitResponseSchema = z.object({
 export const ArweaveGcsFinalizeResponseSchema = z.object({
   id: z.string(),
   link: z.string().url(),
+});
+
+// No contentUri: the client only needs the arweaveId it puts on-chain, and the
+// bucket path is internal.
+export const ArweaveGcsArweaveResponseSchema = ArweaveGcsFinalizeResponseSchema.extend({
+  arweaveId: z.string(),
 });
 
 export const ArweaveEstimateResponseSchema = z.object({

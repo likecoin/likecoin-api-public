@@ -4,6 +4,7 @@ import { wrapKey, unwrapKey, isKMSEnabled } from '../../kms';
 import { getUserWalletsByWallet } from '../users/getPublicInfo';
 import { ValidationError } from '../../ValidationError';
 import type { ArweaveTxData } from '../../../types/transaction';
+import type { ContentTier } from '../../gcloudStorage';
 
 export async function createNewArweaveTx(docId: string, {
   ipfsHash,
@@ -33,24 +34,29 @@ export async function createNewArweaveTx(docId: string, {
   return token;
 }
 
-// GCS-direct upload doc (ADR 0001 Phase 3, no-Arweave path): no content key
-// ever exists, and no legacy `token` — the flow is JWT-owner-gated end to end.
-// fileSHA256 is the client-declared plaintext anchor finalize verifies against.
+// GCS-direct upload doc (ADR 0001 Phase 3): no content key ever exists, and no
+// legacy `token` — the flow is JWT-owner-gated end to end. fileSHA256 is the
+// client-declared plaintext anchor finalize verifies against. `tier` picks the
+// bucket: 'protected' skips Arweave entirely, 'open' also gets a server-side
+// Arweave upload for provenance (the Phase 3 amendment).
 export async function createNewGcsUploadTx(docId: string, {
   fileSize,
   fileSHA256,
   contentType,
   fileName,
   ownerWallet,
+  tier = 'protected',
 }: {
   fileSize: number;
   fileSHA256: string;
   contentType: string;
   fileName?: string;
   ownerWallet: string;
+  tier?: ContentTier;
 }): Promise<void> {
   const data: ArweaveTxData = {
     source: 'gcs',
+    tier,
     status: 'pending',
     fileSize,
     fileSHA256: fileSHA256.toLowerCase(),
@@ -67,16 +73,23 @@ export async function createNewGcsUploadTx(docId: string, {
 // legacy docs get from updateArweaveTxStatus() at register (status,
 // isRequireAuth, accessToken) — this flow never calls register, and without
 // isRequireAuth the link endpoint would serve the doc unauthenticated.
+// Open records pass isRequireAuth: false — their bytes are public on Arweave
+// anyway, so gating the mirror would leave the fallback more available than it.
 export async function markGcsTxCompleted(txHash: string, {
   contentBucketPath,
+  arweaveId,
+  isRequireAuth = true,
 }: {
   contentBucketPath: string;
+  arweaveId?: string;
+  isRequireAuth?: boolean;
 }): Promise<void> {
   await iscnArweaveTxCollection.doc(txHash).update({
     status: 'complete',
-    isRequireAuth: true,
+    isRequireAuth,
     accessToken: uuidv4(),
     contentBucketPath,
+    ...(arweaveId ? { arweaveId } : {}),
     lastUpdateTimestamp: FieldValue.serverTimestamp(),
   });
 }
@@ -84,6 +97,37 @@ export async function markGcsTxCompleted(txHash: string, {
 export async function getArweaveTxInfo(txHash: string): Promise<ArweaveTxData | undefined> {
   const doc = await iscnArweaveTxCollection.doc(txHash).get();
   return doc.data();
+}
+
+// Consume a Base payment exactly once.
+//
+// The legacy flow gets this for free: it keys the upload doc on the *payment*
+// hash, so a replay hits ALREADY_EXISTS. GCS-direct docs are keyed on gcs-<uuid>
+// instead, and checkArweaveTxV2 is pure read-only verification that happily
+// passes the same hash twice — so without this a caller could stage a file N
+// times and settle all N against one payment. Claiming it in the same collection
+// also stops a payment being spent once here and once via /v2/register.
+export async function claimArweaveTxPayment(paymentTxHash: string, {
+  uploadId,
+  ownerWallet,
+}: {
+  uploadId: string;
+  ownerWallet?: string;
+}): Promise<void> {
+  try {
+    await iscnArweaveTxCollection.doc(paymentTxHash).create({
+      status: 'payment',
+      uploadId,
+      ...(ownerWallet ? { ownerWallet } : {}),
+      timestamp: FieldValue.serverTimestamp(),
+      lastUpdateTimestamp: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if ((error as Error)?.message?.includes('ALREADY_EXISTS')) {
+      throw new ValidationError('TX_HASH_ALREADY_USED', 429);
+    }
+    throw error;
+  }
 }
 
 // Whether reqUserWallet owns a tx stamped with ownerWallet. Matches directly,
@@ -109,6 +153,27 @@ export async function isArweaveTxOwner(
   if (!wallets) return false;
   return [wallets.evmWallet, wallets.likeWallet, wallets.cosmosWallet]
     .some((w) => !!w && w.toLowerCase() === target);
+}
+
+// Load a GCS-direct upload doc that `reqUserWallet` owns and that is still
+// awaiting its finalize step, for the given tier. Shared by the two finalize
+// routes so a caller cannot reach either one through the other's tier.
+export async function getOwnedPendingGcsTx(
+  txHash: string,
+  reqUserWallet: string,
+  tier: ContentTier,
+): Promise<ArweaveTxData> {
+  const tx = await getArweaveTxInfo(txHash);
+  if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+  if (tx.source !== 'gcs') throw new ValidationError('NOT_GCS_UPLOAD', 400);
+  // Open records finalize at /v2/gcs/arweave/:txHash — their object name is the
+  // arweaveId, which does not exist until that upload confirms.
+  if ((tx.tier || 'protected') !== tier) {
+    throw new ValidationError(tier === 'protected' ? 'USE_ARWEAVE_FINALIZE' : 'NOT_OPEN_GCS_UPLOAD', 400);
+  }
+  if (!(await isArweaveTxOwner(reqUserWallet, tx.ownerWallet))) throw new ValidationError('NOT_OWNER', 403);
+  if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
+  return tx;
 }
 
 export async function updateArweaveTxStatus(txHash: string, {

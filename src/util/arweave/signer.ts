@@ -19,8 +19,8 @@ import { IS_TESTNET } from '../../constant';
 // Irys node the base-eth balance/upload settles against. We talk to it over REST
 // instead of @irys/sdk so the funding send/notify seam is ours — the SDK fused them
 // into one throwing call and stranded deposits whose notify failed.
-const IRYS_NODE_ENDPOINT = IS_TESTNET ? 'https://devnet.irys.xyz' : 'https://node1.irys.xyz';
-const IRYS_TOKEN = 'base-eth';
+export const IRYS_NODE_ENDPOINT = IS_TESTNET ? 'https://devnet.irys.xyz' : 'https://node1.irys.xyz';
+export const IRYS_TOKEN = 'base-eth';
 
 // Known base-eth deposit address for each Irys node, used when no config pin is set
 // and as a fallback if /info is unreachable. getIrysDepositAddress still verifies
@@ -58,14 +58,20 @@ export async function initWallet(): Promise<TypedEthereumSigner> {
   return s;
 }
 
-export async function getPublicKey() {
+// Memoized signer. Also handed to arbundles' createData/DataItem.sign for
+// server-side uploads (upload.ts), so the same key that funds the node signs the
+// DataItems it pays for.
+export async function getSigner(): Promise<TypedEthereumSigner> {
   if (!signer) signer = await initWallet();
-  return signer.publicKey;
+  return signer;
+}
+
+export async function getPublicKey() {
+  return (await getSigner()).publicKey;
 }
 
 export async function signData(signatureData) {
-  if (!signer) signer = await initWallet();
-  return Buffer.from(await signer.sign(signatureData));
+  return Buffer.from(await (await getSigner()).sign(signatureData));
 }
 
 // Resolve the base-eth deposit address, verifying against /info when reachable so a
@@ -100,6 +106,12 @@ export async function getPrice(bytes: number): Promise<bigint> {
   return BigInt(String(data).trim().replace(/^"|"$/g, '').split('.')[0]);
 }
 
+// Irys answers with either a JSON object or a bare string, and both carry the
+// text callers match on to tell an idempotent replay from a real failure.
+export function readIrysResponseBody(res: { data?: unknown }): string {
+  return typeof res.data === 'string' ? res.data : JSON.stringify(res.data ?? '');
+}
+
 // Notify the indexer that `txHash` funded the node, retrying since the credit is
 // what strands. Idempotent: a re-notify of an already-credited tx is treated as
 // success (the sweep/reconcile relies on this).
@@ -111,7 +123,7 @@ export async function notifyIrys(txHash: string): Promise<void> {
       // eslint-disable-next-line no-await-in-loop
       const res = await axios.post(url, { tx_id: txHash }, { validateStatus: () => true });
       if (res.status >= 200 && res.status < 300) return;
-      const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data ?? '');
+      const body = readIrysResponseBody(res);
       if (/already (been )?processed/i.test(body)) return;
       lastError = new Error(`IRYS_NOTIFY_FAILED status=${res.status} body=${body}`);
     } catch (err) {

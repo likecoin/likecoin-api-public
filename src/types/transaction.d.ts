@@ -31,6 +31,10 @@ export interface ArweaveTxData {
   iscnId?: string;
   status?: string;
   source?: 'gcs'; // set only by GCS-direct uploads; absent = Arweave
+  // Which bucket contentBucketPath addresses. Absent = 'protected', the tier that
+  // shipped first; 'open' is the unencrypted DRM-free mirror (ADR 0001 Phase 3
+  // amendment), which also keeps an Arweave copy for provenance.
+  tier?: 'protected' | 'open';
   fileName?: string;
   ts?: number;
   token?: string;

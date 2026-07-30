@@ -77,6 +77,10 @@ config.ARWEAVE_RECONCILE_ADMIN_TOKEN = process.env.ARWEAVE_RECONCILE_ADMIN_TOKEN
 // Private CMEK-protected GCS bucket holding plaintext-at-rest protected ebooks
 // (ADR 0001 Phase 3). Empty = ingest disabled.
 config.EBOOK_PROTECTED_BUCKET = process.env.EBOOK_PROTECTED_BUCKET || '';
+// Durability + serving mirror for DRM-free ebooks, keyed by arweaveId (ADR 0001
+// Phase 3 amendment). No CMEK — the content is public. Empty = the open tier is
+// disabled and DRM-free uploads keep going straight to Arweave from the client.
+config.EBOOK_OPEN_BUCKET = process.env.EBOOK_OPEN_BUCKET || '';
 
 config.LIKER_NFT_TARGET_ADDRESS = '';
 

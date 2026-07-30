@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Readable } from 'stream';
 import BigNumber from 'bignumber.js';
 import { formatEther } from 'viem';
 import {
@@ -85,13 +86,37 @@ export async function checkArweaveTxV2({
   }
 }
 
-export async function pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize }) {
-  const { data } = await axios.get(`${ARWEAVE_GATEWAY}/${arweaveId}`, { responseType: 'arraybuffer' });
-  const returnedSize = (data as ArrayBuffer).byteLength;
-  if (returnedSize > fileSize) {
-    throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
+// `getStream` (or `buffer`) lets a caller that already has the bytes skip the
+// gateway fetch entirely. The server-side upload path passes a factory: it holds
+// the file in GCS, and a freshly uploaded id is exactly what a gateway has not
+// seeded yet. The size guard applies only to gateway/buffer content — a caller
+// supplying its own source has already verified it.
+export async function pushArweaveSingleFileToIPFS({
+  arweaveId, ipfsHash, fileSize, buffer, getStream,
+}: {
+  arweaveId?: string;
+  ipfsHash?: string;
+  fileSize?: number;
+  buffer?: Buffer;
+  getStream?: () => Readable;
+}) {
+  let source: { getStream: () => Readable } | { buffer: Buffer | ArrayBuffer };
+  if (getStream) {
+    source = { getStream };
+  } else {
+    let data: Buffer | ArrayBuffer | undefined = buffer;
+    if (!data) {
+      ({ data } = await axios.get(`${ARWEAVE_GATEWAY}/${arweaveId}`, { responseType: 'arraybuffer' }));
+    }
+    const returnedSize = Buffer.isBuffer(data)
+      ? data.byteLength
+      : (data as ArrayBuffer).byteLength;
+    if (fileSize && returnedSize > fileSize) {
+      throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
+    }
+    source = { buffer: data as Buffer };
   }
-  const uploadedIpfsId = await uploadFileToIPFS({ buffer: data });
+  const uploadedIpfsId = await uploadFileToIPFS(source);
   if (uploadedIpfsId !== ipfsHash) {
     // eslint-disable-next-line no-console
     console.warn(`IPFS hash mismatch: ${uploadedIpfsId} !== ${ipfsHash}, arweaveId: ${arweaveId}`);
