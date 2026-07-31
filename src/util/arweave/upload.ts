@@ -22,6 +22,36 @@ export function getDeterministicAnchor(seed: string): string {
   return crypto.createHash('sha256').update(seed).digest('hex').slice(0, 32);
 }
 
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+// Null on anything not base58, which callers treat as a mismatch. The length cap
+// bounds the accumulator, which is quadratic in the input: an id is 44 chars, so
+// only a broken node can reach it, and it would stall the upload for real seconds.
+function base58ToBuffer(value: string): Buffer | null {
+  if (value.length > 64) return null;
+  let num = 0n;
+  for (let i = 0; i < value.length; i += 1) {
+    const digit = BASE58_ALPHABET.indexOf(value[i]);
+    if (digit < 0) return null;
+    num = num * 58n + BigInt(digit);
+  }
+  const hex = num.toString(16);
+  const decoded = num === 0n
+    ? Buffer.alloc(0)
+    : Buffer.from(hex.length % 2 ? `0${hex}` : hex, 'hex');
+  // Leading zero bytes carry no value and so are lost by the numeric decode above;
+  // base58 writes each one as a literal '1'.
+  let zeros = 0;
+  while (zeros < value.length && value[zeros] === '1') zeros += 1;
+  return Buffer.concat([Buffer.alloc(zeros), decoded]);
+}
+
+// Irys reports the id in base58 while arbundles' `item.id` is the Arweave-standard
+// base64url of the same 32 bytes, so accept either encoding of what we signed.
+function matchesSignedId(returnedId: string, item: DataItem): boolean {
+  return returnedId === item.id || base58ToBuffer(returnedId)?.equals(item.rawId) === true;
+}
+
 /**
  * Sign an ANS-104 DataItem whose payload is a stream, returning the signed
  * header (ADR 0001 Phase 3 amendment).
@@ -66,9 +96,10 @@ export async function signDataItemStream(
  * Upload a signed DataItem to Irys, streaming its payload, and return the
  * arweaveId.
  *
- * The id is Base64URL(SHA-256(signature)) and so is fixed by signing, before any
- * byte is sent. A node echoing back a different one is rejected: accepting it
- * would put an id on-chain addressing content we never signed.
+ * The id is SHA-256(signature) and so is fixed by signing, before any byte is sent.
+ * It is returned base64url, the Arweave-standard form. A node echoing back an id
+ * for anything else is rejected: accepting it would put an id on-chain addressing
+ * content we never signed.
  *
  * Resolving means the node has taken custody — that receipt is the confirmation
  * callers block on, which is why there is no reconcile path.
@@ -136,7 +167,7 @@ export async function uploadSignedDataItemToIrys(
     throw new Error(`IRYS_UPLOAD_FAILED status=${res.status} body=${responseBody}`);
   }
   const returnedId = res.data?.id;
-  if (returnedId && returnedId !== arweaveId) {
+  if (returnedId && !matchesSignedId(returnedId, item)) {
     throw new Error(`IRYS_UPLOAD_ID_MISMATCH signed=${arweaveId} node=${returnedId}`);
   }
   return arweaveId;

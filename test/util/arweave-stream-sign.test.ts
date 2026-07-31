@@ -97,6 +97,71 @@ describe('uploadSignedDataItemToIrys', () => {
   const TOTAL = 32 * 1024 * 1024;
   const BLOCK = Buffer.alloc(1024 * 1024, 0x41);
 
+  // Irys reports the id in base58 while arbundles' item.id is base64url of the same
+  // 32 bytes, so a string compare rejects the node's own receipt for what we signed.
+  // Encoded independently here, so the check is not a round-trip through the decoder
+  // under test.
+  const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  function base58Encode(buf: Buffer): string {
+    let num = BigInt(`0x${buf.toString('hex')}`);
+    let out = '';
+    while (num > 0n) {
+      out = BASE58_ALPHABET[Number(num % 58n)] + out;
+      num /= 58n;
+    }
+    for (let i = 0; i < buf.length && buf[i] === 0; i += 1) out = `1${out}`;
+    return out;
+  }
+
+  const signForUpload = () => signDataItemStream(
+    Readable.from([PAYLOAD]),
+    { tags: TAGS, anchorSeed: 'gcs-id' },
+  );
+
+  async function uploadAgainstStubbedId(item: DataItem, respondWith: () => string) {
+    const server = createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ id: respondWith() }));
+      });
+    });
+    await new Promise<void>((resolve) => { server.listen(0, resolve); });
+    const { port } = server.address() as AddressInfo;
+    try {
+      return await uploadSignedDataItemToIrys(
+        item,
+        Readable.from([PAYLOAD]),
+        PAYLOAD.length,
+        `http://127.0.0.1:${port}`,
+      );
+    } finally {
+      // A body that never completes leaves the stub holding a live connection, and
+      // close() alone would then wait on it past the point vitest gives up.
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => { server.close(() => resolve()); });
+    }
+  }
+
+  it('accepts a base58 id for the bytes it signed', async () => {
+    const item = await signForUpload();
+    await expect(uploadAgainstStubbedId(item, () => base58Encode(item.rawId)))
+      .resolves.toBe(item.id);
+  });
+
+  it('still rejects an id for bytes it did not sign', async () => {
+    const other = crypto.randomBytes(32);
+    await expect(uploadAgainstStubbedId(await signForUpload(), () => base58Encode(other)))
+      .rejects.toThrow(/IRYS_UPLOAD_ID_MISMATCH/);
+  });
+
+  it('rejects an id it cannot decode at all', async () => {
+    // '0', 'O', 'I' and 'l' are exactly what base58 omits, so this is undecodable
+    // rather than merely different — the branch where the decode returns null.
+    await expect(uploadAgainstStubbedId(await signForUpload(), () => 'lOI0'.repeat(11)))
+      .rejects.toThrow(/IRYS_UPLOAD_ID_MISMATCH/);
+  });
+
   // The whole point of streaming is that the payload is never resident. axios'
   // default transport (follow-redirects) retains every chunk to replay on
   // redirect, and its write() returns undefined so pipe() never pauses — which
