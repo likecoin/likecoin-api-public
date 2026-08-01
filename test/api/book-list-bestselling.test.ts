@@ -1,50 +1,39 @@
 import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
-import { likeNFTBookCollection, Timestamp } from '../../src/util/firebase';
+import { likeNFTBookCollection } from '../../src/util/firebase';
+import {
+  SALES_SCORE_EPOCH_MS,
+  SALES_SCORE_HALF_LIFE_DAYS,
+  getSaleScoreIncrement,
+} from '../../src/util/api/likernft/book/sales';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const LIST_PATH = '/api/likernft/book/store/list/bestselling';
-const REFRESH_PATH = '/api/likernft/book/store/admin/bestselling-books/refresh';
-// matches BESTSELLING_BOOKS_ADMIN_TOKEN in test/setup.ts
-const AUTH = 'test-bestselling-books-admin-token';
 const OWNER = mockEVMAddress(0x44);
 
-// The stub firestore can't rank, page, or bound the 30-day window;
-// this suite covers filtering, cursor validation, and the refresh counting rules.
+// The stub firestore can't rank or page; this suite covers filtering, cursor
+// validation, and the score math that feeds the purchase-time increment.
 const seedBook = (classId: string, data: Record<string, unknown> = {}) => likeNFTBookCollection
   .doc(classId)
   .set({
-    classId, ownerWallet: OWNER, isPlusReadingEnabled: true, salesCount30d: 0, ...data,
+    classId,
+    ownerWallet: OWNER,
+    isPlusReadingEnabled: true,
+    salesScore: 0,
+    ...data,
   } as any);
-
-const seedTx = (classId: string, paymentId: string, data: Record<string, unknown> = {}) => (
-  likeNFTBookCollection
-    .doc(classId)
-    .collection('transactions')
-    .doc(paymentId)
-    .set({
-      status: 'completed', timestamp: Timestamp.now(), quantity: 1, priceInDecimal: 900, ...data,
-    } as any)
-);
 
 const get = (query = '') => axiosist
   .get(`${LIST_PATH}${query}`)
   .catch((err) => (err as any).response);
 
-const refresh = (body: Record<string, unknown> = {}, token: string | null = AUTH) => axiosist
-  .post(REFRESH_PATH, body, token ? { headers: { Authorization: `Bearer ${token}` } } : {})
-  .catch((err) => (err as any).response);
-
-const getBookData = async (classId: string) => {
-  const snap = await likeNFTBookCollection.doc(classId).get();
-  return snap.data() as any;
-};
-
 describe('GET /likernft/book/store/list/bestselling', () => {
   it('scopes to Plus-reading books with library=1', async () => {
     const inLibrary = mockEVMAddress(0xc1);
     const notInLibrary = mockEVMAddress(0xc2);
-    await seedBook(inLibrary, { salesCount30d: 5 });
+    await seedBook(inLibrary, { salesScore: 5 });
     await seedBook(notInLibrary, { isPlusReadingEnabled: false });
 
     const res = await get('?library=1');
@@ -67,15 +56,15 @@ describe('GET /likernft/book/store/list/bestselling', () => {
     expect(classIds).toContain(notInLibrary);
   });
 
-  it('does not leak the sales counter to clients', async () => {
+  it('does not leak the sales score to clients', async () => {
     const classId = mockEVMAddress(0xc5);
-    await seedBook(classId, { salesCount30d: 42 });
+    await seedBook(classId, { salesScore: 42 });
 
     const res = await get();
     const book = res.data.list.find((b: any) => b.classId === classId);
     expect(book).toBeDefined();
     // Rank order is public; the sales figures behind it are not.
-    expect(book.salesCount30d).toBeUndefined();
+    expect(book.salesScore).toBeUndefined();
   });
 
   it('excludes hidden and redirected books from the list', async () => {
@@ -116,64 +105,37 @@ describe('GET /likernft/book/store/list/bestselling', () => {
   });
 });
 
-describe('POST /likernft/book/store/admin/bestselling-books/refresh', () => {
-  it('rejects requests without the admin token', async () => {
-    const res = await refresh({}, null);
-    expect(res.status).toBe(401);
+describe('getSaleScoreIncrement', () => {
+  it('weighs a sale one half-life later exactly twice as much', () => {
+    const halfLifeMs = SALES_SCORE_HALF_LIFE_DAYS * DAY_MS;
+    const early = getSaleScoreIncrement(1, SALES_SCORE_EPOCH_MS);
+    const late = getSaleScoreIncrement(1, SALES_SCORE_EPOCH_MS + halfLifeMs);
+    expect(early).toBe(1);
+    expect(late).toBe(2);
   });
 
-  it('rejects requests with a wrong admin token', async () => {
-    const res = await refresh({}, 'wrong-token');
-    expect(res.status).toBe(401);
+  it('weighs all sales on the same UTC day identically', () => {
+    const dayStart = SALES_SCORE_EPOCH_MS + DAY_MS * 3;
+    const dayEnd = dayStart + DAY_MS - 1;
+    expect(getSaleScoreIncrement(1, dayStart)).toBe(getSaleScoreIncrement(1, dayEnd));
+    expect(getSaleScoreIncrement(1, dayStart + DAY_MS))
+      .toBeGreaterThan(getSaleScoreIncrement(1, dayStart));
   });
 
-  it('counts paid sales and skips unpaid and free transactions', async () => {
-    const classId = mockEVMAddress(0xd1);
-    await seedBook(classId, { lastSaleTimestamp: Timestamp.now() });
-    await seedTx(classId, 'tx-paid', { status: 'paid' });
-    await seedTx(classId, 'tx-completed', { status: 'completed', quantity: 2 });
-    await seedTx(classId, 'tx-new', { status: 'new' });
-    await seedTx(classId, 'tx-free', { status: 'completed', priceInDecimal: 0 });
-
-    const res = await refresh();
-    expect(res.status).toBe(200);
-    expect(res.data.success).toBe(true);
-    expect(res.data.scanned).toBeGreaterThanOrEqual(1);
-    // paid (1) + completed (2); `new` and free claims are excluded.
-    expect((await getBookData(classId)).salesCount30d).toBe(3);
+  it('gives pre-epoch sales fractional weights', () => {
+    const halfLifeMs = SALES_SCORE_HALF_LIFE_DAYS * DAY_MS;
+    expect(getSaleScoreIncrement(1, SALES_SCORE_EPOCH_MS - halfLifeMs)).toBe(0.5);
   });
 
-  it('decays counts back to zero when no sale remains in the window', async () => {
-    const classId = mockEVMAddress(0xd2);
-    await seedBook(classId, { salesCount30d: 5 });
-
-    const res = await refresh();
-    expect(res.status).toBe(200);
-    expect((await getBookData(classId)).salesCount30d).toBe(0);
+  it('scales linearly with quantity', () => {
+    const t = SALES_SCORE_EPOCH_MS + SALES_SCORE_HALF_LIFE_DAYS * DAY_MS * 3;
+    expect(getSaleScoreIncrement(5, t)).toBe(5 * getSaleScoreIncrement(1, t));
   });
 
-  it('seeds the field onto docs missing it only with seedMissing', async () => {
-    const classId = mockEVMAddress(0xd3);
-    await likeNFTBookCollection.doc(classId).set({ classId, ownerWallet: OWNER } as any);
-
-    let res = await refresh();
-    expect(res.status).toBe(200);
-    expect(res.data.seeded).toBe(0);
-    expect((await getBookData(classId)).salesCount30d).toBeUndefined();
-
-    res = await refresh({ seedMissing: true });
-    expect(res.status).toBe(200);
-    expect(res.data.seeded).toBeGreaterThanOrEqual(1);
-    expect((await getBookData(classId)).salesCount30d).toBe(0);
-  });
-
-  it('does not write with dryRun', async () => {
-    const classId = mockEVMAddress(0xd4);
-    await seedBook(classId, { salesCount30d: 5 });
-
-    const res = await refresh({ dryRun: true });
-    expect(res.status).toBe(200);
-    expect(res.data.updated).toBeGreaterThanOrEqual(1);
-    expect((await getBookData(classId)).salesCount30d).toBe(5);
+  it('counts a malformed quantity as one sale', () => {
+    const t = SALES_SCORE_EPOCH_MS;
+    expect(getSaleScoreIncrement(0, t)).toBe(1);
+    expect(getSaleScoreIncrement(-2, t)).toBe(1);
+    expect(getSaleScoreIncrement(NaN, t)).toBe(1);
   });
 });

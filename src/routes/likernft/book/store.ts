@@ -27,10 +27,7 @@ import {
   listNFTBookCMSTags,
   getNFTBookCMSTag,
 } from '../../../util/api/likernft/book/cms';
-import {
-  listBestsellingNFTBookInfo,
-  refreshBookSalesCounts,
-} from '../../../util/api/likernft/book/sales';
+import { listBestsellingNFTBookInfo } from '../../../util/api/likernft/book/sales';
 import {
   ImageUploadBodySchema,
   ListingSettingsBodySchema,
@@ -54,8 +51,6 @@ import {
   BookBestsellingListQuerySchema,
   type BookBestsellingListQuery,
   BookBestsellingListResponseSchema,
-  BookSalesRefreshRequestBodySchema,
-  BookSalesRefreshResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
   BookInfoResponseSchema,
@@ -81,7 +76,6 @@ import {
 } from '../../../util/api/likernft/book/schemas';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import { airtableAutomationAuth } from '../../../middleware/airtable-automation-auth';
-import { bestsellingBooksAdminAuth } from '../../../middleware/bestselling-books-admin-auth';
 import {
   getNFTClassDataById as getEVMNFTClassDataById,
   getNFTClassOwner as getEVMNFTClassOwner,
@@ -409,24 +403,6 @@ router.get(
         res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
       }
       sendValidatedJSON(res, BookBestsellingListResponseSchema, { list, nextKey });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-// Admin/cron: recompute the rolling bestselling ranking field behind `/list/bestselling`.
-// `seedMissing` backfills the field onto docs missing it (run once before first use);
-// `dryRun` reports the would-be writes without committing.
-router.post(
-  '/admin/bestselling-books/refresh',
-  bestsellingBooksAdminAuth,
-  validateBody(BookSalesRefreshRequestBodySchema),
-  async (req, res, next) => {
-    try {
-      const { seedMissing = false, dryRun = false } = req.body;
-      const result = await refreshBookSalesCounts({ seedMissing, dryRun });
-      sendValidatedJSON(res, BookSalesRefreshResponseSchema, { success: true, ...result });
     } catch (err) {
       next(err);
     }

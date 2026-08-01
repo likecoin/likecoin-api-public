@@ -43,6 +43,7 @@ import {
 import { getCurrencyPriceInDecimal } from '../../../pricing';
 import { checkIsFromLikerLand, calculateItemPrices } from './price';
 import { assertClaimable, buildBasePaymentPayload, BookPaymentGiftInfo } from './payment';
+import { getSaleScoreIncrement } from './sales';
 
 // Re-export pure functions for backward compatibility
 export { checkIsFromLikerLand, calculateItemPrices } from './price';
@@ -527,10 +528,17 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
     });
   }
   t.update(bookRef.collection('transactions').doc(paymentId), txData);
-  t.update(bookRef, {
+  const bookPayload: Record<string, unknown> = {
     prices,
     lastSaleTimestamp: FieldValue.serverTimestamp(),
-  });
+  };
+  // Free items (priceInDecimal 0) don't move the bestselling rank.
+  if (txData.priceInDecimal > 0) {
+    bookPayload.salesScore = FieldValue.increment(
+      getSaleScoreIncrement(txData.quantity, Date.now()),
+    );
+  }
+  t.update(bookRef, bookPayload);
   return {
     listingData,
     txData,

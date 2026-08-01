@@ -332,7 +332,7 @@ export async function newNftBookInfo(
     // Seed the ranking sort keys: Firestore drops documents missing an `orderBy` field,
     // so an unseeded book would never surface in those listings at all.
     plusReadingTotalMs: 0,
-    salesCount30d: 0,
+    salesScore: 0,
   };
   const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
   if (minPriceInDecimal !== undefined) payload.minPriceInDecimal = minPriceInDecimal;
