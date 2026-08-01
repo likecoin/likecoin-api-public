@@ -448,6 +448,7 @@ export const getPlusSuccessPageURL = ({
 
 export const getPlusGiftPageURL = ({
   period,
+  quantity,
   cartId,
   paymentId,
   token,
@@ -462,6 +463,7 @@ export const getPlusGiftPageURL = ({
   gadSource,
 }: {
   period: string;
+  quantity?: number;
   cartId: string;
   paymentId: string;
   token: string;
@@ -481,6 +483,10 @@ export const getPlusGiftPageURL = ({
     claiming_token: token,
     period,
   };
+
+  if (quantity && quantity > 1) {
+    qsPayload.quantity = quantity;
+  }
 
   if (cartId) {
     qsPayload.cart_id = cartId;

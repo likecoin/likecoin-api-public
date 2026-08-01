@@ -73,6 +73,7 @@ export interface PlusGiftCartData {
   errorMessage?: string;
   wallet?: string;
   period: 'monthly' | 'yearly';
+  quantity?: number;
   giftInfo: BookGiftInfo;
   claimToken: string;
   ipCountry?: string;

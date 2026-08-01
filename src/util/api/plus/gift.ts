@@ -29,6 +29,7 @@ import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
 export async function createPlusGiftCheckoutSession(
   {
     period = 'yearly',
+    quantity = 1,
     giftInfo,
     coupon,
     language,
@@ -36,6 +37,7 @@ export async function createPlusGiftCheckoutSession(
     isApp,
   }: {
     period: PlusPeriod,
+    quantity?: number,
     giftInfo: BookGiftInfo,
     coupon?: string,
     language?: 'en' | 'zh',
@@ -86,6 +88,7 @@ export async function createPlusGiftCheckoutSession(
     paymentId,
     cartId: paymentId,
     claimToken,
+    quantity: quantity.toString(),
   };
   if (likeWallet) sessionMetadata.likeWallet = likeWallet;
   if (evmWallet) sessionMetadata.evmWallet = evmWallet;
@@ -124,7 +127,7 @@ export async function createPlusGiftCheckoutSession(
     line_items: [
       {
         price: isYearly ? LIKER_PLUS_GIFT_YEARLY_PRICE_ID : LIKER_PLUS_GIFT_MONTHLY_PRICE_ID,
-        quantity: 1,
+        quantity: isYearly ? 1 : quantity,
       },
     ],
     metadata: sessionMetadata,
@@ -136,6 +139,7 @@ export async function createPlusGiftCheckoutSession(
     currency: currency || 'usd',
     success_url: getPlusGiftPageURL({
       period,
+      quantity: isYearly ? undefined : quantity,
       cartId,
       paymentId,
       token: claimToken,
@@ -198,6 +202,7 @@ export async function getPlusGiftCartData(
 
 export async function createPlusGiftCart({
   period = 'yearly',
+  quantity = 1,
   giftInfo,
   email,
   paymentId,
@@ -206,6 +211,7 @@ export async function createPlusGiftCart({
   ipCountry,
 }: {
   period?: PlusPeriod,
+  quantity?: number,
   giftInfo: BookGiftInfo,
   email: string,
   paymentId: string,
@@ -217,6 +223,7 @@ export async function createPlusGiftCart({
     id: paymentId,
     email,
     period,
+    quantity,
     giftInfo,
     status: 'paid',
     sessionId,
@@ -247,6 +254,7 @@ export async function claimPlusGiftCart({
     status,
     giftInfo,
     period,
+    quantity,
   } = cartData;
   if (claimToken !== token) {
     throw new ValidationError('Invalid claim token for plus gift cart');
@@ -303,6 +311,8 @@ export async function claimPlusGiftCart({
 
   try {
     const isYearly = period === 'yearly';
+    // Multi-month gifts ride the monthly recurring price with a quantity × 30-day trial.
+    const trialPeriodDays = isYearly ? 365 : 30 * (quantity || 1);
 
     const subscription = await getStripeClient().subscriptions.create({
       customer: stripeCustomerId,
@@ -319,7 +329,7 @@ export async function claimPlusGiftCart({
         giftCartId: cartId,
         isGift: 'true',
       },
-      trial_period_days: isYearly ? 365 : 30,
+      trial_period_days: trialPeriodDays,
       trial_settings: {
         end_behavior: {
           missing_payment_method: 'cancel',
@@ -453,6 +463,13 @@ export async function processPlusGiftStripePurchase(
   }
   const isYearly = priceId === LIKER_PLUS_GIFT_YEARLY_PRICE_ID;
   const period = isYearly ? 'yearly' : 'monthly';
+  const quantity = lineItem.quantity || 1;
+  if (isYearly && quantity !== 1) {
+    throw new ValidationError('Invalid quantity for yearly plus gift purchase');
+  }
+  if (!isYearly && (quantity < 1 || quantity > 11)) {
+    throw new ValidationError('Invalid quantity for monthly plus gift purchase');
+  }
 
   const email = customer?.email || '';
   const exists = await checkPlusGiftCartExists(paymentId);
@@ -465,6 +482,7 @@ export async function processPlusGiftStripePurchase(
   await createPlusGiftCart({
     email,
     period,
+    quantity,
     giftInfo: {
       toName: giftToName,
       toEmail: giftToEmail,
@@ -497,7 +515,7 @@ export async function processPlusGiftStripePurchase(
     email: email || undefined,
     items: [{
       productId: `plus-gift-${period}`,
-      quantity: 1,
+      quantity,
     }],
     userAgent,
     clientIp,

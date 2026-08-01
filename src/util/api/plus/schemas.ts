@@ -103,9 +103,14 @@ export const PlusNewQuerySchema = z.object({
 
 export const PlusGiftNewQuerySchema = z.object({
   period: z.enum(['monthly', 'yearly']).default('yearly').catch('yearly'),
+  // Months gifted, charged at quantity × the monthly gift price; monthly only.
+  quantity: z.coerce.number().int().min(1).max(11)
+    .default(1)
+    .catch(1),
   from: z.string().optional(),
   currency: z.string().optional(),
-}).passthrough();
+}).passthrough()
+  .transform((query) => (query.period === 'yearly' ? { ...query, quantity: 1 } : query));
 
 export const PlusCheckoutResponseSchema = StripeCheckoutResponseSchema.extend({
   sessionId: z.string(),
@@ -204,6 +209,7 @@ export const PlusGiftCartStatusResponseSchema = z.object({
   errorMessage: z.string().optional(),
   wallet: z.string().optional(),
   period: z.enum(['monthly', 'yearly']),
+  quantity: z.number().optional(),
   giftInfo: BookGiftInfoSchema,
   timestamp: z.number().optional(),
   claimTimestamp: z.number().optional(),

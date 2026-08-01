@@ -296,6 +296,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
 router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySchema), validateBody(PlusGiftNewBodySchema), async (req, res, next) => {
   const { period = 'yearly' } = req.query as Record<string, string>;
   const { from, currency } = req.query as Record<string, string>;
+  const { quantity } = req.query as unknown as { quantity: number };
   const {
     gaClientId,
     gaSessionId,
@@ -331,6 +332,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
     } = await createPlusGiftCheckoutSession(
       {
         period: period as PlusPeriod,
+        quantity,
         giftInfo,
         coupon,
         currency: checkoutCurrency,
@@ -365,18 +367,19 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
       paymentId,
     });
 
+    const giftUnitValue = convertUSDPriceToCurrency(
+      period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
+      checkoutCurrency,
+    );
     await logServerEvents('InitiateCheckout', {
       email,
       items: [{
         productId: `plus-gift-${period}`,
-        quantity: 1,
+        quantity,
       }],
       userAgent,
       clientIp,
-      value: convertUSDPriceToCurrency(
-        period === 'yearly' ? PLUS_YEARLY_PRICE : PLUS_MONTHLY_PRICE,
-        checkoutCurrency,
-      ),
+      value: giftUnitValue * quantity,
       currency: checkoutCurrency.toUpperCase(),
       paymentId,
       referrer,
@@ -392,6 +395,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
       logType: 'PlusGiftCheckoutSessionCreated',
       sessionId: session.id,
       period,
+      quantity,
       wallet: req.user?.wallet,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
