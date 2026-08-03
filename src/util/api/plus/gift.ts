@@ -127,7 +127,7 @@ export async function createPlusGiftCheckoutSession(
     line_items: [
       {
         price: isYearly ? LIKER_PLUS_GIFT_YEARLY_PRICE_ID : LIKER_PLUS_GIFT_MONTHLY_PRICE_ID,
-        quantity: isYearly ? 1 : quantity,
+        quantity,
       },
     ],
     metadata: sessionMetadata,
@@ -139,7 +139,7 @@ export async function createPlusGiftCheckoutSession(
     currency: currency || 'usd',
     success_url: getPlusGiftPageURL({
       period,
-      quantity: isYearly ? undefined : quantity,
+      quantity,
       cartId,
       paymentId,
       token: claimToken,
@@ -311,8 +311,8 @@ export async function claimPlusGiftCart({
 
   try {
     const isYearly = period === 'yearly';
-    // Multi-month gifts ride the monthly recurring price with a quantity × 30-day trial.
-    const trialPeriodDays = isYearly ? 365 : 30 * (quantity || 1);
+    // Gifts ride the recurring price with a quantity × period-length trial.
+    const trialPeriodDays = (isYearly ? 365 : 30) * (quantity || 1);
 
     const subscription = await getStripeClient().subscriptions.create({
       customer: stripeCustomerId,
@@ -464,11 +464,9 @@ export async function processPlusGiftStripePurchase(
   const isYearly = priceId === LIKER_PLUS_GIFT_YEARLY_PRICE_ID;
   const period = isYearly ? 'yearly' : 'monthly';
   const quantity = lineItem.quantity || 1;
-  if (isYearly && quantity !== 1) {
-    throw new ValidationError('Invalid quantity for yearly plus gift purchase');
-  }
-  if (!isYearly && (quantity < 1 || quantity > 11)) {
-    throw new ValidationError('Invalid quantity for monthly plus gift purchase');
+  // Trial length is quantity × period, and Stripe caps trials at 730 days.
+  if (quantity < 1 || quantity > (isYearly ? 2 : 11)) {
+    throw new ValidationError('Invalid quantity for plus gift purchase');
   }
 
   const email = customer?.email || '';
