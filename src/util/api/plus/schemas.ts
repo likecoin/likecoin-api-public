@@ -103,9 +103,15 @@ export const PlusNewQuerySchema = z.object({
 
 export const PlusGiftNewQuerySchema = z.object({
   period: z.enum(['monthly', 'yearly']).default('yearly').catch('yearly'),
+  // Months or years gifted, charged at quantity × the gift price of the period.
+  quantity: z.coerce.number().int().min(1).max(11)
+    .default(1)
+    .catch(1),
   from: z.string().optional(),
   currency: z.string().optional(),
-}).passthrough();
+}).passthrough()
+  // Stripe caps trials at 730 days, so yearly gifts top out at 2 years.
+  .transform((query) => (query.period === 'yearly' ? { ...query, quantity: Math.min(query.quantity, 2) } : query));
 
 export const PlusCheckoutResponseSchema = StripeCheckoutResponseSchema.extend({
   sessionId: z.string(),
@@ -204,6 +210,7 @@ export const PlusGiftCartStatusResponseSchema = z.object({
   errorMessage: z.string().optional(),
   wallet: z.string().optional(),
   period: z.enum(['monthly', 'yearly']),
+  quantity: z.number().optional(),
   giftInfo: BookGiftInfoSchema,
   timestamp: z.number().optional(),
   claimTimestamp: z.number().optional(),
