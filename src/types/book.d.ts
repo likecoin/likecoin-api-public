@@ -188,6 +188,9 @@ export interface NFTBookListingInfo {
   // Lifetime recorded reading + TTS time, denormalized from the `plusUsage`
   // rollups so listings can order by it. See recordPlusReadingUsage.
   plusReadingTotalMs?: number;
+  // Time-weighted paid-sales score for bestselling order. See getSaleScoreIncrement.
+  salesScore?: number;
+  lastSaleTimestamp?: any;
   successUrl?: string;
   cancelUrl?: string;
 }

@@ -329,9 +329,10 @@ export async function newNftBookInfo(
     isApprovedForAds: (isAdultOnly ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
     isPendingReview: false,
-    // Seed the popularity sort key: Firestore drops documents missing an `orderBy`
-    // field, so an unseeded book would never surface in the popular listing at all.
+    // Seed the ranking sort keys: Firestore drops documents missing an `orderBy` field,
+    // so an unseeded book would never surface in those listings at all.
     plusReadingTotalMs: 0,
+    salesScore: 0,
   };
   const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
   if (minPriceInDecimal !== undefined) payload.minPriceInDecimal = minPriceInDecimal;

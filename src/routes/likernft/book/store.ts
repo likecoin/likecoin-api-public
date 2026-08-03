@@ -27,6 +27,7 @@ import {
   listNFTBookCMSTags,
   getNFTBookCMSTag,
 } from '../../../util/api/likernft/book/cms';
+import { listBestsellingNFTBookInfo } from '../../../util/api/likernft/book/sales';
 import {
   ImageUploadBodySchema,
   ListingSettingsBodySchema,
@@ -47,6 +48,9 @@ import {
   BookPopularListQuerySchema,
   type BookPopularListQuery,
   BookPopularListResponseSchema,
+  BookBestsellingListQuerySchema,
+  type BookBestsellingListQuery,
+  BookBestsellingListResponseSchema,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
   BookInfoResponseSchema,
@@ -364,6 +368,46 @@ router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookP
     next(err);
   }
 });
+
+router.get(
+  '/list/bestselling',
+  jwtOptionalAuth('read:nftbook'),
+  validateQuery(BookBestsellingListQuerySchema),
+  async (req: QueryRequest<BookBestsellingListQuery>, res, next) => {
+    try {
+      const { library, limit, key } = req.query;
+      const bookInfos = await listBestsellingNFTBookInfo({
+        isPlusReadingEnabled: library === '1' || undefined,
+        limit,
+        key,
+      });
+      const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
+        const {
+          isHidden,
+          isPendingReview,
+          redirectClassId,
+          moderatorWallets = [],
+          ownerWallet,
+        } = b;
+        if (redirectClassId) return [];
+        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+        if (!isAuthorized && (isHidden || isPendingReview)) return [];
+        return [filterNFTBookListingInfo(b, isAuthorized)];
+      });
+      // Cursor off the unfiltered result so hidden/redirected docs don't end pagination early.
+      const lastBookInfo = bookInfos[bookInfos.length - 1];
+      const nextKey = bookInfos.length < limit ? null : (lastBookInfo?.id ?? null);
+      if (req.user) {
+        res.set('Cache-Control', 'no-store');
+      } else {
+        res.set('Cache-Control', `public, max-age=60, s-maxage=60, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
+      }
+      sendValidatedJSON(res, BookBestsellingListResponseSchema, { list, nextKey });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {
   try {
