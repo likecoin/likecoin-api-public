@@ -1,39 +1,11 @@
 import uuidv4 from 'uuid/v4';
 import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
-import { wrapKey, unwrapKey, isKMSEnabled } from '../../kms';
+import { unwrapKey, isKMSEnabled } from '../../kms';
 import { getUserWalletsByWallet } from '../users/getPublicInfo';
 import { ValidationError } from '../../ValidationError';
 import { isAlreadyExistsError } from '../../misc';
 import type { ArweaveTxData } from '../../../types/transaction';
 import type { ContentTier } from '../../gcloudStorage';
-
-export async function createNewArweaveTx(docId: string, {
-  ipfsHash,
-  fileSize,
-  ownerWallet,
-  isSponsored,
-  sponsoredETH,
-}: {
-  ipfsHash: string;
-  fileSize: number;
-  ownerWallet: string;
-  isSponsored?: boolean;
-  sponsoredETH?: string;
-}): Promise<string> {
-  const token = uuidv4();
-  const data: ArweaveTxData = {
-    token,
-    ipfsHash,
-    fileSize,
-    ownerWallet,
-    status: 'pending',
-    timestamp: FieldValue.serverTimestamp(),
-    lastUpdateTimestamp: FieldValue.serverTimestamp(),
-    ...(isSponsored ? { isSponsored: true, sponsoredETH } : {}),
-  };
-  await iscnArweaveTxCollection.doc(docId).create(data);
-  return token;
-}
 
 // GCS-direct upload doc (ADR 0001 Phase 3): no content key ever exists, and no
 // legacy `token` — the flow is JWT-owner-gated end to end. fileSHA256 is the
@@ -71,9 +43,8 @@ export async function createNewGcsUploadTx(docId: string, {
 }
 
 // Complete a GCS-direct upload: the ingest markers plus the lifecycle fields
-// legacy docs get from updateArweaveTxStatus() at register (status,
-// isRequireAuth, accessToken) — this flow never calls register, and without
-// isRequireAuth the link endpoint would serve the doc unauthenticated.
+// (status, isRequireAuth, accessToken) — without isRequireAuth the link
+// endpoint would serve the doc unauthenticated.
 // Open records pass isRequireAuth: false — their bytes are public on Arweave
 // anyway, so gating the mirror would leave the fallback more available than it.
 export async function markGcsTxCompleted(txHash: string, {
@@ -102,12 +73,10 @@ export async function getArweaveTxInfo(txHash: string): Promise<ArweaveTxData | 
 
 // Consume a Base payment exactly once.
 //
-// The legacy flow gets this for free: it keys the upload doc on the *payment*
-// hash, so a replay hits ALREADY_EXISTS. GCS-direct docs are keyed on gcs-<uuid>
-// instead, and checkArweaveTxV2 is pure read-only verification that happily
-// passes the same hash twice — so without this a caller could stage a file N
-// times and settle all N against one payment. Claiming it in the same collection
-// also stops a payment being spent once here and once via /v2/register.
+// GCS-direct docs are keyed on gcs-<uuid>, so the doc id carries no uniqueness
+// against the payment, and checkArweaveTxV2 is pure read-only verification that
+// happily passes the same hash twice — without this claim a caller could stage a
+// file N times and settle all N against one payment.
 export async function claimArweaveTxPayment(paymentTxHash: string, {
   uploadId,
   ownerWallet,
@@ -173,42 +142,6 @@ export async function getOwnedPendingGcsTx(
   if (!(await isArweaveTxOwner(reqUserWallet, tx.ownerWallet))) throw new ValidationError('NOT_OWNER', 403);
   if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
   return tx;
-}
-
-export async function updateArweaveTxStatus(txHash: string, {
-  arweaveId,
-  ownerWallet,
-  key = '',
-  isRequireAuth = false,
-  fileSHA256 = '',
-}: {
-  arweaveId: string;
-  ownerWallet: string;
-  key?: string;
-  isRequireAuth?: boolean;
-  fileSHA256?: string;
-}): Promise<string> {
-  const accessToken = uuidv4();
-  // Under KMS store wrapped ciphertext in `encryptedKey` (AAD = txHash); in
-  // passthrough store plaintext in legacy `key` so enabling KMS later never
-  // decrypts non-ciphertext. Delete the opposite field to leave no plaintext.
-  let keyFields = {};
-  if (key) {
-    keyFields = isKMSEnabled()
-      ? { encryptedKey: await wrapKey(key, txHash), key: FieldValue.delete() }
-      : { key, encryptedKey: FieldValue.delete() };
-  }
-  await iscnArweaveTxCollection.doc(txHash).update({
-    status: 'complete',
-    arweaveId,
-    isRequireAuth,
-    ownerWallet,
-    ...keyFields,
-    ...(fileSHA256 ? { fileSHA256: fileSHA256.toLowerCase() } : {}),
-    accessToken,
-    lastUpdateTimestamp: FieldValue.serverTimestamp(),
-  });
-  return accessToken;
 }
 
 // Record a protected-content ingest: the plaintext's path in the private

@@ -66,14 +66,6 @@ export async function getSigner(): Promise<TypedEthereumSigner> {
   return signer;
 }
 
-export async function getPublicKey() {
-  return (await getSigner()).publicKey;
-}
-
-export async function signData(signatureData) {
-  return Buffer.from(await (await getSigner()).sign(signatureData));
-}
-
 // Resolve the base-eth deposit address, verifying against /info when reachable so a
 // node key rotation can't silently misroute funds. Falls back to the expected
 // address (config pin or network default) if /info is unavailable.

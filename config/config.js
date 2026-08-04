@@ -64,8 +64,11 @@ config.ARWEAVE_EVM_TARGET_ADDRESS = '';
 config.IPFS_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
 config.REPLICA_IPFS_ENDPOINTS = [];
 config.ARWEAVE_LINK_INTERNAL_TOKEN = '';
-config.ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT = 10;
-config.ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT = 100 * 1024 * 1024; // 100MB
+// Staging costs the caller nothing up front, so this quota is the only bound on
+// GCS staging (both tiers) and on sponsored open-tier Arweave spend. The two
+// limits are coupled: they cross over at a 10MB average file, so tune them together.
+config.ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT = 20;
+config.ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT = 200 * 1024 * 1024; // 200MB
 // Cloud KMS cryptoKey resource name used to wrap content keys at rest in
 // Firestore. Empty = passthrough (dev/test store plaintext); prod sets this.
 config.ARWEAVE_KEY_KMS_NAME = process.env.ARWEAVE_KEY_KMS_NAME || '';

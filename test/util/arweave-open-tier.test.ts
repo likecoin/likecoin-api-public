@@ -48,8 +48,8 @@ describe('getDeterministicAnchor', () => {
   });
 });
 
-// The open flow keys its upload doc on gcs-<uuid>, not on the payment hash, so it
-// loses the doc-id uniqueness that gives /v2/register replay protection for free.
+// The open flow keys its upload doc on gcs-<uuid>, not on the payment hash, so the
+// doc id carries no uniqueness against the payment.
 // checkArweaveTxV2 is pure read-only verification and passes the same hash twice,
 // so the claim below is the only thing stopping N staged uploads settling against
 // one payment.

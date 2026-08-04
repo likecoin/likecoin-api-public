@@ -2,9 +2,7 @@ import { Router } from 'express';
 import uuidv4 from 'uuid/v4';
 import {
   ARWEAVE_MAX_SIZE_V2,
-  checkArweaveTxV2,
   estimateUploadToArweaveV2,
-  pushArweaveSingleFileToIPFS,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
 import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
@@ -12,31 +10,26 @@ import {
   ARWEAVE_EVM_TARGET_ADDRESS,
   ARWEAVE_LINK_INTERNAL_TOKEN,
 } from '../../../config/config';
-import { getPublicKey, signData as signArweaveData } from '../../util/arweave/signer';
 import {
-  createNewArweaveTx,
   createNewGcsUploadTx,
   getArweaveTxInfo,
   getOwnedPendingGcsTx,
   isArweaveTxOwner,
   markGcsTxCompleted,
-  updateArweaveTxStatus,
   rotateArweaveTxAccessToken,
   resolveArweaveTxKey,
   isArweaveTxEncrypted,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, withReservedQuota } from '../../util/api/arweave/quota';
-import { reconcilePendingIrysFunding, fundUploadIfNeeded } from '../../util/api/arweave/funding';
+import { reconcilePendingIrysFunding } from '../../util/api/arweave/funding';
 import {
   deleteStagedObject,
   getStagedUploadSignedUrl,
-  ingestProtectedContent,
   promoteStagedObject,
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
 import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
 import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
-import { isAlreadyExistsError } from '../../util/misc';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -45,12 +38,7 @@ import {
   ArweaveGcsFinalizeResponseSchema,
   ArweaveGcsUploadInitBodySchema,
   ArweaveGcsUploadInitResponseSchema,
-  ArweaveRegisterBodySchema,
-  ArweaveRegisterResponseSchema,
-  ArweaveSignPaymentBodySchema,
-  ArweaveSignPaymentResponseSchema,
   ArweaveTxHashParamsSchema,
-  ArweavePublicKeyResponseSchema,
   ArweaveLinkResponseSchema,
   ArweaveAccessTokenResponseSchema,
   ArweaveFundingReconcileBodySchema,
@@ -67,18 +55,6 @@ const router = Router();
 function getArweaveLinkV2Url(txHash: string): string {
   return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
 }
-
-router.get(
-  '/v2/public_key',
-  async (req, res, next) => {
-    try {
-      const publicKey = await getPublicKey();
-      sendValidatedJSON(res, ArweavePublicKeyResponseSchema, { publicKey: publicKey.toString('base64') });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
 
 router.post(
   '/v2/estimate',
@@ -120,181 +96,6 @@ router.post(
         }
       }
       sendValidatedJSON(res, ArweaveEstimateResponseSchema, result);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.post(
-  '/v2/sign_payment_data',
-  jwtOptionalAuth('write:iscn'),
-  validateBody(ArweaveSignPaymentBodySchema),
-  async (req, res, next) => {
-    try {
-      const {
-        fileSize, ipfsHash, txHash, signatureData, txToken = 'BASEETH',
-      } = req.body;
-
-      const isSponsored = txToken === 'SPONSORED';
-      if (isSponsored && !req.user?.wallet) {
-        throw new ValidationError('MISSING_USER', 401);
-      }
-      if (!isSponsored && !txHash) {
-        throw new Error('MISSING_TX_HASH');
-      }
-
-      const estimate = await estimateUploadToArweaveV2(
-        fileSize,
-        ipfsHash,
-        { margin: 0, checkDuplicate: false },
-      );
-      const {
-        ETH,
-        arweaveId,
-        isExists,
-      } = estimate;
-
-      let token: string;
-      let uploadId: string;
-
-      if (isSponsored) {
-        const { wallet } = req.user!;
-        uploadId = `sponsored-${uuidv4()}`;
-        token = await withReservedQuota(wallet, fileSize, ETH, async () => {
-          const newToken = await createNewArweaveTx(uploadId, {
-            ipfsHash,
-            fileSize,
-            ownerWallet: wallet,
-            isSponsored: true,
-            sponsoredETH: ETH,
-          });
-          // Sponsored uploads carry no payment to pass through; the standing Irys
-          // balance buffer covers them.
-          return newToken;
-        });
-      } else {
-        uploadId = txHash;
-        const { paidETH } = await checkArweaveTxV2({
-          fileSize, ipfsHash, txHash, ETH, txToken,
-        });
-        try {
-          token = await createNewArweaveTx(txHash, {
-            ipfsHash,
-            fileSize,
-            ownerWallet: req.user?.wallet || '',
-          });
-        } catch (error) {
-          if (isAlreadyExistsError(error)) {
-            // eslint-disable-next-line no-console
-            console.warn(error);
-            res.status(429).send('TX_HASH_ALREADY_USED');
-            return;
-          }
-          throw error;
-        }
-        fundUploadIfNeeded(uploadId, paidETH);
-      }
-
-      // TODO: verify signatureData match filesize if possible
-      const signature = await signArweaveData(Buffer.from(signatureData, 'base64'));
-      const signatureHex = signature && signature.toString('base64');
-
-      sendValidatedJSON(res, ArweaveSignPaymentResponseSchema, {
-        token,
-        id: uploadId,
-        arweaveId,
-        isExists,
-        signature: signatureHex,
-      });
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: isSponsored ? 'arweaveSponsoredSigningV2' : 'arweaveSigningV2',
-        ipfsHash,
-        arweaveId,
-        ETH,
-        txHash: uploadId,
-        ...(isSponsored ? { wallet: req.user!.wallet } : {}),
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.post(
-  '/v2/register',
-  jwtOptionalAuth('write:iscn'),
-  validateBody(ArweaveRegisterBodySchema),
-  async (req, res, next) => {
-    try {
-      const {
-        txHash, arweaveId, token, key, isRequireAuth = true, fileSHA256,
-      } = req.body;
-      if (isRequireAuth && !req.user?.wallet) throw new ValidationError('MISSING_USER', 401);
-      const tx = await getArweaveTxInfo(txHash);
-      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
-      const { ownerWallet, authToken } = tx;
-      const userWallet = req.user?.wallet || '';
-      // Token match first: it needs no Firestore read, unlike the owner lookup.
-      const isAuthed = !!(authToken && authToken === token)
-        || (await isArweaveTxOwner(userWallet, ownerWallet));
-      if (!isAuthed) throw new ValidationError('INVALID_TOKEN', 403);
-      if (tx.status !== 'pending') throw new ValidationError('TX_ALREADY_REGISTERED', 409);
-      const accessToken = await updateArweaveTxStatus(txHash, {
-        arweaveId,
-        ownerWallet: req.user?.wallet || '',
-        key,
-        isRequireAuth,
-        fileSHA256,
-      });
-      sendValidatedJSON(res, ArweaveRegisterResponseSchema, {
-        link: getArweaveLinkV2Url(txHash),
-        token,
-        accessToken,
-        isRequireAuth,
-      });
-      const {
-        ipfsHash, fileSize,
-      } = tx;
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'arweaveIdRegisterStartV2',
-        ipfsHash,
-        arweaveId,
-        txHash,
-      });
-      await pushArweaveSingleFileToIPFS({ arweaveId, ipfsHash, fileSize });
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'arweaveIdRegisterCompleteV2',
-        ipfsHash,
-        arweaveId,
-        txHash,
-      });
-      // Dual-store protected uploads into the private CMEK bucket (Phase 3).
-      // Best-effort: a failure here leaves Arweave as the only copy, which is
-      // today's status quo; Phase 4's re-ingest sweep catches stragglers.
-      if (key) {
-        try {
-          const ingested = await ingestProtectedContent(txHash, {
-            arweaveId, key, ipfsHash, fileSize, fileSHA256,
-          });
-          if (ingested) {
-            publisher.publish(PUBSUB_TOPIC_MISC, req, {
-              logType: 'arweaveProtectedIngestCompleteV2',
-              arweaveId,
-              txHash,
-              contentBucketPath: ingested.contentBucketPath,
-              fileSHA256: ingested.fileSHA256,
-            });
-          }
-        } catch (error) {
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'arweaveProtectedIngestErrorV2',
-            arweaveId,
-            txHash,
-            error: (error as Error).message,
-          });
-        }
-      }
     } catch (error) {
       next(error);
     }

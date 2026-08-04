@@ -302,6 +302,10 @@ export async function deleteStagedObject(
  * storing plaintext-at-rest under a key-free path. No-op when the bucket is
  * unconfigured. Gateway fallback only covers opening the stream; once bytes are
  * flowing into GCS a mid-stream failure aborts rather than restarting.
+ *
+ * No live route calls this: new protected uploads stage straight into the bucket
+ * via /v2/gcs/finalize. It stays for the Phase 4 sweep, which pulls legacy books
+ * through this same decrypt path before their encryptedKey is destroyed.
  */
 export async function ingestProtectedContent(txHash: string, {
   arweaveId,
@@ -360,7 +364,7 @@ export async function ingestProtectedContent(txHash: string, {
       contentBucketPath,
       contentType,
       // Only backfill the doc hash when the client supplied none; a client
-      // anchor was already stored at register and verified above.
+      // anchor was already stored with the legacy doc and verified above.
       ...(fileSHA256 ? {} : { fileSHA256: computedSHA256 }),
     });
     return { contentBucketPath, fileSHA256: computedSHA256 };
