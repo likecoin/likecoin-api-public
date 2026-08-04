@@ -9,7 +9,7 @@ import {
   normalizeISBNToGTIN,
 } from './catalogSource';
 import type { CatalogVariant } from './catalogSource';
-import { buildCatalogCSV } from './catalogCSV';
+import { buildCSV } from '../../../csv';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
 // Search-only feed shaped for OpenAI's commerce *API* product schema
@@ -256,5 +256,5 @@ export async function getOpenAIFeedItems(): Promise<OpenAIFeedItem[]> {
 }
 
 export function formatOpenAIFeedCSV(items: OpenAIFeedItem[]): string {
-  return buildCatalogCSV(OPENAI_FEED_CSV_COLUMNS, items);
+  return buildCSV(OPENAI_FEED_CSV_COLUMNS, items);
 }

@@ -1,6 +1,6 @@
 import { listCatalogVariants } from './catalogSource';
 import type { CatalogVariant } from './catalogSource';
-import { buildCatalogCSV } from './catalogCSV';
+import { buildCSV } from '../../../csv';
 // Category mirrors `product:category` in liker-land-v3's use-structured-data.ts.
 const META_CATALOG_GOOGLE_PRODUCT_CATEGORY = 'Media > Books > E-Books';
 // `fb_product_category` uses Meta's own product taxonomy (distinct from Google's
@@ -86,5 +86,5 @@ export async function getMetaProductCatalogItems(): Promise<MetaCatalogItem[]> {
 }
 
 export function formatMetaProductCatalogCSV(items: MetaCatalogItem[]): string {
-  return buildCatalogCSV(META_CATALOG_CSV_COLUMNS, items);
+  return buildCSV(META_CATALOG_CSV_COLUMNS, items);
 }

@@ -203,6 +203,120 @@ describe('POST /plus/admin/reading/settle — settle guards', () => {
   });
 });
 
+describe('POST /plus/admin/reading/settle — settled review & CSV', () => {
+  const CLASS_ID = mockEVMAddress(0x77);
+  const OWNER = mockEVMAddress(0x78);
+  const PERIOD = '2026-04';
+
+  // An earlier settle paid 55c; today's static config recomputes 60c for the same usage.
+  // The two must stay distinguishable so a re-run surfaces config drift instead of hiding it.
+  async function seedSettledBook() {
+    await seedUsage(CLASS_ID, '2026-04-05', Date.UTC(2026, 3, 5), min(60), OWNER);
+    // The stub only materializes a subcollection under an existing parent doc.
+    await likeNFTBookUserCollection.doc(OWNER).set({} as any, { merge: true });
+    await likeNFTBookUserCollection.doc(OWNER)
+      .collection('plusReadingPayouts').doc(`${PERIOD}_${CLASS_ID}`)
+      .set({
+        periodId: PERIOD,
+        classId: CLASS_ID,
+        wallet: OWNER,
+        amountCents: 55,
+        status: 'paid',
+        transferId: 'tr_test',
+      } as any);
+  }
+
+  it('reports an already-paid split as settled at its ledger amount', async () => {
+    await seedSettledBook();
+
+    const res = await post({
+      periodId: PERIOD, dryRun: true, mode: 'static', includePayouts: true,
+    }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data).toMatchObject({
+      settledCount: 1, settledCents: 55, paidCount: 0, pendingCount: 0, paidCents: 0,
+    });
+    expect(res.data.books[0]).toMatchObject({
+      classId: CLASS_ID, amountCents: 60, settledCents: 55, paidCents: 0, payeeCount: 1,
+    });
+    expect(res.data.payouts).toMatchObject([{
+      classId: CLASS_ID,
+      wallet: OWNER,
+      amountCents: 60,
+      outcome: 'settled',
+      ledgerStatus: 'paid',
+      ledgerAmountCents: 55,
+      transferId: 'tr_test',
+    }]);
+  });
+
+  it('omits the payout rows unless asked', async () => {
+    await seedSettledBook();
+
+    const res = await post({ periodId: PERIOD, dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    expect(res.data.payouts).toBeUndefined();
+    expect(res.data.settledCount).toBe(1);
+  });
+
+  it('reports why a book with usage produced no payout', async () => {
+    // Book doc with neither connectedWallets nor ownerWallet — no payee to resolve.
+    await likeNFTBookCollection.doc(CLASS_ID).set({ classId: CLASS_ID } as any);
+    await likeNFTBookCollection.doc(CLASS_ID).collection('plusUsage').doc('2026-04-05')
+      .set({ readingTimeMs: min(60), ttsTimeMs: 0, dayMs: Date.UTC(2026, 3, 5) } as any);
+    // Half a minute allocates to 0.5c, which floors to nothing.
+    const dustClassId = mockEVMAddress(0x79);
+    await seedUsage(dustClassId, '2026-04-06', Date.UTC(2026, 3, 6), 30 * 1000, OWNER);
+
+    const res = await post({ periodId: PERIOD, dryRun: true, mode: 'static' }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+    const byClass = Object.fromEntries(res.data.books.map((b) => [b.classId, b]));
+    expect(byClass[CLASS_ID]).toMatchObject({ amountCents: 60, skipReason: 'noPayee' });
+    expect(byClass[dustClassId]).toMatchObject({ amountCents: 0, skipReason: 'belowCent' });
+  });
+
+  it('rejects an unrecognized format', async () => {
+    const res = await postTo(`${PATH}?format=xlsx`)(
+      { periodId: PERIOD, dryRun: true },
+      AUTH_HEADER,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('exports the payout rows as CSV, including books that paid nobody', async () => {
+    await seedSettledBook();
+    // A book with usage but no resolvable payee still has to reach the export.
+    const orphanClassId = mockEVMAddress(0x7a);
+    await likeNFTBookCollection.doc(orphanClassId).set({ classId: orphanClassId } as any);
+    await likeNFTBookCollection.doc(orphanClassId).collection('plusUsage').doc('2026-04-07')
+      .set({ readingTimeMs: min(30), ttsTimeMs: 0, dayMs: Date.UTC(2026, 3, 7) } as any);
+
+    const res = await postTo(`${PATH}?format=csv`)(
+      { periodId: PERIOD, dryRun: true, mode: 'static' },
+      AUTH_HEADER,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('text/csv; charset=utf-8');
+    expect(res.headers['content-disposition']).toBe(
+      `attachment; filename="plus-settle-${PERIOD}-dryrun.csv"`,
+    );
+
+    const [header, ...rows] = res.data.trim().split('\n');
+    expect(header).toBe([
+      'periodId', 'classId', 'wallet', 'amountCents', 'outcome', 'ledgerStatus',
+      'ledgerAmountCents', 'transferId', 'readingTimeMs', 'ttsTimeMs',
+      'bookAmountCents', 'bookReaderCount', 'skipReason',
+    ].join(','));
+    expect(rows).toContain(
+      `${PERIOD},${CLASS_ID},${OWNER},60,settled,paid,55,tr_test,${min(60)},0,60,0,`,
+    );
+    // Payee-less book: no wallet/outcome/ledger columns, but its amount and reason survive.
+    expect(rows).toContain([
+      PERIOD, orphanClassId, '', '', '', '', '', '', '', '', 30, 0, 'noPayee',
+    ].join(','));
+  });
+});
+
 describe('POST /plus/admin/reading/sweep', () => {
   it('rejects requests without the admin token', async () => {
     const res = await postSweep({ dryRun: true });

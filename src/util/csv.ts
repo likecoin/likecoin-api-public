@@ -1,5 +1,6 @@
-// Shared CSV serialization for product-catalog feeds (Meta, OpenAI file-upload).
-// Centralizes the security-sensitive escaping so it can't drift between feeds.
+// Shared CSV serialization for product-catalog feeds (Meta, OpenAI file-upload)
+// and admin exports. Centralizes the security-sensitive escaping so it can't
+// drift between callers.
 
 // Defang spreadsheet formula injection (CWE-1236): publisher-supplied fields
 // (title/description/brand) could start with a formula trigger. The platform
@@ -19,7 +20,7 @@ export function escapeCSVField(value: string | undefined): string {
 
 // Emit a header row in column order followed by one row per item. Items are
 // expected to hold string (or undefined) values; absent columns render empty.
-export function buildCatalogCSV<T>(columns: Array<keyof T>, items: T[]): string {
+export function buildCSV<T>(columns: Array<keyof T>, items: T[]): string {
   const header = columns.join(',');
   const rows = items.map((item) => columns
     .map((col) => escapeCSVField(item[col] as unknown as string | undefined))
