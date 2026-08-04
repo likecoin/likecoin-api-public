@@ -12,6 +12,11 @@ import {
 import type { ContentTier } from '../../gcloudStorage';
 import { ValidationError } from '../../ValidationError';
 import { ARWEAVE_MAX_SIZE_V2 } from './index';
+import {
+  CONTENT_SNIFF_LENGTH,
+  PLACEHOLDER_CONTENT_TYPE,
+  detectEbookContentType,
+} from './contentType';
 import { markArweaveTxIngested } from './tx';
 
 const AES_GCM_IV_LENGTH = 12;
@@ -92,6 +97,30 @@ export function createHashTransform(hash: crypto.Hash): Transform {
       callback(null, chunk);
     },
   });
+}
+
+/**
+ * Copy the leading bytes as they stream past, leaving them untouched. Unlike
+ * createHashTransform there is no caller-owned accumulator to read back from —
+ * Buffer has no equivalent of crypto.Hash — so the buffer stays in the closure
+ * behind a getter. Read it only once the pipeline has resolved.
+ */
+export function createHeadCaptureTransform(length: number): {
+  transform: Transform;
+  getHead: () => Buffer;
+} {
+  let head = Buffer.alloc(0);
+  const transform = new Transform({
+    transform(chunk, _encoding, callback) {
+      if (head.length < length) {
+        // Bound the concat rather than slicing after it, so a large chunk never
+        // leaves the whole allocation pinned behind a view.
+        head = Buffer.concat([head, chunk], Math.min(length, head.length + chunk.length));
+      }
+      callback(null, chunk);
+    },
+  });
+  return { transform, getHead: () => head };
 }
 
 // txHash doubles as the object name; callers only ever mint an on-chain hash,
@@ -294,18 +323,29 @@ export async function ingestProtectedContent(txHash: string, {
   const decrypt = createGcmDecryptTransform(key);
   const hash = crypto.createHash('sha256');
   const stagingFile = getStagedFile(txHash, 'protected');
-  const { stream, contentType: fetchedContentType } = await fetchStreamWithFallback(
+  const { stream } = await fetchStreamWithFallback(
     ARWEAVE_GATEWAYS.map((gateway) => `${gateway}${arweaveId}`),
     { timeout: DOWNLOAD_TIMEOUT_MS, maxContentLength },
   );
-  const contentType = fetchedContentType || 'application/octet-stream';
+  const headCapture = createHeadCaptureTransform(CONTENT_SNIFF_LENGTH);
   try {
     await pipeline(
       stream,
       decrypt,
       createHashTransform(hash),
-      stagingFile.createWriteStream({ resumable: false, metadata: { contentType } }),
+      headCapture.transform,
+      // No content type yet — the gateway only describes the ciphertext, and the
+      // plaintext's own bytes have not arrived. Staging is deleted below and only
+      // ever read by the promote copy, which sets the real type on the destination.
+      stagingFile.createWriteStream({ resumable: false }),
     );
+    // Sniff the plaintext rather than trusting the gateway, which served the
+    // AES-GCM blob and can only describe that. Deliberately no fallback to the
+    // fetched header: an uploader-set DataItem tag would be an unverified guess,
+    // and storing a non-placeholder type would hide the doc from the relabel
+    // script, which selects on the placeholder.
+    const contentType = detectEbookContentType(headCapture.getHead())
+      || PLACEHOLDER_CONTENT_TYPE;
     const computedSHA256 = hash.digest('hex');
     if (fileSHA256 && fileSHA256.toLowerCase() !== computedSHA256) {
       throw new Error('PLAINTEXT_HASH_MISMATCH');
