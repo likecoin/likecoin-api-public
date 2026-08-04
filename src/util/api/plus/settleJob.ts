@@ -6,6 +6,7 @@ import {
 import { getStripeClient } from '../../stripe';
 import { getBookUserInfo } from '../likernft/book/user';
 import { ValidationError } from '../../ValidationError';
+import { buildCSV } from '../../csv';
 import {
   accruePoolUSD, getPeriodBoundsMs, PLUS_READING_REVSHARE_CONFIG_DOC_ID,
 } from './revenueShare';
@@ -16,7 +17,12 @@ import {
   configNumber,
   splitAmountToWallets,
 } from './settle';
-import type { PlusReadingAllocationConfig, PlusReadingAllocationMode } from './settle';
+import type {
+  PlusReadingAllocationConfig,
+  PlusReadingAllocationMode,
+  PlusSettleBookSkipReason,
+  PlusSettlePayoutOutcome,
+} from './settle';
 import type { PlusReadingAccrualData } from '../../../types/user';
 import type { NFTBookListingInfo } from '../../../types/book';
 
@@ -39,7 +45,25 @@ interface WalletPayout {
   walletCents: number;
 }
 
-type PayoutOutcome = 'paid' | 'pending' | 'skipped';
+// The payout record on file: what an earlier run left, or what this run just wrote (a dry
+// run writes nothing, so it always reports the earlier one). Carried out of the payout so
+// the caller can report ledger truth — what really transferred — alongside this run's
+// recomputed amount, which diverges once the allocation config changes.
+interface PayoutLedger {
+  status: string;
+  amountCents: number;
+  transferId?: string;
+  updatedAt?: number;
+}
+
+interface PayoutResult {
+  outcome: PlusSettlePayoutOutcome;
+  ledger?: PayoutLedger;
+}
+
+// `extends` rather than an intersection: an intersection would silently merge a future
+// same-named field on WalletPayout, where this errors on the collision.
+interface SettledWalletPayout extends WalletPayout, PayoutResult {}
 
 /**
  * Maps `items` in bounded-concurrency chunks, preserving input order — the settle's
@@ -72,23 +96,20 @@ function getCachedBookUserInfo(wallet: string, cache: WalletUserInfoCache) {
 }
 
 /**
- * Pays one payee its share of a book for the period, returning how it resolved.
- * - dryRun: reports already-paid as skipped, else classifies by Connect-readiness, without
+ * Pays one payee its share of a book for the period, returning how it resolved plus the
+ * pre-existing payout record, if any.
+ * - dryRun: reports already-paid as `settled`, else classifies by Connect-readiness, without
  *   writing or transferring.
- * - already-paid (same period+book): skipped (idempotent re-run).
+ * - already-paid (same period+book): `settled` (idempotent re-run).
  * - not Connect-ready or transfer failed: carried forward as `pending` for a later run.
  * - otherwise: a Stripe Connect transfer (idempotency-keyed) + a `paid` payout record.
  */
 async function settleWalletPayout({
   periodId, book, wallet, walletCents, dryRun, userInfoCache,
-}: {
-  periodId: string;
-  book: BookUsage;
-  wallet: string;
-  walletCents: number;
+}: WalletPayout & {
   dryRun: boolean;
   userInfoCache: WalletUserInfoCache;
-}): Promise<PayoutOutcome> {
+}): Promise<PayoutResult> {
   const payoutDocRef = likeNFTBookUserCollection
     .doc(wallet)
     .collection('plusReadingPayouts')
@@ -99,12 +120,19 @@ async function settleWalletPayout({
   // Checked before the user-info read and the dryRun return so a preview, and a re-run over
   // an already-paid split, both short-circuit without the extra Firestore read.
   const existing = await payoutDocRef.get();
-  if (existing.exists && existing.data()?.status === 'paid') return 'skipped';
+  const existingData = existing.data();
+  const ledger: PayoutLedger | undefined = existingData ? {
+    status: String(existingData.status || ''),
+    amountCents: Number(existingData.amountCents) || 0,
+    transferId: existingData.transferId ? String(existingData.transferId) : undefined,
+    updatedAt: existingData.updatedAt?.toMillis?.(),
+  } : undefined;
+  if (ledger?.status === 'paid') return { outcome: 'settled', ledger };
 
   const userInfo = await getCachedBookUserInfo(wallet, userInfoCache);
   const isReady = !!userInfo?.isStripeConnectReady && !!userInfo.stripeConnectAccountId;
 
-  if (dryRun) return isReady ? 'paid' : 'pending';
+  if (dryRun) return { outcome: isReady ? 'paid' : 'pending', ledger };
 
   const baseRecord = {
     periodId,
@@ -120,7 +148,7 @@ async function settleWalletPayout({
   if (!userInfo?.isStripeConnectReady || !userInfo.stripeConnectAccountId) {
     // Carry forward: hold until the payee finishes Stripe Connect onboarding.
     await payoutDocRef.set({ ...baseRecord, status: 'pending' }, { merge: true });
-    return 'pending';
+    return { outcome: 'pending', ledger: { status: 'pending', amountCents: walletCents } };
   }
   const { stripeConnectAccountId } = userInfo;
 
@@ -148,7 +176,7 @@ async function settleWalletPayout({
 
   if (!transfer) {
     await payoutDocRef.set({ ...baseRecord, status: 'pending' }, { merge: true });
-    return 'pending';
+    return { outcome: 'pending', ledger: { status: 'pending', amountCents: walletCents } };
   }
   await payoutDocRef.set({
     ...baseRecord,
@@ -156,7 +184,11 @@ async function settleWalletPayout({
     transferId: transfer.id,
     stripeConnectAccountId,
   }, { merge: true });
-  return 'paid';
+  // Report the record just written, so a live run's export carries the transfer it made.
+  return {
+    outcome: 'paid',
+    ledger: { status: 'paid', amountCents: walletCents, transferId: transfer.id },
+  };
 }
 
 /**
@@ -173,21 +205,21 @@ async function getBookDataByClassId(
 }
 
 /**
- * Settles each payout, returning the outcomes in `payouts` order. Fail-fast: a Firestore
- * error aborts the run, leaving the period uncompleted so a re-run resumes it (already-paid
- * splits short-circuit, and the Stripe idempotency key covers a transfer whose write was
- * lost). The user-info cache lives for one run, so a payee's Connect status is read fresh
- * each time.
+ * Settles each payout, returning each one merged with how it resolved, so callers read the
+ * amount and the outcome off one row. Fail-fast: a
+ * Firestore error aborts the run, leaving the period uncompleted so a re-run resumes it
+ * (already-paid splits short-circuit, and the Stripe idempotency key covers a transfer whose
+ * write was lost). The user-info cache lives for one run, so a payee's Connect status is read
+ * fresh each time.
  */
 function settleWalletPayouts(
   payouts: WalletPayout[],
   { dryRun }: { dryRun: boolean },
-): Promise<PayoutOutcome[]> {
+): Promise<SettledWalletPayout[]> {
   const userInfoCache: WalletUserInfoCache = new Map();
-  return mapInChunks(payouts, ({
-    periodId, book, wallet, walletCents,
-  }) => settleWalletPayout({
-    periodId, book, wallet, walletCents, dryRun, userInfoCache,
+  return mapInChunks(payouts, async (payout) => ({
+    ...payout,
+    ...await settleWalletPayout({ ...payout, dryRun, userInfoCache }),
   }));
 }
 
@@ -196,7 +228,9 @@ function settleWalletPayouts(
  * or a single day (`YYYY-MM-DD`): accrues the funding pool, freezes the usage snapshot,
  * prices each book, and pays its payees via Stripe Connect (carrying forward anyone not yet
  * Connect-ready). `dryRun` computes and returns the full allocation without writing or
- * transferring. Idempotent and non-overlapping: a completed or overlapping period is refused,
+ * transferring, so re-running it over a completed period doubles as a review of what that
+ * period paid. `includePayouts` adds the per-(book, wallet) rows; off by default so the
+ * cron's response stays small. Idempotent: a completed or overlapping period is refused,
  * a window whose last day hasn't elapsed is refused, and per-payout records guard against
  * double payment on re-run.
  */
@@ -204,10 +238,12 @@ export async function settlePlusReadingPeriod({
   periodId,
   dryRun,
   mode,
+  includePayouts = false,
 }: {
   periodId: string;
   dryRun: boolean;
   mode?: PlusReadingAllocationMode;
+  includePayouts?: boolean;
 }) {
   const configDocRef = configCollection.doc(PLUS_READING_REVSHARE_CONFIG_DOC_ID);
   const periodsCol = configDocRef.collection('periods');
@@ -344,17 +380,29 @@ export async function settlePlusReadingPeriod({
   const payableBooks = books.filter((b) => b.amountCents > 0);
   const bookDataByClassId = await getBookDataByClassId(payableBooks.map((b) => b.classId));
 
+  // Reported per book so unallocated money stays reviewable in the response, not just in
+  // the warnings below.
+  const skipReasonByClass = new Map<string, PlusSettleBookSkipReason>();
+  books.forEach((b) => {
+    if (b.amountCents <= 0) skipReasonByClass.set(b.classId, 'belowCent');
+  });
+
   // Resolved in book order, so the skip warnings below stay deterministic even though the
   // transfers themselves run concurrently.
   const payouts: WalletPayout[] = [];
   for (const book of payableBooks) {
     const bookData = bookDataByClassId.get(book.classId);
-    if (!bookData) continue; // usage with no book doc — skip
+    if (!bookData) {
+      // usage with no book doc — no payee to resolve
+      skipReasonByClass.set(book.classId, 'noPayee');
+      continue;
+    }
     const hasConnected = bookData.connectedWallets
       && Object.keys(bookData.connectedWallets).length > 0;
     if (!hasConnected && !bookData.ownerWallet) {
       // No resolvable payee — skip rather than synthesize a `{ '': 1 }` split that would
       // write to an empty doc id. The amount stays unallocated (surfaced in the log).
+      skipReasonByClass.set(book.classId, 'noPayee');
       // eslint-disable-next-line no-console
       console.warn(`Plus settle ${periodId}: ${book.classId} has usage but no payee; skipping`);
       continue;
@@ -367,6 +415,7 @@ export async function settlePlusReadingPeriod({
     if (splits.length === 0) {
       // connectedWallets present but no positive weight — surface rather than silently
       // drop it. The amount (guaranteed > 0 above) stays unallocated, like the no-payee case.
+      skipReasonByClass.set(book.classId, 'noPositiveWeight');
       // eslint-disable-next-line no-console
       console.warn(`Plus settle ${periodId}: ${book.classId} has connectedWallets but no positive weight; skipping`);
       continue;
@@ -378,21 +427,42 @@ export async function settlePlusReadingPeriod({
     }
   }
 
-  const outcomes = await settleWalletPayouts(payouts, { dryRun });
+  const results = await settleWalletPayouts(payouts, { dryRun });
 
   let paidCount = 0;
   let pendingCount = 0;
+  let settledCount = 0;
   let paidCents = 0;
   let pendingCents = 0;
-  outcomes.forEach((outcome, index) => {
-    const { walletCents } = payouts[index];
+  let settledCents = 0;
+  // Per-book rollup of the same outcomes, so `books` shows where each book's money landed.
+  const rollupByClass = new Map<string, {
+    payeeCount: number; paidCents: number; pendingCents: number; settledCents: number;
+  }>();
+  results.forEach(({
+    outcome, ledger, book, walletCents,
+  }) => {
+    const roll = rollupByClass.get(book.classId)
+      || {
+        payeeCount: 0, paidCents: 0, pendingCents: 0, settledCents: 0,
+      };
+    roll.payeeCount += 1;
     if (outcome === 'paid') {
       paidCount += 1;
       paidCents += walletCents;
+      roll.paidCents += walletCents;
     } else if (outcome === 'pending') {
       pendingCount += 1;
       pendingCents += walletCents;
+      roll.pendingCents += walletCents;
+    } else {
+      // The ledger amount, not this run's `walletCents` — see PayoutLedger.
+      const ledgerCents = ledger?.amountCents || 0;
+      settledCount += 1;
+      settledCents += ledgerCents;
+      roll.settledCents += ledgerCents;
     }
+    rollupByClass.set(book.classId, roll);
   });
 
   // What we actually pay out this period (pre cent-rounding), and how it compares to
@@ -419,9 +489,39 @@ export async function settlePlusReadingPeriod({
     readerCount: allReaders.size,
     paidCount,
     pendingCount,
+    settledCount,
     paidCents,
     pendingCents,
+    settledCents,
   };
+
+  const bookRows = books.map((book) => {
+    const roll = rollupByClass.get(book.classId);
+    return {
+      ...book,
+      payeeCount: roll?.payeeCount || 0,
+      paidCents: roll?.paidCents || 0,
+      pendingCents: roll?.pendingCents || 0,
+      settledCents: roll?.settledCents || 0,
+      skipReason: skipReasonByClass.get(book.classId),
+    };
+  });
+
+  // Per-(book, wallet) grain — the money grain, and what the CSV export rows come from.
+  const payoutRows = includePayouts ? results.map(({
+    book, wallet, walletCents, outcome, ledger,
+  }) => ({
+    classId: book.classId,
+    wallet,
+    amountCents: walletCents,
+    outcome,
+    readingTimeMs: book.readingTimeMs,
+    ttsTimeMs: book.ttsTimeMs,
+    ledgerStatus: ledger?.status,
+    ledgerAmountCents: ledger?.amountCents,
+    transferId: ledger?.transferId,
+    updatedAt: ledger?.updatedAt,
+  })) : undefined;
 
   if (!dryRun) {
     await periodDocRef.set({
@@ -433,7 +533,80 @@ export async function settlePlusReadingPeriod({
     }, { merge: true });
   }
 
-  return { dryRun, ...summary, books };
+  return {
+    dryRun, ...summary, books: bookRows, ...(payoutRows ? { payouts: payoutRows } : {}),
+  };
+}
+
+// Payout grain (one row per book × payee), with the book's columns denormalized onto each
+// row so the file needs no join. A book that produced no payout still gets a row, carrying
+// its `skipReason` and an empty wallet, so unallocated money can't vanish from the export.
+const PLUS_SETTLE_CSV_COLUMNS = [
+  'periodId',
+  'classId',
+  'wallet',
+  'amountCents',
+  'outcome',
+  'ledgerStatus',
+  'ledgerAmountCents',
+  'transferId',
+  'readingTimeMs',
+  'ttsTimeMs',
+  'bookAmountCents',
+  'bookReaderCount',
+  'skipReason',
+] as const;
+
+// Absent columns render empty, so a row only carries the cells it actually has.
+type PlusSettleCSVRow = Partial<Record<typeof PLUS_SETTLE_CSV_COLUMNS[number], string>>;
+
+const csvNum = (value: number | undefined) => (value === undefined ? undefined : String(value));
+
+type PlusSettleResult = Awaited<ReturnType<typeof settlePlusReadingPeriod>>;
+
+/**
+ * Serializes a settle result as CSV for offline review. Amounts stay in cents — integers
+ * survive a spreadsheet round-trip where fractional dollars wouldn't. `amountCents` is what
+ * this run computed and `ledgerAmountCents` what was actually paid, so a re-run over a
+ * settled period shows config drift as a column diff. Pass a result produced with
+ * `includePayouts`, or every book comes out as a payee-less row.
+ */
+export function formatPlusSettleCSV(result: PlusSettleResult): string {
+  const { periodId } = result;
+  const payoutsByClass = new Map<string, NonNullable<typeof result.payouts>>();
+  (result.payouts || []).forEach((payout) => {
+    const list = payoutsByClass.get(payout.classId) || [];
+    list.push(payout);
+    payoutsByClass.set(payout.classId, list);
+  });
+
+  // Book order, payees grouped under their book — the same order the settle resolved them in.
+  const rows: PlusSettleCSVRow[] = [];
+  result.books.forEach((book) => {
+    const bookColumns = {
+      periodId,
+      classId: book.classId,
+      bookAmountCents: csvNum(book.amountCents),
+      bookReaderCount: csvNum(book.readerCount),
+    };
+    const payouts = payoutsByClass.get(book.classId) || [];
+    payouts.forEach((payout) => rows.push({
+      ...bookColumns,
+      wallet: payout.wallet,
+      amountCents: csvNum(payout.amountCents),
+      outcome: payout.outcome,
+      ledgerStatus: payout.ledgerStatus,
+      ledgerAmountCents: csvNum(payout.ledgerAmountCents),
+      transferId: payout.transferId,
+      readingTimeMs: csvNum(payout.readingTimeMs),
+      ttsTimeMs: csvNum(payout.ttsTimeMs),
+    }));
+    if (!payouts.length) {
+      rows.push({ ...bookColumns, skipReason: book.skipReason });
+    }
+  });
+
+  return buildCSV([...PLUS_SETTLE_CSV_COLUMNS], rows);
 }
 
 /**
@@ -467,15 +640,15 @@ export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boole
     }))
     .filter((p) => p.walletCents > 0);
 
-  const outcomes = await settleWalletPayouts(payouts, { dryRun });
+  const results = await settleWalletPayouts(payouts, { dryRun });
 
   let paidCount = 0;
   let stillPendingCount = 0;
   let paidCents = 0;
-  outcomes.forEach((outcome, index) => {
+  results.forEach(({ outcome, walletCents }) => {
     if (outcome === 'paid') {
       paidCount += 1;
-      paidCents += payouts[index].walletCents;
+      paidCents += walletCents;
     } else if (outcome === 'pending') {
       stillPendingCount += 1;
     }

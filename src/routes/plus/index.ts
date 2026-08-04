@@ -22,6 +22,7 @@ import {
   PlusReadingUsageResponseSchema,
   PlusSelfAffiliateResponseSchema,
   PlusSettleBodySchema,
+  PlusSettleQuerySchema,
   PlusSettleResponseSchema,
   PlusSweepBodySchema,
   PlusSweepResponseSchema,
@@ -32,7 +33,7 @@ import type { PlusSelfAffiliateEntry } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
 import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
 import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
-import { settlePlusReadingPeriod, sweepPlusReadingPendingPayouts } from '../../util/api/plus/settleJob';
+import { formatPlusSettleCSV, settlePlusReadingPeriod, sweepPlusReadingPendingPayouts } from '../../util/api/plus/settleJob';
 import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import type { NFTBookUserData } from '../../types/book';
 import { getStripeClient } from '../../util/stripe';
@@ -121,12 +122,26 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
 
 // Admin/cron: settle the Plus reading revenue share for a `YYYY-MM` (month) or `YYYY-MM-DD`
 // (day) period — accrue the pool, freeze usage, price each book, and pay payees via Stripe
-// Connect. `dryRun` returns the full allocation without writing or transferring (run it first
-// to eyeball the split, or to preview an in-progress day).
-router.post('/admin/reading/settle', plusSettleAdminAuth, validateBody(PlusSettleBodySchema), async (req, res, next) => {
+// Connect. `dryRun` returns the full allocation without writing or transferring — run it
+// first to eyeball the split, to preview an in-progress day, or to re-review a settled
+// period. `?format=csv` returns the per-(book, payee) rows as a downloadable file.
+router.post('/admin/reading/settle', plusSettleAdminAuth, validateQuery(PlusSettleQuerySchema), validateBody(PlusSettleBodySchema), async (req, res, next) => {
   try {
-    const { periodId, dryRun = false, mode } = req.body;
-    const result = await settlePlusReadingPeriod({ periodId, dryRun, mode });
+    const {
+      periodId, dryRun = false, mode, includePayouts: wantPayouts,
+    } = req.body;
+    const isCSV = req.query.format === 'csv';
+    // The CSV is payout-grain, so it needs the rows regardless of what the body asked for.
+    const includePayouts = isCSV || !!wantPayouts;
+    const result = await settlePlusReadingPeriod({
+      periodId, dryRun, mode, includePayouts,
+    });
+    if (isCSV) {
+      // Sets both the csv content type and an RFC 6266-escaped filename.
+      res.attachment(`plus-settle-${periodId}${dryRun ? '-dryrun' : ''}.csv`);
+      res.send(formatPlusSettleCSV(result));
+      return;
+    }
     sendValidatedJSON(res, PlusSettleResponseSchema, { success: true, ...result });
   } catch (err) {
     next(err);

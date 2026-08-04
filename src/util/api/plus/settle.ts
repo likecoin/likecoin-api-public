@@ -16,6 +16,17 @@ import { ONE_MINUTE_IN_MS } from '../../../constant';
 export const PLUS_READING_ALLOCATION_MODES = ['static', 'blended', 'split', 'weighted'] as const;
 export type PlusReadingAllocationMode = typeof PLUS_READING_ALLOCATION_MODES[number];
 
+// How one (book, wallet) split resolved in a settle run. `settled` means an earlier run
+// already paid it. Single-sourced here so the settle job's union and the response schema
+// can't drift apart.
+export const PLUS_SETTLE_PAYOUT_OUTCOMES = ['paid', 'pending', 'settled'] as const;
+export type PlusSettlePayoutOutcome = typeof PLUS_SETTLE_PAYOUT_OUTCOMES[number];
+
+// Why a book with usage produced no payout: its allocation floored to 0 cents, it has no
+// resolvable payee, or its connectedWallets carry no positive weight.
+export const PLUS_SETTLE_BOOK_SKIP_REASONS = ['belowCent', 'noPayee', 'noPositiveWeight'] as const;
+export type PlusSettleBookSkipReason = typeof PLUS_SETTLE_BOOK_SKIP_REASONS[number];
+
 // Default static per-minute rate (USD). Live-tunable via the config doc's
 // `readRatePerMinUSD` / `ttsRatePerMinUSD`, like the rev-share rate.
 export const DEFAULT_STATIC_RATE_PER_MIN_USD = 0.01;

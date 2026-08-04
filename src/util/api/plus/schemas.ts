@@ -7,7 +7,11 @@ import {
   StripeCheckoutResponseSchema,
   TrackingFieldsSchema,
 } from '../likernft/book/schemas';
-import { PLUS_READING_ALLOCATION_MODES } from './settle';
+import {
+  PLUS_READING_ALLOCATION_MODES,
+  PLUS_SETTLE_BOOK_SKIP_REASONS,
+  PLUS_SETTLE_PAYOUT_OUTCOMES,
+} from './settle';
 
 const TrialPeriodDaysSchema = z.union([
   z.literal(0),
@@ -327,7 +331,17 @@ export const PlusSettleBodySchema = z.object({
   periodId: PeriodIdSchema,
   dryRun: z.boolean().optional(),
   mode: z.enum(PLUS_READING_ALLOCATION_MODES).optional(),
+  // Adds the per-(book, wallet) `payouts` rows. Off by default so the cron's response stays
+  // small; forced on when `?format=csv`, whose rows are that grain.
+  includePayouts: z.boolean().optional(),
 });
+
+// `csv` returns the payout rows as a downloadable file, `json` (the default) the full result.
+// Enumerated rather than a free string so a typo 400s instead of silently yielding JSON.
+// `.passthrough()` because validate.ts reassigns req.query wholesale.
+export const PlusSettleQuerySchema = z.object({
+  format: z.enum(['json', 'csv']).optional(),
+}).passthrough();
 
 export const PlusSettleResponseSchema = z.object({
   success: z.literal(true),
@@ -349,8 +363,12 @@ export const PlusSettleResponseSchema = z.object({
   readerCount: z.number(),
   paidCount: z.number(),
   pendingCount: z.number(),
+  // Splits an earlier run already paid — counted at their ledger amounts, not this run's
+  // recomputed ones. A dry-run re-run of a completed period reports its payout here.
+  settledCount: z.number(),
   paidCents: z.number(),
   pendingCents: z.number(),
+  settledCents: z.number(),
   books: z.array(z.object({
     classId: z.string(),
     amountCents: z.number(),
@@ -359,7 +377,30 @@ export const PlusSettleResponseSchema = z.object({
     // Per-book unique readers; a reader of N books counts in each, so these can sum
     // past the top-level readerCount.
     readerCount: z.number(),
+    // Where this book's amount landed, rolled up from its payouts.
+    payeeCount: z.number(),
+    paidCents: z.number(),
+    pendingCents: z.number(),
+    settledCents: z.number(),
+    // Present when the book produced no payout at all, so unallocated money stays visible.
+    skipReason: z.enum(PLUS_SETTLE_BOOK_SKIP_REASONS).optional(),
   })),
+  // Per-(book, wallet) rows; only when `includePayouts` (or `?format=csv`) was requested.
+  payouts: z.array(z.object({
+    classId: z.string(),
+    wallet: z.string(),
+    // What this run computed. Diverges from `ledgerAmountCents` when the allocation
+    // config changed after the period was settled.
+    amountCents: z.number(),
+    outcome: z.enum(PLUS_SETTLE_PAYOUT_OUTCOMES),
+    readingTimeMs: z.number(),
+    ttsTimeMs: z.number(),
+    // The payout record as it stood before this run, absent if there was none.
+    ledgerStatus: z.string().optional(),
+    ledgerAmountCents: z.number().optional(),
+    transferId: z.string().optional(),
+    updatedAt: z.number().optional(),
+  })).optional(),
 });
 
 // Admin Plus reading pending-payout sweep (POST /plus/admin/reading/sweep).

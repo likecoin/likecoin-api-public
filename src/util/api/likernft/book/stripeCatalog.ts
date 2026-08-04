@@ -1,6 +1,6 @@
 import { listCatalogVariants } from './catalogSource';
 import type { CatalogVariant } from './catalogSource';
-import { buildCatalogCSV } from './catalogCSV';
+import { buildCSV } from '../../../csv';
 
 // Stripe Agentic Commerce product feed
 // (https://docs.stripe.com/agentic-commerce/product-feed): a flat CSV in the
@@ -89,5 +89,5 @@ export async function getStripeFeedItems(): Promise<StripeFeedItem[]> {
 }
 
 export function formatStripeFeedCSV(items: StripeFeedItem[]): string {
-  return buildCatalogCSV(STRIPE_FEED_CSV_COLUMNS, items);
+  return buildCSV(STRIPE_FEED_CSV_COLUMNS, items);
 }
