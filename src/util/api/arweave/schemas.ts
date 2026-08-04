@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CONTENT_TIERS } from '../../gcloudStorage';
+import { EBOOK_CONTENT_TYPES } from './contentType';
 
 const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/i);
 
@@ -29,7 +30,6 @@ export const ArweaveTxHashParamsSchema = z.object({
   txHash: z.string().min(1),
 });
 
-const EBOOK_CONTENT_TYPES = ['application/epub+zip', 'application/pdf'] as const;
 // Cover types the open tier accepts. `image/svg+xml` is deliberately absent: SVG
 // can carry script, and these objects are served under the content type they were
 // stored with. Mirrors OPEN_IMAGE_FILE_TYPES in publish-3ook-com.

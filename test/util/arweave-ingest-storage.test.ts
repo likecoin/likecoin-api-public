@@ -4,6 +4,8 @@ import {
 import { webcrypto, createHash } from 'crypto';
 import { Readable, PassThrough } from 'stream';
 
+import { epubHeader } from '../stub/epub';
+
 const calls: string[] = [];
 const objects = new Map<string, Buffer>();
 const copyOptions = new Map<string, unknown>();
@@ -58,10 +60,10 @@ const { ingestProtectedContent } = await import('../../src/util/api/arweave/inge
 
 const PLAINTEXT = Buffer.from(Array.from({ length: 50000 }, (_, i) => i % 256));
 
-async function encrypted() {
+async function encrypted(plaintext: Buffer = PLAINTEXT) {
   const cryptoKey = await webcrypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
   const iv = webcrypto.getRandomValues(new Uint8Array(12));
-  const enc = await webcrypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, PLAINTEXT);
+  const enc = await webcrypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, plaintext);
   const raw = await webcrypto.subtle.exportKey('raw', cryptoKey);
   return {
     keyBase64: Buffer.from(raw).toString('base64'),
@@ -76,6 +78,9 @@ describe('ingestProtectedContent (staging → verify → promote)', () => {
     copyOptions.clear();
   });
 
+  // Bytes that are neither EPUB nor PDF keep the placeholder even though the
+  // gateway named a type: an unverified header must not put the doc beyond the
+  // reach of the backfill sweep, which selects on the placeholder.
   it('stages, verifies, promotes, and cleans up', async () => {
     const { keyBase64, combined } = await encrypted();
     const sha = createHash('sha256').update(PLAINTEXT).digest('hex');
@@ -92,15 +97,35 @@ describe('ingestProtectedContent (staging → verify → promote)', () => {
     expect(calls).toEqual([
       'write:staging/txhash1',
       'copy:staging/txhash1->txhash1',
-      `mark:${JSON.stringify({ contentBucketPath: 'txhash1', contentType: 'application/pdf' })}`,
+      `mark:${JSON.stringify({ contentBucketPath: 'txhash1', contentType: 'application/octet-stream' })}`,
       'delete:staging/txhash1',
     ]);
     expect((objects.get('txhash1') as Buffer).equals(PLAINTEXT)).toBe(true);
     // copy() nests custom metadata differently from createWriteStream() — pin it.
     expect(copyOptions.get('txhash1')).toEqual({
-      contentType: 'application/pdf',
+      contentType: 'application/octet-stream',
       metadata: { arweaveId: 'ar1', ipfsHash: 'ipfs1', fileSHA256: sha },
     });
+  });
+
+  // The gateway serves the AES-GCM blob, so it can only ever say octet-stream —
+  // the real type has to come from the decrypted bytes.
+  it('labels the promoted object from the plaintext, not the gateway header', async () => {
+    const epub = Buffer.concat([epubHeader(), Buffer.alloc(4096)]);
+    const { keyBase64, combined } = await encrypted(epub);
+    axiosGet.mockResolvedValue({
+      data: Readable.from([combined], { objectMode: false }),
+      headers: { 'content-type': 'application/octet-stream' },
+    });
+
+    await ingestProtectedContent('txhash4', { arweaveId: 'ar1', key: keyBase64 });
+
+    expect(copyOptions.get('txhash4')).toMatchObject({ contentType: 'application/epub+zip' });
+    expect(calls).toContain(`mark:${JSON.stringify({
+      contentBucketPath: 'txhash4',
+      contentType: 'application/epub+zip',
+      fileSHA256: createHash('sha256').update(epub).digest('hex'),
+    })}`);
   });
 
   it('leaves nothing at the canonical path when the hash anchor mismatches', async () => {
