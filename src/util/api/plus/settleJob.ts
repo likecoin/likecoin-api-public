@@ -28,6 +28,9 @@ import type { NFTBookListingInfo } from '../../../types/book';
 
 const DEFAULT_REVSHARE_RATE = 0.3;
 
+// Margin under Stripe's description cap, so a long title can't fail the transfer.
+const MAX_DESCRIPTION_TITLE_LENGTH = 200;
+
 // Kept modest so a large period doesn't burst past Stripe's rate limit and leave
 // transfers spuriously carried forward as `pending`.
 const SETTLE_CONCURRENCY = 20;
@@ -41,6 +44,9 @@ interface BookUsage {
 interface WalletPayout {
   periodId: string;
   book: BookUsage;
+  // Title for the transfer description, when the caller already holds the book doc.
+  // Left unset (the sweep) it is read lazily — see getCachedBookName.
+  bookName?: string;
   wallet: string;
   walletCents: number;
 }
@@ -96,6 +102,26 @@ function getCachedBookUserInfo(wallet: string, cache: WalletUserInfoCache) {
 }
 
 /**
+ * Per-run cache of book titles, keyed by classId. Only the transfer description needs the
+ * title, so it's read at the last moment — a payout that short-circuits (already paid, dry
+ * run, payee not Connect-ready) never reads the book doc. Caches the in-flight promise, so
+ * a book split across several payees reads once.
+ */
+type BookNameCache = Map<string, Promise<string | undefined>>;
+
+function getCachedBookName(classId: string, cache: BookNameCache) {
+  const cached = cache.get(classId);
+  if (cached) return cached;
+  const pending = likeNFTBookCollection.doc(classId).get()
+    .then((snap) => (snap.data() as NFTBookListingInfo | undefined)?.name)
+    // The title is only a transfer label and falls back to the classId, so a failed read
+    // must not abort the payout — nor stay cached as a rejection for the book's other payees.
+    .catch(() => undefined);
+  cache.set(classId, pending);
+  return pending;
+}
+
+/**
  * Pays one payee its share of a book for the period, returning how it resolved plus the
  * pre-existing payout record, if any.
  * - dryRun: reports already-paid as `settled`, else classifies by Connect-readiness, without
@@ -105,10 +131,11 @@ function getCachedBookUserInfo(wallet: string, cache: WalletUserInfoCache) {
  * - otherwise: a Stripe Connect transfer (idempotency-keyed) + a `paid` payout record.
  */
 async function settleWalletPayout({
-  periodId, book, wallet, walletCents, dryRun, userInfoCache,
+  periodId, book, bookName, wallet, walletCents, dryRun, userInfoCache, bookNameCache,
 }: WalletPayout & {
   dryRun: boolean;
   userInfoCache: WalletUserInfoCache;
+  bookNameCache: BookNameCache;
 }): Promise<PayoutResult> {
   const payoutDocRef = likeNFTBookUserCollection
     .doc(wallet)
@@ -151,6 +178,10 @@ async function settleWalletPayout({
     return { outcome: 'pending', ledger: { status: 'pending', amountCents: walletCents } };
   }
   const { stripeConnectAccountId } = userInfo;
+  const title = bookName ?? await getCachedBookName(book.classId, bookNameCache);
+  // A legacy doc could hold a non-string name — fall back rather than throw mid-transfer.
+  const bookLabel = (typeof title === 'string'
+    && title.trim().slice(0, MAX_DESCRIPTION_TITLE_LENGTH)) || book.classId;
 
   // Pool-funded transfer from the platform balance — no source_transaction (unlike a
   // per-charge commission). Idempotency key makes a re-run reuse the same transfer.
@@ -159,7 +190,7 @@ async function settleWalletPayout({
     currency: 'usd',
     destination: stripeConnectAccountId,
     transfer_group: `plus-revshare-${periodId}`,
-    description: `Li3rary revenue share ${periodId} (${book.classId})`,
+    description: `Li3rary revenue share ${periodId} (${bookLabel})`,
     metadata: {
       type: 'plusReadingRevShare',
       periodId,
@@ -217,9 +248,12 @@ function settleWalletPayouts(
   { dryRun }: { dryRun: boolean },
 ): Promise<SettledWalletPayout[]> {
   const userInfoCache: WalletUserInfoCache = new Map();
+  const bookNameCache: BookNameCache = new Map();
   return mapInChunks(payouts, async (payout) => ({
     ...payout,
-    ...await settleWalletPayout({ ...payout, dryRun, userInfoCache }),
+    ...await settleWalletPayout({
+      ...payout, dryRun, userInfoCache, bookNameCache,
+    }),
   }));
 }
 
@@ -422,7 +456,7 @@ export async function settlePlusReadingPeriod({
     }
     for (const { wallet, amountCents: walletCents } of splits) {
       payouts.push({
-        periodId, book, wallet, walletCents,
+        periodId, book, bookName: bookData.name, wallet, walletCents,
       });
     }
   }
@@ -627,6 +661,8 @@ export async function sweepPlusReadingPendingPayouts({ dryRun }: { dryRun: boole
     .filter((p) => p.wallet && p.classId && p.periodId);
 
   // Each record carries its own periodId, so a sweep settles payouts across many periods.
+  // No bookName: the record only stores the classId, so the title is read lazily, and only
+  // for the payouts that actually transfer.
   const payouts: WalletPayout[] = pending
     .map((p) => ({
       periodId: String(p.periodId),
