@@ -332,6 +332,7 @@ export async function newNftBookInfo(
     // Seed the ranking sort keys: Firestore drops documents missing an `orderBy` field,
     // so an unseeded book would never surface in those listings at all.
     plusReadingTotalMs: 0,
+    plusReadingScore: 0,
     salesScore: 0,
   };
   const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
@@ -644,9 +645,10 @@ export async function listFilteredNFTBookInfo({
 }
 
 /**
- * Books ranked by lifetime recorded reading + TTS time (`plusReadingTotalMs`, maintained by
- * `recordPlusReadingUsage`), then newest-first so the large unread tail — every book is
- * zero-seeded — still browses in a sensible, stable order.
+ * Books ranked by recency-weighted reading + TTS time (`plusReadingScore`, maintained by
+ * `recordPlusReadingUsage`), so the list reflects what is being read now. The score decays
+ * but never reaches zero, so a book read long ago still outranks one never read at all;
+ * only the never-read tail ties, and it is zero-seeded and browses newest-first.
  */
 export async function listPopularNFTBookInfo({
   isPlusReadingEnabled,
@@ -658,7 +660,7 @@ export async function listPopularNFTBookInfo({
   key?: string;
 } = {}) {
   let snapshot = likeNFTBookCollection
-    .orderBy('plusReadingTotalMs', 'desc')
+    .orderBy('plusReadingScore', 'desc')
     .orderBy('timestamp', 'desc');
   if (isPlusReadingEnabled !== undefined) {
     snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
