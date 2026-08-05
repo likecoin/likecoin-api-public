@@ -4,6 +4,7 @@ import {
   FieldValue, Timestamp, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
+import { getReadingScoreIncrement } from '../likernft/book/popularity';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
@@ -180,11 +181,14 @@ export async function recordPlusReadingUsage({
   // Denormalized onto the book doc because Firestore cannot sort on a subcollection sum.
   // Counts non-library time too, so free books (which accrue none) can still rank, and so
   // the public sort key isn't the payout basis settlement pays on.
+  // `plusReadingScore` is the same usage decayed by age. Scored from `dayMs`, not `ts`, so a
+  // backfilled `occurredAt` weighs as of the day it happened and lands on the same weight the
+  // backfill recomputes from this day's rollup.
+  const totalUsageMs = libraryReadingTimeMs + libraryTtsTimeMs
+    + statsNonLibraryReadingTimeMs + statsNonLibraryTtsTimeMs;
   batch.set(bookDocRef, {
-    plusReadingTotalMs: FieldValue.increment(
-      libraryReadingTimeMs + libraryTtsTimeMs
-      + statsNonLibraryReadingTimeMs + statsNonLibraryTtsTimeMs,
-    ),
+    plusReadingTotalMs: FieldValue.increment(totalUsageMs),
+    plusReadingScore: FieldValue.increment(getReadingScoreIncrement(totalUsageMs, dayMs)),
   }, { merge: true });
 
   try {

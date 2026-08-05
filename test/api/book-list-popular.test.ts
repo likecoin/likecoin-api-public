@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
 import { likeNFTBookCollection } from '../../src/util/firebase';
+import {
+  READING_SCORE_EPOCH_MS,
+  READING_SCORE_HALF_LIFE_DAYS,
+  getReadingScoreIncrement,
+} from '../../src/util/api/likernft/book/popularity';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const PATH = '/api/likernft/book/store/list/popular';
 const OWNER = mockEVMAddress(0x33);
@@ -9,11 +16,16 @@ const OWNER = mockEVMAddress(0x33);
 // The stub firestore no-ops orderBy/limit/startAfter, so rank order and cursor paging are
 // not exercised here — those depend on the composite index and need a real Firestore.
 // What is exercised: the library scope flag, hidden/redirect exclusion, the null-cursor
-// boundary, and cursor validation.
+// boundary, cursor validation, and the score math feeding the usage-time increment.
 const seedBook = (classId: string, data: Record<string, unknown> = {}) => likeNFTBookCollection
   .doc(classId)
   .set({
-    classId, ownerWallet: OWNER, isPlusReadingEnabled: true, plusReadingTotalMs: 0, ...data,
+    classId,
+    ownerWallet: OWNER,
+    isPlusReadingEnabled: true,
+    plusReadingTotalMs: 0,
+    plusReadingScore: 0,
+    ...data,
   } as any);
 
 const get = (query = '') => axiosist
@@ -47,15 +59,16 @@ describe('GET /likernft/book/store/list/popular', () => {
     expect(classIds).toContain(notInLibrary);
   });
 
-  it('does not leak the popularity counter to clients', async () => {
+  it('does not leak the popularity counters to clients', async () => {
     const classId = mockEVMAddress(0xa3);
-    await seedBook(classId, { plusReadingTotalMs: 123456 });
+    await seedBook(classId, { plusReadingTotalMs: 123456, plusReadingScore: 98765 });
 
     const res = await get();
     const book = res.data.list.find((b: any) => b.classId === classId);
     expect(book).toBeDefined();
     // Rank order is public; the minutes behind it (the payout basis) are not.
     expect(book.plusReadingTotalMs).toBeUndefined();
+    expect(book.plusReadingScore).toBeUndefined();
   });
 
   it('excludes hidden and redirected books from the list', async () => {
@@ -93,5 +106,67 @@ describe('GET /likernft/book/store/list/popular', () => {
 
     const res = await get(`?key=${mixedCaseClassId}`);
     expect(res.status).toBe(200);
+  });
+});
+
+describe('getReadingScoreIncrement', () => {
+  it('weighs usage one half-life later exactly twice as much', () => {
+    const halfLifeMs = READING_SCORE_HALF_LIFE_DAYS * DAY_MS;
+    const early = getReadingScoreIncrement(1, READING_SCORE_EPOCH_MS);
+    const late = getReadingScoreIncrement(1, READING_SCORE_EPOCH_MS + halfLifeMs);
+    expect(early).toBe(1);
+    expect(late).toBe(2);
+  });
+
+  it('weighs all usage on the same UTC day identically', () => {
+    const dayStart = READING_SCORE_EPOCH_MS + DAY_MS * 3;
+    const dayEnd = dayStart + DAY_MS - 1;
+    expect(getReadingScoreIncrement(1, dayStart)).toBe(getReadingScoreIncrement(1, dayEnd));
+    expect(getReadingScoreIncrement(1, dayStart + DAY_MS))
+      .toBeGreaterThan(getReadingScoreIncrement(1, dayStart));
+  });
+
+  it('gives pre-epoch usage fractional weights', () => {
+    const halfLifeMs = READING_SCORE_HALF_LIFE_DAYS * DAY_MS;
+    expect(getReadingScoreIncrement(1, READING_SCORE_EPOCH_MS - halfLifeMs)).toBe(0.5);
+  });
+
+  it('scales linearly with usage time', () => {
+    const t = READING_SCORE_EPOCH_MS + READING_SCORE_HALF_LIFE_DAYS * DAY_MS * 3;
+    expect(getReadingScoreIncrement(5000, t)).toBe(5000 * getReadingScoreIncrement(1, t));
+  });
+
+  it('scores nothing for zero or malformed usage', () => {
+    const t = READING_SCORE_EPOCH_MS;
+    expect(getReadingScoreIncrement(0, t)).toBe(0);
+    expect(getReadingScoreIncrement(-2, t)).toBe(0);
+    expect(getReadingScoreIncrement(NaN, t)).toBe(0);
+  });
+
+  // An unbounded `occurredAt` (the schema only requires a positive int) would otherwise reach
+  // the exponent and increment the stored score to Infinity, pinning that book to rank 1 with
+  // no way back — a recompute reads the same bad timestamp.
+  it('scores nothing for a timestamp that would overflow the score', () => {
+    expect(getReadingScoreIncrement(1000, Number.MAX_SAFE_INTEGER)).toBe(0);
+    expect(getReadingScoreIncrement(1000, Infinity)).toBe(0);
+    expect(getReadingScoreIncrement(1000, NaN)).toBe(0);
+  });
+
+  // What the backfill actually relies on: summing a day's deltas and scoring the total at that
+  // day's UTC midnight equals scoring each delta at its own moment. Without this, a re-run
+  // would silently re-rank the catalogue.
+  it('scores a day of deltas the same whether summed first or scored individually', () => {
+    const dayStartMs = READING_SCORE_EPOCH_MS + DAY_MS * 11;
+    const deltas: Array<[number, number]> = [[500, 3], [700, 9], [34, 21]];
+    const live = deltas.reduce(
+      (sum, [usageMs, hour]) => sum
+        + getReadingScoreIncrement(usageMs, dayStartMs + hour * 3600000),
+      0,
+    );
+    const recomputed = getReadingScoreIncrement(500 + 700 + 34, dayStartMs);
+    // Float addition isn't associative, so the two agree to precision rather than bit-for-bit.
+    // The gap is ~1e-16 relative, orders of magnitude under any real rank gap — but it does
+    // mean a backfill re-run rewrites every scored book instead of short-circuiting.
+    expect(Math.abs(live - recomputed) / recomputed).toBeLessThan(1e-12);
   });
 });
