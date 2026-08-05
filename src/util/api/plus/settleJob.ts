@@ -113,7 +113,10 @@ function getCachedBookName(classId: string, cache: BookNameCache) {
   const cached = cache.get(classId);
   if (cached) return cached;
   const pending = likeNFTBookCollection.doc(classId).get()
-    .then((snap) => (snap.data() as NFTBookListingInfo | undefined)?.name);
+    .then((snap) => (snap.data() as NFTBookListingInfo | undefined)?.name)
+    // The title is only a transfer label and falls back to the classId, so a failed read
+    // must not abort the payout — nor stay cached as a rejection for the book's other payees.
+    .catch(() => undefined);
   cache.set(classId, pending);
   return pending;
 }
