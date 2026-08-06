@@ -1,0 +1,839 @@
+{
+  "version": 1,
+  "source": "likecoin-api-public: src/util/stripe.ts, src/util/api/likernft/book/price.ts, src/util/api/likernft/book/payment.ts",
+  "ratiosVerifiedAgainstDeployment": "2026-08-06",
+  "constants": {
+    "likerLandFeeRatio": 0.05,
+    "tipFeeRatio": 0.1,
+    "commissionRatio": 0.3,
+    "artFeeRatio": 0.1,
+    "stripePercentageFee": 0.029,
+    "stripeInternationalFee": 0.015,
+    "stripeFxFee": 0.01,
+    "stripeFlatFee": 30
+  },
+  "stripeFee": [
+    {
+      "name": "free",
+      "inputAmount": 0,
+      "currency": "usd",
+      "expected": 0
+    },
+    {
+      "name": "US$0.99",
+      "inputAmount": 99,
+      "currency": "usd",
+      "expected": 35
+    },
+    {
+      "name": "US$5",
+      "inputAmount": 500,
+      "currency": "usd",
+      "expected": 52
+    },
+    {
+      "name": "US$10",
+      "inputAmount": 1000,
+      "currency": "usd",
+      "expected": 74
+    },
+    {
+      "name": "US$50",
+      "inputAmount": 5000,
+      "currency": "usd",
+      "expected": 250
+    },
+    {
+      "name": "US$999",
+      "inputAmount": 99900,
+      "currency": "usd",
+      "expected": 4426
+    },
+    {
+      "name": "rounding, US$3.33",
+      "inputAmount": 333,
+      "currency": "usd",
+      "expected": 45
+    },
+    {
+      "name": "non-usd adds the fx fee",
+      "inputAmount": 1000,
+      "currency": "hkd",
+      "expected": 84
+    },
+    {
+      "name": "free in non-usd is still free",
+      "inputAmount": 0,
+      "currency": "hkd",
+      "expected": 0
+    }
+  ],
+  "itemPrices": [
+    {
+      "name": "direct link, US$10",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "liker land storefront, US$10",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 300,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "affiliate channel, US$10",
+      "from": "some_affiliate",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 300,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "waived channel takes no commission",
+      "from": "liker_land_waived",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "free book zeroes every fee",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 0,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 0,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 0,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "free book with a tip is not free",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 500,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 500,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 500,
+        "customPriceDiffInDecimal": 500,
+        "originalPriceInDecimal": 0,
+        "likerLandTipFeeAmount": 50,
+        "likerLandFeeAmount": 0,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "reader tip on a paid book",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 500,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1500,
+        "customPriceDiffInDecimal": 500,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 50,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "discount eats into the channel commission",
+      "from": "some_affiliate",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1500,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 2000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 100,
+        "likerLandCommission": 0,
+        "channelCommission": 100,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "discount larger than the commission floors it at zero",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 200,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 200,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 2000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 100,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "liker land art fee",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": true
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 300,
+        "channelCommission": 0,
+        "likerLandArtFee": 100
+      }
+    },
+    {
+      "name": "rounding, US$3.33 direct",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 333,
+        "originalPriceInDecimal": 333,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 1,
+        "currency": "usd",
+        "priceInDecimal": 333,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 333,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 17,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    },
+    {
+      "name": "quantity 3",
+      "from": "liker_land",
+      "item": {
+        "quantity": 3,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "quantity": 3,
+        "currency": "usd",
+        "priceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "originalPriceInDecimal": 1000,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 300,
+        "channelCommission": 0,
+        "likerLandArtFee": 0
+      }
+    }
+  ],
+  "feeInfo": [
+    {
+      "name": "direct link, US$10",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 74,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 876
+      }
+    },
+    {
+      "name": "liker land storefront, US$10",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 74,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 300,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 576
+      }
+    },
+    {
+      "name": "affiliate channel, US$10",
+      "from": "some_affiliate",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 74,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 300,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 576
+      }
+    },
+    {
+      "name": "waived channel takes no commission",
+      "from": "liker_land_waived",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 74,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 876
+      }
+    },
+    {
+      "name": "free book zeroes every fee",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 0,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 0,
+        "priceInDecimal": 0,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 0,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 0
+      }
+    },
+    {
+      "name": "free book with a tip is not free",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 500,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 500,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 52,
+        "priceInDecimal": 500,
+        "originalPriceInDecimal": 0,
+        "customPriceDiffInDecimal": 500,
+        "likerLandTipFeeAmount": 50,
+        "likerLandFeeAmount": 0,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 398
+      }
+    },
+    {
+      "name": "reader tip on a paid book",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 500,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 96,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 500,
+        "likerLandTipFeeAmount": 50,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 1304
+      }
+    },
+    {
+      "name": "discount eats into the channel commission",
+      "from": "some_affiliate",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 96,
+        "priceInDecimal": 1500,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 100,
+        "likerLandCommission": 0,
+        "channelCommission": 100,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 1204
+      }
+    },
+    {
+      "name": "discount larger than the commission floors it at zero",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 200,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 39,
+        "priceInDecimal": 200,
+        "originalPriceInDecimal": 2000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 100,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 61
+      }
+    },
+    {
+      "name": "liker land art fee",
+      "from": "liker_land",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": true
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 74,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 300,
+        "channelCommission": 0,
+        "likerLandArtFee": 100,
+        "royaltyToSplit": 476
+      }
+    },
+    {
+      "name": "rounding, US$3.33 direct",
+      "from": "",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 333,
+        "originalPriceInDecimal": 333,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 45,
+        "priceInDecimal": 333,
+        "originalPriceInDecimal": 333,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 17,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 271
+      }
+    },
+    {
+      "name": "quantity 3",
+      "from": "liker_land",
+      "item": {
+        "quantity": 3,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "currency": "usd",
+      "expected": {
+        "stripeFeeAmount": 162,
+        "priceInDecimal": 3000,
+        "originalPriceInDecimal": 3000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 150,
+        "likerLandCommission": 900,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 1788
+      }
+    },
+    {
+      "name": "non-usd direct sale",
+      "from": "",
+      "currency": "hkd",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "stripeFeeAmount": 84,
+        "priceInDecimal": 1000,
+        "originalPriceInDecimal": 1000,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 50,
+        "likerLandCommission": 0,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 866
+      }
+    },
+    {
+      "name": "sub-fee price floors the royalty at zero",
+      "from": "liker_land",
+      "currency": "usd",
+      "item": {
+        "quantity": 1,
+        "priceInDecimal": 30,
+        "originalPriceInDecimal": 30,
+        "customPriceDiffInDecimal": 0,
+        "isLikerLandArt": false
+      },
+      "expected": {
+        "stripeFeeAmount": 32,
+        "priceInDecimal": 30,
+        "originalPriceInDecimal": 30,
+        "customPriceDiffInDecimal": 0,
+        "likerLandTipFeeAmount": 0,
+        "likerLandFeeAmount": 2,
+        "likerLandCommission": 9,
+        "channelCommission": 0,
+        "likerLandArtFee": 0,
+        "royaltyToSplit": 0
+      }
+    }
+  ],
+  "authorRevenue": [
+    {
+      "name": "free",
+      "priceInDecimal": 0,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 0,
+          "ratio": 0
+        },
+        "likerLand": {
+          "royaltyInDecimal": 0,
+          "ratio": 0
+        }
+      }
+    },
+    {
+      "name": "US$0.99",
+      "priceInDecimal": 99,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 59,
+          "ratio": 0.5959595959595959
+        },
+        "likerLand": {
+          "royaltyInDecimal": 29,
+          "ratio": 0.29292929292929293
+        }
+      }
+    },
+    {
+      "name": "US$5",
+      "priceInDecimal": 500,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 423,
+          "ratio": 0.846
+        },
+        "likerLand": {
+          "royaltyInDecimal": 273,
+          "ratio": 0.546
+        }
+      }
+    },
+    {
+      "name": "US$10",
+      "priceInDecimal": 1000,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 876,
+          "ratio": 0.876
+        },
+        "likerLand": {
+          "royaltyInDecimal": 576,
+          "ratio": 0.576
+        }
+      }
+    },
+    {
+      "name": "US$20",
+      "priceInDecimal": 2000,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 1782,
+          "ratio": 0.891
+        },
+        "likerLand": {
+          "royaltyInDecimal": 1182,
+          "ratio": 0.591
+        }
+      }
+    },
+    {
+      "name": "US$50 — where the direct ratio reaches 90%",
+      "priceInDecimal": 5000,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 4500,
+          "ratio": 0.9
+        },
+        "likerLand": {
+          "royaltyInDecimal": 3000,
+          "ratio": 0.6
+        }
+      }
+    },
+    {
+      "name": "US$100",
+      "priceInDecimal": 10000,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 9030,
+          "ratio": 0.903
+        },
+        "likerLand": {
+          "royaltyInDecimal": 6030,
+          "ratio": 0.603
+        }
+      }
+    },
+    {
+      "name": "US$999",
+      "priceInDecimal": 99900,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 90479,
+          "ratio": 0.9056956956956957
+        },
+        "likerLand": {
+          "royaltyInDecimal": 60509,
+          "ratio": 0.6056956956956957
+        }
+      }
+    },
+    {
+      "name": "US$3.33, rounding",
+      "priceInDecimal": 333,
+      "currency": "usd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 271,
+          "ratio": 0.8138138138138138
+        },
+        "likerLand": {
+          "royaltyInDecimal": 171,
+          "ratio": 0.5135135135135135
+        }
+      }
+    },
+    {
+      "name": "US$10 in a non-usd currency",
+      "priceInDecimal": 1000,
+      "currency": "hkd",
+      "expected": {
+        "direct": {
+          "royaltyInDecimal": 866,
+          "ratio": 0.866
+        },
+        "likerLand": {
+          "royaltyInDecimal": 566,
+          "ratio": 0.566
+        }
+      }
+    }
+  ]
+}
