@@ -457,6 +457,7 @@ export const BookPurchaseDataFilteredSchema = z.object({
   isPaid: z.boolean().optional(),
   errorMessage: z.string().optional(),
   wallet: z.string().optional(),
+  evmWallet: z.string().optional(),
   classId: z.string().optional(),
   priceInDecimal: z.number().optional(),
   price: z.number().optional(),

@@ -33,6 +33,7 @@ import type {
 import type {
   OAuthClientInfo,
 } from '../types/firestore';
+import { isValidEVMAddress } from './evm';
 
 /**
  * Send `data` as a JSON response, type-checked at compile time against `schema`
@@ -371,6 +372,10 @@ export function filterBookPurchaseData({
     isPendingClaim,
     errorMessage,
     wallet,
+    // A purchase doc stores one `wallet`: the address that claimed the book.
+    // Flagging it as `evmWallet` saves clients sniffing the format. Legacy
+    // `like1` claims have no EVM address on record.
+    evmWallet: wallet && isValidEVMAddress(wallet) ? wallet : undefined,
     classId,
     priceInDecimal,
     price,
