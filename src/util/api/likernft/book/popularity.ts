@@ -1,12 +1,9 @@
 import { ONE_DAY_IN_MS } from '../../../../constant';
 
-// Time-weighted popularity score: usage ms × 2^(days / halfLife), so recent reading outweighs
-// old reading without any decay job — writes happen only at usage time, no cron. Usage is
-// floored to the UTC day, which is what lets the backfill recompute a book's score from its
-// `plusUsage` daily rollups and land on what the live increments accumulated.
-// The product (not the exponent) overflows float64 around Sept 2045 — the millisecond
-// multiplicand costs ~6 months against salesScore's unit weight — so rebase both epochs
-// together well before then.
+// Time-weighted popularity score: usage ms × 2^(days / halfLife), so ordering stays
+// recency-biased with writes only at usage time (no cron). Usage is bucketed to the UTC day
+// so backfills can recompute from `plusUsage` daily rollups and match live increments.
+// The product overflows float64 around Sept 2045; rebase the epoch well before then.
 export const READING_SCORE_EPOCH_MS = Date.UTC(2026, 7, 1);
 export const READING_SCORE_HALF_LIFE_DAYS = 7;
 
