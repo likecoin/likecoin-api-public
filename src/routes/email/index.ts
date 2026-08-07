@@ -13,6 +13,9 @@ import { sendVerificationEmail } from '../../util/sendgrid';
 import { ValidationError } from '../../util/ValidationError';
 import { validateParams, validateBody } from '../../middleware/validate';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
+import verifyEmailByUUID from '../../util/api/email/verify';
+import { renderEmailVerifyPage, type EmailVerifyPageStatus } from '../../util/api/email/verifyPage';
+import { resolveLocale } from '../../locales';
 import {
   EmailVerifyUserParamsSchema,
   EmailVerifyUserBodySchema,
@@ -27,7 +30,6 @@ const router = Router();
 router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), validateBody(EmailVerifyUserBodySchema), async (req, res, next) => {
   try {
     const { id: username } = req.params as Record<string, string>;
-    const { ref } = req.body;
     const userRef = dbRef.doc(username);
     const doc = await userRef.get();
     let user: UserData = {} as UserData;
@@ -49,7 +51,7 @@ router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), va
         verificationUUID,
       });
       try {
-        await sendVerificationEmail(res, user, ref);
+        await sendVerificationEmail(res, user);
       } catch (err) {
         await userRef.update({
           lastVerifyTs: FieldValue.delete(),
@@ -59,6 +61,7 @@ router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), va
       }
     } else {
       res.sendStatus(404);
+      return;
     }
     res.sendStatus(200);
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -78,47 +81,45 @@ router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), va
   }
 });
 
+const VERIFY_PAGE_HTTP_STATUS: Record<EmailVerifyPageStatus, number> = {
+  success: 200,
+  failed: 404,
+  error: 500,
+};
+
+// One-click link from the verification email. A mail client follows it as a
+// plain GET, so every outcome renders HTML - errorHandler would answer JSON,
+// hence the local try/catch instead of next(err).
+router.get('/verify/:uuid', validateParams(EmailVerifyParamsSchema), async (req, res) => {
+  const verificationUUID = req.params.uuid;
+  let status: EmailVerifyPageStatus = 'error';
+  let user: UserData | null = null;
+  try {
+    user = await verifyEmailByUUID(req, verificationUUID);
+    status = user ? 'success' : 'failed';
+  } catch (err) {
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'eventVerifyEmailError',
+      verificationUUID,
+      error: (err as Error).message,
+    });
+  }
+  res.setLocale(resolveLocale(req.query.lang, user?.locale));
+  res.set('Cache-Control', 'no-store');
+  res.status(VERIFY_PAGE_HTTP_STATUS[status]).type('html').send(renderEmailVerifyPage(res, status));
+});
+
 router.post('/verify/:uuid', validateParams(EmailVerifyParamsSchema), async (req, res, next) => {
   try {
-    const verificationUUID = req.params.uuid;
-    const query = await dbRef.where('verificationUUID', '==', verificationUUID).get();
-    if (query.docs.length > 0) {
-      const [user] = query.docs;
-      await user.ref.update({
-        lastVerifyTs: FieldValue.delete(),
-        verificationUUID: FieldValue.delete(),
-        isEmailVerified: true,
-      });
-
-      const promises: Promise<unknown>[] = [];
-      const payload: Record<string, unknown> = { done: true };
-      const { referrer } = user.data();
-      if (referrer) {
-        promises.push(dbRef.doc(referrer).collection('referrals').doc(user.id).update({ isEmailVerified: true }));
-      } else {
-        payload.bonusId = 'none';
-      }
-      await Promise.all(promises);
-      sendValidatedJSON(res, EmailVerifyResponseSchema, {
-        referrer: !!user.data().referrer,
-        wallet: user.data().wallet,
-      });
-      const userObj = user.data();
-      publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'eventVerify',
-        user: user.id,
-        email: userObj.email,
-        displayName: userObj.displayName,
-        wallet: userObj.wallet,
-        avatar: userObj.avatar,
-        verificationUUID,
-        referrer: userObj.referrer,
-        locale: userObj.locale,
-        registerTime: userObj.timestamp,
-      });
-    } else {
+    const user = await verifyEmailByUUID(req, req.params.uuid);
+    if (!user) {
       res.sendStatus(404);
+      return;
     }
+    sendValidatedJSON(res, EmailVerifyResponseSchema, {
+      referrer: !!user.referrer,
+      wallet: user.wallet,
+    });
   } catch (err) {
     next(err);
   }

@@ -4,10 +4,11 @@ import sgMail from '@sendgrid/mail';
 import {
   SENDGRID_API_KEY,
 } from '../../config/config';
+import { getEmailVerifyURL } from './liker-land';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
 
-export async function sendVerificationEmail(res, user, ref) {
+export async function sendVerificationEmail(res, user) {
   const subject = res.__('Email.VerifyEmail.subject');
   const msg = {
     from: 'Liker Land <noreply@liker.land>',
@@ -17,8 +18,10 @@ export async function sendVerificationEmail(res, user, ref) {
       title: subject,
       content: res.__('Email.VerifyEmail.body', {
         name: user.displayName,
-        uuid: user.verificationUUID,
-        ref,
+        verifyUrl: getEmailVerifyURL({
+          uuid: user.verificationUUID,
+          language: res.getLocale(),
+        }),
       }) + res.__('Email.signature'),
     }).body,
   };
