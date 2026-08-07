@@ -119,6 +119,7 @@ export interface UserData {
   isEmailBlacklisted?: boolean;
   isEmailDuplicated?: boolean;
   lastVerifyTs?: number;
+  emailVerifiedTs?: number;
   verificationUUID?: string;
 
   // Phone fields

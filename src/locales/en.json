@@ -14,7 +14,7 @@
   "Email": {
     "VerifyEmail": {
       "subject": "3ook.com Account Verification",
-      "body": "<p>To register your 3ook.com account, please click the button below to verify your email address.</p><p style=\"text-align: center;\"><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">Verify</a></p><p>If you did not register for a 3ook.com account, please ignore this email.</p>"
+      "body": "<p>To register your 3ook.com account, please click the button below to verify your email address.</p><p style=\"text-align: center;\"><a href=\"{{verifyUrl}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">Verify</a></p><p>If you did not register for a 3ook.com account, please ignore this email.</p>"
     },
     "VerifiyAndCouponEmail": {
       "subject": "Verify your like.co email and claim your LikeCoin",
@@ -25,5 +25,22 @@
       "body": "Hello!<p>You have been invited by {{referrer}} to use like.co!</p><p>LikeCoin aims to reward contents by Proof of Creativity.</p><p>Begin by clicking the link below: (Desktop chrome is required)<br/><a href=\"https://like.co/register?from={{referrerId}}&email={{email}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/register?from={{referrerId}}&email={{email}}</a></p><p>Learn more about LikeCoin on our website</p>"
     },
     "signature": "<p>Liker Land Team<br/><a href=\"https://liker.land\" style=\"color: #28646E\">https://liker.land</a></p>"
+  },
+  "EmailVerifyPage": {
+    "success": {
+      "title": "Email verified",
+      "body": "Your email address is confirmed. You can close this window.",
+      "cta": "Go to 3ook.com"
+    },
+    "failed": {
+      "title": "This link is no longer valid",
+      "body": "The verification link has expired or has been replaced. Sign in and request a new one.",
+      "cta": "Go to 3ook.com"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "body": "We could not verify your email just now. Please open the link again in a moment.",
+      "cta": "Go to 3ook.com"
+    }
   }
 }

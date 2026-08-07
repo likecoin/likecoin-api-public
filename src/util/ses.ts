@@ -101,24 +101,6 @@ function formatEmailDecimalNumber(decimal: number) {
   return (decimal / 100).toFixed(2);
 }
 
-export async function sendVerificationEmail(res, user, ref) {
-  const subject = res.__('Email.VerifyEmail.subject');
-  return sendSESTemplateEmail({
-    functionName: 'sendVerificationEmail',
-    replyTo: [],
-    to: [user.email],
-    title: subject,
-    html: getBasicV2Template({
-      title: res.__('Email.VerifyEmail.subject'),
-      content: res.__('Email.VerifyEmail.body', {
-        name: user.displayName,
-        uuid: user.verificationUUID,
-        ref,
-      }) + res.__('Email.signature'),
-    }).body,
-  });
-}
-
 export function sendNFTBookListingEmail({
   classId = '',
   bookName,
