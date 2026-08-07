@@ -14,7 +14,7 @@
   "Email": {
     "VerifyEmail": {
       "subject": "3ook.com 帳戶驗證",
-      "body": "<p>註冊 3ook.com 帳戶，請點選以下按鈕驗證郵箱。</p><p style=\"text-align: center;\"><a href=\"https://like.co/verify/{{uuid}}?ref={{ref}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">驗證</a></p><p>如你並無註冊 3ook.com 帳戶，請忽略此郵件。</p>"
+      "body": "<p>註冊 3ook.com 帳戶，請點選以下按鈕驗證郵箱。</p><p style=\"text-align: center;\"><a href=\"{{verifyUrl}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">驗證</a></p><p>如你並無註冊 3ook.com 帳戶，請忽略此郵件。</p>"
     },
     "VerifiyAndCouponEmail": {
       "subject": "like.co 帳號驗證",
@@ -25,5 +25,22 @@
       "body": "您好，<p>{{referrer}} 想邀請你使用 like.co 。</p><p>LikeCoin 致力改革內容創作生態，化Like為Coin，回饋創作。</p><p>請到以下網址註冊 Liker ID（需使用電腦版 Chrome 瀏覽器）<br/><a href=\"https://like.co/register?from={{referrerId}}&email={{email}}\" style=\"word-break: break-all; color: #28646E\">https://like.co/register?from={{referrerId}}&email={{email}}</a></p><p>瞭解更多資訊請瀏覽我們的網站</p>"
     },
     "signature": "<p>Liker Land 團隊<br/><a href=\"https://liker.land\" style=\"color: #28646E\">https://liker.land</a></p>"
+  },
+  "EmailVerifyPage": {
+    "success": {
+      "title": "電郵已驗證",
+      "body": "你的電郵地址已確認，可以關閉此視窗。",
+      "cta": "前往 3ook.com"
+    },
+    "failed": {
+      "title": "此連結已失效",
+      "body": "驗證連結已過期或已被取代，請登入後重新索取驗證電郵。",
+      "cta": "前往 3ook.com"
+    },
+    "error": {
+      "title": "發生錯誤",
+      "body": "暫時無法驗證你的電郵，請稍後再開啟此連結。",
+      "cta": "前往 3ook.com"
+    }
   }
 }

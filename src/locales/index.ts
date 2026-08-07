@@ -20,4 +20,11 @@ export const storedLocales = [
 
 export type StoredLocale = typeof storedLocales[number];
 
+// First supported candidate wins; non-string and legacy codes fall through.
+export function resolveLocale(...candidates: unknown[]): string {
+  return candidates.find(
+    (l): l is string => typeof l === 'string' && (supportedLocales as readonly string[]).includes(l),
+  ) || defaultLocale;
+}
+
 export default supportedLocales;

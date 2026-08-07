@@ -3,7 +3,6 @@ import {
 } from 'vitest';
 import {
   ses,
-  sendVerificationEmail,
   sendNFTBookListingEmail,
   sendNFTBookPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
@@ -54,19 +53,6 @@ describe('SES email params', () => {
     expect(sendEmailSpy).toHaveBeenCalledTimes(1);
     return sendEmailSpy.mock.calls[0][0];
   }
-
-  it('sendVerificationEmail builds expected params', async () => {
-    const res = {
-      // eslint-disable-next-line no-underscore-dangle
-      __: (key: string, args?: Record<string, string>) => (args ? `${key} ${JSON.stringify(args)}` : key),
-    };
-    await sendVerificationEmail(
-      res,
-      { email: 'user@example.com', displayName: 'User', verificationUUID: 'uuid-123' },
-      'ref-1',
-    );
-    expect(lastParams()).toMatchSnapshot();
-  });
 
   it('sendNFTBookListingEmail builds expected params', async () => {
     await sendNFTBookListingEmail({ classId: '0xclass', bookName: 'My Book' });

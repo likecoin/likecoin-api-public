@@ -70,6 +70,8 @@ async function restoreEmailFields(user: string, before: any) {
     isEmailVerified: before.isEmailVerified ?? FieldValue.delete(),
     isEmailBlacklisted: before.isEmailBlacklisted ?? FieldValue.delete(),
     isEmailDuplicated: before.isEmailDuplicated ?? FieldValue.delete(),
+    verificationUUID: before.verificationUUID ?? FieldValue.delete(),
+    lastVerifyTs: before.lastVerifyTs ?? FieldValue.delete(),
   });
 }
 
@@ -532,6 +534,39 @@ describe('USER tests', () => {
     }).catch((err) => (err as any).response);
     expect(res.status).toBe(200);
     expect(res.data.wallet).toBe(testingWallet2);
+  });
+
+  it('USER: Verify uuid by link. Case: success, and repeat click stays successful', async () => {
+    const uuid = '00000000-0000-0000-0000-000000000001';
+    const res = await axiosist.get(`/api/email/verify/${uuid}?lang=en`)
+      .catch((err) => (err as any).response);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.data).toContain('Email verified');
+
+    // The UUID is kept on purpose so a second click - or a mail scanner that
+    // prefetched the link before the user clicked - still resolves.
+    const repeat = await axiosist.get(`/api/email/verify/${uuid}?lang=en`)
+      .catch((err) => (err as any).response);
+    expect(repeat.status).toBe(200);
+    expect(repeat.data).toContain('Email verified');
+  });
+
+  it('USER: Verify uuid by link. Case: wrong uuid renders HTML, not JSON', async () => {
+    const uuid = '99999999-0000-0000-0000-000000000000';
+    const res = await axiosist.get(`/api/email/verify/${uuid}?lang=en`)
+      .catch((err) => (err as any).response);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.data).toContain('no longer valid');
+  });
+
+  it('USER: Verify uuid by link. Case: unsupported lang falls back instead of 400', async () => {
+    const uuid = '00000000-0000-0000-0000-000000000001';
+    const res = await axiosist.get(`/api/email/verify/${uuid}?lang=not-a-locale`)
+      .catch((err) => (err as any).response);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
   });
 
   it('USER: Register user by form-data from Web. Case: invalid content-type', async () => {

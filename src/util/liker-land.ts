@@ -1,4 +1,5 @@
 import {
+  API_EXTERNAL_HOSTNAME,
   BOOK3_HOSTNAME,
   BOOK3_CART_PAGES,
 } from '../constant';
@@ -564,4 +565,14 @@ export const getSharedMemberClaimURL = ({
 }): string => {
   const qs = new URLSearchParams({ giver: giverLikerId, invite: inviteId, token }).toString();
   return `https://${BOOK3_HOSTNAME}/shared/claim?${qs}`;
+};
+
+// Points at the API, not a frontend page: clicking the link is the whole flow.
+// `lang` rides along because a GET from a mail client has no body to read it from.
+export const getEmailVerifyURL = ({
+  uuid,
+  language,
+}: { uuid: string; language: string }): string => {
+  const qs = new URLSearchParams({ lang: language }).toString();
+  return `https://${API_EXTERNAL_HOSTNAME}/email/verify/${uuid}?${qs}`;
 };

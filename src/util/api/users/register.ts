@@ -203,7 +203,7 @@ export async function handleUserRegistration({
           email,
           displayName,
           verificationUUID: createObj.verificationUUID,
-        }, createObj.referrer);
+        });
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error(err);

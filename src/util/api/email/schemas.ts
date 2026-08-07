@@ -4,10 +4,8 @@ export const EmailVerifyUserParamsSchema = z.object({
   id: z.string().min(1),
 });
 
-// Only `ref` is read by the handler; .passthrough() keeps body intact.
-export const EmailVerifyUserBodySchema = z.object({
-  ref: z.string().optional(),
-}).passthrough();
+// The handler reads nothing off the body; .passthrough() keeps it intact.
+export const EmailVerifyUserBodySchema = z.object({}).passthrough();
 
 export const EmailVerifyParamsSchema = z.object({
   uuid: z.string().min(1),

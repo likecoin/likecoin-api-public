@@ -8,6 +8,7 @@ import {
 } from '../../constant';
 import {
   userCollection as dbRef,
+  FieldValue,
 } from '../../util/firebase';
 import {
   setAuthCookies,
@@ -235,6 +236,9 @@ router.post(
         isEmailEnabled,
         locale,
       };
+      // Written with updateObj but kept out of it: the delete sentinels would
+      // serialize into the pubsub payload below as `{}`.
+      let verificationReset: Record<string, unknown> = {};
 
       if (email) {
         const isEmailChanged = email.toLowerCase() !== (oldEmail || '').toLowerCase();
@@ -282,6 +286,12 @@ router.post(
             if (isEmailDuplicated !== undefined) updateObj.isEmailDuplicated = isEmailDuplicated;
           }
           updateObj.isEmailVerified = isEmailVerified;
+          // The UUID outlives a successful verify, so leaving it would let a
+          // link mailed to the previous address verify this one.
+          verificationReset = {
+            verificationUUID: FieldValue.delete(),
+            lastVerifyTs: FieldValue.delete(),
+          };
         }
       }
 
@@ -294,7 +304,7 @@ router.post(
       if (!Object.keys(updateObj).length) {
         throw new ValidationError('INVALID_PAYLOAD');
       }
-      await dbRef.doc(user).update(updateObj);
+      await dbRef.doc(user).update({ ...updateObj, ...verificationReset });
       res.sendStatus(200);
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
