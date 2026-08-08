@@ -275,12 +275,15 @@ async function handleGrant(
     ? purchasedAtMs
     : (user.likerPlus?.since || purchasedAtMs);
 
+  // Stores send `price: 0` on no-charge grants (uncancel/extend/product-change) rather
+  // than omitting the field, so a real charge must test the amount, not just presence.
+  const hasCharge = !isTrial && event.price != null && event.price > 0;
+
   // Per-day value of this term, funding the reading-library revenue-share pool.
   // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
   // `price` is normalized to USD, so the pool funds in USD — the actual transaction
   // price still captures intro/promotional and monthly/yearly differences.
-  // Uncancel/extend/product-change grants carry no `price` (no new charge); preserve
-  // the stored dailyValue rather than zeroing accrual until the next priced renewal.
+  // No-charge grants preserve the stored dailyValue rather than zeroing accrual.
   // Civic funds at the Plus-tier rate (see getPlusEquivalentUSDPrice), never
   // its own 10× charge.
   let dailyValue = 0;
@@ -289,7 +292,7 @@ async function handleGrant(
     if (tier === 'civic') {
       fundingAmount = getPlusEquivalentUSDPrice(period);
     }
-    dailyValue = event.price != null && fundingAmount != null
+    dailyValue = hasCharge && fundingAmount != null
       ? calculatePlusDailyValue({
         amountPaid: fundingAmount,
         currentPeriodStart: purchasedAtMs,
@@ -326,9 +329,6 @@ async function handleGrant(
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
   }
-  // A real charge: priced, non-trial grants. Trials and no-charge grants
-  // (uncancel/extend/product-change) carry no price. Reused by the gift block below.
-  const hasCharge = !isTrial && event.price != null && event.price > 0;
   const grantUpdate: Record<string, unknown> = { likerPlus };
   // Track first/last real payment like the Stripe path so getCustomerType can tell
   // resubscribers from first-time buyers.
@@ -474,11 +474,11 @@ async function handleGrant(
     }
   }
 
-  // Accrue this term's value to the rev-share pool. Only on a real new charge
-  // (`price` present) — never trials or uncancel/extend grants, which carry no price
-  // and would otherwise re-fund a term. RC `price` is already USD. Placed after the
-  // quarantine return so reviewer/sandbox traffic never funds real payouts.
-  if (!isTrial && event.price != null && dailyValue > 0 && transactionId) {
+  // Accrue this term's value to the rev-share pool, only on a real new charge: an extend
+  // shares the running term's accrual key (`subscriptionId_periodStart`), so accruing one
+  // would overwrite it with a longer, unpaid-for paidDays. Placed after the quarantine
+  // return so reviewer/sandbox traffic never funds real payouts.
+  if (hasCharge && dailyValue > 0 && transactionId) {
     // Best-effort: accrual is not yet used for payouts, so a transient Firestore
     // failure must not fail (and make RevenueCat retry) the subscription webhook.
     try {
@@ -516,8 +516,11 @@ async function handleGrant(
   const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
 
   // Independent notifications/analytics — fire in parallel (matches the Stripe path).
-  const sideEffects: Promise<unknown>[] = [
-    sendPlusSubscriptionSlackNotification({
+  // Skipped for uncancel/extend/product-change: nothing was bought, and announcing one
+  // posts a "renewal … 0.00" that reads as a real sale.
+  const sideEffects: Promise<unknown>[] = [];
+  if (logEvent) {
+    sideEffects.push(sendPlusSubscriptionSlackNotification({
       subscriptionId: transactionId || 'N/A',
       email: user.email || 'N/A',
       priceWithCurrency: paymentAmount != null && paymentCurrency
@@ -527,9 +530,7 @@ async function handleGrant(
       userId: likerId,
       method: 'revenuecat',
       isTrial,
-    }),
-  ];
-  if (logEvent) {
+    }));
     // Mirror the Stripe path's value signal so Meta/GA optimize the same for web
     // and IAP — app IAP trials charge 0, so value falls back to predicted LTV.
     const {
