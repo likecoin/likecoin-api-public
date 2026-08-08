@@ -1,8 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
 import axiosist from './axiosist';
 import { jwtSign } from './jwt';
 import { getUserWithCivicLikerProperties } from '../../src/util/api/users/getPublicInfo';
 import { userCollection } from '../../src/util/firebase';
+import { sendPlusSubscriptionSlackNotification } from '../../src/util/slack';
+
+// Override only the Slack post so the notification gate is observable: the real
+// helper early-returns on an unset webhook, so it silently passes either way.
+vi.mock('../../src/util/slack', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/slack')>();
+  return {
+    ...actual,
+    sendPlusSubscriptionSlackNotification: vi.fn(),
+  };
+});
+const mockSlackNotification = vi.mocked(sendPlusSubscriptionSlackNotification);
 
 const WEBHOOK_PATH = '/api/plus/revenuecat/webhook';
 const AUTH = 'test-rc-webhook-secret'; // matches REVENUECAT_WEBHOOK_AUTHORIZATION in test/setup.ts
@@ -63,8 +77,10 @@ describe('Plus RevenueCat webhook', () => {
   });
 
   it('activates Plus on INITIAL_PURCHASE and tags provider=revenuecat', async () => {
+    mockSlackNotification.mockClear();
     const res = await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
     expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledTimes(1);
 
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus).toBeTruthy();
@@ -300,6 +316,47 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('active');
     expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
+  });
+
+  it('preserves dailyValue on a SUBSCRIPTION_EXTENDED that reports price 0', async () => {
+    // Play sends `price: 0` on a store-granted extension rather than omitting the
+    // field, so a presence check reads it as a real charge and recomputes dailyValue
+    // to 0 — zeroing rev-share funding for the rest of the term.
+    const extendedEnd = FUTURE_PERIOD_END_MS + 24 * 60 * 60 * 1000;
+    mockSlackNotification.mockClear();
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, dailyValue: 0.37, dailyValueCurrency: 'USD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_extended',
+        type: 'SUBSCRIPTION_EXTENDED',
+        store: 'PLAY_STORE',
+        price: 0,
+        price_in_purchased_currency: 0,
+        currency: 'GBP',
+        expiration_at_ms: extendedEnd,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(extendedEnd);
+    expect(user?.likerPlus?.dailyValue).toBe(0.37);
+
+    // Preserving dailyValue makes the accrual gate rest solely on hasCharge: an extend
+    // reuses the running term's key, so accruing would re-fund it over a longer span.
+    const accrual = await userCollection.doc('testing')
+      .collection('plusReadingAccrual')
+      .doc(`txn_123_${PURCHASED_AT_MS}`)
+      .get();
+    expect(accrual.exists).toBe(false);
+
+    // Nothing was bought, so announcing one posts a "renewal … 0.00 GBP" that reads
+    // as a real sale.
+    expect(mockSlackNotification).not.toHaveBeenCalled();
   });
 
   it('carries a live subscription to transferred_to on TRANSFER', async () => {
