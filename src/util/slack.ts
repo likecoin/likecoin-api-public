@@ -4,7 +4,6 @@ import { getBook3NFTClassPageURL } from './liker-land';
 import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
-  EXTERNAL_HOSTNAME,
   IS_TESTNET,
 } from '../constant';
 import {
@@ -187,30 +186,38 @@ export async function sendPlusSubscriptionSlackNotification({
   try {
     let subscriptionType = '';
     if (isTrial) {
-      subscriptionType = 'New Plus trial subscription';
+      subscriptionType = 'New trial';
     } else if (isNew) {
-      subscriptionType = 'New Plus subscription';
+      subscriptionType = 'New';
     } else {
-      subscriptionType = 'Plus subscription renewal';
+      subscriptionType = 'Renewal';
     }
-    const userLink = userId ? `<https://${EXTERNAL_HOSTNAME}/${userId}|${userId}>` : 'N/A';
-    const stripeEnvironment = IS_TESTNET ? 'test' : '';
-    const customerLink = stripeCustomerId ? `<https://dashboard.stripe.com/${stripeEnvironment}/customers/${stripeCustomerId}|${stripeCustomerId}>` : 'N/A';
-    // Only Stripe ids resolve to a Stripe dashboard URL. Other providers (e.g.
-    // RevenueCat) pass their own transaction id, so render it as plain text.
-    const subscriptionLink = method === 'stripe'
-      ? `<https://dashboard.stripe.com/${stripeEnvironment}/subscriptions/${subscriptionId}|${subscriptionId}>`
-      : subscriptionId;
+    const customerId = stripeCustomerId || 'N/A';
+    const stripeEndpoint = `https://dashboard.stripe.com${IS_TESTNET ? '/test' : ''}`;
+    const customerLink = stripeCustomerId ? `${stripeEndpoint}/customers/${stripeCustomerId}` : undefined;
+    // Non-Stripe subscription ids have no Stripe dashboard page to link to.
+    const subscriptionLink = method === 'stripe' ? `${stripeEndpoint}/subscriptions/${subscriptionId}` : undefined;
+
+    let methodDisplayName = method as string;
+    if (method === 'stripe') {
+      methodDisplayName = 'Stripe';
+    } else if (method === 'revenuecat') {
+      methodDisplayName = 'RevenueCat';
+    } else if (method === 'shared') {
+      methodDisplayName = 'Shared by Civic';
+    }
 
     await axios.post(PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK, {
-      network: IS_TESTNET ? 'testnet' : 'mainnet',
+      network: IS_TESTNET ? 'Testnet' : 'Mainnet',
       subscriptionType,
-      subscriptionId: subscriptionLink,
+      subscriptionId,
+      subscriptionLink,
       email,
-      userId: userLink,
-      stripeCustomerId: customerLink,
+      userId,
+      customerId,
+      customerLink,
       priceWithCurrency,
-      method,
+      method: methodDisplayName,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
