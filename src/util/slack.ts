@@ -4,6 +4,7 @@ import { getBook3NFTClassPageURL } from './liker-land';
 import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
+  EXTERNAL_HOSTNAME,
   IS_TESTNET,
 } from '../constant';
 import {
@@ -16,6 +17,10 @@ import {
 import { Timestamp } from './firebase';
 import type { NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
+
+// RevenueCat has no per-customer URL without a project id, so link to the
+// dashboard and search there for the transaction id shown in the message.
+const REVENUECAT_DASHBOARD_URL = 'https://app.revenuecat.com/';
 
 export async function sendNFTBookNewListingSlackNotification({
   wallet,
@@ -177,7 +182,7 @@ export async function sendPlusSubscriptionSlackNotification({
   email: string;
   priceWithCurrency: string;
   isNew: boolean;
-  userId?: string;
+  userId: string;
   stripeCustomerId?: string;
   method?: LikerPlusProvider;
   isTrial?: boolean;
@@ -194,9 +199,16 @@ export async function sendPlusSubscriptionSlackNotification({
     }
     const customerId = stripeCustomerId || 'N/A';
     const stripeEndpoint = `https://dashboard.stripe.com${IS_TESTNET ? '/test' : ''}`;
-    const customerLink = stripeCustomerId ? `${stripeEndpoint}/customers/${stripeCustomerId}` : undefined;
-    // Non-Stripe subscription ids have no Stripe dashboard page to link to.
-    const subscriptionLink = method === 'stripe' ? `${stripeEndpoint}/subscriptions/${subscriptionId}` : undefined;
+    // The Slack message renders these as link buttons, which reject an empty URL,
+    // so every branch must resolve to a real page.
+    const profileLink = `https://${EXTERNAL_HOSTNAME}/${userId}`;
+    const customerLink = stripeCustomerId ? `${stripeEndpoint}/customers/${stripeCustomerId}` : profileLink;
+    let subscriptionLink = profileLink;
+    if (method === 'stripe') {
+      subscriptionLink = `${stripeEndpoint}/subscriptions/${subscriptionId}`;
+    } else if (method === 'revenuecat') {
+      subscriptionLink = REVENUECAT_DASHBOARD_URL;
+    }
 
     let methodDisplayName = method as string;
     if (method === 'stripe') {
