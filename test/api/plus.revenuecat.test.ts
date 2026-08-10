@@ -28,6 +28,8 @@ const EXPIRATION_AT_MS = 1778536000000;
 const PRIOR_PERIOD_START_MS = PURCHASED_AT_MS - 30 * 24 * 60 * 60 * 1000;
 // EXPIRATION_AT_MS is in the past, so guards keyed on live access need their own end.
 const FUTURE_PERIOD_END_MS = Date.now() + 30 * 24 * 60 * 60 * 1000;
+// Period start of the trial→paid renewal, one 7-day trial term after the purchase.
+const CONVERSION_START_MS = PURCHASED_AT_MS + 7 * 24 * 60 * 60 * 1000;
 
 // A live, RevenueCat-owned APP_STORE record — the shape the subscription-scoping
 // and transfer-carry guards operate on. Spread it so tests can't share a reference.
@@ -110,6 +112,69 @@ describe('Plus RevenueCat webhook', () => {
     expect(res.status).toBe(200);
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.currentType).toBe('trial');
+  });
+
+  it('books a paid introductory offer as a trial but keeps its charge', async () => {
+    // The $1/7-day promo arrives as period_type INTRO, not TRIAL. It must read as a
+    // trial for entitlement/CRM/analytics (Stripe parity, where the same promo is a
+    // trialing subscription) while its real charge still funds nothing in rev-share.
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent, type: 'INITIAL_PURCHASE', period_type: 'INTRO', price: 1,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.currentType).toBe('trial');
+    expect(user?.likerPlus?.dailyValue).toBe(0);
+    expect(mockSlackNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isTrial: true,
+        isNew: true,
+        // The $1 is a real charge and must still be reported, unlike a free trial's 0.
+        priceWithCurrency: '1.00 USD',
+      }),
+    );
+  });
+
+  it('reports the first charge after a trial as a new subscription, not a renewal', async () => {
+    // RevenueCat's is_trial_conversion stays false for a paid intro, so the conversion
+    // is detected from the stored record's currentType instead.
+    mockSlackNotification.mockClear();
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, currentType: 'trial' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_convert',
+        type: 'RENEWAL',
+        period_type: 'NORMAL',
+        price: 49,
+        // Its own period start: the accrual key is `${transaction}_${periodStart}`, and
+        // reusing PURCHASED_AT_MS would seed the doc a later test asserts is absent.
+        purchased_at_ms: CONVERSION_START_MS,
+      },
+      { Authorization: AUTH },
+    );
+    try {
+      expect(res.status).toBe(200);
+      const user = await getUserWithCivicLikerProperties('testing');
+      expect(user?.likerPlus?.currentType).toBe('paid');
+      expect(mockSlackNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ isTrial: false, isNew: true }),
+      );
+    } finally {
+      // This is the only test booking a real charge, so the only one writing a rev-share
+      // accrual. The Firestore stub is shared across test files and plus-settle's "no
+      // accrual" dry run would pick this up, so drop it even when an assertion fails.
+      await userCollection.doc('testing')
+        .collection('plusReadingAccrual')
+        .doc(`txn_123_${CONVERSION_START_MS}`)
+        .delete();
+    }
   });
 
   it('skips the grant when a subscription event has no resolvable period end', async () => {

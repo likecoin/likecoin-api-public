@@ -234,9 +234,9 @@ export const RevenueCatConfigResponseSchema = z.object({
 // present, only `event.type` is required and everything else is .nullish() with
 // .passthrough(). Two checks against the official docs (verified against
 // revenuecat.com/docs/.../event-types-and-fields):
-//   - period_type/environment/store are plain strings, not enums — RevenueCat ships
-//     values our TS interface omits (e.g. period_type PREPAID), and an enum would
-//     reject those valid deliveries.
+//   - period_type/environment/store are plain strings, not enums — RevenueCat adds
+//     values over time (period_type gained PREPAID after this shipped), and an enum
+//     would reject those valid deliveries until the union caught up.
 //   - product_id/price/price_in_purchased_currency/currency are explicitly nullable
 //     in the docs, so every scalar is .nullish() (accepts null AND missing).
 export const RevenueCatWebhookBodySchema = z.object({
