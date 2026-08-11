@@ -50,7 +50,7 @@ export interface RevenueCatEvent {
   product_id?: string;
   entitlement_id?: string | null;
   entitlement_ids?: string[] | null;
-  period_type?: 'TRIAL' | 'INTRO' | 'NORMAL' | 'PROMOTIONAL';
+  period_type?: 'TRIAL' | 'INTRO' | 'NORMAL' | 'PROMOTIONAL' | 'PREPAID';
   purchased_at_ms?: number;
   expiration_at_ms?: number | null;
   store?: string;
@@ -241,7 +241,17 @@ async function handleGrant(
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
 
   const isInitial = event.type === 'INITIAL_PURCHASE';
-  const isTrial = event.period_type === 'TRIAL';
+  // A paid introductory offer (the $1/7-day trial) is a trial for entitlement, CRM and
+  // analytics — Stripe parity. RevenueCat's dashboard instead books intro offers as
+  // paid immediately, so our trial counts diverge from it by design.
+  const isPaidIntro = event.period_type === 'INTRO';
+  const isTrial = event.period_type === 'TRIAL' || isPaidIntro;
+  // RevenueCat's `is_trial_conversion` is unusable here: it means "the previous period
+  // was a free trial" and stays false for a paid intro, which is the case we run. The
+  // stored record's currentType is authoritative instead.
+  const isTrialToPaidUpgrade = event.type === 'RENEWAL'
+    && !isTrial
+    && user.likerPlus?.currentType === 'trial';
   const purchasedAtMs = event.purchased_at_ms || Date.now();
   const transactionId = event.original_transaction_id || event.id;
   // Gift attribution is keyed to one subscription's original_transaction_id. A
@@ -277,7 +287,9 @@ async function handleGrant(
 
   // Stores send `price: 0` on no-charge grants (uncancel/extend/product-change) rather
   // than omitting the field, so a real charge must test the amount, not just presence.
-  const hasCharge = !isTrial && event.price != null && event.price > 0;
+  // Not gated on `isTrial`: a free trial already reports price 0, while a paid intro
+  // reports its real charge, which must still reach firstPaidAt and the Airtable row.
+  const hasCharge = event.price != null && event.price > 0;
 
   // Per-day value of this term, funding the reading-library revenue-share pool.
   // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
@@ -396,8 +408,9 @@ async function handleGrant(
   // the upsell `giftClassId` into the resolved gift book, and affiliate attribution
   // is persisted to `plusAffiliateFrom`. Stripe stores the gift in the subscription
   // metadata; RevenueCat has no subscription, so we persist it on the shared record
-  // for GET /plus/gift to read back. Only on the initial purchase.
-  if (isInitial) {
+  // for GET /plus/gift to read back. Also on the first full charge after a trial, which
+  // is when a trial subscriber's gift finally becomes due (see isGiftEligible).
+  if (isInitial || isTrialToPaidUpgrade) {
     const fromAttr = getSubscriberAttribute(event, 'plusFrom');
     const giftClassIdAttr = getSubscriberAttribute(event, 'plusGiftClassId');
     if (fromAttr || giftClassIdAttr) {
@@ -425,12 +438,13 @@ async function handleGrant(
           userUpdate.likerPlus = { ...likerPlus, affiliateFrom };
         }
 
-        // Gift books only attach to yearly, on a real charge — except an affiliate
-        // `giftOnTrial` gift granted at trial start. The giftCartId guard keeps a
-        // re-delivered INITIAL_PURCHASE idempotent, but only for the same
-        // subscription — a resubscribe earns a fresh gift even though the lapsed
-        // sub's giftCartId still lingers on the record.
-        const isGiftEligible = hasCharge || (!!affiliateGiftOnTrial && isTrial);
+        // Gift books only attach to yearly, on a real full-price charge — except an
+        // affiliate `giftOnTrial` gift at trial start. A paid intro's own tiny charge
+        // doesn't qualify; its gift is deferred to the trial→paid renewal above.
+        const isGiftEligible = isTrial ? !!affiliateGiftOnTrial : hasCharge;
+        // The giftCartId guard keeps a re-delivered INITIAL_PURCHASE idempotent, but only
+        // for the same subscription — a resubscribe earns a fresh gift even though the
+        // lapsed sub's giftCartId still lingers on the record.
         if (
           planPeriod === 'yearly'
           && resolvedGiftClassId
@@ -505,10 +519,19 @@ async function handleGrant(
       userId: likerId,
       eventName: isTrial ? 'plus_trial_start' : 'plus_subscription_start',
     });
+  } else if (isTrialToPaidUpgrade) {
+    // Both events, mirroring the Stripe path so the two providers drive the same
+    // Intercom sequence for a conversion.
+    await sendIntercomEvent({ userId: likerId, eventName: 'plus_trial_end' });
+    await sendIntercomEvent({ userId: likerId, eventName: 'plus_subscription_start' });
   }
 
   let logEvent: 'StartTrial' | 'Subscribe' | 'SubscriptionRenewed' | undefined;
   if (isInitial) logEvent = isTrial ? 'StartTrial' : 'Subscribe';
+  // The first full charge after a trial is the real conversion, not a renewal, so it
+  // reports Subscribe — parity with the Stripe path. PlusAcquisition stays gated on
+  // isInitial below so each subscription is still counted exactly once.
+  else if (isTrialToPaidUpgrade) logEvent = 'Subscribe';
   else if (event.type === 'RENEWAL') logEvent = 'SubscriptionRenewed';
 
   // Resolve once and reuse across Slack, analytics, and the Airtable record.
@@ -525,7 +548,9 @@ async function handleGrant(
       priceWithCurrency: paymentAmount != null && paymentCurrency
         ? `${paymentAmount.toFixed(2)} ${paymentCurrency}`
         : 'N/A',
-      isNew: isInitial,
+      // Treat the first payment converted from a trial as a new subscription, not a
+      // renewal (the record's `since` is unchanged, so isInitial is false).
+      isNew: isInitial || isTrialToPaidUpgrade,
       userId: likerId,
       method: 'revenuecat',
       isTrial,
@@ -568,6 +593,9 @@ async function handleGrant(
         subscription_id: transactionId,
         provider: 'revenuecat',
         platform: 'app',
+        // Separates the $1 paid-intro cohort from a free trial; both report
+        // StartTrial, so without this they collapse into one funnel.
+        is_paid_trial: isPaidIntro,
         store: event.store,
         product_id: event.product_id,
         period,
@@ -613,6 +641,8 @@ async function handleGrant(
       periodInterval: period || '',
       periodStartAt: purchasedAtMs,
       periodEndAt: currentPeriodEnd,
+      // Narrower than the Slack `isNew` above on purpose: Stripe's Airtable row counts
+      // only real subscription creations, so a trial conversion is not "new" here.
       isNew: isInitial,
       isTrial,
     }));
@@ -729,7 +759,7 @@ async function revokeOtherHoldersOfTransaction(
 async function handleExpiration(
   event: RevenueCatEvent,
   likerId: string,
-  user: { likerPlus?: LikerPlusData },
+  user: { email?: string; evmWallet?: string; likerPlus?: LikerPlusData },
   isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
@@ -740,6 +770,13 @@ async function handleExpiration(
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (isForOtherSubscription(event, user.likerPlus)) return;
+  // A subscription that lapses without ever converting is a trial end, not a
+  // cancellation — Stripe parity. The stored currentType is authoritative, so this
+  // also covers a paid intro, whose period_type is INTRO rather than TRIAL.
+  const isTrialEnd = user.likerPlus.currentType === 'trial';
+  // Must match the id the grant reported or the funnel doesn't join up. The stored
+  // id is the fallback: an expiration may arrive without one.
+  const transactionId = event.original_transaction_id || user.likerPlus.originalTransactionId;
   const expiredAt = event.expiration_at_ms || Date.now();
   await revokeLikerPlus(likerId, user.likerPlus, {
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
@@ -751,7 +788,36 @@ async function handleExpiration(
   }
   if (isQuarantinedSandbox(isSandbox)) return;
   await clearIntercomPlusFlags(likerId);
-  await sendIntercomEvent({ userId: likerId, eventName: 'plus_subscription_end' });
+  // No value/currency on purpose: churn must reach PostHog but never Meta/GA as a
+  // conversion, which is how the Stripe path reports it too.
+  await Promise.all([
+    sendIntercomEvent({
+      userId: likerId,
+      eventName: isTrialEnd ? 'plus_trial_end' : 'plus_subscription_end',
+    }),
+    logServerEvents(isTrialEnd ? 'TrialEnded' : 'SubscriptionCancelled', {
+      email: user.email,
+      evmWallet: user.evmWallet,
+      paymentId: transactionId,
+      extraProperties: {
+        subscription_id: transactionId,
+        provider: 'revenuecat',
+        platform: 'app',
+        // Closes the funnel StartTrial opened with the same flag. Read off the event
+        // because the record doesn't store it: period_type here describes the period
+        // that expired, so a churned $1 intro reports INTRO.
+        is_paid_trial: isTrialEnd && event.period_type === 'INTRO',
+        store: event.store || user.likerPlus.store,
+        product_id: event.product_id,
+        period: user.likerPlus.period,
+        tier: user.likerPlus.tier,
+        // Named for parity with the Stripe path, which reports Stripe's own reason
+        // under this key. EXPIRATION carries expiration_reason (UNSUBSCRIBED,
+        // BILLING_ERROR, …); cancel_reason is the CANCELLATION event's field.
+        cancel_reason: event.expiration_reason || event.cancel_reason,
+      },
+    }),
+  ]);
 }
 
 async function handleBillingIssue(

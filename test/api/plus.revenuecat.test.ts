@@ -6,6 +6,8 @@ import { jwtSign } from './jwt';
 import { getUserWithCivicLikerProperties } from '../../src/util/api/users/getPublicInfo';
 import { userCollection } from '../../src/util/firebase';
 import { sendPlusSubscriptionSlackNotification } from '../../src/util/slack';
+import { sendIntercomEvent } from '../../src/util/intercom';
+import logServerEvents from '../../src/util/logServerEvents';
 
 // Override only the Slack post so the notification gate is observable: the real
 // helper early-returns on an unset webhook, so it silently passes either way.
@@ -18,6 +20,19 @@ vi.mock('../../src/util/slack', async (importOriginal) => {
 });
 const mockSlackNotification = vi.mocked(sendPlusSubscriptionSlackNotification);
 
+// Same reason as Slack: both helpers swallow their own errors and return, so which
+// lifecycle event fired is only observable through a spy. Kept file-local rather than
+// in setup.ts because a suite-wide mock would silence these calls for every other
+// test file, not just the ones asserting on them.
+vi.mock('../../src/util/logServerEvents', () => ({ default: vi.fn() }));
+const mockLogServerEvents = vi.mocked(logServerEvents);
+
+vi.mock('../../src/util/intercom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/intercom')>();
+  return { ...actual, sendIntercomEvent: vi.fn() };
+});
+const mockIntercomEvent = vi.mocked(sendIntercomEvent);
+
 const WEBHOOK_PATH = '/api/plus/revenuecat/webhook';
 const AUTH = 'test-rc-webhook-secret'; // matches REVENUECAT_WEBHOOK_AUTHORIZATION in test/setup.ts
 
@@ -28,6 +43,8 @@ const EXPIRATION_AT_MS = 1778536000000;
 const PRIOR_PERIOD_START_MS = PURCHASED_AT_MS - 30 * 24 * 60 * 60 * 1000;
 // EXPIRATION_AT_MS is in the past, so guards keyed on live access need their own end.
 const FUTURE_PERIOD_END_MS = Date.now() + 30 * 24 * 60 * 60 * 1000;
+// Period start of the trial→paid renewal, one 7-day trial term after the purchase.
+const CONVERSION_START_MS = PURCHASED_AT_MS + 7 * 24 * 60 * 60 * 1000;
 
 // A live, RevenueCat-owned APP_STORE record — the shape the subscription-scoping
 // and transfer-carry guards operate on. Spread it so tests can't share a reference.
@@ -112,6 +129,69 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentType).toBe('trial');
   });
 
+  it('books a paid introductory offer as a trial but keeps its charge', async () => {
+    // The $1/7-day promo arrives as period_type INTRO, not TRIAL. It must read as a
+    // trial for entitlement/CRM/analytics (Stripe parity, where the same promo is a
+    // trialing subscription) while its real charge still funds nothing in rev-share.
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent, type: 'INITIAL_PURCHASE', period_type: 'INTRO', price: 1,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.currentType).toBe('trial');
+    expect(user?.likerPlus?.dailyValue).toBe(0);
+    expect(mockSlackNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isTrial: true,
+        isNew: true,
+        // The $1 is a real charge and must still be reported, unlike a free trial's 0.
+        priceWithCurrency: '1.00 USD',
+      }),
+    );
+  });
+
+  it('reports the first charge after a trial as a new subscription, not a renewal', async () => {
+    // RevenueCat's is_trial_conversion stays false for a paid intro, so the conversion
+    // is detected from the stored record's currentType instead.
+    mockSlackNotification.mockClear();
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, currentType: 'trial' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_convert',
+        type: 'RENEWAL',
+        period_type: 'NORMAL',
+        price: 49,
+        // Its own period start: the accrual key is `${transaction}_${periodStart}`, and
+        // reusing PURCHASED_AT_MS would seed the doc a later test asserts is absent.
+        purchased_at_ms: CONVERSION_START_MS,
+      },
+      { Authorization: AUTH },
+    );
+    try {
+      expect(res.status).toBe(200);
+      const user = await getUserWithCivicLikerProperties('testing');
+      expect(user?.likerPlus?.currentType).toBe('paid');
+      expect(mockSlackNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ isTrial: false, isNew: true }),
+      );
+    } finally {
+      // This is the only test booking a real charge, so the only one writing a rev-share
+      // accrual. The Firestore stub is shared across test files and plus-settle's "no
+      // accrual" dry run would pick this up, so drop it even when an assertion fails.
+      await userCollection.doc('testing')
+        .collection('plusReadingAccrual')
+        .doc(`txn_123_${CONVERSION_START_MS}`)
+        .delete();
+    }
+  });
+
   it('skips the grant when a subscription event has no resolvable period end', async () => {
     // The in-memory stub persists writes across tests, so force a clean record first.
     await userCollection.doc('testing').update({ likerPlus: null });
@@ -168,6 +248,71 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('canceled');
     expect(user?.likerPlus?.currentPeriodEnd).toBe(PURCHASED_AT_MS + 1000);
+  });
+
+  it('reports a churned paid intro as a trial end, not a cancellation', async () => {
+    // A $1/7-day intro the user cancelled lapses as an EXPIRATION whose period_type
+    // is INTRO. currentType on the record is what makes it a trial end — Stripe parity.
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, currentType: 'trial', period: 'year' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_intro_expire',
+        type: 'EXPIRATION',
+        period_type: 'INTRO',
+        expiration_reason: 'UNSUBSCRIBED',
+        expiration_at_ms: Date.now(),
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('canceled');
+    expect(mockIntercomEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'plus_trial_end' }),
+    );
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'TrialEnded',
+      expect.objectContaining({
+        // Must match the id the grant reported, or the funnel doesn't join up.
+        paymentId: 'txn_123',
+        extraProperties: expect.objectContaining({
+          subscription_id: 'txn_123',
+          provider: 'revenuecat',
+          is_paid_trial: true,
+          cancel_reason: 'UNSUBSCRIBED',
+          period: 'year',
+        }),
+      }),
+    );
+    // Churn carries no value/currency, which is what keeps it out of Meta/GA as a
+    // conversion — logServerEvents returns before those when either is missing.
+    expect(mockLogServerEvents).toHaveBeenCalledTimes(1);
+    const [, options] = mockLogServerEvents.mock.calls[0];
+    expect(options.value).toBeUndefined();
+    expect(options.currency).toBeUndefined();
+  });
+
+  it('reports an expired paid subscription as a cancellation', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const res = await post(
+      {
+        ...baseEvent, id: 'evt_paid_expire', type: 'EXPIRATION', expiration_at_ms: Date.now(),
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockIntercomEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'plus_subscription_end' }),
+    );
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'SubscriptionCancelled',
+      expect.objectContaining({
+        extraProperties: expect.objectContaining({ is_paid_trial: false }),
+      }),
+    );
   });
 
   it('does not revoke a legacy Stripe-owned record (no provider) on EXPIRATION', async () => {
