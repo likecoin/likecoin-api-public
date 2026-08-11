@@ -195,7 +195,7 @@ export async function sendPlusSubscriptionSlackNotification({
     } else if (isNew) {
       subscriptionType = 'New';
     } else {
-      subscriptionType = 'Renewal';
+      subscriptionType = 'Renewed';
     }
     const customerId = stripeCustomerId || 'N/A';
     const stripeEndpoint = `https://dashboard.stripe.com${IS_TESTNET ? '/test' : ''}`;
@@ -216,11 +216,11 @@ export async function sendPlusSubscriptionSlackNotification({
     } else if (method === 'revenuecat') {
       methodDisplayName = 'RevenueCat';
     } else if (method === 'shared') {
-      methodDisplayName = 'Shared by Civic';
+      methodDisplayName = 'shared by Civic';
     }
 
     await axios.post(PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK, {
-      network: IS_TESTNET ? 'Testnet' : 'Mainnet',
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
       subscriptionType,
       subscriptionId,
       subscriptionLink,
