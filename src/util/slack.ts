@@ -4,7 +4,6 @@ import { getBook3NFTClassPageURL } from './liker-land';
 import { getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
-  EXTERNAL_HOSTNAME,
   IS_TESTNET,
 } from '../constant';
 import {
@@ -201,7 +200,7 @@ export async function sendPlusSubscriptionSlackNotification({
     const stripeEndpoint = `https://dashboard.stripe.com${IS_TESTNET ? '/test' : ''}`;
     // The Slack message renders these as link buttons, which reject an empty URL,
     // so every branch must resolve to a real page.
-    const profileLink = `https://${EXTERNAL_HOSTNAME}/${userId}`;
+    const profileLink = `https://${BOOK3_HOSTNAME}/store/@${userId}`;
     const customerLink = stripeCustomerId ? `${stripeEndpoint}/customers/${stripeCustomerId}` : profileLink;
     let subscriptionLink = profileLink;
     if (method === 'stripe') {

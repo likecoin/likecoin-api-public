@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import axios from 'axios';
 
-import { EXTERNAL_HOSTNAME } from '../../src/constant';
+import { BOOK3_HOSTNAME } from '../../src/constant';
 
 const WEBHOOK_URL = 'https://hooks.slack.test/plus';
 
@@ -52,7 +52,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
 
   it.each([
     ['revenuecat' as const, 'https://app.revenuecat.com/'],
-    ['shared' as const, `https://${EXTERNAL_HOSTNAME}/liker1`],
+    ['shared' as const, `https://${BOOK3_HOSTNAME}/store/@liker1`],
   ])('links a %s subscription to a usable page', async (method, expectedLink) => {
     await sendPlusSubscriptionSlackNotification({
       subscriptionId: 'txn_123',
@@ -64,7 +64,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
     });
     const payload = getPostedPayload();
     expect(payload.subscriptionLink).toBe(expectedLink);
-    expect(payload.customerLink).toBe(`https://${EXTERNAL_HOSTNAME}/liker1`);
+    expect(payload.customerLink).toBe(`https://${BOOK3_HOSTNAME}/store/@liker1`);
     expect(payload.customerId).toBe('N/A');
   });
 
