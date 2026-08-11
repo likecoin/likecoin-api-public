@@ -759,7 +759,7 @@ async function revokeOtherHoldersOfTransaction(
 async function handleExpiration(
   event: RevenueCatEvent,
   likerId: string,
-  user: { likerPlus?: LikerPlusData },
+  user: { email?: string; evmWallet?: string; likerPlus?: LikerPlusData },
   isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
@@ -770,6 +770,13 @@ async function handleExpiration(
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (isForOtherSubscription(event, user.likerPlus)) return;
+  // A subscription that lapses without ever converting is a trial end, not a
+  // cancellation — Stripe parity. The stored currentType is authoritative, so this
+  // also covers a paid intro, whose period_type is INTRO rather than TRIAL.
+  const isTrialEnd = user.likerPlus.currentType === 'trial';
+  // Must match the id the grant reported or the funnel doesn't join up. The stored
+  // id is the fallback: an expiration may arrive without one.
+  const transactionId = event.original_transaction_id || user.likerPlus.originalTransactionId;
   const expiredAt = event.expiration_at_ms || Date.now();
   await revokeLikerPlus(likerId, user.likerPlus, {
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
@@ -781,7 +788,36 @@ async function handleExpiration(
   }
   if (isQuarantinedSandbox(isSandbox)) return;
   await clearIntercomPlusFlags(likerId);
-  await sendIntercomEvent({ userId: likerId, eventName: 'plus_subscription_end' });
+  // No value/currency on purpose: churn must reach PostHog but never Meta/GA as a
+  // conversion, which is how the Stripe path reports it too.
+  await Promise.all([
+    sendIntercomEvent({
+      userId: likerId,
+      eventName: isTrialEnd ? 'plus_trial_end' : 'plus_subscription_end',
+    }),
+    logServerEvents(isTrialEnd ? 'TrialEnded' : 'SubscriptionCancelled', {
+      email: user.email,
+      evmWallet: user.evmWallet,
+      paymentId: transactionId,
+      extraProperties: {
+        subscription_id: transactionId,
+        provider: 'revenuecat',
+        platform: 'app',
+        // Closes the funnel StartTrial opened with the same flag. Read off the event
+        // because the record doesn't store it: period_type here describes the period
+        // that expired, so a churned $1 intro reports INTRO.
+        is_paid_trial: isTrialEnd && event.period_type === 'INTRO',
+        store: event.store || user.likerPlus.store,
+        product_id: event.product_id,
+        period: user.likerPlus.period,
+        tier: user.likerPlus.tier,
+        // Named for parity with the Stripe path, which reports Stripe's own reason
+        // under this key. EXPIRATION carries expiration_reason (UNSUBSCRIBED,
+        // BILLING_ERROR, …); cancel_reason is the CANCELLATION event's field.
+        cancel_reason: event.expiration_reason || event.cancel_reason,
+      },
+    }),
+  ]);
 }
 
 async function handleBillingIssue(

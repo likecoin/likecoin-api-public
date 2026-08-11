@@ -6,6 +6,8 @@ import { jwtSign } from './jwt';
 import { getUserWithCivicLikerProperties } from '../../src/util/api/users/getPublicInfo';
 import { userCollection } from '../../src/util/firebase';
 import { sendPlusSubscriptionSlackNotification } from '../../src/util/slack';
+import { sendIntercomEvent } from '../../src/util/intercom';
+import logServerEvents from '../../src/util/logServerEvents';
 
 // Override only the Slack post so the notification gate is observable: the real
 // helper early-returns on an unset webhook, so it silently passes either way.
@@ -17,6 +19,19 @@ vi.mock('../../src/util/slack', async (importOriginal) => {
   };
 });
 const mockSlackNotification = vi.mocked(sendPlusSubscriptionSlackNotification);
+
+// Same reason as Slack: both helpers swallow their own errors and return, so which
+// lifecycle event fired is only observable through a spy. Kept file-local rather than
+// in setup.ts because a suite-wide mock would silence these calls for every other
+// test file, not just the ones asserting on them.
+vi.mock('../../src/util/logServerEvents', () => ({ default: vi.fn() }));
+const mockLogServerEvents = vi.mocked(logServerEvents);
+
+vi.mock('../../src/util/intercom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/intercom')>();
+  return { ...actual, sendIntercomEvent: vi.fn() };
+});
+const mockIntercomEvent = vi.mocked(sendIntercomEvent);
 
 const WEBHOOK_PATH = '/api/plus/revenuecat/webhook';
 const AUTH = 'test-rc-webhook-secret'; // matches REVENUECAT_WEBHOOK_AUTHORIZATION in test/setup.ts
@@ -233,6 +248,71 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('canceled');
     expect(user?.likerPlus?.currentPeriodEnd).toBe(PURCHASED_AT_MS + 1000);
+  });
+
+  it('reports a churned paid intro as a trial end, not a cancellation', async () => {
+    // A $1/7-day intro the user cancelled lapses as an EXPIRATION whose period_type
+    // is INTRO. currentType on the record is what makes it a trial end — Stripe parity.
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, currentType: 'trial', period: 'year' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_intro_expire',
+        type: 'EXPIRATION',
+        period_type: 'INTRO',
+        expiration_reason: 'UNSUBSCRIBED',
+        expiration_at_ms: Date.now(),
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('canceled');
+    expect(mockIntercomEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'plus_trial_end' }),
+    );
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'TrialEnded',
+      expect.objectContaining({
+        // Must match the id the grant reported, or the funnel doesn't join up.
+        paymentId: 'txn_123',
+        extraProperties: expect.objectContaining({
+          subscription_id: 'txn_123',
+          provider: 'revenuecat',
+          is_paid_trial: true,
+          cancel_reason: 'UNSUBSCRIBED',
+          period: 'year',
+        }),
+      }),
+    );
+    // Churn carries no value/currency, which is what keeps it out of Meta/GA as a
+    // conversion — logServerEvents returns before those when either is missing.
+    expect(mockLogServerEvents).toHaveBeenCalledTimes(1);
+    const [, options] = mockLogServerEvents.mock.calls[0];
+    expect(options.value).toBeUndefined();
+    expect(options.currency).toBeUndefined();
+  });
+
+  it('reports an expired paid subscription as a cancellation', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const res = await post(
+      {
+        ...baseEvent, id: 'evt_paid_expire', type: 'EXPIRATION', expiration_at_ms: Date.now(),
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockIntercomEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'plus_subscription_end' }),
+    );
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'SubscriptionCancelled',
+      expect.objectContaining({
+        extraProperties: expect.objectContaining({ is_paid_trial: false }),
+      }),
+    );
   });
 
   it('does not revoke a legacy Stripe-owned record (no provider) on EXPIRATION', async () => {
