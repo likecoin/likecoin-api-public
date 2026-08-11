@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop, 'deployment/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, build, smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.10'
+          cache: npm
+      - run: npm ci
+
+      # No --fix, unlike the `lint` script: --fix mutates the checkout and lets
+      # auto-fixable violations exit 0, so CircleCI has never caught them.
+      - name: Lint
+        run: npx eslint --ext .ts,.js src test
+
+      - name: Build
+        run: npm run build
+
+      # GitHub sets CI=true, so firebase.ts skips admin.initializeApp() and the
+      # server boots without GCP credentials — same as CircleCI. Redirecting to
+      # a file also detaches it from the step's pipe, so job cleanup won't hang.
+      - name: Start server
+        run: npm start > server.log 2>&1 &
+
+      - name: Health check
+        run: |
+          sleep 5
+          wget -O- --retry-connrefused --waitretry=5 -t 10 http://127.0.0.1:3000/healthz > /dev/null
+
+      - name: Test
+        run: npm run test
+
+      - name: Server log
+        if: failure()
+        run: cat server.log
