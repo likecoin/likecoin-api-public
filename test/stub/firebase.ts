@@ -2,7 +2,7 @@
 import cloneDeep from 'lodash.clonedeep';
 import type { CollectionReference, Firestore } from 'firebase-admin/firestore';
 import type { Storage } from 'firebase-admin/storage';
-import type { UserData } from '../../src/types/user';
+import type { UserData, LikerIdHandleData } from '../../src/types/user';
 import type {
   NFTBookListingInfo,
   NFTBookCMSTag,
@@ -74,6 +74,7 @@ let likerNftData: StubData[] = [];
 const likeNftBookData: StubData[] = [];
 const likeNftBookUserData: StubData[] = [];
 const configData: StubData[] = [];
+const likerIdHandleData: StubData[] = [];
 
 // Load test data
 try {
@@ -103,6 +104,7 @@ export function resetTestData() {
   likeNftBookData.length = 0;
   likeNftBookUserData.length = 0;
   configData.length = 0;
+  likerIdHandleData.length = 0;
 }
 
 function docData(obj: StubData): any {
@@ -402,6 +404,8 @@ export const iscnArweaveTxCollection = createCollection([]) as
   CollectionReference<ArweaveTxData>;
 export const likePlusGiftCartCollection = createCollection([]) as
   CollectionReference<PlusGiftCartData>;
+export const likerIdHandleCollection = createCollection(likerIdHandleData) as
+  CollectionReference<LikerIdHandleData>;
 
 function runTransaction(updateFunc: (transaction: any) => Promise<any>): Promise<any> {
   return updateFunc({

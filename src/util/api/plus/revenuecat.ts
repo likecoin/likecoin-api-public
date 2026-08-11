@@ -6,7 +6,7 @@ import {
 } from '../../../constant';
 import type { LikerPlusTier } from '../../../constant';
 import { userCollection } from '../../firebase';
-import { normalizeLikerId } from '../../ValidationHelper';
+import { resolveAttributionUserId } from '../users/handle';
 import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
@@ -436,7 +436,7 @@ async function handleGrant(
         // it even when no gift cart is created — e.g. monthly plans or trials. The gift
         // block below re-includes affiliateFrom, so its overwrite keeps this.
         if (affiliateFrom) {
-          userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
+          userUpdate.plusAffiliateFrom = await resolveAttributionUserId(affiliateFrom);
           userUpdate.likerPlus = { ...likerPlus, affiliateFrom };
         }
 

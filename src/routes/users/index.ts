@@ -4,6 +4,7 @@ import apiRegister from './apiRegister';
 import deleteRoute from './delete';
 import getInfo from './getInfo';
 import getPublicInfo from './getPublicInfo';
+import handle from './handle';
 import preferences from './preferences';
 import registerLogin from './registerLogin';
 
@@ -14,6 +15,7 @@ router.use(apiRegister);
 router.use(deleteRoute);
 router.use(getInfo);
 router.use(getPublicInfo);
+router.use(handle);
 router.use(preferences);
 router.use(registerLogin);
 

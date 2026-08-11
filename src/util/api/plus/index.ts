@@ -37,6 +37,7 @@ import {
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import { resolveAttributionUserId } from '../users/handle';
 import {
   extendSharedMemberAccess,
   isSharedGrantedLikerPlus,
@@ -537,7 +538,7 @@ async function writePlusUserRecordAndAccrual({
     },
   };
   if (isSubscriptionCreation && affiliateFrom) {
-    userUpdate.plusAffiliateFrom = normalizeLikerId(affiliateFrom);
+    userUpdate.plusAffiliateFrom = await resolveAttributionUserId(affiliateFrom);
   }
   if (amountPaid > 0) {
     Object.assign(userUpdate, getPaymentUpdateFields(!!user.firstPaidAt));

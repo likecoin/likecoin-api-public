@@ -8,13 +8,16 @@ import {
   MAX_USER_ID_LENGTH,
 } from '../../../constant';
 import {
+  db,
   userCollection as dbRef,
+  likerIdHandleCollection,
 } from '../../firebase';
 import {
   normalizeUserEmail,
   checkReferrerExists,
   checkUserInfoUniqueness,
 } from '.';
+import { isHandleAvailable } from './handle';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
 import {
@@ -49,8 +52,8 @@ export async function suggestAvailableUserName(username = '') {
     tryName = `${tryName}${getRandomPaddedDigits(RANDOM_DIGIT_LENGTH)}`;
   }
   while (!isIDAvailable && tries < MAX_SUGGEST_TRY) {
-    const userDoc = await dbRef.doc(tryName).get(); // eslint-disable-line no-await-in-loop
-    if (!userDoc.exists) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await isHandleAvailable(tryName)) {
       isIDAvailable = true;
       break;
     }
@@ -246,7 +249,18 @@ export async function handleUserRegistration({
       delete createObj[key];
     }
   });
-  await dbRef.doc(user).create(createObj);
+  // Uniqueness was checked before the avatar upload and the verification email, so a
+  // rename could have claimed this handle since. Reading the index row inside the
+  // transaction serializes the create against renameUserHandle; without it a document
+  // id would silently shadow the renamer, since resolution probes ids first.
+  await db.runTransaction(async (t) => {
+    const [indexDoc, userDoc] = await Promise.all([
+      t.get(likerIdHandleCollection.doc(user)),
+      t.get(dbRef.doc(user)),
+    ]);
+    if (indexDoc.exists || userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
+    t.create(dbRef.doc(user), createObj);
+  });
   if (hasReferrer) {
     await dbRef.doc(referrer).collection('referrals').doc(user).create({
       ...timestampObj,

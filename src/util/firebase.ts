@@ -12,9 +12,10 @@ import {
   FIRESTORE_LIKER_NFT_BOOK_USER_ROOT,
   FIRESTORE_LIKER_PLUS_GIFT_CART_ROOT,
   FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
+  FIRESTORE_LIKER_ID_HANDLE_ROOT,
 } from '../../config/config';
 import serviceAccount from '../../config/serviceAccountKey.json';
-import type { UserData } from '../types/user';
+import type { UserData, LikerIdHandleData } from '../types/user';
 import type {
   NFTBookListingInfo,
   BookPurchaseCartData,
@@ -92,6 +93,14 @@ export const likePlusGiftCartCollection = getCollection<PlusGiftCartData>(
 );
 export const iscnArweaveTxCollection = getCollection<ArweaveTxData>(
   FIRESTORE_ISCN_ARWEAVE_TX_ROOT,
+);
+// Derived from the user root rather than required outright: a deployed config.js
+// predating this key would otherwise make getCollection throw at import and take
+// the whole API down. Setting the env var after aliases exist orphans them, so
+// leave it unset unless the collection is migrated deliberately.
+export const likerIdHandleCollection = getCollection<LikerIdHandleData>(
+  FIRESTORE_LIKER_ID_HANDLE_ROOT
+    || (FIRESTORE_USER_ROOT ? `${FIRESTORE_USER_ROOT}Handle` : undefined),
 );
 
 function getBucket(): ReturnType<admin.storage.Storage['bucket']> {

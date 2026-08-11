@@ -18,6 +18,7 @@ import {
   FieldValue,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
+import { isHandleAvailable } from './handle';
 import { jwtSign } from '../../jwt';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 import { maskString } from '../../misc';
@@ -434,8 +435,9 @@ export async function checkUserInfoUniqueness({
   isEmailVerified = false,
 } = {}) {
   if (user) {
-    const userDoc = await dbRef.doc(user).get();
-    if (userDoc.exists) throw new ValidationError('USER_ALREADY_EXIST');
+    // Checks the handle index as well as the document-id namespace, so a
+    // registration cannot claim a handle a renamed account left behind.
+    if (!await isHandleAvailable(user)) throw new ValidationError('USER_ALREADY_EXIST');
   }
   await userInfoQuery({
     user,

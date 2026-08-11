@@ -99,9 +99,24 @@ export interface SharedMemberInviteData {
   revokeTimestamp?: { toMillis: () => number };
 }
 
+/**
+ * `likerIdHandleCollection/{handle}` — the handle uniqueness index (ADR 0003).
+ * Rows exist only for accounts that have renamed; a handle with no row is still
+ * its owner's document id, which is what keeps this index backfill-free.
+ */
+export interface LikerIdHandleData {
+  userId: string;
+  status: 'active' | 'alias';
+  timestamp: Timestamp;
+}
+
 export interface UserData {
   // Identity fields
   isDeleted?: boolean;
+  // Current public handle, absent until the account renames. Its presence is also
+  // what enforces the once-per-account limit. The document id never changes: it is
+  // the internal id the JWT, Intercom, RevenueCat and OAuth key on (ADR 0003 D1).
+  handle?: string;
   displayName?: string;
   description?: string;
   creatorPitch?: string;
@@ -166,7 +181,10 @@ export interface UserData {
 }
 
 export interface UserCivicLikerProperties extends UserData {
+  // Immutable internal id (the document id). Never a handle — see ADR 0003 D1.
   user: string;
+  // Current public handle; equals `user` until the account is renamed.
+  handle: string;
   isCivicLikerRenewalPeriod?: boolean;
   civicLikerSince?: number;
   civicLikerRenewalPeriodLast?: number;

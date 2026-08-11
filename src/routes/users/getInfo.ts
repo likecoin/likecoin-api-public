@@ -6,6 +6,7 @@ import {
 import { jwtAuth } from '../../middleware/jwt';
 import { validateParams } from '../../middleware/validate';
 import { UsersIdParamsSchema, UserDataFilteredResponseSchema } from '../../util/api/users/schemas';
+import { isSameUser } from '../../util/api/users/handle';
 import {
   filterUserData,
   sendValidatedJSON,
@@ -47,8 +48,8 @@ router.get('/self', jwtAuth('read'), async (req, res, next) => {
 
 router.get('/id/:id', jwtAuth('read'), validateParams(UsersIdParamsSchema), async (req, res, next) => {
   try {
-    const username = req.params.id;
-    if (req.user.user !== username) {
+    const username = req.params.id as string;
+    if (!await isSameUser(req.user.user, username)) {
       res.status(401).send('LOGIN_NEEDED');
       return;
     }

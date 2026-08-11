@@ -81,6 +81,7 @@ export function checkCosmosAddressValid(addr: string, prefix = 'cosmos'): boolea
 export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
   const {
     user,
+    handle,
     bonusCooldown = 0,
     displayName,
     description,
@@ -115,6 +116,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
   } = u;
   return {
     user,
+    handle,
     bonusCooldown: bonusCooldown > Date.now() ? bonusCooldown : undefined,
     displayName,
     description,
@@ -156,6 +158,7 @@ export function filterUserDataMin(
 ): UserDataMin {
   const {
     user,
+    handle,
     displayName,
     avatar,
     wallet,
@@ -173,6 +176,7 @@ export function filterUserDataMin(
   } = userObject;
   const output: UserDataMin = {
     user,
+    handle,
     displayName,
     avatar,
     wallet,
