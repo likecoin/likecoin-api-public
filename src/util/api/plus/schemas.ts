@@ -26,6 +26,12 @@ const TrialPeriodDaysSchema = z.union([
 const GiftPriceIndexSchema = z.string();
 
 export const PlusNewBodySchema = TrackingFieldsSchema.extend({
+  // First-touch attribution (PostHog `initial_utm_*`). The client only forwards a
+  // genuine external source — internal ll_source surfaces are filtered before the
+  // request, since a wrong value sticks permanently on a RevenueCat subscriber.
+  initialUtmCampaign: z.string().optional(),
+  initialUtmSource: z.string().optional(),
+  initialUtmMedium: z.string().optional(),
   coupon: z.string().optional(),
   trialPeriodDays: TrialPeriodDaysSchema.optional(),
   mustCollectPaymentMethod: z.boolean().optional(),
