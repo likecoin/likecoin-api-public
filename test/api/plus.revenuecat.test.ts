@@ -109,6 +109,38 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentPeriodEnd).toBe(EXPIRATION_AT_MS);
   });
 
+  it('forwards first-touch subscriber attributes, dropping cleared ones', async () => {
+    // The app sets initialUtm* as RevenueCat subscriber attributes before purchase.
+    // They are sticky per subscriber and cannot be retracted, so a cleared attribute
+    // arrives as the empty-string tombstone and must read as absent, not as ''.
+    mockLogServerEvents.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        type: 'INITIAL_PURCHASE',
+        subscriber_attributes: {
+          initialUtmSource: { value: 'facebookads' },
+          initialUtmCampaign: { value: 'launch' },
+          initialUtmMedium: { value: '' },
+          utmSource: { value: 'newsletter' },
+        },
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'PlusAcquisition',
+      expect.objectContaining({
+        extraProperties: expect.objectContaining({
+          initial_utm_source: 'facebookads',
+          initial_utm_campaign: 'launch',
+          initial_utm_medium: undefined,
+          utm_source: 'newsletter',
+        }),
+      }),
+    );
+  });
+
   it('tags the record with environment=SANDBOX for sandbox events', async () => {
     // Sandbox-on-prod is quarantined by tagging the record so dashboards can
     // filter out reviewer traffic. Testnet records carry the same tag since

@@ -155,12 +155,18 @@ export async function resolveAffiliateGift({
   return result;
 }
 
+// Field names mirror the Stripe subscription-metadata keys so a whole metadata bag
+// can be passed straight in; the RevenueCat path builds the object from subscriber
+// attributes instead. Renaming a field here silently drops it from both.
 export function mapAttributionExtraProperties({
   utmSource,
   utmMedium,
   utmCampaign,
   utmContent,
   utmTerm,
+  initialUtmSource,
+  initialUtmMedium,
+  initialUtmCampaign,
   from,
 }: {
   utmSource?: string;
@@ -168,6 +174,9 @@ export function mapAttributionExtraProperties({
   utmCampaign?: string;
   utmContent?: string;
   utmTerm?: string;
+  initialUtmSource?: string;
+  initialUtmMedium?: string;
+  initialUtmCampaign?: string;
   from?: string;
 }) {
   return {
@@ -176,6 +185,11 @@ export function mapAttributionExtraProperties({
     utm_campaign: utmCampaign,
     utm_content: utmContent,
     utm_term: utmTerm,
+    // Unprefixed on purpose: `$initial_utm_*` is PostHog's own person-level
+    // first-touch, which these server-side events must not overwrite.
+    initial_utm_source: initialUtmSource,
+    initial_utm_medium: initialUtmMedium,
+    initial_utm_campaign: initialUtmCampaign,
     channel: from,
   };
 }
@@ -697,9 +711,7 @@ async function emitPlusInvoiceAnalytics({
         tier,
         price_id: item.price.id,
         product_id: productId,
-        ...mapAttributionExtraProperties({
-          utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
-        }),
+        ...mapAttributionExtraProperties(subscriptionMetadata),
         $referrer: referrer,
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
@@ -740,9 +752,7 @@ async function emitPlusInvoiceAnalytics({
         period,
         tier,
         price_id: item.price.id,
-        ...mapAttributionExtraProperties({
-          utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
-        }),
+        ...mapAttributionExtraProperties(subscriptionMetadata),
       },
     });
   }
@@ -1037,6 +1047,10 @@ export type PlusCheckoutTrackingInfo = {
   clientIp?: string,
   ipCountry?: string,
   utm?: PlusCheckoutUTMInfo,
+  // First-touch (never overwritten once set on the client), kept separate from the
+  // last-touch `utm` above so both survive into the subscription metadata. Only the
+  // three fields PostHog persists as first-touch; it keeps no initial content/term.
+  initialUtm?: Pick<PlusCheckoutUTMInfo, 'campaign' | 'source' | 'medium'>,
 };
 
 // Build the subscription metadata and the session metadata (a superset that
@@ -1068,6 +1082,7 @@ function buildPlusCheckoutMetadata({
   const {
     from,
     utm,
+    initialUtm,
     userAgent,
     clientIp,
     ipCountry,
@@ -1106,6 +1121,9 @@ function buildPlusCheckoutMetadata({
   if (utm?.medium) subscriptionMetadata.utmMedium = utm.medium;
   if (utm?.content) subscriptionMetadata.utmContent = utm.content;
   if (utm?.term) subscriptionMetadata.utmTerm = utm.term;
+  if (initialUtm?.campaign) subscriptionMetadata.initialUtmCampaign = initialUtm.campaign;
+  if (initialUtm?.source) subscriptionMetadata.initialUtmSource = initialUtm.source;
+  if (initialUtm?.medium) subscriptionMetadata.initialUtmMedium = initialUtm.medium;
   if (userAgent) subscriptionMetadata.userAgent = userAgent;
   if (clientIp) subscriptionMetadata.clientIp = clientIp;
   if (ipCountry) subscriptionMetadata.ipCountry = ipCountry;
@@ -1341,16 +1359,7 @@ export async function processStripeSubscriptionCancellation(
   subscription: Stripe.Subscription,
 ) {
   const subscriptionId = subscription.id;
-  const {
-    evmWallet,
-    likeWallet,
-    from,
-    utmCampaign,
-    utmSource,
-    utmMedium,
-    utmContent,
-    utmTerm,
-  } = subscription.metadata || {};
+  const { evmWallet, likeWallet } = subscription.metadata || {};
   if (subscription.status !== 'canceled' && subscription.status !== 'unpaid') {
     return;
   }
@@ -1412,9 +1421,7 @@ export async function processStripeSubscriptionCancellation(
     cancel_feedback: subscription.cancellation_details?.feedback,
     cancel_comment: subscription.cancellation_details?.comment?.substring(0, 500),
     ...(isUnattributed ? { unattributed: true } : {}),
-    ...mapAttributionExtraProperties({
-      utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
-    }),
+    ...mapAttributionExtraProperties(subscription.metadata || {}),
   };
   const analyticsOptions = {
     evmWallet,
@@ -1441,12 +1448,6 @@ export async function processStripePaymentFailure(
   if (!subscriptionId) return;
   const {
     evmWallet,
-    from,
-    utmCampaign,
-    utmSource,
-    utmMedium,
-    utmContent,
-    utmTerm,
     userAgent,
     clientIp,
     fbClickId,
@@ -1487,9 +1488,7 @@ export async function processStripePaymentFailure(
       attempt_count: invoice.attempt_count,
       failure_code: lastError?.code,
       failure_type: lastError?.type,
-      ...mapAttributionExtraProperties({
-        utmSource, utmMedium, utmCampaign, utmContent, utmTerm, from,
-      }),
+      ...mapAttributionExtraProperties(subscriptionDetails?.metadata || {}),
     },
   }).catch((err) => {
     // eslint-disable-next-line no-console
