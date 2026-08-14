@@ -65,12 +65,12 @@ interface StubData {
 }
 
 let userData: StubData[] = [];
-let txData: StubData[] = [];
 let likerNftData: StubData[] = [];
 // Not JSON-backed: seeded per-test. Kept as stable references (mutated in place on reset, see
-// resetTestData) so `dbData` and their collections never lose the binding. `likeNftBookData`
-// and `likeNftBookUserData` are in `dbData` so collectionGroup() reaches their subcollections
-// (e.g. plusUsage, plusReadingPayouts).
+// resetTestData) so `dbData` and their collections never lose the binding. `txData`,
+// `likeNftBookData` and `likeNftBookUserData` are in `dbData` so collectionGroup() reaches
+// their subcollections (e.g. plusUsage, plusReadingPayouts).
+const txData: StubData[] = [];
 const likeNftBookData: StubData[] = [];
 const likeNftBookUserData: StubData[] = [];
 const configData: StubData[] = [];
@@ -79,8 +79,6 @@ const configData: StubData[] = [];
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
   userData = require('../data/user.json').users || [];
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-  txData = require('../data/tx.json').tx || [];
   // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
   likerNftData = require('../data/likernft.json').likernft || [];
 } catch (e) {
@@ -93,13 +91,12 @@ export function resetTestData() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
     userData = require('../data/user.json').users || [];
     // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    txData = require('../data/tx.json').tx || [];
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
     likerNftData = require('../data/likernft.json').likernft || [];
   } catch (e) {
     // Ignore errors
   }
   // Clear per-test seeded (non-JSON) collections in place — keep the array references intact.
+  txData.length = 0;
   likeNftBookData.length = 0;
   likeNftBookUserData.length = 0;
   configData.length = 0;

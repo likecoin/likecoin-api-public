@@ -1,5 +1,4 @@
 import userData from '../data/user.json';
-import txData from '../data/tx.json';
 
 //
 // test data
@@ -43,45 +42,6 @@ export const {
   id: testDeleteUser,
   likeWallet: testDeleteUserLikeWallet,
 } = userData.users.find((u) => u.id === 'testdelete') as any;
-
-export const {
-  id: txHash,
-  from: txFrom,
-  to: txTo,
-  value: txValue,
-} = txData.tx[0];
-
-export const {
-  id: txHashMul,
-  from: txFromMul,
-  to: txToMul,
-  value: txValueMul,
-  toIds: txToIdsMul,
-} = txData.tx[1];
-
-export const {
-  id: txHashMul2,
-  from: txFromMul2,
-  to: txToMul2,
-  value: txValueMul2,
-  toIds: txToIdsMul2,
-} = txData.tx[2];
-
-export const {
-  id: txHashMul3,
-  from: txFromMul3,
-  to: txToMul3,
-  value: txValueMul3,
-  toId: txToIdMul3,
-} = txData.tx[3];
-
-export const {
-  id: txHashMul4,
-  from: txFromMul4,
-  to: txToMul4,
-  value: txValueMul4,
-  toId: txToIdMul4,
-} = txData.tx[4];
 
 // confidential
 export const privateKey0 = '0xbad2b5497cf7f9f3938990cb17e5b4f6f2073e435f43b5c17ed48a8e267ed56c';
