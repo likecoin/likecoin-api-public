@@ -89,6 +89,11 @@ export const ONE_MINUTE_IN_MS = 60000;
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 0 * ONE_DAY_IN_MS;
+// Store renewals arrive before the period they describe: Apple bills ahead of
+// the expiry boundary, so a RevenueCat RENEWAL event carries a future
+// currentPeriodStart and its whole-object write drops the still-valid prior
+// period. Without tolerance the subscriber loses access until that boundary.
+export const RENEWAL_LEAD_TOLERANCE = 7 * ONE_DAY_IN_MS;
 
 export const COMMON_COOKIE_OPTION = {
   maxAge: 31556926000, // 365d
