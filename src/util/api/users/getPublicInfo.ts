@@ -6,6 +6,7 @@ import {
   AVATAR_DEFAULT_PATH,
   CIVIC_LIKER_START_DATE,
   SUBSCRIPTION_GRACE_PERIOD,
+  RENEWAL_LEAD_TOLERANCE,
   DEFAULT_AVATAR_SIZE,
 } from '../../../constant';
 import { ValidationError } from '../../ValidationError';
@@ -102,7 +103,10 @@ export function formatUserCivicLikerProperies(
     }
     const now = Date.now();
     const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
-    if (start <= now && now <= renewalLast) {
+    // Store renewals land before their own period starts, so honour the record
+    // early rather than dropping the subscriber into the gap (RENEWAL_LEAD_TOLERANCE).
+    const renewalFirst = start - RENEWAL_LEAD_TOLERANCE;
+    if (renewalFirst <= now && now <= renewalLast) {
       payload.likerPlusSince = since;
       payload.isLikerPlus = true;
       payload.isLikerPlusTrial = currentType === 'trial';

@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusData } from '../../../types/user';
 
-import { IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD } from '../../../constant';
+import {
+  IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD, RENEWAL_LEAD_TOLERANCE,
+} from '../../../constant';
 import type { LikerPlusTier } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { normalizeLikerId } from '../../ValidationHelper';
@@ -155,14 +157,14 @@ function isStripeOwnedLikerPlus(likerPlus?: LikerPlusData): boolean {
 }
 
 // Whether a Plus record still confers access right now — mirrors getPublicInfo's
-// window: currentPeriodStart <= now <= currentPeriodEnd + grace. A missing/zero
-// period end reads as expired.
+// window: currentPeriodStart - lead <= now <= currentPeriodEnd + grace. A
+// missing/zero period end reads as expired.
 function hasLivePlusAccess(likerPlus?: LikerPlusData): boolean {
   const now = Date.now();
   const start = likerPlus?.currentPeriodStart || 0;
   const end = likerPlus?.currentPeriodEnd || 0;
   if (!end) return false;
-  return start <= now && now <= end + SUBSCRIPTION_GRACE_PERIOD;
+  return start - RENEWAL_LEAD_TOLERANCE <= now && now <= end + SUBSCRIPTION_GRACE_PERIOD;
 }
 
 // SANDBOX events landing on the prod backend are quarantined: the resulting
