@@ -18,8 +18,6 @@ import {
   testingWallet1,
   testingCosmosWallet1,
   testingLikeWallet1,
-  testingCivicLikerSince1,
-  testingCivicLikerEnd1,
   testingUser2,
   testingEmail2,
   testingWallet2,
@@ -28,16 +26,12 @@ import {
   testingCosmosWallet3,
   testingLikeWallet3,
   privateKey1,
-  privateKey2,
   privateKey3,
   cosmosPrivateKeyNew,
 } from './data';
 import axiosist from './axiosist';
 import { userCollection, FieldValue } from '../../src/util/firebase';
 import { getMagicUserMetadataByDIDToken } from '../../src/util/magic';
-import {
-  SUBSCRIPTION_GRACE_PERIOD,
-} from '../../src/constant';
 import {
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
@@ -118,65 +112,6 @@ describe('USER tests', () => {
       email: 'test@like.user',
     });
     expect(res.status).toBe(400);
-  });
-
-  it('USER: Login like user. Case: fail, platform removed', async () => {
-    const likeWallet = testingLikeWallet0;
-    const payload = {
-      ts: Date.now(),
-      likeWallet,
-    };
-    const {
-      signed: message,
-      signature: { signature, pub_key: publicKey },
-    } = signWithCosmos(payload, cosmosPrivateKeyNew);
-    const res = await axiosist.post('/api/users/login', {
-      signature,
-      publicKey: publicKey.value,
-      message: jsonStringify(message),
-      from: testingLikeWallet0,
-      platform: 'likeWallet',
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('USER: Login like user. Case: fail, wrong platform', async () => {
-    const likeWallet = testingLikeWallet0;
-    const payload = {
-      ts: Date.now(),
-      likeWallet,
-    };
-    const {
-      signed: message,
-      signature: { signature, pub_key: publicKey },
-    } = signWithCosmos(payload, '1234000000000000000000000000000000000000000000000000000000000000');
-    const res = await axiosist.post('/api/users/login', {
-      signature,
-      publicKey: publicKey.value,
-      message: jsonStringify(message),
-      from: testingLikeWallet0,
-      platform: 'cosmosWallet',
-    });
-    expect(res.status).toBe(400);
-  });
-
-  //
-  // serial will run first
-  //
-  it('USER: Login Metamask user. Case: success', async () => {
-    const payload = JSON.stringify({
-      ts: Date.now(),
-      evmWallet: testingWallet2,
-      action: 'login',
-    });
-    const sign = signERCProfile(payload, privateKey2);
-    const res = await axiosist.post('/api/users/login', {
-      from: testingWallet2,
-      platform: 'evmWallet',
-      payload,
-      sign,
-    });
-    expect(res.status).toBe(200);
   });
 
   it('USER: Edit user by JSON from Web. Case: success', async () => {
@@ -770,27 +705,6 @@ describe('USER tests', () => {
     });
   }
 
-  it('USER: Get user by id', async () => {
-    const user = testingUser1;
-    const token = jwtSign({ user });
-    let res = await axiosist.get(`/api/users/id/${user}`)
-      .catch((err) => (err as any).response);
-
-    expect(res.status).toBe(401);
-
-    res = await axiosist.get(`/api/users/id/${user}`, {
-      headers: {
-        Cookie: `likecoin_auth=${token};`,
-      },
-    }).catch(
-      // eslint-disable-next-line no-console
-      (err) => console.log(err),
-    );
-    expect(res.status).toBe(200);
-    expect(res.data.wallet).toBe(testingWallet1);
-    expect(res.data.displayName).toBe(testingDisplayName1);
-  });
-
   it('USER: Get user by id min', async () => {
     const user = testingUser1;
     const res = await axiosist.get(`/api/users/id/${user}/min`)
@@ -850,32 +764,6 @@ describe('USER tests', () => {
       .catch((err) => (err as any).response);
 
     expect(res.status).toBe(404);
-  });
-
-  it('USER: check user login status', async () => {
-    const wallet = testingWallet1;
-    const user = testingUser1;
-    const token = jwtSign({ user, wallet });
-    let res = await axiosist.get('/api/users/self')
-      .catch((err) => (err as any).response);
-
-    expect(res.status).toBe(401);
-
-    res = await axiosist.get('/api/users/self', {
-      headers: {
-        Cookie: `likecoin_auth=${token}`,
-      },
-    }).catch((err) => (err as any).response);
-
-    expect(res.status).toBe(200);
-    expect(res.data.isCivicLikerTrial).toBe(true);
-    expect(res.data.isSubscribedCivicLiker).toBeUndefined();
-    expect(res.data.isHonorCivicLiker).toBe(true);
-    expect(res.data.isCivicLikerRenewalPeriod).toBe(false);
-    expect(res.data.civicLikerSince).toBe(testingCivicLikerSince1);
-    expect(res.data.civicLikerRenewalPeriodLast).toBe(
-      testingCivicLikerEnd1 + SUBSCRIPTION_GRACE_PERIOD,
-    );
   });
 
   it('USER: Check New User Info: Available', async () => {

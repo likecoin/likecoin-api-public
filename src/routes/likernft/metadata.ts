@@ -1,7 +1,5 @@
 import { Router } from 'express';
-import {
-  ONE_DAY_IN_S, WRITING_NFT_COLLECTION_ID, API_HOSTNAME,
-} from '../../constant';
+import { ONE_DAY_IN_S } from '../../constant';
 import { filterLikeNFTMetadata, sendValidatedJSON } from '../../util/ValidationHelper';
 import {
   getClassMetadata,
@@ -20,7 +18,6 @@ import {
   LikeNFTMetadataResponseSchema,
 } from '../../util/api/likernft/schemas';
 import { ValidationError } from '../../util/ValidationError';
-import { BOOK_MODEL_GLTF, CLASS_ID_PLACEHOLDER, IMAGE_URI_PLACEHOLDER } from '../../constant/model';
 
 const router = Router();
 
@@ -92,35 +89,6 @@ router.get(
         .pipe(resizedImage)
         // .pipe(combinedImage)
         .pipe(res);
-      return;
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.get(
-  ['/model/class_:classId.gltf', '/metadata/model/class_:classId.gltf'],
-  validateParams(LikernftClassIdParamsSchema),
-  async (req, res, next) => {
-    try {
-      const { classId } = req.params;
-      const { metadata } = await getClassChainData(classId);
-      const {
-        is_custom_image: isCustomImage,
-        nft_meta_collection_id: collectionId = '',
-        uri,
-        image = '',
-      } = metadata;
-      if (!(collectionId === WRITING_NFT_COLLECTION_ID || collectionId.includes('book'))) {
-        throw new ValidationError('NOT_WRITING_NFT_OR_NFT_BOOK');
-      }
-      const imageUrl = (isCustomImage || !uri) ? parseImageURLFromMetadata(image) : `https://${API_HOSTNAME}/likernft/metadata/image/class_${classId}?size=1024`;
-      let model = BOOK_MODEL_GLTF.replace(new RegExp(CLASS_ID_PLACEHOLDER, 'g'), classId as string);
-      model = model.replace(new RegExp(IMAGE_URI_PLACEHOLDER, 'g'), imageUrl);
-      res.set('Cache-Control', `public, max-age=3600, s-maxage=3600, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-      res.type('model/gltf+json');
-      res.status(200).send(model);
       return;
     } catch (err) {
       next(err);
