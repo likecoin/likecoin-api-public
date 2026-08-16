@@ -70,6 +70,7 @@ import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
+import { resolveLocale } from '../../../../locales';
 import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
 import { getCustomerType, getPaymentUpdateFields } from '../../users/payment';
 
@@ -649,17 +650,6 @@ export async function processNFTBookCart(
       utmContent,
       utmTerm,
     });
-    let buyerLocale: string | undefined;
-    let buyerDisplayName = '';
-    try {
-      if (email) {
-        const info = await fetchUserInfoByEmail(email);
-        buyerLocale = info.locale;
-        buyerDisplayName = info.displayName;
-      }
-    } catch { /* ignore */ }
-    const emailLanguage = buyerLocale || language || 'zh';
-
     let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
 
     if (cartIsGift && cartGiftInfo) {
@@ -688,6 +678,18 @@ export async function processNFTBookCart(
         language: recipientLocale || language || 'zh',
       });
     } else {
+      let buyerLocale: string | undefined;
+      let buyerDisplayName = '';
+      try {
+        if (email) {
+          const info = await fetchUserInfoByEmail(email);
+          buyerLocale = info.locale;
+          buyerDisplayName = info.displayName;
+        }
+      } catch { /* ignore */ }
+      // Checkout language wins: the buyer's stored locale is seeded from geo detection
+      // at registration and never refreshed, so it is the weaker signal.
+      const emailLanguage = resolveLocale(language, buyerLocale);
       await sendNFTBookCartPendingClaimEmail({
         cartId,
         bookNames,
