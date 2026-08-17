@@ -1415,6 +1415,8 @@ export async function processStripeSubscriptionCancellation(
   const isUnattributed = !evmWallet && !likeWallet;
   const cancellationExtraProperties = {
     subscription_id: subscriptionId,
+    provider: 'stripe',
+    platform: 'web',
     period,
     price_id: priceId,
     cancel_reason: subscription.cancellation_details?.reason,
