@@ -7,7 +7,6 @@ import { getStripeClient } from '../../../util/stripe';
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
-import { getUserWithCivicLikerPropertiesByWallet } from '../../../util/api/users/getPublicInfo';
 import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
 import { getPlusReadingReportForWallet } from '../../../util/api/plus/report';
 import { getPlusReadingStatsForWallet } from '../../../util/api/plus/stats';
@@ -50,16 +49,14 @@ router.get(
       if (!wallet) {
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
-      const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
-      const userData = userDoc.data();
-      if (!userData) {
+      const { bookUserInfo, likerUserInfo } = await getBookUserInfoFromWallet(wallet);
+      if (!bookUserInfo && !likerUserInfo) {
         throw new ValidationError('USER_NOT_FOUND', 404);
       }
-      const likerUserInfo = await getUserWithCivicLikerPropertiesByWallet(wallet);
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
-      } = userData;
+      } = bookUserInfo || {};
       const {
         email = null,
         isEmailVerified = false,
@@ -88,15 +85,11 @@ router.get(
         throw new ValidationError('WALLET_NOT_SET', 403);
       }
       const userDoc = await likeNFTBookUserCollection.doc(wallet as string).get();
-      const userData = userDoc.data();
-      if (!userData) {
-        throw new ValidationError('USER_NOT_FOUND', 404);
-      }
       const {
         stripeConnectAccountId,
         isStripeConnectReady,
         email,
-      } = userData;
+      } = userDoc.data() || {};
       const payload: BookUserConnectStatusResponse = {
         hasAccount: !!stripeConnectAccountId,
         isReady: isStripeConnectReady,
