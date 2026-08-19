@@ -184,15 +184,15 @@ export async function handleStripeConnectedAccount({
       }
     }
     const isValidChannelId = fromUser && fromUser.bookUserInfo;
+    const {
+      stripeConnectAccountId,
+      isStripeConnectReady = false,
+    } = fromUser?.bookUserInfo || {};
     let fromStripeConnectAccountId;
     let transfer: Stripe.Response<Stripe.Transfer> | null = null;
     if (isValidChannelId) {
-      const { bookUserInfo, likerUserInfo, wallet } = fromUser;
+      const { likerUserInfo, wallet } = fromUser;
       const isOwner = wallet === ownerWallet;
-      const {
-        stripeConnectAccountId,
-        isStripeConnectReady,
-      } = bookUserInfo;
       const {
         email,
         isEmailVerified,
@@ -252,8 +252,8 @@ export async function handleStripeConnectedAccount({
         from,
         email: buyerEmail,
         isInvalidChannelId: !isValidChannelId,
-        hasStripeAccount: !!fromStripeConnectAccountId,
-        isStripeConnectReady: false,
+        hasStripeAccount: !!stripeConnectAccountId,
+        isStripeConnectReady,
         paymentId,
         paymentIntentId,
       });
