@@ -3,7 +3,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import { validateBody, validateParams, validateQuery } from '../../../middleware/validate';
 import { FieldValue, likeNFTBookUserCollection } from '../../../util/firebase';
-import { getStripeClient } from '../../../util/stripe';
+import { checkIsStripeConnectAccountReady, getStripeClient } from '../../../util/stripe';
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
@@ -233,7 +233,7 @@ router.post(
       }
       const account = await getStripeClient().accounts.retrieve(stripeConnectAccountId);
       const { email } = account;
-      const isStripeConnectReady = account.charges_enabled;
+      const isStripeConnectReady = checkIsStripeConnectAccountReady(account);
       await likeNFTBookUserCollection.doc(wallet).update({
         stripeConnectAccountId,
         isStripeConnectReady,

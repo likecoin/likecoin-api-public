@@ -11,6 +11,17 @@ export function getStripeClient(): Stripe {
   return stripeClient;
 }
 
+// Stripe refuses a destination transfer unless the account has one of these capabilities.
+// `charges_enabled` is no substitute: it flips true as soon as onboarding is submitted,
+// while the transfers capability can still be under review.
+const STRIPE_TRANSFER_CAPABILITIES = ['transfers', 'crypto_transfers', 'legacy_payments'];
+
+export function checkIsStripeConnectAccountReady(account: Stripe.Account): boolean {
+  // `crypto_transfers` is absent from the SDK typings, so read the map untyped.
+  const capabilities = (account.capabilities || {}) as Record<string, string | undefined>;
+  return STRIPE_TRANSFER_CAPABILITIES.some((c) => capabilities[c] === 'active');
+}
+
 export function calculateStripeFee(inputAmount: number, currency = 'usd'): number {
   if (inputAmount === 0) return 0;
   // 2.9% + 30 cents, 1.5% for international cards
