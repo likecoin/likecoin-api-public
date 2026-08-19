@@ -21,7 +21,10 @@ import {
   admin, likeNFTBookCollection, FieldValue, db, likeNFTBookUserCollection,
 } from '../../../firebase';
 import publisher from '../../../gcloudPub';
-import { sendNFTBookInvalidChannelIdSlackNotification } from '../../../slack';
+import {
+  sendNFTBookInvalidChannelIdSlackNotification,
+  sendStripeTransferFailedSlackNotification,
+} from '../../../slack';
 import { updateIntercomUserAttributes } from '../../../intercom';
 import {
   NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
@@ -35,7 +38,7 @@ import {
 } from '../../../ses';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../users/getPublicInfo';
 import { fetchUserInfoByEmail } from '../../users';
-import type { BookGiftInfo, BookPurchaseData } from '../../../../types/book';
+import type { BookGiftInfo, BookPurchaseData, CommissionType } from '../../../../types/book';
 import { CartItemWithInfo, TransactionFeeInfo } from './type';
 import {
   getClassCurrentTokenId, isEVMClassId, mintNFT, triggerNFTIndexerUpdate,
@@ -47,8 +50,6 @@ import { getSaleScoreIncrement } from './sales';
 
 // Re-export pure functions for backward compatibility
 export { checkIsFromLikerLand, calculateItemPrices } from './price';
-
-type CommissionType = 'channelCommission' | 'connectedWallet' | 'artFee';
 
 type CommissionEmailMap = Record<string, {
   payments: { amount: number, type: CommissionType }[];
@@ -170,6 +171,35 @@ export async function handleStripeConnectedAccount({
     buyerEmail,
     stripeFeeAmount,
   };
+
+  // All three transfers fail the same way: the buyer paid, the recipient never got their
+  // cut, and the order still reads as completed. Nothing else in the flow surfaces that.
+  const reportTransferFailure = async (e: unknown, {
+    type,
+    wallet,
+    stripeConnectAccountId,
+    amount,
+  }: {
+    type: CommissionType,
+    wallet: string,
+    stripeConnectAccountId: string,
+    amount: number,
+  }) => {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to create transfer for ${wallet} with stripeConnectAccountId ${stripeConnectAccountId}`, e);
+    await sendStripeTransferFailedSlackNotification({
+      type,
+      wallet,
+      stripeConnectAccountId,
+      amount,
+      currency: commissionBase.currency,
+      classId,
+      bookName,
+      paymentId,
+      error: (e as Error)?.message ?? String(e),
+    });
+  };
+
   if (channelCommission) {
     let fromUser: any = null;
     if (from && !checkIsFromLikerLand(from)) {
@@ -215,11 +245,13 @@ export async function handleStripeConnectedAccount({
           },
         }, {
           idempotencyKey: `transfer-${paymentId}-${classId}-${priceIndex}-channel-${from}`,
-        }).catch((e) => {
-          // eslint-disable-next-line no-console
-          console.error(`Failed to create transfer for ${fromWallet} with stripeConnectAccountId ${fromStripeConnectAccountId}`);
-          // eslint-disable-next-line no-console
-          console.error(e);
+        }).catch(async (e) => {
+          await reportTransferFailure(e, {
+            type: 'channelCommission',
+            wallet: fromWallet,
+            stripeConnectAccountId: fromStripeConnectAccountId,
+            amount: channelCommission,
+          });
           return null;
         });
         if (transfer) {
@@ -245,7 +277,7 @@ export async function handleStripeConnectedAccount({
         }
       }
     }
-    if (from && !transfer) {
+    if (from && !transfer && !fromStripeConnectAccountId) {
       await sendNFTBookInvalidChannelIdSlackNotification({
         classId,
         bookName,
@@ -308,12 +340,12 @@ export async function handleStripeConnectedAccount({
               },
             }, {
               idempotencyKey: `transfer-${paymentId}-${classId}-${priceIndex}-connected-${wallet}`,
-            }).catch((e) => {
-              // eslint-disable-next-line no-console
-              console.error(`Failed to create transfer for ${wallet} with stripeConnectAccountId ${stripeConnectAccountId}`);
-              // eslint-disable-next-line no-console
-              console.error(e);
-            });
+            }).catch((e) => reportTransferFailure(e, {
+              type: 'connectedWallet',
+              wallet,
+              stripeConnectAccountId,
+              amount: amountSplit,
+            }));
             if (!transfer) return null;
             await recordCommission(wallet, {
               ...commissionBase,
@@ -384,10 +416,12 @@ export async function handleStripeConnectedAccount({
           amount: likerLandArtFee,
         });
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to create transfer for ${NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET} with stripeConnectAccountId ${stripeConnectAccountId}`);
-        // eslint-disable-next-line no-console
-        console.error(e);
+        await reportTransferFailure(e, {
+          type: 'artFee',
+          wallet: NFT_BOOK_LIKER_LAND_ART_STRIPE_WALLET,
+          stripeConnectAccountId,
+          amount: likerLandArtFee,
+        });
       }
     }
   }

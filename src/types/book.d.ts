@@ -83,8 +83,10 @@ export interface PlusGiftCartData {
 
 export type PlusGiftCartDataFiltered = z.infer<typeof PlusGiftCartStatusResponseSchema>;
 
+export type CommissionType = 'channelCommission' | 'connectedWallet' | 'artFee';
+
 export interface BookPurchaseCommission {
-  type: string;
+  type: CommissionType;
   ownerWallet?: string;
   classId?: string;
   priceIndex?: number;
