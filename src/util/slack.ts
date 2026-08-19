@@ -11,10 +11,11 @@ import {
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
+  NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK,
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
-import type { NFTBookPrice } from '../types/book';
+import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
 
 // RevenueCat has no per-customer URL without a project id, so link to the
@@ -274,6 +275,66 @@ export async function sendNFTBookInvalidChannelIdSlackNotification({
       paymentId,
       paymentIntentId,
     });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+}
+
+// A broken destination account fails on every sale until someone fixes it, and Slack
+// rate-limits a hook to roughly one message per second. Report each account once per window;
+// console.error still records every occurrence.
+const TRANSFER_FAILED_NOTIFICATION_WINDOW = 10 * 60 * 1000;
+const transferFailedNotifiedAt = new Map<string, number>();
+
+function shouldReportTransferFailure(key: string) {
+  const now = Date.now();
+  transferFailedNotifiedAt.forEach((at, k) => {
+    if (now - at > TRANSFER_FAILED_NOTIFICATION_WINDOW) transferFailedNotifiedAt.delete(k);
+  });
+  if (transferFailedNotifiedAt.has(key)) return false;
+  transferFailedNotifiedAt.set(key, now);
+  return true;
+}
+
+export async function sendStripeTransferFailedSlackNotification({
+  type,
+  wallet,
+  stripeConnectAccountId,
+  amount,
+  currency,
+  classId = '',
+  bookName,
+  paymentId,
+  error,
+}: {
+  type: CommissionType;
+  wallet: string;
+  stripeConnectAccountId: string;
+  amount: number;
+  currency: string;
+  classId?: string;
+  bookName: string;
+  paymentId?: string;
+  error: string;
+}) {
+  if (!NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK) return;
+  if (!shouldReportTransferFailure(`${type}:${stripeConnectAccountId}`)) return;
+  try {
+    const classLink = getBook3NFTClassPageURL({ classId });
+    await axios.post(NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK, {
+      network: IS_TESTNET ? 'testnet' : 'mainnet',
+
+      type,
+      wallet,
+      stripeConnectAccountId,
+      amount: `${(amount / 100).toFixed(2)} ${currency.toUpperCase()}`,
+      error,
+
+      className: bookName,
+      classLink,
+      paymentId,
+    }, { timeout: 5000 });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
