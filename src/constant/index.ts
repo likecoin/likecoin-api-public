@@ -118,6 +118,8 @@ export const KICKBOX_DISPOSIBLE_API = 'https://open.kickbox.com/v1/disposable';
 
 export const COINGECKO_AR_LIKE_PRICE_API = 'https://api.coingecko.com/api/v3/simple/price?ids=arweave,polygon-ecosystem-token,likecoin-2&vs_currencies=usd';
 
+export const WRITING_NFT_COLLECTION_ID = 'likerland_writing_nft';
+
 export const NFT_GEM_COLOR = [
   '#F7F7F7',
   '#EBEBEB',
