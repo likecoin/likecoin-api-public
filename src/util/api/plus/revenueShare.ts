@@ -5,6 +5,7 @@ import {
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
 import { getReadingScoreIncrement } from '../likernft/book/popularity';
+import type { NFTBookListingInfo } from '../../../types/book';
 import type { PlusReadingAccrualData } from '../../../types/user';
 
 /**
@@ -94,9 +95,9 @@ const GRPC_ALREADY_EXISTS = 6;
  * `classId` (a contract address) is lowercased and `readerWallet` is EIP-55 checksummed
  * per repo convention, so casing variants don't split the same book/reader across docs and
  * reader keys match `likeNFTBookUserCollection`/`userCollection` (both checksummed).
- * Reads of a free book (`minPriceInDecimal === 0`) are recorded as non-library
- * engagement (publisher stats only): the pool funds paid library reading, so a free
- * book draws no payout. Settlement ignores the non-library fields, so this keeps it out.
+ * Reads of a book that is not library-enabled (`isPlusReadingEnabled`) or is free
+ * (`minPriceInDecimal === 0`) are recorded as non-library engagement (publisher stats
+ * only): the pool funds paid library reading. Settlement ignores the non-library fields.
  * An `id` makes the write idempotent (see the receipt in the batch below).
  */
 export async function recordPlusReadingUsage({
@@ -134,13 +135,18 @@ export async function recordPlusReadingUsage({
   const bookDoc = await bookDocRef.get();
   if (!bookDoc.exists) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
 
-  // Free books aren't rev-share eligible, so fold their reads into the non-library
-  // buckets — recorded for stats but ignored by settlement (`minPriceInDecimal === 0`).
-  const isFreeBook = bookDoc.data()?.minPriceInDecimal === 0;
-  const libraryReadingTimeMs = isFreeBook ? 0 : readingTimeMs;
-  const libraryTtsTimeMs = isFreeBook ? 0 : ttsTimeMs;
-  const statsNonLibraryReadingTimeMs = nonLibraryReadingTimeMs + (isFreeBook ? readingTimeMs : 0);
-  const statsNonLibraryTtsTimeMs = nonLibraryTtsTimeMs + (isFreeBook ? ttsTimeMs : 0);
+  // Eligibility is re-checked per write, not just upstream at borrow time: a listing can
+  // leave the library mid-borrow, and free books fund no pool.
+  const bookData = (bookDoc.data() || {}) as NFTBookListingInfo;
+  const isFreeBook = bookData.minPriceInDecimal === 0;
+  // Absent flag = never opted in; legacy listings predate the library.
+  const isInLibrary = !!bookData.isPlusReadingEnabled;
+  const isLibraryEligible = isInLibrary && !isFreeBook;
+  const libraryReadingTimeMs = isLibraryEligible ? readingTimeMs : 0;
+  const libraryTtsTimeMs = isLibraryEligible ? ttsTimeMs : 0;
+  const statsNonLibraryReadingTimeMs = nonLibraryReadingTimeMs
+    + (isLibraryEligible ? 0 : readingTimeMs);
+  const statsNonLibraryTtsTimeMs = nonLibraryTtsTimeMs + (isLibraryEligible ? 0 : ttsTimeMs);
 
   const dayDocRef = bookDocRef.collection('plusUsage').doc(dayId);
   const readerDocRef = dayDocRef.collection('readers').doc(normalizedReaderWallet);
@@ -172,6 +178,10 @@ export async function recordPlusReadingUsage({
     nonLibraryReadingTimeMs: FieldValue.increment(statsNonLibraryReadingTimeMs),
     nonLibraryTtsTimeMs: FieldValue.increment(statsNonLibraryTtsTimeMs),
     dayMs,
+    // Library membership as each write saw it, marked only in its own direction so no write
+    // can un-say another's: a mid-day toggle marks both and the day reads as mixed, where a
+    // single last-write-wins boolean would contradict the minutes banked beside it.
+    ...(isInLibrary ? { wasLibraryEnabled: true } : { wasLibraryDisabled: true }),
   }, { merge: true });
   // Per-reader grain is rev-share audit only — skip it for pure non-library
   // engagement (including free-book reads) so non-payout reads don't spawn reader docs.
