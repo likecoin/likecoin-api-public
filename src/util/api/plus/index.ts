@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
-import type { LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../../../types/user';
+import type { LikerPlusData, LikerPlusSubscriptionStatus, UserCivicLikerProperties } from '../../../types/user';
 
 import { getPlusPageURL, getPlusSuccessPageURL } from '../../liker-land';
 import {
@@ -153,6 +153,15 @@ export async function resolveAffiliateGift({
     }
   }
   return result;
+}
+
+// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
+// same handlers write. A null tier means access was lost; the browser clears the
+// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
+export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
+  return tier
+    ? { is_liker_plus: true, liker_plus_tier: tier }
+    : { is_liker_plus: false, liker_plus_tier: null };
 }
 
 // Field names mirror the Stripe subscription-metadata keys so a whole metadata bag
@@ -686,6 +695,9 @@ async function emitPlusInvoiceAnalytics({
     // carry identical attribution and value so the browser pixel can dedup against them.
     const acquisitionEventPayload = {
       email: user.email || stripeCustomer.email || undefined,
+      // Pairs with the clear in processStripeSubscriptionCancellation so a
+      // resubscriber isn't left reading false until their next browser identify.
+      set: mapPlusEntitlementPersonProperties(tier),
       items: [{
         productId: `${tier}-${period}ly`,
         quantity: 1,
@@ -699,6 +711,7 @@ async function emitPlusInvoiceAnalytics({
       fbc,
       paymentId,
       evmWallet,
+      likeWallet,
       predictedLTV,
       gaClientId,
       gaSessionId,
@@ -731,6 +744,7 @@ async function emitPlusInvoiceAnalytics({
   } else if (billingReason === 'subscription_cycle' && amountPaid > 0) {
     await logServerEvents('SubscriptionRenewed', {
       evmWallet,
+      likeWallet,
       email: user.email || stripeCustomer.email || undefined,
       value: amountPaid,
       currency,
@@ -1355,6 +1369,20 @@ export async function createNewPlusCheckoutSession(
   };
 }
 
+// Mirror of the RevenueCat side's isStripeOwnedLikerPlus/isForOtherSubscription
+// guards: a stale or foreign cancellation must not revoke the record that
+// currently grants access (the user moved to mobile IAP, or resubscribed on a new
+// Stripe subscription). A record carrying neither field is legacy Stripe and
+// still revokes, so a real cancellation is never missed.
+export function isPlusRecordForOtherSubscription(
+  likerPlus: LikerPlusData | undefined,
+  subscriptionId: string,
+): boolean {
+  if (!likerPlus) return false;
+  if (likerPlus.provider && likerPlus.provider !== 'stripe') return true;
+  return !!likerPlus.subscriptionId && likerPlus.subscriptionId !== subscriptionId;
+}
+
 export async function processStripeSubscriptionCancellation(
   subscription: Stripe.Subscription,
 ) {
@@ -1371,13 +1399,16 @@ export async function processStripeSubscriptionCancellation(
     : null;
   const likerId = user?.user;
   const isTrialEnd = subscription.trial_end && subscription.cancel_at === subscription.trial_end;
+  // A shared-granted record is owned by the giver's lifecycle, not this
+  // (stale/foreign) Stripe subscription — never let it clobber the record.
+  const isSharedGranted = isSharedGrantedLikerPlus(user?.likerPlus);
+  const isForOtherSubscription = isPlusRecordForOtherSubscription(user?.likerPlus, subscriptionId);
+  // An unresolved wallet leaves the user's state unknown, so claim no revocation.
+  const hasClearedPlusEntitlement = !!user && !isSharedGranted && !isForOtherSubscription;
 
   if (user) {
-    // A shared-granted record is owned by the giver's lifecycle, not this
-    // (stale/foreign) Stripe subscription — never let it clobber the record.
-    const isSharedGranted = isSharedGrantedLikerPlus(user.likerPlus);
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
-    if (!isSharedGranted) {
+    if (hasClearedPlusEntitlement) {
       if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
         await userCollection.doc(user.user).update({
           likerPlus: {
@@ -1395,8 +1426,10 @@ export async function processStripeSubscriptionCancellation(
       });
     }
 
-    // A canceled Civic sub takes its members' access with it.
-    if (user.likerPlus?.tier === 'civic') {
+    // A canceled Civic sub takes its members' access with it — but only when this
+    // subscription still owns the record; a record held by another provider is
+    // still granting those members access.
+    if (!isForOtherSubscription && user.likerPlus?.tier === 'civic') {
       await revokeSharedMemberAccess(user.user);
     }
   } else {
@@ -1429,6 +1462,8 @@ export async function processStripeSubscriptionCancellation(
     evmWallet,
     likeWallet,
     paymentId: subscriptionId,
+    // The PostHog mirror of the Intercom clear above.
+    set: hasClearedPlusEntitlement ? mapPlusEntitlementPersonProperties(null) : undefined,
     posthogDistinctId: isUnattributed && customerId ? `stripe:${customerId}` : undefined,
     extraProperties: cancellationExtraProperties,
   };

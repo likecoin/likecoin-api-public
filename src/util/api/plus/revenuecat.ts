@@ -14,6 +14,7 @@ import {
   getPlusEquivalentUSDPrice,
   getPlusPredictedLTV,
   mapAttributionExtraProperties,
+  mapPlusEntitlementPersonProperties,
   resolveAffiliateGift,
 } from './index';
 // A shared-granted record is owned by the giver's lifecycle: terminal RevenueCat
@@ -574,6 +575,8 @@ async function handleGrant(
     const acquisitionEventPayload = {
       email: user.email,
       evmWallet: user.evmWallet,
+      // Mirrors setIntercomPlusFlags for PostHog persons.
+      set: mapPlusEntitlementPersonProperties(tier),
       value: isTrial ? predictedLTV : paymentAmount,
       // ltvCurrency is a lowercase Plus currency; uppercase both branches so the
       // analytics currency dimension stays ISO 4217 like the Stripe path.
@@ -804,6 +807,9 @@ async function handleExpiration(
       email: user.email,
       evmWallet: user.evmWallet,
       paymentId: transactionId,
+      // Mirrors clearIntercomPlusFlags above: the guards at the top of this
+      // function mean reaching here is an actual loss of access.
+      set: mapPlusEntitlementPersonProperties(null),
       extraProperties: {
         subscription_id: transactionId,
         provider: 'revenuecat',
