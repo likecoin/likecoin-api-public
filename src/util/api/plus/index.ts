@@ -155,6 +155,15 @@ export async function resolveAffiliateGift({
   return result;
 }
 
+// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
+// same handlers write. A null tier means access was lost; the browser clears the
+// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
+export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
+  return tier
+    ? { is_liker_plus: true, liker_plus_tier: tier }
+    : { is_liker_plus: false, liker_plus_tier: null };
+}
+
 // Field names mirror the Stripe subscription-metadata keys so a whole metadata bag
 // can be passed straight in; the RevenueCat path builds the object from subscriber
 // attributes instead. Renaming a field here silently drops it from both.
@@ -686,6 +695,9 @@ async function emitPlusInvoiceAnalytics({
     // carry identical attribution and value so the browser pixel can dedup against them.
     const acquisitionEventPayload = {
       email: user.email || stripeCustomer.email || undefined,
+      // Pairs with the clear in processStripeSubscriptionCancellation so a
+      // resubscriber isn't left reading false until their next browser identify.
+      set: mapPlusEntitlementPersonProperties(tier),
       items: [{
         productId: `${tier}-${period}ly`,
         quantity: 1,
@@ -1371,11 +1383,13 @@ export async function processStripeSubscriptionCancellation(
     : null;
   const likerId = user?.user;
   const isTrialEnd = subscription.trial_end && subscription.cancel_at === subscription.trial_end;
+  // A shared-granted record is owned by the giver's lifecycle, not this
+  // (stale/foreign) Stripe subscription — never let it clobber the record.
+  const isSharedGranted = isSharedGrantedLikerPlus(user?.likerPlus);
+  // An unresolved wallet leaves the user's state unknown, so claim no revocation.
+  const hasClearedPlusEntitlement = !!user && !isSharedGranted;
 
   if (user) {
-    // A shared-granted record is owned by the giver's lifecycle, not this
-    // (stale/foreign) Stripe subscription — never let it clobber the record.
-    const isSharedGranted = isSharedGrantedLikerPlus(user.likerPlus);
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (!isSharedGranted) {
       if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
@@ -1429,6 +1443,8 @@ export async function processStripeSubscriptionCancellation(
     evmWallet,
     likeWallet,
     paymentId: subscriptionId,
+    // The PostHog mirror of the Intercom clear above.
+    set: hasClearedPlusEntitlement ? mapPlusEntitlementPersonProperties(null) : undefined,
     posthogDistinctId: isUnattributed && customerId ? `stripe:${customerId}` : undefined,
     extraProperties: cancellationExtraProperties,
   };

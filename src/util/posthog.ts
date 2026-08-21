@@ -27,6 +27,10 @@ function derivePostHogEventUUID(eventName: string, transactionId: string): strin
   return uuidv5(`https://3ook.com/posthog-dedup/${eventName}/${transactionId}`, NAMESPACE_URL);
 }
 
+function nonEmpty(properties?: Record<string, unknown>): Record<string, unknown> | undefined {
+  return properties && Object.keys(properties).length > 0 ? properties : undefined;
+}
+
 let posthogClient: PostHog | null = null;
 
 function getPostHogClient(): PostHog | null {
@@ -62,6 +66,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   posthogDistinctId,
   extraProperties,
   setOnce,
+  set,
 }: {
   evmWallet?: string;
   likeWallet?: string;
@@ -74,6 +79,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   posthogDistinctId?: string;
   extraProperties?: Record<string, unknown>;
   setOnce?: Record<string, unknown>;
+  set?: Record<string, unknown>;
 }) {
   const client = getPostHogClient();
   if (!client) {
@@ -96,6 +102,10 @@ export default function logPostHogEvents(event: ServerEventName, {
     const anonDistinctId = posthogDistinctId && posthogDistinctId !== distinctId
       ? posthogDistinctId
       : undefined;
+    // The browser stamps the same person props on every identify (liker-land-v3
+    // composables/use-logger.ts), but it never sees a lifecycle change the user
+    // isn't present for — so subscription callers write them from here too.
+    const personProperties = { ...(email ? { email } : {}), ...set };
     client.capture({
       distinctId,
       event: posthogEvent,
@@ -104,8 +114,8 @@ export default function logPostHogEvents(event: ServerEventName, {
         : undefined,
       properties: {
         ...extraProperties,
-        $set: email ? { email } : undefined,
-        $set_once: setOnce && Object.keys(setOnce).length > 0 ? setOnce : undefined,
+        $set: nonEmpty(personProperties),
+        $set_once: nonEmpty(setOnce),
         $insert_id: paymentId ? `${posthogEvent}_${paymentId}` : undefined,
         $anon_distinct_id: anonDistinctId,
         value,
