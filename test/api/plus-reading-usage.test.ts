@@ -14,6 +14,13 @@ const post = (body: Record<string, unknown>, headers?: Record<string, string>) =
   .post(PATH, body, headers ? { headers } : undefined)
   .catch((err) => (err as any).response);
 
+// `undefined` in `data` drops the default, so a case can express an absent field.
+const seedBook = (classId: string, data: Record<string, unknown> = {}) => likeNFTBookCollection
+  .doc(classId)
+  .set(Object.fromEntries(Object.entries({
+    classId, ownerWallet: OWNER, isPlusReadingEnabled: true, ...data,
+  }).filter(([, v]) => v !== undefined)) as any);
+
 describe('POST /plus/reading/usage', () => {
   it('rejects requests without the service token', async () => {
     const noAuth = await post({
@@ -33,8 +40,7 @@ describe('POST /plus/reading/usage', () => {
     // Post a mixed-case (EIP-55) class id; the ledger key must be lowercased.
     const mixedCaseClassId = '0xAbCdEf1111111111111111111111111111111111';
     const lowerClassId = mixedCaseClassId.toLowerCase();
-    await likeNFTBookCollection.doc(lowerClassId)
-      .set({ classId: lowerClassId, ownerWallet: OWNER } as any);
+    await seedBook(lowerClassId);
 
     const res = await post({
       readerWallet: READER,
@@ -61,12 +67,13 @@ describe('POST /plus/reading/usage', () => {
     expect(data.ttsTimeMs).toBe(4200);
     // Start-of-day ms stamped so settlement can filter rollups by range.
     expect(data.dayMs).toBe(Date.UTC(2026, 2, 10));
+    expect(data.wasLibraryEnabled).toBe(true);
+    expect(data.wasLibraryDisabled).toBeUndefined();
   });
 
   it('records non-library engagement on the day rollup but not the per-reader grain', async () => {
     const classId = '0xbcdef22222222222222222222222222222222222';
-    await likeNFTBookCollection.doc(classId)
-      .set({ classId, ownerWallet: OWNER } as any);
+    await seedBook(classId);
 
     // Owned/non-Plus read: only the non-library fields are populated.
     const res = await post({
@@ -96,41 +103,71 @@ describe('POST /plus/reading/usage', () => {
     expect(readers.size).toBe(0);
   });
 
-  it('reclassifies free-book reads as non-library engagement (no payout)', async () => {
-    const classId = '0xcdef033333333333333333333333333333333333';
-    // Free book: minPriceInDecimal === 0 → reads fund no rev-share pool.
-    await likeNFTBookCollection.doc(classId)
-      .set({ classId, ownerWallet: OWNER, minPriceInDecimal: 0 } as any);
+  // Three routes to one outcome: the pool funds paid library reading, nothing else.
+  it.each([
+    ['free', { minPriceInDecimal: 0 }, 0xc3, 12, true],
+    ['delisted', { isPlusReadingEnabled: false }, 0xd4, 15, false],
+    // Legacy listing: the field predates the library, so absent must read as opted out.
+    ['never-listed', { isPlusReadingEnabled: undefined }, 0xe5, 16, false],
+  ])('reclassifies %s-book reads as non-library engagement (no payout)', async (_label, listing, addrByte, dayOfMonth, expectInLibrary) => {
+    const classId = mockEVMAddress(addrByte as number);
+    await seedBook(classId, listing as Record<string, unknown>);
+    const dayId = `2026-03-${dayOfMonth}`;
 
     const res = await post({
       readerWallet: READER,
       classId,
       readingTimeMs: 1500,
       ttsTimeMs: 4200,
-      occurredAt: Date.UTC(2026, 2, 12, 8), // 2026-03-12
+      occurredAt: Date.UTC(2026, 2, dayOfMonth as number, 8),
     }, AUTH_HEADER);
     expect(res.status).toBe(200);
-    expect(res.data.results).toEqual([{ dayId: '2026-03-12', applied: true }]);
+    expect(res.data.results).toEqual([{ dayId, applied: true }]);
 
-    const dayDocRef = likeNFTBookCollection.doc(classId).collection('plusUsage').doc('2026-03-12');
+    const dayDocRef = likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId);
     const day = (await dayDocRef.get()).data() as any;
-    // Library time settlement totals stay 0; engagement is parked under non-library.
+    // Settlement totals stay 0; the engagement is parked under non-library for stats.
     expect(day.readingTimeMs).toBe(0);
     expect(day.ttsTimeMs).toBe(0);
     expect(day.nonLibraryReadingTimeMs).toBe(1500);
     expect(day.nonLibraryTtsTimeMs).toBe(4200);
+    // A free book is still *in* the library — membership and payout are separate facts.
+    expect(day.wasLibraryEnabled).toBe(expectInLibrary || undefined);
+    expect(day.wasLibraryDisabled).toBe(expectInLibrary ? undefined : true);
     // No rev-share-eligible time → no per-reader audit doc.
     const readers = await dayDocRef.collection('readers').get();
     expect(readers.size).toBe(0);
 
-    // ...but the read still counts toward popularity, or free books could never rank.
+    // ...but the read still counts toward popularity, or these books could never rank.
     const book = (await likeNFTBookCollection.doc(classId).get()).data() as any;
     expect(book.plusReadingTotalMs).toBe(5700);
   });
 
+  it('marks a day toggled mid-borrow as both enabled and disabled', async () => {
+    const classId = mockEVMAddress(0xf6);
+    const occurredAt = Date.UTC(2026, 2, 17, 8); // 2026-03-17
+    await seedBook(classId);
+    await post({
+      id: 'flip-1', readerWallet: READER, classId, readingTimeMs: 600, ttsTimeMs: 0, occurredAt,
+    }, AUTH_HEADER);
+
+    // Publisher delists mid-day (a merge write, as updateNftBookInfo does); the next
+    // heartbeat then merges into the same rollup.
+    await likeNFTBookCollection.doc(classId).set({ isPlusReadingEnabled: false }, { merge: true });
+    await post({
+      id: 'flip-2', readerWallet: READER, classId, readingTimeMs: 900, ttsTimeMs: 0, occurredAt,
+    }, AUTH_HEADER);
+
+    const day = (await likeNFTBookCollection.doc(classId)
+      .collection('plusUsage').doc('2026-03-17').get()).data() as any;
+    // Both marks stand: the later write can't un-say the minutes banked while listed.
+    expect(day.wasLibraryEnabled).toBe(true);
+    expect(day.wasLibraryDisabled).toBe(true);
+  });
+
   it('sums all four duration buckets into the popularity counter on the book doc', async () => {
     const classId = mockEVMAddress(0x66);
-    await likeNFTBookCollection.doc(classId).set({ classId, ownerWallet: OWNER } as any);
+    await seedBook(classId);
 
     const res = await post({
       readerWallet: READER,
@@ -150,7 +187,7 @@ describe('POST /plus/reading/usage', () => {
 
   it('does not double-count the popularity counter on a deduped retry', async () => {
     const classId = mockEVMAddress(0x77);
-    await likeNFTBookCollection.doc(classId).set({ classId, ownerWallet: OWNER } as any);
+    await seedBook(classId);
     const occurredAt = Date.UTC(2026, 2, 14, 8);
     const entry = (id: string, readingTimeMs: number) => ({
       id, readerWallet: READER, classId, readingTimeMs, ttsTimeMs: 0, occurredAt,
@@ -199,7 +236,7 @@ describe('POST /plus/reading/usage', () => {
 
   it('dedups a retried delta by idempotency id (no double-count)', async () => {
     const classId = mockEVMAddress(0x55);
-    await likeNFTBookCollection.doc(classId).set({ classId, ownerWallet: OWNER } as any);
+    await seedBook(classId);
     const occurredAt = Date.UTC(2026, 2, 10, 8);
     const entry = (id: string, readingTimeMs: number) => ({
       id, readerWallet: READER, classId, readingTimeMs, ttsTimeMs: 0, occurredAt,
@@ -227,7 +264,7 @@ describe('POST /plus/reading/usage', () => {
 
   it('records a batch of entries in one request', async () => {
     const classId = mockEVMAddress(0x66);
-    await likeNFTBookCollection.doc(classId).set({ classId, ownerWallet: OWNER } as any);
+    await seedBook(classId);
 
     const res = await post({
       entries: [
