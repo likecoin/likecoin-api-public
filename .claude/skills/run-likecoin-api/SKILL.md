@@ -74,8 +74,9 @@ node .claude/skills/run-likecoin-api/driver.mjs req GET /users/id/testing/min
 Authenticated — `--user <id>` and/or `--wallet <addr>` sign a JWT with the test secret:
 
 ```bash
-node .claude/skills/run-likecoin-api/driver.mjs req GET /users/self --user testing
-# 200, full user object. Without --user: 401 "LOGIN_NEEDED".
+node .claude/skills/run-likecoin-api/driver.mjs req GET /users/preferences --user testing
+# 200 {"locale":"en","creatorPitch":"I am your father.","paymentRedirectWhiteList":[]}
+# Without --user: 401 "LOGIN_NEEDED".
 ```
 
 With a body:
@@ -89,7 +90,7 @@ Pass the **production** path (`/users/...`). The driver adds the `/api` prefix t
 axiosist mounts under — see Gotchas.
 
 Seeded fixture identities live in `test/data/user.json` (`testing`, `testing1`, …),
-plus `tx.json`, `likernft.json`.
+plus `likernft.json`.
 
 ### Boot the real server — `smoke`
 
@@ -144,8 +145,8 @@ npm run test
 ## Gotchas
 
 - **`/api` prefix mismatch.** `test/api/axiosist.ts` does `app.use('/api', allRoutes)`,
-  but `src/index.ts` mounts at `/`. So the same handler is `/api/users/self` in tests
-  and `/users/self` in production. `driver.mjs req` takes the production path and adds
+  but `src/index.ts` mounts at `/`. So the same handler is `/api/users/preferences` in
+  tests and `/users/preferences` in production. `driver.mjs req` takes the production path and adds
   the prefix, so you never write `/api` yourself — but existing test files do.
 - **Test JWTs are hardcoded.** `test/api/jwt.ts` signs with secret `'likecoin'`,
   audience and issuer both `rinkeby.like.co`. Nothing in `config/` needs changing.

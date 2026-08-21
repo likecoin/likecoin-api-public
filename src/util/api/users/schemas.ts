@@ -94,13 +94,6 @@ export const UsersRegisterBodySchema = z.object({
   fbc: z.string().optional(),
 }).passthrough();
 
-export const UsersLoginBodySchema = z.object({
-  platform: z.string().optional(),
-  appReferrer: z.string().optional(),
-  sourceURL: z.string().optional(),
-  utmSource: z.string().optional(),
-}).passthrough();
-
 export const UsersPreferencesResponseSchema = z.object({
   locale: z.string().optional(),
   creatorPitch: z.string(),

@@ -598,11 +598,6 @@ export const BookUserConnectRefreshResponseSchema = z.object({
   isReady: z.boolean(),
 });
 
-// claimNFTBook returns the claimed NFT id (absent when nothing was auto-minted).
-export const BookClaimResponseSchema = z.object({
-  nftId: NFTIdSchema,
-});
-
 // Mirrors MetaCatalogItem (src/util/api/likernft/book/metaCatalog.ts); Meta feed
 // field names are snake_case per spec.
 export const BookCatalogMetaResponseSchema = z.object({

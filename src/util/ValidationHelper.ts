@@ -11,7 +11,6 @@ import type {
   UserDataMin,
   UserDataScopedFiltered,
 } from '../types/validation';
-import type { TxData } from '../types/transaction';
 import type {
   LikeNFTISCNData,
   LikeNFTMetadata,
@@ -241,38 +240,6 @@ export function filterUserDataScoped(
     output.creatorPitch = u.creatorPitch;
   }
   return output;
-}
-
-export function filterTxData({
-  from,
-  fromId,
-  to,
-  toId,
-  value,
-  amount,
-  status,
-  type,
-  remarks,
-  httpReferrer,
-  completeTs,
-  ts,
-  txHash,
-}: TxData): TxData {
-  return {
-    from,
-    fromId,
-    to,
-    toId,
-    value,
-    amount,
-    status,
-    type,
-    remarks,
-    httpReferrer,
-    completeTs,
-    ts,
-    txHash,
-  };
 }
 
 export function filterLikeNFTISCNData({

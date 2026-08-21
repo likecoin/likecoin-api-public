@@ -12,7 +12,6 @@ import {
 } from '../../util/firebase';
 import {
   setAuthCookies,
-  clearAuthCookies,
   userOrWalletByEmailQuery,
   normalizeUserEmail,
   checkEVMSignPayload,
@@ -30,7 +29,6 @@ import {
   UsersUpdateBodySchema,
   UsersEmailCheckBodySchema,
   UsersRegisterBodySchema,
-  UsersLoginBodySchema,
   UsersUpdateAvatarResponseSchema,
 } from '../../util/api/users/schemas';
 import publisher from '../../util/gcloudPub';
@@ -405,139 +403,5 @@ router.post(
     }
   },
 );
-
-router.post('/login', validateBody(UsersLoginBodySchema), async (req, res, next) => {
-  try {
-    let user;
-    let wallet;
-    const {
-      platform,
-      sourceURL,
-      utmSource,
-    } = req.body;
-
-    switch (platform) {
-      case 'evmWallet': {
-        const {
-          from,
-          payload: stringPayload,
-          sign,
-        } = req.body;
-        wallet = checksumAddress(from);
-        checkEVMSignPayload({
-          signature: sign,
-          message: stringPayload,
-          inputWallet: wallet,
-          action: 'login',
-        });
-        const userQuery = await (
-          dbRef
-            .where('evmWallet', '==', wallet)
-            .get()
-        );
-        if (userQuery.docs.length > 0) {
-          const [userDoc] = userQuery.docs;
-          user = userDoc.id;
-        }
-        break;
-      }
-      default:
-        throw new ValidationError('INVALID_PLATFORM');
-    }
-
-    if (user) {
-      const doc = await dbRef.doc(user).get();
-      if (doc.exists) {
-        const docData = doc.data();
-        if (docData) {
-          const {
-            isLocked,
-          } = docData;
-          if (isLocked) {
-            // eslint-disable-next-line no-console
-            console.log(`Locked user: ${user}`);
-            throw new ValidationError('USER_LOCKED');
-          }
-        }
-      }
-      await setAuthCookies(req, res, { user, platform });
-      res.sendStatus(200);
-
-      if (doc.exists) {
-        const docData = doc.data();
-        if (docData) {
-          const {
-            email,
-            displayName,
-            referrer,
-            locale,
-            timestamp: registerTime,
-          } = docData;
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'eventUserLogin',
-            user,
-            email,
-            displayName,
-            wallet,
-            referrer,
-            locale,
-            registerTime,
-            platform,
-            sourceURL,
-            utmSource,
-          });
-        }
-      }
-    } else {
-      res.sendStatus(404);
-    }
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/logout', jwtAuth('read'), async (req, res, next) => {
-  try {
-    const { user, jti } = req.user;
-
-    clearAuthCookies(req, res);
-    res.sendStatus(200);
-
-    if (user) {
-      try {
-        await dbRef.doc(user).collection('session').doc(jti).delete();
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-      const doc = await dbRef.doc(user).get();
-      if (doc.exists) {
-        const docData = doc.data();
-        if (docData) {
-          const {
-            wallet,
-            email,
-            displayName,
-            referrer,
-            locale,
-            timestamp: registerTime,
-          } = docData;
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'eventUserLogout',
-            user,
-            email,
-            displayName,
-            wallet,
-            referrer,
-            locale,
-            registerTime,
-          });
-        }
-      }
-    }
-  } catch (err) {
-    next(err);
-  }
-});
 
 export default router;

@@ -27,7 +27,6 @@ import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
 } from '../../../../config/config';
 import {
-  claimNFTBook,
   setNFTBookBuyerMessage,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
@@ -36,7 +35,6 @@ import logServerEvents from '../../../util/logServerEvents';
 import { getBook3CartURL, getBook3NFTClassPageURL } from '../../../util/liker-land';
 import { isEVMClassId, triggerNFTIndexerUpdate, verifyNFTTransferTxHash } from '../../../util/evm/nft';
 import { isValidEVMAddress } from '../../../util/evm';
-import { isValidLikeAddress } from '../../../util/cosmos';
 import { claimFreeBooks, getFreeBooksForUser } from '../../../util/api/likernft/book/free';
 import { fetchUserInfoByEmail } from '../../../util/api/users';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
@@ -60,7 +58,6 @@ import {
   BookFreeClaimResponseSchema,
   BookOrdersResponseSchema,
   BookPurchaseMessagesResponseSchema,
-  BookClaimResponseSchema,
 } from '../../../util/api/likernft/book/schemas';
 
 const router = Router();
@@ -642,44 +639,6 @@ router.post('/free', jwtAuth('write:nftbook'), validateBody(BookFreeClaimBodySch
     next(err);
   }
 });
-
-router.post(
-  ['/:classId/claim/:paymentId', '/class/:classId/claim/:paymentId'],
-  validateParams(BookClassIdPaymentIdParamsSchema),
-  async (req, res, next) => {
-    try {
-      const { classId, paymentId } = req.params as Record<string, string>;
-      const { token } = req.query as Record<string, string>;
-      const { wallet, message, loginMethod } = req.body;
-
-      if (isEVMClassId(classId)) {
-        if (!isValidEVMAddress(wallet)) {
-          throw new ValidationError('INVALID_WALLET_ADDRESS');
-        }
-      } else if (!isValidLikeAddress(wallet)) {
-        throw new ValidationError('INVALID_WALLET_ADDRESS');
-      }
-      if (!token) throw new ValidationError('MISSING_TOKEN');
-      if (!wallet) throw new ValidationError('MISSING_WALLET');
-
-      const { nftId } = await claimNFTBook(
-        classId,
-        paymentId,
-        {
-          message,
-          wallet,
-          token: token as string,
-          loginMethod,
-        },
-        req,
-      );
-
-      sendValidatedJSON(res, BookClaimResponseSchema, { nftId });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
 
 router.post(
   '/class/:classId/message/:paymentId',

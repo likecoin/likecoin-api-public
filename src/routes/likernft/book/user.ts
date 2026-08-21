@@ -27,7 +27,6 @@ import {
   BookUserPayoutResponseSchema,
   BookUserCommissionsResponseSchema,
   BookUserConnectRefreshResponseSchema,
-  BookPurchaseCommissionFilteredSchema,
   type BookUserConnectStatusResponse,
   type StripeConnectSite,
 } from '../../../util/api/likernft/book/schemas';
@@ -392,39 +391,6 @@ router.get(
         includeBuyerEmail: data.ownerWallet === wallet,
       }));
       sendValidatedJSON(res, BookUserCommissionsResponseSchema, { commissions: list });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.get(
-  '/commissions/:id',
-  jwtAuth('read:nftbook'),
-  validateParams(BookIdParamsSchema),
-  async (req, res, next) => {
-    try {
-      const { wallet } = req.user;
-      const { id } = req.params;
-      if (!wallet) {
-        throw new ValidationError('WALLET_NOT_SET', 403);
-      }
-      const commissionDoc = await likeNFTBookUserCollection
-        .doc(wallet)
-        .collection('commissions')
-        .doc(id as string)
-        .get();
-      if (!commissionDoc.exists) {
-        throw new ValidationError('COMMISSION_NOT_FOUND', 404);
-      }
-      const commissionData = commissionDoc.data() as BookPurchaseCommission;
-      sendValidatedJSON(
-        res,
-        BookPurchaseCommissionFilteredSchema,
-        filterBookPurchaseCommission(commissionData, {
-          includeBuyerEmail: commissionData.ownerWallet === wallet,
-        }),
-      );
     } catch (err) {
       next(err);
     }

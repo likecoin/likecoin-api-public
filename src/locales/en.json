@@ -1,16 +1,4 @@
 {
-  "LikeButton": {
-    "user": {
-      "title": "Like {{name}}'s work",
-      "description": "Reward Creativity, powered by LikeCoin"
-    },
-    "nftclass": {
-      "title": "{{nftClass}}"
-    },
-    "iscn": {
-      "title": "{{iscnId}}"
-    }
-  },
   "Email": {
     "VerifyEmail": {
       "subject": "3ook.com Account Verification",

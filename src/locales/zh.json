@@ -1,16 +1,4 @@
 {
-  "LikeButton": {
-    "user": {
-      "title": "讚好 {{name}} 的作品",
-      "description": "Reward Creativity, powered by LikeCoin"
-    },
-    "nftclass": {
-      "title": "{{nftClass}}"
-    },
-    "iscn": {
-      "title": "{{iscnId}}"
-    }
-  },
   "Email": {
     "VerifyEmail": {
       "subject": "3ook.com 帳戶驗證",
