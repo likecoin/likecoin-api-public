@@ -79,6 +79,10 @@ export const SUPPORTED_AVATAR_TYPE = new Set([
   'bmp',
 ]);
 
+// 404 body distinguishing an unapproved listing from one that was never listed.
+// Compared across services, so it must not drift.
+export const BOOK_PENDING_REVIEW_ERROR = 'BOOK_PENDING_REVIEW';
+
 export const AVATAR_DEFAULT_PATH = 'https://static.like.co/likecoin_de-portrait.jpg';
 
 export const DEFAULT_AVATAR_SIZE = 400;
