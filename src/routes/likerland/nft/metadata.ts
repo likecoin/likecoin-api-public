@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Axios, { AxiosError } from 'axios';
 
-import { INTERNAL_HOSTNAME, ONE_DAY_IN_S } from '../../../constant';
+import { BOOK_PENDING_REVIEW_ERROR, INTERNAL_HOSTNAME, ONE_DAY_IN_S } from '../../../constant';
 
 import {
   COSMOS_LCD_INDEXER_ENDPOINT,
@@ -24,6 +24,11 @@ import { sendValidatedJSON } from '../../../util/ValidationHelper';
 const axios = Axios.create({
   timeout: 60000,
 });
+
+interface BookstoreInfoResult {
+  info: NFTBookListingInfoFiltered | null;
+  isPendingReview: boolean;
+}
 
 const router = Router();
 
@@ -138,19 +143,25 @@ async function getNFTClassOwnerInfo(classId) {
   return result;
 }
 
-async function getNFTClassBookstoreInfo(classId) {
+// Anonymous callers get `info: null` plus the pending flag, which says a listing exists
+// and is unapproved without disclosing any of its contents.
+async function getNFTClassBookstoreInfo(classId, authorization?: string) {
   try {
     const { data } = await axios.get(
       `http://${INTERNAL_HOSTNAME}/likernft/book/store/${classId}`,
+      authorization ? { headers: { Authorization: authorization } } : undefined,
     );
-    return data || null;
+    return { info: data || null, isPendingReview: false };
   } catch (err) {
     const error = err as AxiosError;
-    if (
-      error.response
-      && (error.response.status === 400 || error.response.status === 404)
-    ) {
-      return null;
+    const status = error.response?.status;
+    // A stale or malformed token must not cost the caller the public listing:
+    // fall back to the anonymous view instead of failing the whole request.
+    if (authorization && (status === 401 || status === 403)) {
+      return getNFTClassBookstoreInfo(classId, undefined);
+    }
+    if (status === 400 || status === 404) {
+      return { info: null, isPendingReview: error.response?.data === BOOK_PENDING_REVIEW_ERROR };
     }
     throw err;
   }
@@ -159,6 +170,7 @@ async function getNFTClassBookstoreInfo(classId) {
 router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (req, res, next) => {
   try {
     const { class_id: rawClassId, data: inputSelected } = req.query;
+    const { authorization } = req.headers;
     const classId = typeof rawClassId === 'string' ? rawClassId.toLowerCase() : rawClassId;
     if (!classId) {
       res.status(400).send('MISSING_CLASS_ID');
@@ -180,6 +192,8 @@ router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (
       selectedSet.add('all');
     }
 
+    const isBookstoreRequested = ['all', 'bookstore'].some((s) => selectedSet.has(s));
+
     const promises: Array<Promise<unknown>> = [];
 
     if (['all', 'class_api', 'iscn'].some((s) => selectedSet.has(s))) {
@@ -196,10 +210,10 @@ router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (
       promises.push(Promise.resolve(null));
     }
 
-    if (['all', 'bookstore'].some((s) => selectedSet.has(s))) {
-      promises.push(getNFTClassBookstoreInfo(classId));
+    if (isBookstoreRequested) {
+      promises.push(getNFTClassBookstoreInfo(classId, authorization));
     } else {
-      promises.push(Promise.resolve(null));
+      promises.push(Promise.resolve({ info: null, isPendingReview: false }));
     }
 
     const results = await Promise.allSettled(promises);
@@ -226,7 +240,8 @@ router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (
     const classData = classAndIscnResult ? classAndIscnResult[0] : null;
     const iscnData = classAndIscnResult ? classAndIscnResult[1] : null;
     const ownerInfo = ownerInfoResult;
-    const bookstoreInfo = bookstoreInfoResult as NFTBookListingInfoFiltered | null;
+    const bookstoreResult = bookstoreInfoResult as BookstoreInfoResult | null;
+    const bookstoreInfo = bookstoreResult?.info || null;
 
     const result: any = {};
     if (['all', 'class_chain', 'class_api'].some((s) => selectedSet.has(s))) {
@@ -238,11 +253,16 @@ router.get('/metadata', validateQuery(NFTAggregatedMetadataQuerySchema), async (
     if (['all', 'owner'].some((s) => selectedSet.has(s))) {
       result.ownerInfo = ownerInfo;
     }
-    if (['all', 'bookstore'].some((s) => selectedSet.has(s))) {
+    if (isBookstoreRequested) {
       result.bookstoreInfo = bookstoreInfo;
+      result.isBookstorePendingReview = !!bookstoreResult?.isPendingReview;
     }
 
-    if (bookstoreInfo?.evmClassId || bookstoreInfo?.redirectClassId) {
+    if (authorization && isBookstoreRequested) {
+      // The payload may carry owner-only fields (and an otherwise hidden
+      // pending-review listing), so it must never reach a shared cache.
+      res.set('Cache-Control', 'no-store');
+    } else if (bookstoreInfo?.evmClassId || bookstoreInfo?.redirectClassId) {
       res.set('Cache-Control', `public, max-age=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}`);
     } else if (!hasAnyError) {
       res.set('Cache-Control', `public, max-age=60, stale-while-revalidate=${ONE_DAY_IN_S}`);

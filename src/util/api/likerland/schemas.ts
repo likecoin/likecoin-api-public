@@ -7,6 +7,7 @@ export const NFTAggregatedMetadataResponseSchema = z.object({
   iscnData: z.record(z.string(), z.unknown()).nullable().optional(),
   ownerInfo: z.array(z.string()).nullable().optional(),
   bookstoreInfo: NFTBookListingInfoFilteredSchema.nullable().optional(),
+  isBookstorePendingReview: z.boolean().optional(),
 });
 
 export const NFTAggregatedMetadataQuerySchema = z.object({
