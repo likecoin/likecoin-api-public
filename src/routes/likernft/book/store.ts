@@ -88,7 +88,8 @@ import publisher from '../../../util/gcloudPub';
 import { sendNFTBookListingEmail } from '../../../util/ses';
 import { sendNFTBookNewListingSlackNotification } from '../../../util/slack';
 import {
-  API_HOSTNAME, ARWEAVE_GATEWAY, ONE_DAY_IN_S, ONE_HOUR_IN_S, PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE,
+  API_HOSTNAME, ARWEAVE_GATEWAY, BOOK_PENDING_REVIEW_ERROR, ONE_DAY_IN_S, ONE_HOUR_IN_S,
+  PUBSUB_TOPIC_MISC, MAX_PNG_FILE_SIZE,
 } from '../../../constant';
 import { getArweaveTxAccessToken } from '../../../util/api/arweave/tx';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
@@ -558,7 +559,7 @@ router.get(['/:classId', '/class/:classId'], jwtOptionalAuth('read:nftbook'), va
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized && isPendingReview) {
-      res.status(404).send('BOOK_NOT_FOUND');
+      res.status(404).send(BOOK_PENDING_REVIEW_ERROR);
       return;
     }
     const payload = filterNFTBookListingInfo(bookInfo, isAuthorized);
@@ -581,7 +582,7 @@ router.get(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     } = bookInfo;
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized && isPendingReview) {
-      res.status(404).send('BOOK_NOT_FOUND');
+      res.status(404).send(BOOK_PENDING_REVIEW_ERROR);
       return;
     }
     const priceInfo = prices[priceIndex];
