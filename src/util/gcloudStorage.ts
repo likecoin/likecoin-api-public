@@ -1,4 +1,5 @@
 import { Storage } from '@google-cloud/storage';
+import type { Readable } from 'stream';
 import type { Bucket } from '@google-cloud/storage';
 import { CACHE_BUCKET } from '../constant';
 import { EBOOK_OPEN_BUCKET, EBOOK_PROTECTED_BUCKET } from '../../config/config';
@@ -63,6 +64,31 @@ export async function getTierUploadSignedUrl(
     contentType,
   });
   return url;
+}
+
+// Plaintext read of an ingested object, for an owner-authed passthrough. Mirrors
+// getProtectedFileStream in likecoin-cloud-functions/ebook-cors/nft/protected.js.
+// The metadata call is awaited first so it doubles as an existence and permission
+// probe: an unreadable object throws before anything reaches the response.
+export async function getTierFileStream(
+  tier: ContentTier,
+  objectPath: string,
+): Promise<{ stream: Readable; contentType?: string; size?: number }> {
+  const bucket = getEbookTierBucket(tier);
+  const [metadata] = await bucket.file(objectPath).getMetadata();
+  // A gzip-encoded object streams out decompressed while `size` counts the
+  // stored bytes, so Content-Length would understate the body and silently
+  // truncate the file. Ingestion stores plaintext, so this is drift.
+  if (metadata.contentEncoding) throw new Error(`UNSUPPORTED_CONTENT_ENCODING: ${metadata.contentEncoding}`);
+  const size = Number(metadata.size);
+  return {
+    // Pinned to the generation the metadata describes: a re-ingest between the two
+    // calls would otherwise stream new bytes under the previous Content-Length.
+    // Generation scopes the file ref — createReadStream has no such option.
+    stream: bucket.file(objectPath, { generation: metadata.generation }).createReadStream(),
+    contentType: metadata.contentType,
+    ...(Number.isFinite(size) ? { size } : {}),
+  };
 }
 
 export default storage;

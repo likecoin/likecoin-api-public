@@ -24,6 +24,13 @@ export function isAlreadyExistsError(error: unknown): boolean {
   return err?.code === GRPC_ALREADY_EXISTS || !!err?.message?.includes('ALREADY_EXISTS');
 }
 
+// GCS reports a missing object as an HTTP 404 on the error itself. Callers that
+// already proved a doc exists use this to answer 404 rather than 500 when the
+// bucket copy is gone.
+export function isNotFoundError(error: unknown): boolean {
+  return (error as { code?: number } | undefined)?.code === 404;
+}
+
 // Multiply a bigint amount by a float factor in fixed-point (1e6) space,
 // avoiding float precision loss on large wei amounts.
 export function scaleBigInt(amount: bigint, factor: number): bigint {
