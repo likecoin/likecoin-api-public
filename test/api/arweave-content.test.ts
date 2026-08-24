@@ -17,6 +17,7 @@ const PLAINTEXT = Buffer.from('PKfake-epub-bytes');
 const reads: string[] = [];
 let lastStream: Readable | null = null;
 let readError: { code: number } | null = null;
+let bytesPulled = 0;
 
 // Per-file rather than in setup.ts: a global stub would make the protected bucket
 // look configured to arweave-link.test.ts, whose contentUri case asserts it is not.
@@ -31,6 +32,7 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
       if (readError) throw readError;
       if (objectPath !== BUCKET_PATH) throw new Error('NOT_FOUND');
       lastStream = Readable.from([PLAINTEXT]);
+      lastStream.on('data', () => { bytesPulled += PLAINTEXT.length; });
       return {
         stream: lastStream,
         contentType: 'application/octet-stream',
@@ -41,8 +43,10 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
 });
 
 describe('Arweave content API', () => {
+  // request(), not get(): axios's get() merges { method: 'get' } OVER the caller's
+  // config, so a method override here would be silently discarded.
   const getContent = (txHash: string, config = {}) => axiosist
-    .get(`/api/arweave/v2/content/${txHash}`, { responseType: 'arraybuffer', ...config })
+    .request({ url: `/api/arweave/v2/content/${txHash}`, responseType: 'arraybuffer', ...config })
     .catch((err) => (err as any).response);
 
   const getWithWallet = (wallet?: string) => getContent(TX_HASH, {
@@ -53,6 +57,7 @@ describe('Arweave content API', () => {
     reads.length = 0;
     lastStream = null;
     readError = null;
+    bytesPulled = 0;
     await iscnArweaveTxCollection.doc(TX_HASH).set({
       source: 'gcs',
       tier: 'protected',
@@ -143,6 +148,9 @@ describe('Arweave content API', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-length']).toBe(String(PLAINTEXT.length));
+    // A fully-consumed stream self-destroys, so `destroyed` alone cannot tell a
+    // torn-down HEAD from a drained GET — assert nothing was pulled.
+    expect(bytesPulled).toBe(0);
     expect(lastStream?.destroyed).toBe(true);
   });
 

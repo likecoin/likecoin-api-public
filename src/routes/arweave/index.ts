@@ -54,6 +54,12 @@ import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
 
+// A read that fails after the metadata probe — a deleted generation, revoked
+// access — must answer 404 like the pre-flight checks, not 500.
+function toContentError(error: unknown): unknown {
+  return isNotFoundError(error) ? new ValidationError('CONTENT_OBJECT_NOT_FOUND', 404) : error;
+}
+
 function getArweaveLinkV2Url(txHash: string): string {
   return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
 }
@@ -325,10 +331,10 @@ router.get(
       // read open. createReadStream is lazy, so a failure usually lands before any
       // byte is written and a real status is still sendable.
       pipeline(stream, res, (err) => {
-        if (err && !res.headersSent) next(err);
+        if (err && !res.headersSent) next(toContentError(err));
       });
     } catch (error) {
-      next(isNotFoundError(error) ? new ValidationError('CONTENT_OBJECT_NOT_FOUND', 404) : error);
+      next(toContentError(error));
     }
   },
 );
