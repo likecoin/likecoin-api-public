@@ -3,6 +3,7 @@ import { FieldValue, iscnArweaveTxCollection } from '../../firebase';
 import { unwrapKey, isKMSEnabled } from '../../kms';
 import { getUserWalletsByWallet } from '../users/getPublicInfo';
 import { ValidationError } from '../../ValidationError';
+import { ARWEAVE_LINK_INTERNAL_TOKEN } from '../../../../config/config';
 import { isAlreadyExistsError } from '../../misc';
 import type { ArweaveTxData } from '../../../types/transaction';
 import type { ContentTier } from '../../gcloudStorage';
@@ -121,6 +122,31 @@ export async function isArweaveTxOwner(
   if (!wallets) return false;
   return [wallets.evmWallet, wallets.likeWallet, wallets.cosmosWallet]
     .some((w) => !!w && w.toLowerCase() === target);
+}
+
+// Read gate shared by the link and content routes. Only enforced on docs marked
+// isRequireAuth; `token` accepts the doc's upload token, the internal token or a
+// rotated access token, otherwise the wallet must own the tx.
+export async function assertArweaveTxAccess(tx: ArweaveTxData, {
+  wallet,
+  token,
+}: {
+  wallet?: string;
+  token?: string;
+}): Promise<void> {
+  const {
+    token: docToken, isRequireAuth, ownerWallet, accessToken: docAccessToken,
+  } = tx;
+  if (!isRequireAuth) return;
+  if (!wallet && !token) throw new ValidationError('MISSING_USER', 401);
+  // Guard on `token`: a doc without `token` would otherwise match a
+  // tokenless request on undefined === undefined and skip auth entirely.
+  // Checked before the owner lookup, which costs a Firestore read.
+  const isTokenAuthed = !!token
+    && [docToken, ARWEAVE_LINK_INTERNAL_TOKEN, docAccessToken].includes(token);
+  if (!isTokenAuthed && !(await isArweaveTxOwner(wallet, ownerWallet))) {
+    throw new ValidationError('INVALID_TOKEN', 403);
+  }
 }
 
 // Load a GCS-direct upload doc that `reqUserWallet` owns and that is still

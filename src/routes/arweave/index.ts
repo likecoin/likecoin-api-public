@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { pipeline } from 'stream';
 import uuidv4 from 'uuid/v4';
 import {
   ARWEAVE_MAX_SIZE_V2,
@@ -8,7 +9,6 @@ import publisher from '../../util/gcloudPub';
 import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
 import {
   ARWEAVE_EVM_TARGET_ADDRESS,
-  ARWEAVE_LINK_INTERNAL_TOKEN,
 } from '../../../config/config';
 import {
   createNewGcsUploadTx,
@@ -19,6 +19,7 @@ import {
   rotateArweaveTxAccessToken,
   resolveArweaveTxKey,
   isArweaveTxEncrypted,
+  assertArweaveTxAccess,
 } from '../../util/api/arweave/tx';
 import { getRemainingQuota, withReservedQuota } from '../../util/api/arweave/quota';
 import { reconcilePendingIrysFunding } from '../../util/api/arweave/funding';
@@ -29,7 +30,7 @@ import {
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
 import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
-import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
+import { getTierContentUri, getTierFileStream, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -47,10 +48,17 @@ import {
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { arweaveAdminAuth } from '../../middleware/arweave-admin-auth';
 import { validateBody, validateParams } from '../../middleware/validate';
+import { isNotFoundError } from '../../util/misc';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
+
+// A read that fails after the metadata probe — a deleted generation, revoked
+// access — must answer 404 like the pre-flight checks, not 500.
+function toContentError(error: unknown): unknown {
+  return isNotFoundError(error) ? new ValidationError('CONTENT_OBJECT_NOT_FOUND', 404) : error;
+}
 
 function getArweaveLinkV2Url(txHash: string): string {
   return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
@@ -232,25 +240,14 @@ router.get(
   async (req, res, next) => {
     try {
       const { txHash } = req.params as Record<string, string>;
-      const { token } = req.query as Record<string, string>;
       if (!txHash) throw new ValidationError('MISSING_TX_HASH');
       const tx = await getArweaveTxInfo(txHash);
       if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
-      const {
-        arweaveId, token: docToken, isRequireAuth, ownerWallet,
-        accessToken: docAccessToken,
-      } = tx;
-      if (isRequireAuth) {
-        if (!req.user?.wallet && !token) throw new ValidationError('MISSING_USER', 401);
-        // Guard on `token`: a doc without `token` would otherwise match a
-        // tokenless request on undefined === undefined and skip auth entirely.
-        // Checked before the owner lookup, which costs a Firestore read.
-        const isTokenAuthed = !!token
-          && [docToken, ARWEAVE_LINK_INTERNAL_TOKEN, docAccessToken].includes(token);
-        if (!isTokenAuthed && !(await isArweaveTxOwner(req.user?.wallet, ownerWallet))) {
-          throw new ValidationError('INVALID_TOKEN', 403);
-        }
-      }
+      await assertArweaveTxAccess(tx, {
+        wallet: req.user?.wallet,
+        token: (req.query as Record<string, string>).token,
+      });
+      const { arweaveId } = tx;
       // GCS-direct docs have no arweaveId: interpolating undefined would mint
       // a syntactically valid gateway/undefined URL that every consumer down
       // to the ebook-cors cache key would silently accept.
@@ -291,6 +288,60 @@ router.get(
       res.redirect(link.toString());
     } catch (error) {
       next(error);
+    }
+  },
+);
+
+// Owner-authed passthrough of the ingested plaintext (ADR 0001 Phase 3).
+// Protected-tier docs have no arweaveId, so /v2/link can only advertise a gs://
+// contentUri no browser can fetch; this is how a publisher reads back their own
+// file. Streamed rather than signed: a signed URL is pasteable for its whole TTL,
+// which the ADR rules out for protected content.
+router.get(
+  '/v2/content/:txHash',
+  jwtOptionalAuth('read:iscn'),
+  validateParams(ArweaveTxHashParamsSchema),
+  async (req, res, next) => {
+    try {
+      const { txHash } = req.params as Record<string, string>;
+      if (!txHash) throw new ValidationError('MISSING_TX_HASH');
+      const tx = await getArweaveTxInfo(txHash);
+      if (!tx) throw new ValidationError('TX_NOT_FOUND', 404);
+      await assertArweaveTxAccess(tx, {
+        wallet: req.user?.wallet,
+        token: (req.query as Record<string, string>).token,
+      });
+      const tier = tx.tier || 'protected';
+      if (!isEbookTierBucketEnabled(tier)) throw new ValidationError(`${tier.toUpperCase()}_BUCKET_NOT_CONFIGURED`, 501);
+      // Ingest decrypts on the way in, so the bucket copy is plaintext even for a
+      // legacy doc that still carries an encryptedKey — no key is read here.
+      if (!tx.contentBucketPath) throw new ValidationError('NO_INGESTED_COPY', 404);
+      const { stream, contentType, size } = await getTierFileStream(tier, tx.contentBucketPath);
+      // Answer from the source's own error, not pipeline's callback: pipeline
+      // destroys `res` before calling back, so a status written there is composed
+      // into a dead socket and the caller only ever sees a connection reset.
+      // req.destroyed filters the reader who cancelled before the first byte, which
+      // reaches both handlers as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
+      stream.once('error', (err) => {
+        if (!res.headersSent && !req.destroyed) next(toContentError(err));
+      });
+      // jwtOptionalAuth already set no-store, so the bytes stop at the browser.
+      res.set('Content-Type', tx.contentType || contentType || 'application/octet-stream');
+      if (size !== undefined) res.set('Content-Length', String(size));
+      // Express routes HEAD here too, and res.write() silently discards a HEAD body
+      // while still draining the source — a whole-object read of GCS egress per call.
+      if (req.method === 'HEAD') {
+        stream.destroy();
+        res.end();
+        return;
+      }
+      // pipeline, not pipe: pipe only unpipes on a client abort, leaving the GCS
+      // read open.
+      pipeline(stream, res, (err) => {
+        if (err && !res.headersSent && !req.destroyed) next(toContentError(err));
+      });
+    } catch (error) {
+      next(toContentError(error));
     }
   },
 );
