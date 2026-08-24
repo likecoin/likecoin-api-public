@@ -17,6 +17,7 @@ const PLAINTEXT = Buffer.from('PKfake-epub-bytes');
 const reads: string[] = [];
 let lastStream: Readable | null = null;
 let readError: { code: number } | null = null;
+let streamError: { code: number } | null = null;
 let bytesPulled = 0;
 
 // Per-file rather than in setup.ts: a global stub would make the protected bucket
@@ -31,8 +32,15 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
       reads.push(`${tier}:${objectPath}`);
       if (readError) throw readError;
       if (objectPath !== BUCKET_PATH) throw new Error('NOT_FOUND');
-      lastStream = Readable.from([PLAINTEXT]);
-      lastStream.on('data', () => { bytesPulled += PLAINTEXT.length; });
+      // Counted on pull, from a lazy generator: attaching a 'data' listener here
+      // would flip the stream into flowing mode and drain it before the route
+      // decides HEAD vs GET, measuring the probe rather than the route.
+      lastStream = streamError
+        ? new Readable({ read() { this.destroy(Object.assign(new Error('gone'), streamError)); } })
+        : Readable.from((function* yieldOnce() {
+          bytesPulled += PLAINTEXT.length;
+          yield PLAINTEXT;
+        }()));
       return {
         stream: lastStream,
         contentType: 'application/octet-stream',
@@ -57,6 +65,7 @@ describe('Arweave content API', () => {
     reads.length = 0;
     lastStream = null;
     readError = null;
+    streamError = null;
     bytesPulled = 0;
     await iscnArweaveTxCollection.doc(TX_HASH).set({
       source: 'gcs',
@@ -159,6 +168,16 @@ describe('Arweave content API', () => {
     const res = await getWithWallet(testingWallet1);
 
     expect(res.status).toBe(404);
+  });
+
+  // pipeline() destroys `res` before its callback runs, so a status written from
+  // there reaches a dead socket. This asserts the caller sees a real response.
+  it('answers 404 when the object read fails after the metadata probe', async () => {
+    streamError = { code: 404 };
+    const res = await getWithWallet(testingWallet1);
+
+    expect(res.status).toBe(404);
+    expect(String(res.data)).toContain('CONTENT_OBJECT_NOT_FOUND');
   });
 
   it('returns 404 for an unknown tx', async () => {
