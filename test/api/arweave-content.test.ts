@@ -18,6 +18,7 @@ const reads: string[] = [];
 let lastStream: Readable | null = null;
 let readError: { code: number } | null = null;
 let streamError: { code: number } | null = null;
+let payload: Buffer = PLAINTEXT;
 let bytesPulled = 0;
 
 // Per-file rather than in setup.ts: a global stub would make the protected bucket
@@ -38,13 +39,13 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
       lastStream = streamError
         ? new Readable({ read() { this.destroy(Object.assign(new Error('gone'), streamError)); } })
         : Readable.from((function* yieldOnce() {
-          bytesPulled += PLAINTEXT.length;
-          yield PLAINTEXT;
+          bytesPulled += payload.length;
+          yield payload;
         }()));
       return {
         stream: lastStream,
         contentType: 'application/octet-stream',
-        size: PLAINTEXT.length,
+        size: payload.length,
       };
     },
   };
@@ -66,6 +67,7 @@ describe('Arweave content API', () => {
     lastStream = null;
     readError = null;
     streamError = null;
+    payload = PLAINTEXT;
     bytesPulled = 0;
     await iscnArweaveTxCollection.doc(TX_HASH).set({
       source: 'gcs',
@@ -178,6 +180,16 @@ describe('Arweave content API', () => {
 
     expect(res.status).toBe(404);
     expect(String(res.data)).toContain('CONTENT_OBJECT_NOT_FOUND');
+  });
+
+  // A known length of zero is still a known length; truthiness would drop it and
+  // leave HEAD unable to report the object's size.
+  it('reports Content-Length for a zero-byte object', async () => {
+    payload = Buffer.alloc(0);
+    const res = await getWithWallet(testingWallet1);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-length']).toBe('0');
   });
 
   it('returns 404 for an unknown tx', async () => {

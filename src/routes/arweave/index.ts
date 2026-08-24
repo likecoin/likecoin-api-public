@@ -320,12 +320,14 @@ router.get(
       // Answer from the source's own error, not pipeline's callback: pipeline
       // destroys `res` before calling back, so a status written there is composed
       // into a dead socket and the caller only ever sees a connection reset.
+      // req.destroyed filters the reader who cancelled before the first byte, which
+      // reaches both handlers as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
       stream.once('error', (err) => {
-        if (!res.headersSent) next(toContentError(err));
+        if (!res.headersSent && !req.destroyed) next(toContentError(err));
       });
       // jwtOptionalAuth already set no-store, so the bytes stop at the browser.
       res.set('Content-Type', tx.contentType || contentType || 'application/octet-stream');
-      if (size) res.set('Content-Length', String(size));
+      if (size !== undefined) res.set('Content-Length', String(size));
       // Express routes HEAD here too, and res.write() silently discards a HEAD body
       // while still draining the source — a whole-object read of GCS egress per call.
       if (req.method === 'HEAD') {
@@ -334,8 +336,7 @@ router.get(
         return;
       }
       // pipeline, not pipe: pipe only unpipes on a client abort, leaving the GCS
-      // read open. req.destroyed filters the reader who cancelled before the first
-      // byte, which arrives as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
+      // read open.
       pipeline(stream, res, (err) => {
         if (err && !res.headersSent && !req.destroyed) next(toContentError(err));
       });
