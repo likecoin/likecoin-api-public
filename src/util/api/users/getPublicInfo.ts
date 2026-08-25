@@ -17,6 +17,7 @@ import {
 import {
   userCollection as dbRef,
 } from '../../firebase';
+import { getUserHandle, resolveUserDocByHandle } from './handle';
 import type {
   UserData,
   UserCivicLikerProperties,
@@ -43,6 +44,7 @@ export function formatUserCivicLikerProperies(
   const payload: UserCivicLikerProperties = {
     ...data,
     user: id,
+    handle: getUserHandle(id, data),
     avatar: '',
   };
   let avatarUrl = `https://${API_EXTERNAL_HOSTNAME}/users/id/${id}/avatar?size=${DEFAULT_AVATAR_SIZE}`;
@@ -124,18 +126,20 @@ export function formatUserCivicLikerProperies(
   return payload;
 }
 
+// `id` may be a public handle (including a renamed-away alias) or the internal
+// document id; both resolve to the same account.
 export async function getUserWithCivicLikerProperties(
   id: string,
 ): Promise<UserCivicLikerProperties | null> {
-  const userDoc = await dbRef.doc(id).get();
+  const userDoc = await resolveUserDocByHandle(id);
   if (!isValidUserDoc(userDoc)) return null;
   const payload = formatUserCivicLikerProperies(userDoc as DocumentSnapshot<UserData>);
   return payload;
 }
 
 export async function getUserAvatar(id: string): Promise<string | null> {
-  const userDoc = await dbRef.doc(id).get();
-  if (!isValidUserDoc(userDoc as DocumentSnapshot<UserData>)) return null;
+  const userDoc = await resolveUserDocByHandle(id);
+  if (!userDoc || !isValidUserDoc(userDoc as DocumentSnapshot<UserData>)) return null;
   const data: UserData | undefined = userDoc.data();
   if (!data) return AVATAR_DEFAULT_PATH;
   const { avatar } = data;

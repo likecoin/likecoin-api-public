@@ -56,6 +56,7 @@ import {
 } from '../../util/api/plus/gift';
 import publisher from '../../util/gcloudPub';
 import { getUserWithCivicLikerPropertiesByWallet } from '../../util/api/users';
+import { resolveAttributionUserId } from '../../util/api/users/handle';
 import logServerEvents from '../../util/logServerEvents';
 import {
   checkUserNameValid, filterPlusGiftCartData, normalizeLikerId, sendValidatedJSON,
@@ -612,28 +613,37 @@ router.get('/affiliate', jwtAuth('read:plus'), async (req, res, next) => {
     if (!userInfo) {
       throw new ValidationError('USER_NOT_FOUND', 404);
     }
-    const selfLikerId = userInfo.user ? normalizeLikerId(userInfo.user) : undefined;
     const selfWallet = userInfo.evmWallet || userInfo.likeWallet;
-    const realAffiliateFrom = userInfo.plusAffiliateFrom
-      ? normalizeLikerId(userInfo.plusAffiliateFrom)
-      : undefined;
+    // Legacy records store the handle that was on the referral link, current ones
+    // store the internal id. Resolve before comparing, or an affiliate who has
+    // since renamed is listed twice — once as self, once as the referrer.
+    const [selfBookUserInfo, realAffiliateFrom] = await Promise.all([
+      selfWallet ? getBookUserInfo(selfWallet) : undefined,
+      userInfo.plusAffiliateFrom
+        ? resolveAttributionUserId(userInfo.plusAffiliateFrom)
+        : undefined,
+    ]);
     // Self first, then the real affiliate (skipped when it is the user themselves).
     // Self is only offered when its own config is active.
     const affiliates: PlusSelfAffiliateEntry[] = [];
-    if (selfLikerId && selfWallet && checkUserNameValid(selfLikerId)) {
-      const selfConfig = buildAffiliateConfigResponse(await getBookUserInfo(selfWallet));
+    // The emitted value is the current handle, not the internal id: it is what the
+    // client puts in `from=@…` links, so it is what has to be a valid handle.
+    if (checkUserNameValid(userInfo.handle)) {
+      const selfConfig = buildAffiliateConfigResponse(selfBookUserInfo);
       if (selfConfig.active) {
-        affiliates.push({ likerId: selfLikerId, isSelf: true, ...selfConfig });
+        affiliates.push({ likerId: userInfo.handle, isSelf: true, ...selfConfig });
       }
     }
-    if (realAffiliateFrom && realAffiliateFrom !== selfLikerId
-      && checkUserNameValid(realAffiliateFrom)) {
+    if (realAffiliateFrom && realAffiliateFrom !== userInfo.user) {
       const realInfo = await getBookUserInfoFromLikerId(realAffiliateFrom);
-      affiliates.push({
-        likerId: realAffiliateFrom,
-        isSelf: false,
-        ...buildAffiliateConfigResponse(realInfo?.bookUserInfo),
-      });
+      const realHandle = realInfo?.likerUserInfo?.handle || realAffiliateFrom;
+      if (checkUserNameValid(realHandle)) {
+        affiliates.push({
+          likerId: realHandle,
+          isSelf: false,
+          ...buildAffiliateConfigResponse(realInfo?.bookUserInfo),
+        });
+      }
     }
     sendValidatedJSON(res, PlusSelfAffiliateResponseSchema, { affiliates });
   } catch (error) {
