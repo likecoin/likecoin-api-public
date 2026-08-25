@@ -17,6 +17,11 @@ import type {
   AffiliateConfigSchema,
   PlusGiftCartStatusResponseSchema,
 } from '../util/api/plus/schemas';
+import type {
+  CONFIDENCE_VALUES,
+  HK_RISK_LEVELS,
+  NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS,
+} from '../util/api/likernft/book/complianceReview';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
@@ -132,6 +137,30 @@ export type NFTBookPriceFiltered = z.infer<typeof NFTBookPriceFilteredSchema>;
 
 export type NFTBookPricesInfoFiltered = z.infer<typeof NFTBookPricesInfoFilteredSchema>;
 
+export type NFTBookComplianceReviewAction =
+  (typeof NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS)[number];
+
+export interface NFTBookComplianceReviewVerdict {
+  action: NFTBookComplianceReviewAction;
+  hkRisk: (typeof HK_RISK_LEVELS)[number];
+  adult: boolean;
+  copyrightFlag: boolean;
+  confidence: (typeof CONFIDENCE_VALUES)[number];
+  // "Pass but ping": publish under `action`, but ask admins for a second look
+  // (privacy, spam, borderline adult, other legal concerns).
+  needsHumanReview: boolean;
+  reason: string;
+}
+
+// Stored on the listing doc as `aiReview`. Admin-only: intentionally absent
+// from filterNFTBookListingInfo and NFTBookListingInfoFilteredSchema, so it
+// must never be added to either — owners must not see it.
+export interface NFTBookComplianceReviewRecord extends NFTBookComplianceReviewVerdict {
+  model: string;
+  // ms epoch; a FieldValue sentinel cannot be nested inside a map field.
+  timestamp: number;
+}
+
 export interface NFTBookListingInfo {
   id?: string;
   classId: string;
@@ -182,6 +211,7 @@ export interface NFTBookListingInfo {
   // ISO 3166-1 alpha-2 country codes the storefront must not offer this listing in.
   // Admin-set, not author-editable; enforcement happens client-side.
   restrictedTerritories?: string[];
+  aiReview?: NFTBookComplianceReviewRecord;
   isLikerLandArt?: boolean;
   isApprovedForSale?: boolean;
   isApprovedForIndexing?: boolean;

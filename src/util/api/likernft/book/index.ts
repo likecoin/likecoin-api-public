@@ -27,6 +27,10 @@ import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
+import {
+  getListingFlagOverridesForReviewAction,
+  reviewBookListingContent,
+} from './complianceReview';
 import type {
   BookContributor, BookSignatureImage, NFTBookListingInfo, NFTBookPrice,
 } from '../../../../types/book';
@@ -299,19 +303,25 @@ export async function newNftBookInfo(
   } = data;
   const previewContent = getPreviewContentFromHasPart(hasPart);
 
-  const stripeProducts = await Promise.all(prices
-    .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
-      bookInfo: data,
-      price: p,
-    })));
+  // The AI review runs concurrently so its latency hides behind the Stripe
+  // product creation round-trips.
+  const [stripeProducts, isTrustedPublisher, review] = await Promise.all([
+    Promise.all(prices
+      .map((p, index) => createStripeProductFromNFTBookPrice(classId, index, {
+        bookInfo: data,
+        price: p,
+      }))),
+    checkIsTrustedPublisher(ownerWallet),
+    reviewBookListingContent({
+      name, author, publisher, inLanguage, keywords, description,
+    }),
+  ]);
   const newPrices = prices.map((p, order) => ({
     order,
     sold: 0,
     ...stripeProducts[order],
     ...formatPriceInfo(p),
   }));
-
-  const isTrustedPublisher = await checkIsTrustedPublisher(ownerWallet);
 
   const timestamp = FieldValue.serverTimestamp();
   const payload: NFTBookListingInfo = {
@@ -368,9 +378,24 @@ export async function newNftBookInfo(
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
   if (previewPercentage !== undefined) payload.previewPercentage = previewPercentage;
+  // Verdict overrides go last so they win over the defaults above and over
+  // author-supplied fields (notably isAdultOnly). Restrict-only by design.
+  if (review.status === 'completed') {
+    Object.assign(payload, getListingFlagOverridesForReviewAction(review.verdict.action));
+    payload.aiReview = {
+      ...review.verdict,
+      model: review.model,
+      timestamp: Date.now(),
+    };
+  }
   await likeNFTBookCollection.doc(classId).create(payload);
   return {
-    isAutoApproved: isTrustedPublisher,
+    // Derived from the final payload (not the inputs) so callers report the
+    // stored state: 'approved' only happens for trusted publishers the review
+    // left untouched, and the review may have force-set isAdultOnly.
+    isAutoApproved: payload.approvalStatus === 'approved',
+    isAdultOnly: !!payload.isAdultOnly,
+    review,
   };
 }
 
