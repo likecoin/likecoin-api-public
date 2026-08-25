@@ -2,6 +2,7 @@ import { getVertexGenAIClient } from '../../../vertexAI';
 import {
   NFT_BOOK_COMPLIANCE_REVIEW_MODEL,
   NFT_BOOK_COMPLIANCE_REVIEW_PROMPT,
+  VERTEX_AI_GEMINI_MODEL,
 } from '../../../../../config/config';
 import type {
   NFTBookComplianceReviewAction,
@@ -17,6 +18,12 @@ export const NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS = [
 
 export const HK_RISK_LEVELS = ['none', 'low', 'medium', 'high'] as const;
 export const CONFIDENCE_VALUES = ['high', 'medium', 'low'] as const;
+
+// The deployed config.js overrides the repo one, so a newly added key reads as
+// undefined in prod until ops adds it: fall back to the already-deployed model
+// key, and repeat its default here since the SDK needs a real model name.
+const REVIEW_MODEL = NFT_BOOK_COMPLIANCE_REVIEW_MODEL
+  || VERTEX_AI_GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
 const MAX_DESCRIPTION_CHARS = 4000;
 const MAX_REASON_CHARS = 1000;
@@ -77,7 +84,7 @@ export async function reviewBookListingContent({
     ].filter(Boolean).join('\n');
 
     const response = await client.models.generateContent({
-      model: NFT_BOOK_COMPLIANCE_REVIEW_MODEL,
+      model: REVIEW_MODEL,
       contents: bookBlock,
       config: {
         systemInstruction: NFT_BOOK_COMPLIANCE_REVIEW_PROMPT,
@@ -126,13 +133,18 @@ export async function reviewBookListingContent({
       needsHumanReview: !!parsed.needsHumanReview,
       reason: String(parsed.reason || '').slice(0, MAX_REASON_CHARS),
     };
-    return { status: 'completed', verdict, model: NFT_BOOK_COMPLIANCE_REVIEW_MODEL };
+    return { status: 'completed', verdict, model: REVIEW_MODEL };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('reviewBookListingContent failed:', err);
     return { status: 'failed' };
   }
 }
+
+// Verdicts whose Slack notification always asks for a second look, even when
+// the model did not: geoblock_hk applies a user-visible purchase restriction
+// with no human read (undo: `/book approve <classId> clear_geoblock`).
+export const FORCE_PING_REVIEW_ACTIONS: NFTBookComplianceReviewAction[] = ['geoblock_hk'];
 
 // Restrict-only initial-flag overrides per verdict. stop_sale_review mirrors
 // the Slack /book `pending_review` combo (src/routes/slack/book.ts) so admins
