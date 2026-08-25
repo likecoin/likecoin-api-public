@@ -170,4 +170,10 @@ config.VERTEX_AI_PROJECT_ID = process.env.VERTEX_AI_PROJECT_ID || '';
 config.VERTEX_AI_REGION = process.env.VERTEX_AI_REGION || 'global';
 config.VERTEX_AI_GEMINI_MODEL = process.env.VERTEX_AI_GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
+// System prompt for the AI pre-screen of new book listings. The prompt text is
+// operator-side configuration; an empty value disables the review step entirely.
+config.NFT_BOOK_COMPLIANCE_REVIEW_PROMPT = process.env.NFT_BOOK_COMPLIANCE_REVIEW_PROMPT || '';
+config.NFT_BOOK_COMPLIANCE_REVIEW_MODEL = process.env.NFT_BOOK_COMPLIANCE_REVIEW_MODEL
+  || config.VERTEX_AI_GEMINI_MODEL;
+
 module.exports = config;

@@ -15,6 +15,7 @@ import {
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
+import type { BookComplianceReviewOutcome } from './api/likernft/book/complianceReview';
 import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
 
@@ -31,6 +32,7 @@ export async function sendNFTBookNewListingSlackNotification({
   isAdultOnly = false,
   fileRecords,
   contentFingerprints,
+  aiReview,
 }: {
   wallet: string;
   classId: string;
@@ -45,6 +47,7 @@ export async function sendNFTBookNewListingSlackNotification({
     isEncrypted?: boolean;
   }[];
   contentFingerprints?: string[];
+  aiReview?: BookComplianceReviewOutcome;
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
@@ -56,9 +59,33 @@ export async function sendNFTBookNewListingSlackNotification({
       },
     ).join('\n');
 
-    const approvalStatusText = isAutoApproved
+    let aiReviewText = 'N/A';
+    if (aiReview?.status === 'failed') {
+      aiReviewText = '⚠️ AI review failed (published with defaults)';
+    } else if (aiReview?.status === 'completed') {
+      const { verdict } = aiReview;
+      aiReviewText = [
+        verdict.needsHumanReview ? '👀 Human review requested' : '',
+        `${verdict.action} | hkRisk: ${verdict.hkRisk} | adult: ${verdict.adult}`
+          + ` | copyright: ${verdict.copyrightFlag} | confidence: ${verdict.confidence}`,
+        verdict.reason,
+      ].filter(Boolean).join('\n');
+    }
+
+    // Held/pinged listings repurpose the approvalStatus line as the review
+    // request: that workflow variable already renders, while the aiReview key
+    // stays invisible until it is declared in the Slack workflow.
+    const isHeldByAiReview = aiReview?.status === 'completed'
+      && aiReview.verdict.action === 'stop_sale_review';
+    let approvalStatusText = isAutoApproved
       ? '✅ Auto-approved (Trusted Publisher)'
       : '⏳ Pending Approval';
+    if (isHeldByAiReview) {
+      approvalStatusText = '🚫 Held for review by AI screen — release with'
+        + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
+    } else if (aiReview?.status === 'completed' && aiReview.verdict.needsHumanReview) {
+      approvalStatusText = `👀 Published, but the AI screen requests human review: ${aiReview.verdict.reason}`;
+    }
 
     const filesText = (fileRecords || []).map((f) => {
       const label = [f.name, f.contentType, f.isEncrypted ? 'encrypted' : ''].filter(Boolean).join(', ');
@@ -78,6 +105,7 @@ export async function sendNFTBookNewListingSlackNotification({
       ...(isAdultOnly ? { adultOnly: '🔞 Adult Content (18+)' } : {}),
       files: filesText,
       fingerprints: fingerprintsText,
+      aiReview: aiReviewText,
     };
 
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, payload);

@@ -910,7 +910,12 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     } = metadata;
     const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
 
-    const { isAutoApproved } = await newNftBookInfo(classId, {
+    const {
+      isAutoApproved,
+      review,
+      // The stored flag, not the request's: the AI review may have force-set it.
+      isAdultOnly: effectiveIsAdultOnly,
+    } = await newNftBookInfo(classId, {
       iscnIdPrefix: metadata.iscnIdPrefix,
       ownerWallet,
       successUrl,
@@ -993,9 +998,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         className,
         prices,
         isAutoApproved,
-        isAdultOnly,
+        isAdultOnly: effectiveIsAdultOnly,
         fileRecords,
         contentFingerprints,
+        aiReview: review,
       }),
       createAirtablePublicationRecord({
         id: classId,
@@ -1021,7 +1027,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         genre,
         isDRMFree: !hideDownload,
         isHidden: false, // Don't hide new listing until hidden
-        isAdultOnly,
+        isAdultOnly: effectiveIsAdultOnly,
         isPlusReadingEnabled,
       }),
     ]);
