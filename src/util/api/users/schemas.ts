@@ -94,6 +94,23 @@ export const UsersRegisterBodySchema = z.object({
   fbc: z.string().optional(),
 }).passthrough();
 
+// Same shape as a body and as a route param; format is enforced downstream by
+// checkUserNameValid, which owns the handle character set.
+export const UsersHandleSchema = z.object({
+  handle: z.string().min(1),
+});
+
+export const UsersHandleAvailabilityResponseSchema = z.object({
+  handle: z.string(),
+  isAvailable: z.boolean(),
+});
+
+export const UsersHandleResponseSchema = z.object({
+  user: z.string(),
+  handle: z.string(),
+  previousHandle: z.string(),
+});
+
 export const UsersPreferencesResponseSchema = z.object({
   locale: z.string().optional(),
   creatorPitch: z.string(),
@@ -106,6 +123,9 @@ export const UsersUpdateAvatarResponseSchema = z.object({
 
 export const UserDataMinResponseSchema = z.object({
   user: z.string(),
+  // Optional so a response assembled outside formatUserCivicLikerProperies cannot
+  // 500 on a missing field.
+  handle: z.string().optional(),
   displayName: z.string().optional(),
   avatar: z.string().optional(),
   wallet: z.string().optional(),
@@ -126,6 +146,7 @@ export const UserDataMinResponseSchema = z.object({
 
 export const UserDataFilteredResponseSchema = z.object({
   user: z.string(),
+  handle: z.string().optional(),
   bonusCooldown: z.number().optional(),
   displayName: z.string().optional(),
   description: z.string().optional(),

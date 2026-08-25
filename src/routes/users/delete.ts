@@ -5,6 +5,7 @@ import {
   getUserWithCivicLikerProperties,
 } from '../../util/api/users/getPublicInfo';
 import { checkCosmosSignPayload, checkEVMSignPayload } from '../../util/api/users';
+import { isSameUser } from '../../util/api/users/handle';
 import { deleteAllUserData } from '../../util/api/users/delete';
 import { UsersDeleteBodySchema, UsersIdParamsSchema } from '../../util/api/users/schemas';
 import { ValidationError } from '../../util/ValidationError';
@@ -15,7 +16,7 @@ router.post('/delete/:id', jwtAuth('write'), validateParams(UsersIdParamsSchema)
   try {
     const { id } = req.params;
     const { user } = req.user;
-    if (user !== id) {
+    if (!await isSameUser(user, id as string)) {
       res.status(401).send('LOGIN_NEEDED');
       return;
     }
