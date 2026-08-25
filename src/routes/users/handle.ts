@@ -30,7 +30,7 @@ router.get('/handle/:handle/available', validateParams(UsersHandleSchema), async
   }
 });
 
-router.post('/handle', jwtAuth('write'), validateBody(UsersHandleSchema), async (req, res, next) => {
+router.post('/handle', jwtAuth('write:profile'), validateBody(UsersHandleSchema), async (req, res, next) => {
   try {
     const { user } = req.user;
     const { handle: newHandleInput } = req.body;
