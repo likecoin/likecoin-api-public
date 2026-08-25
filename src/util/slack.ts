@@ -15,13 +15,23 @@ import {
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
-import type { BookComplianceReviewOutcome } from './api/likernft/book/complianceReview';
+import {
+  FORCE_PING_REVIEW_ACTIONS,
+  type BookComplianceReviewOutcome,
+} from './api/likernft/book/complianceReview';
 import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
 
 // RevenueCat has no per-customer URL without a project id, so link to the
 // dashboard and search there for the transaction id shown in the message.
 const REVENUECAT_DASHBOARD_URL = 'https://app.revenuecat.com/';
+
+// Slack parses mrkdwn in workflow variables, so `<!channel>`-style sequences in
+// AI output derived from user metadata could ping the channel or spoof a link.
+// Escaping the three reserved characters keeps the text readable but inert.
+function escapeSlackText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 export async function sendNFTBookNewListingSlackNotification({
   wallet,
@@ -54,37 +64,39 @@ export async function sendNFTBookNewListingSlackNotification({
     const classLink = getBook3NFTClassPageURL({ classId });
     const editions = prices.map(
       (p) => {
-        const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} USD}`;
+        const priceWithCurrency = p.priceInDecimal === 0 ? 'FREE' : `${p.priceInDecimal / 100} USD`;
         return `Name: ${Object.values(p.name || {}).join(', ')}; Price: ${priceWithCurrency}; Stock: ${p.stock}`;
       },
     ).join('\n');
 
+    const completedVerdict = aiReview?.status === 'completed' ? aiReview.verdict : undefined;
+    const isPingedByAiReview = !!completedVerdict
+      && (completedVerdict.needsHumanReview
+        || FORCE_PING_REVIEW_ACTIONS.includes(completedVerdict.action));
+
     let aiReviewText = 'N/A';
     if (aiReview?.status === 'failed') {
       aiReviewText = '⚠️ AI review failed (published with defaults)';
-    } else if (aiReview?.status === 'completed') {
-      const { verdict } = aiReview;
+    } else if (completedVerdict) {
       aiReviewText = [
-        verdict.needsHumanReview ? '👀 Human review requested' : '',
-        `${verdict.action} | hkRisk: ${verdict.hkRisk} | adult: ${verdict.adult}`
-          + ` | copyright: ${verdict.copyrightFlag} | confidence: ${verdict.confidence}`,
-        verdict.reason,
+        isPingedByAiReview ? '👀 Human review requested' : '',
+        `${completedVerdict.action} | hkRisk: ${completedVerdict.hkRisk} | adult: ${completedVerdict.adult}`
+          + ` | copyright: ${completedVerdict.copyrightFlag} | confidence: ${completedVerdict.confidence}`,
+        escapeSlackText(completedVerdict.reason),
       ].filter(Boolean).join('\n');
     }
 
     // Held/pinged listings repurpose the approvalStatus line as the review
     // request: that workflow variable already renders, while the aiReview key
     // stays invisible until it is declared in the Slack workflow.
-    const isHeldByAiReview = aiReview?.status === 'completed'
-      && aiReview.verdict.action === 'stop_sale_review';
     let approvalStatusText = isAutoApproved
       ? '✅ Auto-approved (Trusted Publisher)'
       : '⏳ Pending Approval';
-    if (isHeldByAiReview) {
+    if (completedVerdict?.action === 'stop_sale_review') {
       approvalStatusText = '🚫 Held for review by AI screen — release with'
         + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
-    } else if (aiReview?.status === 'completed' && aiReview.verdict.needsHumanReview) {
-      approvalStatusText = `👀 Published, but the AI screen requests human review: ${aiReview.verdict.reason}`;
+    } else if (completedVerdict && isPingedByAiReview) {
+      approvalStatusText = `👀 Published, but the AI screen requests human review: ${escapeSlackText(completedVerdict.reason)}`;
     }
 
     const filesText = (fileRecords || []).map((f) => {
@@ -138,6 +150,9 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
         break;
       case 'reject':
         actionText = '❌ Rejected/Hidden';
+        break;
+      case 'clear_geoblock':
+        actionText = '🌍 Territory restriction cleared';
         break;
       default:
         actionText = action;
