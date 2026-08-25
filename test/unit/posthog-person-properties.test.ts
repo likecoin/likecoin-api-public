@@ -2,11 +2,16 @@ import {
   describe, it, expect, vi, beforeEach,
 } from 'vitest';
 
-const { captureMock } = vi.hoisted(() => ({ captureMock: vi.fn() }));
+const { captureMock, identifyMock } = vi.hoisted(() => ({
+  captureMock: vi.fn(),
+  identifyMock: vi.fn(),
+}));
 
 vi.mock('posthog-node', () => ({
   PostHog: class {
     capture = captureMock;
+
+    identify = identifyMock;
 
     // eslint-disable-next-line class-methods-use-this
     shutdown() { return Promise.resolve(); }
@@ -32,6 +37,7 @@ function lastSetPayload() {
 describe('logPostHogEvents person properties', () => {
   beforeEach(() => {
     captureMock.mockClear();
+    identifyMock.mockClear();
   });
 
   it('writes entitlement props alongside email for a wallet-identified user', () => {
@@ -69,5 +75,31 @@ describe('logPostHogEvents person properties', () => {
   it('leaves $set undefined when there is nothing to write', () => {
     logPostHogEvents('SubscriptionCancelled', { evmWallet: '0xabc' });
     expect(lastSetPayload()).toBeUndefined();
+  });
+
+  it('repeats the person props through identify when the event carries a dedup uuid', () => {
+    logPostHogEvents('Subscribe', {
+      evmWallet: '0xabc',
+      paymentId: 'sub_123',
+      set: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    });
+    expect(identifyMock).toHaveBeenCalledTimes(1);
+    expect(identifyMock.mock.calls[0][0]).toEqual({
+      distinctId: '0xabc',
+      properties: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    });
+  });
+
+  it('skips identify when no dedup uuid is derived', () => {
+    logPostHogEvents('Subscribe', {
+      evmWallet: '0xabc',
+      set: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    });
+    expect(identifyMock).not.toHaveBeenCalled();
+  });
+
+  it('skips identify when there are no person props to write', () => {
+    logPostHogEvents('SubscriptionCancelled', { evmWallet: '0xabc', paymentId: 'sub_123' });
+    expect(identifyMock).not.toHaveBeenCalled();
   });
 });

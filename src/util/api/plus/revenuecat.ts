@@ -806,6 +806,10 @@ async function handleExpiration(
     logServerEvents(isTrialEnd ? 'TrialEnded' : 'SubscriptionCancelled', {
       email: user.email,
       evmWallet: user.evmWallet,
+      // Must resolve to the same distinct id the grant used,
+      // or a wallet-less app subscriber is granted under the forwarded id and never cleared.
+      // No stored fallback like transactionId above, so a cleared attribute still drops it.
+      posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
       paymentId: transactionId,
       // Mirrors clearIntercomPlusFlags above: the guards at the top of this
       // function mean reaching here is an actual loss of access.

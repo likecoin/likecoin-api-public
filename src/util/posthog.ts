@@ -105,16 +105,17 @@ export default function logPostHogEvents(event: ServerEventName, {
     // The browser stamps the same person props on every identify (liker-land-v3
     // composables/use-logger.ts), but it never sees a lifecycle change the user
     // isn't present for — so subscription callers write them from here too.
-    const personProperties = { ...(email ? { email } : {}), ...set };
+    const personProperties = nonEmpty({ ...(email ? { email } : {}), ...set });
+    const uuid = typeof paymentId === 'string' && paymentId
+      ? derivePostHogEventUUID(posthogEvent, paymentId)
+      : undefined;
     client.capture({
       distinctId,
       event: posthogEvent,
-      uuid: typeof paymentId === 'string' && paymentId
-        ? derivePostHogEventUUID(posthogEvent, paymentId)
-        : undefined,
+      uuid,
       properties: {
         ...extraProperties,
-        $set: nonEmpty(personProperties),
+        $set: personProperties,
         $set_once: nonEmpty(setOnce),
         $insert_id: paymentId ? `${posthogEvent}_${paymentId}` : undefined,
         $anon_distinct_id: anonDistinctId,
@@ -128,6 +129,12 @@ export default function logPostHogEvents(event: ServerEventName, {
         })) : undefined,
       },
     });
+    // A derived uuid lets PostHog collapse this row against the browser's copy,
+    // and the dropped copy takes its $set with it.
+    // identify() carries no dedup key, so the person write survives either way.
+    if (uuid && personProperties) {
+      client.identify({ distinctId, properties: personProperties });
+    }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('logPostHogEvents error', error);
