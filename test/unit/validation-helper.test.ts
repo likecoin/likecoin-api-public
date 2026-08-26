@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import { z } from 'zod';
 import type { Response } from 'express';
-import { sendValidatedJSON } from '../../src/util/ValidationHelper';
+import { filterNFTBookListingInfo, sendValidatedJSON } from '../../src/util/ValidationHelper';
 
 function mockRes() {
   const res: any = {};
@@ -61,5 +61,56 @@ describe('sendValidatedJSON in production', () => {
     expect(() => prodSend(res, schema, { id: 'abc', count: 'nope' } as any))
       .toThrow(/RESPONSE_SCHEMA_MISMATCH/);
     expect(res.json).not.toHaveBeenCalled();
+  });
+});
+
+function bookInfo(prices: any[]) {
+  return {
+    classId: '0xabc',
+    ownerWallet: '0xowner',
+    prices,
+    isPlusReadingEnabled: true,
+    isPreviewEnabled: true,
+  } as any;
+}
+
+const LISTED = { priceInDecimal: 100, stock: 1, isUnlisted: false };
+const UNLISTED = { priceInDecimal: 100, stock: 1, isUnlisted: true };
+
+describe('filterNFTBookListingInfo library and preview masking', () => {
+  it('reports borrowing and preview off when no edition is listed', () => {
+    const payload = filterNFTBookListingInfo(bookInfo([UNLISTED, UNLISTED]));
+    expect(payload.isPlusReadingEnabled).toBe(false);
+    expect(payload.isPreviewEnabled).toBe(false);
+  });
+
+  it('leaves both on when at least one edition is listed', () => {
+    const payload = filterNFTBookListingInfo(bookInfo([UNLISTED, LISTED]));
+    expect(payload.isPlusReadingEnabled).toBe(true);
+    expect(payload.isPreviewEnabled).toBe(true);
+  });
+
+  // Only an author's own unlisting counts. A listing always carries at least one
+  // edition (NFTBookPricesSchema.min(1)), so an empty set is a broken doc rather
+  // than a book taken off the shelf, and is left as it is.
+  it('leaves a book with no editions at all alone', () => {
+    const payload = filterNFTBookListingInfo(bookInfo([]));
+    expect(payload.isPlusReadingEnabled).toBe(true);
+    expect(payload.isPreviewEnabled).toBe(true);
+  });
+
+  // The owner reads the stored values: publish.3ook.com seeds its settings form
+  // from this payload, so a masked false would be saved back over their opt-in.
+  it('keeps the stored values for the owner', () => {
+    const payload = filterNFTBookListingInfo(bookInfo([UNLISTED]), true);
+    expect(payload.isPlusReadingEnabled).toBe(true);
+    expect(payload.isPreviewEnabled).toBe(true);
+  });
+
+  it('does not turn a stored false into true', () => {
+    const info = { ...bookInfo([LISTED]), isPlusReadingEnabled: false, isPreviewEnabled: false };
+    const payload = filterNFTBookListingInfo(info);
+    expect(payload.isPlusReadingEnabled).toBe(false);
+    expect(payload.isPreviewEnabled).toBe(false);
   });
 });

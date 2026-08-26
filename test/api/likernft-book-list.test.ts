@@ -15,6 +15,8 @@ const ID_FREE = mockEVMAddress(0x40);
 const ID_PAID = mockEVMAddress(0x41);
 const ID_NO_MIN_FIELD = mockEVMAddress(0x42);
 const ID_SINGLE_FETCH = mockEVMAddress(0x43);
+const ID_ALL_UNLISTED = mockEVMAddress(0x50);
+const ID_PARTLY_UNLISTED = mockEVMAddress(0x51);
 
 const get = (path: string) => axiosist
   .get(path)
@@ -100,5 +102,42 @@ describe('minPrice exposure on filtered listing', () => {
     const res = await get(`${BASE_URL}/${ID_SINGLE_FETCH}`);
     expect(res.status).toBe(200);
     expect(res.data.minPrice).toBe(2.5);
+  });
+});
+
+describe('unlisted books in the listings', () => {
+  const LISTED = { priceInDecimal: 100, stock: 1, isUnlisted: false };
+  const UNLISTED = { priceInDecimal: 100, stock: 1, isUnlisted: true };
+
+  it('drops a book whose every edition is unlisted, keeps a partly unlisted one', async () => {
+    await makeNFTBookStub(ID_ALL_UNLISTED, { prices: [UNLISTED, UNLISTED] });
+    await makeNFTBookStub(ID_PARTLY_UNLISTED, { prices: [UNLISTED, LISTED] });
+
+    const res = await get(`${BASE_URL}/list?limit=100`);
+    expect(res.status).toBe(200);
+    const ids = res.data.list.map((b: any) => b.classId);
+    expect(ids).not.toContain(ID_ALL_UNLISTED);
+    expect(ids).toContain(ID_PARTLY_UNLISTED);
+  });
+
+  // The class endpoint is deliberately exempt: a purchase link or QR code to a
+  // hidden edition has to keep working.
+  it('still serves an all-unlisted book from the class endpoint', async () => {
+    await makeNFTBookStub(ID_ALL_UNLISTED, { prices: [UNLISTED] });
+    const res = await get(`${BASE_URL}/${ID_ALL_UNLISTED}`);
+    expect(res.status).toBe(200);
+    expect(res.data.classId).toBe(ID_ALL_UNLISTED);
+  });
+
+  it('reports borrowing and preview off for an all-unlisted book', async () => {
+    await makeNFTBookStub(ID_ALL_UNLISTED, {
+      prices: [UNLISTED],
+      isPlusReadingEnabled: true,
+      isPreviewEnabled: true,
+    });
+    const res = await get(`${BASE_URL}/${ID_ALL_UNLISTED}`);
+    expect(res.status).toBe(200);
+    expect(res.data.isPlusReadingEnabled).toBe(false);
+    expect(res.data.isPreviewEnabled).toBe(false);
   });
 });

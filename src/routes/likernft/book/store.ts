@@ -94,7 +94,12 @@ import {
 import { getArweaveTxAccessToken } from '../../../util/api/arweave/tx';
 import { createAirtablePublicationRecord, queryAirtableForPublication } from '../../../util/airtable';
 import { getStripeClient } from '../../../util/stripe';
-import { filterNFTBookListingInfo, filterNFTBookPricesInfo, sendValidatedJSON } from '../../../util/ValidationHelper';
+import {
+  filterNFTBookListingInfo,
+  filterNFTBookPricesInfo,
+  isBookVisibleToReaders,
+  sendValidatedJSON,
+} from '../../../util/ValidationHelper';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../types/book';
 import { uploadImageBufferToCache } from '../../../util/fileupload';
 import {
@@ -230,6 +235,19 @@ router.get('/catalog/google', validateQuery(BookCatalogQuerySchema), async (req,
   }
 });
 
+// The list endpoints differ in how the page was queried, never in what a viewer
+// may see, so the visibility rule lives here rather than in each of them. A
+// redirected book is dropped from every list, owner or not.
+function toVisibleListingInfos(bookInfos: NFTBookListingInfo[], req: Pick<Request, 'user'>) {
+  return bookInfos.flatMap((b: NFTBookListingInfo) => {
+    const { redirectClassId, moderatorWallets = [], ownerWallet } = b;
+    if (redirectClassId) return [];
+    const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+    if (!isAuthorized && !isBookVisibleToReaders(b)) return [];
+    return [filterNFTBookListingInfo(b, isAuthorized)];
+  });
+}
+
 router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuerySchema), async (req: QueryRequest<BookListQuery>, res, next) => {
   try {
     const {
@@ -250,19 +268,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     };
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
-    const list = ownedBookInfos.flatMap((b: NFTBookListingInfo) => {
-      const {
-        isHidden,
-        isPendingReview,
-        redirectClassId,
-        moderatorWallets = [],
-        ownerWallet,
-      } = b;
-      if (redirectClassId) return [];
-      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-      if (!isAuthorized && (isHidden || isPendingReview)) return [];
-      return [filterNFTBookListingInfo(b, isAuthorized)];
-    });
+    const list = toVisibleListingInfos(ownedBookInfos, req);
     // Use the unfiltered Firestore result for the cursor — filtered-out
     // docs (hidden / redirected) must not end pagination early. Coalesce to
     // null so the response shape matches `nextKey: number | null` even when
@@ -304,15 +310,7 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
       };
 
       const bookInfos = await listFilteredNFTBookInfo(conditions);
-      const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
-        const {
-          isHidden, isPendingReview, redirectClassId, moderatorWallets = [], ownerWallet,
-        } = b;
-        if (redirectClassId) return [];
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        if (!isAuthorized && (isHidden || isPendingReview)) return [];
-        return [filterNFTBookListingInfo(b, isAuthorized)];
-      });
+      const list = toVisibleListingInfos(bookInfos, req);
       // Use the unfiltered Firestore result for the cursor:
       // filtered-out docs (hidden / redirected) must not end pagination early.
       // Coalesce to null so the response shape matches `nextKey: number | null` on empty pages.
@@ -346,15 +344,7 @@ router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookP
       limit,
       key,
     });
-    const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
-      const {
-        isHidden, isPendingReview, redirectClassId, moderatorWallets = [], ownerWallet,
-      } = b;
-      if (redirectClassId) return [];
-      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-      if (!isAuthorized && (isHidden || isPendingReview)) return [];
-      return [filterNFTBookListingInfo(b, isAuthorized)];
-    });
+    const list = toVisibleListingInfos(bookInfos, req);
     // Cursor off the unfiltered Firestore result: filtered-out docs (hidden / redirected)
     // must not end pagination early, and the next page resumes from the last doc read.
     const lastBookInfo = bookInfos[bookInfos.length - 1];
@@ -382,19 +372,7 @@ router.get(
         limit,
         key,
       });
-      const list = bookInfos.flatMap((b: NFTBookListingInfo) => {
-        const {
-          isHidden,
-          isPendingReview,
-          redirectClassId,
-          moderatorWallets = [],
-          ownerWallet,
-        } = b;
-        if (redirectClassId) return [];
-        const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
-        if (!isAuthorized && (isHidden || isPendingReview)) return [];
-        return [filterNFTBookListingInfo(b, isAuthorized)];
-      });
+      const list = toVisibleListingInfos(bookInfos, req);
       // Cursor off the unfiltered result so hidden/redirected docs don't end pagination early.
       const lastBookInfo = bookInfos[bookInfos.length - 1];
       const nextKey = bookInfos.length < limit ? null : (lastBookInfo?.id ?? null);
@@ -521,9 +499,8 @@ router.get('/cms/list', validateQuery(BookCMSTagListQuerySchema), async (req: Qu
     const isLibraryOnly = library === '1';
     const list = books
       .filter((b) => (
-        !b.isHidden
-        && !b.isPendingReview
-        && !b.redirectClassId
+        !b.redirectClassId
+        && isBookVisibleToReaders(b)
         && (!isLibraryOnly || b.isPlusReadingEnabled)))
       .map((b) => filterNFTBookListingInfo(b, false));
 
