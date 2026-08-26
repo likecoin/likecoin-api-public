@@ -59,6 +59,7 @@ import {
   BookOrdersResponseSchema,
   BookPurchaseMessagesResponseSchema,
 } from '../../../util/api/likernft/book/schemas';
+import { getIpCountryFromRequest } from '../../../util/misc';
 
 const router = Router();
 
@@ -171,7 +172,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
 
     const referrer = inputReferrer;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
-    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
+    const ipCountry = getIpCountryFromRequest(req);
     const userAgent = req.get('User-Agent');
     const {
       url,
@@ -302,7 +303,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
     const httpMethod = 'GET';
     const referrer = (inputReferrer || req.get('Referrer')) as string;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
-    const ipCountry = ((req.headers['cf-ipcountry'] as string) || '').toUpperCase() || undefined;
+    const ipCountry = getIpCountryFromRequest(req);
     const userAgent = req.get('User-Agent');
     const customPriceInDecimal = parseInt(inputCustomPriceInDecimal as string, 10) || undefined;
 
@@ -459,7 +460,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
     const httpMethod = 'POST';
     const referrer = inputReferrer;
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
-    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
+    const ipCountry = getIpCountryFromRequest(req);
     const userAgent = req.get('User-Agent');
     const {
       url,

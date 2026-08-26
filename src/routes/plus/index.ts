@@ -63,6 +63,7 @@ import {
 } from '../../util/ValidationHelper';
 import revenueCatRouter from './revenuecat';
 import sharedMemberRouter from './shared';
+import { getIpCountryFromRequest } from '../../util/misc';
 
 const router = Router();
 
@@ -206,7 +207,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
     }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
-    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
+    const ipCountry = getIpCountryFromRequest(req);
     const userAgent = req.get('User-Agent');
     const {
       session,
@@ -347,7 +348,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
     }
     const checkoutCurrency = (currency as SupportedPlusCurrency) || 'usd';
     const clientIp = req.headers['x-real-ip'] as string || req.ip;
-    const ipCountry = ((req.headers['cf-ipcountry'] as string) || (req.body?.ipCountry as string) || '').toUpperCase() || undefined;
+    const ipCountry = getIpCountryFromRequest(req);
     const userAgent = req.get('User-Agent');
     const {
       session,
