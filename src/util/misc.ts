@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'crypto';
+import type { Request } from 'express';
 
 export function sleep(time) {
   return new Promise((resolve) => { setTimeout(resolve, time); });
@@ -62,4 +63,13 @@ export function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Cloudflare's country header, with a body fallback: a request relayed by a
+// server-side proxy carries the proxy's country in the header, so those callers
+// send the end user's country in the body instead.
+export function getIpCountryFromRequest(req: Pick<Request, 'headers' | 'body'>): string | undefined {
+  const header = req.headers['cf-ipcountry'];
+  const country = (typeof header === 'string' ? header : req.body?.ipCountry) || '';
+  return typeof country === 'string' ? country.toUpperCase() || undefined : undefined;
 }
