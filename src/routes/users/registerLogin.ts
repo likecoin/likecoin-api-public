@@ -87,16 +87,12 @@ router.post(
     const {
       platform,
       user,
-      displayName,
       description,
       locale: inputLocale,
     } = req.body;
     let email;
     try {
-      let locale = inputLocale;
-      if (!locale) {
-        locale = defaultLocale;
-      } else if (!supportedLocales.includes(locale)) {
+      if (inputLocale && !supportedLocales.includes(inputLocale)) {
         throw new ValidationError('INVALID_LOCALE');
       }
       let payload;
@@ -116,7 +112,6 @@ router.post(
           });
           payload = req.body;
           payload.evmWallet = checksumAddress(inputWallet);
-          payload.displayName = displayName || user;
           ({ email } = req.body);
           payload.isEmailVerified = false;
           if (magicDIDToken) {
@@ -139,7 +134,7 @@ router.post(
         payload: {
           ...payload,
           description,
-          locale,
+          locale: inputLocale,
           platform,
         },
         req,

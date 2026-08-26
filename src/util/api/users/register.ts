@@ -18,7 +18,9 @@ import {
   checkUserInfoUniqueness,
 } from '.';
 import { isHandleAvailable } from './handle';
+import { getRandomDisplayName } from './displayName';
 import { ValidationError } from '../../ValidationError';
+import { getIpCountryFromRequest } from '../../misc';
 import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
 import {
   handleAvatarUploadAndGetURL,
@@ -77,7 +79,7 @@ export async function handleUserRegistration({
 }) {
   const {
     user,
-    displayName = user,
+    displayName: inputDisplayName,
     description,
     cosmosWallet,
     likeWallet,
@@ -89,7 +91,7 @@ export async function handleUserRegistration({
     magicUserId,
     isEmailVerified = false,
     isPhoneVerified,
-    locale = defaultLocale,
+    locale: inputLocale,
     email,
     phone,
     utmSource,
@@ -115,6 +117,15 @@ export async function handleUserRegistration({
     throw new ValidationError('INVALID_EVM_WALLET');
   }
   const evmWallet = rawEvmWallet && checksumAddress(rawEvmWallet);
+
+  const locale = inputLocale || defaultLocale;
+  // The signup handle doubles as the referral code, so it must not become a name.
+  // Generated from the locale as sent: `defaultLocale` is 'zh', and defaulting
+  // first would name every locale-less caller in Chinese.
+  const displayName = inputDisplayName || getRandomDisplayName({
+    ipCountry: getIpCountryFromRequest(req),
+    locale: inputLocale,
+  });
 
   await checkUserInfoUniqueness({
     user,
