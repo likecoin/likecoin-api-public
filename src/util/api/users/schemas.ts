@@ -84,6 +84,8 @@ export const UsersRegisterBodySchema = z.object({
   displayName: z.string().optional(),
   description: z.string().optional(),
   locale: z.string().optional(),
+  // The end user's country: the header carries the proxy's for relayed calls.
+  ipCountry: z.string().optional(),
   email: z.string().optional(),
   sourceURL: z.string().optional(),
   utmSource: z.string().optional(),
