@@ -512,6 +512,24 @@ export function filterNFTBookPricesInfo(
   };
 }
 
+// A book whose author unlisted every edition. Not a book with no editions at
+// all: `NFTBookPricesSchema` requires one, so an empty set is a broken doc
+// rather than a shelf decision.
+export function isBookUnlisted(prices: { isUnlisted?: boolean }[] = []) {
+  return prices.length > 0 && prices.every((p) => p.isUnlisted);
+}
+
+// What the listing endpoints hide from a reader. The class endpoint applies none
+// of it — a purchase link or QR code to a hidden edition has to keep working,
+// though `filterNFTBookListingInfo` still masks its library and preview flags.
+export function isBookVisibleToReaders(book: {
+  isHidden?: boolean;
+  isPendingReview?: boolean;
+  prices?: { isUnlisted?: boolean }[];
+}) {
+  return !book.isHidden && !book.isPendingReview && !isBookUnlisted(book.prices);
+}
+
 export function filterNFTBookListingInfo(
   bookInfo: NFTBookListingInfo,
   isOwner = false,
@@ -571,6 +589,11 @@ export function filterNFTBookListingInfo(
   } = bookInfo;
   const { stock, sold, prices } = filterNFTBookPricesInfo(inputPrices, isOwner);
   const id = inputId || classId;
+  // Never written back, so the author's opt-in survives a re-listing, and the
+  // owner reads it unmasked — publish's settings form would save the mask on.
+  // Read `inputPrices`: the filtered copy matches only while it keeps every edition.
+  const isAllEditionsUnlisted = isBookUnlisted(inputPrices);
+  const shouldMaskReaderFlags = !isOwner && isAllEditionsUnlisted;
   const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
@@ -619,8 +642,8 @@ export function filterNFTBookListingInfo(
     isApprovedForIndexing: isApprovedForIndexing !== undefined ? isApprovedForIndexing : true,
     isApprovedForAds: isApprovedForAds !== undefined ? isApprovedForAds : true,
     plusPromoEnabled,
-    isPlusReadingEnabled,
-    isPreviewEnabled,
+    isPlusReadingEnabled: isPlusReadingEnabled && !shouldMaskReaderFlags,
+    isPreviewEnabled: isPreviewEnabled && !shouldMaskReaderFlags,
     previewPercentage,
   };
   if (isOwner) {
