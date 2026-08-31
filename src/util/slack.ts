@@ -131,10 +131,12 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
   classId,
   className,
   action,
+  restrictedTerritories,
 }: {
   classId: string;
   className: string;
   action: string;
+  restrictedTerritories?: string[];
 }) {
   if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
@@ -150,6 +152,9 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
         break;
       case 'reject':
         actionText = '❌ Rejected/Hidden';
+        break;
+      case 'geoblock':
+        actionText = `🌍 Territory restricted (${(restrictedTerritories || []).join(', ')})`;
         break;
       case 'clear_geoblock':
         actionText = '🌍 Territory restriction cleared';
