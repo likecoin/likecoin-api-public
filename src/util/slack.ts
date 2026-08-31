@@ -19,6 +19,16 @@ import {
   FORCE_PING_REVIEW_ACTIONS,
   type BookComplianceReviewOutcome,
 } from './api/likernft/book/complianceReview';
+import {
+  BOOK_LIST_FLAGS,
+  describeBookListQuery,
+  matchesBookListFlag,
+  type AdminBookListItem,
+  type BookListFlag,
+  type BookListQuery,
+  type BookListResult,
+} from './api/likernft/book/adminList';
+import { getBookTimestampMillis } from './api/likernft/book/cms';
 import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
 
@@ -600,5 +610,103 @@ export function createPaymentSlackBlocks({
     ...transactions,
   ];
 
+  return blocks;
+}
+
+// Slack caps a section's text at 3000 characters and a message at 50 blocks, so
+// book lines are packed into as few sections as fit rather than one block each.
+const SLACK_SECTION_TEXT_LIMIT = 2800;
+// Names come from author-supplied metadata and are unbounded, so one listing
+// could otherwise push a section past Slack's cap and sink the whole message.
+const BOOK_LIST_NAME_LIMIT = 120;
+
+function formatBookListPrice(minPriceInDecimal?: number): string {
+  if (minPriceInDecimal === undefined) return '❓unknown price';
+  if (minPriceInDecimal === 0) return '🆓free';
+  return `💰US$${(minPriceInDecimal / 100).toFixed(2)}`;
+}
+
+function formatBookListDate(ms: number): string {
+  if (!ms) return 'no date';
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+// Keyed by flag so a new entry in BOOK_LIST_FLAGS is a compile error here until
+// it gets a label, instead of silently rendering nothing.
+const BOOK_LIST_FLAG_LABELS: Record<BookListFlag, (book: AdminBookListItem) => string> = {
+  pending: () => '⏳pending',
+  hidden: () => '🙈hidden',
+  nosale: () => '🚷no-sale',
+  noads: () => '🚫no-ads',
+  noindex: () => '🔍no-index',
+  geoblocked: (book) => `🌏${(book.restrictedTerritories || []).join(',')}`,
+  adult: () => '🔞adult',
+  plus: () => '✨plus',
+  aireview: () => '👀ai-review',
+};
+
+function getBookListFlagLabels(book: AdminBookListItem): string[] {
+  return (Object.keys(BOOK_LIST_FLAGS) as BookListFlag[])
+    .filter((flag) => matchesBookListFlag(book, flag))
+    .map((flag) => BOOK_LIST_FLAG_LABELS[flag](book));
+}
+
+export function createBookListSlackBlocks(
+  query: BookListQuery,
+  { books, total, isScanCapped }: BookListResult,
+) {
+  const description = describeBookListQuery(query);
+  const shownSuffix = total > books.length ? `, showing first ${books.length}` : '';
+  // A capped scan knows it counted a floor, not a total — don't state it as one.
+  const totalText = `${total}${isScanCapped ? '+' : ''}`;
+  const blocks: any[] = [{
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text: total
+        ? `*${totalText} book(s)* — ${description}${shownSuffix}`
+        : `No books found — ${description}`,
+    },
+  }];
+  if (books.length) blocks.push({ type: 'divider' });
+  const lines = books.map((book, index) => {
+    const { classId } = book;
+    const link = getBook3NFTClassPageURL({ classId });
+    // Book names come from author-supplied metadata, so they can carry mrkdwn.
+    const name = escapeSlackText((book.name || classId).slice(0, BOOK_LIST_NAME_LIMIT));
+    const details = [
+      `\`${classId}\``,
+      formatBookListPrice(book.minPriceInDecimal),
+      formatBookListDate(getBookTimestampMillis(book)),
+      ...getBookListFlagLabels(book),
+    ].join(' · ');
+    return `*${index + 1}.* <${link}|${name}>\n${details}`;
+  });
+  const separator = '\n\n';
+  let chunk: string[] = [];
+  let chunkLength = 0;
+  const flushChunk = () => {
+    if (!chunk.length) return;
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: chunk.join(separator) } });
+    chunk = [];
+    chunkLength = 0;
+  };
+  lines.forEach((line) => {
+    if (chunk.length && chunkLength + separator.length + line.length > SLACK_SECTION_TEXT_LIMIT) {
+      flushChunk();
+    }
+    chunkLength += chunk.length ? separator.length + line.length : line.length;
+    chunk.push(line);
+  });
+  flushChunk();
+  if (isScanCapped) {
+    blocks.push({
+      type: 'context',
+      elements: [{
+        type: 'mrkdwn',
+        text: '⚠️ Scan cap reached — results may be incomplete.',
+      }],
+    });
+  }
   return blocks;
 }
