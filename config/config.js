@@ -21,7 +21,7 @@ config.COSMOS_CHAIN_ID = 'likecoin-public-testnet-5';
 config.COSMOS_DENOM = 'nanoekil';
 config.NFT_RPC_ENDPOINT = 'https://node.testnet.like.co/rpc/';
 
-config.LIKE_NFT_EVM_INDEXER_API = 'https://likenft-indexer.pandawork.com/api';
+config.LIKE_NFT_EVM_INDEXER_API = 'https://indexer-sepolia.v3.like.co/protocol/api';
 config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
 
 config.EVM_RPC_ENDPOINT_OVERRIDE = '';
