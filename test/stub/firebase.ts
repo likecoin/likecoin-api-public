@@ -258,12 +258,8 @@ function collectionWhere(data: StubData[], field: any = '', op = '', value: any 
     where: (sField: string, sOp: string, sValue: any) => (
       collectionWhere(whereData, sField, sOp, sValue)
     ),
-    orderBy: (sField: string, order: 'asc' | 'desc' = 'asc') => {
-      if (data.length > 0 && sField in data[0] && (order === 'asc' || order === 'desc')) {
-        return queryObj;
-      }
-      return queryObj;
-    },
+    // Ordering is a no-op here: docs come back in insertion order.
+    orderBy: () => queryObj,
     startAt: () => queryObj,
     startAfter: () => queryObj,
     endBefore: () => queryObj,
@@ -271,6 +267,11 @@ function collectionWhere(data: StubData[], field: any = '', op = '', value: any 
     offset: () => queryObj,
     // Projection is a no-op here: returned docs still carry every field.
     select: () => queryObj,
+    // Counts the where()-filtered docs; unlike Firestore it ignores orderBy and
+    // limit, so it cannot model orderBy dropping docs missing the sorted field.
+    count: () => ({
+      get: () => Promise.resolve({ data: () => ({ count: docs.length }) }),
+    }),
     get: () => Promise.resolve({
       size: docs.length,
       docs,

@@ -25,6 +25,16 @@ export function isAlreadyExistsError(error: unknown): boolean {
   return err?.code === GRPC_ALREADY_EXISTS || !!err?.message?.includes('ALREADY_EXISTS');
 }
 
+// Firestore answers a query with no composite index with gRPC FAILED_PRECONDITION,
+// carrying a one-click creation link in the message. Same shape as above: the
+// numeric code leads, the substring covers older SDK shapes.
+const GRPC_FAILED_PRECONDITION = 9;
+
+export function isFailedPreconditionError(error: unknown): boolean {
+  const err = error as { code?: number; message?: string } | undefined;
+  return err?.code === GRPC_FAILED_PRECONDITION || !!err?.message?.includes('FAILED_PRECONDITION');
+}
+
 // GCS reports a missing object as an HTTP 404 on the error itself. Callers that
 // already proved a doc exists use this to answer 404 rather than 500 when the
 // bucket copy is gone.

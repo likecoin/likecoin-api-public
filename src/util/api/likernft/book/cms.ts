@@ -86,7 +86,8 @@ export async function bulkSetNFTBookCMSTagOrder(
   };
 }
 
-function getBookTimestampMillis(book: NFTBookListingInfo): number {
+// Takes only the field it reads, so masked admin docs can use it too.
+export function getBookTimestampMillis(book: { timestamp?: unknown }): number {
   const ts: any = book.timestamp;
   return ts?.toMillis?.() ?? (typeof ts === 'number' ? ts : 0);
 }

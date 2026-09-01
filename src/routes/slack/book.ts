@@ -6,8 +6,17 @@ import {
   BOOK_ADMIN_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
+  createBookListSlackBlocks,
   sendNFTBookApprovalUpdateSlackNotification,
 } from '../../util/slack';
+import {
+  BOOK_LIST_CHAIN,
+  BOOK_LIST_DEFAULT_LIMIT,
+  BOOK_LIST_FLAGS,
+  BOOK_LIST_MAX_LIMIT,
+  listBooksForAdmin,
+  parseBookListQuery,
+} from '../../util/api/likernft/book/adminList';
 import { FieldValue, likeNFTBookCollection } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
 import { ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../../constant';
@@ -23,6 +32,7 @@ const BOOK_APPROVAL_ACTIONS = [
 ];
 const BOOK_APPROVAL_USAGE = `<${BOOK_APPROVAL_ACTIONS.join('|')}>`;
 const DEFAULT_GEOBLOCK_COUNTRY = 'HK';
+const BOOK_LIST_FLAG_USAGE = Object.keys(BOOK_LIST_FLAGS).join('|');
 
 // Validated against the storefront's ISO list, not just a 2-letter shape: a
 // code it does not know — 'UK' rather than 'GB' — would report success and
@@ -221,6 +231,15 @@ router.post(
         text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
       });
     },
+    list: async ({ params, res }) => {
+      const query = parseBookListQuery(params);
+      const result = await listBooksForAdmin(query);
+
+      res.json({
+        response_type: 'ephemeral',
+        blocks: createBookListSlackBlocks(query, result),
+      });
+    },
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
@@ -236,7 +255,17 @@ Examples:
   \`/book approve 0x1234...5678  geoblock\` - Restrict purchase in HK & CN (default countries; approval flags untouched)
   \`/book approve 0x1234...5678  geoblock JP\` - Restrict purchase in the given 2-letter ISO country (GB, not UK)
   \`/book approve 0x1234...5678  geoblock HK,JP,GB\` - Restrict several countries; replaces the whole list, HK still implies CN
-  \`/book approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)`,
+  \`/book approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)
+
+\`/book list [asc|desc] [<flag>...] [owner:<wallet>] [limit:<n>]\` List ${BOOK_LIST_CHAIN}-chain book listings
+Flags (combinable, all must match): \`${BOOK_LIST_FLAG_USAGE}\`
+Newest first, ${BOOK_LIST_DEFAULT_LIMIT} results by default (limit max ${BOOK_LIST_MAX_LIMIT}). Legacy \`like\`-chain listings are never shown.
+
+Examples:
+  \`/book list pending\` - Listings held for review
+  \`/book list geoblocked limit:50\` - Every territory-restricted listing
+  \`/book list noads asc\` - Listings with ads denied, oldest first
+  \`/book list aireview\` - Listings the AI pre-screen flagged for a human read`,
       });
     },
   }, 'Invalid command. Use `/book help` for usage.'),
