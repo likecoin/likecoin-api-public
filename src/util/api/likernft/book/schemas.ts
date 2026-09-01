@@ -203,17 +203,33 @@ export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
 // Scopes and paginates like its `/list*` siblings, except the cursor is the previous page's
 // last class id rather than a timestamp — ranking ties can't be resumed from a value alone.
-export const BookPopularListQuerySchema = BookListPaginationQuerySchema
+const BookRankedListQuerySchema = BookListPaginationQuerySchema
   .omit({ before: true, key: true })
   .extend({
     // Cursor is a class id (EVM `0x…` or legacy Cosmos `likenft1…`); restrict to an
     // alphanumeric charset so a stray `/` can't make Firestore's `.doc()` throw a 500.
     key: z.string().regex(/^[a-zA-Z0-9]+$/).optional(),
   });
+
+export const BookPopularListQuerySchema = BookRankedListQuerySchema.extend({
+  // Narrows the ranking to free books. A literal rather than an enum over the `/list/*`
+  // filters: each one costs its own composite index, and only free has a caller.
+  filter: z.literal('free').optional(),
+}).refine(
+  (query) => !query.filter || query.library === '1',
+  // Every equality the ranking is narrowed by needs its own composite index, and every
+  // such index is rewritten on each reading-usage increment. Only the library asks for a
+  // free ranking, so the store-wide shape is refused rather than indexed for no caller.
+  { message: 'FILTER_REQUIRES_LIBRARY', path: ['filter'] },
+);
 export type BookPopularListQuery = z.infer<typeof BookPopularListQuerySchema>;
 
-// The bestselling list speaks the same class-id-cursor dialect as `/list/popular`.
-export const BookBestsellingListQuerySchema = BookPopularListQuerySchema;
+// Same class-id-cursor dialect as `/list/popular`, but no filter: a free bestselling list
+// would rank books by sales they cannot make. `filter` is named only to be rejected —
+// unknown keys are stripped, so aliasing the base schema answered `?filter=free` unfiltered.
+export const BookBestsellingListQuerySchema = BookRankedListQuerySchema.extend({
+  filter: z.undefined({ invalid_type_error: 'FILTER_NOT_SUPPORTED' }),
+});
 export type BookBestsellingListQuery = z.infer<typeof BookBestsellingListQuerySchema>;
 
 // Shared by the Meta and Stripe catalog routes — output is selected via `format`.

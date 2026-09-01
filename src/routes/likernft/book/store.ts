@@ -282,13 +282,20 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
 router.get('/list/free', jwtOptionalAuth('read:nftbook'), validateQuery(BookListPaginationQuerySchema), createDerivedListHandler('free'));
 router.get('/list/drm-free', jwtOptionalAuth('read:nftbook'), validateQuery(BookListPaginationQuerySchema), createDerivedListHandler('drm-free'));
 
-// Books ranked by lifetime reading + TTS time; `library=1` scopes it to Plus-reading titles.
+// Books ranked by lifetime reading + TTS time; `library=1` scopes it to Plus-reading titles
+// and `filter=free` to free ones, which is how the library serves its free tab.
 // Separate from createDerivedListHandler because it paginates by class-id cursor rather
 // than by timestamp key, so its `nextKey` is a string.
 router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookPopularListQuerySchema), async (req: QueryRequest<BookPopularListQuery>, res, next) => {
   try {
-    const { library, limit, key } = req.query;
+    const {
+      filter,
+      library,
+      limit,
+      key,
+    } = req.query;
     const bookInfos = await listPopularNFTBookInfo({
+      filter,
       isPlusReadingEnabled: library === '1' || undefined,
       limit,
       key,
