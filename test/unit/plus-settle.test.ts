@@ -6,7 +6,7 @@ import {
   computePlusReadingRates,
   splitAmountToWallets,
 } from '../../src/util/api/plus/settle';
-import { settlePlusReadingPeriod } from '../../src/util/api/plus/settleJob';
+import { formatPlusSettleCSV, settlePlusReadingPeriod } from '../../src/util/api/plus/settleJob';
 import { PlusSettleResponseSchema } from '../../src/util/api/plus/schemas';
 import { likeNFTBookCollection } from '../../src/util/firebase';
 
@@ -179,28 +179,29 @@ describe('splitAmountToWallets', () => {
   });
 });
 
-describe('settlePlusReadingPeriod readerCount', () => {
-  // Seeds a book with one plusUsage day rollup and its per-reader grain. The stub's
-  // doc() resolves the stored object at call time, so re-fetch after each set() before
-  // descending into a subcollection.
-  async function seedBookUsageDay(
-    classId: string,
-    dayId: string,
-    readingTimeMs: number,
-    readers: string[],
-  ) {
-    // Date-only ISO strings parse as UTC midnight — the dayMs the settle range filters on.
-    const dayMs = Date.parse(dayId);
-    const bookDocRef = likeNFTBookCollection.doc(classId);
-    if (!(await bookDocRef.get()).exists) {
-      await bookDocRef.set({ classId, ownerWallet: '0xowner' });
-    }
-    const usageCol = likeNFTBookCollection.doc(classId).collection('plusUsage');
-    await usageCol.doc(dayId).set({ readingTimeMs, ttsTimeMs: 0, dayMs });
-    await Promise.all(readers.map((wallet) => usageCol.doc(dayId).collection('readers')
-      .doc(wallet).set({ readingTimeMs, ttsTimeMs: 0 })));
+// Seeds a book with one plusUsage day rollup and its per-reader grain. The stub's
+// doc() resolves the stored object at call time, so re-fetch after each set() before
+// descending into a subcollection.
+async function seedBookUsageDay(
+  classId: string,
+  dayId: string,
+  readingTimeMs: number,
+  readers: string[],
+  bookData: Record<string, unknown> = {},
+) {
+  // Date-only ISO strings parse as UTC midnight — the dayMs the settle range filters on.
+  const dayMs = Date.parse(dayId);
+  const bookDocRef = likeNFTBookCollection.doc(classId);
+  if (!(await bookDocRef.get()).exists) {
+    await bookDocRef.set({ classId, ownerWallet: '0xowner', ...bookData });
   }
+  const usageCol = likeNFTBookCollection.doc(classId).collection('plusUsage');
+  await usageCol.doc(dayId).set({ readingTimeMs, ttsTimeMs: 0, dayMs });
+  await Promise.all(readers.map((wallet) => usageCol.doc(dayId).collection('readers')
+    .doc(wallet).set({ readingTimeMs, ttsTimeMs: 0 })));
+}
 
+describe('settlePlusReadingPeriod readerCount', () => {
   it('counts unique library readers per book and across the period', async () => {
     // book1: reader A on two days (dedup within a book), + B on the second day.
     await seedBookUsageDay('0xbook1', '2026-01-05', min(10), ['0xreaderA']);
@@ -222,5 +223,58 @@ describe('settlePlusReadingPeriod readerCount', () => {
     const parsed = PlusSettleResponseSchema.parse({ success: true, ...result });
     expect(parsed.readerCount).toBe(2);
     expect(parsed.books.find((b) => b.classId === '0xbook1')?.readerCount).toBe(2);
+  });
+});
+
+describe('formatPlusSettleCSV', () => {
+  const seedNamedBook = (
+    classId: string,
+    name: string | Record<string, string>,
+    readingTimeMs: number,
+  ) => seedBookUsageDay(classId, '2026-03-05', readingTimeMs, ['0xreader'], { name });
+
+  const settleMarch = () => settlePlusReadingPeriod({
+    periodId: '2026-03', dryRun: true, includePayouts: true,
+  });
+
+  it('names every row, payee-less ones included', async () => {
+    await seedNamedBook('0xpaid', '付費書', min(10));
+    // Under a minute floors below a cent, so this book produces no payout at all.
+    await seedNamedBook('0xdust', '零頭書', min(0.5));
+    await seedNamedBook('0xlegacy', { zh: '中文名', en: 'English name' }, min(10));
+
+    const csv = formatPlusSettleCSV(await settleMarch());
+    const [header, ...rows] = csv.split('\n');
+    const columns = header.split(',');
+    const byClass = Object.fromEntries(rows.map((r) => [r.split(',')[1], r.split(',')]));
+    const cell = (classId: string, column: string) => byClass[classId][columns.indexOf(column)];
+
+    expect(cell('0xpaid', 'bookName')).toBe('付費書');
+    expect(cell('0xdust', 'bookName')).toBe('零頭書');
+    expect(cell('0xdust', 'skipReason')).toBe('belowCent');
+    // A legacy doc's localized-object name collapses to the default locale rather than
+    // rendering as "[object Object]".
+    expect(cell('0xlegacy', 'bookName')).toBe('中文名');
+  });
+
+  it('defangs a title that a spreadsheet would evaluate as a formula', async () => {
+    await seedNamedBook('0xformula', '=HYPERLINK("evil")', min(10));
+
+    const csv = formatPlusSettleCSV(await settleMarch());
+
+    // escapeCSVField prefixes the quote (CWE-1236) and doubles the embedded quotes.
+    expect(csv).toContain('"\'=HYPERLINK(""evil"")"');
+    expect(csv).not.toContain(',=HYPERLINK');
+  });
+
+  it('keeps the title through a response schema parse', async () => {
+    await seedNamedBook('0xpaid', '付費書', min(10));
+
+    const result = await settleMarch();
+
+    // Lockstep guard: sendValidatedJSON strips fields the schema doesn't know about, so
+    // the title must survive a parse to reach the JSON response as well as the CSV.
+    const parsed = PlusSettleResponseSchema.parse({ success: true, ...result });
+    expect(parsed.books.find((b) => b.classId === '0xpaid')?.name).toBe('付費書');
   });
 });

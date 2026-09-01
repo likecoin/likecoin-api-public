@@ -5,6 +5,8 @@ import {
 } from '../../firebase';
 import { getStripeClient } from '../../stripe';
 import { getBookUserInfo } from '../likernft/book/user';
+import { getLocalizedTextWithFallback } from '../likernft/book';
+import { NFT_BOOK_TEXT_DEFAULT_LOCALE } from '../../../constant';
 import { ValidationError } from '../../ValidationError';
 import { buildCSV } from '../../csv';
 import {
@@ -108,6 +110,14 @@ function getCachedBookUserInfo(wallet: string, cache: WalletUserInfoCache) {
  * a book split across several payees reads once.
  */
 type BookNameCache = Map<string, Promise<string | undefined>>;
+
+// The declared type says `string`, but a legacy doc can hold a localized object, so
+// collapse it before use. The transfer description keeps its own inline guard, which
+// degrades those to the classId rather than changing what a payee already saw.
+function resolveBookName(name: string | Record<string, string> | undefined): string {
+  if (!name) return '';
+  return getLocalizedTextWithFallback(name, NFT_BOOK_TEXT_DEFAULT_LOCALE);
+}
 
 function getCachedBookName(classId: string, cache: BookNameCache) {
   const cached = cache.get(classId);
@@ -223,8 +233,8 @@ async function settleWalletPayout({
 }
 
 /**
- * Reads the payable books' docs. A book with no doc maps to `undefined` — the caller skips
- * its usage.
+ * Reads the books' docs. A book with no doc maps to `undefined` — the caller skips its
+ * usage.
  */
 async function getBookDataByClassId(
   classIds: string[],
@@ -412,7 +422,9 @@ export async function settlePlusReadingPeriod({
       readerCount: readersByClass.get(book.classId)?.size || 0,
     }));
   const payableBooks = books.filter((b) => b.amountCents > 0);
-  const bookDataByClassId = await getBookDataByClassId(payableBooks.map((b) => b.classId));
+  // Every book with usage, not just the payable ones — a skipped book still gets an
+  // export row, and that row needs its title too.
+  const bookDataByClassId = await getBookDataByClassId(books.map((b) => b.classId));
 
   // Reported per book so unallocated money stays reviewable in the response, not just in
   // the warnings below.
@@ -533,6 +545,7 @@ export async function settlePlusReadingPeriod({
     const roll = rollupByClass.get(book.classId);
     return {
       ...book,
+      name: resolveBookName(bookDataByClassId.get(book.classId)?.name),
       payeeCount: roll?.payeeCount || 0,
       paidCents: roll?.paidCents || 0,
       pendingCents: roll?.pendingCents || 0,
@@ -578,6 +591,7 @@ export async function settlePlusReadingPeriod({
 const PLUS_SETTLE_CSV_COLUMNS = [
   'periodId',
   'classId',
+  'bookName',
   'wallet',
   'amountCents',
   'outcome',
@@ -620,6 +634,7 @@ export function formatPlusSettleCSV(result: PlusSettleResult): string {
     const bookColumns = {
       periodId,
       classId: book.classId,
+      bookName: book.name,
       bookAmountCents: csvNum(book.amountCents),
       bookReaderCount: csvNum(book.readerCount),
     };

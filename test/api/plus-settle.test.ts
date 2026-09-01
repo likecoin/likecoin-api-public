@@ -287,7 +287,8 @@ describe('POST /plus/admin/reading/settle — settled review & CSV', () => {
     await seedSettledBook();
     // A book with usage but no resolvable payee still has to reach the export.
     const orphanClassId = mockEVMAddress(0x7a);
-    await likeNFTBookCollection.doc(orphanClassId).set({ classId: orphanClassId } as any);
+    await likeNFTBookCollection.doc(orphanClassId)
+      .set({ classId: orphanClassId, name: 'Orphan Book' } as any);
     await likeNFTBookCollection.doc(orphanClassId).collection('plusUsage').doc('2026-04-07')
       .set({ readingTimeMs: min(30), ttsTimeMs: 0, dayMs: Date.UTC(2026, 3, 7) } as any);
 
@@ -303,16 +304,18 @@ describe('POST /plus/admin/reading/settle — settled review & CSV', () => {
 
     const [header, ...rows] = res.data.trim().split('\n');
     expect(header).toBe([
-      'periodId', 'classId', 'wallet', 'amountCents', 'outcome', 'ledgerStatus',
+      'periodId', 'classId', 'bookName', 'wallet', 'amountCents', 'outcome', 'ledgerStatus',
       'ledgerAmountCents', 'transferId', 'readingTimeMs', 'ttsTimeMs',
       'bookAmountCents', 'bookReaderCount', 'skipReason',
     ].join(','));
+    // This book doc carries no name, so the column is simply empty rather than absent.
     expect(rows).toContain(
-      `${PERIOD},${CLASS_ID},${OWNER},60,settled,paid,55,tr_test,${min(60)},0,60,0,`,
+      `${PERIOD},${CLASS_ID},,${OWNER},60,settled,paid,55,tr_test,${min(60)},0,60,0,`,
     );
-    // Payee-less book: no wallet/outcome/ledger columns, but its amount and reason survive.
+    // Payee-less book: no wallet/outcome/ledger columns, but its title, amount and
+    // reason survive.
     expect(rows).toContain([
-      PERIOD, orphanClassId, '', '', '', '', '', '', '', '', 30, 0, 'noPayee',
+      PERIOD, orphanClassId, 'Orphan Book', '', '', '', '', '', '', '', '', 30, 0, 'noPayee',
     ].join(','));
   });
 });
