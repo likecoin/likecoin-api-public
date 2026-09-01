@@ -655,7 +655,8 @@ export function createBookListSlackBlocks(
   query: BookListQuery,
   { books, total, isScanCapped }: BookListResult,
 ) {
-  const description = describeBookListQuery(query);
+  // The owner filter echoes raw slash-command input, so it can carry mrkdwn.
+  const description = escapeSlackText(describeBookListQuery(query));
   const shownSuffix = total > books.length ? `, showing first ${books.length}` : '';
   // A capped scan knows it counted a floor, not a total — don't state it as one.
   const totalText = `${total}${isScanCapped ? '+' : ''}`;
