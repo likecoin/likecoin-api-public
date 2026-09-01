@@ -377,6 +377,8 @@ export const PlusSettleResponseSchema = z.object({
   settledCents: z.number(),
   books: z.array(z.object({
     classId: z.string(),
+    // The settle job collapses a legacy localized-object name, so z.string() is enough.
+    name: z.string().optional(),
     amountCents: z.number(),
     readingTimeMs: z.number(),
     ttsTimeMs: z.number(),
