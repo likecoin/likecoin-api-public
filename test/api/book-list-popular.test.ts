@@ -94,6 +94,31 @@ describe('GET /likernft/book/store/list/popular', () => {
     expect(res.data.nextKey).toBeNull();
   });
 
+  it('narrows the ranking to free books with filter=free', async () => {
+    const free = mockEVMAddress(0xc1);
+    const paid = mockEVMAddress(0xc2);
+    await seedBook(free, { minPriceInDecimal: 0 });
+    await seedBook(paid, { minPriceInDecimal: 99900 });
+
+    const res = await get('?filter=free&library=1&limit=100');
+    expect(res.status).toBe(200);
+    const classIds = res.data.list.map((b: any) => b.classId);
+    expect(classIds).toContain(free);
+    expect(classIds).not.toContain(paid);
+  });
+
+  it('rejects a filter it does not serve', async () => {
+    // `drm-free` is a `/list/*` filter but not a ranked one — it must not fall through
+    // to the unfiltered ranking and pass paid books off as a filtered list.
+    const res = await get('?filter=drm-free&library=1');
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a free ranking outside the library, which has no index', async () => {
+    const res = await get('?filter=free');
+    expect(res.status).toBe(400);
+  });
+
   it('rejects a cursor that names no book', async () => {
     const res = await get(`?key=${mockEVMAddress(0xbb)}`);
     expect(res.status).toBe(400);

@@ -95,6 +95,13 @@ describe('GET /likernft/book/store/list/bestselling', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects a filter it does not serve', async () => {
+    // `library=1` is the combination `/list/popular` accepts, so this pins the filter as
+    // rejected outright rather than stripped and answered with an unfiltered list.
+    const res = await get('?filter=free&library=1');
+    expect(res.status).toBe(400);
+  });
+
   it('accepts a mixed-case class id as the cursor', async () => {
     // Books are keyed by lowercase class id; an EIP-55 checksummed cursor must still resolve.
     const mixedCaseClassId = '0xAbCdEf9999999999999999999999999999999999';

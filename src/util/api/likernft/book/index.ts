@@ -34,6 +34,7 @@ import {
 import type {
   BookContributor, BookSignatureImage, NFTBookListingInfo, NFTBookPrice,
 } from '../../../../types/book';
+import type { BookPopularListQuery } from './schemas';
 import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getNameFromMetadata(value: unknown): string {
@@ -674,12 +675,18 @@ export async function listFilteredNFTBookInfo({
  * `recordPlusReadingUsage`), so the list reflects what is being read now. The score decays
  * but never reaches zero, so a book read long ago still outranks one never read at all;
  * only the never-read tail ties, and it is zero-seeded and browses newest-first.
+ *
+ * `filter: 'free'` narrows the same ranking to free books, which is how the library serves
+ * its free tab. It is served by its own composite index, so the pairs of equalities this
+ * runs under are fixed by what the routes allow, not open-ended.
  */
 export async function listPopularNFTBookInfo({
+  filter,
   isPlusReadingEnabled,
   limit,
   key,
 }: {
+  filter?: BookPopularListQuery['filter'];
   isPlusReadingEnabled?: boolean;
   limit?: number;
   key?: string;
@@ -687,6 +694,9 @@ export async function listPopularNFTBookInfo({
   let snapshot = likeNFTBookCollection
     .orderBy('plusReadingScore', 'desc')
     .orderBy('timestamp', 'desc');
+  if (filter === 'free') {
+    snapshot = snapshot.where('minPriceInDecimal', '==', 0);
+  }
   if (isPlusReadingEnabled !== undefined) {
     snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
   }
