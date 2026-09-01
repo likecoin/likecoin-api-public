@@ -40,10 +40,7 @@ import {
   BookListQuerySchema,
   BookCatalogQuerySchema,
   BookCatalogMetaResponseSchema,
-  BookCatalogOpenAIResponseSchema,
-  BookCatalogOpenAIFeedResponseSchema,
   BookCatalogStripeResponseSchema,
-  BookCatalogGoogleResponseSchema,
   BookListResponseSchema,
   BookPopularListQuerySchema,
   type BookPopularListQuery,
@@ -109,13 +106,7 @@ import {
 } from '../../../util/pricing';
 import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/book/cache';
 import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../../util/api/likernft/book/metaCatalog';
-import {
-  getOpenAIProductCatalogItems,
-  getOpenAIFeedItems,
-  formatOpenAIFeedCSV,
-} from '../../../util/api/likernft/book/openaiCatalog';
 import { getStripeFeedItems, formatStripeFeedCSV } from '../../../util/api/likernft/book/stripeCatalog';
-import { getGoogleMerchantFeedItems, formatGoogleMerchantFeedXML } from '../../../util/api/likernft/book/googleMerchantCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
 
 const router = Router();
@@ -174,30 +165,6 @@ router.get('/catalog/meta', validateQuery(BookCatalogQuerySchema), async (req, r
   }
 });
 
-// Search-only OpenAI catalog. `format` selects the representation, mirroring
-// the Meta route: default → flat file-upload feed (JSON), `csv` → that feed as
-// CSV, `api` → the nested API model (Product → Variant) JSON.
-router.get('/catalog/openai', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
-  try {
-    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-    if (req.query.format === 'api') {
-      const products = await getOpenAIProductCatalogItems();
-      sendValidatedJSON(res, BookCatalogOpenAIResponseSchema, { products });
-      return;
-    }
-    const items = await getOpenAIFeedItems();
-    if (req.query.format === 'csv') {
-      res.type('text/csv; charset=utf-8');
-      res.set('Content-Disposition', 'attachment; filename="openai-catalog.csv"');
-      res.send(formatOpenAIFeedCSV(items));
-      return;
-    }
-    sendValidatedJSON(res, BookCatalogOpenAIFeedResponseSchema, { products: items });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // Stripe Agentic Commerce product feed (Google-Shopping field dialect, uploaded
 // via Stripe's product_catalog import API). Mirrors the Meta route: default
 // JSON, `csv` returns the upload file.
@@ -212,24 +179,6 @@ router.get('/catalog/stripe', validateQuery(BookCatalogQuerySchema), async (req,
       return;
     }
     sendValidatedJSON(res, BookCatalogStripeResponseSchema, { products: items });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Google Merchant Center product feed (RSS 2.0 XML in the Google-Shopping field
-// dialect). Google fetches this URL on a schedule; default returns XML, and
-// `?format=json` returns the same items as JSON for debugging.
-router.get('/catalog/google', validateQuery(BookCatalogQuerySchema), async (req, res, next) => {
-  try {
-    const items = await getGoogleMerchantFeedItems();
-    res.set('Cache-Control', `public, max-age=${ONE_HOUR_IN_S}, s-maxage=${ONE_HOUR_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`);
-    if (req.query.format === 'json') {
-      sendValidatedJSON(res, BookCatalogGoogleResponseSchema, { products: items });
-      return;
-    }
-    res.type('application/xml; charset=utf-8');
-    res.send(formatGoogleMerchantFeedXML(items));
   } catch (err) {
     next(err);
   }
