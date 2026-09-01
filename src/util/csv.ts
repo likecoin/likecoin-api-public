@@ -1,6 +1,6 @@
-// Shared CSV serialization for product-catalog feeds (Meta, OpenAI file-upload)
-// and admin exports. Centralizes the security-sensitive escaping so it can't
-// drift between callers.
+// Shared CSV serialization for the product-catalog feeds (Meta, Stripe) and
+// admin exports. Centralizes the security-sensitive escaping so it can't drift
+// between callers.
 
 // Defang spreadsheet formula injection (CWE-1236): publisher-supplied fields
 // (title/description/brand) could start with a formula trigger. The platform
