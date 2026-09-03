@@ -64,6 +64,8 @@ export interface RevenueCatEvent {
   original_transaction_id?: string;
   cancel_reason?: string;
   expiration_reason?: string;
+  // BILLING_ISSUE only: when access lapses if the charge keeps failing.
+  grace_period_expiration_at_ms?: number | null;
   // TRANSFER events only
   transferred_from?: string[];
   transferred_to?: string[];
@@ -764,10 +766,44 @@ async function revokeOtherHoldersOfTransaction(
   }));
 }
 
+type RevenueCatSubscriber = { email?: string; evmWallet?: string; likerPlus?: LikerPlusData };
+
+// The identity and subscription dimensions every terminal RevenueCat event reports.
+// Expiration and billing issue must agree on all of them or the churn funnel splits.
+function buildChurnEventPayload(
+  event: RevenueCatEvent,
+  user: RevenueCatSubscriber,
+  likerPlus: LikerPlusData,
+) {
+  // Must match the id the grant reported or the funnel doesn't join up. The stored
+  // id is the fallback: a terminal event may arrive without one.
+  const transactionId = event.original_transaction_id || likerPlus.originalTransactionId;
+  return {
+    transactionId,
+    payload: {
+      email: user.email,
+      evmWallet: user.evmWallet,
+      // Must resolve to the same distinct id the grant used, or a wallet-less app
+      // subscriber is granted under the forwarded id and never cleared. No stored
+      // fallback like transactionId above, so a cleared attribute still drops it.
+      posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+      extraProperties: {
+        subscription_id: transactionId,
+        provider: 'revenuecat',
+        platform: 'app',
+        store: event.store || likerPlus.store,
+        product_id: event.product_id,
+        period: likerPlus.period,
+        tier: likerPlus.tier,
+      },
+    },
+  };
+}
+
 async function handleExpiration(
   event: RevenueCatEvent,
   likerId: string,
-  user: { email?: string; evmWallet?: string; likerPlus?: LikerPlusData },
+  user: RevenueCatSubscriber,
   isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
@@ -782,9 +818,7 @@ async function handleExpiration(
   // cancellation — Stripe parity. The stored currentType is authoritative, so this
   // also covers a paid intro, whose period_type is INTRO rather than TRIAL.
   const isTrialEnd = user.likerPlus.currentType === 'trial';
-  // Must match the id the grant reported or the funnel doesn't join up. The stored
-  // id is the fallback: an expiration may arrive without one.
-  const transactionId = event.original_transaction_id || user.likerPlus.originalTransactionId;
+  const { transactionId, payload } = buildChurnEventPayload(event, user, user.likerPlus);
   const expiredAt = event.expiration_at_ms || Date.now();
   await revokeLikerPlus(likerId, user.likerPlus, {
     currentPeriodEnd: Math.min(user.likerPlus.currentPeriodEnd || expiredAt, expiredAt),
@@ -804,28 +838,17 @@ async function handleExpiration(
       eventName: isTrialEnd ? 'plus_trial_end' : 'plus_subscription_end',
     }),
     logServerEvents(isTrialEnd ? 'TrialEnded' : 'SubscriptionCancelled', {
-      email: user.email,
-      evmWallet: user.evmWallet,
-      // Must resolve to the same distinct id the grant used,
-      // or a wallet-less app subscriber is granted under the forwarded id and never cleared.
-      // No stored fallback like transactionId above, so a cleared attribute still drops it.
-      posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+      ...payload,
       paymentId: transactionId,
       // Mirrors clearIntercomPlusFlags above: the guards at the top of this
       // function mean reaching here is an actual loss of access.
       set: mapPlusEntitlementPersonProperties(null),
       extraProperties: {
-        subscription_id: transactionId,
-        provider: 'revenuecat',
-        platform: 'app',
+        ...payload.extraProperties,
         // Closes the funnel StartTrial opened with the same flag. Read off the event
         // because the record doesn't store it: period_type here describes the period
         // that expired, so a churned $1 intro reports INTRO.
         is_paid_trial: isTrialEnd && event.period_type === 'INTRO',
-        store: event.store || user.likerPlus.store,
-        product_id: event.product_id,
-        period: user.likerPlus.period,
-        tier: user.likerPlus.tier,
         // Named for parity with the Stripe path, which reports Stripe's own reason
         // under this key. EXPIRATION carries expiration_reason (UNSUBSCRIBED,
         // BILLING_ERROR, …); cancel_reason is the CANCELLATION event's field.
@@ -838,7 +861,7 @@ async function handleExpiration(
 async function handleBillingIssue(
   event: RevenueCatEvent,
   likerId: string,
-  user: { likerPlus?: LikerPlusData },
+  user: RevenueCatSubscriber,
   isSandbox: boolean,
 ) {
   if (isStripeOwnedLikerPlus(user.likerPlus)) return;
@@ -846,6 +869,8 @@ async function handleBillingIssue(
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (isForOtherSubscription(event, user.likerPlus)) return;
+  // Also the retry guard for the emit below: the stores re-notify on each failed
+  // attempt, and only the first one moves the record off 'active'.
   if (user.likerPlus.subscriptionStatus === 'past_due') return;
   await userCollection.doc(likerId).update({
     likerPlus: {
@@ -853,6 +878,28 @@ async function handleBillingIssue(
       subscriptionStatus: 'past_due',
       provider: 'revenuecat',
     },
+  });
+  if (isQuarantinedSandbox(isSandbox)) return;
+  const { payload } = buildChurnEventPayload(event, user, user.likerPlus);
+  // No value/currency on purpose: a failed charge must reach PostHog but never
+  // Meta/GA as a conversion. Errors are swallowed — the retry guard above makes a
+  // redelivery a no-op, so a throw would 5xx the webhook without ever re-emitting.
+  await logServerEvents('PaymentFailed', {
+    ...payload,
+    // The event id, not the transaction id: paymentId keys PostHog's dedup uuid and
+    // $insert_id, and original_transaction_id is stable for the subscription's
+    // whole life, so a later billing issue would be deduped away as a redelivery.
+    paymentId: event.id,
+    extraProperties: {
+      ...payload.extraProperties,
+      // RevenueCat carries no attempt_count/failure_code/price_id; left absent
+      // rather than faked, as on the expiration path.
+      grace_period_expires_at: event.grace_period_expiration_at_ms,
+      expires_at: event.expiration_at_ms,
+    },
+  }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('Failed to log PaymentFailed event:', err);
   });
 }
 
