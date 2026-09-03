@@ -666,6 +666,18 @@ async function emitPlusInvoiceAnalytics({
   const customerId = stripeCustomer.id;
   const period = item.plan.interval;
   const priceWithCurrency = `${amountPaid.toFixed(2)} ${currency}`;
+  // The subscription dimensions every invoice-driven emit reports; the acquisition
+  // payload below adds $referrer, which a renewal has no first-touch claim to.
+  const invoiceExtraProperties = {
+    subscription_id: subscriptionId,
+    provider: 'stripe',
+    platform: 'web',
+    period,
+    tier,
+    price_id: item.price.id,
+    product_id: productId,
+    ...mapAttributionExtraProperties(subscriptionMetadata),
+  };
 
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
@@ -718,14 +730,7 @@ async function emitPlusInvoiceAnalytics({
       gaSessionId,
       customerType: isNewSubscription ? getCustomerType(user) : 'returning',
       extraProperties: {
-        subscription_id: subscriptionId,
-        provider: 'stripe',
-        platform: 'web',
-        period,
-        tier,
-        price_id: item.price.id,
-        product_id: productId,
-        ...mapAttributionExtraProperties(subscriptionMetadata),
+        ...invoiceExtraProperties,
         $referrer: referrer,
       },
       setOnce: referrer ? { $initial_referrer: referrer } : undefined,
@@ -762,13 +767,7 @@ async function emitPlusInvoiceAnalytics({
       gaClientId,
       gaSessionId,
       customerType: 'returning',
-      extraProperties: {
-        subscription_id: subscriptionId,
-        period,
-        tier,
-        price_id: item.price.id,
-        ...mapAttributionExtraProperties(subscriptionMetadata),
-      },
+      extraProperties: invoiceExtraProperties,
     });
   }
 
@@ -1441,6 +1440,9 @@ export async function processStripeSubscriptionCancellation(
   const subscriptionItem = subscription.items?.data[0];
   const period = subscriptionItem?.plan?.interval;
   const priceId = subscriptionItem?.price?.id;
+  // From the canceled subscription's own product: a record held by another
+  // subscription (isForOtherSubscription) carries a tier this event isn't about.
+  const tier = derivePlusTierFromProductId(subscriptionItem?.price?.product as string);
   // Wallet-less checkouts have no identity to attribute to; emit under a synthetic
   // customer-scoped id so the churn is still counted, flagged as unattributed.
   const customerId = typeof subscription.customer === 'string'
@@ -1452,6 +1454,7 @@ export async function processStripeSubscriptionCancellation(
     provider: 'stripe',
     platform: 'web',
     period,
+    tier,
     price_id: priceId,
     cancel_reason: subscription.cancellation_details?.reason,
     cancel_feedback: subscription.cancellation_details?.feedback,
@@ -1462,6 +1465,7 @@ export async function processStripeSubscriptionCancellation(
   const analyticsOptions = {
     evmWallet,
     likeWallet,
+    email: user?.email,
     paymentId: subscriptionId,
     // The PostHog mirror of the Intercom clear above.
     set: hasClearedPlusEntitlement ? mapPlusEntitlementPersonProperties(null) : undefined,
@@ -1496,7 +1500,7 @@ export async function processStripePaymentFailure(
   } = subscriptionDetails?.metadata || {};
   if (!evmWallet) return;
   const lastError = invoice.last_finalization_error;
-  const value = (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100;
+  const amountDue = (invoice.amount_remaining ?? invoice.amount_due ?? 0) / 100;
   const stripe = getStripeClient();
   const [subscription, user] = await Promise.all([
     stripe.subscriptions.retrieve(subscriptionId).catch((err) => {
@@ -1509,9 +1513,8 @@ export async function processStripePaymentFailure(
   const subscriptionItem = subscription?.items?.data[0];
   const logPromise = logServerEvents('PaymentFailed', {
     evmWallet,
+    email: user?.email,
     paymentId: invoice.id,
-    value,
-    currency: invoice.currency?.toUpperCase(),
     userAgent,
     clientIp,
     fbClickId,
@@ -1521,8 +1524,17 @@ export async function processStripePaymentFailure(
     gaSessionId,
     extraProperties: {
       subscription_id: subscriptionId,
+      provider: 'stripe',
+      platform: 'web',
       period: subscriptionItem?.plan?.interval,
+      tier: derivePlusTierFromProductId(subscriptionItem?.price?.product as string),
       price_id: subscriptionItem?.price?.id,
+      product_id: subscriptionItem?.price?.product as string,
+      // Not the top-level `value`/`currency`: those forward the event to Meta/GA (see
+      // logServerEvents), and a failed charge is no conversion. logPostHogEvents also
+      // overwrites any extraProperties copy of those keys with the top-level options.
+      amount_due: amountDue,
+      amount_currency: invoice.currency?.toUpperCase(),
       attempt_count: invoice.attempt_count,
       failure_code: lastError?.code,
       failure_type: lastError?.type,

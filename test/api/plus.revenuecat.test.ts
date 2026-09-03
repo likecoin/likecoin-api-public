@@ -24,7 +24,9 @@ const mockSlackNotification = vi.mocked(sendPlusSubscriptionSlackNotification);
 // lifecycle event fired is only observable through a spy. Kept file-local rather than
 // in setup.ts because a suite-wide mock would silence these calls for every other
 // test file, not just the ones asserting on them.
-vi.mock('../../src/util/logServerEvents', () => ({ default: vi.fn() }));
+// Resolves rather than returning undefined: the real emit is async, and callers
+// chain .catch() on it.
+vi.mock('../../src/util/logServerEvents', () => ({ default: vi.fn().mockResolvedValue(undefined) }));
 const mockLogServerEvents = vi.mocked(logServerEvents);
 
 vi.mock('../../src/util/intercom', async (importOriginal) => {
@@ -410,15 +412,71 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
   });
 
-  it('sets past_due on BILLING_ISSUE', async () => {
+  it('sets past_due on BILLING_ISSUE and emits PaymentFailed', async () => {
     await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
+    mockLogServerEvents.mockClear();
     const res = await post(
-      { ...baseEvent, id: 'evt_3', type: 'BILLING_ISSUE' },
+      {
+        ...baseEvent,
+        id: 'evt_3',
+        type: 'BILLING_ISSUE',
+        grace_period_expiration_at_ms: EXPIRATION_AT_MS,
+      },
       { Authorization: AUTH },
     );
     expect(res.status).toBe(200);
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('past_due');
+    expect(mockLogServerEvents).toHaveBeenCalledWith(
+      'PaymentFailed',
+      expect.objectContaining({
+        // The event id, not the transaction id — a stable paymentId would let
+        // PostHog dedupe a later billing issue on the same subscription.
+        paymentId: 'evt_3',
+        extraProperties: expect.objectContaining({
+          subscription_id: 'txn_123',
+          provider: 'revenuecat',
+          platform: 'app',
+          store: 'APP_STORE',
+          tier: 'plus',
+          period: 'year',
+          grace_period_expires_at: EXPIRATION_AT_MS,
+        }),
+      }),
+    );
+    // Churn signals are PostHog-only; value/currency would forward them to Meta/GA.
+    expect(mockLogServerEvents).toHaveBeenCalledTimes(1);
+    const [, options] = mockLogServerEvents.mock.calls[0];
+    expect(options.value).toBeUndefined();
+    expect(options.currency).toBeUndefined();
+  });
+
+  it('emits PaymentFailed once across redelivered BILLING_ISSUE events', async () => {
+    // The stores re-notify on every failed attempt; only the first moves the record.
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    await post({ ...baseEvent, id: 'evt_dun_1', type: 'BILLING_ISSUE' }, { Authorization: AUTH });
+    mockLogServerEvents.mockClear();
+    const res = await post(
+      { ...baseEvent, id: 'evt_dun_2', type: 'BILLING_ISSUE' },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockLogServerEvents).not.toHaveBeenCalledWith('PaymentFailed', expect.anything());
+  });
+
+  it('does not emit PaymentFailed for a Stripe-owned record', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, provider: 'stripe', subscriptionId: 'sub_1' },
+    });
+    mockLogServerEvents.mockClear();
+    const res = await post(
+      { ...baseEvent, id: 'evt_dun_stripe', type: 'BILLING_ISSUE' },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockLogServerEvents).not.toHaveBeenCalledWith('PaymentFailed', expect.anything());
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.subscriptionStatus).toBe('active');
   });
 
   it('does not set past_due on BILLING_ISSUE for a different subscription', async () => {
