@@ -54,6 +54,15 @@ import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom'
 
 export type PlusPeriod = 'monthly' | 'yearly';
 
+// Map a Stripe product id to its Plus tier; null for non-Plus products. The
+// non-empty guard on the Civic id keeps an unconfigured deployment (both ids
+// '') from ever tier-matching a foreign product.
+export function derivePlusTierFromProductId(productId?: string | null): LikerPlusTier | null {
+  if (productId === LIKER_PLUS_PRODUCT_ID) return 'plus';
+  if (LIKER_PLUS_CIVIC_PRODUCT_ID && productId === LIKER_PLUS_CIVIC_PRODUCT_ID) return 'civic';
+  return null;
+}
+
 export function getPlusPriceId(tier: LikerPlusTier, period: PlusPeriod): string {
   if (tier === 'civic') {
     return period === 'yearly' ? LIKER_PLUS_CIVIC_YEARLY_PRICE_ID : LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID;
@@ -279,14 +288,8 @@ async function resolvePlusInvoiceContext(
     status,
   } = subscription;
   const productId = item.price.product as string;
-  // The non-empty guard on the Civic id keeps an unconfigured deployment (both
-  // ids '') from ever tier-matching a foreign product.
-  let tier: LikerPlusTier;
-  if (productId === LIKER_PLUS_PRODUCT_ID) {
-    tier = 'plus';
-  } else if (LIKER_PLUS_CIVIC_PRODUCT_ID && productId === LIKER_PLUS_CIVIC_PRODUCT_ID) {
-    tier = 'civic';
-  } else {
+  const tier = derivePlusTierFromProductId(productId);
+  if (!tier) {
     // eslint-disable-next-line no-console
     console.warn(`Unexpected product ID in stripe subscription: ${productId} ${subscription}`);
     return null;
