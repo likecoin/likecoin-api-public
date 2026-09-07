@@ -89,6 +89,7 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
         nonLibraryReadingTimeMs,
         nonLibraryTtsTimeMs,
         occurredAt,
+        ipCountry,
       } = entry;
 
       // Nothing to record, but report a dayId so the forwarder treats it as acked.
@@ -108,6 +109,8 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
         nonLibraryReadingTimeMs,
         nonLibraryTtsTimeMs,
         occurredAt,
+        // From the entry, never getIpCountryFromRequest: the header is the forwarder's.
+        ipCountry,
       });
       results.push({ dayId, applied });
     }

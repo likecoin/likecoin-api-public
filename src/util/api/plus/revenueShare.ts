@@ -1,5 +1,5 @@
 import { checksumAddress } from 'viem';
-import { ONE_DAY_IN_MS } from '../../../constant';
+import { ISO_ALPHA2_COUNTRY_CODES, ONE_DAY_IN_MS } from '../../../constant';
 import {
   FieldValue, Timestamp, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
@@ -77,6 +77,18 @@ export function getDayStartMs(timestampMs: number): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+/**
+ * Reader region for a usage rollup's `byRegion` bucket: an ISO 3166-1 alpha-2 code,
+ * uppercased and allowlisted. Cloudflare answers `XX` for an unresolvable IP and `T1` for
+ * Tor, and the value becomes a Firestore map key, so anything unrecognised is dropped
+ * rather than allowed to open a bucket no ranking would ever read.
+ */
+export function parseUsageRegion(ipCountry?: string): string | undefined {
+  const code = ipCountry?.trim().toUpperCase();
+  if (!code || !ISO_ALPHA2_COUNTRY_CODES.has(code)) return undefined;
+  return code;
+}
+
 // How long a dedup receipt is kept. Retries of a dropped forward arrive within
 // seconds; days of margin covers a stuck queue. A Firestore TTL policy on
 // `plusUsageReceipts.expireAt` purges them so they don't grow unbounded.
@@ -99,6 +111,8 @@ const GRPC_ALREADY_EXISTS = 6;
  * (`minPriceInDecimal === 0`) are recorded as non-library engagement (publisher stats
  * only): the pool funds paid library reading. Settlement ignores the non-library fields.
  * An `id` makes the write idempotent (see the receipt in the batch below).
+ * `ipCountry` adds a per-region usage total to the day rollup, so a regional popular
+ * ranking can be backfilled from the rollups later the way the global one already is.
  */
 export async function recordPlusReadingUsage({
   id,
@@ -109,6 +123,7 @@ export async function recordPlusReadingUsage({
   nonLibraryReadingTimeMs = 0,
   nonLibraryTtsTimeMs = 0,
   occurredAt,
+  ipCountry,
 }: {
   // Idempotency key. When present, a repeat delivery (e.g. a retried forward after
   // a lost response) is detected and skipped, so the non-idempotent increments below
@@ -124,12 +139,15 @@ export async function recordPlusReadingUsage({
   nonLibraryReadingTimeMs?: number;
   nonLibraryTtsTimeMs?: number;
   occurredAt?: number;
+  // Reader's country, from the caller's own request. Unrecognised codes record no region.
+  ipCountry?: string;
 }): Promise<{ dayId: string; applied: boolean }> {
   const ts = occurredAt ?? Date.now();
   const dayId = getUsageDayId(ts);
   const dayMs = getDayStartMs(ts);
   const normalizedClassId = classId.toLowerCase();
   const normalizedReaderWallet = checksumAddress(readerWallet as `0x${string}`);
+  const region = parseUsageRegion(ipCountry);
 
   const bookDocRef = likeNFTBookCollection.doc(normalizedClassId);
   const bookDoc = await bookDocRef.get();
@@ -182,6 +200,19 @@ export async function recordPlusReadingUsage({
     // can un-say another's: a mid-day toggle marks both and the day reads as mixed, where a
     // single last-write-wins boolean would contradict the minutes banked beside it.
     ...(isInLibrary ? { wasLibraryEnabled: true } : { wasLibraryDisabled: true }),
+    // The `total` prefix is load-bearing: unlike the same-named counters above, these
+    // combine library and non-library time, matching what `plusReadingScore` is scored
+    // from. A read with no resolvable country joins no bucket, so the regions sum to less.
+    ...(region && {
+      byRegion: {
+        [region]: {
+          totalReadingTimeMs: FieldValue.increment(
+            libraryReadingTimeMs + statsNonLibraryReadingTimeMs,
+          ),
+          totalTtsTimeMs: FieldValue.increment(libraryTtsTimeMs + statsNonLibraryTtsTimeMs),
+        },
+      },
+    }),
   }, { merge: true });
   // Per-reader grain is rev-share audit only — skip it for pure non-library
   // engagement (including free-book reads) so non-payout reads don't spawn reader docs.
