@@ -303,6 +303,10 @@ const PlusReadingUsageEntrySchema = z.object({
   nonLibraryReadingTimeMs: UsageDurationSchema.default(0),
   nonLibraryTtsTimeMs: UsageDurationSchema.default(0),
   occurredAt: z.number().int().positive().optional(),
+  // Reader's country (ISO 3166-1 alpha-2), carried in the body because this route is called
+  // server-to-server: `cf-ipcountry` here is the forwarder's, not the reader's. Allowlisted at
+  // write time, so an unrecognised code records no region rather than rejecting the write.
+  ipCountry: z.string().optional(),
 });
 
 // Accept a single entry (legacy flat body) or a batch. Backward compatible: an old
