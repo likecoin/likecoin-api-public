@@ -47,6 +47,10 @@ config.LIKER_PLUS_BOOK_PROMO_COUPON_CODE = '';
 config.LIKER_PLUS_CIVIC_PRODUCT_ID = '';
 config.LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID = '';
 config.LIKER_PLUS_CIVIC_YEARLY_PRICE_ID = '';
+// Billing Portal configuration (bpc_*) for the paid tier-upgrade confirm flow.
+// Must list the Plus/Civic prices under subscription_update.products with
+// proration_behavior 'always_invoice'. Empty disables the portal upgrade flow.
+config.LIKER_PLUS_UPGRADE_PORTAL_CONFIG_ID = '';
 
 // RevenueCat (mobile IAP) — bridges App/Play Store Plus subscriptions.
 config.REVENUECAT_WEBHOOK_AUTHORIZATION = process.env.REVENUECAT_WEBHOOK_AUTHORIZATION || ''; // shared secret set in RC dashboard's webhook Authorization header

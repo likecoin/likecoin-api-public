@@ -447,6 +447,30 @@ export const getPlusSuccessPageURL = ({
   return `${getBook3URL(`/plus/success?${qs}`, { language })}&session_id={CHECKOUT_SESSION_ID}`;
 };
 
+// Post-confirmation redirect for the Billing Portal tier-upgrade flow.
+// Deliberately NOT `redirect=1` (getPlusSuccessPageURL): the success page keys
+// gift-cart handling off that flag, and an in-place upgrade must not re-open a
+// pre-existing gift cart. `via=portal` triggers the conversion logging instead.
+export const getPlusUpgradeSuccessPageURL = ({
+  period,
+  tier,
+  paymentId,
+  language,
+}: {
+  period: string;
+  tier: string;
+  paymentId: string;
+  language?: string;
+}): string => {
+  const qs = new URLSearchParams({
+    via: 'portal',
+    period,
+    tier,
+    payment_id: paymentId,
+  }).toString();
+  return getBook3URL(`/plus/success?${qs}`, { language });
+};
+
 export const getPlusGiftPageURL = ({
   period,
   quantity,
