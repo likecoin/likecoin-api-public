@@ -27,7 +27,10 @@ import {
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
-import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
+import {
+  createAirtableSubscriptionPaymentRecord,
+  updateAirtableSubscriptionStatus,
+} from '../../airtable';
 import logServerEvents from '../../logServerEvents';
 import publisher from '../../gcloudPub';
 import { splitByComma } from '../../misc';
@@ -647,6 +650,13 @@ async function handleGrant(
       productId: event.product_id,
       price: paymentAmount,
       currency: paymentCurrency,
+      // MRR/ARR roll up Balance Tx Amount rather than Price,
+      // and `paymentAmount` above is in the store's local currency.
+      // `event.price` is the USD figure, matching Stripe's settled amount.
+      ...(event.price != null ? { balanceTxAmount: event.price } : {}),
+      // Matches the Stripe price nicknames ("plus monthly" / "plus yearly"),
+      // so both channels land in the same Plans buckets.
+      priceName: tier && period ? `${tier} ${period}ly` : '',
       since,
       periodInterval: period || '',
       periodStartAt: purchasedAtMs,
@@ -854,6 +864,13 @@ async function handleExpiration(
         // BILLING_ERROR, …); cancel_reason is the CANCELLATION event's field.
         cancel_reason: event.expiration_reason || event.cancel_reason,
       },
+    }),
+    // Nothing else marks an in-app subscription as churned in Airtable:
+    // the weekly poll reads Stripe only, so these would sit in Past Due forever.
+    updateAirtableSubscriptionStatus({
+      subscriptionId: transactionId || '',
+      providerStatus: 'expired',
+      canceledAt: Math.floor(expiredAt / 1000),
     }),
   ]);
 }

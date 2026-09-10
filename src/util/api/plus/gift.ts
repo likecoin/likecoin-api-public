@@ -398,7 +398,7 @@ export async function claimPlusGiftCart({
         couponId: '',
         couponName: '',
         since,
-        periodInterval: period,
+        periodInterval: period === 'yearly' ? 'year' : 'month',
         periodStartAt: currentPeriodStart,
         periodEndAt: currentPeriodEnd,
         isNew: true,

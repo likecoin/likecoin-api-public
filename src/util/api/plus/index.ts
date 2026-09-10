@@ -45,7 +45,10 @@ import {
 } from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
-import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
+import {
+  createAirtableSubscriptionPaymentRecord,
+  updateAirtableSubscriptionStatus,
+} from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
@@ -1481,6 +1484,13 @@ export async function processStripeSubscriptionCancellation(
       eventName: isTrialEnd ? 'plus_trial_end' : 'plus_subscription_end',
     })] : []),
     logServerEvents(isTrialEnd ? 'TrialEnded' : 'SubscriptionCancelled', analyticsOptions),
+    // Stripe stamps canceled_at the moment the user asks to cancel,
+    // long before a cancel_at_period_end subscription reaches this handler.
+    updateAirtableSubscriptionStatus({
+      subscriptionId,
+      providerStatus: subscription.status,
+      canceledAt: subscription.canceled_at ?? subscription.ended_at,
+    }),
   ]);
 }
 
@@ -1571,6 +1581,13 @@ export async function processStripeSubscriptionStatusUpdate(
 ) {
   const { status } = subscription;
   const { evmWallet, likeWallet } = subscription.metadata || {};
+  // Deliberately ahead of every early return below:
+  // the Airtable row needs this even when no user can be resolved.
+  await updateAirtableSubscriptionStatus({
+    subscriptionId: subscription.id,
+    providerStatus: status,
+    canceledAt: subscription.canceled_at,
+  });
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
     console.warn(`Subscription ${subscription.id} has no wallet in metadata`);
