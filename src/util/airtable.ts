@@ -948,6 +948,24 @@ export async function createAirtableSubscriptionPaymentRecord({
   }
 }
 
+// Airtable clears a cell only on an explicit null;
+// undefined is dropped from the payload and leaves the stored date in place.
+export function buildSubscriptionStatusFields({
+  providerStatus,
+  canceledAt,
+}: {
+  providerStatus: string;
+  canceledAt?: number | null;
+}): Record<string, string | null> {
+  const fields: Record<string, string | null> = { 'Provider Status': providerStatus };
+  if (canceledAt !== undefined) {
+    fields['Canceled Date'] = canceledAt === null
+      ? null
+      : new Date(canceledAt * 1000).toISOString();
+  }
+  return fields;
+}
+
 export async function updateAirtableSubscriptionStatus({
   subscriptionId,
   providerStatus,
@@ -958,9 +976,9 @@ export async function updateAirtableSubscriptionStatus({
   canceledAt?: number | null;
 }): Promise<void> {
   try {
-    if (!base) throw new Error('Airtable base is not initialized');
     if (!SUBSCRIPTIONS_TABLE_ID) return;
     if (!subscriptionId) return;
+    if (!base) throw new Error('Airtable base is not initialized');
     const escapedSubscriptionId = subscriptionId.replace(/'/g, "\\'");
     const [record] = await base(SUBSCRIPTIONS_TABLE_ID)
       .select({
@@ -975,11 +993,11 @@ export async function updateAirtableSubscriptionStatus({
       console.warn(`Airtable subscription record not found for ${subscriptionId}`);
       return;
     }
-    const fields: Partial<FieldSet> = { 'Provider Status': providerStatus };
-    if (canceledAt) {
-      fields['Canceled Date'] = new Date(canceledAt * 1000).toISOString();
-    }
-    await base(SUBSCRIPTIONS_TABLE_ID).update([{ id: record.id, fields }], { typecast: true });
+    const fields = buildSubscriptionStatusFields({ providerStatus, canceledAt });
+    await base(SUBSCRIPTIONS_TABLE_ID).update(
+      [{ id: record.id, fields: fields as unknown as Partial<FieldSet> }],
+      { typecast: true },
+    );
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
