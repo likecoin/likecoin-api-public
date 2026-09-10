@@ -6,11 +6,17 @@ import {
   BOOK_ADMIN_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
+  createBookInfoSlackBlocks,
   createBookListSlackBlocks,
   escapeSlackText,
   formatBookTippingSlackText,
   sendNFTBookApprovalUpdateSlackNotification,
 } from '../../util/slack';
+import {
+  BOOK_INFO_USAGE,
+  getBookInfoForAdmin,
+  parseBookInfoClassId,
+} from '../../util/api/likernft/book/adminInfo';
 import {
   BOOK_LIST_CHAIN,
   BOOK_LIST_DEFAULT_LIMIT,
@@ -31,7 +37,7 @@ import {
 } from '../../util/api/likernft/book/tipping';
 import { FieldValue, likeNFTBookCollection } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
-import { ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../../constant';
+import { BOOK3_HOSTNAME, ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../../constant';
 import { GEOBLOCK_HK_TERRITORIES } from '../../util/api/likernft/book/complianceReview';
 import { updateAirtablePublicationRecord } from '../../util/airtable';
 import { splitByComma } from '../../util/misc';
@@ -243,6 +249,15 @@ router.post(
         text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
       });
     },
+    info: async ({ params, res }) => {
+      const classId = parseBookInfoClassId(params[0]);
+      const book = await getBookInfoForAdmin(classId);
+
+      res.json({
+        response_type: 'ephemeral',
+        blocks: createBookInfoSlackBlocks(book),
+      });
+    },
     list: async ({ params, res }) => {
       const query = parseBookListQuery(params);
       const result = await listBooksForAdmin(query);
@@ -304,6 +319,12 @@ Examples:
   \`/book approve 0x1234...5678  geoblock JP\` - Restrict purchase in the given 2-letter ISO country (GB, not UK)
   \`/book approve 0x1234...5678  geoblock HK,JP,GB\` - Restrict several countries; replaces the whole list, HK still implies CN
   \`/book approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)
+
+\`/book info ${BOOK_INFO_USAGE}\` Show one book listing's metadata, status and editions
+
+Examples:
+  \`/book info 0x1234...5678\` - Look up by class ID
+  \`/book info https://${BOOK3_HOSTNAME}/store/0x1234...5678\` - Look up by store link
 
 \`/book list [asc|desc] [<flag>...] [owner:<wallet>] [limit:<n>]\` List ${BOOK_LIST_CHAIN}-chain book listings
 Flags (combinable, all must match): \`${BOOK_LIST_FLAG_USAGE}\`
