@@ -58,6 +58,9 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
 const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHpE';
 const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
+// Only the production base rolls payment rows up into a Subscriptions table;
+// the testnet base has none, so status writes there are a no-op.
+const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
 
 let base: Airtable.Base | undefined;
 
@@ -939,6 +942,44 @@ export async function createAirtableSubscriptionPaymentRecord({
       'Gift Cart ID': giftCartId || '',
     };
     await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}
+
+export async function updateAirtableSubscriptionStatus({
+  subscriptionId,
+  providerStatus,
+  canceledAt,
+}: {
+  subscriptionId: string;
+  providerStatus: string;
+  canceledAt?: number | null;
+}): Promise<void> {
+  try {
+    if (!base) throw new Error('Airtable base is not initialized');
+    if (!SUBSCRIPTIONS_TABLE_ID) return;
+    if (!subscriptionId) return;
+    const escapedSubscriptionId = subscriptionId.replace(/'/g, "\\'");
+    const [record] = await base(SUBSCRIPTIONS_TABLE_ID)
+      .select({
+        filterByFormula: `{Subscription ID} = '${escapedSubscriptionId}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+    if (!record) {
+      // The row is created by an Airtable automation off the first payment row,
+      // so a status webhook can legitimately land before it exists.
+      // eslint-disable-next-line no-console
+      console.warn(`Airtable subscription record not found for ${subscriptionId}`);
+      return;
+    }
+    const fields: Partial<FieldSet> = { 'Provider Status': providerStatus };
+    if (canceledAt) {
+      fields['Canceled Date'] = new Date(canceledAt * 1000).toISOString();
+    }
+    await base(SUBSCRIPTIONS_TABLE_ID).update([{ id: record.id, fields }], { typecast: true });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
