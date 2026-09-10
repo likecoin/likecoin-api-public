@@ -650,6 +650,13 @@ async function handleGrant(
       productId: event.product_id,
       price: paymentAmount,
       currency: paymentCurrency,
+      // MRR/ARR roll up Balance Tx Amount rather than Price,
+      // and `paymentAmount` above is in the store's local currency.
+      // `event.price` is the USD figure, matching Stripe's settled amount.
+      ...(event.price != null ? { balanceTxAmount: event.price } : {}),
+      // Matches the Stripe price nicknames ("plus monthly" / "plus yearly"),
+      // so both channels land in the same Plans buckets.
+      priceName: tier && period ? `${tier} ${period}ly` : '',
       since,
       periodInterval: period || '',
       periodStartAt: purchasedAtMs,
