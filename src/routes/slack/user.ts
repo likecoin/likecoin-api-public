@@ -8,44 +8,21 @@ import {
 import {
   getSlackAttachmentForMap,
 } from '../../util/slack';
-import {
-  userCollection,
-} from '../../util/firebase';
-import { formatUserCivicLikerProperies } from '../../util/api/users';
+import { findUserDocByQuery, formatUserCivicLikerProperies } from '../../util/api/users';
 import { getBookUserInfo } from '../../util/api/likernft/book/user';
 
 const router = Router();
 
 async function getUserInfo(req, res, query) {
-  let queryType = 'user';
-  if (query.includes('@') && query.includes('.')) {
-    queryType = 'email';
-  } else if (query.startsWith('0x') && query.length === 42) {
-    queryType = 'evmWallet';
-  } else if (query.startsWith('cosmos1') && query.length === 45) {
-    queryType = 'cosmosWallet';
-  } else if (query.startsWith('like1') && query.length === 43) {
-    queryType = 'likeWallet';
-  }
-
-  let userDoc;
+  const { queryType, userDoc } = await findUserDocByQuery(query);
   let userInfo: any = {};
-  if (queryType !== 'user') {
-    const userQuery = await userCollection.where(queryType, '==', query).limit(1).get();
-    if (queryType === 'likeWallet' || queryType === 'evmWallet') {
-      const bookUser = await getBookUserInfo(query);
-      if (bookUser) {
-        userInfo.bookInfo = bookUser;
-      }
-    } else if (!userQuery.docs.length) {
-      throw new Error('Invalid query, user not found');
+  if (queryType === 'likeWallet' || queryType === 'evmWallet') {
+    const bookUser = await getBookUserInfo(query);
+    if (bookUser) {
+      userInfo.bookInfo = bookUser;
     }
-    [userDoc] = userQuery.docs;
-  } else {
-    const queryDoc = await userCollection.doc(query).get();
-    if (queryDoc.exists) {
-      userDoc = queryDoc;
-    }
+  } else if (queryType !== 'user' && !userDoc) {
+    throw new Error('Invalid query, user not found');
   }
   if (userDoc) {
     const user = userDoc.id;
