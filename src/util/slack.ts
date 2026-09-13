@@ -29,6 +29,7 @@ import {
   type BookListResult,
 } from './api/likernft/book/adminList';
 import { getBookTimestampMillis } from './api/likernft/book/cms';
+import type { PlusAffiliateListEntry } from './api/plus/slack';
 import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
 
@@ -710,4 +711,18 @@ export function createBookListSlackBlocks(
     });
   }
   return blocks;
+}
+
+export function formatPlusAffiliateListSlackText(entries: PlusAffiliateListEntry[]): string {
+  if (!entries.length) return 'No active affiliates found';
+  const lines = entries.map(({
+    wallet, user, displayName, customVoiceCount,
+  }) => {
+    // Display names are user-supplied, so they can carry mrkdwn.
+    const who = user
+      ? `\`${user}\` ${escapeSlackText(displayName || '')}`
+      : `⚠️ no liker user for wallet \`${wallet}\``;
+    return `• ${who} · ${customVoiceCount} voice(s)`;
+  });
+  return `*${entries.length} active affiliate(s)*\n${lines.join('\n')}`;
 }

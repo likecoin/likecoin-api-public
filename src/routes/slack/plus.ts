@@ -6,9 +6,11 @@ import {
   USER_ALLOWED_USER_IDS,
 } from '../../../config/config';
 import {
+  formatPlusAffiliateListSlackText,
   getSlackAttachmentForMap,
 } from '../../util/slack';
 import {
+  listPlusAffiliates,
   syncUserSubscription,
   linkSubscriptionToUser,
 } from '../../util/api/plus/slack';
@@ -79,6 +81,20 @@ router.post(
       });
     },
 
+    affiliate: async ({ params, res }) => {
+      const [subcommand] = params;
+      if (subcommand === 'list') {
+        // /plus affiliate list
+        const entries = await listPlusAffiliates();
+        res.json({
+          response_type: 'ephemeral',
+          text: formatPlusAffiliateListSlackText(entries),
+        });
+        return;
+      }
+      throw new Error('Invalid affiliate command. Usage: /plus affiliate list');
+    },
+
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
@@ -92,10 +108,14 @@ Sync a Stripe subscription with proper evmWallet metadata. Can work with either:
 \`/plus link <subscriptionId> <evmWallet>\`
 Create linkage between a Stripe subscription and an evmWallet.
 
+\`/plus affiliate list\`
+List active affiliates with their liker ID, display name and voice count.
+
 *Examples:*
 \`/plus sync 0x1234567890abcdef1234567890abcdef12345678\`
 \`/plus sync sub_1234567890abcdef\`
-\`/plus link sub_1234567890abcdef 0x1234567890abcdef1234567890abcdef12345678\``,
+\`/plus link sub_1234567890abcdef 0x1234567890abcdef1234567890abcdef12345678\`
+\`/plus affiliate list\``,
       });
     },
   }, 'Invalid command. Use /plus help for available commands.'),

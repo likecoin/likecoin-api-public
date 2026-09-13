@@ -259,3 +259,27 @@ export async function linkSubscriptionToUser(subscriptionId: string, evmWallet: 
     };
   }
 }
+
+export interface PlusAffiliateListEntry {
+  wallet: string;
+  user?: string;
+  displayName?: string;
+  customVoiceCount: number;
+}
+
+export async function listPlusAffiliates(): Promise<PlusAffiliateListEntry[]> {
+  const snapshot = await likeNFTBookUserCollection
+    .where('affiliateConfig.active', '==', true)
+    .get();
+  return Promise.all(snapshot.docs.map(async (doc) => {
+    const { affiliateConfig } = doc.data();
+    const likerUser = await getUserWithCivicLikerPropertiesByWallet(doc.id)
+      .catch(() => null);
+    return {
+      wallet: doc.id,
+      user: likerUser?.user,
+      displayName: likerUser?.displayName,
+      customVoiceCount: affiliateConfig?.customVoices?.length || 0,
+    };
+  }));
+}
