@@ -37,12 +37,24 @@ export interface SlackCommandContext {
 
 export type SlackCommandFn = (ctx: SlackCommandContext) => void | Promise<unknown>;
 
+// Text pasted from a Slack message keeps its formatting:
+// backticks from inline code or code blocks,
+// and `<mailto:a@b.co|…>` or `<https://…|label>` wrappers when links are escaped.
+// Unwrap to the raw address or URL so params match as typed;
+// user and channel mentions (`<@U…>`, `<#C…>`) are left alone.
+export function normalizeSlackCommandText(text: string): string {
+  return text
+    .replace(/<(?:mailto:)?([^<>|@#!][^<>|]*)(?:\|[^<>]*)?>/g, '$1')
+    .replace(/`/g, '');
+}
+
 export const slackCommandHandler = (
   commands: Record<string, SlackCommandFn>,
   invalidCommandMessage = 'Invalid command',
 ) => async (req: Request, res: Response): Promise<void> => {
   try {
-    const [command, ...params] = req.body.text ? req.body.text.trim().split(/\s+/) : ['help'];
+    const text = normalizeSlackCommandText(req.body.text || '').trim();
+    const [command, ...params] = text ? text.split(/\s+/) : ['help'];
     const commandFn = Object.prototype.hasOwnProperty.call(commands, command)
       ? commands[command]
       : null;
