@@ -1,6 +1,9 @@
 import { userCollection, likeNFTBookUserCollection } from '../../firebase';
 import { getStripeClient } from '../../stripe';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import { findUserDocByQuery } from '../users';
+import { getBookUserInfo } from '../likernft/book/user';
+import { ValidationError } from '../../ValidationError';
 
 export async function getStripeSubscriptionDetails(subscriptionId: string) {
   const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId);
@@ -258,4 +261,59 @@ export async function linkSubscriptionToUser(subscriptionId: string, evmWallet: 
       evmWallet,
     };
   }
+}
+
+export interface PlusAffiliateListEntry {
+  wallet: string;
+  user?: string;
+  displayName?: string;
+  customVoiceCount: number;
+}
+
+export async function listPlusAffiliates(): Promise<PlusAffiliateListEntry[]> {
+  const snapshot = await likeNFTBookUserCollection
+    .where('affiliateConfig.active', '==', true)
+    .get();
+  return Promise.all(snapshot.docs.map(async (doc) => {
+    const { affiliateConfig } = doc.data();
+    const likerUser = await getUserWithCivicLikerPropertiesByWallet(doc.id)
+      .catch(() => null);
+    return {
+      wallet: doc.id,
+      user: likerUser?.user,
+      displayName: likerUser?.displayName,
+      customVoiceCount: affiliateConfig?.customVoices?.length || 0,
+    };
+  }));
+}
+
+// The affiliate is matched by internal user id only, never by handle,
+// so the stored value is always exactly the id that was typed.
+export async function setUserPlusAffiliate(query: string, affiliateId: string) {
+  const { userDoc } = await findUserDocByQuery(query);
+  if (!userDoc) throw new ValidationError(`User not found: ${query}`);
+
+  const affiliateDoc = await userCollection.doc(affiliateId).get();
+  const affiliateData = affiliateDoc.data();
+  if (!affiliateDoc.exists || !affiliateData || affiliateData.isDeleted) {
+    throw new ValidationError(`Affiliate not found: ${affiliateId}`);
+  }
+  const affiliateWallet = affiliateData.evmWallet || affiliateData.likeWallet;
+  const affiliateBookUser = affiliateWallet ? await getBookUserInfo(affiliateWallet) : null;
+  const affiliateConfig = affiliateBookUser?.affiliateConfig;
+  if (!affiliateConfig?.active) {
+    throw new ValidationError(`Affiliate ${affiliateId} has no active affiliate config`);
+  }
+
+  const plusAffiliateFrom = affiliateDoc.id;
+  const previousPlusAffiliateFrom = userDoc.data()?.plusAffiliateFrom;
+  await userDoc.ref.update({ plusAffiliateFrom });
+
+  return {
+    user: userDoc.id,
+    previousPlusAffiliateFrom,
+    plusAffiliateFrom,
+    customVoices: (affiliateConfig.customVoices || [])
+      .map(({ name, language }) => ({ name, language })),
+  };
 }

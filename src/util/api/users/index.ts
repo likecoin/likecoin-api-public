@@ -3,6 +3,7 @@ import disposableDomains from 'disposable-email-domains';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import LRU from 'lru-cache';
 import { checksumAddress } from 'viem';
+import type { DocumentSnapshot } from '@google-cloud/firestore';
 import {
   AUTH_COOKIE_OPTION,
   BUTTON_COOKIE_OPTION,
@@ -22,6 +23,7 @@ import { isHandleAvailable } from './handle';
 import { jwtSign } from '../../jwt';
 import { verifyCosmosSignInPayload } from '../../cosmos';
 import { maskString } from '../../misc';
+import type { UserData } from '../../../types/user';
 
 const emailDomainCache = new LRU({ max: 1024, ttl: 3600 }); // 1 hour
 
@@ -460,6 +462,31 @@ export async function fetchUserInfoByEmail(email: string) {
   const [doc] = snapshot.docs;
   const data = doc.data();
   return { displayName: data.displayName || doc.id, locale: data.locale || '' };
+}
+
+export type UserQueryType = 'user' | 'email' | 'evmWallet' | 'cosmosWallet' | 'likeWallet';
+
+function getUserQueryType(query: string): UserQueryType {
+  if (query.includes('@') && query.includes('.')) return 'email';
+  if (query.startsWith('0x') && query.length === 42) return 'evmWallet';
+  if (query.startsWith('cosmos1') && query.length === 45) return 'cosmosWallet';
+  if (query.startsWith('like1') && query.length === 43) return 'likeWallet';
+  return 'user';
+}
+
+// Matches exactly as typed, for admin lookups: a liker ID against the document id
+// only (no handle resolution), and wallets without checksumming.
+export async function findUserDocByQuery(query: string): Promise<{
+  queryType: UserQueryType;
+  userDoc?: DocumentSnapshot<UserData>;
+}> {
+  const queryType = getUserQueryType(query);
+  if (queryType === 'user') {
+    const userDoc = await dbRef.doc(query).get();
+    return { queryType, userDoc: userDoc.exists ? userDoc : undefined };
+  }
+  const snapshot = await dbRef.where(queryType, '==', query).limit(1).get();
+  return { queryType, userDoc: snapshot.docs[0] };
 }
 
 export * from './getPublicInfo';

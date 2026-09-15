@@ -162,6 +162,7 @@ export interface UserData {
   // Subscription fields
   civicLiker?: CivicLikerData;
   likerPlus?: LikerPlusData;
+  plusAffiliateFrom?: string;
 
   // Purchase history
   firstPaidAt?: Timestamp;
