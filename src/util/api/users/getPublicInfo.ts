@@ -116,6 +116,8 @@ export function formatUserCivicLikerProperies(
       payload.likerPlusPeriod = period;
       // Pre-Civic records have no tier; they are Plus.
       payload.likerPlusTier = likerPlus.tier || 'plus';
+      // Only set while a requested downgrade waits for the renewal invoice.
+      if (likerPlus.pendingTier) payload.likerPlusPendingTier = likerPlus.pendingTier;
       payload.likerPlusSubscriptionStatus = likerPlus.subscriptionStatus || 'active';
     } else if (now > renewalLast) {
       payload.isExpiredLikerPlus = true;

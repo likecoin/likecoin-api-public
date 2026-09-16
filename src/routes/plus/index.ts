@@ -46,6 +46,7 @@ import { convertUSDPriceToCurrency } from '../../util/pricing';
 import {
   createNewPlusCheckoutSession,
   getPlusTierUSDPrice,
+  updatePlusPendingTier,
   updateSubscriptionPeriod,
   type PlusPeriod,
 } from '../../util/api/plus';
@@ -495,15 +496,37 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
     }
     // Pre-Civic records have no tier; they are Plus.
     const existingTier: LikerPlusTier = userInfo.likerPlus.tier || 'plus';
-    const targetTier: LikerPlusTier = tier || existingTier;
-    if (period === `${existingPeriod}ly` && targetTier === existingTier) {
-      throw new ValidationError('Subscription plan is already set to this value.', 400);
-    }
-    await updateSubscriptionPeriod(subscriptionId, period, {
+    // A requested downgrade only reaches `tier` at renewal, so the marker carries the
+    // current intent: without it, undoing one reads as a no-op and 400s until then,
+    // and a bare period change would re-target the tier the member is leaving.
+    const effectiveTier: LikerPlusTier = userInfo.likerPlus.pendingTier || existingTier;
+    const targetTier: LikerPlusTier = tier || effectiveTier;
+    const isPlanChanged = await updateSubscriptionPeriod(subscriptionId, period, {
       tier: targetTier,
       giftClassId,
       giftPriceIndex,
     });
+    try {
+      await updatePlusPendingTier(userInfo.user, {
+        currentTier: existingTier,
+        targetTier,
+        pendingTier: userInfo.likerPlus.pendingTier,
+      });
+    } catch (err) {
+      // Stripe already switched, so failing the request here would report a successful
+      // change as an error. Retrying the same request repairs the marker.
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'PlusPendingTierUpdateFailed',
+        subscriptionId,
+        tier: targetTier,
+        wallet,
+        error: (err as Error).message,
+      });
+    }
+    // Checked after the marker write, so a retry after a failed write still repairs it.
+    if (!isPlanChanged) {
+      throw new ValidationError('Subscription plan is already set to this value.', 400);
+    }
     res.sendStatus(200);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

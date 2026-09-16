@@ -28,18 +28,30 @@ cfg.LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID = 'price_civic_monthly';
 cfg.LIKER_PLUS_CIVIC_YEARLY_PRICE_ID = 'price_civic_yearly';
 cfg.LIKER_PLUS_MONTHLY_PRICE_ID = 'price_plus_monthly';
 cfg.LIKER_PLUS_YEARLY_PRICE_ID = 'price_plus_yearly';
+cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
+cfg.LIKER_PLUS_CIVIC_PRODUCT_ID = 'prod_civic';
 
 // eslint-disable-next-line import/first
 const { updateSubscriptionPeriod } = await import('../../src/util/api/plus');
 
 const SUB_ID = 'sub_test';
 
-function seedSubscription(status: string, tier?: string) {
+function seedSubscription(
+  status: string,
+  tier?: string,
+  productId?: string,
+  interval?: 'month' | 'year',
+) {
   mockRetrieve.mockResolvedValue({
     id: SUB_ID,
     status,
     metadata: tier ? { tier } : {},
-    items: { data: [{ id: 'si_test' }] },
+    items: {
+      data: [{
+        id: 'si_test',
+        price: productId ? { product: productId, recurring: interval && { interval } } : undefined,
+      }],
+    },
   });
 }
 
@@ -75,6 +87,37 @@ describe('updateSubscriptionPeriod tier-upgrade proration', () => {
     await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'plus' });
     const [, payload] = mockUpdate.mock.calls[0];
     expect(payload.proration_behavior).toBeUndefined();
+  });
+
+  // A Stripe billing-portal switch changes the price without writing metadata.tier,
+  // so the live product must win or the next upgrade silently defers to renewal.
+  it('derives the previous tier from the live price over stale metadata', async () => {
+    seedSubscription('active', 'civic', 'prod_plus');
+    await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'civic' });
+    const [, payload] = mockUpdate.mock.calls[0];
+    expect(payload.proration_behavior).toBe('always_invoice');
+  });
+
+  it('reads a downgrade from the live price when metadata is absent', async () => {
+    seedSubscription('active', undefined, 'prod_civic');
+    await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'plus' });
+    const [, payload] = mockUpdate.mock.calls[0];
+    expect(payload.proration_behavior).toBeUndefined();
+  });
+
+  it('skips a request matching the live tier and period', async () => {
+    seedSubscription('active', 'plus', 'prod_civic', 'month');
+    expect(await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'civic' })).toBe(false);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // Firestore still reads 'civic' after a portal downgrade, so restoring Civic must
+  // pass the no-op check on the live Plus price and invoice the upgrade.
+  it('lets a stale Civic record restore Civic after a portal downgrade', async () => {
+    seedSubscription('active', 'civic', 'prod_plus', 'month');
+    await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'civic' });
+    const [, payload] = mockUpdate.mock.calls[0];
+    expect(payload.proration_behavior).toBe('always_invoice');
   });
 
   it('keeps the trial reset (proration none) even when the tier rises', async () => {

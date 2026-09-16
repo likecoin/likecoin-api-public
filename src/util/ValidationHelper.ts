@@ -107,6 +107,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isExpiredLikerPlus,
     likerPlusPeriod,
     likerPlusTier,
+    likerPlusPendingTier,
     likerPlusProvider,
     likerPlusStore,
     likerPlusSubscriptionStatus,
@@ -143,6 +144,7 @@ export function filterUserData(u: UserCivicLikerProperties): UserDataFiltered {
     isExpiredLikerPlus,
     likerPlusPeriod,
     likerPlusTier,
+    likerPlusPendingTier,
     likerPlusProvider,
     likerPlusStore,
     likerPlusSubscriptionStatus,
@@ -209,6 +211,7 @@ export function filterUserDataScoped(
   if (scope.includes('read:plus')) {
     output.likerPlusPeriod = user.likerPlusPeriod;
     output.likerPlusTier = user.likerPlusTier;
+    output.likerPlusPendingTier = user.likerPlusPendingTier;
     output.likerPlusProvider = user.likerPlusProvider;
     output.likerPlusStore = user.likerPlusStore;
     output.likerPlusSubscriptionStatus = user.likerPlusSubscriptionStatus;

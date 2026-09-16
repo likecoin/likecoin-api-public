@@ -66,6 +66,21 @@ export function derivePlusTierFromProductId(productId?: string | null): LikerPlu
   return null;
 }
 
+// LIKER_PLUS_TIERS is ordered low to high, and rank is the only thing separating an
+// upgrade (bill now) from a downgrade (credit at renewal), so both directions read
+// from one comparator rather than open-coding indexOf at each call site.
+function getLikerPlusTierRank(tier: LikerPlusTier): number {
+  return LIKER_PLUS_TIERS.indexOf(tier);
+}
+
+export function isLikerPlusTierUpgrade(fromTier: LikerPlusTier, toTier: LikerPlusTier): boolean {
+  return getLikerPlusTierRank(toTier) > getLikerPlusTierRank(fromTier);
+}
+
+export function isLikerPlusTierDowngrade(fromTier: LikerPlusTier, toTier: LikerPlusTier): boolean {
+  return getLikerPlusTierRank(toTier) < getLikerPlusTierRank(fromTier);
+}
+
 export function getPlusPriceId(tier: LikerPlusTier, period: PlusPeriod): string {
   if (tier === 'civic') {
     return period === 'yearly' ? LIKER_PLUS_CIVIC_YEARLY_PRICE_ID : LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID;
@@ -1415,13 +1430,21 @@ export async function processStripeSubscriptionCancellation(
   if (user) {
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (hasClearedPlusEntitlement) {
+      // A cancelled subscription has no renewal for a pending switch to land on.
       if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
+        const likerPlusWithoutPendingTier = { ...user.likerPlus };
+        delete likerPlusWithoutPendingTier.pendingTier;
         await userCollection.doc(user.user).update({
           likerPlus: {
-            ...user.likerPlus,
+            ...likerPlusWithoutPendingTier,
             currentPeriodEnd: Date.now(),
             subscriptionStatus: 'canceled',
           },
+        });
+      } else if (user.likerPlus?.pendingTier) {
+        // Past period end but still inside the grace window, where it is still shown.
+        await userCollection.doc(user.user).update({
+          'likerPlus.pendingTier': FieldValue.delete(),
         });
       }
 
@@ -1631,11 +1654,21 @@ export async function updateSubscriptionPeriod(
   const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const { metadata } = subscription;
-  // An unrecognised metadata tier must fall back to 'plus', not to indexOf -1,
-  // which would make every switch look like an upgrade and force an invoice.
-  const previousTier: LikerPlusTier = LIKER_PLUS_TIERS
-    .includes(metadata.tier as LikerPlusTier) ? metadata.tier as LikerPlusTier : 'plus';
-  const isTierUpgrade = LIKER_PLUS_TIERS.indexOf(tier) > LIKER_PLUS_TIERS.indexOf(previousTier);
+  // The live price wins over metadata: a portal-initiated switch changes the item
+  // without writing metadata.tier, and a stale value would make a later upgrade look
+  // same-tier and skip its immediate invoice. Unknown ids read as 'plus'.
+  const previousTier: LikerPlusTier = derivePlusTierFromProductId(
+    subscription.items.data[0].price?.product as string | undefined,
+  ) || (LIKER_PLUS_TIERS.includes(metadata.tier as LikerPlusTier)
+    ? metadata.tier as LikerPlusTier
+    : 'plus');
+  // Firestore `tier` lags a pending downgrade or a portal switch, so only the live
+  // price can tell whether this request would actually change anything.
+  const previousInterval = subscription.items.data[0].price?.recurring?.interval;
+  if (previousTier === tier && previousInterval === (period === 'yearly' ? 'year' : 'month')) {
+    return false;
+  }
+  const isTierUpgrade = isLikerPlusTierUpgrade(previousTier, tier);
   metadata.tier = tier;
   if (giftClassId) metadata.giftClassId = giftClassId;
   if (giftPriceIndex) metadata.giftPriceIndex = giftPriceIndex;
@@ -1666,4 +1699,27 @@ export async function updateSubscriptionPeriod(
     subscriptionId,
     updatePayload,
   );
+  return true;
+}
+
+// The tier a subscription moves to at its next renewal. Only a downgrade needs one:
+// an upgrade invoices immediately, so the webhook writes `tier` straight away. The
+// renewal invoice replaces the whole likerPlus record, which clears this marker.
+export async function updatePlusPendingTier(
+  likerId: string,
+  { currentTier, targetTier, pendingTier }: {
+    currentTier: LikerPlusTier;
+    targetTier: LikerPlusTier;
+    pendingTier?: LikerPlusTier;
+  },
+) {
+  const nextPendingTier = isLikerPlusTierDowngrade(currentTier, targetTier)
+    ? targetTier
+    : undefined;
+  // A plain period change leaves both sides unset, so skip the billed write and the
+  // document-version bump on the path that has no marker to move.
+  if (nextPendingTier === pendingTier) return;
+  await userCollection.doc(likerId).update({
+    'likerPlus.pendingTier': nextPendingTier ?? FieldValue.delete(),
+  });
 }
