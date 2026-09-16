@@ -46,6 +46,7 @@ import { convertUSDPriceToCurrency } from '../../util/pricing';
 import {
   createNewPlusCheckoutSession,
   getPlusTierUSDPrice,
+  updatePlusPendingTier,
   updateSubscriptionPeriod,
   type PlusPeriod,
 } from '../../util/api/plus';
@@ -495,8 +496,12 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
     }
     // Pre-Civic records have no tier; they are Plus.
     const existingTier: LikerPlusTier = userInfo.likerPlus.tier || 'plus';
-    const targetTier: LikerPlusTier = tier || existingTier;
-    if (period === `${existingPeriod}ly` && targetTier === existingTier) {
+    // A requested downgrade only reaches `tier` at renewal, so the marker carries the
+    // current intent: without it, undoing one reads as a no-op and 400s until then,
+    // and a bare period change would re-target the tier the member is leaving.
+    const effectiveTier: LikerPlusTier = userInfo.likerPlus.pendingTier || existingTier;
+    const targetTier: LikerPlusTier = tier || effectiveTier;
+    if (period === `${existingPeriod}ly` && targetTier === effectiveTier) {
       throw new ValidationError('Subscription plan is already set to this value.', 400);
     }
     await updateSubscriptionPeriod(subscriptionId, period, {
@@ -504,6 +509,19 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
       giftClassId,
       giftPriceIndex,
     });
+    try {
+      await updatePlusPendingTier(userInfo.user, {
+        currentTier: existingTier,
+        targetTier,
+        pendingTier: userInfo.likerPlus.pendingTier,
+      });
+    } catch (err) {
+      // Stripe already switched, so failing the request here would report a successful
+      // change as an error. The account page just keeps offering it, and a retry is
+      // idempotent now that previousTier comes from the live price.
+      // eslint-disable-next-line no-console
+      console.error(`Failed to update pending tier for ${userInfo.user}:`, err);
+    }
     res.sendStatus(200);
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

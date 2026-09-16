@@ -28,18 +28,20 @@ cfg.LIKER_PLUS_CIVIC_MONTHLY_PRICE_ID = 'price_civic_monthly';
 cfg.LIKER_PLUS_CIVIC_YEARLY_PRICE_ID = 'price_civic_yearly';
 cfg.LIKER_PLUS_MONTHLY_PRICE_ID = 'price_plus_monthly';
 cfg.LIKER_PLUS_YEARLY_PRICE_ID = 'price_plus_yearly';
+cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
+cfg.LIKER_PLUS_CIVIC_PRODUCT_ID = 'prod_civic';
 
 // eslint-disable-next-line import/first
 const { updateSubscriptionPeriod } = await import('../../src/util/api/plus');
 
 const SUB_ID = 'sub_test';
 
-function seedSubscription(status: string, tier?: string) {
+function seedSubscription(status: string, tier?: string, productId?: string) {
   mockRetrieve.mockResolvedValue({
     id: SUB_ID,
     status,
     metadata: tier ? { tier } : {},
-    items: { data: [{ id: 'si_test' }] },
+    items: { data: [{ id: 'si_test', price: productId ? { product: productId } : undefined }] },
   });
 }
 
@@ -72,6 +74,22 @@ describe('updateSubscriptionPeriod tier-upgrade proration', () => {
 
   it('leaves proration default on a Civic -> Plus downgrade (credits at renewal)', async () => {
     seedSubscription('active', 'civic');
+    await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'plus' });
+    const [, payload] = mockUpdate.mock.calls[0];
+    expect(payload.proration_behavior).toBeUndefined();
+  });
+
+  // A Stripe billing-portal switch changes the price without writing metadata.tier,
+  // so the live product must win or the next upgrade silently defers to renewal.
+  it('derives the previous tier from the live price over stale metadata', async () => {
+    seedSubscription('active', 'civic', 'prod_plus');
+    await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'civic' });
+    const [, payload] = mockUpdate.mock.calls[0];
+    expect(payload.proration_behavior).toBe('always_invoice');
+  });
+
+  it('reads a downgrade from the live price when metadata is absent', async () => {
+    seedSubscription('active', undefined, 'prod_civic');
     await updateSubscriptionPeriod(SUB_ID, 'monthly', { tier: 'plus' });
     const [, payload] = mockUpdate.mock.calls[0];
     expect(payload.proration_behavior).toBeUndefined();

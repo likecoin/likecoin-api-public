@@ -26,6 +26,10 @@ export interface LikerPlusData {
   // Subscription tier. Absent on records written before Civic existed — read
   // it as 'plus'. Civic keeps every Plus flag true (superset semantics).
   tier?: LikerPlusTier;
+  // Tier this subscription moves to at the next renewal, set when a downgrade is
+  // requested. `tier` stays authoritative for entitlements until the renewal
+  // invoice lands, and that write replaces this record, clearing the marker.
+  pendingTier?: LikerPlusTier;
   // Per-day value of the current term (in `dailyValueCurrency`), used to fund the
   // reading-library revenue-share pool. 0 for trials. See calculatePlusDailyValue.
   dailyValue?: number;
@@ -200,6 +204,7 @@ export interface UserCivicLikerProperties extends UserData {
   isExpiredLikerPlus?: boolean;
   likerPlusPeriod?: string;
   likerPlusTier?: LikerPlusTier;
+  likerPlusPendingTier?: LikerPlusTier;
   likerPlusProvider?: LikerPlusProvider;
   likerPlusStore?: LikerPlusStore;
   likerPlusSubscriptionStatus?: LikerPlusSubscriptionStatus;
