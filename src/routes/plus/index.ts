@@ -501,10 +501,7 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
     // and a bare period change would re-target the tier the member is leaving.
     const effectiveTier: LikerPlusTier = userInfo.likerPlus.pendingTier || existingTier;
     const targetTier: LikerPlusTier = tier || effectiveTier;
-    if (period === `${existingPeriod}ly` && targetTier === effectiveTier) {
-      throw new ValidationError('Subscription plan is already set to this value.', 400);
-    }
-    await updateSubscriptionPeriod(subscriptionId, period, {
+    const isPlanChanged = await updateSubscriptionPeriod(subscriptionId, period, {
       tier: targetTier,
       giftClassId,
       giftPriceIndex,
@@ -517,10 +514,18 @@ router.post('/price', jwtAuth('write:plus'), validateBody(PlusPriceBodySchema), 
       });
     } catch (err) {
       // Stripe already switched, so failing the request here would report a successful
-      // change as an error. The account page just keeps offering it, and a retry is
-      // idempotent now that previousTier comes from the live price.
-      // eslint-disable-next-line no-console
-      console.error(`Failed to update pending tier for ${userInfo.user}:`, err);
+      // change as an error. Retrying the same request repairs the marker.
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'PlusPendingTierUpdateFailed',
+        subscriptionId,
+        tier: targetTier,
+        wallet,
+        error: (err as Error).message,
+      });
+    }
+    // Checked after the marker write, so a retry after a failed write still repairs it.
+    if (!isPlanChanged) {
+      throw new ValidationError('Subscription plan is already set to this value.', 400);
     }
     res.sendStatus(200);
 

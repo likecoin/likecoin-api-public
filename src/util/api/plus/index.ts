@@ -1430,8 +1430,8 @@ export async function processStripeSubscriptionCancellation(
   if (user) {
     const currentPeriodEnd = user.likerPlus?.currentPeriodEnd;
     if (hasClearedPlusEntitlement) {
+      // A cancelled subscription has no renewal for a pending switch to land on.
       if (currentPeriodEnd && currentPeriodEnd > Date.now()) {
-        // A cancelled subscription has no renewal for a pending switch to land on.
         const likerPlusWithoutPendingTier = { ...user.likerPlus };
         delete likerPlusWithoutPendingTier.pendingTier;
         await userCollection.doc(user.user).update({
@@ -1440,6 +1440,11 @@ export async function processStripeSubscriptionCancellation(
             currentPeriodEnd: Date.now(),
             subscriptionStatus: 'canceled',
           },
+        });
+      } else if (user.likerPlus?.pendingTier) {
+        // Past period end but still inside the grace window, where it is still shown.
+        await userCollection.doc(user.user).update({
+          'likerPlus.pendingTier': FieldValue.delete(),
         });
       }
 
@@ -1657,6 +1662,12 @@ export async function updateSubscriptionPeriod(
   ) || (LIKER_PLUS_TIERS.includes(metadata.tier as LikerPlusTier)
     ? metadata.tier as LikerPlusTier
     : 'plus');
+  // Firestore `tier` lags a pending downgrade or a portal switch, so only the live
+  // price can tell whether this request would actually change anything.
+  const previousInterval = subscription.items.data[0].price?.recurring?.interval;
+  if (previousTier === tier && previousInterval === (period === 'yearly' ? 'year' : 'month')) {
+    return false;
+  }
   const isTierUpgrade = isLikerPlusTierUpgrade(previousTier, tier);
   metadata.tier = tier;
   if (giftClassId) metadata.giftClassId = giftClassId;
@@ -1688,6 +1699,7 @@ export async function updateSubscriptionPeriod(
     subscriptionId,
     updatePayload,
   );
+  return true;
 }
 
 // The tier a subscription moves to at its next renewal. Only a downgrade needs one:
