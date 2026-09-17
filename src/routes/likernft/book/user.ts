@@ -7,7 +7,10 @@ import { checkIsStripeConnectAccountReady, getStripeClient } from '../../../util
 import { BOOK3_HOSTNAME, NFT_BOOKSTORE_HOSTNAME, PUBSUB_TOPIC_MISC } from '../../../constant';
 import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
-import { getBookUserInfoFromWallet } from '../../../util/api/likernft/book/user';
+import {
+  getBookUserInfoFromWallet,
+  getSubscriptionAffiliateReportForWallet,
+} from '../../../util/api/likernft/book/user';
 import { getPlusReadingReportForWallet } from '../../../util/api/plus/report';
 import { getPlusReadingStatsForWallet } from '../../../util/api/plus/stats';
 import {
@@ -26,6 +29,7 @@ import {
   BookUserPayoutsListResponseSchema,
   BookUserPayoutResponseSchema,
   BookUserCommissionsResponseSchema,
+  BookUserSubscriptionAffiliateResponseSchema,
   BookUserConnectRefreshResponseSchema,
   type BookUserConnectStatusResponse,
   type StripeConnectSite,
@@ -391,6 +395,23 @@ router.get(
         includeBuyerEmail: data.ownerWallet === wallet,
       }));
       sendValidatedJSON(res, BookUserCommissionsResponseSchema, { commissions: list });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/subscription-affiliate/report',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
+      const report = await getSubscriptionAffiliateReportForWallet(wallet);
+      sendValidatedJSON(res, BookUserSubscriptionAffiliateResponseSchema, report);
     } catch (err) {
       next(err);
     }

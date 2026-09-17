@@ -687,6 +687,28 @@ export const BookUserPayoutResponseSchema = StripePayoutSummarySchema.extend({
   })),
 });
 
+const BookUserSubscriptionAffiliateEntrySchema = z.object({
+  subscriptionId: z.string(),
+  transferId: z.string(),
+  interval: z.enum(['month', 'year']),
+  commissionRate: z.number(),
+  balanceTxCents: z.number(),
+  feeCents: z.number(),
+  payoutCents: z.number(),
+  currency: z.string(),
+  invoiceId: z.string().optional(),
+  subscribedAt: z.number().optional(),
+  payoutAt: z.number(),
+});
+
+export const BookUserSubscriptionAffiliateResponseSchema = z.object({
+  payouts: z.array(BookUserSubscriptionAffiliateEntrySchema),
+  summary: z.object({
+    totalCents: z.number(),
+    subscriptionCount: z.number(),
+  }),
+});
+
 // Shared with the frontend's excerpt extraction cap; the schema enforces it
 // so the suggestion prompt never silently truncates.
 export const MAX_CONTENT_EXCERPT_CHARS = 20000;
