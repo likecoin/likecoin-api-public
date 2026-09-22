@@ -12,6 +12,8 @@ import {
   sendNFTBookGiftSentEmail,
   sendNFTBookManualDeliverSentEmail,
   sendNFTBookGoodsShippedEmail,
+  sendNFTBookGoodsOrderReceivedEmail,
+  sendNFTBookGoodsSaleEmail,
   sendAutoDeliverNFTBookSalesEmail,
   sendNFTBookSalePaymentsEmail,
   sendManualNFTBookSalesEmail,
@@ -175,6 +177,50 @@ describe('SES email params', () => {
       expect(html).not.toContain('<img src=x');
       expect(html).not.toContain('<b>X</b>');
       expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    });
+
+    const shippingDetails = {
+      name: 'Chan <Tai Man>',
+      phone: '+85291234567',
+      address: {
+        line1: '1 Queen\'s Road',
+        line2: null,
+        city: 'Hong Kong',
+        state: null,
+        postal_code: null,
+        country: 'HK',
+      },
+    };
+
+    it(`sendNFTBookGoodsOrderReceivedEmail builds expected params (${language})`, async () => {
+      await sendNFTBookGoodsOrderReceivedEmail({
+        email: 'buyer@example.com',
+        paymentId: 'payment-1',
+        items: [{ name: 'Boox Go 7', quantity: 1 }],
+        amountTotal: 169800,
+        currency: 'hkd',
+        shippingDetails,
+        displayName: 'Buyer',
+        language,
+      });
+      const params = lastParams() as any;
+      expect(params.Message.Body.Html.Data).toContain('HKD 1698.00');
+      expect(params.Message.Body.Html.Data).toContain('Chan &lt;Tai Man&gt;');
+      expect(params).toMatchSnapshot();
+    });
+
+    it(`sendNFTBookGoodsSaleEmail builds expected params (${language})`, async () => {
+      await sendNFTBookGoodsSaleEmail({
+        email: 'store@example.com',
+        classId: '0xclass',
+        paymentId: 'payment-1',
+        productName: 'Boox Go 7',
+        quantity: 1,
+        buyerEmail: 'buyer@example.com',
+        shippingDetails,
+        language,
+      });
+      expect(lastParams()).toMatchSnapshot();
     });
 
     it(`sendNFTBookGoodsShippedEmail omits an empty tracking number (${language})`, async () => {

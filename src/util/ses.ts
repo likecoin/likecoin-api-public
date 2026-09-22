@@ -27,6 +27,7 @@ import {
   getNFTBookStoreSendPageURL,
 } from './api/likernft/book';
 import { TransactionFeeInfo } from './api/likernft/book/type';
+import type { BookShippingDetails } from '../types/book';
 
 // eslint-disable-next-line import/no-dynamic-require, global-require
 const awsConfig = TEST_MODE ? {} : require('../../config/aws.json');
@@ -545,6 +546,133 @@ export function sendNFTBookGoodsShippedEmail({
   return sendSESTemplateEmail({
     functionName: 'sendNFTBookGoodsShippedEmail',
     to: [email],
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
+// Buyer-typed, so escaped; one line per non-empty part, as the courier label reads.
+function formatGoodsShippingAddressHTML(shippingDetails?: BookShippingDetails): string {
+  if (!shippingDetails) return '';
+  const { name, phone, address = {} } = shippingDetails;
+  return [
+    name,
+    address.line1,
+    address.line2,
+    [address.city, address.state, address.postal_code].filter(Boolean).join(' '),
+    address.country,
+    phone,
+  ].filter(Boolean).map((line) => escapeHtml(line as string)).join('<br>');
+}
+
+export function sendNFTBookGoodsOrderReceivedEmail({
+  email,
+  paymentId,
+  items,
+  amountTotal,
+  currency,
+  shippingDetails,
+  displayName = '',
+  language = 'zh',
+}: {
+  email: string;
+  paymentId: string;
+  items: { name: string; quantity: number }[];
+  // In the charged currency's minor units, so a member sees the member price.
+  amountTotal: number;
+  currency: string;
+  shippingDetails?: BookShippingDetails;
+  displayName?: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const title = isEn
+    ? 'We have received your order'
+    : '我們已收到你的訂單';
+  const itemRows = items
+    .map(({ name, quantity }) => `<tr><td>${escapeHtml(name)}</td><td>× ${quantity}</td></tr>`)
+    .join('');
+  const total = `${currency.toUpperCase()} ${formatEmailDecimalNumber(amountTotal)}`;
+  const address = formatGoodsShippingAddressHTML(shippingDetails);
+  const safeDisplayName = escapeHtml(displayName);
+  const content = isEn
+    ? `<p>Dear ${safeDisplayName || 'customer'},</p>
+  <p>Thank you for your order. Here is what we received:</p>
+  <table>${itemRows}<tr><td>Total paid:</td><td>${total}</td></tr></table>
+  ${address ? `<p>It will ship to:<br>${address}</p>
+  <p>If anything in this address is wrong, please reply to this email as soon as possible.</p>` : ''}
+  <p>We will email you a tracking number once it ships.</p>
+  <p>Order reference: ${paymentId}</p>
+  <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.</p>
+  <p>3ook.com Bookstore</p>`
+    : `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+  <p>感謝你的訂購，我們已收到以下訂單：</p>
+  <table>${itemRows}<tr><td>已付總額：</td><td>${total}</td></tr></table>
+  ${address ? `<p>將寄送至：<br>${address}</p>
+  <p>如地址有誤，請盡快回覆此電郵。</p>` : ''}
+  <p>寄出後，我們會再以電郵通知你追蹤編號。</p>
+  <p>訂單編號：${paymentId}</p>
+  <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
+  <p>3ook.com 書店</p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookGoodsOrderReceivedEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
+// Goods counterpart of sendManualNFTBookSalesEmail, which only fires on claim:
+// a goods order is never claimed, so the seller is told at payment instead.
+export function sendNFTBookGoodsSaleEmail({
+  email,
+  classId,
+  paymentId,
+  productName,
+  quantity,
+  buyerEmail,
+  shippingDetails,
+  language = 'zh',
+}: {
+  email?: string;
+  classId: string;
+  paymentId: string;
+  productName: string;
+  quantity: number;
+  buyerEmail?: string;
+  shippingDetails?: BookShippingDetails;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const safeProductName = escapeHtml(productName);
+  const title = isEn
+    ? `Order received — please ship "${productName}"`
+    : `收到訂單，請寄出 ${productName}`;
+  const address = formatGoodsShippingAddressHTML(shippingDetails);
+  const consoleURL = getNFTBookStoreClassPageURL(classId);
+  const content = isEn
+    ? `<p>An order for "${safeProductName}" × ${quantity} has been paid and is waiting to ship.</p>
+  ${address ? `<p>Ship to:<br>${address}</p>` : ''}
+  ${buyerEmail ? `<p>Buyer email: ${escapeHtml(buyerEmail)}</p>` : ''}
+  <p>Order reference: ${paymentId}</p>
+  <p><a href="${consoleURL}">[Manage orders]</a></p>`
+    : `<p>${safeProductName} × ${quantity} 的訂單已付款，等待寄出。</p>
+  ${address ? `<p>寄送至：<br>${address}</p>` : ''}
+  ${buyerEmail ? `<p>買家電郵：${escapeHtml(buyerEmail)}</p>` : ''}
+  <p>訂單編號：${paymentId}</p>
+  <p><a href="${consoleURL}">[管理訂單]</a></p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookGoodsSaleEmail',
+    replyTo: [],
+    to: email ? [email] : undefined,
     bcc: SALES_BCC,
     title,
     html: getBasicV2Template({

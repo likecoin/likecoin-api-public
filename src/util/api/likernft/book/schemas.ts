@@ -112,6 +112,7 @@ export const NewListingBodySchema = ListingSettingsBodySchema.extend({
   // their presentational fields arrive in the body instead of class metadata.
   fulfilment: BookFulfilmentSchema.optional(),
   availableTerritories: z.array(TerritoryCodeSchema).min(1).optional(),
+  maxQuantityPerOrder: z.number().int().min(1).optional(),
   // Lets a SKU be created unbuyable; books are always created on sale.
   isApprovedForSale: z.boolean().optional(),
   name: z.string().optional(),
@@ -460,6 +461,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   productType: BookProductTypeSchema.optional(),
   fulfilment: BookFulfilmentSchema.optional(),
   availableTerritories: z.array(z.string()).optional(),
+  maxQuantityPerOrder: z.number().int().optional(),
   likeClassId: z.string().optional(),
   evmClassId: z.string().optional(),
   redirectClassId: z.string().optional(),

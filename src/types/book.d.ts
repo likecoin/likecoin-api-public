@@ -212,6 +212,8 @@ export interface NFTBookListingInfo {
   nameByLocale?: BookLocalizedCopy;
   descriptionByLocale?: BookLocalizedCopy;
   descriptionFullByLocale?: BookLocalizedCopy;
+  // Per-order cap, summed across a cart; `stock` still bounds the shelf.
+  maxQuantityPerOrder?: number;
   likeClassId?: string;
   evmClassId?: string;
   redirectClassId?: string;

@@ -367,6 +367,7 @@ export async function newNftBookInfo(
     productType,
     fulfilment,
     availableTerritories,
+    maxQuantityPerOrder,
     isApprovedForSale = true,
     nameByLocale,
     descriptionByLocale,
@@ -427,6 +428,7 @@ export async function newNftBookInfo(
     payload.fulfilment = fulfilment || 'shipping';
     payload.pendingShipmentCount = 0;
     if (availableTerritories) payload.availableTerritories = availableTerritories;
+    if (maxQuantityPerOrder) payload.maxQuantityPerOrder = maxQuantityPerOrder;
   }
   if (image) payload.image = image;
   if (inLanguage) payload.inLanguage = inLanguage;

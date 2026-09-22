@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, beforeEach, afterEach, vi, type MockInstance,
+} from 'vitest';
 import type Stripe from 'stripe';
 import {
   isGoodsProduct,
@@ -6,6 +8,7 @@ import {
   mergeNFTBookPriceUpdate,
 } from '../../src/util/api/likernft/book';
 import {
+  assertOrderQuantityLimits,
   assertSingleProductTypeCart,
   getGoodsShippingFromSession,
   getIsEligibleForPlusPrice,
@@ -20,6 +23,8 @@ import {
   NFTBookListingInfoFilteredSchema,
   NFTBookPriceFilteredSchema,
 } from '../../src/util/api/likernft/book/schemas';
+import { formatStripeCheckoutSession } from '../../src/util/api/likernft/book/purchase';
+import { getStripeClient } from '../../src/util/stripe';
 import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../src/types/book';
 
@@ -47,6 +52,7 @@ const goodsListing = (overrides: Partial<NFTBookListingInfo> = {}): NFTBookListi
   name: 'Boox Go 7',
   nameByLocale: { en: 'Boox Go 7', zh: 'Boox Go 7 電子閱讀器' },
   pendingShipmentCount: 3,
+  maxQuantityPerOrder: 1,
   prices: [GOODS_PRICE],
   ...overrides,
 });
@@ -66,6 +72,7 @@ const cartItem = (overrides: Partial<CartItemWithInfo> = {}): CartItemWithInfo =
   isLikerLandArt: false,
   originalPriceInDecimal: 1000,
   chain: 'base',
+  stripePriceId: 'price_test',
   ...overrides,
 });
 
@@ -152,6 +159,7 @@ describe('response filters carry goods fields', () => {
     expect(publicView.productType).toBe('goods');
     expect(publicView.availableTerritories).toEqual(['HK']);
     expect(publicView.nameByLocale).toEqual({ en: 'Boox Go 7', zh: 'Boox Go 7 電子閱讀器' });
+    expect(publicView.maxQuantityPerOrder).toBe(1);
     expect(publicView.pendingShipmentCount).toBeUndefined();
 
     const ownerView = NFTBookListingInfoFilteredSchema.parse(
@@ -277,5 +285,84 @@ describe('getGoodsShippingFromSession', () => {
     } as unknown as Stripe.Checkout.Session;
     expect(getGoodsShippingFromSession(session)).toEqual({});
     expect(getGoodsShippingFromSession(undefined)).toEqual({});
+  });
+});
+
+describe('assertOrderQuantityLimits', () => {
+  it('allows an order up to the cap and ignores items without one', () => {
+    expect(() => assertOrderQuantityLimits([
+      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xbook', quantity: 5 }),
+    ])).not.toThrow();
+  });
+
+  it('rejects a quantity over the cap', () => {
+    expect(() => assertOrderQuantityLimits([
+      cartItem({ classId: '0xgoods', quantity: 2, maxQuantityPerOrder: 1 }),
+    ])).toThrow('QUANTITY_EXCEEDS_ORDER_LIMIT');
+  });
+
+  it('sums a class listed twice, so the cap cannot be split across lines', () => {
+    expect(() => assertOrderQuantityLimits([
+      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
+    ])).toThrow('QUANTITY_EXCEEDS_ORDER_LIMIT');
+  });
+});
+
+describe('formatStripeCheckoutSession for goods', () => {
+  let createSpy: MockInstance;
+  beforeEach(() => {
+    createSpy = vi.spyOn(getStripeClient().checkout.sessions, 'create')
+      .mockResolvedValue({ id: 'cs_test', url: 'https://checkout.example/cs_test' } as any);
+  });
+  afterEach(() => {
+    createSpy.mockRestore();
+  });
+
+  const urls = { successUrl: 'https://3ook.com/ok', cancelUrl: 'https://3ook.com/cancel' };
+
+  it('collects a shipping address, disables discounts and requests an invoice', async () => {
+    const memberPriced = cartItem({
+      productType: 'goods',
+      priceInDecimal: 21900,
+      originalPriceInDecimal: 25800,
+      priceInDecimalByCurrency: { hkd: 169800 },
+      stripePriceId: undefined,
+      isPlusPrice: true,
+    });
+    await formatStripeCheckoutSession({
+      paymentId: 'pay-1',
+      claimToken: 'token',
+      currency: 'hkd',
+      coupon: 'CAMPAIGN',
+    }, [memberPriced], {
+      ...urls,
+      shippingCountries: ['HK'],
+      allowDiscounts: false,
+      createInvoice: true,
+    });
+    const payload = createSpy.mock.calls[0][0];
+    expect(payload.shipping_address_collection).toEqual({ allowed_countries: ['HK'] });
+    expect(payload.phone_number_collection).toEqual({ enabled: true });
+    expect(payload.allow_promotion_codes).toBeUndefined();
+    expect(payload.discounts).toBeUndefined();
+    expect(payload.invoice_creation).toEqual({ enabled: true });
+    // The member price is charged in its own override, with the edition kept for the webhook.
+    const [line] = payload.line_items;
+    expect(line.price_data.unit_amount).toBe(169800);
+    expect(line.price_data.product_data.metadata.priceIndex).toBe('0');
+  });
+
+  it('leaves a book session as before', async () => {
+    await formatStripeCheckoutSession({
+      paymentId: 'pay-2',
+      claimToken: 'token',
+    }, [cartItem()], urls);
+    const payload = createSpy.mock.calls[0][0];
+    expect(payload.shipping_address_collection).toBeUndefined();
+    expect(payload.invoice_creation).toBeUndefined();
+    expect(payload.allow_promotion_codes).toBe(true);
+    expect(payload.line_items[0].price).toBe('price_test');
   });
 });

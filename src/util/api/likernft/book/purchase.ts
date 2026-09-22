@@ -671,12 +671,18 @@ export async function formatStripeCheckoutSession({
   cancelUrl,
   paymentMethods,
   shippingCountries,
+  allowDiscounts = true,
+  createInvoice = false,
 }: {
   successUrl: string,
   cancelUrl: string,
   paymentMethods?: string[],
   // Goods only: collect a shipping address, restricted to these countries.
   shippingCountries?: string[],
+  // False drops both a passed coupon and the buyer-typed promotion code box.
+  allowDiscounts?: boolean,
+  // A post-payment Stripe invoice, as an itemised document for the buyer.
+  createInvoice?: boolean,
 }) {
   const sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
@@ -831,7 +837,7 @@ export async function formatStripeCheckoutSession({
     }
   });
 
-  const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
+  const discounts = allowDiscounts ? await resolveCheckoutDiscountsFromCoupon(coupon) : [];
   if (!discounts.length && couponId) {
     discounts.push({ coupon: couponId });
   }
@@ -866,9 +872,10 @@ export async function formatStripeCheckoutSession({
   }
   if (discounts.length) {
     checkoutPayload.discounts = discounts;
-  } else if (!isApp) {
+  } else if (!isApp && allowDiscounts) {
     checkoutPayload.allow_promotion_codes = true;
   }
+  if (createInvoice) checkoutPayload.invoice_creation = { enabled: true };
   if (likeWallet || evmWallet) {
     if (customerId) {
       checkoutPayload.customer = customerId;

@@ -58,6 +58,8 @@ import { type IntercomUserCustomAttributes, updateIntercomUserAttributes } from 
 import {
   sendNFTBookCartGiftPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
+  sendNFTBookGoodsOrderReceivedEmail,
+  sendNFTBookGoodsSaleEmail,
   sendNFTBookOutOfStockEmail,
   sendPlusBookPromoCodeEmail,
 } from '../../../ses';
@@ -402,12 +404,13 @@ export async function processNFTBookCart(
 
   try {
     // eslint-disable-next-line no-use-before-define
+    const shipping = getGoodsShippingFromSession(session);
+    // eslint-disable-next-line no-use-before-define
     const infos = await processNFTBookCartPurchase({
       cartId,
       email,
       paymentId,
-      // eslint-disable-next-line no-use-before-define
-      shipping: getGoodsShippingFromSession(session),
+      shipping,
     });
     const {
       classInfos,
@@ -626,6 +629,19 @@ export async function processNFTBookCart(
           stock,
         }));
       }
+      if (isGoodsCart) {
+        notifications.push(sendNFTBookGoodsSaleEmail({
+          email: ownerEmail,
+          classId,
+          paymentId,
+          productName: bookName,
+          quantity,
+          buyerEmail: email || undefined,
+          shippingDetails: shipping.shippingDetails,
+          language: ownerLikerInfo?.locale || 'zh',
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err)));
+      }
       if (isOutOfStock) {
         const ownerLocale = ownerLikerInfo?.locale || 'zh';
         notifications.push(sendNFTBookOutOfStockEmail({
@@ -671,7 +687,31 @@ export async function processNFTBookCart(
     let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
 
     if (isGoodsCart) {
-      // Nothing to claim: the order waits in the store's despatch queue.
+      // Nothing to claim; confirm the order and the address it ships to instead.
+      if (email) {
+        let buyerLocale: string | undefined;
+        let buyerDisplayName = '';
+        try {
+          const info = await fetchUserInfoByEmail(email);
+          buyerLocale = info.locale;
+          buyerDisplayName = info.displayName;
+        } catch { /* ignore */ }
+        await sendNFTBookGoodsOrderReceivedEmail({
+          email,
+          paymentId,
+          items: infoList.map((info, index) => ({
+            name: bookNames[index],
+            quantity: info.txData.quantity,
+          })),
+          amountTotal: amountTotal || 0,
+          currency: session?.currency || 'usd',
+          shippingDetails: shipping.shippingDetails,
+          displayName: buyerDisplayName,
+          language: resolveLocale(language, buyerLocale),
+        // A failed email must not flag an already paid order as errored.
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err));
+      }
     } else if (cartIsGift && cartGiftInfo) {
       const {
         fromName,
@@ -1224,6 +1264,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         productType,
         fulfilment,
         availableTerritories,
+        maxQuantityPerOrder,
       } = bookInfo;
 
       if (isApprovedForSale === false) {
@@ -1253,6 +1294,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         productType,
         fulfilment,
         availableTerritories,
+        maxQuantityPerOrder,
         plusPriceInDecimal,
         plusPriceInDecimalByCurrency,
       };
@@ -1358,7 +1400,22 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
   }));
   // eslint-disable-next-line no-use-before-define
   assertSingleProductTypeCart(itemInfos);
+  // eslint-disable-next-line no-use-before-define
+  assertOrderQuantityLimits(itemInfos);
   return itemInfos;
+}
+
+// Summed per class, so listing one class twice in a cart cannot split past the cap.
+export function assertOrderQuantityLimits(itemInfos: CartItemWithInfo[]) {
+  const quantityByClass = new Map<string, number>();
+  itemInfos.forEach(({ classId = '', quantity }) => {
+    quantityByClass.set(classId, (quantityByClass.get(classId) || 0) + quantity);
+  });
+  itemInfos.forEach(({ classId = '', maxQuantityPerOrder }) => {
+    if (maxQuantityPerOrder && (quantityByClass.get(classId) || 0) > maxQuantityPerOrder) {
+      throw new ValidationError('QUANTITY_EXCEEDS_ORDER_LIMIT');
+    }
+  });
 }
 
 // Stripe's `allowed_countries` is per session, so a session is all books or all
@@ -1398,7 +1455,8 @@ function applyPlusPrice(item: CartItemWithInfo): CartItemWithInfo {
 }
 
 // Goods charge their per-currency override, never the ladder, which tops out far
-// below hardware prices and whose linear fallback drifts.
+// below hardware prices. This pin is what makes a missing override (TWD on an
+// HKD-only SKU) safe: its ladder price can be displayed but never charged.
 function resolveGoodsCheckoutCurrency(
   itemInfos: CartItemWithInfo[],
   currency?: string,
@@ -1747,6 +1805,9 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     }),
     paymentMethods,
     shippingCountries,
+    // Goods carry an explicit member price; a promo code on top would stack.
+    allowDiscounts: !isGoodsCart,
+    createInvoice: isGoodsCart,
   });
 
   const { url, id: sessionId } = session;

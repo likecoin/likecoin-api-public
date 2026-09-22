@@ -35,6 +35,7 @@ export type CartItemWithInfo = CartItem & {
   productType?: BookProductType,
   fulfilment?: BookFulfilment,
   availableTerritories?: string[],
+  maxQuantityPerOrder?: number,
   plusPriceInDecimal?: number,
   plusPriceInDecimalByCurrency?: BookPriceInDecimalByCurrency,
   // Set once the member price has replaced the list price for this checkout.
