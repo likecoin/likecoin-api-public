@@ -141,3 +141,60 @@ describe('unlisted books in the listings', () => {
     expect(res.data.isPreviewEnabled).toBe(false);
   });
 });
+
+describe('non-book goods in the listings', () => {
+  const ID_BOOK = mockEVMAddress(0x60);
+  const ID_GOODS = mockEVMAddress(0x61);
+  const LISTED = { priceInDecimal: 100, stock: 1 };
+
+  async function stubBookAndGoods(overrides: Record<string, unknown> = {}) {
+    await makeNFTBookStub(ID_BOOK, { prices: [LISTED], ...overrides });
+    await makeNFTBookStub(ID_GOODS, {
+      prices: [LISTED],
+      productType: 'goods',
+      availableTerritories: ['HK'],
+      ...overrides,
+    });
+  }
+
+  it('GET /list returns books only by default, unchanged for books', async () => {
+    await stubBookAndGoods();
+    const res = await get(`${BASE_URL}/list?limit=100`);
+    expect(res.status).toBe(200);
+    const ids = res.data.list.map((b: any) => b.classId);
+    expect(ids).toContain(ID_BOOK);
+    expect(ids).not.toContain(ID_GOODS);
+  });
+
+  it('GET /list serves goods only when asked for them', async () => {
+    await stubBookAndGoods();
+    const goodsRes = await get(`${BASE_URL}/list?limit=100&productType=goods`);
+    const goodsIds = goodsRes.data.list.map((b: any) => b.classId);
+    expect(goodsIds).toContain(ID_GOODS);
+    expect(goodsIds).not.toContain(ID_BOOK);
+    const goods = goodsRes.data.list.find((b: any) => b.classId === ID_GOODS);
+    expect(goods.productType).toBe('goods');
+    expect(goods.availableTerritories).toEqual(['HK']);
+
+    const allRes = await get(`${BASE_URL}/list?limit=100&productType=all`);
+    const allIds = allRes.data.list.map((b: any) => b.classId);
+    expect(allIds).toEqual(expect.arrayContaining([ID_BOOK, ID_GOODS]));
+  });
+
+  it('falls back to books on an unknown productType rather than erroring', async () => {
+    await stubBookAndGoods();
+    const res = await get(`${BASE_URL}/list?limit=100&productType=shoes`);
+    expect(res.status).toBe(200);
+    const ids = res.data.list.map((b: any) => b.classId);
+    expect(ids).toContain(ID_BOOK);
+    expect(ids).not.toContain(ID_GOODS);
+  });
+
+  it('keeps goods out of the derived /list/drm-free feed', async () => {
+    await stubBookAndGoods({ hideDownload: false });
+    const res = await get(`${BASE_URL}/list/drm-free?limit=100`);
+    const ids = res.data.list.map((b: any) => b.classId);
+    expect(ids).toContain(ID_BOOK);
+    expect(ids).not.toContain(ID_GOODS);
+  });
+});

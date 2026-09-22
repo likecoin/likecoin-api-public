@@ -335,6 +335,10 @@ export function filterBookPurchaseData({
   quantity = 1,
   classIds,
   classIdsWithPrice,
+  phone,
+  shippingDetails,
+  trackingNumber,
+  shippedAt,
 }: BookPurchaseData): BookPurchaseDataFiltered {
   return {
     id,
@@ -363,6 +367,10 @@ export function filterBookPurchaseData({
     quantity,
     classIds,
     classIdsWithPrice,
+    phone,
+    shippingDetails,
+    trackingNumber,
+    shippedAt: shippedAt?.toMillis(),
   };
 }
 
@@ -482,6 +490,8 @@ export function filterNFTBookPricesInfo(
       autoMemo,
       index = i,
       order,
+      plusPriceInDecimal,
+      plusPriceInDecimalByCurrency,
     } = p;
     const price = priceInDecimal / 100;
     const payload: NFTBookPriceFiltered = {
@@ -499,6 +509,11 @@ export function filterNFTBookPricesInfo(
       order: order ?? index,
     };
     if (priceInDecimalByCurrency) payload.priceInDecimalByCurrency = priceInDecimalByCurrency;
+    // Public, not owner-only: the member price is merchandising on the product page.
+    if (plusPriceInDecimal !== undefined) payload.plusPriceInDecimal = plusPriceInDecimal;
+    if (plusPriceInDecimalByCurrency) {
+      payload.plusPriceInDecimalByCurrency = plusPriceInDecimalByCurrency;
+    }
     if (isOwner) {
       payload.sold = pSold;
       payload.stock = pStock;
@@ -540,6 +555,9 @@ export function filterNFTBookListingInfo(
   const {
     id: inputId,
     classId,
+    productType,
+    fulfilment,
+    availableTerritories,
     likeClassId,
     evmClassId,
     redirectClassId,
@@ -547,6 +565,7 @@ export function filterNFTBookListingInfo(
     prices: inputPrices = [],
     minPriceInDecimal,
     pendingNFTCount,
+    pendingShipmentCount,
     ownerWallet,
     moderatorWallets = [],
     connectedWallets,
@@ -563,6 +582,9 @@ export function filterNFTBookListingInfo(
     name,
     description,
     descriptionFull,
+    nameByLocale,
+    descriptionByLocale,
+    descriptionFullByLocale,
     previewContent,
     descriptionSummary,
     promotionalImages,
@@ -600,6 +622,9 @@ export function filterNFTBookListingInfo(
   const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
+    productType,
+    fulfilment,
+    availableTerritories,
     likeClassId,
     evmClassId,
     redirectClassId,
@@ -622,6 +647,9 @@ export function filterNFTBookListingInfo(
     name,
     description,
     descriptionFull,
+    nameByLocale,
+    descriptionByLocale,
+    descriptionFullByLocale,
     previewContent,
     descriptionSummary,
     promotionalImages,
@@ -652,6 +680,7 @@ export function filterNFTBookListingInfo(
   if (isOwner) {
     payload.sold = sold;
     payload.pendingNFTCount = pendingNFTCount;
+    payload.pendingShipmentCount = pendingShipmentCount;
     payload.moderatorWallets = moderatorWallets;
     payload.connectedWallets = connectedWallets;
     payload.approvalStatus = approvalStatus || 'approved';

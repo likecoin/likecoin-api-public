@@ -1,4 +1,8 @@
-import type { BookPriceInDecimalByCurrency } from '../../../../types/book';
+import type {
+  BookFulfilment,
+  BookPriceInDecimalByCurrency,
+  BookProductType,
+} from '../../../../types/book';
 
 export type CartItem = {
   classId?: string
@@ -28,6 +32,13 @@ export type CartItemWithInfo = CartItem & {
   stripePriceId?: string,
   quantity: number,
   chain: 'like' | 'evm' | 'op' | 'base',
+  productType?: BookProductType,
+  fulfilment?: BookFulfilment,
+  availableTerritories?: string[],
+  plusPriceInDecimal?: number,
+  plusPriceInDecimalByCurrency?: BookPriceInDecimalByCurrency,
+  // Set once the member price has replaced the list price for this checkout.
+  isPlusPrice?: boolean,
 }
 
 export type ItemPriceInfo = {

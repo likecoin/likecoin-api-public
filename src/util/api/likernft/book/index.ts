@@ -32,9 +32,14 @@ import {
   reviewBookListingContent,
 } from './complianceReview';
 import type {
-  BookContributor, BookSignatureImage, NFTBookListingInfo, NFTBookPrice,
+  BookContributor,
+  BookLocalizedCopy,
+  BookProductType,
+  BookSignatureImage,
+  NFTBookListingInfo,
+  NFTBookPrice,
 } from '../../../../types/book';
-import type { BookPopularListQuery } from './schemas';
+import type { BookListPaginationQuery, BookPopularListQuery } from './schemas';
 import { getBookPriceRangeByCurrency, getStripeCurrencyOptionsFromNFTBookPrice } from '../../../pricing';
 
 export function getNameFromMetadata(value: unknown): string {
@@ -151,6 +156,32 @@ export async function getNFTClassDataById(
   } as NFTClassData;
 }
 
+export function getBookProductType(
+  listing: Pick<NFTBookListingInfo, 'productType'>,
+): BookProductType {
+  return listing.productType || 'book';
+}
+
+// A goods listing has no chain class: every chain read, mint, ISCN sync and
+// book-only feed must branch on this.
+export function isGoodsProduct(listing: Pick<NFTBookListingInfo, 'productType'>): boolean {
+  return getBookProductType(listing) === 'goods';
+}
+
+// Absent means 'shipping': a goods listing without it is a physical good.
+export function isShippedProduct(listing: Pick<NFTBookListingInfo, 'productType' | 'fulfilment'>) {
+  return isGoodsProduct(listing) && (listing.fulfilment || 'shipping') === 'shipping';
+}
+
+// In memory on purpose: Firestore `!=` drops every doc missing the field (all
+// existing books) and would force an ordering on it, breaking the feed sorts.
+export function matchesProductTypeFilter(
+  listing: Pick<NFTBookListingInfo, 'productType'>,
+  filter: BookListPaginationQuery['productType'],
+): boolean {
+  return filter === 'all' || getBookProductType(listing) === filter;
+}
+
 export function checkIsAuthorized({
   ownerWallet,
   moderatorWallets = [],
@@ -189,6 +220,8 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     isAutoDeliver = false,
     isUnlisted = false,
     autoMemo = '',
+    plusPriceInDecimal,
+    plusPriceInDecimalByCurrency,
   } = price;
   const name: Record<string, string> = {};
   const description: Record<string, string> = {};
@@ -207,7 +240,36 @@ export function formatPriceInfo(price: NFTBookPrice): NFTBookPrice {
     autoMemo,
   };
   if (priceInDecimalByCurrency) formatted.priceInDecimalByCurrency = priceInDecimalByCurrency;
+  // Null (a clear request) is left out too; the edition PUT deletes the field.
+  if (typeof plusPriceInDecimal === 'number') formatted.plusPriceInDecimal = plusPriceInDecimal;
+  if (plusPriceInDecimalByCurrency) {
+    formatted.plusPriceInDecimalByCurrency = plusPriceInDecimalByCurrency;
+  }
   return formatted;
+}
+
+// Merged over the stored price so fields the body cannot carry survive. An
+// omitted list-price override clears it, but an omitted member price is kept
+// (only null clears it), so a client unaware of it cannot wipe it.
+export function mergeNFTBookPriceUpdate(
+  oldPriceInfo: NFTBookPrice,
+  price: Omit<NFTBookPrice, 'plusPriceInDecimal' | 'plusPriceInDecimalByCurrency'> & {
+    plusPriceInDecimal?: number | null;
+    plusPriceInDecimalByCurrency?: NFTBookPrice['plusPriceInDecimalByCurrency'] | null;
+  },
+): NFTBookPrice {
+  const newPriceInfo = {
+    ...oldPriceInfo,
+    ...formatPriceInfo(price as NFTBookPrice),
+  };
+  if (!price.priceInDecimalByCurrency) {
+    delete newPriceInfo.priceInDecimalByCurrency;
+  }
+  if (price.plusPriceInDecimal === null) delete newPriceInfo.plusPriceInDecimal;
+  if (price.plusPriceInDecimalByCurrency === null) {
+    delete newPriceInfo.plusPriceInDecimalByCurrency;
+  }
+  return newPriceInfo;
 }
 
 // Cheapest customer-visible (non-unlisted) priceInDecimal across a book's prices,
@@ -301,8 +363,17 @@ export async function newNftBookInfo(
     isPlusReadingEnabled,
     isPreviewEnabled,
     previewPercentage,
+
+    productType,
+    fulfilment,
+    availableTerritories,
+    isApprovedForSale = true,
+    nameByLocale,
+    descriptionByLocale,
+    descriptionFullByLocale,
   } = data;
   const previewContent = getPreviewContentFromHasPart(hasPart);
+  const isGoods = isGoodsProduct({ productType });
 
   // The AI review runs concurrently so its latency hides behind the Stripe
   // product creation round-trips.
@@ -313,7 +384,9 @@ export async function newNftBookInfo(
         price: p,
       }))),
     checkIsTrustedPublisher(ownerWallet),
-    reviewBookListingContent({
+    // The review is a book-content check; on a staff-created SKU it could only
+    // force book restrictions onto hardware.
+    isGoods ? { status: 'skipped' as const } : reviewBookListingContent({
       name, author, publisher, inLanguage, keywords, description,
     }),
   ]);
@@ -335,9 +408,10 @@ export async function newNftBookInfo(
     // Default new listings to on-shelf: sellable and indexed, but not promoted.
     // Ads are auto-approved only for trusted publishers (never for adult content);
     // everyone else stays `pending` until an admin grants ads via `/book approve`.
-    isApprovedForSale: true,
+    isApprovedForSale: isGoods ? isApprovedForSale : true,
     isApprovedForIndexing: true,
-    isApprovedForAds: (isAdultOnly ? false : isTrustedPublisher),
+    // Goods stay out of the ad catalog feeds regardless of publisher trust.
+    isApprovedForAds: (isAdultOnly || isGoods ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
     isPendingReview: false,
     // Seed the ranking sort keys: Firestore drops documents missing an `orderBy` field,
@@ -348,11 +422,20 @@ export async function newNftBookInfo(
   };
   const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
   if (minPriceInDecimal !== undefined) payload.minPriceInDecimal = minPriceInDecimal;
+  if (isGoods) {
+    payload.productType = productType;
+    payload.fulfilment = fulfilment || 'shipping';
+    payload.pendingShipmentCount = 0;
+    if (availableTerritories) payload.availableTerritories = availableTerritories;
+  }
   if (image) payload.image = image;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
+  if (nameByLocale) payload.nameByLocale = nameByLocale;
+  if (descriptionByLocale) payload.descriptionByLocale = descriptionByLocale;
+  if (descriptionFullByLocale) payload.descriptionFullByLocale = descriptionFullByLocale;
   if (previewContent) payload.previewContent = previewContent;
   if (keywords) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
@@ -413,6 +496,12 @@ export async function syncNFTBookInfoWithISCN(classId) {
     getNFTClassDataById(classId, { skipCache: true }),
     getNftBookInfo(classId),
   ]);
+  if (!bookInfo) {
+    throw new ValidationError('BOOK_INFO_NOT_FOUND');
+  }
+  // Goods have no chain class to sync from. Running on would rename their
+  // Stripe products and push them into the Airtable-backed search.
+  if (isGoodsProduct(bookInfo)) return;
   const metadata = {
     ...(typeof classData === 'object' && classData !== null ? classData : {}),
   };
@@ -431,9 +520,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
     hasPart,
   } = metadata as NFTClassData;
   const previewContent = getPreviewContentFromHasPart(hasPart);
-  if (!bookInfo) {
-    throw new ValidationError('BOOK_INFO_NOT_FOUND');
-  }
   const {
     prices = [],
   } = bookInfo;
@@ -544,6 +630,9 @@ export async function updateNftBookInfo(classId: string, {
   isPlusReadingEnabled,
   isPreviewEnabled,
   previewPercentage,
+  nameByLocale,
+  descriptionByLocale,
+  descriptionFullByLocale,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -561,6 +650,10 @@ export async function updateNftBookInfo(classId: string, {
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
   previewPercentage?: number;
+  // Null clears the stored copy.
+  nameByLocale?: BookLocalizedCopy | null;
+  descriptionByLocale?: BookLocalizedCopy | null;
+  descriptionFullByLocale?: BookLocalizedCopy | null;
 } = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -595,6 +688,10 @@ export async function updateNftBookInfo(classId: string, {
   if (isPlusReadingEnabled !== undefined) { payload.isPlusReadingEnabled = isPlusReadingEnabled; }
   if (isPreviewEnabled !== undefined) { payload.isPreviewEnabled = isPreviewEnabled; }
   if (previewPercentage !== undefined) { payload.previewPercentage = previewPercentage; }
+  Object.entries({ nameByLocale, descriptionByLocale, descriptionFullByLocale })
+    .forEach(([key, value]) => {
+      if (value !== undefined) payload[key] = value ?? FieldValue.delete();
+    });
   await likeNFTBookCollection.doc(classId).update(payload);
   await syncNFTBookInfoWithISCN(classId);
 }

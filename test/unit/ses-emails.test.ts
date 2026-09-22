@@ -11,6 +11,7 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookManualDeliverSentEmail,
+  sendNFTBookGoodsShippedEmail,
   sendAutoDeliverNFTBookSalesEmail,
   sendNFTBookSalePaymentsEmail,
   sendManualNFTBookSalesEmail,
@@ -150,6 +151,40 @@ describe('SES email params', () => {
         language,
       });
       expect(lastParams()).toMatchSnapshot();
+    });
+
+    it(`sendNFTBookGoodsShippedEmail builds expected params (${language})`, async () => {
+      await sendNFTBookGoodsShippedEmail({
+        email: 'buyer@example.com',
+        productName: 'Boox Go 7',
+        trackingNumber: 'SF<123>',
+        displayName: 'Buyer',
+        language,
+      });
+      expect(lastParams()).toMatchSnapshot();
+    });
+
+    it(`sendNFTBookGoodsShippedEmail escapes the buyer name and product name (${language})`, async () => {
+      await sendNFTBookGoodsShippedEmail({
+        email: 'buyer@example.com',
+        productName: 'Reader <b>X</b>',
+        displayName: '<img src=x onerror=alert(1)>',
+        language,
+      });
+      const html = (lastParams() as any).Message.Body.Html.Data as string;
+      expect(html).not.toContain('<img src=x');
+      expect(html).not.toContain('<b>X</b>');
+      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    });
+
+    it(`sendNFTBookGoodsShippedEmail omits an empty tracking number (${language})`, async () => {
+      await sendNFTBookGoodsShippedEmail({
+        email: 'buyer@example.com',
+        productName: 'Boox Go 7',
+        language,
+      });
+      const html = (lastParams() as any).Message.Body.Html.Data as string;
+      expect(html).not.toMatch(/Tracking number|追蹤編號/);
     });
 
     it(`sendAutoDeliverNFTBookSalesEmail builds expected params (${language})`, async () => {

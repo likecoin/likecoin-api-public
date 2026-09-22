@@ -108,6 +108,10 @@ config.PLUS_SUBSCRIPTION_AIRDROP_RATIO = 0.01;
 
 config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 
+// Store wallets allowed to list non-book goods, which have no chain class to
+// prove ownership. Empty disables goods listing creation.
+config.NFT_BOOK_GOODS_OWNER_WALLETS = [];
+
 config.NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK = '';
 config.NFT_BOOK_SALES_NOTIFICATION_WEBHOOK = '';
 config.NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK = '';

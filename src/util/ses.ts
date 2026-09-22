@@ -509,6 +509,51 @@ export function sendNFTBookManualDeliverSentEmail({
   });
 }
 
+export function sendNFTBookGoodsShippedEmail({
+  email,
+  productName,
+  trackingNumber = '',
+  displayName = '',
+  language = 'zh',
+}: {
+  email: string;
+  productName: string;
+  trackingNumber?: string;
+  displayName?: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const title = isEn
+    ? `Your order ${productName} has been shipped`
+    : `你訂購的 ${productName} 已經寄出`;
+  // All three are free text (buyer display name, staff-typed name and
+  // tracking number), so escape them all before they reach the HTML body.
+  const safeTrackingNumber = escapeHtml(trackingNumber);
+  const safeProductName = escapeHtml(productName);
+  const safeDisplayName = escapeHtml(displayName);
+  const content = isEn
+    ? `<p>Dear ${safeDisplayName || 'customer'},</p>
+  <p>Your order "${safeProductName}" is on its way.</p>
+  ${safeTrackingNumber ? `<p>Tracking number: ${safeTrackingNumber}</p>` : ''}
+  <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.</p>
+  <p>3ook.com Bookstore</p>`
+    : `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+  <p>你訂購的 ${safeProductName} 已經寄出。</p>
+  ${safeTrackingNumber ? `<p>追蹤編號：${safeTrackingNumber}</p>` : ''}
+  <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
+  <p>3ook.com 書店</p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookGoodsShippedEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
 export function sendAutoDeliverNFTBookSalesEmail({
   email,
   classId,

@@ -2,7 +2,7 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 
-import { getNFTClassDataById } from '.';
+import { getNFTClassDataById, isGoodsProduct } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
@@ -500,6 +500,11 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 
 export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   email,
+  shipping = {},
+}: {
+  email: string | null;
+  // Collected by Checkout for goods; a book order never carries it.
+  shipping?: Pick<BookPurchaseData, 'phone' | 'shippingDetails'>;
 }) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const doc = await t.get(bookRef);
@@ -526,6 +531,12 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     status: 'paid',
     email,
   };
+  if (isGoodsProduct(docData)) {
+    // Never claimed: a good goes straight to the despatch queue.
+    paymentPayload.isPendingClaim = false;
+    paymentPayload.status = 'processing';
+    Object.assign(paymentPayload, shipping);
+  }
   if (isAutoDeliver) {
     // EVM NFT are mint on demand, we don't need to specify nftId
     const nftIds = Array(quantity).fill(0);
@@ -566,6 +577,9 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
     prices,
     lastSaleTimestamp: FieldValue.serverTimestamp(),
   };
+  if (isGoodsProduct(listingData)) {
+    bookPayload.pendingShipmentCount = FieldValue.increment(1);
+  }
   // Free items (priceInDecimal 0) don't move the bestselling rank.
   if (txData.priceInDecimal > 0) {
     bookPayload.salesScore = FieldValue.increment(
@@ -656,10 +670,13 @@ export async function formatStripeCheckoutSession({
   successUrl,
   cancelUrl,
   paymentMethods,
+  shippingCountries,
 }: {
   successUrl: string,
   cancelUrl: string,
   paymentMethods?: string[],
+  // Goods only: collect a shipping address, restricted to these countries.
+  shippingCountries?: string[],
 }) {
   const sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
@@ -755,6 +772,11 @@ export async function formatStripeCheckoutSession({
     const productMetadata: Stripe.MetadataParam = {};
     if (item.classId) productMetadata.classId = item.classId;
     if (item.iscnPrefix) productMetadata.iscnPrefix = item.iscnPrefix;
+    // The webhook reads the edition back from here; a Stripe Price carries it
+    // already, but the member price is charged through price_data.
+    if (item.isPlusPrice && item.priceIndex !== undefined) {
+      productMetadata.priceIndex = item.priceIndex.toString();
+    }
 
     if (item.stripePriceId) {
       lineItems.push({
@@ -775,7 +797,7 @@ export async function formatStripeCheckoutSession({
             metadata: productMetadata,
           },
           unit_amount: getCurrencyPriceInDecimal(
-            item.originalPriceInDecimal,
+            item.isPlusPrice ? item.priceInDecimal : item.originalPriceInDecimal,
             currencyWithDefault,
             item.priceInDecimalByCurrency,
           ),
@@ -830,6 +852,13 @@ export async function formatStripeCheckoutSession({
     checkoutPayload.currency = currency;
   } else {
     checkoutPayload.adaptive_pricing = { enabled: true };
+  }
+  if (shippingCountries?.length) {
+    checkoutPayload.shipping_address_collection = {
+      allowed_countries: shippingCountries as
+        Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
+    };
+    checkoutPayload.phone_number_collection = { enabled: true };
   }
   if (paymentMethods) {
     checkoutPayload.payment_method_types = paymentMethods as
@@ -1206,6 +1235,46 @@ export async function setNFTBookBuyerMessage(
     classId,
     wallet,
     buyerMessage: message,
+  });
+}
+
+// Goods counterpart of updateNFTBookPostDeliveryData. A shipped order may be
+// shipped again to correct its tracking number; only the first shipment
+// leaves the despatch queue.
+export async function markNFTBookGoodsOrderShipped({
+  classId,
+  paymentId,
+  trackingNumber,
+}: {
+  classId: string,
+  paymentId: string,
+  trackingNumber: string,
+}) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const paymentRef = bookRef.collection('transactions').doc(paymentId);
+  return db.runTransaction(async (t: admin.firestore.Transaction) => {
+    const paymentDoc = await t.get(paymentRef);
+    const paymentData = paymentDoc.data() as BookPurchaseData | undefined;
+    if (!paymentData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    const { status, trackingNumber: previousTrackingNumber } = paymentData;
+    if (status !== 'processing' && status !== 'shipped') {
+      throw new ValidationError('ORDER_NOT_SHIPPABLE', 409);
+    }
+    const isFirstShipment = status === 'processing';
+    const update: Record<string, string | firestore.FieldValue> = {
+      status: 'shipped',
+      trackingNumber,
+    };
+    if (isFirstShipment) {
+      update.shippedAt = FieldValue.serverTimestamp();
+      t.update(bookRef, { pendingShipmentCount: FieldValue.increment(-1) });
+    }
+    t.update(paymentRef, update);
+    return {
+      paymentData,
+      isFirstShipment,
+      isTrackingNumberChanged: trackingNumber !== (previousTrackingNumber || ''),
+    };
   });
 }
 

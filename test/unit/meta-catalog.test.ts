@@ -149,6 +149,18 @@ describe('getMetaProductCatalogItems', () => {
     ], []);
   });
 
+  // The feeds hardcode a book category; goods are kept out even when ads-approved.
+  it('excludes non-book goods', async () => {
+    await expectCatalogItemIds([
+      {
+        id: 'book', classId: 'book', name: 'Book', image: 'https://img/b.jpg', prices: [{ priceInDecimal: 100 }],
+      },
+      {
+        id: 'goods', classId: 'goods', name: 'Reader', image: 'https://img/g.jpg', productType: 'goods', isApprovedForAds: true, prices: [{ priceInDecimal: 100 }],
+      },
+    ], ['book-0']);
+  });
+
   it('includes books where isApprovedForAds is unset (legacy default approved)', async () => {
     await expectCatalogItemIds([{
       id: 'legacy', classId: 'legacy', name: 'Legacy', image: 'https://img/l.jpg', prices: [{ priceInDecimal: 100 }],
