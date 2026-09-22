@@ -321,8 +321,10 @@ function collectionDoc(data: StubData[], id: string): any {
       return docSet(data, id, setData);
     },
     update: async (updateData: Partial<StubData>) => {
-      if (obj) {
-        return docUpdate(data, id, obj, updateData);
+      // Looked up at call time, so a ref taken before create() can still update.
+      const current = obj || data.find((item) => item.id === id);
+      if (current) {
+        return docUpdate(data, id, current, updateData);
       }
       const error = new Error('Document not found');
       (error as any).code = 5;

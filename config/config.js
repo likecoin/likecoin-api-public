@@ -103,6 +103,8 @@ config.LIKER_NFT_FIAT_MIN_RATIO = 0.01;
 // Share of the net book price (tips excluded) airdropped to the buyer in LIKE.
 // Set to 0 to switch the airdrop off without a deploy of new code.
 config.BOOK_PURCHASE_AIRDROP_RATIO = 0.01;
+// Share of each paid Plus subscription invoice (settled USD) airdropped in LIKE.
+config.PLUS_SUBSCRIPTION_AIRDROP_RATIO = 0.01;
 
 config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 
