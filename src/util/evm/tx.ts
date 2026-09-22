@@ -131,12 +131,17 @@ export async function sendTransactionWithNonce(
   return hash;
 }
 
+// `waitForReceipt: false` returns as soon as the tx is on the wire, for callers on a
+// latency budget such as a webhook. The simulateContract call below still rejects a
+// reverting call, so what is given up is noticing a tx dropped after broadcast.
 export async function sendWriteContractWithNonce(
   walletClient: WalletClient,
   params: WriteContractParameters,
+  { waitForReceipt = true }: { waitForReceipt?: boolean } = {},
 ) {
   const publicClient = getEVMClient();
   let res;
+  let broadcastHash;
   if (!walletClient.account) {
     throw new Error('Wallet client does not have account');
   }
@@ -170,6 +175,16 @@ export async function sendWriteContractWithNonce(
         args,
       }),
     }, pendingNonce);
+    broadcastHash = hash;
+    if (!waitForReceipt) {
+      return {
+        result: null,
+        tx: serializedTransaction,
+        transactionHash: hash,
+        address,
+        nonce: pendingNonce,
+      };
+    }
     res = await publicClient.waitForTransactionReceipt({
       hash,
       confirmations: 2, // 1 extra confirmation to be safe
@@ -185,7 +200,7 @@ export async function sendWriteContractWithNonce(
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
       logType: 'eventCosmosError',
       fromWallet: address,
-      txHash: (res || {}).transactionHash,
+      txHash: res?.transactionHash || broadcastHash,
       txSequence: pendingNonce,
       error: (err as string).toString(),
     });

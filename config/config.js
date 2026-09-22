@@ -26,6 +26,9 @@ config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
 
 config.EVM_RPC_ENDPOINT_OVERRIDE = '';
 config.EVM_BASE_FEE_MULTIPLIER = 3;
+// Testnet has no deployed LIKE v3 token, so the address constant is mainnet-only.
+// Set this on a testnet deployment to point token transfers at the right contract.
+config.LIKE_COIN_V3_ADDRESS_OVERRIDE = '';
 
 // Alchemy Gas Manager (sponsored gas for Magic Link users via EIP-7702).
 // The webhook secret guards the custom-rules endpoint Alchemy POSTs to; it is
@@ -96,6 +99,10 @@ config.NFT_BOOK_LIKER_LAND_ART_FEE_RATIO = 0.1;
 config.NFT_BOOK_FREE_CLASS_IDS = [];
 
 config.LIKER_NFT_FIAT_MIN_RATIO = 0.01;
+
+// Share of the net book price (tips excluded) airdropped to the buyer in LIKE.
+// Set to 0 to switch the airdrop off without a deploy of new code.
+config.BOOK_PURCHASE_AIRDROP_RATIO = 0.01;
 
 config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 

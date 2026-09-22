@@ -7,7 +7,8 @@ import { sendWriteContractWithNonce } from './tx';
 import { LIKER_NFT_FIAT_MIN_RATIO } from '../../../config/config';
 import publisher from '../gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
-import { LIKE_COIN_V3_ABI, LIKE_COIN_V3_ADDRESS, LIKE_COIN_V3_DECIMALS } from '../../constant/contract/likecoinV3';
+import { LIKE_COIN_V3_ABI, LIKE_COIN_V3_DECIMALS } from '../../constant/contract/likecoinV3';
+import { getLIKEBalance, getLikeCoinAddress } from './likeCoin';
 
 export async function getLikeCollectiveTotalStake(
   nftClassId: string,
@@ -54,16 +55,7 @@ export function calculateLikeCollectiveRewardAmount(
 
 export async function hasLIKEBalance(requiredAmount: bigint): Promise<boolean> {
   try {
-    const publicClient = getEVMClient();
-    const account = getEVMWalletAccount();
-
-    const balance = await readContract(publicClient, {
-      address: LIKE_COIN_V3_ADDRESS,
-      abi: LIKE_COIN_V3_ABI as Abi,
-      functionName: 'balanceOf',
-      args: [account.address],
-    }) as bigint;
-
+    const balance = await getLIKEBalance(getEVMWalletAccount().address);
     return balance > requiredAmount;
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -81,7 +73,7 @@ export async function getLIKEAllowance(): Promise<bigint> {
     const account = getEVMWalletAccount();
 
     const allowance = await readContract(publicClient, {
-      address: LIKE_COIN_V3_ADDRESS,
+      address: getLikeCoinAddress(),
       abi: LIKE_COIN_V3_ABI as Abi,
       functionName: 'allowance',
       args: [account.address, LIKE_COLLECTIVE_ADDRESS],
@@ -108,7 +100,7 @@ export async function approveLIKEForLikeCollective(): Promise<string | null> {
 
     const txData = await sendWriteContractWithNonce(walletClient, {
       chain: walletClient.chain,
-      address: LIKE_COIN_V3_ADDRESS,
+      address: getLikeCoinAddress(),
       abi: LIKE_COIN_V3_ABI as Abi,
       account,
       functionName: 'approve',
