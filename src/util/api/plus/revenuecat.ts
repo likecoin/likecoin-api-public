@@ -59,6 +59,7 @@ export interface RevenueCatEvent {
   period_type?: 'TRIAL' | 'INTRO' | 'NORMAL' | 'PROMOTIONAL' | 'PREPAID';
   purchased_at_ms?: number;
   expiration_at_ms?: number | null;
+  event_timestamp_ms?: number;
   store?: string;
   environment?: 'SANDBOX' | 'PRODUCTION';
   price?: number;
@@ -867,12 +868,26 @@ async function handleExpiration(
     }),
     // Nothing else marks an in-app subscription as churned in Airtable:
     // the weekly poll reads Stripe only, so these would sit in Past Due forever.
+    // Canceled Date belongs to CANCELLATION, so a lapse only stamps Ended Date.
     updateAirtableSubscriptionStatus({
       subscriptionId: transactionId || '',
       providerStatus: 'expired',
-      canceledAt: Math.floor(expiredAt / 1000),
+      endedAt: Math.floor(expiredAt / 1000),
     }),
   ]);
+}
+
+// Auto-renew toggled off or back on: access is unchanged, so only the
+// Airtable row learns of it. Keyed by the event's own transaction,
+// which is why none of the record-ownership guards apply.
+async function recordAutoRenewChange(event: RevenueCatEvent, isSandbox: boolean) {
+  if (isQuarantinedSandbox(isSandbox)) return;
+  if (!event.original_transaction_id) return;
+  const canceledAtMs = event.event_timestamp_ms || Date.now();
+  await updateAirtableSubscriptionStatus({
+    subscriptionId: event.original_transaction_id,
+    canceledAt: event.type === 'CANCELLATION' ? Math.floor(canceledAtMs / 1000) : null,
+  });
 }
 
 async function handleBillingIssue(
@@ -1057,13 +1072,15 @@ export async function processRevenueCatEvent(
 
   if (GRANT_EVENT_TYPES.has(event.type)) {
     await handleGrant(event, likerId, user, isSandbox, req);
+    if (event.type === 'UNCANCELLATION') await recordAutoRenewChange(event, isSandbox);
   } else if (event.type === 'EXPIRATION') {
     await handleExpiration(event, likerId, user, isSandbox);
   } else if (event.type === 'BILLING_ISSUE') {
     await handleBillingIssue(event, likerId, user, isSandbox);
   } else if (event.type === 'CANCELLATION') {
-    // Auto-renew turned off — the user keeps access until EXPIRATION. Nothing to
-    // revoke; fall through to logging only.
+    // Auto-renew turned off — the user keeps access until EXPIRATION.
+    // Nothing to revoke; only the Airtable row records the decision.
+    await recordAutoRenewChange(event, isSandbox);
   } else {
     // NON_RENEWING_PURCHASE, NON_SUBSCRIPTION_PURCHASE, SUBSCRIPTION_PAUSED, etc.
     return;

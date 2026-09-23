@@ -948,21 +948,26 @@ export async function createAirtableSubscriptionPaymentRecord({
   }
 }
 
+function toAirtableDate(timestamp: number | null): string | null {
+  return timestamp === null ? null : new Date(timestamp * 1000).toISOString();
+}
+
 // Airtable clears a cell only on an explicit null;
 // undefined is dropped from the payload and leaves the stored date in place.
+// Canceled Date is when the user asked to cancel, Ended Date when access ended.
 export function buildSubscriptionStatusFields({
   providerStatus,
   canceledAt,
+  endedAt,
 }: {
-  providerStatus: string;
+  providerStatus?: string;
   canceledAt?: number | null;
+  endedAt?: number | null;
 }): Record<string, string | null> {
-  const fields: Record<string, string | null> = { 'Provider Status': providerStatus };
-  if (canceledAt !== undefined) {
-    fields['Canceled Date'] = canceledAt === null
-      ? null
-      : new Date(canceledAt * 1000).toISOString();
-  }
+  const fields: Record<string, string | null> = {};
+  if (providerStatus !== undefined) fields['Provider Status'] = providerStatus;
+  if (canceledAt !== undefined) fields['Canceled Date'] = toAirtableDate(canceledAt);
+  if (endedAt !== undefined) fields['Ended Date'] = toAirtableDate(endedAt);
   return fields;
 }
 
@@ -970,10 +975,12 @@ export async function updateAirtableSubscriptionStatus({
   subscriptionId,
   providerStatus,
   canceledAt,
+  endedAt,
 }: {
   subscriptionId: string;
-  providerStatus: string;
+  providerStatus?: string;
   canceledAt?: number | null;
+  endedAt?: number | null;
 }): Promise<void> {
   try {
     if (!SUBSCRIPTIONS_TABLE_ID) return;
@@ -993,7 +1000,7 @@ export async function updateAirtableSubscriptionStatus({
       console.warn(`Airtable subscription record not found for ${subscriptionId}`);
       return;
     }
-    const fields = buildSubscriptionStatusFields({ providerStatus, canceledAt });
+    const fields = buildSubscriptionStatusFields({ providerStatus, canceledAt, endedAt });
     await base(SUBSCRIPTIONS_TABLE_ID).update(
       [{ id: record.id, fields: fields as unknown as Partial<FieldSet> }],
       { typecast: true },

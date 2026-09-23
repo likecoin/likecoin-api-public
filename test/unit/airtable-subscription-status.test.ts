@@ -41,4 +41,23 @@ describe('buildSubscriptionStatusFields', () => {
       'Canceled Date': '1970-01-01T00:00:00.000Z',
     });
   });
+
+  it('writes Ended Date independently of Canceled Date', () => {
+    expect(buildSubscriptionStatusFields({
+      providerStatus: 'canceled',
+      canceledAt: 1757071522,
+      endedAt: 1759663522, // 2025-10-05T11:25:22Z
+    })).toEqual({
+      'Provider Status': 'canceled',
+      'Canceled Date': '2025-09-05T11:25:22.000Z',
+      'Ended Date': '2025-10-05T11:25:22.000Z',
+    });
+  });
+
+  it('leaves Provider Status untouched when only the cancel date changes', () => {
+    // RevenueCat CANCELLATION / UNCANCELLATION flip auto-renew, not status.
+    expect(buildSubscriptionStatusFields({ canceledAt: null })).toEqual({
+      'Canceled Date': null,
+    });
+  });
 });

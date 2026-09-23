@@ -1513,6 +1513,7 @@ export async function processStripeSubscriptionCancellation(
       subscriptionId,
       providerStatus: subscription.status,
       canceledAt: subscription.canceled_at ?? subscription.ended_at,
+      endedAt: subscription.ended_at,
     }),
   ]);
 }
@@ -1610,6 +1611,7 @@ export async function processStripeSubscriptionStatusUpdate(
     subscriptionId: subscription.id,
     providerStatus: status,
     canceledAt: subscription.canceled_at,
+    endedAt: subscription.ended_at,
   });
   if (!evmWallet && !likeWallet) {
     // eslint-disable-next-line no-console
