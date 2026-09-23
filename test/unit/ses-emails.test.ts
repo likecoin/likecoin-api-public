@@ -11,9 +11,9 @@ import {
   sendNFTBookGiftClaimedEmail,
   sendNFTBookGiftSentEmail,
   sendNFTBookManualDeliverSentEmail,
-  sendNFTBookGoodsShippedEmail,
-  sendNFTBookGoodsOrderReceivedEmail,
-  sendNFTBookGoodsSaleEmail,
+  sendNFTBookMerchShippedEmail,
+  sendNFTBookMerchOrderReceivedEmail,
+  sendNFTBookMerchSaleEmail,
   sendAutoDeliverNFTBookSalesEmail,
   sendNFTBookSalePaymentsEmail,
   sendManualNFTBookSalesEmail,
@@ -155,8 +155,8 @@ describe('SES email params', () => {
       expect(lastParams()).toMatchSnapshot();
     });
 
-    it(`sendNFTBookGoodsShippedEmail builds expected params (${language})`, async () => {
-      await sendNFTBookGoodsShippedEmail({
+    it(`sendNFTBookMerchShippedEmail builds expected params (${language})`, async () => {
+      await sendNFTBookMerchShippedEmail({
         email: 'buyer@example.com',
         productName: 'Boox Go 7',
         trackingNumber: 'SF<123>',
@@ -166,8 +166,8 @@ describe('SES email params', () => {
       expect(lastParams()).toMatchSnapshot();
     });
 
-    it(`sendNFTBookGoodsShippedEmail escapes the buyer name and product name (${language})`, async () => {
-      await sendNFTBookGoodsShippedEmail({
+    it(`sendNFTBookMerchShippedEmail escapes the buyer name and product name (${language})`, async () => {
+      await sendNFTBookMerchShippedEmail({
         email: 'buyer@example.com',
         productName: 'Reader <b>X</b>',
         displayName: '<img src=x onerror=alert(1)>',
@@ -192,8 +192,8 @@ describe('SES email params', () => {
       },
     };
 
-    it(`sendNFTBookGoodsOrderReceivedEmail builds expected params (${language})`, async () => {
-      await sendNFTBookGoodsOrderReceivedEmail({
+    it(`sendNFTBookMerchOrderReceivedEmail builds expected params (${language})`, async () => {
+      await sendNFTBookMerchOrderReceivedEmail({
         email: 'buyer@example.com',
         paymentId: 'payment-1',
         items: [{ name: 'Boox Go 7', quantity: 1 }],
@@ -209,8 +209,8 @@ describe('SES email params', () => {
       expect(params).toMatchSnapshot();
     });
 
-    it(`sendNFTBookGoodsSaleEmail builds expected params (${language})`, async () => {
-      await sendNFTBookGoodsSaleEmail({
+    it(`sendNFTBookMerchSaleEmail builds expected params (${language})`, async () => {
+      await sendNFTBookMerchSaleEmail({
         email: 'store@example.com',
         classId: '0xclass',
         paymentId: 'payment-1',
@@ -223,8 +223,8 @@ describe('SES email params', () => {
       expect(lastParams()).toMatchSnapshot();
     });
 
-    it(`sendNFTBookGoodsShippedEmail omits an empty tracking number (${language})`, async () => {
-      await sendNFTBookGoodsShippedEmail({
+    it(`sendNFTBookMerchShippedEmail omits an empty tracking number (${language})`, async () => {
+      await sendNFTBookMerchShippedEmail({
         email: 'buyer@example.com',
         productName: 'Boox Go 7',
         language,

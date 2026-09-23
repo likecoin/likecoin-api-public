@@ -3,16 +3,20 @@ import {
 } from 'vitest';
 import type Stripe from 'stripe';
 import {
-  isGoodsProduct,
+  isNonNFTProduct,
+  isShippedProduct,
   matchesProductTypeFilter,
   mergeNFTBookPriceUpdate,
 } from '../../src/util/api/likernft/book';
 import {
   assertOrderQuantityLimits,
   assertSingleProductTypeCart,
-  getGoodsShippingFromSession,
+  formatCartItemsWithInfo,
+  getMerchShippingFromSession,
   getIsEligibleForPlusPrice,
+  processNFTBookCartStripePurchase,
 } from '../../src/util/api/likernft/book/cart';
+import { likeNFTBookCartCollection, likeNFTBookCollection } from '../../src/util/firebase';
 import {
   filterBookPurchaseData,
   filterNFTBookListingInfo,
@@ -28,7 +32,7 @@ import { getStripeClient } from '../../src/util/stripe';
 import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../src/types/book';
 
-const GOODS_PRICE: NFTBookPrice = {
+const MERCH_PRICE: NFTBookPrice = {
   name: { zh: '原價', en: 'List price' },
   description: { zh: '', en: '' },
   priceInDecimal: 25800,
@@ -43,17 +47,16 @@ const GOODS_PRICE: NFTBookPrice = {
   order: 0,
 };
 
-const goodsListing = (overrides: Partial<NFTBookListingInfo> = {}): NFTBookListingInfo => ({
+const merchListing = (overrides: Partial<NFTBookListingInfo> = {}): NFTBookListingInfo => ({
   classId: '0x3a12abfd733cf5495526ad9246189b5dc699b552',
   ownerWallet: '0xstore',
-  productType: 'goods',
-  fulfilment: 'shipping',
+  productType: 'merch',
   availableTerritories: ['HK'],
   name: 'Boox Go 7',
   nameByLocale: { en: 'Boox Go 7', zh: 'Boox Go 7 電子閱讀器' },
   pendingShipmentCount: 3,
   maxQuantityPerOrder: 1,
-  prices: [GOODS_PRICE],
+  prices: [MERCH_PRICE],
   ...overrides,
 });
 
@@ -78,16 +81,23 @@ const cartItem = (overrides: Partial<CartItemWithInfo> = {}): CartItemWithInfo =
 
 describe('product type helpers', () => {
   it('treats a listing with no productType as a book', () => {
-    expect(isGoodsProduct({})).toBe(false);
+    expect(isNonNFTProduct({})).toBe(false);
     expect(matchesProductTypeFilter({}, 'book')).toBe(true);
-    expect(matchesProductTypeFilter({}, 'goods')).toBe(false);
+    expect(matchesProductTypeFilter({}, 'merch')).toBe(false);
   });
 
-  it('matches goods only when asked for goods or all', () => {
-    const goods = { productType: 'goods' as const };
-    expect(matchesProductTypeFilter(goods, 'book')).toBe(false);
-    expect(matchesProductTypeFilter(goods, 'goods')).toBe(true);
-    expect(matchesProductTypeFilter(goods, 'all')).toBe(true);
+  it('treats merch as both non-NFT and shipped, and a book as neither', () => {
+    expect(isNonNFTProduct({ productType: 'merch' })).toBe(true);
+    expect(isShippedProduct({ productType: 'merch' })).toBe(true);
+    expect(isShippedProduct({ productType: 'book' })).toBe(false);
+    expect(isShippedProduct({})).toBe(false);
+  });
+
+  it('matches merch only when asked for merch or all', () => {
+    const merch = { productType: 'merch' as const };
+    expect(matchesProductTypeFilter(merch, 'book')).toBe(false);
+    expect(matchesProductTypeFilter(merch, 'merch')).toBe(true);
+    expect(matchesProductTypeFilter(merch, 'all')).toBe(true);
   });
 });
 
@@ -101,7 +111,7 @@ describe('mergeNFTBookPriceUpdate', () => {
   };
 
   it('keeps the member price when the edit omits it', () => {
-    const merged = mergeNFTBookPriceUpdate(GOODS_PRICE, edit);
+    const merged = mergeNFTBookPriceUpdate(MERCH_PRICE, edit);
     expect(merged.plusPriceInDecimal).toBe(21900);
     expect(merged.plusPriceInDecimalByCurrency).toEqual({ hkd: 169800 });
     expect(merged.stock).toBe(9);
@@ -111,7 +121,7 @@ describe('mergeNFTBookPriceUpdate', () => {
   });
 
   it('clears the member price only on an explicit null', () => {
-    const merged = mergeNFTBookPriceUpdate(GOODS_PRICE, {
+    const merged = mergeNFTBookPriceUpdate(MERCH_PRICE, {
       ...edit,
       plusPriceInDecimal: null,
       plusPriceInDecimalByCurrency: null,
@@ -121,7 +131,7 @@ describe('mergeNFTBookPriceUpdate', () => {
   });
 
   it('replaces the member price when a new one is sent', () => {
-    const merged = mergeNFTBookPriceUpdate(GOODS_PRICE, {
+    const merged = mergeNFTBookPriceUpdate(MERCH_PRICE, {
       ...edit,
       plusPriceInDecimal: 20000,
       plusPriceInDecimalByCurrency: { hkd: 159800 },
@@ -131,7 +141,7 @@ describe('mergeNFTBookPriceUpdate', () => {
   });
 
   it('still clears an omitted list-price override', () => {
-    const merged = mergeNFTBookPriceUpdate(GOODS_PRICE, {
+    const merged = mergeNFTBookPriceUpdate(MERCH_PRICE, {
       ...edit,
       priceInDecimalByCurrency: undefined,
     });
@@ -139,9 +149,9 @@ describe('mergeNFTBookPriceUpdate', () => {
   });
 });
 
-describe('response filters carry goods fields', () => {
+describe('response filters carry merch fields', () => {
   it('round-trips the member price through the price-level filter and schema', () => {
-    const { prices: [price] } = filterNFTBookPricesInfo([GOODS_PRICE], false);
+    const { prices: [price] } = filterNFTBookPricesInfo([MERCH_PRICE], false);
     const parsed = NFTBookPriceFilteredSchema.parse(price);
     expect(parsed.plusPriceInDecimal).toBe(21900);
     expect(parsed.plusPriceInDecimalByCurrency).toEqual({ hkd: 169800 });
@@ -154,16 +164,16 @@ describe('response filters carry goods fields', () => {
 
   it('exposes productType and territories publicly, the despatch count to the owner only', () => {
     const publicView = NFTBookListingInfoFilteredSchema.parse(
-      filterNFTBookListingInfo(goodsListing(), false),
+      filterNFTBookListingInfo(merchListing(), false),
     );
-    expect(publicView.productType).toBe('goods');
+    expect(publicView.productType).toBe('merch');
     expect(publicView.availableTerritories).toEqual(['HK']);
     expect(publicView.nameByLocale).toEqual({ en: 'Boox Go 7', zh: 'Boox Go 7 電子閱讀器' });
     expect(publicView.maxQuantityPerOrder).toBe(1);
     expect(publicView.pendingShipmentCount).toBeUndefined();
 
     const ownerView = NFTBookListingInfoFilteredSchema.parse(
-      filterNFTBookListingInfo(goodsListing(), true),
+      filterNFTBookListingInfo(merchListing(), true),
     );
     expect(ownerView.pendingShipmentCount).toBe(3);
   });
@@ -197,8 +207,8 @@ describe('response filters carry goods fields', () => {
 });
 
 describe('assertSingleProductTypeCart', () => {
-  const goods = (territories: string[]) => cartItem({
-    productType: 'goods',
+  const merch = (territories: string[]) => cartItem({
+    productType: 'merch',
     availableTerritories: territories,
   });
 
@@ -209,18 +219,18 @@ describe('assertSingleProductTypeCart', () => {
     ])).not.toThrow();
   });
 
-  it('rejects a cart mixing a book and a good', () => {
-    expect(() => assertSingleProductTypeCart([cartItem(), goods(['HK'])]))
+  it('rejects a cart mixing a book and merch', () => {
+    expect(() => assertSingleProductTypeCart([cartItem(), merch(['HK'])]))
       .toThrow('CART_MIXED_PRODUCT_TYPE');
   });
 
-  it('accepts goods sharing one territory set, in any order', () => {
-    expect(() => assertSingleProductTypeCart([goods(['HK', 'TW']), goods(['TW', 'HK'])]))
+  it('accepts merch sharing one territory set, in any order', () => {
+    expect(() => assertSingleProductTypeCart([merch(['HK', 'TW']), merch(['TW', 'HK'])]))
       .not.toThrow();
   });
 
-  it('rejects goods with different territory sets', () => {
-    expect(() => assertSingleProductTypeCart([goods(['HK']), goods(['HK', 'TW'])]))
+  it('rejects merch with different territory sets', () => {
+    expect(() => assertSingleProductTypeCart([merch(['HK']), merch(['HK', 'TW'])]))
       .toThrow('CART_MIXED_TERRITORIES');
   });
 });
@@ -243,7 +253,7 @@ describe('getIsEligibleForPlusPrice', () => {
   });
 });
 
-describe('getGoodsShippingFromSession', () => {
+describe('getMerchShippingFromSession', () => {
   it('reads shipping from collected_information and phone from customer_details', () => {
     const session = {
       collected_information: {
@@ -261,7 +271,7 @@ describe('getGoodsShippingFromSession', () => {
       },
       customer_details: { phone: '+85291234567' },
     } as unknown as Stripe.Checkout.Session;
-    expect(getGoodsShippingFromSession(session)).toEqual({
+    expect(getMerchShippingFromSession(session)).toEqual({
       phone: '+85291234567',
       shippingDetails: {
         name: 'Chan Tai Man',
@@ -283,34 +293,34 @@ describe('getGoodsShippingFromSession', () => {
       collected_information: null,
       customer_details: { phone: null },
     } as unknown as Stripe.Checkout.Session;
-    expect(getGoodsShippingFromSession(session)).toEqual({});
-    expect(getGoodsShippingFromSession(undefined)).toEqual({});
+    expect(getMerchShippingFromSession(session)).toEqual({});
+    expect(getMerchShippingFromSession(undefined)).toEqual({});
   });
 });
 
 describe('assertOrderQuantityLimits', () => {
   it('allows an order up to the cap and ignores items without one', () => {
     expect(() => assertOrderQuantityLimits([
-      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xmerch', quantity: 1, maxQuantityPerOrder: 1 }),
       cartItem({ classId: '0xbook', quantity: 5 }),
     ])).not.toThrow();
   });
 
   it('rejects a quantity over the cap', () => {
     expect(() => assertOrderQuantityLimits([
-      cartItem({ classId: '0xgoods', quantity: 2, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xmerch', quantity: 2, maxQuantityPerOrder: 1 }),
     ])).toThrow('QUANTITY_EXCEEDS_ORDER_LIMIT');
   });
 
   it('sums a class listed twice, so the cap cannot be split across lines', () => {
     expect(() => assertOrderQuantityLimits([
-      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
-      cartItem({ classId: '0xgoods', quantity: 1, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xmerch', quantity: 1, maxQuantityPerOrder: 1 }),
+      cartItem({ classId: '0xmerch', quantity: 1, maxQuantityPerOrder: 1 }),
     ])).toThrow('QUANTITY_EXCEEDS_ORDER_LIMIT');
   });
 });
 
-describe('formatStripeCheckoutSession for goods', () => {
+describe('formatStripeCheckoutSession for merch', () => {
   let createSpy: MockInstance;
   beforeEach(() => {
     createSpy = vi.spyOn(getStripeClient().checkout.sessions, 'create')
@@ -324,7 +334,7 @@ describe('formatStripeCheckoutSession for goods', () => {
 
   it('collects a shipping address, disables discounts and requests an invoice', async () => {
     const memberPriced = cartItem({
-      productType: 'goods',
+      productType: 'merch',
       priceInDecimal: 21900,
       originalPriceInDecimal: 25800,
       priceInDecimalByCurrency: { hkd: 169800 },
@@ -364,5 +374,51 @@ describe('formatStripeCheckoutSession for goods', () => {
     expect(payload.invoice_creation).toBeUndefined();
     expect(payload.allow_promotion_codes).toBe(true);
     expect(payload.line_items[0].price).toBe('price_test');
+  });
+});
+
+describe('formatCartItemsWithInfo for merch', () => {
+  // Not EVM-shaped, so a chain read would go to the Cosmos query.
+  const SKU_ID = 'merch-sku-1';
+
+  it('builds the item from the listing without a chain class', async () => {
+    await likeNFTBookCollection.doc(SKU_ID).set(merchListing({ classId: SKU_ID }));
+    const [item] = await formatCartItemsWithInfo([{ classId: SKU_ID, priceIndex: 0 }]);
+    expect(item.name).toContain('Boox Go 7');
+    expect(item.productType).toBe('merch');
+  });
+});
+
+describe('processNFTBookCartStripePurchase retries', () => {
+  let retrieveSpy: MockInstance;
+  beforeEach(() => {
+    retrieveSpy = vi.spyOn(getStripeClient().paymentIntents, 'retrieve')
+      .mockRejectedValue(new Error('STOP'));
+  });
+  afterEach(() => {
+    retrieveSpy.mockRestore();
+  });
+
+  const session = (cartId: string) => ({
+    id: 'cs_retry',
+    amount_total: 1000,
+    payment_intent: 'pi_retry',
+    customer_details: { email: 'buyer@example.com' },
+    metadata: { cartId },
+  }) as unknown as Stripe.Checkout.Session;
+
+  it.each(['paid', 'processing', 'completed'])('skips a cart already %s', async (status) => {
+    const cartId = `cart-${status}`;
+    await likeNFTBookCartCollection.doc(cartId).set({ status });
+    await expect(processNFTBookCartStripePurchase(session(cartId), {} as any))
+      .resolves.toBeUndefined();
+    expect(retrieveSpy).not.toHaveBeenCalled();
+  });
+
+  it('still processes a new cart', async () => {
+    await likeNFTBookCartCollection.doc('cart-new').set({ status: 'new' });
+    await expect(processNFTBookCartStripePurchase(session('cart-new'), {} as any))
+      .rejects.toThrow('STOP');
+    expect(retrieveSpy).toHaveBeenCalled();
   });
 });

@@ -3,7 +3,6 @@
 import type { z } from 'zod';
 import type {
   BookContributorSchema,
-  BookFulfilmentSchema,
   BookLocalizedCopySchema,
   BookProductTypeSchema,
   BookSignatureImageSchema,
@@ -67,7 +66,7 @@ export interface BookPurchaseData {
   classIdsWithPrice?: any[];
   claimToken?: string;
   lastRemindTimestamp?: { toMillis: () => number };
-  // Goods orders only. `phone` and `shippingDetails` are collected by Stripe
+  // Merch orders only. `phone` and `shippingDetails` are collected by Stripe
   // Checkout; `trackingNumber` and `shippedAt` are written by the `/ship` endpoint.
   phone?: string;
   shippingDetails?: BookShippingDetails;
@@ -156,7 +155,7 @@ export interface NFTBookPrice {
   order?: number;
   stripeProductId?: string;
   stripePriceId?: string;
-  // Goods only: the member price on the same edition, so one `stock` counter
+  // Merch only: the member price on the same edition, so one `stock` counter
   // backs both prices. See `getIsEligibleForPlusPrice` for who may pay it.
   plusPriceInDecimal?: number;
   plusPriceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
@@ -194,16 +193,13 @@ export type BookProductType = z.infer<typeof BookProductTypeSchema>;
 
 export type BookLocalizedCopy = z.infer<typeof BookLocalizedCopySchema>;
 
-export type BookFulfilment = z.infer<typeof BookFulfilmentSchema>;
-
 export interface NFTBookListingInfo {
   id?: string;
   classId: string;
-  // Absent means 'book': every listing predating non-book goods is a book, and
+  // Absent means 'book': every listing predating non-book merch is a book, and
   // Firestore cannot query for a missing field, so the default must be implicit.
-  // Read it through `getBookProductType` / `isGoodsProduct`, never directly.
+  // Read it through `getBookProductType` / `isNonNFTProduct`, never directly.
   productType?: BookProductType;
-  fulfilment?: BookFulfilment;
   // ISO 3166-1 alpha-2 ALLOW-list, the inverse of `restrictedTerritories`.
   // Enforced at checkout via Stripe `shipping_address_collection`.
   availableTerritories?: string[];
@@ -222,8 +218,8 @@ export interface NFTBookListingInfo {
   prices?: NFTBookPrice[];
   minPriceInDecimal?: number;
   pendingNFTCount?: number;
-  // Goods sibling of `pendingNFTCount`: paid orders awaiting despatch. Counted
-  // at payment rather than at claim, since a goods order is never claimed.
+  // Merch sibling of `pendingNFTCount`: paid orders awaiting despatch. Counted
+  // at payment rather than at claim, since a merch order is never claimed.
   pendingShipmentCount?: number;
   ownerWallet: string;
   moderatorWallets?: string[];

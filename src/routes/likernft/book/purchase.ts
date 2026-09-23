@@ -3,7 +3,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import {
   checkIsAuthorized,
   getNFTClassDataById,
-  isGoodsProduct,
+  isShippedProduct,
 } from '../../../util/api/likernft/book';
 import {
   admin, db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
@@ -23,13 +23,13 @@ import {
   sendNFTBookGiftSentEmail,
   sendNFTBookPendingClaimEmail,
   sendNFTBookManualDeliverSentEmail,
-  sendNFTBookGoodsShippedEmail,
+  sendNFTBookMerchShippedEmail,
 } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
 } from '../../../../config/config';
 import {
-  markNFTBookGoodsOrderShipped,
+  markNFTBookMerchOrderShipped,
   setNFTBookBuyerMessage,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
@@ -813,7 +813,7 @@ router.post(
   },
 );
 
-// Goods counterpart of `/sent`: there is no NFT to send, only a parcel.
+// Merch counterpart of `/sent`: there is no NFT to send, only a parcel.
 router.post(
   ['/:classId/ship/:paymentId', '/class/:classId/ship/:paymentId'],
   jwtAuth('write:nftbook'),
@@ -829,13 +829,13 @@ router.post(
       const { ownerWallet, moderatorWallets = [], name } = listingData as NFTBookListingInfo;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
-      if (!isGoodsProduct(listingData)) throw new ValidationError('NOT_GOODS_LISTING', 400);
+      if (!isShippedProduct(listingData)) throw new ValidationError('NOT_MERCH_LISTING', 400);
 
       const {
         paymentData: { email },
         isFirstShipment,
         isTrackingNumberChanged,
-      } = await markNFTBookGoodsOrderShipped({ classId, paymentId, trackingNumber });
+      } = await markNFTBookMerchOrderShipped({ classId, paymentId, trackingNumber });
 
       // A re-ship that only corrects the tracking number re-notifies the buyer.
       if (email && (isFirstShipment || isTrackingNumberChanged)) {
@@ -847,7 +847,7 @@ router.post(
           buyerDisplayName = info.displayName;
         } catch { /* ignore */ }
         try {
-          await sendNFTBookGoodsShippedEmail({
+          await sendNFTBookMerchShippedEmail({
             email,
             productName: name || classId,
             trackingNumber,
@@ -862,7 +862,7 @@ router.post(
       }
 
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
-        logType: 'BookGoodsOrderShipped',
+        logType: 'BookMerchOrderShipped',
         paymentId,
         classId,
         email,

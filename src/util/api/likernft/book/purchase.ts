@@ -2,7 +2,7 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 
-import { getNFTClassDataById, isGoodsProduct } from '.';
+import { getNFTClassDataById, isNonNFTProduct, isShippedProduct } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
@@ -503,7 +503,7 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   shipping = {},
 }: {
   email: string | null;
-  // Collected by Checkout for goods; a book order never carries it.
+  // Collected by Checkout for merch; a book order never carries it.
   shipping?: Pick<BookPurchaseData, 'phone' | 'shippingDetails'>;
 }) {
   const bookRef = likeNFTBookCollection.doc(classId);
@@ -531,11 +531,14 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     status: 'paid',
     email,
   };
-  if (isGoodsProduct(docData)) {
-    // Never claimed: a good goes straight to the despatch queue.
+  if (isNonNFTProduct(docData)) {
+    // Nothing to claim.
     paymentPayload.isPendingClaim = false;
-    paymentPayload.status = 'processing';
-    Object.assign(paymentPayload, shipping);
+    // Shipped merch goes straight to the despatch queue.
+    if (isShippedProduct(docData)) {
+      paymentPayload.status = 'processing';
+      Object.assign(paymentPayload, shipping);
+    }
   }
   if (isAutoDeliver) {
     // EVM NFT are mint on demand, we don't need to specify nftId
@@ -577,7 +580,7 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
     prices,
     lastSaleTimestamp: FieldValue.serverTimestamp(),
   };
-  if (isGoodsProduct(listingData)) {
+  if (isShippedProduct(listingData)) {
     bookPayload.pendingShipmentCount = FieldValue.increment(1);
   }
   // Free items (priceInDecimal 0) don't move the bestselling rank.
@@ -677,7 +680,7 @@ export async function formatStripeCheckoutSession({
   successUrl: string,
   cancelUrl: string,
   paymentMethods?: string[],
-  // Goods only: collect a shipping address, restricted to these countries.
+  // Merch only: collect a shipping address, restricted to these countries.
   shippingCountries?: string[],
   // False drops both a passed coupon and the buyer-typed promotion code box.
   allowDiscounts?: boolean,
@@ -1245,10 +1248,10 @@ export async function setNFTBookBuyerMessage(
   });
 }
 
-// Goods counterpart of updateNFTBookPostDeliveryData. A shipped order may be
+// Merch counterpart of updateNFTBookPostDeliveryData. A shipped order may be
 // shipped again to correct its tracking number; only the first shipment
 // leaves the despatch queue.
-export async function markNFTBookGoodsOrderShipped({
+export async function markNFTBookMerchOrderShipped({
   classId,
   paymentId,
   trackingNumber,

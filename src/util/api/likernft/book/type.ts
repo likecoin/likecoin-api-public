@@ -1,5 +1,4 @@
 import type {
-  BookFulfilment,
   BookPriceInDecimalByCurrency,
   BookProductType,
 } from '../../../../types/book';
@@ -33,7 +32,6 @@ export type CartItemWithInfo = CartItem & {
   quantity: number,
   chain: 'like' | 'evm' | 'op' | 'base',
   productType?: BookProductType,
-  fulfilment?: BookFulfilment,
   availableTerritories?: string[],
   maxQuantityPerOrder?: number,
   plusPriceInDecimal?: number,

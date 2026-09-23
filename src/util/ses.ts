@@ -510,7 +510,7 @@ export function sendNFTBookManualDeliverSentEmail({
   });
 }
 
-export function sendNFTBookGoodsShippedEmail({
+export function sendNFTBookMerchShippedEmail({
   email,
   productName,
   trackingNumber = '',
@@ -544,7 +544,7 @@ export function sendNFTBookGoodsShippedEmail({
   <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
   <p>3ook.com 書店</p>`;
   return sendSESTemplateEmail({
-    functionName: 'sendNFTBookGoodsShippedEmail',
+    functionName: 'sendNFTBookMerchShippedEmail',
     to: [email],
     bcc: SALES_BCC,
     title,
@@ -556,7 +556,7 @@ export function sendNFTBookGoodsShippedEmail({
 }
 
 // Buyer-typed, so escaped; one line per non-empty part, as the courier label reads.
-function formatGoodsShippingAddressHTML(shippingDetails?: BookShippingDetails): string {
+function formatMerchShippingAddressHTML(shippingDetails?: BookShippingDetails): string {
   if (!shippingDetails) return '';
   const { name, phone, address = {} } = shippingDetails;
   return [
@@ -569,7 +569,7 @@ function formatGoodsShippingAddressHTML(shippingDetails?: BookShippingDetails): 
   ].filter(Boolean).map((line) => escapeHtml(line as string)).join('<br>');
 }
 
-export function sendNFTBookGoodsOrderReceivedEmail({
+export function sendNFTBookMerchOrderReceivedEmail({
   email,
   paymentId,
   items,
@@ -597,7 +597,7 @@ export function sendNFTBookGoodsOrderReceivedEmail({
     .map(({ name, quantity }) => `<tr><td>${escapeHtml(name)}</td><td>× ${quantity}</td></tr>`)
     .join('');
   const total = `${currency.toUpperCase()} ${formatEmailDecimalNumber(amountTotal)}`;
-  const address = formatGoodsShippingAddressHTML(shippingDetails);
+  const address = formatMerchShippingAddressHTML(shippingDetails);
   const safeDisplayName = escapeHtml(displayName);
   const content = isEn
     ? `<p>Dear ${safeDisplayName || 'customer'},</p>
@@ -619,7 +619,7 @@ export function sendNFTBookGoodsOrderReceivedEmail({
   <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
   <p>3ook.com 書店</p>`;
   return sendSESTemplateEmail({
-    functionName: 'sendNFTBookGoodsOrderReceivedEmail',
+    functionName: 'sendNFTBookMerchOrderReceivedEmail',
     to: [email],
     bcc: SALES_BCC,
     title,
@@ -630,9 +630,9 @@ export function sendNFTBookGoodsOrderReceivedEmail({
   });
 }
 
-// Goods counterpart of sendManualNFTBookSalesEmail, which only fires on claim:
-// a goods order is never claimed, so the seller is told at payment instead.
-export function sendNFTBookGoodsSaleEmail({
+// Merch counterpart of sendManualNFTBookSalesEmail, which only fires on claim:
+// a merch order is never claimed, so the seller is told at payment instead.
+export function sendNFTBookMerchSaleEmail({
   email,
   classId,
   paymentId,
@@ -656,7 +656,7 @@ export function sendNFTBookGoodsSaleEmail({
   const title = isEn
     ? `Order received — please ship "${productName}"`
     : `收到訂單，請寄出 ${productName}`;
-  const address = formatGoodsShippingAddressHTML(shippingDetails);
+  const address = formatMerchShippingAddressHTML(shippingDetails);
   const consoleURL = getNFTBookStoreClassPageURL(classId);
   const content = isEn
     ? `<p>An order for "${safeProductName}" × ${quantity} has been paid and is waiting to ship.</p>
@@ -670,7 +670,7 @@ export function sendNFTBookGoodsSaleEmail({
   <p>訂單編號：${paymentId}</p>
   <p><a href="${consoleURL}">[管理訂單]</a></p>`;
   return sendSESTemplateEmail({
-    functionName: 'sendNFTBookGoodsSaleEmail',
+    functionName: 'sendNFTBookMerchSaleEmail',
     replyTo: [],
     to: email ? [email] : undefined,
     bcc: SALES_BCC,

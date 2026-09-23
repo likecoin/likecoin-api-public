@@ -162,15 +162,15 @@ export function getBookProductType(
   return listing.productType || 'book';
 }
 
-// A goods listing has no chain class: every chain read, mint, ISCN sync and
-// book-only feed must branch on this.
-export function isGoodsProduct(listing: Pick<NFTBookListingInfo, 'productType'>): boolean {
-  return getBookProductType(listing) === 'goods';
+// A non-NFT product has no chain class: every chain read, mint, ISCN sync, claim
+// and book-only feed must branch on this.
+export function isNonNFTProduct(listing: Pick<NFTBookListingInfo, 'productType'>): boolean {
+  return getBookProductType(listing) !== 'book';
 }
 
-// Absent means 'shipping': a goods listing without it is a physical good.
-export function isShippedProduct(listing: Pick<NFTBookListingInfo, 'productType' | 'fulfilment'>) {
-  return isGoodsProduct(listing) && (listing.fulfilment || 'shipping') === 'shipping';
+// Physical merch: needs an address, a despatch queue and `/ship` to complete.
+export function isShippedProduct(listing: Pick<NFTBookListingInfo, 'productType'>): boolean {
+  return getBookProductType(listing) === 'merch';
 }
 
 // In memory on purpose: Firestore `!=` drops every doc missing the field (all
@@ -365,7 +365,6 @@ export async function newNftBookInfo(
     previewPercentage,
 
     productType,
-    fulfilment,
     availableTerritories,
     maxQuantityPerOrder,
     isApprovedForSale = true,
@@ -374,7 +373,7 @@ export async function newNftBookInfo(
     descriptionFullByLocale,
   } = data;
   const previewContent = getPreviewContentFromHasPart(hasPart);
-  const isGoods = isGoodsProduct({ productType });
+  const isNonNFT = isNonNFTProduct({ productType });
 
   // The AI review runs concurrently so its latency hides behind the Stripe
   // product creation round-trips.
@@ -387,7 +386,7 @@ export async function newNftBookInfo(
     checkIsTrustedPublisher(ownerWallet),
     // The review is a book-content check; on a staff-created SKU it could only
     // force book restrictions onto hardware.
-    isGoods ? { status: 'skipped' as const } : reviewBookListingContent({
+    isNonNFT ? { status: 'skipped' as const } : reviewBookListingContent({
       name, author, publisher, inLanguage, keywords, description,
     }),
   ]);
@@ -409,10 +408,10 @@ export async function newNftBookInfo(
     // Default new listings to on-shelf: sellable and indexed, but not promoted.
     // Ads are auto-approved only for trusted publishers (never for adult content);
     // everyone else stays `pending` until an admin grants ads via `/book approve`.
-    isApprovedForSale: isGoods ? isApprovedForSale : true,
+    isApprovedForSale: isNonNFT ? isApprovedForSale : true,
     isApprovedForIndexing: true,
-    // Goods stay out of the ad catalog feeds regardless of publisher trust.
-    isApprovedForAds: (isAdultOnly || isGoods ? false : isTrustedPublisher),
+    // Non-NFT products stay out of the ad catalog feeds regardless of publisher trust.
+    isApprovedForAds: (isAdultOnly || isNonNFT ? false : isTrustedPublisher),
     approvalStatus: isTrustedPublisher ? 'approved' : 'pending',
     isPendingReview: false,
     // Seed the ranking sort keys: Firestore drops documents missing an `orderBy` field,
@@ -423,10 +422,9 @@ export async function newNftBookInfo(
   };
   const minPriceInDecimal = getMinListedPriceInDecimal(newPrices);
   if (minPriceInDecimal !== undefined) payload.minPriceInDecimal = minPriceInDecimal;
-  if (isGoods) {
+  if (isNonNFT) {
     payload.productType = productType;
-    payload.fulfilment = fulfilment || 'shipping';
-    payload.pendingShipmentCount = 0;
+    if (isShippedProduct({ productType })) payload.pendingShipmentCount = 0;
     if (availableTerritories) payload.availableTerritories = availableTerritories;
     if (maxQuantityPerOrder) payload.maxQuantityPerOrder = maxQuantityPerOrder;
   }
@@ -494,16 +492,15 @@ export async function getNftBookInfo(classId: string): Promise<NFTBookListingInf
 export async function syncNFTBookInfoWithISCN(classId) {
   // Bypass cache: this sync runs after the user updated on-chain metadata,
   // so it must read fresh chain data to refresh the DB.
-  const [classData, bookInfo] = await Promise.all([
-    getNFTClassDataById(classId, { skipCache: true }),
-    getNftBookInfo(classId),
-  ]);
+  const bookInfo = await getNftBookInfo(classId);
   if (!bookInfo) {
     throw new ValidationError('BOOK_INFO_NOT_FOUND');
   }
-  // Goods have no chain class to sync from. Running on would rename their
-  // Stripe products and push them into the Airtable-backed search.
-  if (isGoodsProduct(bookInfo)) return;
+  // Non-NFT products have no chain class to sync from (a non-EVM id would hit
+  // Cosmos). Running on would rename their Stripe products and push them into
+  // the Airtable-backed search.
+  if (isNonNFTProduct(bookInfo)) return;
+  const classData = await getNFTClassDataById(classId, { skipCache: true });
   const metadata = {
     ...(typeof classData === 'object' && classData !== null ? classData : {}),
   };

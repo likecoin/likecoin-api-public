@@ -21,11 +21,9 @@ export const PriceInDecimalByCurrencySchema = z.record(
   z.number().int().min(0),
 );
 
-export const BOOK_PRODUCT_TYPES = ['book', 'goods'] as const;
+export const BOOK_PRODUCT_TYPES = ['book', 'merch'] as const;
 
 export const BookProductTypeSchema = z.enum(BOOK_PRODUCT_TYPES);
-
-export const BookFulfilmentSchema = z.enum(['digital', 'shipping', 'code']);
 
 // ISO 3166-1 alpha-2, upper case, so a malformed code cannot silently match
 // nothing once it reaches Stripe's `allowed_countries`.
@@ -108,9 +106,8 @@ export const NewListingBodySchema = ListingSettingsBodySchema.extend({
   cancelUrl: z.string().optional(),
   prices: NFTBookPricesSchema,
   productType: BookProductTypeSchema.optional(),
-  // The fields below are read for goods only. Goods carry no chain class, so
+  // The fields below are read for non-NFT products only, which carry no chain class, so
   // their presentational fields arrive in the body instead of class metadata.
-  fulfilment: BookFulfilmentSchema.optional(),
   availableTerritories: z.array(TerritoryCodeSchema).min(1).optional(),
   maxQuantityPerOrder: z.number().int().min(1).optional(),
   // Lets a SKU be created unbuyable; books are always created on sale.
@@ -459,7 +456,6 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   classId: z.string(),
   // Absent means 'book'; clients must treat it that way rather than requiring it.
   productType: BookProductTypeSchema.optional(),
-  fulfilment: BookFulfilmentSchema.optional(),
   availableTerritories: z.array(z.string()).optional(),
   maxQuantityPerOrder: z.number().int().optional(),
   likeClassId: z.string().optional(),

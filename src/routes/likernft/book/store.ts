@@ -18,8 +18,7 @@ import {
   getStripeProductMetadata,
   getAuthorNameFromMetadata,
   getPublisherNameFromMetadata,
-  isGoodsProduct,
-  isShippedProduct,
+  isNonNFTProduct,
   matchesProductTypeFilter,
   mergeNFTBookPriceUpdate,
 } from '../../../util/api/likernft/book';
@@ -112,7 +111,7 @@ import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/b
 import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../../util/api/likernft/book/metaCatalog';
 import { getStripeFeedItems, formatStripeFeedCSV } from '../../../util/api/likernft/book/stripeCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
-import { NFT_BOOK_GOODS_OWNER_WALLETS } from '../../../../config/config';
+import { NFT_BOOK_MERCH_OWNER_WALLETS } from '../../../../config/config';
 
 const router = Router();
 
@@ -570,9 +569,9 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     if (priceIndex !== prices.length) {
       throw new ValidationError('INVALID_PRICE_INDEX', 400);
     }
-    // Auto-deliver skips the stock check at payment, so a good would oversell.
-    if (isGoodsProduct(bookInfo) && price.isAutoDeliver) {
-      throw new ValidationError('GOODS_CANNOT_AUTO_DELIVER', 400);
+    // Auto-deliver skips the stock check at payment, so a non-NFT product would oversell.
+    if (isNonNFTProduct(bookInfo) && price.isAutoDeliver) {
+      throw new ValidationError('NON_NFT_CANNOT_AUTO_DELIVER', 400);
     }
     const {
       stripeProductId,
@@ -644,8 +643,8 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     if (oldPriceInfo.isAutoDeliver && !price.isAutoDeliver) {
       throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_PRICE', 403);
     }
-    if (isGoodsProduct(bookInfo) && price.isAutoDeliver) {
-      throw new ValidationError('GOODS_CANNOT_AUTO_DELIVER', 400);
+    if (isNonNFTProduct(bookInfo) && price.isAutoDeliver) {
+      throw new ValidationError('NON_NFT_CANNOT_AUTO_DELIVER', 400);
     }
 
     const newPriceInfo = mergeNFTBookPriceUpdate(oldPriceInfo, price);
@@ -821,9 +820,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       productType,
     } = req.body;
 
-    if (productType === 'goods') {
+    if (productType === 'merch') {
       // eslint-disable-next-line no-use-before-define
-      await createGoodsListing(classId, req);
+      await createMerchListing(classId, req);
       sendValidatedJSON(res, NewListingResponseSchema, { classId });
       return;
     }
@@ -1027,9 +1026,9 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
   }
 });
 
-// Goods have no chain class, so nothing on chain names an owner: the caller
+// Merch has no chain class, so nothing on chain names an owner: the caller
 // must be a configured store wallet, and every chain side effect is skipped.
-async function createGoodsListing(classId: string, req: Request) {
+async function createMerchListing(classId: string, req: Request) {
   const {
     successUrl,
     cancelUrl,
@@ -1037,7 +1036,6 @@ async function createGoodsListing(classId: string, req: Request) {
     moderatorWallets = [],
     connectedWallets,
     descriptionFull,
-    fulfilment,
     availableTerritories,
     maxQuantityPerOrder,
     isApprovedForSale,
@@ -1051,25 +1049,25 @@ async function createGoodsListing(classId: string, req: Request) {
   } = req.body;
   // EVM casing is an EIP-55 checksum, not identity, so compare lowercased. The
   // session's own casing is kept as owner: checkIsAuthorized matches it exactly.
-  const goodsOwnerWallets = (NFT_BOOK_GOODS_OWNER_WALLETS || [] as string[])
+  const merchOwnerWallets = (NFT_BOOK_MERCH_OWNER_WALLETS || [] as string[])
     .map((w: string) => w.toLowerCase());
   const ownerWallet = [req.user?.evmWallet, req.user?.wallet]
-    .find((w) => w && goodsOwnerWallets.includes(w.toLowerCase()));
-  if (!ownerWallet) throw new ValidationError('NOT_GOODS_OWNER_WALLET', 403);
-  if (!name) throw new ValidationError('GOODS_NAME_REQUIRED', 400);
+    .find((w) => w && merchOwnerWallets.includes(w.toLowerCase()));
+  if (!ownerWallet) throw new ValidationError('NOT_MERCH_OWNER_WALLET', 403);
+  if (!name) throw new ValidationError('MERCH_NAME_REQUIRED', 400);
   // Stripe's `allowed_countries` needs an explicit list; there is no "anywhere".
-  if (isShippedProduct({ productType: 'goods', fulfilment }) && !availableTerritories?.length) {
-    throw new ValidationError('GOODS_TERRITORIES_REQUIRED', 400);
+  if (!availableTerritories?.length) {
+    throw new ValidationError('MERCH_TERRITORIES_REQUIRED', 400);
   }
   if (connectedWallets) await validateConnectedWallets(connectedWallets);
-  // A good is always fulfilled by hand; auto-deliver would try to mint.
-  const goodsPrices = prices.map((p: NFTBookPrice) => ({ ...p, isAutoDeliver: false }));
+  // Merch is always fulfilled by hand; auto-deliver would try to mint.
+  const merchPrices = prices.map((p: NFTBookPrice) => ({ ...p, isAutoDeliver: false }));
 
   const { isAutoApproved } = await newNftBookInfo(classId, {
     ownerWallet,
     successUrl,
     cancelUrl,
-    prices: goodsPrices,
+    prices: merchPrices,
     moderatorWallets,
     connectedWallets,
     descriptionFull,
@@ -1079,8 +1077,7 @@ async function createGoodsListing(classId: string, req: Request) {
     hideAudio: true,
     isPlusReadingEnabled: false,
     isPreviewEnabled: false,
-    productType: 'goods',
-    fulfilment,
+    productType: 'merch',
     availableTerritories,
     maxQuantityPerOrder,
     isApprovedForSale,
@@ -1097,7 +1094,7 @@ async function createGoodsListing(classId: string, req: Request) {
     wallet: ownerWallet,
     classId,
     className: name,
-    prices: goodsPrices,
+    prices: merchPrices,
     isAutoApproved,
     isAdultOnly: false,
   });
@@ -1106,9 +1103,9 @@ async function createGoodsListing(classId: string, req: Request) {
     logType: 'BookNFTListingCreate',
     wallet: ownerWallet,
     classId,
-    productType: 'goods',
-    totalPrices: goodsPrices.length,
-    manualDeliverTotalStock: goodsPrices.reduce((sum, p) => sum + p.stock, 0),
+    productType: 'merch',
+    totalPrices: merchPrices.length,
+    manualDeliverTotalStock: merchPrices.reduce((sum, p) => sum + p.stock, 0),
   });
 }
 
