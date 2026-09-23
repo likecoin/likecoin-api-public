@@ -36,6 +36,13 @@ export function calculateAirdropAmountInLIKE(
     .toNumber();
 }
 
+type LIKETransfer = Awaited<ReturnType<typeof transferLIKE>>;
+
+// Shared by the done and failed records, so a broadcast is always kept the same way.
+function getBroadcastFields({ txHash, rawSignedTx, nonce }: LIKETransfer) {
+  return { airdropTxHash: txHash || '', airdropRawTx: rawSignedTx, airdropNonce: nonce };
+}
+
 // `claimSlot` takes the once-only gate for `ref`, where the outcome is then recorded.
 // Never throws: an airdrop failure must not fail an already-paid order.
 export async function payLIKEAirdrop({
@@ -56,6 +63,7 @@ export async function payLIKEAirdrop({
   logPayload?: Record<string, unknown>;
 }): Promise<string | null> {
   let hasSlot = false;
+  let broadcast: LIKETransfer | undefined;
   try {
     if (!wallet || !isValidEVMAddress(wallet)) return null;
     if (!amountUSD || amountUSD <= 0 || !ratio || ratio <= 0) return null;
@@ -93,16 +101,15 @@ export async function payLIKEAirdrop({
     hasSlot = await claimSlot();
     if (!hasSlot) return null;
 
-    const { txHash, rawSignedTx, nonce } = await transferLIKE(wallet as `0x${string}`, amount);
+    broadcast = await transferLIKE(wallet as `0x${string}`, amount);
+    const { txHash } = broadcast;
     // The raw tx is kept so a broadcast that never mines can be re-sent; a gap at
     // this nonce stalls every later tx from the same wallet, mints included.
     await ref.update({
       airdropStatus: 'done',
       airdropLIKE: amountInLIKE,
       airdropWallet: wallet,
-      airdropTxHash: txHash || '',
-      airdropRawTx: rawSignedTx,
-      airdropNonce: nonce,
+      ...getBroadcastFields(broadcast),
     });
 
     await publisher.publish(PUBSUB_TOPIC_MISC, null, {
@@ -121,9 +128,11 @@ export async function payLIKEAirdrop({
     // Once taken, 'failed' is terminal: the throw may have come after broadcast,
     // so an automatic second payout could double-pay.
     if (hasSlot) {
+      // Keep the broadcast, if any, so a payout that may be on chain can be reconciled.
       await ref.update({
         airdropStatus: 'failed',
         airdropError: (error as Error).message || (error as Error).toString(),
+        ...(broadcast && getBroadcastFields(broadcast)),
       }).catch((err) => {
         // eslint-disable-next-line no-console
         console.error('Failed to mark airdrop as failed', err);

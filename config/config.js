@@ -26,8 +26,8 @@ config.LIKE_NFT_EVM_INDEXER_API_KEY = '';
 
 config.EVM_RPC_ENDPOINT_OVERRIDE = '';
 config.EVM_BASE_FEE_MULTIPLIER = 3;
-// Testnet has no deployed LIKE v3 token, so the address constant is mainnet-only.
-// Set this on a testnet deployment to point token transfers at the right contract.
+// LIKE v3 shares one address on mainnet and Base Sepolia, so this stays empty.
+// Only set it to point token calls at a different deployment.
 config.LIKE_COIN_V3_ADDRESS_OVERRIDE = '';
 
 // Alchemy Gas Manager (sponsored gas for Magic Link users via EIP-7702).

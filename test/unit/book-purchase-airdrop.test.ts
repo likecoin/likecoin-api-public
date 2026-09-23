@@ -6,6 +6,7 @@ import {
   calculateBookAirdropAmountInLIKE,
   payBookPurchaseAirdrop,
 } from '../../src/util/api/likernft/book/airdrop';
+import { payLIKEAirdrop } from '../../src/util/airdrop';
 import type { TransactionFeeInfo } from '../../src/util/api/likernft/book/type';
 
 // vi.mock is hoisted above these imports; the `mock`-prefixed names are
@@ -202,6 +203,30 @@ describe('payBookPurchaseAirdrop', () => {
     expect(await getCart('cart-chainfail')).toMatchObject({
       airdropStatus: 'failed',
       airdropError: 'nonce too low',
+    });
+  });
+
+  it('keeps the broadcast on the failed record when the done write fails', async () => {
+    // A fake ref, since the Firestore stub can't fail a single write.
+    const update = vi.fn()
+      .mockRejectedValueOnce(new Error('deadline exceeded'))
+      .mockResolvedValue(undefined);
+    const txHash = await payLIKEAirdrop({
+      ref: { path: 'carts/cart-writefail', update } as any,
+      claimSlot: async () => true,
+      wallet: WALLET,
+      amountUSD: 10,
+      ratio: 0.01,
+      logType: 'BookPurchaseAirdrop',
+    });
+
+    expect(txHash).toBeNull();
+    expect(update).toHaveBeenLastCalledWith({
+      airdropStatus: 'failed',
+      airdropError: 'deadline exceeded',
+      airdropTxHash: TX_HASH,
+      airdropRawTx: RAW_TX,
+      airdropNonce: NONCE,
     });
   });
 });

@@ -10,8 +10,8 @@ import { getEVMClient, getEVMWalletAccount, getEVMWalletClient } from './client'
 import { sendWriteContractWithNonce } from './tx';
 import config from '../../../config/config';
 
-// The address constant is the mainnet deployment, and a testnet one points
-// elsewhere via config. Every LIKE token call resolves through here,
+// The constant is valid on both mainnet and testnet; config can override it.
+// Every LIKE token call resolves through here,
 // so the token can't end up split across two addresses in one process.
 export function getLikeCoinAddress(): `0x${string}` {
   return (config.LIKE_COIN_V3_ADDRESS_OVERRIDE || LIKE_COIN_V3_ADDRESS) as `0x${string}`;
