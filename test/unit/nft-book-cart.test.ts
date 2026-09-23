@@ -1,8 +1,11 @@
 import {
-  describe, it, expect,
+  describe, it, expect, beforeEach, afterEach, vi, type MockInstance,
 } from 'vitest';
+import type Stripe from 'stripe';
 import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
-import { calculateStripeFee } from '../../src/util/stripe';
+import { calculateStripeFee, getStripeClient } from '../../src/util/stripe';
+import { processNFTBookCartStripePurchase } from '../../src/util/api/likernft/book/cart';
+import { likeNFTBookCartCollection } from '../../src/util/firebase';
 import { calculateItemPrices } from '../../src/util/api/likernft/book/price';
 
 const NFT_BOOK_DEFAULT_FROM_CHANNEL = 'liker_land';
@@ -182,5 +185,39 @@ describe('calculateItemPrices', () => {
         expect(result.channelCommission).toBe(expectedChannel);
       });
     });
+  });
+});
+
+describe('processNFTBookCartStripePurchase retries', () => {
+  let retrieveSpy: MockInstance;
+  beforeEach(() => {
+    retrieveSpy = vi.spyOn(getStripeClient().paymentIntents, 'retrieve')
+      .mockRejectedValue(new Error('STOP'));
+  });
+  afterEach(() => {
+    retrieveSpy.mockRestore();
+  });
+
+  const session = (cartId: string) => ({
+    id: 'cs_retry',
+    amount_total: 1000,
+    payment_intent: 'pi_retry',
+    customer_details: { email: 'buyer@example.com' },
+    metadata: { cartId },
+  }) as unknown as Stripe.Checkout.Session;
+
+  it.each(['paid', 'completed'])('skips a cart already %s', async (status) => {
+    const cartId = `cart-${status}`;
+    await likeNFTBookCartCollection.doc(cartId).set({ status });
+    await expect(processNFTBookCartStripePurchase(session(cartId), {} as any))
+      .resolves.toBeUndefined();
+    expect(retrieveSpy).not.toHaveBeenCalled();
+  });
+
+  it('still processes a new cart', async () => {
+    await likeNFTBookCartCollection.doc('cart-new').set({ status: 'new' });
+    await expect(processNFTBookCartStripePurchase(session('cart-new'), {} as any))
+      .rejects.toThrow('STOP');
+    expect(retrieveSpy).toHaveBeenCalled();
   });
 });
