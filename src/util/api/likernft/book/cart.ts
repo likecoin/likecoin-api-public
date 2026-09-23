@@ -905,7 +905,9 @@ export async function processNFTBookCartStripePurchase(
   if (metadata.cartId) {
     const cartDoc = await likeNFTBookCartCollection.doc(metadata.cartId).get();
     const cartData = cartDoc.data();
-    if (cartData && cartData.status === 'completed') return;
+    // `paid` is set in the same transaction as every item, so a retry has
+    // nothing left to do and would only fail re-creating the cart.
+    if (cartData?.status && ['paid', 'completed'].includes(cartData.status)) return;
   }
 
   const isFree = amountTotal === 0;
