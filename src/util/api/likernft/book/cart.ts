@@ -1464,7 +1464,8 @@ function resolveNonNFTCheckoutCurrency(
   const [first, ...rest] = itemInfos
     .map((item) => Object.keys(item.priceInDecimalByCurrency || {}));
   const shared = (first || []).filter((c) => rest.every((keys) => keys.includes(c)));
-  if (!shared.length) return currency;
+  // No override shared across the cart: fall back to the USD price.
+  if (!shared.length) return undefined;
   return currency && shared.includes(currency) ? currency : shared[0];
 }
 

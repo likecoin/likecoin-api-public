@@ -26,6 +26,7 @@ import { parseImageURLFromMetadata } from '../metadata';
 import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
+import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import {
   getListingFlagOverridesForReviewAction,
@@ -404,7 +405,8 @@ export async function newNftBookInfo(
     prices: newPrices,
     ownerWallet,
     timestamp: timestamp as any,
-    chain: isEVMClassId(classId) ? 'base' : 'like',
+    // Non-NFT SKUs have no chain class; file them under the storefront chain.
+    chain: isNonNFT || isEVMClassId(classId) ? BOOK_LIST_CHAIN : 'like',
     // Default new listings to on-shelf: sellable and indexed, but not promoted.
     // Ads are auto-approved only for trusted publishers (never for adult content);
     // everyone else stays `pending` until an admin grants ads via `/book approve`.

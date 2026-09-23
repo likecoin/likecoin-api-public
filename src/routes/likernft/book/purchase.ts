@@ -3,6 +3,7 @@ import { ValidationError } from '../../../util/ValidationError';
 import {
   checkIsAuthorized,
   getNFTClassDataById,
+  isNonNFTProduct,
   isShippedProduct,
 } from '../../../util/api/likernft/book';
 import {
@@ -689,6 +690,8 @@ router.post(
       const { ownerWallet, moderatorWallets = [] } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
+      // No NFT to send: merch completes through `/ship`, which tracks the despatch.
+      if (isNonNFTProduct(listingData)) throw new ValidationError('NOT_NFT_LISTING', 400);
       // Verify a seller-reported delivery txHash actually transfers the NFT on-chain.
       // Auto-deliver mints server-side via claimNFTBook and never reaches this route.
       if (isEVMClassId(classId) && txHash) {

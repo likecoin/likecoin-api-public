@@ -1054,6 +1054,8 @@ async function createMerchListing(classId: string, req: Request) {
   const ownerWallet = [req.user?.evmWallet, req.user?.wallet]
     .find((w) => w && merchOwnerWallets.includes(w.toLowerCase()));
   if (!ownerWallet) throw new ValidationError('NOT_MERCH_OWNER_WALLET', 403);
+  // The SKU is interpolated into storefront and email URLs, so keep it URL-safe.
+  if (!/^[A-Za-z0-9_-]+$/.test(classId)) throw new ValidationError('INVALID_MERCH_ID', 400);
   if (!name) throw new ValidationError('MERCH_NAME_REQUIRED', 400);
   // Stripe's `allowed_countries` needs an explicit list; there is no "anywhere".
   if (!availableTerritories?.length) {
