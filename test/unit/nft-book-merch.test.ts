@@ -24,6 +24,7 @@ import {
 } from '../../src/util/ValidationHelper';
 import {
   BookPurchaseDataFilteredSchema,
+  NewListingBodySchema,
   NFTBookListingInfoFilteredSchema,
   NFTBookPriceFilteredSchema,
 } from '../../src/util/api/likernft/book/schemas';
@@ -98,6 +99,28 @@ describe('product type helpers', () => {
     expect(matchesProductTypeFilter(merch, 'book')).toBe(false);
     expect(matchesProductTypeFilter(merch, 'merch')).toBe(true);
     expect(matchesProductTypeFilter(merch, 'all')).toBe(true);
+  });
+});
+
+describe('NewListingBodySchema availableTerritories', () => {
+  const body = (availableTerritories: string[]) => ({
+    prices: [MERCH_PRICE],
+    productType: 'merch',
+    availableTerritories,
+  });
+
+  it('accepts codes Stripe ships to, including its non-ISO destinations', () => {
+    expect(NewListingBodySchema.safeParse(body(['HK', 'TW', 'XK'])).success).toBe(true);
+  });
+
+  it.each([
+    ['a well-formed code Stripe rejects', 'CU'],
+    ['an unknown code', 'ZZ'],
+    ['a lower-case code', 'hk'],
+  ])('rejects %s', (_, code) => {
+    const result = NewListingBodySchema.safeParse(body([code]));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe('INVALID_TERRITORY_CODE');
   });
 });
 

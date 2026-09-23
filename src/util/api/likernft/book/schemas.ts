@@ -3,6 +3,7 @@ import {
   FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  STRIPE_SHIPPING_COUNTRY_CODES,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
@@ -25,9 +26,12 @@ export const BOOK_PRODUCT_TYPES = ['book', 'merch'] as const;
 
 export const BookProductTypeSchema = z.enum(BOOK_PRODUCT_TYPES);
 
-// ISO 3166-1 alpha-2, upper case, so a malformed code cannot silently match
-// nothing once it reaches Stripe's `allowed_countries`.
-const TerritoryCodeSchema = z.string().regex(/^[A-Z]{2}$/);
+// Only codes Stripe accepts in `allowed_countries`: a listing stored with any
+// other code would be accepted here and then fail at every checkout.
+const TerritoryCodeSchema = z.string().refine(
+  (c) => STRIPE_SHIPPING_COUNTRY_CODES.has(c),
+  { message: 'INVALID_TERRITORY_CODE' },
+);
 
 // The listing feeds default to books: a non-book SKU must never leak into a
 // feed that did not ask for one. `all` is the explicit mixed opt-in.
