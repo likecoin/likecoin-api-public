@@ -44,6 +44,7 @@ import {
   revokeSharedMemberAccess,
 } from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
+import { payPlusSubscriptionAirdrop } from './airdrop';
 import { sendPlusSubscriptionSlackNotification } from '../../slack';
 import {
   createAirtableSubscriptionPaymentRecord,
@@ -987,6 +988,17 @@ export async function processStripeSubscriptionInvoice(
     amountPaid,
     amountPaidUSD,
     currency,
+  });
+
+  // Ahead of the emit claim, which a retry returns early on: a crash after the
+  // claim would otherwise drop the payout. It has its own once-only gate.
+  await payPlusSubscriptionAirdrop({
+    likerId,
+    invoiceId: invoice.id,
+    subscriptionId,
+    wallet: evmWallet || user.evmWallet,
+    amountPaidUSD,
+    billingReason,
   });
 
   // Emit once per invoice so retries don't duplicate side effects.

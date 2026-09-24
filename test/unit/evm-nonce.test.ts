@@ -16,6 +16,8 @@ vi.mock('../../src/util/evm/client', () => ({
 import { sendTransactionWithNonce } from '../../src/util/evm/tx';
 // eslint-disable-next-line import/first
 import { db, txCollection } from '../../src/util/firebase';
+// eslint-disable-next-line import/first
+import { makeMockWalletClient } from '../stub/evmWallet';
 
 const ADDRESS = '0x2DF219F258f33217dA9b4c29992eA3696dF9e5CC';
 const TO = '0x62459D34409ABA55b85DD28284cc4e57e0C8ADea';
@@ -25,12 +27,7 @@ function counterRef() {
 }
 
 function createWalletClient(sendRawTransaction: () => Promise<string>) {
-  return {
-    account: { address: ADDRESS },
-    prepareTransactionRequest: vi.fn(async (req) => req),
-    signTransaction: vi.fn(async () => '0xsigned'),
-    sendRawTransaction: vi.fn(sendRawTransaction),
-  } as any;
+  return makeMockWalletClient({ address: ADDRESS, sendRawTransaction });
 }
 
 async function getStoredNonce(): Promise<number | undefined> {

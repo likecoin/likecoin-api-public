@@ -34,6 +34,7 @@ import {
   sumFeeInfo,
 } from './payment';
 import { depositLikeCollectiveReward } from '../../../evm/likeCollective';
+import { payBookPurchaseAirdrop } from './airdrop';
 import { getLIKEPrice } from '../likePrice';
 import {
   admin,
@@ -630,6 +631,15 @@ export async function processNFTBookCart(
       }
       await Promise.all(notifications);
     }
+
+    // Buyer LIKE airdrop on the cart total. Keyed on the cart, not per item, and
+    // paid to the checkout wallet; guests who claim later are out of scope.
+    await payBookPurchaseAirdrop({
+      cartId,
+      wallet: evmWallet,
+      feeInfo: totalFeeInfo,
+      email,
+    });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTPurchaseCaptured',

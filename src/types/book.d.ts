@@ -68,6 +68,17 @@ export interface BookPurchaseCartData extends BookPurchaseData {
   claimedClassIds?: string[];
   errors?: any[];
   loginMethod?: string;
+  // Buyer LIKE airdrop. `airdropStatus` doubles as the once-only gate, so its
+  // presence alone means the payout was already attempted for this cart.
+  // 'done' means the transfer was broadcast, not that it is confirmed on chain.
+  airdropStatus?: 'processing' | 'done' | 'failed';
+  airdropStartedAt?: { toMillis: () => number };
+  airdropLIKE?: number;
+  airdropWallet?: string;
+  airdropTxHash?: string;
+  airdropRawTx?: string;
+  airdropNonce?: number;
+  airdropError?: string;
 }
 
 export interface PlusGiftCartData {
