@@ -267,6 +267,9 @@ export interface NFTBookListingInfo {
   isApprovedForAds?: boolean;
   approvalStatus?: string;
   plusPromoEnabled?: boolean;
+  // What a promo buyer gets: a monthly coupon email (default) or, for 'year',
+  // a claimable yearly Plus gift cart. See grantPlusPromoGift in cart.ts.
+  plusPromoPeriod?: 'month' | 'year';
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
   previewPercentage?: number;

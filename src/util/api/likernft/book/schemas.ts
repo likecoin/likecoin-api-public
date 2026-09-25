@@ -515,6 +515,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   isApprovedForAds: z.boolean(),
   approvalStatus: z.string().optional(),
   plusPromoEnabled: z.boolean().optional(),
+  plusPromoPeriod: z.enum(['month', 'year']).optional(),
   isPlusReadingEnabled: z.boolean().optional(),
   isPreviewEnabled: z.boolean().optional(),
   previewPercentage: z.number().int().min(1).max(50)
