@@ -687,16 +687,15 @@ export async function processNFTBookCart(
       utmContent,
       utmTerm,
     });
-    let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
     let buyerLocale: string | undefined;
     let buyerDisplayName = '';
-    try {
-      if (email) {
-        const info = await fetchUserInfoByEmail(email);
+    const [buyerUserInfo] = await Promise.all([
+      evmWallet ? getUserWithCivicLikerPropertiesByWallet(evmWallet) : null,
+      email ? fetchUserInfoByEmail(email).then((info) => {
         buyerLocale = info.locale;
         buyerDisplayName = info.displayName;
-      }
-    } catch { /* ignore */ }
+      }).catch(() => { /* ignore */ }) : undefined,
+    ]);
     // Checkout language wins: the buyer's stored locale is seeded from geo detection
     // at registration and never refreshed, so it is the weaker signal.
     const emailLanguage = resolveLocale(language, buyerLocale);
@@ -765,9 +764,6 @@ export async function processNFTBookCart(
         const promoBookNames = promoNames.month;
         if (promoBookNames.length > 0) {
           try {
-            if (evmWallet) {
-              buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-            }
             if (!buyerUserInfo?.isLikerPlus) {
               const paymentCurrency = paymentIntent?.currency?.toLowerCase();
               const promoCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[])
@@ -810,39 +806,32 @@ export async function processNFTBookCart(
     }
     // A yearly promo is a real gift cart rather than a coupon, so it applies
     // to merch too. Gift carts skip it: the recipient is not the buyer.
-    if (email && !cartIsGift && !isPlusGiftCart && promoNames.year.length > 0) {
+    if (email && !cartIsGift && !isPlusGiftCart && promoNames.year.length > 0
+      && !buyerUserInfo?.isLikerPlus) {
       try {
-        if (evmWallet && !buyerUserInfo) {
-          buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-        }
-        if (!buyerUserInfo?.isLikerPlus) {
-          // eslint-disable-next-line no-use-before-define
-          await grantPlusPromoGift({
-            email,
-            displayName: buyerDisplayName,
-            productNames: promoNames.year,
-            cartId,
-            paymentId,
-            sessionId: sessionId || '',
-            ipCountry,
-            language: emailLanguage,
-          });
-          publisher.publish(PUBSUB_TOPIC_MISC, req, {
-            logType: 'PlusBookPromoGiftCreated',
-            paymentId,
-            cartId,
-            email,
-            evmWallet,
-            bookNames: promoNames.year,
-          });
-        }
+        // eslint-disable-next-line no-use-before-define
+        await grantPlusPromoGift({
+          email,
+          displayName: buyerDisplayName,
+          productNames: promoNames.year,
+          cartId,
+          paymentId,
+          sessionId: sessionId || '',
+          ipCountry,
+          language: emailLanguage,
+        });
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'PlusBookPromoGiftCreated',
+          paymentId,
+          cartId,
+          email,
+          evmWallet,
+          bookNames: promoNames.year,
+        });
       } catch (promoErr) {
         // eslint-disable-next-line no-console
         console.error('Failed to grant Plus promo gift:', promoErr);
       }
-    }
-    if (evmWallet && !buyerUserInfo) {
-      buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
     }
 
     await logServerEvents('Purchase', {
@@ -973,15 +962,21 @@ export async function grantPlusPromoGift({
     claimToken,
     ipCountry,
   });
-  await sendPlusBookPromoGiftEmail({
-    email,
-    productNames,
-    displayName,
-    cartId,
-    paymentId,
-    claimToken,
-    language,
-  });
+  try {
+    await sendPlusBookPromoGiftEmail({
+      email,
+      productNames,
+      displayName,
+      cartId,
+      paymentId,
+      claimToken,
+      language,
+    });
+  } catch (err) {
+    // The cart exists but the buyer has no link to it; log enough to resend by hand.
+    // eslint-disable-next-line no-console
+    console.error(`Failed to email Plus promo gift ${paymentId} to ${email} (token ${claimToken}):`, err);
+  }
 }
 
 export async function processNFTBookCartPurchase({
