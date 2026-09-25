@@ -14,6 +14,7 @@ import {
   formatCartItemsWithInfo,
   getMerchShippingFromSession,
   getIsEligibleForPlusPrice,
+  getPlusPromoNamesByPeriod,
   processNFTBookCartStripePurchase,
 } from '../../src/util/api/likernft/book/cart';
 import { likeNFTBookCartCollection, likeNFTBookCollection } from '../../src/util/firebase';
@@ -226,6 +227,29 @@ describe('response filters carry merch fields', () => {
     expect(parsed.shippingDetails?.address?.country).toBe('HK');
     expect(parsed.trackingNumber).toBe('');
     expect(parsed.shippedAt).toBe(1700000000000);
+  });
+});
+
+describe('getPlusPromoNamesByPeriod', () => {
+  it('routes a yearly promo to the gift cart and everything else to the coupon', () => {
+    const items = [
+      { listingData: merchListing({ plusPromoEnabled: true, plusPromoPeriod: 'year' }) },
+      { listingData: merchListing({ plusPromoEnabled: true }) },
+      { listingData: merchListing({ plusPromoEnabled: true, plusPromoPeriod: 'month' }) },
+      { listingData: merchListing({ plusPromoPeriod: 'year' }) },
+      { listingData: undefined },
+    ];
+    expect(getPlusPromoNamesByPeriod(items, ['reader', 'a', 'b', 'off', 'none'])).toEqual({
+      year: ['reader'],
+      month: ['a', 'b'],
+    });
+  });
+
+  it('round-trips plusPromoPeriod through the public listing filter', () => {
+    const listing = merchListing({ plusPromoEnabled: true, plusPromoPeriod: 'year' });
+    const filtered = filterNFTBookListingInfo(listing, false);
+    expect(filtered.plusPromoPeriod).toBe('year');
+    expect(NFTBookListingInfoFilteredSchema.safeParse(filtered).success).toBe(true);
   });
 });
 

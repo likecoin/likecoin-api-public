@@ -62,7 +62,9 @@ import {
   sendNFTBookMerchSaleEmail,
   sendNFTBookOutOfStockEmail,
   sendPlusBookPromoCodeEmail,
+  sendPlusBookPromoGiftEmail,
 } from '../../../ses';
+import { createPlusGiftCart } from '../../plus/gift';
 import logServerEvents from '../../../logServerEvents';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from './user';
 import { normalizeLikerId } from '../../../ValidationHelper';
@@ -74,7 +76,7 @@ import {
 import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
-import type { BookPurchaseData } from '../../../../types/book';
+import type { BookPurchaseData, NFTBookListingInfo } from '../../../../types/book';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 import { resolveLocale } from '../../../../locales';
 import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
@@ -686,17 +688,24 @@ export async function processNFTBookCart(
       utmTerm,
     });
     let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
+    let buyerLocale: string | undefined;
+    let buyerDisplayName = '';
+    try {
+      if (email) {
+        const info = await fetchUserInfoByEmail(email);
+        buyerLocale = info.locale;
+        buyerDisplayName = info.displayName;
+      }
+    } catch { /* ignore */ }
+    // Checkout language wins: the buyer's stored locale is seeded from geo detection
+    // at registration and never refreshed, so it is the weaker signal.
+    const emailLanguage = resolveLocale(language, buyerLocale);
+    // eslint-disable-next-line no-use-before-define
+    const promoNames = getPlusPromoNamesByPeriod(infoList, bookNames);
 
     if (isNonNFTCart) {
       // Nothing to claim; confirm the order and the address it ships to instead.
       if (email && isShippedCart) {
-        let buyerLocale: string | undefined;
-        let buyerDisplayName = '';
-        try {
-          const info = await fetchUserInfoByEmail(email);
-          buyerLocale = info.locale;
-          buyerDisplayName = info.displayName;
-        } catch { /* ignore */ }
         await sendNFTBookMerchOrderReceivedEmail({
           email,
           paymentId,
@@ -708,7 +717,7 @@ export async function processNFTBookCart(
           currency: session?.currency || 'usd',
           shippingDetails: shipping.shippingDetails,
           displayName: buyerDisplayName,
-          language: resolveLocale(language, buyerLocale),
+          language: emailLanguage,
         // A failed email must not flag an already paid order as errored.
         // eslint-disable-next-line no-console
         }).catch((err) => console.error(err));
@@ -739,18 +748,6 @@ export async function processNFTBookCart(
         language: recipientLocale || language || 'zh',
       });
     } else {
-      let buyerLocale: string | undefined;
-      let buyerDisplayName = '';
-      try {
-        if (email) {
-          const info = await fetchUserInfoByEmail(email);
-          buyerLocale = info.locale;
-          buyerDisplayName = info.displayName;
-        }
-      } catch { /* ignore */ }
-      // Checkout language wins: the buyer's stored locale is seeded from geo detection
-      // at registration and never refreshed, so it is the weaker signal.
-      const emailLanguage = resolveLocale(language, buyerLocale);
       await sendNFTBookCartPendingClaimEmail({
         cartId,
         bookNames,
@@ -765,10 +762,7 @@ export async function processNFTBookCart(
       // Also skip when the cart is a gift book issued from a Plus subscription,
       // since the buyer is already Plus.
       if (email && LIKER_PLUS_BOOK_PROMO_COUPON_CODE && !isPlusGiftCart) {
-        const promoBookNames = infoList
-          .map((info, idx) => ({ info, name: bookNames[idx] }))
-          .filter((x) => (x.info.listingData as any)?.plusPromoEnabled === true)
-          .map((x) => x.name);
+        const promoBookNames = promoNames.month;
         if (promoBookNames.length > 0) {
           try {
             if (evmWallet) {
@@ -812,6 +806,39 @@ export async function processNFTBookCart(
             console.error('Failed to send Plus promo code email:', promoErr);
           }
         }
+      }
+    }
+    // A yearly promo is a real gift cart rather than a coupon, so it applies
+    // to merch too. Gift carts skip it: the recipient is not the buyer.
+    if (email && !cartIsGift && !isPlusGiftCart && promoNames.year.length > 0) {
+      try {
+        if (evmWallet && !buyerUserInfo) {
+          buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+        }
+        if (!buyerUserInfo?.isLikerPlus) {
+          // eslint-disable-next-line no-use-before-define
+          await grantPlusPromoGift({
+            email,
+            displayName: buyerDisplayName,
+            productNames: promoNames.year,
+            cartId,
+            paymentId,
+            sessionId: sessionId || '',
+            ipCountry,
+            language: emailLanguage,
+          });
+          publisher.publish(PUBSUB_TOPIC_MISC, req, {
+            logType: 'PlusBookPromoGiftCreated',
+            paymentId,
+            cartId,
+            email,
+            evmWallet,
+            bookNames: promoNames.year,
+          });
+        }
+      } catch (promoErr) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to grant Plus promo gift:', promoErr);
       }
     }
     if (evmWallet && !buyerUserInfo) {
@@ -892,6 +919,69 @@ export async function processNFTBookCart(
       });
     }
   }
+}
+
+// Splits promo-flagged items by what the buyer gets: the monthly coupon
+// email (default) or a yearly Plus gift cart (`plusPromoPeriod: 'year'`).
+export function getPlusPromoNamesByPeriod(
+  items: { listingData?: Pick<NFTBookListingInfo, 'plusPromoEnabled' | 'plusPromoPeriod'> }[],
+  names: string[],
+): { month: string[]; year: string[] } {
+  const month: string[] = [];
+  const year: string[] = [];
+  items.forEach((item, idx) => {
+    if (item.listingData?.plusPromoEnabled !== true) return;
+    (item.listingData.plusPromoPeriod === 'year' ? year : month).push(names[idx]);
+  });
+  return { month, year };
+}
+
+// The buyer is both payer and recipient, so the gift cart is keyed on the
+// book payment and claimed through the regular Plus gift page.
+export async function grantPlusPromoGift({
+  email,
+  displayName,
+  productNames,
+  cartId,
+  paymentId,
+  sessionId,
+  ipCountry,
+  language,
+}: {
+  email: string;
+  displayName: string;
+  productNames: string[];
+  cartId: string;
+  paymentId: string;
+  sessionId: string;
+  ipCountry?: string;
+  language: string;
+}) {
+  const claimToken = crypto.randomBytes(32).toString('hex');
+  await createPlusGiftCart({
+    email,
+    period: 'yearly',
+    quantity: 1,
+    giftInfo: {
+      fromName: '3ook.com',
+      toName: displayName,
+      toEmail: email,
+      message: '',
+    },
+    paymentId,
+    sessionId,
+    claimToken,
+    ipCountry,
+  });
+  await sendPlusBookPromoGiftEmail({
+    email,
+    productNames,
+    displayName,
+    cartId,
+    paymentId,
+    claimToken,
+    language,
+  });
 }
 
 export async function processNFTBookCartPurchase({
