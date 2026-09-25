@@ -6,6 +6,7 @@ import {
   getLocalizedTextWithFallback,
   getAuthorNameFromMetadata,
   getPublisherNameFromMetadata,
+  isNonNFTProduct,
 } from './index';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../../../types/book';
 
@@ -86,6 +87,9 @@ async function listCatalogEligibleBooks(): Promise<CatalogBook[]> {
       || data.redirectClassId
       || data.isAdultOnly
       || data.isApprovedForAds === false
+      // Both feeds hardcode a book category and untracked inventory; listing
+      // hardware under them is the misrepresentation the feeds were fixed for.
+      || isNonNFTProduct(data)
     ) return;
     result.push({ book: data, classId: data.classId || book.id });
   });

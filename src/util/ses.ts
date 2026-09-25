@@ -27,6 +27,7 @@ import {
   getNFTBookStoreSendPageURL,
 } from './api/likernft/book';
 import { TransactionFeeInfo } from './api/likernft/book/type';
+import type { BookShippingDetails } from '../types/book';
 
 // eslint-disable-next-line import/no-dynamic-require, global-require
 const awsConfig = TEST_MODE ? {} : require('../../config/aws.json');
@@ -509,6 +510,178 @@ export function sendNFTBookManualDeliverSentEmail({
   });
 }
 
+export function sendNFTBookMerchShippedEmail({
+  email,
+  productName,
+  trackingNumber = '',
+  displayName = '',
+  language = 'zh',
+}: {
+  email: string;
+  productName: string;
+  trackingNumber?: string;
+  displayName?: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const title = isEn
+    ? `Your order ${productName} has been shipped`
+    : `你訂購的 ${productName} 已經寄出`;
+  // All three are free text (buyer display name, staff-typed name and
+  // tracking number), so escape them all before they reach the HTML body.
+  const safeTrackingNumber = escapeHtml(trackingNumber);
+  const safeProductName = escapeHtml(productName);
+  const safeDisplayName = escapeHtml(displayName);
+  const content = isEn
+    ? `<p>Dear ${safeDisplayName || 'customer'},</p>
+  <p>Your order "${safeProductName}" is on its way.</p>
+  ${safeTrackingNumber ? `<p>Tracking number: ${safeTrackingNumber}</p>` : ''}
+  <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.</p>
+  <p>3ook.com Bookstore</p>`
+    : `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+  <p>你訂購的 ${safeProductName} 已經寄出。</p>
+  ${safeTrackingNumber ? `<p>追蹤編號：${safeTrackingNumber}</p>` : ''}
+  <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
+  <p>3ook.com 書店</p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookMerchShippedEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
+// Buyer-typed, so escaped; one line per non-empty part, as the courier label reads.
+function formatMerchShippingAddressHTML(shippingDetails?: BookShippingDetails): string {
+  if (!shippingDetails) return '';
+  const { name, phone, address = {} } = shippingDetails;
+  return [
+    name,
+    address.line1,
+    address.line2,
+    [address.city, address.state, address.postal_code].filter(Boolean).join(' '),
+    address.country,
+    phone,
+  ].filter(Boolean).map((line) => escapeHtml(line as string)).join('<br>');
+}
+
+export function sendNFTBookMerchOrderReceivedEmail({
+  email,
+  paymentId,
+  items,
+  amountTotal,
+  currency,
+  shippingDetails,
+  displayName = '',
+  language = 'zh',
+}: {
+  email: string;
+  paymentId: string;
+  items: { name: string; quantity: number }[];
+  // In the charged currency's minor units, so a member sees the member price.
+  amountTotal: number;
+  currency: string;
+  shippingDetails?: BookShippingDetails;
+  displayName?: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const title = isEn
+    ? 'We have received your order'
+    : '我們已收到你的訂單';
+  const itemRows = items
+    .map(({ name, quantity }) => `<tr><td>${escapeHtml(name)}</td><td>× ${quantity}</td></tr>`)
+    .join('');
+  const total = `${currency.toUpperCase()} ${formatEmailDecimalNumber(amountTotal)}`;
+  const address = formatMerchShippingAddressHTML(shippingDetails);
+  const safeDisplayName = escapeHtml(displayName);
+  const content = isEn
+    ? `<p>Dear ${safeDisplayName || 'customer'},</p>
+  <p>Thank you for your order. Here is what we received:</p>
+  <table>${itemRows}<tr><td>Total paid:</td><td>${total}</td></tr></table>
+  ${address ? `<p>It will ship to:<br>${address}</p>
+  <p>If anything in this address is wrong, please reply to this email as soon as possible.</p>` : ''}
+  <p>We will email you a tracking number once it ships.</p>
+  <p>Order reference: ${paymentId}</p>
+  <p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.</p>
+  <p>3ook.com Bookstore</p>`
+    : `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+  <p>感謝你的訂購，我們已收到以下訂單：</p>
+  <table>${itemRows}<tr><td>已付總額：</td><td>${total}</td></tr></table>
+  ${address ? `<p>將寄送至：<br>${address}</p>
+  <p>如地址有誤，請盡快回覆此電郵。</p>` : ''}
+  <p>寄出後，我們會再以電郵通知你追蹤編號。</p>
+  <p>訂單編號：${paymentId}</p>
+  <p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。</p>
+  <p>3ook.com 書店</p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookMerchOrderReceivedEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
+// Merch counterpart of sendManualNFTBookSalesEmail, which only fires on claim:
+// a merch order is never claimed, so the seller is told at payment instead.
+export function sendNFTBookMerchSaleEmail({
+  email,
+  classId,
+  paymentId,
+  productName,
+  quantity,
+  buyerEmail,
+  shippingDetails,
+  language = 'zh',
+}: {
+  email?: string;
+  classId: string;
+  paymentId: string;
+  productName: string;
+  quantity: number;
+  buyerEmail?: string;
+  shippingDetails?: BookShippingDetails;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const safeProductName = escapeHtml(productName);
+  const title = isEn
+    ? `Order received — please ship "${productName}"`
+    : `收到訂單，請寄出 ${productName}`;
+  const address = formatMerchShippingAddressHTML(shippingDetails);
+  const consoleURL = getNFTBookStoreClassPageURL(classId);
+  const content = isEn
+    ? `<p>An order for "${safeProductName}" × ${quantity} has been paid and is waiting to ship.</p>
+  ${address ? `<p>Ship to:<br>${address}</p>` : ''}
+  ${buyerEmail ? `<p>Buyer email: ${escapeHtml(buyerEmail)}</p>` : ''}
+  <p>Order reference: ${paymentId}</p>
+  <p><a href="${consoleURL}">[Manage orders]</a></p>`
+    : `<p>${safeProductName} × ${quantity} 的訂單已付款，等待寄出。</p>
+  ${address ? `<p>寄送至：<br>${address}</p>` : ''}
+  ${buyerEmail ? `<p>買家電郵：${escapeHtml(buyerEmail)}</p>` : ''}
+  <p>訂單編號：${paymentId}</p>
+  <p><a href="${consoleURL}">[管理訂單]</a></p>`;
+  return sendSESTemplateEmail({
+    functionName: 'sendNFTBookMerchSaleEmail',
+    replyTo: [],
+    to: email ? [email] : undefined,
+    bcc: SALES_BCC,
+    title,
+    html: getBasicV2Template({
+      title,
+      content,
+    }).body,
+  });
+}
+
 export function sendAutoDeliverNFTBookSalesEmail({
   email,
   classId,
@@ -941,6 +1114,75 @@ export function sendPlusBookPromoCodeEmail({
     to: [email],
     bcc: SALES_BCC,
     title: subjectTitle,
+    html,
+  });
+}
+
+// Yearly counterpart of sendPlusBookPromoCodeEmail: the buyer claims a gift
+// cart instead of redeeming a coupon, so no card and no renewal caveats.
+export function sendPlusBookPromoGiftEmail({
+  email,
+  productNames,
+  displayName = '',
+  cartId,
+  paymentId,
+  claimToken,
+  language = 'zh',
+}: {
+  email: string;
+  productNames: string[];
+  displayName?: string;
+  cartId: string;
+  paymentId: string;
+  claimToken: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const lang = isEn ? 'en' : 'zh-Hant';
+  const title = isEn
+    ? 'Your purchase includes 1 year of 3ook.com Plus'
+    : '你的訂單附送一年 3ook.com Plus 會籍';
+  const claimPageURL = getPlusGiftPageClaimURL({
+    cartId,
+    paymentId,
+    token: claimToken,
+    language: lang,
+    email,
+  });
+  const safeDisplayName = escapeHtml(displayName);
+  const safeNames = productNames.map(escapeHtml);
+  const html = isEn
+    ? getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>Dear ${safeDisplayName || 'customer'},</p>
+            <p>Thank you for purchasing:</p>
+            <ul>${safeNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>It comes with <strong>1 year of 3ook.com Plus membership</strong>: AI reading features, exclusive narration voices, 20% off every book and more.</p>
+            <p>Click below to claim it. No card is needed.</p>`,
+      buttonText1: 'Claim my 1-year Plus membership',
+      buttonHref1: claimPageURL,
+      append1: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
+            <br>May you enjoy the pleasure of reading.</p>
+            <p>3ook.com Bookstore</p>`,
+    }).body
+    : getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+            <p>感謝你購買：</p>
+            <ul>${safeNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>此訂單附送<strong>一年 3ook.com Plus 會籍</strong>：AI 閱讀功能、獨家聲線聽書、全站購書八折等。</p>
+            <p>點擊下方按鈕即可領取，無需綁定信用卡。</p>`,
+      buttonText1: '領取我的一年 Plus 會籍',
+      buttonHref1: claimPageURL,
+      append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>願你享受閱讀的樂趣。</p>
+            <p>3ook.com 書店</p>`,
+    }).body;
+  return sendSESTemplateEmail({
+    functionName: 'sendPlusBookPromoGiftEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
     html,
   });
 }

@@ -2,7 +2,9 @@ import crypto from 'crypto';
 import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 
-import { getNFTClassDataById, getNftBookInfo } from '.';
+import {
+  getBookProductType, getNFTClassDataById, getNftBookInfo, isNonNFTProduct, isShippedProduct,
+} from '.';
 import {
   MAXIMUM_CUSTOM_PRICE_IN_DECIMAL,
   NFT_BOOK_DEFAULT_FROM_CHANNEL,
@@ -56,9 +58,13 @@ import { type IntercomUserCustomAttributes, updateIntercomUserAttributes } from 
 import {
   sendNFTBookCartGiftPendingClaimEmail,
   sendNFTBookCartPendingClaimEmail,
+  sendNFTBookMerchOrderReceivedEmail,
+  sendNFTBookMerchSaleEmail,
   sendNFTBookOutOfStockEmail,
   sendPlusBookPromoCodeEmail,
+  sendPlusBookPromoGiftEmail,
 } from '../../../ses';
+import { createPlusGiftCart } from '../../plus/gift';
 import logServerEvents from '../../../logServerEvents';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from './user';
 import { normalizeLikerId } from '../../../ValidationHelper';
@@ -70,6 +76,7 @@ import {
 import {
   CartItem, CartItemWithInfo, ItemPriceInfo, TransactionFeeInfo,
 } from './type';
+import type { BookPurchaseData, NFTBookListingInfo } from '../../../../types/book';
 import { isLikeNFTClassId } from '../../../cosmos/nft';
 import { resolveLocale } from '../../../../locales';
 import { getUserWithCivicLikerPropertiesByWallet, fetchUserInfoByEmail } from '../../users';
@@ -399,15 +406,21 @@ export async function processNFTBookCart(
 
   try {
     // eslint-disable-next-line no-use-before-define
+    const shipping = getMerchShippingFromSession(session);
+    // eslint-disable-next-line no-use-before-define
     const infos = await processNFTBookCartPurchase({
       cartId,
       email,
       paymentId,
+      shipping,
     });
     const {
       classInfos,
       txData: cartData,
     } = infos;
+    // Carts are single product type (assertSingleProductTypeCart).
+    const isNonNFTCart = classInfos.some((info) => isNonNFTProduct(info.listingData));
+    const isShippedCart = classInfos.some((info) => isShippedProduct(info.listingData));
     const {
       isGift: cartIsGift,
       giftInfo: cartGiftInfo,
@@ -507,7 +520,8 @@ export async function processNFTBookCart(
       // Deposit like collective reward if applicable
       try {
         const { customPriceDiffInDecimal = 0 } = feeInfo as TransactionFeeInfo;
-        if (feeInfo && !txData.likeCollectiveRewardTxHash) {
+        // The reward is deposited against the NFT class, which non-NFT products lack.
+        if (feeInfo && !txData.likeCollectiveRewardTxHash && !isNonNFTCart) {
           const likePrice = await getLIKEPrice();
           const rewardTxHash = await depositLikeCollectiveReward(
             classId,
@@ -618,6 +632,19 @@ export async function processNFTBookCart(
           stock,
         }));
       }
+      if (isShippedCart) {
+        notifications.push(sendNFTBookMerchSaleEmail({
+          email: ownerEmail,
+          classId,
+          paymentId,
+          productName: bookName,
+          quantity,
+          buyerEmail: email || undefined,
+          shippingDetails: shipping.shippingDetails,
+          language: ownerLikerInfo?.locale || 'zh',
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err)));
+      }
       if (isOutOfStock) {
         const ownerLocale = ownerLikerInfo?.locale || 'zh';
         notifications.push(sendNFTBookOutOfStockEmail({
@@ -660,9 +687,41 @@ export async function processNFTBookCart(
       utmContent,
       utmTerm,
     });
-    let buyerUserInfo: Awaited<ReturnType<typeof getUserWithCivicLikerPropertiesByWallet>> = null;
+    let buyerLocale: string | undefined;
+    let buyerDisplayName = '';
+    const [buyerUserInfo] = await Promise.all([
+      evmWallet ? getUserWithCivicLikerPropertiesByWallet(evmWallet) : null,
+      email ? fetchUserInfoByEmail(email).then((info) => {
+        buyerLocale = info.locale;
+        buyerDisplayName = info.displayName;
+      }).catch(() => { /* ignore */ }) : undefined,
+    ]);
+    // Checkout language wins: the buyer's stored locale is seeded from geo detection
+    // at registration and never refreshed, so it is the weaker signal.
+    const emailLanguage = resolveLocale(language, buyerLocale);
+    // eslint-disable-next-line no-use-before-define
+    const promoNames = getPlusPromoNamesByPeriod(infoList, bookNames);
 
-    if (cartIsGift && cartGiftInfo) {
+    if (isNonNFTCart) {
+      // Nothing to claim; confirm the order and the address it ships to instead.
+      if (email && isShippedCart) {
+        await sendNFTBookMerchOrderReceivedEmail({
+          email,
+          paymentId,
+          items: infoList.map((info, index) => ({
+            name: bookNames[index],
+            quantity: info.txData.quantity,
+          })),
+          amountTotal: amountTotal || 0,
+          currency: session?.currency || 'usd',
+          shippingDetails: shipping.shippingDetails,
+          displayName: buyerDisplayName,
+          language: emailLanguage,
+        // A failed email must not flag an already paid order as errored.
+        // eslint-disable-next-line no-console
+        }).catch((err) => console.error(err));
+      }
+    } else if (cartIsGift && cartGiftInfo) {
       const {
         fromName,
         toName,
@@ -688,18 +747,6 @@ export async function processNFTBookCart(
         language: recipientLocale || language || 'zh',
       });
     } else {
-      let buyerLocale: string | undefined;
-      let buyerDisplayName = '';
-      try {
-        if (email) {
-          const info = await fetchUserInfoByEmail(email);
-          buyerLocale = info.locale;
-          buyerDisplayName = info.displayName;
-        }
-      } catch { /* ignore */ }
-      // Checkout language wins: the buyer's stored locale is seeded from geo detection
-      // at registration and never refreshed, so it is the weaker signal.
-      const emailLanguage = resolveLocale(language, buyerLocale);
       await sendNFTBookCartPendingClaimEmail({
         cartId,
         bookNames,
@@ -714,15 +761,9 @@ export async function processNFTBookCart(
       // Also skip when the cart is a gift book issued from a Plus subscription,
       // since the buyer is already Plus.
       if (email && LIKER_PLUS_BOOK_PROMO_COUPON_CODE && !isPlusGiftCart) {
-        const promoBookNames = infoList
-          .map((info, idx) => ({ info, name: bookNames[idx] }))
-          .filter((x) => (x.info.listingData as any)?.plusPromoEnabled === true)
-          .map((x) => x.name);
+        const promoBookNames = promoNames.month;
         if (promoBookNames.length > 0) {
           try {
-            if (evmWallet) {
-              buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
-            }
             if (!buyerUserInfo?.isLikerPlus) {
               const paymentCurrency = paymentIntent?.currency?.toLowerCase();
               const promoCurrency = (SUPPORTED_PLUS_CURRENCIES as readonly string[])
@@ -763,8 +804,34 @@ export async function processNFTBookCart(
         }
       }
     }
-    if (evmWallet && !buyerUserInfo) {
-      buyerUserInfo = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+    // A yearly promo is a real gift cart rather than a coupon, so it applies
+    // to merch too. Gift carts skip it: the recipient is not the buyer.
+    if (email && !cartIsGift && !isPlusGiftCart && promoNames.year.length > 0
+      && !buyerUserInfo?.isLikerPlus) {
+      try {
+        // eslint-disable-next-line no-use-before-define
+        await grantPlusPromoGift({
+          email,
+          displayName: buyerDisplayName,
+          productNames: promoNames.year,
+          cartId,
+          paymentId,
+          sessionId: sessionId || '',
+          ipCountry,
+          language: emailLanguage,
+        });
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'PlusBookPromoGiftCreated',
+          paymentId,
+          cartId,
+          email,
+          evmWallet,
+          bookNames: promoNames.year,
+        });
+      } catch (promoErr) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to grant Plus promo gift:', promoErr);
+      }
     }
 
     await logServerEvents('Purchase', {
@@ -796,7 +863,7 @@ export async function processNFTBookCart(
 
     // Attempt to claim the cart immediately if the user is logged in
     // Skip auto-claim for gifts — the receiver should claim via the email link
-    if (evmWallet && !cartIsGift) {
+    if (evmWallet && !cartIsGift && !isNonNFTCart) {
       const {
         allItemsAutoClaimed,
       } = await claimNFTBookCart(
@@ -843,10 +910,85 @@ export async function processNFTBookCart(
   }
 }
 
+// Splits promo-flagged items by what the buyer gets: the monthly coupon
+// email (default) or a yearly Plus gift cart (`plusPromoPeriod: 'year'`).
+export function getPlusPromoNamesByPeriod(
+  items: { listingData?: Pick<NFTBookListingInfo, 'plusPromoEnabled' | 'plusPromoPeriod'> }[],
+  names: string[],
+): { month: string[]; year: string[] } {
+  const month: string[] = [];
+  const year: string[] = [];
+  items.forEach((item, idx) => {
+    if (item.listingData?.plusPromoEnabled !== true) return;
+    (item.listingData.plusPromoPeriod === 'year' ? year : month).push(names[idx]);
+  });
+  return { month, year };
+}
+
+// The buyer is both payer and recipient, so the gift cart is keyed on the
+// book payment and claimed through the regular Plus gift page.
+export async function grantPlusPromoGift({
+  email,
+  displayName,
+  productNames,
+  cartId,
+  paymentId,
+  sessionId,
+  ipCountry,
+  language,
+}: {
+  email: string;
+  displayName: string;
+  productNames: string[];
+  cartId: string;
+  paymentId: string;
+  sessionId: string;
+  ipCountry?: string;
+  language: string;
+}) {
+  const claimToken = crypto.randomBytes(32).toString('hex');
+  await createPlusGiftCart({
+    email,
+    period: 'yearly',
+    quantity: 1,
+    giftInfo: {
+      fromName: '3ook.com',
+      toName: displayName,
+      toEmail: email,
+      message: '',
+    },
+    paymentId,
+    sessionId,
+    claimToken,
+    ipCountry,
+  });
+  try {
+    await sendPlusBookPromoGiftEmail({
+      email,
+      productNames,
+      displayName,
+      cartId,
+      paymentId,
+      claimToken,
+      language,
+    });
+  } catch (err) {
+    // The cart exists but the buyer has no link to it; log enough to resend by hand.
+    // eslint-disable-next-line no-console
+    console.error(`Failed to email Plus promo gift ${paymentId} to ${email} (token ${claimToken}):`, err);
+  }
+}
+
 export async function processNFTBookCartPurchase({
   cartId,
   email,
   paymentId,
+  shipping,
+}: {
+  cartId: string;
+  email: string | null;
+  paymentId: string;
+  shipping?: Pick<BookPurchaseData, 'phone' | 'shippingDetails'>;
 }) {
   const cartRef = likeNFTBookCartCollection.doc(cartId);
   const infos = await db.runTransaction(async (t: admin.firestore.Transaction) => {
@@ -864,7 +1006,7 @@ export async function processNFTBookCartPurchase({
         t,
         classId,
         paymentId,
-        { email },
+        { email, shipping },
       );
       return {
         classId,
@@ -877,10 +1019,12 @@ export async function processNFTBookCartPurchase({
       await processNFTBookPurchaseTxUpdate(t, classIds[index], paymentId, info);
     }));
 
+    const isNonNFTCart = classInfos.some((info) => isNonNFTProduct(info.listingData));
+    const isShippedCart = classInfos.some((info) => isShippedProduct(info.listingData));
     const updatePayload = {
-      status: 'paid',
+      status: isShippedCart ? 'processing' : 'paid',
       isPaid: true,
-      isPendingClaim: true,
+      isPendingClaim: !isNonNFTCart,
       email,
     };
     t.update(cartRef, updatePayload);
@@ -894,6 +1038,31 @@ export async function processNFTBookCartPurchase({
     };
   });
   return infos;
+}
+
+// Stripe API 2026-06-24 moved shipping under `collected_information`, and the
+// phone sits on `customer_details`. Undefined keys are omitted: Firestore
+// rejects them.
+export function getMerchShippingFromSession(
+  session?: Stripe.Checkout.Session,
+): Pick<BookPurchaseData, 'phone' | 'shippingDetails'> {
+  const shipping = session?.collected_information?.shipping_details;
+  const phone = session?.customer_details?.phone || undefined;
+  const result: Pick<BookPurchaseData, 'phone' | 'shippingDetails'> = {};
+  if (phone) result.phone = phone;
+  if (shipping) {
+    const {
+      line1, line2, city, state, postal_code: postalCode, country,
+    } = shipping.address;
+    result.shippingDetails = {
+      name: shipping.name,
+      phone: phone || null,
+      address: {
+        line1, line2, city, state, postal_code: postalCode, country,
+      },
+    };
+  }
+  return result;
 }
 
 export async function processNFTBookCartStripePurchase(
@@ -915,9 +1084,9 @@ export async function processNFTBookCartStripePurchase(
   if (metadata.cartId) {
     const cartDoc = await likeNFTBookCartCollection.doc(metadata.cartId).get();
     const cartData = cartDoc.data();
-    // `paid` is set in the same transaction as every item, so a retry has
-    // nothing left to do and would only fail re-creating the cart.
-    if (cartData?.status && ['paid', 'completed'].includes(cartData.status)) return;
+    // `paid`/`processing` are set in the same transaction as every item, so a
+    // retry has nothing left to do and would only fail re-creating the cart.
+    if (cartData?.status && ['paid', 'processing', 'completed'].includes(cartData.status)) return;
   }
 
   const isFree = amountTotal === 0;
@@ -1155,12 +1324,13 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       throw new ValidationError('PRICE_INDEX_INVALID');
     }
     if (classId) {
-      let [metadata, bookInfo] = await Promise.all([
-        getNFTClassDataById(classId),
-        getNftBookInfo(classId),
-      ]);
+      let bookInfo = await getNftBookInfo(classId);
       if (!bookInfo) throw new ValidationError('NFT_NOT_FOUND');
-      if (!metadata) throw new ValidationError('NFT_NOT_FOUND');
+      // Non-NFT products have no chain class, so skip the chain read: a non-EVM
+      // id would hit the Cosmos query. Their name and image live on the listing.
+      const isNonNFT = isNonNFTProduct(bookInfo);
+      let metadata = isNonNFT ? null : await getNFTClassDataById(classId);
+      if (!metadata && !isNonNFT) throw new ValidationError('NFT_NOT_FOUND');
       const { evmClassId, redirectClassId } = bookInfo;
       if (redirectClassId || (evmClassId && isLikeNFTClassId(classId))) {
         classId = redirectClassId || evmClassId as string;
@@ -1178,6 +1348,9 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         chain,
         isApprovedForSale,
         isPendingReview,
+        productType,
+        availableTerritories,
+        maxQuantityPerOrder,
       } = bookInfo;
 
       if (isApprovedForSale === false) {
@@ -1199,9 +1372,22 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         description: pricDescriptionObj,
         stripePriceId,
         isAutoDeliver,
+        plusPriceInDecimal,
+        plusPriceInDecimalByCurrency,
       } = priceData;
-      let { name = '', description = '' } = metadata;
-      const { image, iscnPrefix } = metadata;
+      // Carried through to the cart item untouched; only non-NFT products set any of them.
+      const nonNFTFields = {
+        productType,
+        availableTerritories,
+        maxQuantityPerOrder,
+        plusPriceInDecimal,
+        plusPriceInDecimalByCurrency,
+      };
+      const displayInfo = isNonNFTProduct(bookInfo)
+        ? { ...bookInfo, image: bookInfo.image || bookInfo.thumbnailUrl }
+        : metadata;
+      let { name = '', description = '' } = displayInfo || {};
+      const { image, iscnPrefix } = (displayInfo || {}) as { image?: string, iscnPrefix?: string };
       const priceName = typeof priceNameObj === 'object' && priceNameObj ? (priceNameObj as Record<string, string>)[NFT_BOOK_TEXT_DEFAULT_LOCALE] : (priceNameObj as string) || '';
       const priceDescription = typeof pricDescriptionObj === 'object' && pricDescriptionObj ? (pricDescriptionObj as Record<string, string>)[NFT_BOOK_TEXT_DEFAULT_LOCALE] : (pricDescriptionObj as string) || '';
       if (priceName) {
@@ -1228,6 +1414,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         stripePriceId,
         chain,
         isAutoDeliver,
+        nonNFTFields,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -1249,6 +1436,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       chain,
       isAutoDeliver,
       isUnlisted,
+      nonNFTFields,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -1292,9 +1480,78 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       quantity,
       stripePriceId,
       chain,
+      ...nonNFTFields,
     };
   }));
+  // eslint-disable-next-line no-use-before-define
+  assertSingleProductTypeCart(itemInfos);
+  // eslint-disable-next-line no-use-before-define
+  assertOrderQuantityLimits(itemInfos);
   return itemInfos;
+}
+
+// Summed per class, so listing one class twice in a cart cannot split past the cap.
+export function assertOrderQuantityLimits(itemInfos: CartItemWithInfo[]) {
+  const quantityByClass = new Map<string, number>();
+  itemInfos.forEach(({ classId = '', quantity }) => {
+    quantityByClass.set(classId, (quantityByClass.get(classId) || 0) + quantity);
+  });
+  itemInfos.forEach(({ classId = '', maxQuantityPerOrder }) => {
+    if (maxQuantityPerOrder && (quantityByClass.get(classId) || 0) > maxQuantityPerOrder) {
+      throw new ValidationError('QUANTITY_EXCEEDS_ORDER_LIMIT');
+    }
+  });
+}
+
+// Stripe's `allowed_countries` is per session, so a session is all books or all
+// merch on one territory list; a mix would geo-block a book or over-offer merch.
+// Every checkout path, the webhook and the free carts pass through here.
+export function assertSingleProductTypeCart(itemInfos: CartItemWithInfo[]) {
+  const productTypes = new Set(itemInfos.map(getBookProductType));
+  if (productTypes.size > 1) throw new ValidationError('CART_MIXED_PRODUCT_TYPE');
+  const territorySets = new Set(itemInfos
+    .filter((item) => isShippedProduct(item))
+    .map((item) => [...(item.availableTerritories || [])].sort().join(',')));
+  if (territorySets.size > 1) throw new ValidationError('CART_MIXED_TERRITORIES');
+}
+
+// Yearly Plus or any paid Civic, never a trialist: a trial costs HK$1, so
+// honouring it would sell the member discount for the price of a trial.
+export function getIsEligibleForPlusPrice(user?: {
+  isLikerPlus?: boolean;
+  isLikerPlusTrial?: boolean;
+  likerPlusPeriod?: string;
+  likerPlusTier?: string;
+} | null): boolean {
+  if (!user?.isLikerPlus || user.isLikerPlusTrial) return false;
+  return user.likerPlusPeriod === 'year' || user.likerPlusTier === 'civic';
+}
+
+function applyPlusPrice(item: CartItemWithInfo): CartItemWithInfo {
+  if (!isNonNFTProduct(item) || item.plusPriceInDecimal === undefined) return item;
+  return {
+    ...item,
+    priceInDecimal: item.plusPriceInDecimal,
+    priceInDecimalByCurrency: item.plusPriceInDecimalByCurrency,
+    // The Stripe Price carries the list price; the member price needs price_data.
+    stripePriceId: undefined,
+    isPlusPrice: true,
+  };
+}
+
+// Non-NFT products charge their per-currency override, never the ladder, which tops out far
+// below hardware prices. This pin is what makes a missing override (TWD on an
+// HKD-only SKU) safe: its ladder price can be displayed but never charged.
+function resolveNonNFTCheckoutCurrency(
+  itemInfos: CartItemWithInfo[],
+  currency?: string,
+): string | undefined {
+  const [first, ...rest] = itemInfos
+    .map((item) => Object.keys(item.priceInDecimalByCurrency || {}));
+  const shared = (first || []).filter((c) => rest.every((keys) => keys.includes(c)));
+  // No override shared across the cart: fall back to the USD price.
+  if (!shared.length) return undefined;
+  return currency && shared.includes(currency) ? currency : shared[0];
 }
 
 export async function formatCartItemInfosFromSession(
@@ -1490,6 +1747,8 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
   })) {
     throw new ValidationError('DIFFERENT_CHAIN_NOT_SUPPORTED');
   }
+  const isNonNFTCart = itemInfos.some((item) => isNonNFTProduct(item));
+  let checkoutCurrency = currency;
   let customerEmail = email;
   let customerId;
   let couponId;
@@ -1501,7 +1760,12 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     customerId = bookUserInfo?.stripeCustomerId;
     customerEmail = isEmailVerified ? userEmail : email;
 
-    if (isLikerPlus && !coupon) {
+    if (isNonNFTCart && getIsEligibleForPlusPrice(likerUserInfo)) {
+      itemInfos = itemInfos.map(applyPlusPrice);
+    }
+    // Non-NFT products carry an explicit member price instead: the flat Plus coupon on
+    // top of it would stack, and on hardware margins it applies to no one.
+    if (isLikerPlus && !coupon && !isNonNFTCart) {
       let shouldApplyPlusDiscount = false;
       let shouldClearFrom = false;
       if (checkIsFromLikerLand(from)) {
@@ -1538,6 +1802,15 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
           }));
         }
       }
+    }
+  }
+  let shippingCountries: string[] | undefined;
+  if (isNonNFTCart) {
+    checkoutCurrency = resolveNonNFTCheckoutCurrency(itemInfos, currency);
+    if (itemInfos.some(isShippedProduct)) {
+      // Homogeneous per assertSingleProductTypeCart, so the first item speaks for all.
+      shippingCountries = firstItemInfo.availableTerritories;
+      if (!shippingCountries?.length) throw new ValidationError('MERCH_TERRITORIES_NOT_SET');
     }
   }
   const paymentId = uuidv4();
@@ -1581,7 +1854,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     from,
     coupon,
     couponId,
-    currency,
+    currency: checkoutCurrency,
     claimToken,
     gaClientId,
     gaSessionId,
@@ -1617,6 +1890,10 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
       from,
     }),
     paymentMethods,
+    shippingCountries,
+    // Non-NFT products carry an explicit member price; a promo code on top would stack.
+    allowDiscounts: !isNonNFTCart,
+    createInvoice: isNonNFTCart,
   });
 
   const { url, id: sessionId } = session;

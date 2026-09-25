@@ -600,3 +600,25 @@ describe('GET /cms/list with conditions', () => {
     expect(res.data.list.map((b: any) => b.classId)).toEqual([BOOK_ID_PUB_AND_AUTH]);
   });
 });
+
+describe('GET /cms/list with non-book merch', () => {
+  // A tag is hand-curated, so merch placed in one are served without opting in.
+  it('serves merch in the tag they were placed in, with their product type', async () => {
+    const MERCH_ID = mockEVMAddress(0xc0);
+    const BOOK_ID = mockEVMAddress(0xc1);
+    await post(`${BASE_URL}/cms/tags/merch`, tagBody({ isPublic: true }), AUTHORIZATION);
+    await makeNFTBookStub(MERCH_ID, {
+      cmsTags: { merch: 0 },
+      productType: 'merch',
+      availableTerritories: ['HK'],
+    });
+    await makeNFTBookStub(BOOK_ID, { cmsTags: { merch: 1 } });
+
+    const res = await get(`${BASE_URL}/cms/list?tag=merch&limit=10`);
+    expect(res.status).toBe(200);
+    const merch = res.data.list.find((b: any) => b.classId === MERCH_ID);
+    expect(merch?.productType).toBe('merch');
+    expect(merch?.availableTerritories).toEqual(['HK']);
+    expect(res.data.list.map((b: any) => b.classId)).toContain(BOOK_ID);
+  });
+});

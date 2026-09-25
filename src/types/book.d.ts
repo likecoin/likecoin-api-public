@@ -3,11 +3,14 @@
 import type { z } from 'zod';
 import type {
   BookContributorSchema,
+  BookLocalizedCopySchema,
+  BookProductTypeSchema,
   BookSignatureImageSchema,
   BookFreeClaimResponseSchema,
   BookGiftInfoSchema,
   BookPurchaseCommissionFilteredSchema,
   BookPurchaseDataFilteredSchema,
+  BookShippingDetailsSchema,
   NFTBookListingInfoFilteredSchema,
   NFTBookPriceFilteredSchema,
   NFTBookPricesInfoFilteredSchema,
@@ -28,6 +31,10 @@ export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 export type BookContributor = z.infer<typeof BookContributorSchema>;
 
 export type BookSignatureImage = z.infer<typeof BookSignatureImageSchema>;
+
+// Mirrors Stripe's address shape, snake_case `postal_code` included, so the
+// collected value is stored as-is and read back without a remap.
+export type BookShippingDetails = z.infer<typeof BookShippingDetailsSchema>;
 
 export interface BookPurchaseData {
   id?: string;
@@ -59,6 +66,12 @@ export interface BookPurchaseData {
   classIdsWithPrice?: any[];
   claimToken?: string;
   lastRemindTimestamp?: { toMillis: () => number };
+  // Merch orders only. `phone` and `shippingDetails` are collected by Stripe
+  // Checkout; `trackingNumber` and `shippedAt` are written by the `/ship` endpoint.
+  phone?: string;
+  shippingDetails?: BookShippingDetails;
+  trackingNumber?: string;
+  shippedAt?: { toMillis: () => number };
 }
 
 export type BookPurchaseDataFiltered = z.infer<typeof BookPurchaseDataFilteredSchema>;
@@ -142,6 +155,10 @@ export interface NFTBookPrice {
   order?: number;
   stripeProductId?: string;
   stripePriceId?: string;
+  // Merch only: the member price on the same edition, so one `stock` counter
+  // backs both prices. See `getIsEligibleForPlusPrice` for who may pay it.
+  plusPriceInDecimal?: number;
+  plusPriceInDecimalByCurrency?: BookPriceInDecimalByCurrency;
 }
 
 export type NFTBookPriceFiltered = z.infer<typeof NFTBookPriceFilteredSchema>;
@@ -172,9 +189,27 @@ export interface NFTBookComplianceReviewRecord extends NFTBookComplianceReviewVe
   timestamp: number;
 }
 
+export type BookProductType = z.infer<typeof BookProductTypeSchema>;
+
+export type BookLocalizedCopy = z.infer<typeof BookLocalizedCopySchema>;
+
 export interface NFTBookListingInfo {
   id?: string;
   classId: string;
+  // Absent means 'book': every listing predating non-book merch is a book, and
+  // Firestore cannot query for a missing field, so the default must be implicit.
+  // Read it through `getBookProductType` / `isNonNFTProduct`, never directly.
+  productType?: BookProductType;
+  // ISO 3166-1 alpha-2 ALLOW-list, the inverse of `restrictedTerritories`.
+  // Enforced at checkout via Stripe `shipping_address_collection`.
+  availableTerritories?: string[];
+  // Per-locale copy; the plain `name` / `description` / `descriptionFull`
+  // stay the fallback, since every consumer reads them as strings.
+  nameByLocale?: BookLocalizedCopy;
+  descriptionByLocale?: BookLocalizedCopy;
+  descriptionFullByLocale?: BookLocalizedCopy;
+  // Per-order cap, summed across a cart; `stock` still bounds the shelf.
+  maxQuantityPerOrder?: number;
   likeClassId?: string;
   evmClassId?: string;
   redirectClassId?: string;
@@ -183,6 +218,9 @@ export interface NFTBookListingInfo {
   prices?: NFTBookPrice[];
   minPriceInDecimal?: number;
   pendingNFTCount?: number;
+  // Merch sibling of `pendingNFTCount`: paid orders awaiting despatch. Counted
+  // at payment rather than at claim, since a merch order is never claimed.
+  pendingShipmentCount?: number;
   ownerWallet: string;
   moderatorWallets?: string[];
   connectedWallets?: any;
@@ -229,6 +267,9 @@ export interface NFTBookListingInfo {
   isApprovedForAds?: boolean;
   approvalStatus?: string;
   plusPromoEnabled?: boolean;
+  // What a promo buyer gets: a monthly coupon email (default) or, for 'year',
+  // a claimable yearly Plus gift cart. See grantPlusPromoGift in cart.ts.
+  plusPromoPeriod?: 'month' | 'year';
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
   previewPercentage?: number;
