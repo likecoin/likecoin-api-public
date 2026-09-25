@@ -1118,6 +1118,75 @@ export function sendPlusBookPromoCodeEmail({
   });
 }
 
+// Yearly counterpart of sendPlusBookPromoCodeEmail: the buyer claims a gift
+// cart instead of redeeming a coupon, so no card and no renewal caveats.
+export function sendPlusBookPromoGiftEmail({
+  email,
+  productNames,
+  displayName = '',
+  cartId,
+  paymentId,
+  claimToken,
+  language = 'zh',
+}: {
+  email: string;
+  productNames: string[];
+  displayName?: string;
+  cartId: string;
+  paymentId: string;
+  claimToken: string;
+  language?: string;
+}) {
+  const isEn = language === 'en';
+  const lang = isEn ? 'en' : 'zh-Hant';
+  const title = isEn
+    ? 'Your purchase includes 1 year of 3ook.com Plus'
+    : '你的訂單附送一年 3ook.com Plus 會籍';
+  const claimPageURL = getPlusGiftPageClaimURL({
+    cartId,
+    paymentId,
+    token: claimToken,
+    language: lang,
+    email,
+  });
+  const safeDisplayName = escapeHtml(displayName);
+  const safeNames = productNames.map(escapeHtml);
+  const html = isEn
+    ? getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>Dear ${safeDisplayName || 'customer'},</p>
+            <p>Thank you for purchasing:</p>
+            <ul>${safeNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>It comes with <strong>1 year of 3ook.com Plus membership</strong>: AI reading features, exclusive narration voices, 20% off every book and more.</p>
+            <p>Click below to claim it. No card is needed.</p>`,
+      buttonText1: 'Claim my 1-year Plus membership',
+      buttonHref1: claimPageURL,
+      append1: `<p>If you have any questions, please feel free to contact our <a href="${CUSTOMER_SERVICE_URL}">Customer Service</a> for assistance.
+            <br>May you enjoy the pleasure of reading.</p>
+            <p>3ook.com Bookstore</p>`,
+    }).body
+    : getNFTTwoContentWithMessageAndButtonTemplate({
+      title1: title,
+      content1: `<p>親愛的 ${safeDisplayName || '顧客'}：</p>
+            <p>感謝你購買：</p>
+            <ul>${safeNames.map((name) => `<li>${name}</li>`).join('')}</ul>
+            <p>此訂單附送<strong>一年 3ook.com Plus 會籍</strong>：AI 閱讀功能、獨家聲線聽書、全站購書八折等。</p>
+            <p>點擊下方按鈕即可領取，無需綁定信用卡。</p>`,
+      buttonText1: '領取我的一年 Plus 會籍',
+      buttonHref1: claimPageURL,
+      append1: `<p>如有任何疑問，歡迎<a href="${CUSTOMER_SERVICE_URL}">聯絡客服</a>查詢。
+            <br>願你享受閱讀的樂趣。</p>
+            <p>3ook.com 書店</p>`,
+    }).body;
+  return sendSESTemplateEmail({
+    functionName: 'sendPlusBookPromoGiftEmail',
+    to: [email],
+    bcc: SALES_BCC,
+    title,
+    html,
+  });
+}
+
 export function sendPlusGiftPendingClaimEmail({
   fromName,
   fromEmail,
