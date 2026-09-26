@@ -1250,9 +1250,10 @@ function buildPlusCheckoutSessionPayload({
     }
   }
 
+  const priceId = getPlusPriceId(tier, period);
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
-      price: getPlusPriceId(tier, period),
+      price: priceId,
       quantity: 1,
     },
   ];
@@ -1285,6 +1286,7 @@ function buildPlusCheckoutSessionPayload({
   const successUrl = getPlusSuccessPageURL({
     period,
     tier,
+    priceId,
     paymentId,
     hasFreeTrial,
     ...urlTrackingParams,
