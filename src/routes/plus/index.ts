@@ -45,6 +45,7 @@ import type { LikerPlusTier, SupportedPlusCurrency } from '../../constant';
 import { convertUSDPriceToCurrency } from '../../util/pricing';
 import {
   createNewPlusCheckoutSession,
+  getPlusStripeInterval,
   getPlusTierUSDPrice,
   updatePlusPendingTier,
   updateSubscriptionPeriod,
@@ -216,6 +217,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
     const {
       session,
       paymentId,
+      priceId,
       email,
     } = await createNewPlusCheckoutSession(
       {
@@ -287,6 +289,11 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       gaClientId,
       gaSessionId,
       posthogDistinctId,
+      extraProperties: {
+        period: getPlusStripeInterval(period as PlusPeriod),
+        tier,
+        price_id: priceId,
+      },
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusCheckoutSessionCreated',
@@ -357,6 +364,7 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
     const {
       session,
       paymentId,
+      priceId,
       email,
     } = await createPlusGiftCheckoutSession(
       {
@@ -419,6 +427,10 @@ router.post('/gift/new', jwtAuth('write:plus'), validateQuery(PlusGiftNewQuerySc
       gaClientId,
       gaSessionId,
       posthogDistinctId,
+      extraProperties: {
+        period: getPlusStripeInterval(period as PlusPeriod),
+        price_id: priceId,
+      },
     });
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'PlusGiftCheckoutSessionCreated',

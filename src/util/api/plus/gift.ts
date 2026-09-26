@@ -121,12 +121,13 @@ export async function createPlusGiftCheckoutSession(
   const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
 
   const isYearly = period === 'yearly';
+  const priceId = isYearly ? LIKER_PLUS_GIFT_YEARLY_PRICE_ID : LIKER_PLUS_GIFT_MONTHLY_PRICE_ID;
 
   const payload: Stripe.Checkout.SessionCreateParams = {
     billing_address_collection: 'auto',
     line_items: [
       {
-        price: isYearly ? LIKER_PLUS_GIFT_YEARLY_PRICE_ID : LIKER_PLUS_GIFT_MONTHLY_PRICE_ID,
+        price: priceId,
         quantity,
       },
     ],
@@ -178,6 +179,7 @@ export async function createPlusGiftCheckoutSession(
   return {
     session,
     paymentId,
+    priceId,
     email: userEmail,
   };
 }
