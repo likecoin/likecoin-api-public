@@ -89,6 +89,11 @@ export function getPlusPriceId(tier: LikerPlusTier, period: PlusPeriod): string 
   return period === 'yearly' ? LIKER_PLUS_YEARLY_PRICE_ID : LIKER_PLUS_MONTHLY_PRICE_ID;
 }
 
+// The Stripe plan interval, which the invoice-driven Plus events report as `period`.
+export function getPlusStripeInterval(period: PlusPeriod): 'month' | 'year' {
+  return period === 'yearly' ? 'year' : 'month';
+}
+
 // The Plus-tier USD price for a Stripe plan interval. Civic funds the reading
 // rev-share pool at this rate instead of its own 10× price (flat rev-share,
 // product decision). Do NOT refactor callers back to "derive from the charge".
@@ -1411,6 +1416,7 @@ export async function createNewPlusCheckoutSession(
   return {
     session,
     paymentId,
+    priceId: getPlusPriceId(tier, period),
     email: userEmail,
   };
 }
