@@ -129,7 +129,9 @@ export const PlusCheckoutResponseSchema = StripeCheckoutResponseSchema.extend({
   clientSecret: z.string().nullable().optional(),
 });
 
-export const PlusNewResponseSchema = PlusCheckoutResponseSchema;
+export const PlusNewResponseSchema = PlusCheckoutResponseSchema.extend({
+  priceId: z.string(),
+});
 export const PlusGiftNewResponseSchema = PlusCheckoutResponseSchema;
 
 export const PlusPortalResponseSchema = z.object({
