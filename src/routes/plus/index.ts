@@ -265,6 +265,7 @@ router.post('/new', jwtAuth('write:plus'), validateQuery(PlusNewQuerySchema), va
       url: session.url,
       clientSecret: session.client_secret,
       paymentId,
+      priceId,
     });
 
     await logServerEvents('InitiateCheckout', {
