@@ -3,6 +3,8 @@ import { ValidationError } from '../../../util/ValidationError';
 import {
   checkIsAuthorized,
   getNFTClassDataById,
+  isNonNFTProduct,
+  isShippedProduct,
 } from '../../../util/api/likernft/book';
 import {
   admin, db, likeNFTBookCartCollection, likeNFTBookCollection, FieldValue,
@@ -22,11 +24,13 @@ import {
   sendNFTBookGiftSentEmail,
   sendNFTBookPendingClaimEmail,
   sendNFTBookManualDeliverSentEmail,
+  sendNFTBookMerchShippedEmail,
 } from '../../../util/ses';
 import {
   LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES,
 } from '../../../../config/config';
 import {
+  markNFTBookMerchOrderShipped,
   setNFTBookBuyerMessage,
   updateNFTBookPostDeliveryData,
 } from '../../../util/api/likernft/book/purchase';
@@ -46,6 +50,7 @@ import {
   BookMessageBodySchema,
   BookPurchaseNewBodySchema,
   NFTBookSentBodySchema,
+  NFTBookShipBodySchema,
   BookCartIdParamsSchema,
   BookClassIdParamsSchema,
   BookClassIdPaymentIdParamsSchema,
@@ -685,6 +690,8 @@ router.post(
       const { ownerWallet, moderatorWallets = [] } = listingData;
       const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
       if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
+      // No NFT to send: merch completes through `/ship`, which tracks the despatch.
+      if (isNonNFTProduct(listingData)) throw new ValidationError('NOT_NFT_LISTING', 400);
       // Verify a seller-reported delivery txHash actually transfers the NFT on-chain.
       // Auto-deliver mints server-side via claimNFTBook and never reaches this route.
       if (isEVMClassId(classId) && txHash) {
@@ -801,6 +808,71 @@ router.post(
           console.error(`Failed to trigger NFT indexer update for class ${classId}:`, err);
         }
       }
+
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Merch counterpart of `/sent`: there is no NFT to send, only a parcel.
+router.post(
+  ['/:classId/ship/:paymentId', '/class/:classId/ship/:paymentId'],
+  jwtAuth('write:nftbook'),
+  validateParams(BookClassIdPaymentIdParamsSchema),
+  validateBody(NFTBookShipBodySchema),
+  async (req, res, next) => {
+    try {
+      const { classId, paymentId } = req.params as Record<string, string>;
+      const { trackingNumber } = req.body;
+      const listingDoc = await likeNFTBookCollection.doc(classId).get();
+      const listingData = listingDoc.data();
+      if (!listingData) throw new ValidationError('CLASS_ID_NOT_FOUND', 404);
+      const { ownerWallet, moderatorWallets = [], name } = listingData as NFTBookListingInfo;
+      const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
+      if (!isAuthorized) throw new ValidationError('UNAUTHORIZED', 403);
+      if (!isShippedProduct(listingData)) throw new ValidationError('NOT_MERCH_LISTING', 400);
+
+      const {
+        paymentData: { email },
+        isFirstShipment,
+        isTrackingNumberChanged,
+      } = await markNFTBookMerchOrderShipped({ classId, paymentId, trackingNumber });
+
+      // A re-ship that only corrects the tracking number re-notifies the buyer.
+      if (email && (isFirstShipment || isTrackingNumberChanged)) {
+        let buyerLocale: string | undefined;
+        let buyerDisplayName = '';
+        try {
+          const info = await fetchUserInfoByEmail(email);
+          buyerLocale = info.locale;
+          buyerDisplayName = info.displayName;
+        } catch { /* ignore */ }
+        try {
+          await sendNFTBookMerchShippedEmail({
+            email,
+            productName: name || classId,
+            trackingNumber,
+            displayName: buyerDisplayName,
+            language: buyerLocale || 'zh',
+          });
+        } catch (err) {
+          // The order is already marked shipped; a failed email must not undo that.
+          // eslint-disable-next-line no-console
+          console.error(`Failed to send shipped email for ${classId}/${paymentId}:`, err);
+        }
+      }
+
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookMerchOrderShipped',
+        paymentId,
+        classId,
+        email,
+        fromWallet: req.user.wallet,
+        trackingNumber,
+        isFirstShipment,
+      });
 
       res.sendStatus(200);
     } catch (err) {
