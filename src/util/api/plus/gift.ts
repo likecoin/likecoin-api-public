@@ -374,9 +374,15 @@ export async function claimPlusGiftCart({
       }),
     ]);
 
+    // Skip the "accepted your gift" email when the purchaser claims it themselves.
+    const normalizedEmail = (email || '').toLowerCase();
+    const shouldNotifySender = !!normalizedEmail
+      && normalizedEmail !== (likerUserInfo.email || '').toLowerCase()
+      && normalizedEmail !== (giftInfo.toEmail || '').toLowerCase();
+
     let senderLocale: string | undefined;
     try {
-      if (email) {
+      if (email && shouldNotifySender) {
         const senderInfo = await fetchUserInfoByEmail(email);
         senderLocale = senderInfo.locale;
       }
@@ -405,12 +411,12 @@ export async function claimPlusGiftCart({
         isTrial: true,
         channel: '',
       }),
-      sendPlusGiftClaimedEmail({
+      shouldNotifySender ? sendPlusGiftClaimedEmail({
         fromEmail: email || '',
         toName: giftInfo.toName,
         fromName: giftInfo.fromName,
         language: senderLocale || 'zh',
-      }),
+      }) : Promise.resolve(),
     ]);
   } catch (error) {
     await likePlusGiftCartCollection.doc(cartId).update({
