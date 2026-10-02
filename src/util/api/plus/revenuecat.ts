@@ -883,6 +883,9 @@ async function handleExpiration(
 async function recordAutoRenewChange(event: RevenueCatEvent, isSandbox: boolean) {
   if (isQuarantinedSandbox(isSandbox)) return;
   if (!event.original_transaction_id) return;
+  // Play pairs every failed charge with a BILLING_ERROR cancellation,
+  // and a recovered charge arrives as RENEWAL with no UNCANCELLATION to undo it.
+  if (event.cancel_reason === 'BILLING_ERROR') return;
   const canceledAtMs = event.event_timestamp_ms || Date.now();
   await updateAirtableSubscriptionStatus({
     subscriptionId: event.original_transaction_id,
