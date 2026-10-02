@@ -3,8 +3,7 @@
     "VerifyEmail": {
       "subject": "3ook.com Account Verification",
       "body": "<p>To register your 3ook.com account, please click the button below to verify your email address.</p><p style=\"text-align: center;\"><a href=\"{{verifyUrl}}\" style=\"color: #28646E; text-decoration: none; background-color: #28646E; color: white; padding: 10px 20px; border-radius: 5px; display: inline-block;\">Verify</a></p><p>If you did not register for a 3ook.com account, please ignore this email.</p>"
-    },
-    "signature": "<p>Liker Land Team<br/><a href=\"https://liker.land\" style=\"color: #28646E\">https://liker.land</a></p>"
+    }
   },
   "EmailVerifyPage": {
     "success": {

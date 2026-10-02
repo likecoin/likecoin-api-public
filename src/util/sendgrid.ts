@@ -22,7 +22,7 @@ export async function sendVerificationEmail(res, user) {
           uuid: user.verificationUUID,
           language: res.getLocale(),
         }),
-      }) + res.__('Email.signature'),
+      }),
     }).body,
   };
   return sgMail.send(msg);
