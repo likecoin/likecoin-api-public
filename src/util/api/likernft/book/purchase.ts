@@ -2,7 +2,7 @@ import uuidv4 from 'uuid/v4';
 import Stripe from 'stripe';
 import { firestore } from 'firebase-admin';
 
-import { getNFTClassDataById } from '.';
+import { getNFTClassDataById, isNonNFTProduct, isShippedProduct } from '.';
 import { ValidationError } from '../../../ValidationError';
 import {
   PUBSUB_TOPIC_MISC,
@@ -500,6 +500,11 @@ export async function createNewNFTBookPayment(classId, paymentId, {
 
 export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
   email,
+  shipping = {},
+}: {
+  email: string | null;
+  // Collected by Checkout for merch; a book order never carries it.
+  shipping?: Pick<BookPurchaseData, 'phone' | 'shippingDetails'>;
 }) {
   const bookRef = likeNFTBookCollection.doc(classId);
   const doc = await t.get(bookRef);
@@ -526,6 +531,15 @@ export async function processNFTBookPurchaseTxGet(t, classId, paymentId, {
     status: 'paid',
     email,
   };
+  if (isNonNFTProduct(docData)) {
+    // Nothing to claim.
+    paymentPayload.isPendingClaim = false;
+    // Shipped merch goes straight to the despatch queue.
+    if (isShippedProduct(docData)) {
+      paymentPayload.status = 'processing';
+      Object.assign(paymentPayload, shipping);
+    }
+  }
   if (isAutoDeliver) {
     // EVM NFT are mint on demand, we don't need to specify nftId
     const nftIds = Array(quantity).fill(0);
@@ -566,6 +580,9 @@ export async function processNFTBookPurchaseTxUpdate(t, classId, paymentId, {
     prices,
     lastSaleTimestamp: FieldValue.serverTimestamp(),
   };
+  if (isShippedProduct(listingData)) {
+    bookPayload.pendingShipmentCount = FieldValue.increment(1);
+  }
   // Free items (priceInDecimal 0) don't move the bestselling rank.
   if (txData.priceInDecimal > 0) {
     bookPayload.salesScore = FieldValue.increment(
@@ -656,10 +673,19 @@ export async function formatStripeCheckoutSession({
   successUrl,
   cancelUrl,
   paymentMethods,
+  shippingCountries,
+  allowDiscounts = true,
+  createInvoice = false,
 }: {
   successUrl: string,
   cancelUrl: string,
   paymentMethods?: string[],
+  // Merch only: collect a shipping address, restricted to these countries.
+  shippingCountries?: string[],
+  // False drops both a passed coupon and the buyer-typed promotion code box.
+  allowDiscounts?: boolean,
+  // A post-payment Stripe invoice, as an itemised document for the buyer.
+  createInvoice?: boolean,
 }) {
   const sessionMetadata: Stripe.MetadataParam = {
     store: 'book',
@@ -755,6 +781,11 @@ export async function formatStripeCheckoutSession({
     const productMetadata: Stripe.MetadataParam = {};
     if (item.classId) productMetadata.classId = item.classId;
     if (item.iscnPrefix) productMetadata.iscnPrefix = item.iscnPrefix;
+    // The webhook reads the edition back from here; a Stripe Price carries it
+    // already, but the member price is charged through price_data.
+    if (item.isPlusPrice && item.priceIndex !== undefined) {
+      productMetadata.priceIndex = item.priceIndex.toString();
+    }
 
     if (item.stripePriceId) {
       lineItems.push({
@@ -775,7 +806,7 @@ export async function formatStripeCheckoutSession({
             metadata: productMetadata,
           },
           unit_amount: getCurrencyPriceInDecimal(
-            item.originalPriceInDecimal,
+            item.isPlusPrice ? item.priceInDecimal : item.originalPriceInDecimal,
             currencyWithDefault,
             item.priceInDecimalByCurrency,
           ),
@@ -809,7 +840,7 @@ export async function formatStripeCheckoutSession({
     }
   });
 
-  const discounts = await resolveCheckoutDiscountsFromCoupon(coupon);
+  const discounts = allowDiscounts ? await resolveCheckoutDiscountsFromCoupon(coupon) : [];
   if (!discounts.length && couponId) {
     discounts.push({ coupon: couponId });
   }
@@ -831,15 +862,23 @@ export async function formatStripeCheckoutSession({
   } else {
     checkoutPayload.adaptive_pricing = { enabled: true };
   }
+  if (shippingCountries?.length) {
+    checkoutPayload.shipping_address_collection = {
+      allowed_countries: shippingCountries as
+        Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
+    };
+    checkoutPayload.phone_number_collection = { enabled: true };
+  }
   if (paymentMethods) {
     checkoutPayload.payment_method_types = paymentMethods as
       Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
   }
   if (discounts.length) {
     checkoutPayload.discounts = discounts;
-  } else if (!isApp) {
+  } else if (!isApp && allowDiscounts) {
     checkoutPayload.allow_promotion_codes = true;
   }
+  if (createInvoice) checkoutPayload.invoice_creation = { enabled: true };
   if (likeWallet || evmWallet) {
     if (customerId) {
       checkoutPayload.customer = customerId;
@@ -1206,6 +1245,46 @@ export async function setNFTBookBuyerMessage(
     classId,
     wallet,
     buyerMessage: message,
+  });
+}
+
+// Merch counterpart of updateNFTBookPostDeliveryData. A shipped order may be
+// shipped again to correct its tracking number; only the first shipment
+// leaves the despatch queue.
+export async function markNFTBookMerchOrderShipped({
+  classId,
+  paymentId,
+  trackingNumber,
+}: {
+  classId: string,
+  paymentId: string,
+  trackingNumber: string,
+}) {
+  const bookRef = likeNFTBookCollection.doc(classId);
+  const paymentRef = bookRef.collection('transactions').doc(paymentId);
+  return db.runTransaction(async (t: admin.firestore.Transaction) => {
+    const paymentDoc = await t.get(paymentRef);
+    const paymentData = paymentDoc.data() as BookPurchaseData | undefined;
+    if (!paymentData) throw new ValidationError('PAYMENT_ID_NOT_FOUND', 404);
+    const { status, trackingNumber: previousTrackingNumber } = paymentData;
+    if (status !== 'processing' && status !== 'shipped') {
+      throw new ValidationError('ORDER_NOT_SHIPPABLE', 409);
+    }
+    const isFirstShipment = status === 'processing';
+    const update: Record<string, string | firestore.FieldValue> = {
+      status: 'shipped',
+      trackingNumber,
+    };
+    if (isFirstShipment) {
+      update.shippedAt = FieldValue.serverTimestamp();
+      t.update(bookRef, { pendingShipmentCount: FieldValue.increment(-1) });
+    }
+    t.update(paymentRef, update);
+    return {
+      paymentData,
+      isFirstShipment,
+      isTrackingNumberChanged: trackingNumber !== (previousTrackingNumber || ''),
+    };
   });
 }
 

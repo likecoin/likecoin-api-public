@@ -18,6 +18,9 @@ import {
   getStripeProductMetadata,
   getAuthorNameFromMetadata,
   getPublisherNameFromMetadata,
+  isNonNFTProduct,
+  matchesProductTypeFilter,
+  mergeNFTBookPriceUpdate,
 } from '../../../util/api/likernft/book';
 import {
   syncNFTBookCMSTagEntries,
@@ -108,6 +111,7 @@ import { cacheBookFilesFromNFTClassMetadata } from '../../../util/api/likernft/b
 import { getMetaProductCatalogItems, formatMetaProductCatalogCSV } from '../../../util/api/likernft/book/metaCatalog';
 import { getStripeFeedItems, formatStripeFeedCSV } from '../../../util/api/likernft/book/stripeCatalog';
 import { normalizeClassIdParam } from '../../../middleware/likernft';
+import { NFT_BOOK_MERCH_OWNER_WALLETS } from '../../../../config/config';
 
 const router = Router();
 
@@ -186,11 +190,16 @@ router.get('/catalog/stripe', validateQuery(BookCatalogQuerySchema), async (req,
 
 // The list endpoints differ in how the page was queried, never in what a viewer
 // may see, so the visibility rule lives here rather than in each of them. A
-// redirected book is dropped from every list, owner or not.
-function toVisibleListingInfos(bookInfos: NFTBookListingInfo[], req: Pick<Request, 'user'>) {
+// redirected book is dropped from every list, owner or not, and so is any
+// product type the caller did not ask for.
+function toVisibleListingInfos(
+  bookInfos: NFTBookListingInfo[],
+  req: Pick<Request, 'user'>,
+  productType: BookListPaginationQuery['productType'],
+) {
   return bookInfos.flatMap((b: NFTBookListingInfo) => {
     const { redirectClassId, moderatorWallets = [], ownerWallet } = b;
-    if (redirectClassId) return [];
+    if (redirectClassId || !matchesProductTypeFilter(b, productType)) return [];
     const isAuthorized = checkIsAuthorized({ ownerWallet, moderatorWallets }, req);
     if (!isAuthorized && !isBookVisibleToReaders(b)) return [];
     return [filterNFTBookListingInfo(b, isAuthorized)];
@@ -206,6 +215,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       before,
       limit,
       key,
+      productType,
     } = req.query;
     const conditions = {
       ownerWallet: wallet,
@@ -217,7 +227,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
     };
 
     const ownedBookInfos = await listLatestNFTBookInfo(conditions);
-    const list = toVisibleListingInfos(ownedBookInfos, req);
+    const list = toVisibleListingInfos(ownedBookInfos, req, productType);
     // Use the unfiltered Firestore result for the cursor — filtered-out
     // docs (hidden / redirected) must not end pagination early. Coalesce to
     // null so the response shape matches `nextKey: number | null` even when
@@ -249,6 +259,7 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
         before,
         limit,
         key,
+        productType,
       } = req.query;
       const conditions = {
         filter,
@@ -259,7 +270,7 @@ function createDerivedListHandler(filter: 'free' | 'drm-free') {
       };
 
       const bookInfos = await listFilteredNFTBookInfo(conditions);
-      const list = toVisibleListingInfos(bookInfos, req);
+      const list = toVisibleListingInfos(bookInfos, req, productType);
       // Use the unfiltered Firestore result for the cursor:
       // filtered-out docs (hidden / redirected) must not end pagination early.
       // Coalesce to null so the response shape matches `nextKey: number | null` on empty pages.
@@ -293,6 +304,7 @@ router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookP
       library,
       limit,
       key,
+      productType,
     } = req.query;
     const bookInfos = await listPopularNFTBookInfo({
       filter,
@@ -300,7 +312,7 @@ router.get('/list/popular', jwtOptionalAuth('read:nftbook'), validateQuery(BookP
       limit,
       key,
     });
-    const list = toVisibleListingInfos(bookInfos, req);
+    const list = toVisibleListingInfos(bookInfos, req, productType);
     // Cursor off the unfiltered Firestore result: filtered-out docs (hidden / redirected)
     // must not end pagination early, and the next page resumes from the last doc read.
     const lastBookInfo = bookInfos[bookInfos.length - 1];
@@ -322,13 +334,15 @@ router.get(
   validateQuery(BookBestsellingListQuerySchema),
   async (req: QueryRequest<BookBestsellingListQuery>, res, next) => {
     try {
-      const { library, limit, key } = req.query;
+      const {
+        library, limit, key, productType,
+      } = req.query;
       const bookInfos = await listBestsellingNFTBookInfo({
         isPlusReadingEnabled: library === '1' || undefined,
         limit,
         key,
       });
-      const list = toVisibleListingInfos(bookInfos, req);
+      const list = toVisibleListingInfos(bookInfos, req, productType);
       // Cursor off the unfiltered result so hidden/redirected docs don't end pagination early.
       const lastBookInfo = bookInfos[bookInfos.length - 1];
       const nextKey = bookInfos.length < limit ? null : (lastBookInfo?.id ?? null);
@@ -555,6 +569,10 @@ router.post(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex']
     if (priceIndex !== prices.length) {
       throw new ValidationError('INVALID_PRICE_INDEX', 400);
     }
+    // Auto-deliver skips the stock check at payment, so a non-NFT product would oversell.
+    if (isNonNFTProduct(bookInfo) && price.isAutoDeliver) {
+      throw new ValidationError('NON_NFT_CANNOT_AUTO_DELIVER', 400);
+    }
     const {
       stripeProductId,
       stripePriceId,
@@ -625,14 +643,11 @@ router.put(['/:classId/price/:priceIndex', '/class/:classId/price/:priceIndex'],
     if (oldPriceInfo.isAutoDeliver && !price.isAutoDeliver) {
       throw new ValidationError('CANNOT_CHANGE_DELIVERY_METHOD_OF_AUTO_DELIVER_PRICE', 403);
     }
-
-    const newPriceInfo = {
-      ...oldPriceInfo,
-      ...formatPriceInfo(price),
-    };
-    if (!price.priceInDecimalByCurrency) {
-      delete newPriceInfo.priceInDecimalByCurrency;
+    if (isNonNFTProduct(bookInfo) && price.isAutoDeliver) {
+      throw new ValidationError('NON_NFT_CANNOT_AUTO_DELIVER', 400);
     }
+
+    const newPriceInfo = mergeNFTBookPriceUpdate(oldPriceInfo, price);
 
     if (oldPriceInfo.stripeProductId) {
       const stripe = getStripeClient();
@@ -802,7 +817,15 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       isPlusReadingEnabled = false,
       isPreviewEnabled = false,
       previewPercentage,
+      productType,
     } = req.body;
+
+    if (productType === 'merch') {
+      // eslint-disable-next-line no-use-before-define
+      await createMerchListing(classId, req);
+      sendValidatedJSON(res, NewListingResponseSchema, { classId });
+      return;
+    }
 
     let ownerWallet = '';
 
@@ -1003,6 +1026,91 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
   }
 });
 
+// Merch has no chain class, so nothing on chain names an owner: the caller
+// must be a configured store wallet, and every chain side effect is skipped.
+async function createMerchListing(classId: string, req: Request) {
+  const {
+    successUrl,
+    cancelUrl,
+    prices,
+    moderatorWallets = [],
+    connectedWallets,
+    descriptionFull,
+    availableTerritories,
+    maxQuantityPerOrder,
+    isApprovedForSale,
+    name,
+    description,
+    thumbnailUrl,
+    image,
+    nameByLocale,
+    descriptionByLocale,
+    descriptionFullByLocale,
+  } = req.body;
+  // EVM casing is an EIP-55 checksum, not identity, so compare lowercased. The
+  // session's own casing is kept as owner: checkIsAuthorized matches it exactly.
+  const merchOwnerWallets = (NFT_BOOK_MERCH_OWNER_WALLETS || [] as string[])
+    .map((w: string) => w.toLowerCase());
+  const ownerWallet = [req.user?.evmWallet, req.user?.wallet]
+    .find((w) => w && merchOwnerWallets.includes(w.toLowerCase()));
+  if (!ownerWallet) throw new ValidationError('NOT_MERCH_OWNER_WALLET', 403);
+  // The SKU is interpolated into storefront and email URLs, so keep it URL-safe.
+  if (!/^[A-Za-z0-9_-]+$/.test(classId)) throw new ValidationError('INVALID_MERCH_ID', 400);
+  if (!name) throw new ValidationError('MERCH_NAME_REQUIRED', 400);
+  // Stripe's `allowed_countries` needs an explicit list; there is no "anywhere".
+  if (!availableTerritories?.length) {
+    throw new ValidationError('MERCH_TERRITORIES_REQUIRED', 400);
+  }
+  if (connectedWallets) await validateConnectedWallets(connectedWallets);
+  // Merch is always fulfilled by hand; auto-deliver would try to mint.
+  const merchPrices = prices.map((p: NFTBookPrice) => ({ ...p, isAutoDeliver: false }));
+
+  const { isAutoApproved } = await newNftBookInfo(classId, {
+    ownerWallet,
+    successUrl,
+    cancelUrl,
+    prices: merchPrices,
+    moderatorWallets,
+    connectedWallets,
+    descriptionFull,
+    // Book-only reader features; `hideDownload` also keeps the DRM-free badge off.
+    mustClaimToView: false,
+    hideDownload: true,
+    hideAudio: true,
+    isPlusReadingEnabled: false,
+    isPreviewEnabled: false,
+    productType: 'merch',
+    availableTerritories,
+    maxQuantityPerOrder,
+    isApprovedForSale,
+    name,
+    description,
+    thumbnailUrl,
+    image,
+    nameByLocale,
+    descriptionByLocale,
+    descriptionFullByLocale,
+  });
+
+  await sendNFTBookNewListingSlackNotification({
+    wallet: ownerWallet,
+    classId,
+    className: name,
+    prices: merchPrices,
+    isAutoApproved,
+    isAdultOnly: false,
+  });
+
+  publisher.publish(PUBSUB_TOPIC_MISC, req, {
+    logType: 'BookNFTListingCreate',
+    wallet: ownerWallet,
+    classId,
+    productType: 'merch',
+    totalPrices: merchPrices.length,
+    manualDeliverTotalStock: merchPrices.reduce((sum, p) => sum + p.stock, 0),
+  });
+}
+
 router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(ListingSettingsBodySchema), async (req, res, next) => {
   try {
     const { classId } = req.params as Record<string, string>;
@@ -1020,6 +1128,9 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       isPlusReadingEnabled,
       isPreviewEnabled,
       previewPercentage,
+      nameByLocale,
+      descriptionByLocale,
+      descriptionFullByLocale,
     } = req.body;
     const bookInfo = await getNftBookInfo(classId);
     const {
@@ -1046,6 +1157,9 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       isPlusReadingEnabled,
       isPreviewEnabled,
       previewPercentage,
+      nameByLocale,
+      descriptionByLocale,
+      descriptionFullByLocale,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {

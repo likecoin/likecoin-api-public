@@ -3,6 +3,7 @@ import {
   FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
+  STRIPE_SHIPPING_COUNTRY_CODES,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
@@ -21,14 +22,34 @@ export const PriceInDecimalByCurrencySchema = z.record(
   z.number().int().min(0),
 );
 
+export const BOOK_PRODUCT_TYPES = ['book', 'merch'] as const;
+
+export const BookProductTypeSchema = z.enum(BOOK_PRODUCT_TYPES);
+
+// Only codes Stripe accepts in `allowed_countries`: a listing stored with any
+// other code would be accepted here and then fail at every checkout.
+const TerritoryCodeSchema = z.string().refine(
+  (c) => STRIPE_SHIPPING_COUNTRY_CODES.has(c),
+  { message: 'INVALID_TERRITORY_CODE' },
+);
+
+// The listing feeds default to books: a non-book SKU must never leak into a
+// feed that did not ask for one. `all` is the explicit mixed opt-in.
+export const BookProductTypeFilterSchema = z
+  .enum([...BOOK_PRODUCT_TYPES, 'all'])
+  .default('book')
+  .catch('book');
+
+const PriceInDecimalSchema = z.number()
+  .int()
+  .min(0)
+  .refine(
+    (v) => v === 0 || v >= MIN_BOOK_PRICE_DECIMAL,
+    { message: `priceInDecimal must be 0 or >= ${MIN_BOOK_PRICE_DECIMAL}` },
+  );
+
 export const NFTBookPriceSchema = z.object({
-  priceInDecimal: z.number()
-    .int()
-    .min(0)
-    .refine(
-      (v) => v === 0 || v >= MIN_BOOK_PRICE_DECIMAL,
-      { message: `priceInDecimal must be 0 or >= ${MIN_BOOK_PRICE_DECIMAL}` },
-    ),
+  priceInDecimal: PriceInDecimalSchema,
   priceInDecimalByCurrency: PriceInDecimalByCurrencySchema.optional(),
   stock: z.number().int().min(0),
   name: LocalizedTextMap,
@@ -38,6 +59,10 @@ export const NFTBookPriceSchema = z.object({
   isUnlisted: z.boolean().optional(),
   autoMemo: z.string().optional(),
   order: z.number().int().optional(),
+  // Omitted keeps the stored member price on an edit; null clears it. A client
+  // that rebuilds the price from a fixed field list must not wipe it silently.
+  plusPriceInDecimal: PriceInDecimalSchema.nullish(),
+  plusPriceInDecimalByCurrency: PriceInDecimalByCurrencySchema.nullish(),
 });
 
 export const NFTBookPricesSchema = z.array(NFTBookPriceSchema).min(1);
@@ -51,6 +76,13 @@ export const PriceReorderBodySchema = z.object({
 });
 
 const ConnectedWalletsSchema = z.record(z.string(), z.number().int().min(0));
+
+// Optional per-locale copy beside a plain listing string, which stays the
+// fallback every consumer reads. `zh` is one bucket, as in the CMS tags.
+export const BookLocalizedCopySchema = z.object({
+  en: z.string().optional(),
+  zh: z.string().optional(),
+});
 
 export const ListingSettingsBodySchema = z.object({
   moderatorWallets: z.array(z.string()).optional(),
@@ -67,12 +99,27 @@ export const ListingSettingsBodySchema = z.object({
   isPreviewEnabled: z.boolean().optional(),
   previewPercentage: z.number().int().min(1).max(50)
     .optional(),
+  // Omitted keeps the stored copy; null clears it.
+  nameByLocale: BookLocalizedCopySchema.nullish(),
+  descriptionByLocale: BookLocalizedCopySchema.nullish(),
+  descriptionFullByLocale: BookLocalizedCopySchema.nullish(),
 });
 
 export const NewListingBodySchema = ListingSettingsBodySchema.extend({
   successUrl: z.string().optional(),
   cancelUrl: z.string().optional(),
   prices: NFTBookPricesSchema,
+  productType: BookProductTypeSchema.optional(),
+  // The fields below are read for non-NFT products only, which carry no chain class, so
+  // their presentational fields arrive in the body instead of class metadata.
+  availableTerritories: z.array(TerritoryCodeSchema).min(1).optional(),
+  maxQuantityPerOrder: z.number().int().min(1).optional(),
+  // Lets a SKU be created unbuyable; books are always created on sale.
+  isApprovedForSale: z.boolean().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  thumbnailUrl: z.string().optional(),
+  image: z.string().optional(),
 });
 
 export const ImageUploadBodySchema = z.object({
@@ -84,6 +131,11 @@ export type StripeConnectSite = typeof STRIPE_CONNECT_SITES[number];
 
 export const StripeConnectNewBodySchema = z.object({
   site: z.enum(STRIPE_CONNECT_SITES).optional(),
+});
+
+export const NFTBookShipBodySchema = z.object({
+  // May be empty: a hand-delivered order is still shipped.
+  trackingNumber: z.string().trim().max(200).default(''),
 });
 
 export const NFTBookSentBodySchema = z.object({
@@ -187,6 +239,7 @@ export const BookSearchQuerySchema = z.object({
 }).passthrough();
 
 export const BookListPaginationQuerySchema = z.object({
+  productType: BookProductTypeFilterSchema,
   library: z.literal('1').optional(),
   before: z.coerce.number().int().optional(),
   key: z.coerce.number().int().optional(),
@@ -377,6 +430,8 @@ export const NFTBookPriceFilteredSchema = z.object({
   isTippingEnabled: z.boolean().optional(),
   order: z.number().int(),
   sold: z.number().int().optional(),
+  plusPriceInDecimal: z.number().int().optional(),
+  plusPriceInDecimalByCurrency: PriceInDecimalByCurrencySchema.optional(),
 });
 
 export const NFTBookPricesInfoFilteredSchema = z.object({
@@ -403,6 +458,10 @@ export const BookSignatureImageSchema = z.union([z.boolean(), z.literal('signed'
 export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
+  // Absent means 'book'; clients must treat it that way rather than requiring it.
+  productType: BookProductTypeSchema.optional(),
+  availableTerritories: z.array(z.string()).optional(),
+  maxQuantityPerOrder: z.number().int().optional(),
   likeClassId: z.string().optional(),
   evmClassId: z.string().optional(),
   redirectClassId: z.string().optional(),
@@ -425,6 +484,9 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
+  nameByLocale: BookLocalizedCopySchema.optional(),
+  descriptionByLocale: BookLocalizedCopySchema.optional(),
+  descriptionFullByLocale: BookLocalizedCopySchema.optional(),
   previewContent: z.string().optional(),
   descriptionSummary: z.string().optional(),
   promotionalImages: z.array(z.string()).optional(),
@@ -445,6 +507,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   restrictedTerritories: z.array(z.string()).optional(),
   sold: z.number().int().optional(),
   pendingNFTCount: z.number().int().optional(),
+  pendingShipmentCount: z.number().int().optional(),
   moderatorWallets: z.array(z.string()).optional(),
   connectedWallets: z.unknown().optional(),
   isApprovedForSale: z.boolean(),
@@ -452,6 +515,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   isApprovedForAds: z.boolean(),
   approvalStatus: z.string().optional(),
   plusPromoEnabled: z.boolean().optional(),
+  plusPromoPeriod: z.enum(['month', 'year']).optional(),
   isPlusReadingEnabled: z.boolean().optional(),
   isPreviewEnabled: z.boolean().optional(),
   previewPercentage: z.number().int().min(1).max(50)
@@ -464,6 +528,20 @@ export const BookGiftInfoSchema = z.object({
   toEmail: z.string(),
   message: z.string().optional(),
 }).passthrough();
+
+// Stripe returns null, not undefined, for an address part the buyer left blank.
+export const BookShippingDetailsSchema = z.object({
+  name: z.string().nullish(),
+  phone: z.string().nullish(),
+  address: z.object({
+    line1: z.string().nullish(),
+    line2: z.string().nullish(),
+    city: z.string().nullish(),
+    state: z.string().nullish(),
+    postal_code: z.string().nullish(),
+    country: z.string().nullish(),
+  }).optional(),
+});
 
 export const BookPurchaseDataFilteredSchema = z.object({
   id: z.string().optional(),
@@ -492,6 +570,10 @@ export const BookPurchaseDataFilteredSchema = z.object({
   quantity: z.number().int(),
   classIds: z.array(z.string()).optional(),
   classIdsWithPrice: z.array(z.unknown()).optional(),
+  phone: z.string().optional(),
+  shippingDetails: BookShippingDetailsSchema.optional(),
+  trackingNumber: z.string().optional(),
+  shippedAt: z.number().optional(),
 });
 
 export const BookPurchaseCommissionFilteredSchema = z.object({
