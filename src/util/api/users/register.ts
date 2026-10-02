@@ -1,7 +1,7 @@
 import uuidv4 from 'uuid/v4';
 
 import { checksumAddress } from 'viem';
-import { sendVerificationEmail } from '../../sendgrid';
+import { sendVerificationEmail } from '../../ses';
 import {
   PUBSUB_TOPIC_MISC,
   MIN_USER_ID_LENGTH,
