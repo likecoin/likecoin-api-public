@@ -21,6 +21,7 @@ import {
   sendPlusBookPromoCodeEmail,
   sendPlusGiftPendingClaimEmail,
   sendPlusGiftClaimedEmail,
+  sendVerificationEmail,
 } from '../../src/util/ses';
 import type { TransactionFeeInfo } from '../../src/util/api/likernft/book/type';
 
@@ -364,5 +365,29 @@ describe('SES email params', () => {
     const params = lastParams() as { Destination?: { ToAddresses?: string[] } };
     expect(params.Destination).not.toHaveProperty('ToAddresses');
     expect(params).toMatchSnapshot();
+  });
+
+  // The link is the whole verification flow, so pin its shape: host, path, and
+  // the `lang` a GET from a mail client has no other way to carry.
+  it('sendVerificationEmail links straight at the API with the sender locale', async () => {
+    const res = {
+      __: (key: string, args?: Record<string, string>) => (args ? `${key} ${JSON.stringify(args)}` : key),
+      getLocale: () => 'en',
+    };
+    await sendVerificationEmail(res as never, {
+      email: 'user@example.com',
+      displayName: 'User',
+      verificationUUID: 'uuid-123',
+    });
+    const params = lastParams() as {
+      Source: string;
+      Destination: { ToAddresses: string[] };
+      Message: { Body: { Html: { Data: string } } };
+    };
+    expect(params.Source).toBe('"3ook.com" <cs@3ook.com>');
+    expect(params.Destination.ToAddresses).toEqual(['user@example.com']);
+    const html = params.Message.Body.Html.Data;
+    expect(html).toContain('https://api.rinkeby.like.co/email/verify/uuid-123?lang=en');
+    expect(html).not.toContain('like.co/verify/');
   });
 });
