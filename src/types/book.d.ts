@@ -189,6 +189,7 @@ export interface NFTBookListingInfo {
   mustClaimToView?: boolean;
   hideDownload?: boolean;
   hideAudio?: boolean;
+  isAudioPlusReadingOnly?: boolean;
   hideUpsell?: boolean;
   enableCustomMessagePage?: boolean;
   tableOfContents?: any;
