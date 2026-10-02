@@ -1612,8 +1612,26 @@ const STRIPE_TO_SUBSCRIPTION_STATUS: Partial<Record<
   incomplete_expired: 'canceled',
 };
 
+// A billing-portal cancellation can set cancel_at without canceled_at,
+// so the request time is taken from the event that first set cancel_at.
+// Later updates return undefined to keep the date already recorded.
+export function resolveStripeCanceledAt(
+  subscription: Pick<Stripe.Subscription, 'canceled_at' | 'cancel_at'>,
+  previousAttributes: Partial<Stripe.Subscription> | undefined,
+  eventCreated: number | undefined,
+): number | null | undefined {
+  if (subscription.canceled_at !== null) return subscription.canceled_at;
+  if (subscription.cancel_at === null) return null;
+  if (previousAttributes && 'cancel_at' in previousAttributes && eventCreated !== undefined) {
+    return eventCreated;
+  }
+  return undefined;
+}
+
 export async function processStripeSubscriptionStatusUpdate(
   subscription: Stripe.Subscription,
+  previousAttributes?: Partial<Stripe.Subscription>,
+  eventCreated?: number,
 ) {
   const { status } = subscription;
   const { evmWallet, likeWallet } = subscription.metadata || {};
@@ -1622,7 +1640,7 @@ export async function processStripeSubscriptionStatusUpdate(
   await updateAirtableSubscriptionStatus({
     subscriptionId: subscription.id,
     providerStatus: status,
-    canceledAt: subscription.canceled_at,
+    canceledAt: resolveStripeCanceledAt(subscription, previousAttributes, eventCreated),
     endedAt: subscription.ended_at,
   });
   if (!evmWallet && !likeWallet) {

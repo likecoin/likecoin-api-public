@@ -80,7 +80,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
       case 'customer.subscription.updated': {
         const subscription: Stripe.Subscription = event.data.object;
-        await processStripeSubscriptionStatusUpdate(subscription);
+        await processStripeSubscriptionStatusUpdate(
+          subscription,
+          event.data.previous_attributes,
+          event.created,
+        );
         break;
       }
       default: {
