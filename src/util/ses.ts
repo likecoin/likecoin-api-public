@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import { getBasicV2Template, getNFTTwoContentWithMessageAndButtonTemplate } from '@likecoin/edm';
+import type { Response } from 'express';
 import { SES, type SendEmailCommandInput } from '@aws-sdk/client-ses';
 import {
   TEST_MODE,
@@ -15,6 +16,7 @@ import {
 import { convertUSDPriceToCurrency } from './pricing';
 import { escapeHtml } from './misc';
 import {
+  getEmailVerifyURL,
   getSharedMemberClaimURL,
   getPlusGiftPageClaimURL,
   getPlusPageURL,
@@ -1350,6 +1352,30 @@ export function sendPlusGiftClaimedEmail({
     functionName: 'sendPlusGiftClaimedEmail',
     to: [fromEmail],
     bcc: SALES_BCC,
+    title,
+    html,
+  });
+}
+
+export function sendVerificationEmail(res: Response, user: {
+  email: string;
+  displayName?: string;
+  verificationUUID: string;
+}) {
+  const title = res.__('Email.VerifyEmail.subject');
+  const html = getBasicV2Template({
+    title,
+    content: res.__('Email.VerifyEmail.body', {
+      name: user.displayName || '',
+      verifyUrl: getEmailVerifyURL({
+        uuid: user.verificationUUID,
+        language: res.getLocale(),
+      }),
+    }),
+  }).body;
+  return sendSESTemplateEmail({
+    functionName: 'sendVerificationEmail',
+    to: [user.email],
     title,
     html,
   });

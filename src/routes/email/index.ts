@@ -9,7 +9,7 @@ import {
   FieldValue,
 } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
-import { sendVerificationEmail } from '../../util/sendgrid';
+import { sendVerificationEmail } from '../../util/ses';
 import { ValidationError } from '../../util/ValidationError';
 import { validateParams, validateBody } from '../../middleware/validate';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
@@ -43,7 +43,7 @@ router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), va
       }
       ({ verificationUUID } = user);
       if (!verificationUUID) {
-        verificationUUID = uuidv4();
+        verificationUUID = uuidv4() as string;
         user.verificationUUID = verificationUUID;
       }
       await userRef.update({
@@ -51,7 +51,11 @@ router.post('/verify/user/:id/', validateParams(EmailVerifyUserParamsSchema), va
         verificationUUID,
       });
       try {
-        await sendVerificationEmail(res, user);
+        await sendVerificationEmail(res, {
+          email: user.email,
+          displayName: user.displayName,
+          verificationUUID,
+        });
       } catch (err) {
         await userRef.update({
           lastVerifyTs: FieldValue.delete(),
