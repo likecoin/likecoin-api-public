@@ -60,13 +60,6 @@ beforeEach(async () => {
 });
 
 // Mock other external services
-vi.mock('@sendgrid/mail', () => ({
-  default: {
-    setApiKey: vi.fn(),
-    send: vi.fn(() => Promise.resolve()),
-  },
-}));
-
 vi.mock('@aws-sdk/client-ses', () => ({
   SES: vi.fn().mockImplementation(() => ({
     sendEmail: () => Promise.resolve(),
