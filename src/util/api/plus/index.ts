@@ -45,7 +45,7 @@ import {
 } from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { payPlusSubscriptionAirdrop } from './airdrop';
-import { sendPlusSubscriptionSlackNotification } from '../../slack';
+import { getPlusAcquisitionSlackEvent, sendPlusSubscriptionSlackNotification } from '../../slack';
 import {
   createAirtableSubscriptionPaymentRecord,
   updateAirtableSubscriptionStatus,
@@ -799,13 +799,10 @@ async function emitPlusInvoiceAnalytics({
       subscriptionId,
       email: user.email || 'N/A',
       priceWithCurrency,
-      // Treat the first payment converted from a trial as a new subscription,
-      // not a renewal (start_date is unchanged so isNewSubscription is false).
-      isNew: isNewSubscription || isTrialToPaidUpgrade,
+      event: getPlusAcquisitionSlackEvent({ isTrial, isTrialToPaidUpgrade }),
       userId: likerId,
       stripeCustomerId: customerId,
       method: 'stripe',
-      isTrial,
     })] : []),
     createAirtableSubscriptionPaymentRecord({
       subscriptionId,

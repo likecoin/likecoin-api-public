@@ -26,7 +26,7 @@ import {
 } from './sharedMember';
 import { calculatePlusDailyValue, recordPlusSubscriptionAccrual } from './revenueShare';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
-import { sendPlusSubscriptionSlackNotification } from '../../slack';
+import { getPlusAcquisitionSlackEvent, sendPlusSubscriptionSlackNotification } from '../../slack';
 import {
   createAirtableSubscriptionPaymentRecord,
   updateAirtableSubscriptionStatus,
@@ -559,12 +559,9 @@ async function handleGrant(
         priceWithCurrency: paymentAmount != null && paymentCurrency
           ? `${paymentAmount.toFixed(2)} ${paymentCurrency}`
           : 'N/A',
-        // Treat the first payment converted from a trial as a new subscription, not a
-        // renewal (the record's `since` is unchanged, so isInitial is false).
-        isNew: isInitial || isTrialToPaidUpgrade,
+        event: getPlusAcquisitionSlackEvent({ isTrial, isTrialToPaidUpgrade }),
         userId: likerId,
         method: 'revenuecat',
-        isTrial,
       }));
     }
     // Mirror the Stripe path's value signal so Meta/GA optimize the same for web

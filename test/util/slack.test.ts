@@ -46,7 +46,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
       subscriptionId: 'sub_123',
       email: 'test@example.com',
       priceWithCurrency: '4.99 USD',
-      isNew: true,
+      event: 'new',
       userId: 'liker1',
       stripeCustomerId: 'cus_123',
       method: 'stripe',
@@ -65,7 +65,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
       subscriptionId: 'txn_123',
       email: 'test@example.com',
       priceWithCurrency: '4.99 USD',
-      isNew: true,
+      event: 'new',
       userId: 'liker1',
       method,
     });
@@ -75,6 +75,21 @@ describe('sendPlusSubscriptionSlackNotification', () => {
     expect(payload.customerId).toBe('N/A');
   });
 
+  it.each([
+    ['new' as const, '🎉 New'],
+    ['newTrial' as const, '✨ New trial'],
+    ['trialConverted' as const, '🎉 New trial converted'],
+  ])('labels a %s event as %s', async (event, label) => {
+    await sendPlusSubscriptionSlackNotification({
+      subscriptionId: 'sub_123',
+      email: 'test@example.com',
+      priceWithCurrency: '4.99 USD',
+      event,
+      userId: 'liker1',
+    });
+    expect(getPostedPayload().subscriptionType).toBe(label);
+  });
+
   // The Slack message turns the links into buttons, which reject an empty URL,
   // and JSON.stringify drops undefined keys before axios ever sends them.
   it.each(['stripe', 'revenuecat', 'shared'] as const)('sends every link key for %s', async (method) => {
@@ -82,7 +97,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
       subscriptionId: 'txn_123',
       email: 'test@example.com',
       priceWithCurrency: '4.99 USD',
-      isNew: true,
+      event: 'new',
       userId: 'liker1',
       method,
     });

@@ -180,8 +180,7 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.dailyValue).toBe(0);
     expect(mockSlackNotification).toHaveBeenCalledWith(
       expect.objectContaining({
-        isTrial: true,
-        isNew: true,
+        event: 'newTrial',
         // The $1 is a real charge and must still be reported, unlike a free trial's 0.
         priceWithCurrency: '1.00 USD',
       }),
@@ -213,7 +212,7 @@ describe('Plus RevenueCat webhook', () => {
       const user = await getUserWithCivicLikerProperties('testing');
       expect(user?.likerPlus?.currentType).toBe('paid');
       expect(mockSlackNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ isTrial: false, isNew: true }),
+        expect.objectContaining({ event: 'trialConverted' }),
       );
     } finally {
       // This is the only test booking a real charge, so the only one writing a rev-share
