@@ -534,6 +534,19 @@ describe('Plus RevenueCat webhook', () => {
     expect(mockLogServerEvents).not.toHaveBeenCalledWith('PaymentFailed', expect.anything());
   });
 
+  it('announces only the first of redelivered BILLING_ISSUE events on Slack', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    mockSlackNotification.mockClear();
+    await post({ ...baseEvent, id: 'evt_dun_slack_1', type: 'BILLING_ISSUE' }, { Authorization: AUTH });
+    await post({ ...baseEvent, id: 'evt_dun_slack_2', type: 'BILLING_ISSUE' }, { Authorization: AUTH });
+    expect(mockSlackNotification).toHaveBeenCalledTimes(1);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'paymentFailed',
+      subscriptionId: 'txn_123',
+      method: 'revenuecat',
+    }));
+  });
+
   it('does not emit PaymentFailed for a Stripe-owned record', async () => {
     await userCollection.doc('testing').update({
       likerPlus: { ...liveAppStorePlus, provider: 'stripe', subscriptionId: 'sub_1' },

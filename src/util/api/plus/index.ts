@@ -1597,6 +1597,23 @@ export async function processStripePaymentFailure(
     });
   }
   await logPromise;
+  // Smart Retries re-send this per attempt; a failed checkout is an incomplete signup.
+  if (user
+    && invoice.billing_reason === 'subscription_cycle'
+    && invoice.attempt_count === 1
+    && !isPlusRecordForOtherSubscription(user.likerPlus, subscriptionId)) {
+    await sendPlusSubscriptionSlackNotification({
+      subscriptionId,
+      email: user.email || 'N/A',
+      priceWithCurrency: `${amountDue.toFixed(2)} ${invoice.currency?.toUpperCase()}`,
+      event: 'paymentFailed',
+      userId: user.user,
+      stripeCustomerId: typeof invoice.customer === 'string'
+        ? invoice.customer
+        : invoice.customer?.id,
+      method: 'stripe',
+    });
+  }
 }
 
 const STRIPE_TO_SUBSCRIPTION_STATUS: Partial<Record<

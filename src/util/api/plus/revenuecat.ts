@@ -944,7 +944,7 @@ async function handleBillingIssue(
     },
   });
   if (isQuarantinedSandbox(isSandbox)) return;
-  const { payload } = buildChurnEventPayload(event, user, user.likerPlus);
+  const { transactionId, payload } = buildChurnEventPayload(event, user, user.likerPlus);
   // No value/currency on purpose: a failed charge must reach PostHog but never
   // Meta/GA as a conversion. Errors are swallowed — the retry guard above makes a
   // redelivery a no-op, so a throw would 5xx the webhook without ever re-emitting.
@@ -964,6 +964,14 @@ async function handleBillingIssue(
   }).catch((err) => {
     // eslint-disable-next-line no-console
     console.error('Failed to log PaymentFailed event:', err);
+  });
+  await sendPlusSubscriptionSlackNotification({
+    subscriptionId: transactionId || 'N/A',
+    email: user.email || 'N/A',
+    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    event: 'paymentFailed',
+    userId: likerId,
+    method: 'revenuecat',
   });
 }
 

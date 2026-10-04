@@ -233,6 +233,7 @@ const PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS = {
   trialConverted: '🎉 New trial converted',
   unsubscribed: '❌ Unsubscribed',
   unsubscribedTrial: '❌ Unsubscribed (trial)',
+  paymentFailed: '⚠️ Payment failed',
 } as const;
 
 export type PlusSubscriptionSlackEvent = keyof typeof PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS;
