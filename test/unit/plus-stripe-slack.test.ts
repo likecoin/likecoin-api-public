@@ -48,6 +48,7 @@ cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
 // eslint-disable-next-line import/first
 const {
   isStripeCancellationScheduled,
+  processStripePaymentFailure,
   processStripeSubscriptionInvoice,
   processStripeSubscriptionStatusUpdate,
 } = await import('../../src/util/api/plus');
@@ -207,6 +208,74 @@ describe('Plus Stripe unsubscribe notification', () => {
         { cancel_at_period_end: false, cancel_at: null },
         1759000000,
       );
+      expect(mockSlackNotification).not.toHaveBeenCalled();
+    } finally {
+      await userCollection.doc('testing').update({ 'likerPlus.subscriptionId': SUB_ID });
+    }
+  });
+});
+
+describe('Plus Stripe failed renewal notification', () => {
+  function failedInvoice(billingReason: string, attemptCount: number) {
+    return {
+      id: `in_failed_${billingReason}_${attemptCount}`,
+      amount_due: 6999,
+      amount_remaining: 6999,
+      currency: 'usd',
+      customer: 'cus_1',
+      billing_reason: billingReason,
+      attempt_count: attemptCount,
+      parent: {
+        type: 'subscription_details',
+        subscription_details: { subscription: SUB_ID, metadata: { evmWallet: WALLET } },
+      },
+    };
+  }
+
+  beforeEach(() => {
+    mockSubscriptionRetrieve.mockReset();
+    mockSlackNotification.mockReset();
+    mockLogServerEvents.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('announces the first failed renewal attempt with the amount due', async () => {
+    seedSubscription();
+    await processStripePaymentFailure(failedInvoice('subscription_cycle', 1) as never);
+    expect(mockSlackNotification).toHaveBeenCalledTimes(1);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'paymentFailed',
+      subscriptionId: SUB_ID,
+      userId: 'testing',
+      stripeCustomerId: 'cus_1',
+      priceWithCurrency: '69.99 USD',
+    }));
+  });
+
+  it('announces the failed first charge after a trial', async () => {
+    seedSubscription({ trialEnd: TRIAL_END, periodStart: TRIAL_END });
+    await processStripePaymentFailure(failedInvoice('subscription_cycle', 1) as never);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'paymentFailed',
+    }));
+  });
+
+  it('stays quiet on Smart Retries attempts', async () => {
+    seedSubscription();
+    await processStripePaymentFailure(failedInvoice('subscription_cycle', 2) as never);
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet on a failed checkout', async () => {
+    seedSubscription();
+    await processStripePaymentFailure(failedInvoice('subscription_create', 1) as never);
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet when the Plus record belongs to another subscription', async () => {
+    seedSubscription();
+    await userCollection.doc('testing').update({ 'likerPlus.subscriptionId': 'sub_other' });
+    try {
+      await processStripePaymentFailure(failedInvoice('subscription_cycle', 1) as never);
       expect(mockSlackNotification).not.toHaveBeenCalled();
     } finally {
       await userCollection.doc('testing').update({ 'likerPlus.subscriptionId': SUB_ID });

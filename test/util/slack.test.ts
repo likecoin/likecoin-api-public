@@ -81,6 +81,7 @@ describe('sendPlusSubscriptionSlackNotification', () => {
     ['trialConverted' as const, '🎉 New trial converted'],
     ['unsubscribed' as const, '❌ Unsubscribed'],
     ['unsubscribedTrial' as const, '❌ Unsubscribed (trial)'],
+    ['paymentFailed' as const, '⚠️ Payment failed'],
   ])('labels a %s event as %s', async (event, label) => {
     await sendPlusSubscriptionSlackNotification({
       subscriptionId: 'sub_123',
