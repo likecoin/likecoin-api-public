@@ -227,35 +227,42 @@ export async function sendNFTBookSalesSlackNotification({
   }
 }
 
+const PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS = {
+  new: '🎉 New',
+  newTrial: '✨ New trial',
+  trialConverted: '🎉 New trial converted',
+} as const;
+
+export type PlusSubscriptionSlackEvent = keyof typeof PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS;
+
+export function getPlusAcquisitionSlackEvent({ isTrial, isTrialToPaidUpgrade }: {
+  isTrial: boolean;
+  isTrialToPaidUpgrade: boolean;
+}): PlusSubscriptionSlackEvent {
+  if (isTrialToPaidUpgrade) return 'trialConverted';
+  return isTrial ? 'newTrial' : 'new';
+}
+
 export async function sendPlusSubscriptionSlackNotification({
   subscriptionId,
   email,
   priceWithCurrency,
-  isNew,
+  event,
   userId,
   stripeCustomerId,
   method = 'stripe',
-  isTrial = false,
 } : {
   subscriptionId: string;
   email: string;
   priceWithCurrency: string;
-  isNew: boolean;
+  event: PlusSubscriptionSlackEvent;
   userId: string;
   stripeCustomerId?: string;
   method?: LikerPlusProvider;
-  isTrial?: boolean;
 }) {
   if (!PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK) return;
   try {
-    let subscriptionType = '';
-    if (isTrial) {
-      subscriptionType = 'New trial';
-    } else if (isNew) {
-      subscriptionType = 'New';
-    } else {
-      subscriptionType = 'Renewed';
-    }
+    const subscriptionType = PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS[event];
     const customerId = stripeCustomerId || 'N/A';
     const stripeEndpoint = `https://dashboard.stripe.com${IS_TESTNET ? '/test' : ''}`;
     // The Slack message renders these as link buttons, which reject an empty URL,

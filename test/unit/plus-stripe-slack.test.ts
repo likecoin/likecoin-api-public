@@ -117,5 +117,8 @@ describe('Plus Stripe Slack notifications', () => {
     seedSubscription({ trialEnd: TRIAL_END, periodStart: TRIAL_END });
     await processStripeSubscriptionInvoice(cycleInvoice('in_conversion') as never, req as never);
     expect(mockSlackNotification).toHaveBeenCalledTimes(1);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'trialConverted',
+    }));
   });
 });
