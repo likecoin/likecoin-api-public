@@ -226,6 +226,19 @@ describe('Plus RevenueCat webhook', () => {
     }
   });
 
+  it('does not announce a plain renewal on Slack but still reports it', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    mockSlackNotification.mockClear();
+    mockLogServerEvents.mockClear();
+    const res = await post(
+      { ...baseEvent, id: 'evt_renewal', type: 'RENEWAL' },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+    expect(mockLogServerEvents).toHaveBeenCalledWith('SubscriptionRenewed', expect.anything());
+  });
+
   it('skips the grant when a subscription event has no resolvable period end', async () => {
     // The in-memory stub persists writes across tests, so force a clean record first.
     await userCollection.doc('testing').update({ likerPlus: null });

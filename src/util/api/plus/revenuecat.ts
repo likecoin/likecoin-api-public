@@ -551,19 +551,22 @@ async function handleGrant(
   // posts a "renewal … 0.00" that reads as a real sale.
   const sideEffects: Promise<unknown>[] = [];
   if (logEvent) {
-    sideEffects.push(sendPlusSubscriptionSlackNotification({
-      subscriptionId: transactionId || 'N/A',
-      email: user.email || 'N/A',
-      priceWithCurrency: paymentAmount != null && paymentCurrency
-        ? `${paymentAmount.toFixed(2)} ${paymentCurrency}`
-        : 'N/A',
-      // Treat the first payment converted from a trial as a new subscription, not a
-      // renewal (the record's `since` is unchanged, so isInitial is false).
-      isNew: isInitial || isTrialToPaidUpgrade,
-      userId: likerId,
-      method: 'revenuecat',
-      isTrial,
-    }));
+    // Renewals are routine and not announced, unlike a trial conversion.
+    if (isInitial || isTrialToPaidUpgrade) {
+      sideEffects.push(sendPlusSubscriptionSlackNotification({
+        subscriptionId: transactionId || 'N/A',
+        email: user.email || 'N/A',
+        priceWithCurrency: paymentAmount != null && paymentCurrency
+          ? `${paymentAmount.toFixed(2)} ${paymentCurrency}`
+          : 'N/A',
+        // Treat the first payment converted from a trial as a new subscription, not a
+        // renewal (the record's `since` is unchanged, so isInitial is false).
+        isNew: isInitial || isTrialToPaidUpgrade,
+        userId: likerId,
+        method: 'revenuecat',
+        isTrial,
+      }));
+    }
     // Mirror the Stripe path's value signal so Meta/GA optimize the same for web
     // and IAP — app IAP trials charge 0, so value falls back to predicted LTV.
     const {

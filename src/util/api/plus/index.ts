@@ -794,7 +794,8 @@ async function emitPlusInvoiceAnalytics({
   }
 
   await Promise.all([
-    sendPlusSubscriptionSlackNotification({
+    // Renewals are routine and not announced, unlike a trial conversion.
+    ...(isNewSubscription || isTrialToPaidUpgrade ? [sendPlusSubscriptionSlackNotification({
       subscriptionId,
       email: user.email || 'N/A',
       priceWithCurrency,
@@ -805,7 +806,7 @@ async function emitPlusInvoiceAnalytics({
       stripeCustomerId: customerId,
       method: 'stripe',
       isTrial,
-    }),
+    })] : []),
     createAirtableSubscriptionPaymentRecord({
       subscriptionId,
       customerId,
