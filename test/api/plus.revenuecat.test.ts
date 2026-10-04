@@ -424,6 +424,64 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
   });
 
+  it('announces a CANCELLATION as an unsubscribe', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, currentType: 'trial' },
+    });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledTimes(1);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'unsubscribedTrial',
+      subscriptionId: 'txn_123',
+      priceWithCurrency: 'N/A',
+      method: 'revenuecat',
+    }));
+  });
+
+  it('does not announce the CANCELLATION that Play pairs with a failed charge', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_billing',
+        type: 'CANCELLATION',
+        cancel_reason: 'BILLING_ERROR',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+  });
+
+  it('does not announce a CANCELLATION for a different subscription', async () => {
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_other',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        original_transaction_id: 'txn_other',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+  });
+
   it('sets past_due on BILLING_ISSUE and emits PaymentFailed', async () => {
     await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
     mockLogServerEvents.mockClear();

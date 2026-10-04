@@ -1626,6 +1626,19 @@ export function resolveStripeCanceledAt(
   return undefined;
 }
 
+// True only for the update that turns auto-renew off.
+// A billing-portal cancel may set only cancel_at; rescheduling an existing one is no new cancel.
+export function isStripeCancellationScheduled(
+  subscription: Pick<Stripe.Subscription, 'cancel_at' | 'cancel_at_period_end'>,
+  previousAttributes: Partial<Stripe.Subscription> | undefined,
+): boolean {
+  if (!previousAttributes) return false;
+  if (subscription.cancel_at_period_end && previousAttributes.cancel_at_period_end === false) {
+    return true;
+  }
+  return subscription.cancel_at !== null && previousAttributes.cancel_at === null;
+}
+
 export async function processStripeSubscriptionStatusUpdate(
   subscription: Stripe.Subscription,
   previousAttributes?: Partial<Stripe.Subscription>,
@@ -1657,10 +1670,29 @@ export async function processStripeSubscriptionStatusUpdate(
   }
   const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
   if (!user) return;
-  if (user.likerPlus?.subscriptionStatus === subscriptionStatus) return;
-  await userCollection.doc(user.user).update({
-    'likerPlus.subscriptionStatus': subscriptionStatus,
-  });
+  if (user.likerPlus?.subscriptionStatus !== subscriptionStatus) {
+    await userCollection.doc(user.user).update({
+      'likerPlus.subscriptionStatus': subscriptionStatus,
+    });
+  }
+  // Last, so a failed write above is retried by Stripe before anything is posted.
+  if (isStripeCancellationScheduled(subscription, previousAttributes)
+    && !isPlusRecordForOtherSubscription(user.likerPlus, subscription.id)) {
+    const price = subscription.items?.data[0]?.price;
+    await sendPlusSubscriptionSlackNotification({
+      subscriptionId: subscription.id,
+      email: user.email || 'N/A',
+      priceWithCurrency: price?.unit_amount != null
+        ? `${(price.unit_amount / 100).toFixed(2)} ${price.currency.toUpperCase()}`
+        : 'N/A',
+      event: status === 'trialing' ? 'unsubscribedTrial' : 'unsubscribed',
+      userId: user.user,
+      stripeCustomerId: typeof subscription.customer === 'string'
+        ? subscription.customer
+        : subscription.customer?.id,
+      method: 'stripe',
+    });
+  }
 }
 
 export async function updateSubscriptionPeriod(

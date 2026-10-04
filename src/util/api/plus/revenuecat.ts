@@ -893,6 +893,35 @@ async function recordAutoRenewChange(event: RevenueCatEvent, isSandbox: boolean)
   });
 }
 
+// Only a real charge is worth showing; stores send price 0 on many lifecycle events.
+function formatRevenueCatSlackPrice(event: RevenueCatEvent): string {
+  const { amount, currency } = getRevenueCatPaymentAmount(event);
+  return amount && currency ? `${amount.toFixed(2)} ${currency}` : 'N/A';
+}
+
+async function notifyUnsubscribe(
+  event: RevenueCatEvent,
+  likerId: string,
+  user: RevenueCatSubscriber,
+  isSandbox: boolean,
+) {
+  if (isQuarantinedSandbox(isSandbox)) return;
+  // Play pairs every failed charge with one of these; BILLING_ISSUE reports it instead.
+  if (event.cancel_reason === 'BILLING_ERROR') return;
+  const { likerPlus } = user;
+  if (!likerPlus) return;
+  if (isStripeOwnedLikerPlus(likerPlus) || isSharedGrantedLikerPlus(likerPlus)) return;
+  if (isForOtherSubscription(event, likerPlus)) return;
+  await sendPlusSubscriptionSlackNotification({
+    subscriptionId: event.original_transaction_id || likerPlus.originalTransactionId || 'N/A',
+    email: user.email || 'N/A',
+    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    event: likerPlus.currentType === 'trial' ? 'unsubscribedTrial' : 'unsubscribed',
+    userId: likerId,
+    method: 'revenuecat',
+  });
+}
+
 async function handleBillingIssue(
   event: RevenueCatEvent,
   likerId: string,
@@ -1082,8 +1111,9 @@ export async function processRevenueCatEvent(
     await handleBillingIssue(event, likerId, user, isSandbox);
   } else if (event.type === 'CANCELLATION') {
     // Auto-renew turned off — the user keeps access until EXPIRATION.
-    // Nothing to revoke; only the Airtable row records the decision.
+    // Nothing to revoke; Airtable records the decision and Slack announces it.
     await recordAutoRenewChange(event, isSandbox);
+    await notifyUnsubscribe(event, likerId, user, isSandbox);
   } else {
     // NON_RENEWING_PURCHASE, NON_SUBSCRIPTION_PURCHASE, SUBSCRIPTION_PAUSED, etc.
     return;

@@ -231,6 +231,8 @@ const PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS = {
   new: '🎉 New',
   newTrial: '✨ New trial',
   trialConverted: '🎉 New trial converted',
+  unsubscribed: '❌ Unsubscribed',
+  unsubscribedTrial: '❌ Unsubscribed (trial)',
 } as const;
 
 export type PlusSubscriptionSlackEvent = keyof typeof PLUS_SUBSCRIPTION_SLACK_EVENT_LABELS;
