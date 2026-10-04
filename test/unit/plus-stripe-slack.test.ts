@@ -46,7 +46,11 @@ const cfg = config as Record<string, unknown>;
 cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
 
 // eslint-disable-next-line import/first
-const { processStripeSubscriptionInvoice } = await import('../../src/util/api/plus');
+const {
+  isStripeCancellationScheduled,
+  processStripeSubscriptionInvoice,
+  processStripeSubscriptionStatusUpdate,
+} = await import('../../src/util/api/plus');
 
 const WALLET = '0x4b25758E41f9240C8EB8831cEc7F1a02686387fa'; // user `testing` in test/data/user.json
 const SUB_ID = 'sub_slack';
@@ -120,5 +124,92 @@ describe('Plus Stripe Slack notifications', () => {
     expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
       event: 'trialConverted',
     }));
+  });
+});
+
+describe('isStripeCancellationScheduled', () => {
+  const CANCEL_AT = 1790000000;
+  it.each([
+    ['auto-renew turned off', CANCEL_AT, true, { cancel_at_period_end: false, cancel_at: null }, true],
+    ['portal cancel that only sets cancel_at', CANCEL_AT, false, { cancel_at: null }, true],
+    ['an unrelated update', CANCEL_AT, false, { status: 'trialing' }, false],
+    ['a rescheduled cancel_at', CANCEL_AT, false, { cancel_at: CANCEL_AT - 1 }, false],
+    ['a withdrawn cancellation', null, false, { cancel_at_period_end: true }, false],
+    ['no previous attributes', CANCEL_AT, true, undefined, false],
+  ])('%s', (_, cancelAt, cancelAtPeriodEnd, previousAttributes, expected) => {
+    expect(isStripeCancellationScheduled(
+      { cancel_at: cancelAt, cancel_at_period_end: cancelAtPeriodEnd },
+      previousAttributes as never,
+    )).toBe(expected);
+  });
+});
+
+describe('Plus Stripe unsubscribe notification', () => {
+  function subscriptionUpdate(status = 'active') {
+    return {
+      id: SUB_ID,
+      status,
+      metadata: { evmWallet: WALLET },
+      cancel_at: 1790000000,
+      cancel_at_period_end: true,
+      canceled_at: 1759000000,
+      ended_at: null,
+      customer: 'cus_1',
+      items: { data: [{ price: { unit_amount: 6999, currency: 'usd' } }] },
+    };
+  }
+
+  beforeEach(() => {
+    mockSlackNotification.mockReset();
+  });
+
+  it('announces the update that turns auto-renew off', async () => {
+    await processStripeSubscriptionStatusUpdate(
+      subscriptionUpdate() as never,
+      { cancel_at_period_end: false, cancel_at: null },
+      1759000000,
+    );
+    expect(mockSlackNotification).toHaveBeenCalledTimes(1);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'unsubscribed',
+      subscriptionId: SUB_ID,
+      userId: 'testing',
+      stripeCustomerId: 'cus_1',
+      priceWithCurrency: '69.99 USD',
+    }));
+  });
+
+  it('labels a cancelled trial', async () => {
+    await processStripeSubscriptionStatusUpdate(
+      subscriptionUpdate('trialing') as never,
+      { cancel_at: null },
+      1759000000,
+    );
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'unsubscribedTrial',
+    }));
+  });
+
+  it('stays quiet on a later update to an already cancelling subscription', async () => {
+    await processStripeSubscriptionStatusUpdate(
+      subscriptionUpdate() as never,
+      { status: 'trialing' } as never,
+      1759500000,
+    );
+    expect(mockSlackNotification).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet when the Plus record belongs to another subscription', async () => {
+    await userCollection.doc('testing').update({ 'likerPlus.subscriptionId': 'sub_other' });
+    try {
+      await processStripeSubscriptionStatusUpdate(
+        subscriptionUpdate() as never,
+        { cancel_at_period_end: false, cancel_at: null },
+        1759000000,
+      );
+      expect(mockSlackNotification).not.toHaveBeenCalled();
+    } finally {
+      await userCollection.doc('testing').update({ 'likerPlus.subscriptionId': SUB_ID });
+    }
   });
 });
