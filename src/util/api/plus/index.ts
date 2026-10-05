@@ -1451,9 +1451,11 @@ export async function processStripeSubscriptionCancellation(
             subscriptionStatus: 'canceled',
           },
         });
-      } else if (user.likerPlus?.pendingTier) {
-        // Past period end but still inside the grace window, where it is still shown.
+      } else if (user.likerPlus) {
+        // Past period end, e.g. a trial ended without payment: still stamp the
+        // status, so the record never reads as a subscription about to renew.
         await userCollection.doc(user.user).update({
+          'likerPlus.subscriptionStatus': 'canceled',
           'likerPlus.pendingTier': FieldValue.delete(),
         });
       }
