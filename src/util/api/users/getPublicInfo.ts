@@ -6,6 +6,7 @@ import {
   AVATAR_DEFAULT_PATH,
   CIVIC_LIKER_START_DATE,
   SUBSCRIPTION_GRACE_PERIOD,
+  STRIPE_RENEWAL_GRACE_PERIOD,
   RENEWAL_LEAD_TOLERANCE,
   DEFAULT_AVATAR_SIZE,
 } from '../../../constant';
@@ -46,9 +47,14 @@ export function isStripeSubscription(likerPlus?: LikerPlusData): boolean {
     || !!likerPlus.customerId;
 }
 
-// The last instant a Plus record grants access.
+// The last instant a Plus record grants access. Cancellation and failed payment
+// both move the status off 'active', which ends the Stripe renewal grace.
 export function getLikerPlusAccessEnd(likerPlus: LikerPlusData): number {
-  return likerPlus.currentPeriodEnd + SUBSCRIPTION_GRACE_PERIOD;
+  const end = likerPlus.currentPeriodEnd + SUBSCRIPTION_GRACE_PERIOD;
+  if (isStripeSubscription(likerPlus) && likerPlus.subscriptionStatus === 'active') {
+    return end + STRIPE_RENEWAL_GRACE_PERIOD;
+  }
+  return end;
 }
 
 // Whether a Plus record still confers access right now — the same window as
