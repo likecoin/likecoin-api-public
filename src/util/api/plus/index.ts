@@ -1593,7 +1593,7 @@ export async function processStripePaymentFailure(
     // eslint-disable-next-line no-console
     console.error('Failed to log PaymentFailed event:', err);
   });
-  if (user) {
+  if (user && !isPlusRecordForOtherSubscription(user.likerPlus, subscriptionId)) {
     await userCollection.doc(user.user).update({
       'likerPlus.subscriptionStatus': 'past_due',
     });
@@ -1689,7 +1689,8 @@ export async function processStripeSubscriptionStatusUpdate(
   }
   const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet || likeWallet);
   if (!user) return;
-  if (user.likerPlus?.subscriptionStatus !== subscriptionStatus) {
+  if (user.likerPlus?.subscriptionStatus !== subscriptionStatus
+    && !isPlusRecordForOtherSubscription(user.likerPlus, subscription.id)) {
     await userCollection.doc(user.user).update({
       'likerPlus.subscriptionStatus': subscriptionStatus,
     });
