@@ -2,12 +2,16 @@ import { v4 as uuidv4 } from 'uuid';
 import type { LikerPlusData } from '../../../types/user';
 
 import {
-  IS_TESTNET, PUBSUB_TOPIC_MISC, SUBSCRIPTION_GRACE_PERIOD, RENEWAL_LEAD_TOLERANCE,
+  IS_TESTNET, PUBSUB_TOPIC_MISC,
 } from '../../../constant';
 import type { LikerPlusTier } from '../../../constant';
 import { userCollection } from '../../firebase';
 import { resolveAttributionUserId } from '../users/handle';
-import { getUserWithCivicLikerProperties } from '../users/getPublicInfo';
+import {
+  getUserWithCivicLikerProperties,
+  hasLivePlusAccess,
+  isStripeSubscription,
+} from '../users/getPublicInfo';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import {
@@ -152,28 +156,6 @@ function isPlusEntitlement(event: RevenueCatEvent): boolean {
   return !!mapProductIdToTierAndPeriod(event.product_id);
 }
 
-// A record is Stripe-owned (web) if the Stripe path wrote it. Legacy records
-// predate the `provider` field but still carry Stripe's subscriptionId/customerId;
-// RevenueCat grants never set those, so their presence is a definitive signal.
-// Terminal RevenueCat events must not revoke such records.
-function isStripeOwnedLikerPlus(likerPlus?: LikerPlusData): boolean {
-  if (!likerPlus) return false;
-  return likerPlus.provider === 'stripe'
-    || !!likerPlus.subscriptionId
-    || !!likerPlus.customerId;
-}
-
-// Whether a Plus record still confers access right now — mirrors getPublicInfo's
-// window: currentPeriodStart - lead <= now <= currentPeriodEnd + grace. A
-// missing/zero period end reads as expired.
-function hasLivePlusAccess(likerPlus?: LikerPlusData): boolean {
-  const now = Date.now();
-  const start = likerPlus?.currentPeriodStart || 0;
-  const end = likerPlus?.currentPeriodEnd || 0;
-  if (!end) return false;
-  return start - RENEWAL_LEAD_TOLERANCE <= now && now <= end + SUBSCRIPTION_GRACE_PERIOD;
-}
-
 // SANDBOX events landing on the prod backend are quarantined: the resulting
 // record gets an environment:'SANDBOX' tag (so dashboards filter them) and
 // monetary/CRM side effects (Slack, Airtable, Intercom paid attributes,
@@ -189,7 +171,7 @@ function isQuarantinedSandbox(isSandbox: boolean): boolean {
 // access. Without this, an App Store reviewer (or anyone with a sandbox account)
 // who collides on app_user_id with an existing paid user could clobber their
 // real sub. Testnet has no production records to protect, so the guard is a
-// no-op there. Mirrors the shape of isStripeOwnedLikerPlus — terminal events
+// no-op there. Mirrors the shape of isStripeSubscription — terminal events
 // only revoke records owned by the same environment.
 // Expired non-sandbox records are not protected — there is no live access to
 // clobber. Expiry matches getPublicInfo's boundary (currentPeriodEnd + grace).
@@ -383,7 +365,7 @@ async function handleGrant(
   // onto an existing mobile sub.
   const destinationAlreadyOwnsTransaction = !!user.likerPlus
     && user.likerPlus.originalTransactionId === event.original_transaction_id
-    && !isStripeOwnedLikerPlus(user.likerPlus)
+    && !isStripeSubscription(user.likerPlus)
     && user.likerPlus.subscriptionStatus === 'active'
     && hasLivePlusAccess(user.likerPlus);
   if (event.original_transaction_id && !destinationAlreadyOwnsTransaction) {
@@ -701,7 +683,7 @@ async function revokeIfRevenueCatOwned(
   isSandbox: boolean,
 ): Promise<boolean> {
   if (!likerPlus) return false;
-  if (isStripeOwnedLikerPlus(likerPlus)) return false;
+  if (isStripeSubscription(likerPlus)) return false;
   if (isSharedGrantedLikerPlus(likerPlus)) return false;
   if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
   // Revoke access first — the Firestore write is the source of truth. Only after
@@ -820,7 +802,7 @@ async function handleExpiration(
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
   // (web) currently owns, or a shared-granted record owned by a giver's
   // lifecycle. Grants always reclaim the record; terminal events do not.
-  if (isStripeOwnedLikerPlus(user.likerPlus)) return;
+  if (isStripeSubscription(user.likerPlus)) return;
   if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
@@ -910,7 +892,7 @@ async function notifyUnsubscribe(
   if (event.cancel_reason === 'BILLING_ERROR') return;
   const { likerPlus } = user;
   if (!likerPlus) return;
-  if (isStripeOwnedLikerPlus(likerPlus) || isSharedGrantedLikerPlus(likerPlus)) return;
+  if (isStripeSubscription(likerPlus) || isSharedGrantedLikerPlus(likerPlus)) return;
   if (isForOtherSubscription(event, likerPlus)) return;
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: event.original_transaction_id || likerPlus.originalTransactionId || 'N/A',
@@ -928,7 +910,7 @@ async function handleBillingIssue(
   user: RevenueCatSubscriber,
   isSandbox: boolean,
 ) {
-  if (isStripeOwnedLikerPlus(user.likerPlus)) return;
+  if (isStripeSubscription(user.likerPlus)) return;
   if (isSharedGrantedLikerPlus(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
@@ -983,7 +965,7 @@ function isTransferableLikerPlus(
   isSandbox: boolean,
 ): boolean {
   if (!likerPlus) return false;
-  if (isStripeOwnedLikerPlus(likerPlus)) return false;
+  if (isStripeSubscription(likerPlus)) return false;
   if (isSharedGrantedLikerPlus(likerPlus)) return false;
   if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
   return hasLivePlusAccess(likerPlus);

@@ -19,6 +19,7 @@ import {
 } from '../../firebase';
 import { getUserHandle, resolveUserDocByHandle } from './handle';
 import type {
+  LikerPlusData,
   UserData,
   UserCivicLikerProperties,
 } from '../../../types/user';
@@ -33,6 +34,30 @@ function isValidUserDoc(userDoc: DocumentSnapshot<UserData> | undefined): boolea
     return false;
   }
   return true;
+}
+
+// A record is Stripe-owned (web) if the Stripe path wrote it. Legacy records
+// predate the `provider` field but still carry Stripe's subscriptionId/customerId;
+// RevenueCat grants never set those, so their presence is a definitive signal.
+export function isStripeSubscription(likerPlus?: LikerPlusData): boolean {
+  if (!likerPlus) return false;
+  return likerPlus.provider === 'stripe'
+    || !!likerPlus.subscriptionId
+    || !!likerPlus.customerId;
+}
+
+// The last instant a Plus record grants access.
+export function getLikerPlusAccessEnd(likerPlus: LikerPlusData): number {
+  return likerPlus.currentPeriodEnd + SUBSCRIPTION_GRACE_PERIOD;
+}
+
+// Whether a Plus record still confers access right now — the same window as
+// formatUserCivicLikerProperies. A missing/zero period end reads as expired.
+export function hasLivePlusAccess(likerPlus?: LikerPlusData): boolean {
+  if (!likerPlus?.currentPeriodEnd) return false;
+  const now = Date.now();
+  const start = likerPlus.currentPeriodStart || 0;
+  return start - RENEWAL_LEAD_TOLERANCE <= now && now <= getLikerPlusAccessEnd(likerPlus);
 }
 
 export function formatUserCivicLikerProperies(
@@ -80,22 +105,18 @@ export function formatUserCivicLikerProperies(
   if (likerPlus) {
     const {
       currentPeriodStart: start,
-      currentPeriodEnd: end,
       currentType,
       since,
       period,
     } = likerPlus;
     // Surface which billing system owns the subscription so the client can
     // route "manage subscription" correctly (Stripe portal vs native store
-    // sheet). Legacy Stripe records predate `provider` but carry Stripe's
-    // subscriptionId/customerId; gifts carry them too (Stripe-managed). Mirrors
-    // isStripeOwnedLikerPlus in plus/revenuecat.ts (inlined to avoid an import
-    // cycle — revenuecat.ts already imports from this module).
+    // sheet). Gifts carry Stripe's ids too (Stripe-managed).
     // Shared-granted records carry no Stripe/RevenueCat objects; check first
     // so they can never be misread as either billing system.
     if (likerPlus.provider === 'shared') {
       payload.likerPlusProvider = 'shared';
-    } else if (likerPlus.provider === 'stripe' || likerPlus.subscriptionId || likerPlus.customerId) {
+    } else if (isStripeSubscription(likerPlus)) {
       payload.likerPlusProvider = 'stripe';
     } else if (likerPlus.provider === 'revenuecat') {
       payload.likerPlusProvider = 'revenuecat';
@@ -104,7 +125,7 @@ export function formatUserCivicLikerProperies(
       payload.likerPlusStore = RC_STORE_TO_LIKER_PLUS_STORE[likerPlus.store ?? ''];
     }
     const now = Date.now();
-    const renewalLast = end + SUBSCRIPTION_GRACE_PERIOD;
+    const renewalLast = getLikerPlusAccessEnd(likerPlus);
     // Store renewals land before their own period starts, so honour the record
     // early rather than dropping the subscriber into the gap (RENEWAL_LEAD_TOLERANCE).
     const renewalFirst = start - RENEWAL_LEAD_TOLERANCE;

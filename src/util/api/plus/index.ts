@@ -1400,7 +1400,7 @@ export async function createNewPlusCheckoutSession(
   };
 }
 
-// Mirror of the RevenueCat side's isStripeOwnedLikerPlus/isForOtherSubscription
+// Mirror of the RevenueCat side's isStripeSubscription/isForOtherSubscription
 // guards: a stale or foreign cancellation must not revoke the record that
 // currently grants access (the user moved to mobile IAP, or resubscribed on a new
 // Stripe subscription). A record carrying neither field is legacy Stripe and
