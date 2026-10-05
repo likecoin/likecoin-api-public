@@ -36,7 +36,7 @@ import {
   LIKER_PLUS_TRIAL_CONVERSION_RATE,
   LIKER_PLUS_LTV,
 } from '../../../../config/config';
-import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import { getUserWithCivicLikerPropertiesByWallet, hasLivePlusAccess } from '../users/getPublicInfo';
 import { resolveAttributionUserId } from '../users/handle';
 import {
   extendSharedMemberAccess,
@@ -552,7 +552,16 @@ async function writePlusUserRecordAndAccrual({
     // Civic's pinned funding basis is a USD constant, whatever the invoice currency.
     dailyValueCurrency = isCivic ? 'USD' : currency;
   }
-  const userUpdate: Record<string, unknown> = {
+  // A user billed by both Stripe and the app keeps the app record while in period:
+  // only it knows the app subscription, and a later Stripe cancellation would revoke it.
+  // An expired app record is still replaced, as when a user moves from app to web.
+  const isCurrentAppSubscription = user.likerPlus?.provider === 'revenuecat'
+    && hasLivePlusAccess(user.likerPlus);
+  if (isCurrentAppSubscription) {
+    // eslint-disable-next-line no-console
+    console.warn(`Stripe subscription ${subscriptionId} paid while ${likerId} holds a current app Plus record; keeping the app record`);
+  }
+  const userUpdate: Record<string, unknown> = isCurrentAppSubscription ? {} : {
     likerPlus: {
       period: item.plan.interval,
       tier: ctx.tier,
@@ -574,7 +583,10 @@ async function writePlusUserRecordAndAccrual({
   if (amountPaid > 0) {
     Object.assign(userUpdate, getPaymentUpdateFields(!!user.firstPaidAt));
   }
-  await userCollection.doc(likerId).update(userUpdate);
+  // Firestore rejects an empty update, as a store-held record with no charge would send.
+  if (Object.keys(userUpdate).length) {
+    await userCollection.doc(likerId).update(userUpdate);
+  }
 
   // Accrue this term's USD value to the rev-share pool. Full-term paid charges only:
   // proration invoices reuse the stored dailyValue (already accrued at the cycle), and
@@ -608,6 +620,7 @@ async function writePlusUserRecordAndAccrual({
   // Shared-membership seats follow the giver's Civic lifecycle: a Civic charge carries
   // claimed members into the new period; a Civic→Plus downgrade invoice revokes
   // them. Both helpers are best-effort and never fail the webhook.
+  if (isCurrentAppSubscription) return;
   if (isCivic) {
     await extendSharedMemberAccess(likerId, { currentPeriodStart, currentPeriodEnd });
   } else if (user.likerPlus?.tier === 'civic') {

@@ -42,6 +42,7 @@ cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
 const {
   processStripePaymentFailure,
   processStripeSubscriptionCancellation,
+  processStripeSubscriptionInvoice,
   processStripeSubscriptionStatusUpdate,
 } = await import('../../src/util/api/plus');
 
@@ -157,5 +158,80 @@ describe('Stripe status writes', () => {
       },
     } as never);
     expect((await readLikerPlus()).subscriptionStatus).toBe('past_due');
+  });
+});
+
+describe('Stripe invoice over a store record', () => {
+  const STORE_PERIOD_END = Date.now() + 31 * ONE_DAY_IN_MS;
+  const PERIOD_START = Math.floor(Date.now() / 1000);
+
+  function seedStripeSubscription() {
+    mockSubscriptionRetrieve.mockResolvedValue({
+      id: SUB_ID,
+      status: 'active',
+      start_date: PERIOD_START - 7 * 24 * 60 * 60,
+      trial_end: PERIOD_START,
+      metadata: { evmWallet: WALLET },
+      items: {
+        data: [{
+          id: 'si_1',
+          plan: { interval: 'month' },
+          price: { id: 'price_plus_monthly', product: 'prod_plus', nickname: 'plus monthly' },
+          current_period_start: PERIOD_START,
+          current_period_end: PERIOD_START + 31 * 24 * 60 * 60,
+        }],
+      },
+      customer: { id: 'cus_1', email: 'testing@likecoin.store' },
+      discounts: [],
+    });
+  }
+
+  function cycleInvoice() {
+    return {
+      id: 'in_cycle',
+      amount_paid: 999,
+      currency: 'usd',
+      billing_reason: 'subscription_cycle',
+      parent: {
+        type: 'subscription_details',
+        subscription_details: { subscription: SUB_ID, metadata: { evmWallet: WALLET } },
+      },
+    };
+  }
+
+  beforeEach(() => {
+    mockSubscriptionRetrieve.mockReset();
+  });
+
+  // Regression: a web trial converting after an in-app purchase replaced the
+  // store record, so cancelling the duplicate Stripe subscription revoked Plus.
+  it('keeps a live store record', async () => {
+    await seedLikerPlus({
+      provider: 'revenuecat',
+      subscriptionId: undefined,
+      store: 'APP_STORE',
+      originalTransactionId: '410000000000001',
+      currentPeriodEnd: STORE_PERIOD_END,
+    });
+    seedStripeSubscription();
+    await processStripeSubscriptionInvoice(cycleInvoice() as never, { headers: {} } as never);
+    const likerPlus = await readLikerPlus();
+    expect(likerPlus.provider).toBe('revenuecat');
+    expect(likerPlus.originalTransactionId).toBe('410000000000001');
+    expect(likerPlus.currentPeriodEnd).toBe(STORE_PERIOD_END);
+  });
+
+  it('replaces an expired store record', async () => {
+    await seedLikerPlus({
+      provider: 'revenuecat',
+      subscriptionId: undefined,
+      store: 'APP_STORE',
+      currentPeriodEnd: Date.now() - ONE_DAY_IN_MS,
+    });
+    seedStripeSubscription();
+    await processStripeSubscriptionInvoice(cycleInvoice() as never, { headers: {} } as never);
+    const likerPlus = await readLikerPlus();
+    expect(likerPlus.provider).toBe('stripe');
+    expect(likerPlus.subscriptionId).toBe(SUB_ID);
   });
 });
