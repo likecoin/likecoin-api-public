@@ -224,3 +224,14 @@ export const ISO_ALPHA2_COUNTRY_CODES = new Set([
   'TT', 'TN', 'TR', 'TM', 'TC', 'TV', 'UG', 'UA', 'AE', 'GB', 'US', 'UM', 'UY', 'UZ', 'VU',
   'VE', 'VN', 'VG', 'VI', 'WF', 'EH', 'YE', 'ZM', 'ZW',
 ]);
+
+// Stripe's checkout `allowed_countries` (its `AllowedCountry` type) is ISO minus
+// sanctioned states and US outlying areas, plus three non-ISO destinations. Its
+// `ZZ` (unknown) is left out: it names no territory a parcel can ship to.
+const STRIPE_UNSHIPPABLE_COUNTRY_CODES = new Set([
+  'AS', 'CX', 'CC', 'CU', 'HM', 'IR', 'KP', 'MH', 'FM', 'NF', 'MP', 'PW', 'SY', 'UM', 'VI',
+]);
+export const STRIPE_SHIPPING_COUNTRY_CODES = new Set([
+  ...[...ISO_ALPHA2_COUNTRY_CODES].filter((c) => !STRIPE_UNSHIPPABLE_COUNTRY_CODES.has(c)),
+  'AC', 'TA', 'XK',
+]);
