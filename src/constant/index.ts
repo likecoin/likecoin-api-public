@@ -93,6 +93,9 @@ export const ONE_MINUTE_IN_MS = 60000;
 export const ONE_DAY_IN_MS = 86400000;
 export const CIVIC_LIKER_START_DATE = 1546272000000; // 2019-01-01T00:00:00+0800
 export const SUBSCRIPTION_GRACE_PERIOD = 0 * ONE_DAY_IN_MS;
+// Stripe charges a renewal about an hour after the period ends, and invoice.paid
+// only then extends the record. Bridge that gap while the subscription is active.
+export const STRIPE_RENEWAL_GRACE_PERIOD = ONE_DAY_IN_MS;
 // Store renewals (e.g. App Store) can arrive before currentPeriodStart.
 // Allow early access within this tolerance to avoid a temporary access gap.
 export const RENEWAL_LEAD_TOLERANCE = 7 * ONE_DAY_IN_MS;

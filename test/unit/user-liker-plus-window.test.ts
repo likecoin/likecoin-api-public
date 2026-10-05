@@ -6,6 +6,7 @@ import {
   ONE_DAY_IN_MS,
   ONE_MINUTE_IN_MS,
   RENEWAL_LEAD_TOLERANCE,
+  STRIPE_RENEWAL_GRACE_PERIOD,
   SUBSCRIPTION_GRACE_PERIOD,
 } from '../../src/constant';
 import type { LikerPlusData, UserData } from '../../src/types/user';
@@ -80,5 +81,53 @@ describe('likerPlus access window', () => {
     expect(payload.isLikerPlus).toBeUndefined();
     expect(payload.isExpiredLikerPlus).toBe(true);
     expect(payload.likerPlusSubscriptionStatus).toBe('canceled');
+  });
+
+  // Regression: Stripe charges a renewal about an hour after the period ends, and
+  // the lapse in between let a web subscriber buy Plus again in the app.
+  describe('Stripe renewal grace', () => {
+    const ENDED_AN_HOUR_AGO = {
+      currentPeriodStart: NOW - 7 * ONE_DAY_IN_MS,
+      currentPeriodEnd: NOW - 60 * ONE_MINUTE_IN_MS,
+      provider: 'stripe' as const,
+      store: undefined,
+      subscriptionId: 'sub_1',
+    };
+
+    it('keeps an active Stripe subscription awaiting its renewal charge', () => {
+      const payload = formatUserCivicLikerProperies(makeUserDoc({
+        ...ENDED_AN_HOUR_AGO,
+        subscriptionStatus: 'active',
+      }));
+      expect(payload.isLikerPlus).toBe(true);
+      expect(payload.isExpiredLikerPlus).toBeUndefined();
+    });
+
+    it.each(['past_due', 'canceled'] as const)('ends at period end once %s', (subscriptionStatus) => {
+      const payload = formatUserCivicLikerProperies(makeUserDoc({
+        ...ENDED_AN_HOUR_AGO,
+        subscriptionStatus,
+      }));
+      expect(payload.isLikerPlus).toBeUndefined();
+      expect(payload.isExpiredLikerPlus).toBe(true);
+    });
+
+    it('expires once the grace has passed', () => {
+      const payload = formatUserCivicLikerProperies(makeUserDoc({
+        ...ENDED_AN_HOUR_AGO,
+        currentPeriodEnd: NOW - STRIPE_RENEWAL_GRACE_PERIOD - ONE_MINUTE_IN_MS,
+        subscriptionStatus: 'active',
+      }));
+      expect(payload.isExpiredLikerPlus).toBe(true);
+    });
+
+    it('does not extend a store subscription', () => {
+      const payload = formatUserCivicLikerProperies(makeUserDoc({
+        currentPeriodStart: NOW - 7 * ONE_DAY_IN_MS,
+        currentPeriodEnd: NOW - 60 * ONE_MINUTE_IN_MS,
+        subscriptionStatus: 'active',
+      }));
+      expect(payload.isExpiredLikerPlus).toBe(true);
+    });
   });
 });
