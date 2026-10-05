@@ -40,7 +40,9 @@ cfg.LIKER_PLUS_PRODUCT_ID = 'prod_plus';
 
 // eslint-disable-next-line import/first
 const {
+  processStripePaymentFailure,
   processStripeSubscriptionCancellation,
+  processStripeSubscriptionStatusUpdate,
 } = await import('../../src/util/api/plus');
 
 const WALLET = '0x4b25758E41f9240C8EB8831cEc7F1a02686387fa'; // user `testing` in test/data/user.json
@@ -94,5 +96,66 @@ describe('Stripe cancellation', () => {
     await seedLikerPlus({ currentPeriodEnd: Date.now() - 60 * 1000, currentType: 'trial' });
     await processStripeSubscriptionCancellation(canceledSubscription() as never);
     expect((await readLikerPlus()).subscriptionStatus).toBe('canceled');
+  });
+});
+
+describe('Stripe status writes', () => {
+  const STORE_RECORD = {
+    provider: 'revenuecat' as const,
+    subscriptionId: undefined,
+    store: 'APP_STORE',
+    originalTransactionId: '410000000000001',
+  };
+
+  beforeEach(() => {
+    mockSubscriptionRetrieve.mockReset();
+  });
+
+  it('leaves a store record alone on a Stripe status update', async () => {
+    await seedLikerPlus(STORE_RECORD);
+    await processStripeSubscriptionStatusUpdate({
+      id: SUB_ID,
+      status: 'past_due',
+      metadata: { evmWallet: WALLET },
+      cancel_at: null,
+      cancel_at_period_end: false,
+      canceled_at: null,
+      ended_at: null,
+    } as never);
+    expect((await readLikerPlus()).subscriptionStatus).toBe('active');
+  });
+
+  it('leaves a store record alone on a failed Stripe charge', async () => {
+    await seedLikerPlus(STORE_RECORD);
+    mockSubscriptionRetrieve.mockResolvedValue(null);
+    await processStripePaymentFailure({
+      id: 'in_failed',
+      amount_due: 999,
+      currency: 'usd',
+      billing_reason: 'subscription_cycle',
+      attempt_count: 1,
+      parent: {
+        type: 'subscription_details',
+        subscription_details: { subscription: SUB_ID, metadata: { evmWallet: WALLET } },
+      },
+    } as never);
+    expect((await readLikerPlus()).subscriptionStatus).toBe('active');
+  });
+
+  it('still marks its own record past due', async () => {
+    await seedLikerPlus({});
+    mockSubscriptionRetrieve.mockResolvedValue(null);
+    await processStripePaymentFailure({
+      id: 'in_failed_own',
+      amount_due: 999,
+      currency: 'usd',
+      billing_reason: 'subscription_cycle',
+      attempt_count: 2,
+      parent: {
+        type: 'subscription_details',
+        subscription_details: { subscription: SUB_ID, metadata: { evmWallet: WALLET } },
+      },
+    } as never);
+    expect((await readLikerPlus()).subscriptionStatus).toBe('past_due');
   });
 });
