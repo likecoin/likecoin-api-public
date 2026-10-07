@@ -7,6 +7,7 @@ import {
 } from '../../../config/config';
 import {
   createBookListSlackBlocks,
+  formatBookTippingSlackText,
   sendNFTBookApprovalUpdateSlackNotification,
 } from '../../util/slack';
 import {
@@ -17,6 +18,11 @@ import {
   listBooksForAdmin,
   parseBookListQuery,
 } from '../../util/api/likernft/book/adminList';
+import {
+  BOOK_TIPPING_USAGE,
+  parseBookTippingQuery,
+  setBookTippingEnabled,
+} from '../../util/api/likernft/book/tipping';
 import { FieldValue, likeNFTBookCollection } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
 import { ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../../constant';
@@ -240,6 +246,20 @@ router.post(
         blocks: createBookListSlackBlocks(query, result),
       });
     },
+    tipping: async ({ params, req, res }) => {
+      const query = parseBookTippingQuery(params);
+      const result = await setBookTippingEnabled(query);
+      publisher.publish(PUBSUB_TOPIC_MISC, null, {
+        logType: 'BookNFTTippingUpdate',
+        slackUserId: req.body.user_id,
+        ...query,
+      });
+
+      res.json({
+        response_type: 'in_channel',
+        text: formatBookTippingSlackText(result),
+      });
+    },
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
@@ -265,7 +285,14 @@ Examples:
   \`/book list pending\` - Listings held for review
   \`/book list geoblocked limit:50\` - Every territory-restricted listing
   \`/book list noads asc\` - Listings with ads denied, oldest first
-  \`/book list aireview\` - Listings the AI pre-screen flagged for a human read`,
+  \`/book list aireview\` - Listings the AI pre-screen flagged for a human read
+
+\`${BOOK_TIPPING_USAGE}\` Turn tipping (isTippingEnabled) on or off for a priced book
+Without a priceIndex, every edition is set. Tipping shows only on editions with isAllowCustomPrice on.
+
+Examples:
+  \`/book tipping 0x1234...5678 on\` - Enable tipping on every edition
+  \`/book tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only`,
       });
     },
   }, 'Invalid command. Use `/book help` for usage.'),
