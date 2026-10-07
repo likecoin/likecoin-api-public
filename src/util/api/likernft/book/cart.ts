@@ -67,7 +67,7 @@ import {
 import { createPlusGiftCart } from '../../plus/gift';
 import logServerEvents from '../../../logServerEvents';
 import { getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from './user';
-import { normalizeLikerId } from '../../../ValidationHelper';
+import { normalizeLikerId, sanitizeFrom } from '../../../ValidationHelper';
 import {
   SLACK_OUT_OF_STOCK_NOTIFICATION_THRESHOLD,
   LIKER_PLUS_20_COUPON_ID,
@@ -1736,7 +1736,7 @@ export async function handleNewCartStripeCheckout(inputItems: CartItem[], {
     priceIndex: item.priceIndex,
     customPriceInDecimal: item.customPriceInDecimal,
     quantity: item.quantity,
-    from: item.from,
+    from: sanitizeFrom(item.from),
   }));
   let itemInfos = await formatCartItemsWithInfo(items);
   const firstItemInfo = itemInfos[0];
