@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { getBook3NFTClassPageURL } from './liker-land';
-import { getNFTBookStoreSendPageURL } from './api/likernft/book';
+import { getLocalizedTextWithFallback, getNFTBookStoreSendPageURL } from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
   IS_TESTNET,
@@ -15,6 +15,7 @@ import {
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
 } from '../../config/config';
 import { Timestamp } from './firebase';
+import { isNFTBookPriceTippingEnabled } from './ValidationHelper';
 import {
   FORCE_PING_REVIEW_ACTIONS,
   type BookComplianceReviewOutcome,
@@ -29,6 +30,7 @@ import {
   type BookListResult,
 } from './api/likernft/book/adminList';
 import { getBookTimestampMillis } from './api/likernft/book/cms';
+import type { BookTippingResult } from './api/likernft/book/tipping';
 import type { PlusAffiliateListEntry } from './api/plus/slack';
 import type { CommissionType, NFTBookPrice } from '../types/book';
 import type { LikerPlusProvider } from '../types/user';
@@ -721,6 +723,32 @@ export function createBookListSlackBlocks(
     });
   }
   return blocks;
+}
+
+export function formatBookTippingSlackText({ classId, className, prices }: BookTippingResult) {
+  const link = getBook3NFTClassPageURL({ classId });
+  // Book and edition names are author-supplied, so they can carry mrkdwn.
+  const formatFlag = (value?: boolean) => (value ? 'on' : 'off');
+  const lines = prices.map(({
+    name, priceInDecimal, isAllowCustomPrice, isTippingEnabled,
+  }, index) => {
+    const editionName = escapeSlackText(getLocalizedTextWithFallback(name || '', 'zh')) || '(unnamed)';
+    const details = [
+      `*#${index}* ${editionName}`,
+      formatBookListPrice(priceInDecimal),
+      `isAllowCustomPrice: \`${formatFlag(isAllowCustomPrice)}\``,
+      `isTippingEnabled: \`${formatFlag(isTippingEnabled)}\``,
+    ];
+    if (!priceInDecimal) details.push('free, read as on');
+    // The storefront offers tipping only when isAllowCustomPrice is on too.
+    if (isNFTBookPriceTippingEnabled({ priceInDecimal, isTippingEnabled }) && !isAllowCustomPrice) {
+      details.push('⚠️ hidden until isAllowCustomPrice is on');
+    }
+    return `• ${details.join(' · ')}`;
+  });
+  return `Tipping updated for <${link}|${escapeSlackText(className)}>
+Class ID: \`${classId}\`
+${lines.join('\n')}`;
 }
 
 export function formatPlusAffiliateListSlackText(entries: PlusAffiliateListEntry[]): string {

@@ -480,6 +480,14 @@ export function filterOAuthClientInfo({
   };
 }
 
+// A free edition always takes tips, whatever its flag says.
+export function isNFTBookPriceTippingEnabled({
+  priceInDecimal,
+  isTippingEnabled,
+}: { priceInDecimal?: number; isTippingEnabled?: boolean }): boolean {
+  return !priceInDecimal || !!isTippingEnabled;
+}
+
 export function filterNFTBookPricesInfo(
   inputPrices: NFTBookPrice[],
   isOwner = false,
@@ -517,7 +525,7 @@ export function filterNFTBookPricesInfo(
       isUnlisted,
       autoMemo,
       isAllowCustomPrice,
-      isTippingEnabled: !priceInDecimal || isTippingEnabled,
+      isTippingEnabled: isNFTBookPriceTippingEnabled({ priceInDecimal, isTippingEnabled }),
       order: order ?? index,
     };
     if (priceInDecimalByCurrency) payload.priceInDecimalByCurrency = priceInDecimalByCurrency;
