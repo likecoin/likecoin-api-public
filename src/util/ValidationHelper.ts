@@ -65,6 +65,18 @@ export function normalizeLikerId(likerId: string): string {
   return likerId.startsWith('@') ? likerId.substring(1) : likerId;
 }
 
+// A link rewriter appending `?fbclid=` to a URL that already has a query
+// leaves `@likerId?fbclid=…` in `from`. Truncate at the first URL delimiter,
+// and drop an `@` handle that is not a valid Liker ID.
+export function sanitizeFrom(from?: unknown): string | undefined {
+  if (typeof from !== 'string') return undefined;
+  const value = from.split(/[?&#]/, 1)[0].trim();
+  if (!value) return undefined;
+  if (!value.startsWith('@')) return value;
+  const likerId = normalizeLikerId(value).toLowerCase();
+  return checkUserNameValid(likerId) ? `@${likerId}` : undefined;
+}
+
 export function checkCosmosAddressValid(addr: string, prefix = 'cosmos'): boolean {
   if (!addr.startsWith(prefix) && addr.length === 45) {
     return false;
