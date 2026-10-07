@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LIKER_PLUS_TIERS, SUPPORTED_CHECKOUT_UI_MODES } from '../../../constant';
 import { EVM_ADDRESS_REGEX } from '../../evm';
+import { sanitizeFrom } from '../../ValidationHelper';
 import {
   BookGiftInfoBodySchema,
   BookGiftInfoSchema,
@@ -107,7 +108,7 @@ export const PlusAffiliateParamsSchema = z.object({
 export const PlusNewQuerySchema = z.object({
   period: z.enum(['monthly', 'yearly']).default('monthly').catch('monthly'),
   tier: z.enum(LIKER_PLUS_TIERS).default('plus').catch('plus'),
-  from: z.string().optional(),
+  from: z.string().optional().transform(sanitizeFrom),
   currency: z.string().optional(),
 }).passthrough();
 
@@ -117,7 +118,7 @@ export const PlusGiftNewQuerySchema = z.object({
   quantity: z.coerce.number().int().min(1).max(11)
     .default(1)
     .catch(1),
-  from: z.string().optional(),
+  from: z.string().optional().transform(sanitizeFrom),
   currency: z.string().optional(),
 }).passthrough()
   // Stripe caps trials at 730 days, so yearly gifts top out at 2 years.

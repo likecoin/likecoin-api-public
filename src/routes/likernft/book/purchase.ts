@@ -16,7 +16,7 @@ import {
   ONE_DAY_IN_MS,
 } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
-import { filterBookPurchaseData, sendValidatedJSON } from '../../../util/ValidationHelper';
+import { filterBookPurchaseData, sanitizeFrom, sendValidatedJSON } from '../../../util/ValidationHelper';
 import type { BookPurchaseData, BookGiftInfo, NFTBookListingInfo } from '../../../types/book';
 import { jwtAuth, jwtOptionalAuth } from '../../../middleware/jwt';
 import {
@@ -149,7 +149,7 @@ router.post(
 
 router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartNewBodySchema), async (req, res, next) => {
   try {
-    const { from } = req.query as Record<string, string>;
+    const from = sanitizeFrom(req.query.from);
     const {
       gaClientId,
       gaSessionId,
@@ -194,7 +194,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
       fbClickId,
       fbp,
       fbc,
-      from: from as string,
+      from,
       giftInfo,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
@@ -223,7 +223,7 @@ router.post('/cart/new', jwtOptionalAuth('read:nftbook'), validateBody(BookCartN
         gadSource,
         page: cancelPage,
         language,
-        from: from as string,
+        from,
       }),
       language,
       isApp,
@@ -282,7 +282,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
   const { classId } = req.params as Record<string, string>;
   try {
     const {
-      from,
+      from: rawFrom,
       ga_client_id: gaClientId = '',
       ga_session_id: gaSessionId = '',
       gclid: gadClickId = '',
@@ -303,6 +303,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       payment_method: paymentMethodQs,
       is_app: isApp,
     } = req.query as Record<string, string | string[]>;
+    const from = sanitizeFrom(rawFrom);
     const priceIndex = Number(priceIndexString) || 0;
     const quantity = parseInt(inputQuantity as string, 10) || 1;
     const httpMethod = 'GET';
@@ -340,7 +341,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       priceIndex,
       customPriceInDecimal,
       quantity,
-      from: from as string,
+      from,
     }], {
       gaClientId: gaClientId as string,
       gaSessionId: gaSessionId as string,
@@ -351,7 +352,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
       currency: currency as string,
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
-      from: from as string,
+      from,
       clientIp,
       ipCountry,
       referrer,
@@ -373,7 +374,7 @@ router.get(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftbo
         gaSessionId: gaSessionId as string,
         gadClickId: gadClickId as string,
         gadSource: gadSource as string,
-        from: from as string,
+        from,
       }),
       isApp: isApp === '1' || isApp === 'true',
     });
@@ -433,9 +434,10 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
   try {
     const { classId } = req.params as Record<string, string>;
     const {
-      from,
+      from: rawFrom,
       price_index: priceIndexString = undefined,
     } = req.query as Record<string, string>;
+    const from = sanitizeFrom(rawFrom);
     const priceIndex = Number(priceIndexString) || 0;
     const {
       gaClientId,
@@ -479,7 +481,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       priceIndex,
       customPriceInDecimal: customPriceInDecimal || undefined,
       quantity,
-      from: from as string,
+      from,
     }], {
       gaClientId,
       gaSessionId,
@@ -493,7 +495,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
       likeWallet: req.user?.likeWallet,
       evmWallet: req.user?.evmWallet,
       email,
-      from: from as string,
+      from,
       referrer,
       giftInfo,
       utm: {
@@ -517,7 +519,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtOptionalAuth('read:nftb
         gadClickId,
         gadSource,
         language,
-        from: from as string,
+        from,
       }),
       language,
       isApp,

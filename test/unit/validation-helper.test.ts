@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import { z } from 'zod';
 import type { Response } from 'express';
-import { filterNFTBookListingInfo, sendValidatedJSON } from '../../src/util/ValidationHelper';
+import { filterNFTBookListingInfo, sanitizeFrom, sendValidatedJSON } from '../../src/util/ValidationHelper';
 
 function mockRes() {
   const res: any = {};
@@ -112,5 +112,39 @@ describe('filterNFTBookListingInfo library and preview masking', () => {
     const payload = filterNFTBookListingInfo(info);
     expect(payload.isPlusReadingEnabled).toBe(false);
     expect(payload.isPreviewEnabled).toBe(false);
+  });
+});
+
+describe('sanitizeFrom', () => {
+  it('keeps a valid Liker ID handle', () => {
+    expect(sanitizeFrom('@poonworks')).toBe('@poonworks');
+  });
+
+  it('truncates a query string glued on by a link rewriter', () => {
+    expect(sanitizeFrom('@poonworks?fbclid=IwVERDUAU')).toBe('@poonworks');
+    expect(sanitizeFrom('@poonworks&utm_source=fb')).toBe('@poonworks');
+    expect(sanitizeFrom('@poonworks#top')).toBe('@poonworks');
+  });
+
+  it('lowercases the handle', () => {
+    expect(sanitizeFrom('@PoonWorks')).toBe('@poonworks');
+  });
+
+  it('drops an invalid handle', () => {
+    expect(sanitizeFrom('@ab')).toBeUndefined();
+    expect(sanitizeFrom('@poon works')).toBeUndefined();
+    expect(sanitizeFrom('@')).toBeUndefined();
+  });
+
+  it('keeps a legacy channel string, truncated', () => {
+    expect(sanitizeFrom('liker_land')).toBe('liker_land');
+    expect(sanitizeFrom('liker_land?fbclid=abc')).toBe('liker_land');
+  });
+
+  it('returns undefined for empty or non-string input', () => {
+    expect(sanitizeFrom(undefined)).toBeUndefined();
+    expect(sanitizeFrom('')).toBeUndefined();
+    expect(sanitizeFrom('?fbclid=abc')).toBeUndefined();
+    expect(sanitizeFrom(['@poonworks'])).toBeUndefined();
   });
 });
