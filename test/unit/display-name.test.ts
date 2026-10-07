@@ -6,6 +6,8 @@ import {
   shouldUseZhDisplayName,
 } from '../../src/util/api/users/displayName';
 import {
+  DISPLAY_NAME_PLACES_HK,
+  DISPLAY_NAME_PLACES_TW,
   DISPLAY_NAME_PLACES_ZH,
   DISPLAY_NAME_PLACES_EN,
   DISPLAY_NAME_NATURE_ZH,
@@ -94,6 +96,8 @@ describe('getRandomDisplayName', () => {
 
 describe('display name word pools', () => {
   it.each([
+    ['places hk', DISPLAY_NAME_PLACES_HK],
+    ['places tw', DISPLAY_NAME_PLACES_TW],
     ['places zh', DISPLAY_NAME_PLACES_ZH],
     ['places en', DISPLAY_NAME_PLACES_EN],
     ['nature zh', DISPLAY_NAME_NATURE_ZH],
