@@ -62,11 +62,29 @@ describe('shouldUseZhDisplayName', () => {
 
 describe('getRandomDisplayName', () => {
   it('builds Chinese names as <place>的<nature> from the Chinese pools', () => {
-    sample({ ipCountry: 'HK' }).forEach((name) => {
+    sample({ locale: 'zh' }).forEach((name) => {
       const [place, nature] = name.split('的');
       expect(DISPLAY_NAME_PLACES_ZH).toContain(place);
       expect(DISPLAY_NAME_NATURE_ZH).toContain(nature);
     });
+  });
+
+  it.each([
+    ['HK', DISPLAY_NAME_PLACES_HK],
+    ['hk', DISPLAY_NAME_PLACES_HK],
+    ['TW', DISPLAY_NAME_PLACES_TW],
+  ])('names a %s IP after a place from its own list', (ipCountry, places) => {
+    sample({ ipCountry }).forEach((name) => {
+      expect(places).toContain(name.split('的')[0]);
+    });
+  });
+
+  it('names a Macau IP from both lists', () => {
+    const places = sample({ ipCountry: 'MO' }).map((name) => name.split('的')[0]);
+    const hk = new Set<string>(DISPLAY_NAME_PLACES_HK);
+    const tw = new Set<string>(DISPLAY_NAME_PLACES_TW);
+    expect(places.some((p) => !hk.has(p))).toBe(true);
+    expect(places.some((p) => !tw.has(p))).toBe(true);
   });
 
   it("builds English names as <city>'s <nature> from the English pools", () => {
