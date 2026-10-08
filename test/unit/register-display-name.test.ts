@@ -5,7 +5,7 @@ import {
 import { handleUserRegistration } from '../../src/util/api/users/register';
 import { userCollection } from '../../src/util/firebase';
 import {
-  DISPLAY_NAME_PLACES_ZH,
+  DISPLAY_NAME_PLACES_HK,
   DISPLAY_NAME_PLACES_EN,
 } from '../../src/constant/displayName';
 
@@ -41,12 +41,12 @@ describe('registration display name', () => {
     expect(await storedDisplayName('kwsdvp')).toBe('Chosen Name');
   });
 
-  it('names a Hong Kong signup in Chinese', async () => {
+  it('names a Hong Kong signup after a Hong Kong place', async () => {
     const registration = makeRegistration('pqrstv');
     registration.req.headers = { 'cf-ipcountry': 'HK' };
     await handleUserRegistration(registration);
     const [place] = (await storedDisplayName('pqrstv') as string).split('的');
-    expect(DISPLAY_NAME_PLACES_ZH).toContain(place);
+    expect(DISPLAY_NAME_PLACES_HK).toContain(place);
   });
 
   // The route leaves an absent locale undefined precisely so this stays English:
