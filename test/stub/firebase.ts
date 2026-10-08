@@ -187,6 +187,7 @@ function querySnapshotDocs(inputData: StubData[], originalData: StubData[]): any
     const docObj = {
       id: d.id,
       ref: {
+        get: () => collectionDoc(originalData, d.id).get(),
         set: async (setData: Partial<StubData>, config = {}) => (
           docSet(originalData, d.id, setData, config)
         ),
