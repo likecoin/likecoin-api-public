@@ -156,6 +156,16 @@ function isPlusEntitlement(event: RevenueCatEvent): boolean {
   return !!mapProductIdToTierAndPeriod(event.product_id);
 }
 
+// Stripe-owned, shared-granted and staff-granted VIP records each follow their
+// own lifecycle, so terminal RevenueCat events must leave them alone.
+function isOwnedOutsideRevenueCat(likerPlus?: LikerPlusData): boolean {
+  return (
+    isStripeSubscription(likerPlus)
+    || isSharedGrantedLikerPlus(likerPlus)
+    || !!likerPlus?.isVIP
+  );
+}
+
 // SANDBOX events landing on the prod backend are quarantined: the resulting
 // record gets an environment:'SANDBOX' tag (so dashboards filter them) and
 // monetary/CRM side effects (Slack, Airtable, Intercom paid attributes,
@@ -683,8 +693,7 @@ async function revokeIfRevenueCatOwned(
   isSandbox: boolean,
 ): Promise<boolean> {
   if (!likerPlus) return false;
-  if (isStripeSubscription(likerPlus)) return false;
-  if (isSharedGrantedLikerPlus(likerPlus)) return false;
+  if (isOwnedOutsideRevenueCat(likerPlus)) return false;
   if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
   // Revoke access first — the Firestore write is the source of truth. Only after
   // it succeeds do we report a real revocation (callers audit-log on the return
@@ -800,10 +809,9 @@ async function handleExpiration(
   isSandbox: boolean,
 ) {
   // Don't let a (possibly stale) mobile expiration revoke a record that Stripe
-  // (web) currently owns, or a shared-granted record owned by a giver's
-  // lifecycle. Grants always reclaim the record; terminal events do not.
-  if (isStripeSubscription(user.likerPlus)) return;
-  if (isSharedGrantedLikerPlus(user.likerPlus)) return;
+  // (web) currently owns, a shared-granted record owned by a giver's lifecycle,
+  // or a VIP grant. Grants always reclaim the record; terminal events do not.
+  if (isOwnedOutsideRevenueCat(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (isForOtherSubscription(event, user.likerPlus)) return;
@@ -892,7 +900,7 @@ async function notifyUnsubscribe(
   if (event.cancel_reason === 'BILLING_ERROR') return;
   const { likerPlus } = user;
   if (!likerPlus) return;
-  if (isStripeSubscription(likerPlus) || isSharedGrantedLikerPlus(likerPlus)) return;
+  if (isOwnedOutsideRevenueCat(likerPlus)) return;
   if (isForOtherSubscription(event, likerPlus)) return;
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: event.original_transaction_id || likerPlus.originalTransactionId || 'N/A',
@@ -910,8 +918,7 @@ async function handleBillingIssue(
   user: RevenueCatSubscriber,
   isSandbox: boolean,
 ) {
-  if (isStripeSubscription(user.likerPlus)) return;
-  if (isSharedGrantedLikerPlus(user.likerPlus)) return;
+  if (isOwnedOutsideRevenueCat(user.likerPlus)) return;
   if (!user.likerPlus) return;
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
   if (isForOtherSubscription(event, user.likerPlus)) return;
@@ -958,15 +965,14 @@ async function handleBillingIssue(
 }
 
 // Movable only if RevenueCat owns the record and it still confers access.
-// Stripe-owned/shared-granted records follow their own lifecycles, and
+// Stripe-owned/shared-granted/VIP records follow their own lifecycles, and
 // isSandboxLockedOut prevents sandbox events copying a live prod subscription.
 function isTransferableLikerPlus(
   likerPlus: LikerPlusData | undefined,
   isSandbox: boolean,
 ): boolean {
   if (!likerPlus) return false;
-  if (isStripeSubscription(likerPlus)) return false;
-  if (isSharedGrantedLikerPlus(likerPlus)) return false;
+  if (isOwnedOutsideRevenueCat(likerPlus)) return false;
   if (isSandboxLockedOut(isSandbox, likerPlus)) return false;
   return hasLivePlusAccess(likerPlus);
 }

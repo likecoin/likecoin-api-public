@@ -12,6 +12,7 @@ import {
 import {
   listPlusAffiliates,
   setUserPlusAffiliate,
+  setUserVIPPlus,
   syncUserSubscription,
   linkSubscriptionToUser,
 } from '../../util/api/plus/slack';
@@ -115,6 +116,18 @@ router.post(
       throw new Error('Invalid affiliate command. Usage: /plus affiliate <list|set>');
     },
 
+    set: async ({ params, res }) => {
+      // /plus set vip <email|userId|wallet>
+      if (params[0] !== 'vip' || params.length < 2) {
+        throw new Error('Invalid set command. Usage: /plus set vip <email|userId|wallet>');
+      }
+      const result = await setUserVIPPlus(params[1]);
+      res.json({
+        response_type: 'ephemeral',
+        attachments: [getSlackAttachmentForMap('VIP Plus Set Result', result)],
+      });
+    },
+
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
@@ -134,13 +147,17 @@ List active affiliates with their internal user ID, display name and voice count
 \`/plus affiliate set <email|userId|wallet> <affiliateUserId>\`
 Set the user's Plus affiliate, which decides whose custom voices they get. Both user IDs are internal IDs, not handles; the affiliate must have an active config.
 
+\`/plus set vip <email|userId|wallet>\`
+Grant VIP Plus until 2046-06-30, outside Stripe and RevenueCat. Only for users without an active Plus (including trial, app and shared); an expired record is overwritten.
+
 *Examples:*
 \`/plus sync 0x1234567890abcdef1234567890abcdef12345678\`
 \`/plus sync sub_1234567890abcdef\`
 \`/plus link sub_1234567890abcdef 0x1234567890abcdef1234567890abcdef12345678\`
 \`/plus affiliate list\`
 \`/plus affiliate set reader@example.com karen\`
-\`/plus affiliate set 0x1234567890abcdef1234567890abcdef12345678 karen\``,
+\`/plus affiliate set 0x1234567890abcdef1234567890abcdef12345678 karen\`
+\`/plus set vip reader@example.com\``,
       });
     },
   }, 'Invalid command. Use /plus help for available commands.'),

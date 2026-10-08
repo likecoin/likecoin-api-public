@@ -1431,6 +1431,8 @@ export function isPlusRecordForOtherSubscription(
   subscriptionId: string,
 ): boolean {
   if (!likerPlus) return false;
+  // A VIP grant has no subscription behind it, so no cancellation can end it.
+  if (likerPlus.isVIP) return true;
   if (likerPlus.provider && likerPlus.provider !== 'stripe') return true;
   return !!likerPlus.subscriptionId && likerPlus.subscriptionId !== subscriptionId;
 }

@@ -1,9 +1,13 @@
-import { userCollection, likeNFTBookUserCollection } from '../../firebase';
+import { db, userCollection, likeNFTBookUserCollection } from '../../firebase';
 import { getStripeClient } from '../../stripe';
-import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
+import {
+  formatUserCivicLikerProperies,
+  getUserWithCivicLikerPropertiesByWallet,
+} from '../users/getPublicInfo';
 import { findUserDocByQuery } from '../users';
 import { getBookUserInfo } from '../likernft/book/user';
 import { ValidationError } from '../../ValidationError';
+import type { LikerPlusData } from '../../../types/user';
 
 export async function getStripeSubscriptionDetails(subscriptionId: string) {
   const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId);
@@ -316,4 +320,36 @@ export async function setUserPlusAffiliate(query: string, affiliateId: string) {
     customVoices: (affiliateConfig.customVoices || [])
       .map(({ name, language }) => ({ name, language })),
   };
+}
+
+// 2046-06-30 23:59:59 +08:00
+export const VIP_PLUS_PERIOD_END = 2413987199000;
+
+export async function setUserVIPPlus(query: string) {
+  const { userDoc } = await findUserDocByQuery(query);
+  if (!userDoc || userDoc.data()?.isDeleted) throw new ValidationError(`User not found: ${query}`);
+
+  const now = Date.now();
+  const likerPlus: LikerPlusData = {
+    isVIP: true,
+    since: now,
+    currentPeriodStart: now,
+    currentPeriodEnd: VIP_PLUS_PERIOD_END,
+    tier: 'plus',
+    currentType: 'paid',
+    subscriptionStatus: 'active',
+  };
+  await db.runTransaction(async (transaction) => {
+    const doc = await transaction.get(userDoc.ref);
+    const current = formatUserCivicLikerProperies(doc);
+    if (current.isLikerPlus) {
+      const provider = current.likerPlusProvider || (current.likerPlus?.isVIP ? 'vip' : 'unknown');
+      const end = new Date(current.likerPlus?.currentPeriodEnd as number).toISOString();
+      throw new ValidationError(`User ${userDoc.id} already has Plus (provider: ${provider}, currentPeriodEnd: ${end})`);
+    }
+    // Written as a whole map so no stale subscriptionId or provider survives.
+    transaction.update(userDoc.ref, { likerPlus });
+  });
+
+  return { user: userDoc.id, currentPeriodEnd: VIP_PLUS_PERIOD_END };
 }
