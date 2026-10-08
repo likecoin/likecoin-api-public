@@ -63,6 +63,9 @@ export interface LikerPlusData {
   giftPaymentId?: string;
   giftClaimToken?: string;
   affiliateFrom?: string;
+  // Granted by staff through `/plus set vip`: long-lived Plus with no billing
+  // system behind it, hence no provider, subscriptionId or dailyValue.
+  isVIP?: boolean;
 }
 
 /**
