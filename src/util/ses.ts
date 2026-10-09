@@ -702,6 +702,11 @@ function formatNFTBookSalesAmountTable(
   const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
   const fxVarianceDiff = priceInDecimal - customPriceDiffInDecimal - originalPriceInDecimal;
   const hasFxVariance = Math.round(fxVarianceDiff * 100) !== 0;
+  const hasChannelCommission = channelCommission > 0;
+  const hasRoyalty = royaltyToSplit > 0 || !hasChannelCommission;
+  // Total only adds information when it sums more than one revenue line.
+  const hasTotal = [hasRoyalty, hasChannelCommission, customPriceDiffAfterFee > 0]
+    .filter(Boolean).length > 1;
 
   let table = '<table>';
   if (isEn) {
@@ -710,18 +715,19 @@ function formatNFTBookSalesAmountTable(
       : '';
     table += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}${originalPriceNote}</td></tr>`;
     if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)} (extra reader support)</td></tr>`;
-    table += `<tr><td>Revenue:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)} (royalty)</td></tr>`;
-    if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)} (channel: ${from})</td></tr>`;
-    table += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
+    if (hasRoyalty) table += `<tr><td>Royalty:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}</td></tr>`;
+    if (hasChannelCommission) table += `<tr><td>Commission:</td><td>USD ${formatEmailDecimalNumber(channelCommission)}${from ? ` (channel: ${from})` : ''}</td></tr>`;
+    if (hasTotal) table += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   } else {
     const originalPriceNote = hasFxVariance
       ? `（包含讀者貨幣的滙率差。原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）`
       : '';
-    table += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}${originalPriceNote}</td></tr>`;
+    // Full-width space pads 售價 to the width of the three-character labels below.
+    table += `<tr><td>售\u3000價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}${originalPriceNote}</td></tr>`;
     if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
-    table += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
-    if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-    table += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
+    if (hasRoyalty) table += `<tr><td>權利金：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}</td></tr>`;
+    if (hasChannelCommission) table += `<tr><td>通路金：</td><td>USD ${formatEmailDecimalNumber(channelCommission)}${from ? `（${from}）` : ''}</td></tr>`;
+    if (hasTotal) table += `<tr><td>總收入：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   }
   table += '</table>';
   return table;
