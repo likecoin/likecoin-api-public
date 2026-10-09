@@ -922,9 +922,8 @@ export async function sendNFTBookClaimedEmailNotification(
   isAutoDeliver: boolean,
   feeInfo: TransactionFeeInfo,
   {
-    wallet, email, isGift, giftInfo, from, coupon,
+    email, isGift, giftInfo, from, coupon,
   } : {
-      wallet: string,
       email: string,
       isGift?: boolean,
       from?: string,
@@ -956,7 +955,6 @@ export async function sendNFTBookClaimedEmailNotification(
         classId,
         bookName: className,
         paymentId,
-        wallet,
         buyerEmail: email,
         claimerEmail: giftInfo?.toEmail || email,
         feeInfo,
@@ -970,7 +968,6 @@ export async function sendNFTBookClaimedEmailNotification(
         classId,
         bookName: className,
         paymentId,
-        wallet,
         buyerEmail: email,
         claimerEmail: giftInfo?.toEmail || email,
         feeInfo,
@@ -1158,7 +1155,6 @@ export async function claimNFTBook(
       isAutoDeliver,
       feeInfo,
       {
-        wallet,
         email,
         coupon,
         from: checkIsFromLikerLand(from) ? undefined : from,

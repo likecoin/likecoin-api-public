@@ -693,7 +693,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
   buyerEmail,
   bookName,
   feeInfo,
-  wallet,
   coupon,
   from,
   language = 'zh',
@@ -705,7 +704,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
   buyerEmail: string;
   bookName: string;
   feeInfo: TransactionFeeInfo;
-  wallet: string;
   coupon?: string;
   from?: string;
   language?: string;
@@ -743,7 +741,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
       content += `<p>Buyer email: ${buyerEmail}</p>`;
     }
     content += `<p>Reader email: ${claimerEmail}</p>`;
-    content += `<p>Reader wallet: ${wallet}</p>`;
     content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[Manage Orders]</a></p>`;
   } else {
     const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
@@ -761,7 +758,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
       content += `<p>買家電郵：${buyerEmail}</p>`;
     }
     content += `<p>讀者電郵：${claimerEmail}</p>`;
-    content += `<p>讀者錢包：${wallet}</p>`;
     content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[管理訂單]</a></p>`;
   }
 
@@ -857,7 +853,6 @@ export function sendManualNFTBookSalesEmail({
   buyerEmail,
   bookName,
   feeInfo,
-  wallet,
   coupon,
   from,
   language = 'zh',
@@ -869,7 +864,6 @@ export function sendManualNFTBookSalesEmail({
   buyerEmail: string;
   bookName: string;
   feeInfo: TransactionFeeInfo;
-  wallet: string;
   coupon?: string;
   from?: string;
   language?: string;
@@ -907,7 +901,6 @@ export function sendManualNFTBookSalesEmail({
       content += `<p>Buyer email: ${buyerEmail}</p>`;
     }
     content += `<p>Reader email: ${claimerEmail}</p>`;
-    content += `<p>Reader wallet: ${wallet}</p>`;
     content += `<p><a href="${getNFTBookStoreSendPageURL(classId, paymentId)}">[Sign & Deliver]</a></p>`;
   } else {
     const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
@@ -925,7 +918,6 @@ export function sendManualNFTBookSalesEmail({
       content += `<p>買家電郵：${buyerEmail}</p>`;
     }
     content += `<p>讀者電郵：${claimerEmail}</p>`;
-    content += `<p>讀者錢包：${wallet}</p>`;
     content += `<p><a href="${getNFTBookStoreSendPageURL(classId, paymentId)}">[簽發作品]</a></p>`;
   }
 
