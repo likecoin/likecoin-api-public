@@ -211,6 +211,7 @@ export async function createPlusGiftCart({
   sessionId,
   claimToken,
   ipCountry,
+  fbc,
 }: {
   period?: PlusPeriod,
   quantity?: number,
@@ -220,6 +221,7 @@ export async function createPlusGiftCart({
   sessionId: string,
   claimToken: string,
   ipCountry?: string,
+  fbc?: string,
 }) {
   const payload: any = {
     id: paymentId,
@@ -233,6 +235,9 @@ export async function createPlusGiftCart({
     timestamp: FieldValue.serverTimestamp(),
   };
   if (ipCountry) payload.ipCountry = ipCountry;
+  // The recipient's payment record is written at claim time,
+  // long after the purchase session that carried the buyer's ad click.
+  if (fbc) payload.fbc = fbc;
   await likePlusGiftCartCollection.doc(paymentId).create(payload);
 }
 
@@ -257,6 +262,7 @@ export async function claimPlusGiftCart({
     giftInfo,
     period,
     quantity,
+    fbc,
   } = cartData;
   if (claimToken !== token) {
     throw new ValidationError('Invalid claim token for plus gift cart');
@@ -412,6 +418,7 @@ export async function claimPlusGiftCart({
         isNew: true,
         isTrial: true,
         channel: '',
+        fbc,
       }),
       shouldNotifySender ? sendPlusGiftClaimedEmail({
         fromEmail: email || '',
@@ -499,6 +506,7 @@ export async function processPlusGiftStripePurchase(
     sessionId,
     claimToken,
     ipCountry,
+    fbc,
   });
 
   await sendPlusGiftPendingClaimEmail({

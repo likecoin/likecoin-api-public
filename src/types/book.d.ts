@@ -106,6 +106,7 @@ export interface PlusGiftCartData {
   giftInfo: BookGiftInfo;
   claimToken: string;
   ipCountry?: string;
+  fbc?: string;
   timestamp: { toMillis: () => number };
   claimTimestamp?: { toMillis: () => number };
 }
