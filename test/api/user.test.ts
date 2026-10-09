@@ -32,6 +32,7 @@ import {
 import axiosist from './axiosist';
 import { userCollection, FieldValue } from '../../src/util/firebase';
 import { getMagicUserMetadataByDIDToken } from '../../src/util/magic';
+import { updateIntercomUserName } from '../../src/util/intercom';
 import {
   signWithPrivateKey as signWithCosmos,
 } from './cosmos';
@@ -47,6 +48,12 @@ vi.mock('../../src/util/magic', async (importOriginal) => {
   };
 });
 const mockGetMagicMetadata = vi.mocked(getMagicUserMetadataByDIDToken);
+
+vi.mock('../../src/util/intercom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/intercom')>();
+  return { ...actual, updateIntercomUserName: vi.fn() };
+});
+const mockUpdateIntercomUserName = vi.mocked(updateIntercomUserName);
 
 function signERCProfile(signData, privateKey) {
   const privKey = Buffer.from(privateKey.substr(2), 'hex');
@@ -117,6 +124,7 @@ describe('USER tests', () => {
   it('USER: Edit user by JSON from Web. Case: success', async () => {
     const user = testingUser1;
     const token = jwtSign({ user });
+    mockUpdateIntercomUserName.mockClear();
     const payload = {
       user,
       displayName: testingDisplayName1,
@@ -130,6 +138,28 @@ describe('USER tests', () => {
     }).catch((err) => (err as any).response);
 
     expect(res.status).toBe(200);
+    expect(mockUpdateIntercomUserName).not.toHaveBeenCalled();
+  });
+
+  it('USER: Edit user by JSON from Web. Case: changed displayName syncs to Intercom', async () => {
+    const user = testingUser1;
+    const token = jwtSign({ user });
+    mockUpdateIntercomUserName.mockClear();
+    try {
+      const res = await axiosist.post('/api/users/update', {
+        user,
+        displayName: 'Renamed User',
+      }, {
+        headers: {
+          Cookie: `likecoin_auth=${token};`,
+        },
+      }).catch((err) => (err as any).response);
+
+      expect(res.status).toBe(200);
+      expect(mockUpdateIntercomUserName).toHaveBeenCalledWith(user, 'Renamed User');
+    } finally {
+      await userCollection.doc(user).update({ displayName: testingDisplayName1 });
+    }
   });
 
   it('USER: Edit user by JSON from Web. Case: resubmitting existing email is allowed', async () => {

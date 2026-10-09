@@ -38,6 +38,7 @@ import {
 } from '../../../config/config';
 
 import { getMagicUserMetadataByDIDToken, verifyEmailByMagicUserMetadata } from '../../util/magic';
+import { updateIntercomUserName } from '../../util/intercom';
 
 export const THIRTY_S_IN_MS = 30000;
 
@@ -312,6 +313,11 @@ router.post(
         locale: locale || oldLocale,
         registerTime: timestamp,
       });
+
+      if (displayName !== undefined && displayName !== oldDisplayName) {
+        // Same fallback as registration, which names the contact by user ID.
+        await updateIntercomUserName(user, displayName || user);
+      }
     } catch (err) {
       next(err);
     }
