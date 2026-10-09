@@ -363,6 +363,47 @@ describe('SES email params', () => {
     expect(params).toMatchSnapshot();
   });
 
+  describe('publisher order email amount table', () => {
+    async function getAmountTable(
+      overrides: Partial<TransactionFeeInfo>,
+      { language = 'zh', from }: { language?: string; from?: string } = {},
+    ) {
+      await sendAutoDeliverNFTBookSalesEmail({
+        email: 'author@example.com',
+        classId: '0xclass',
+        paymentId: 'payment-1',
+        claimerEmail: 'claimer@example.com',
+        buyerEmail: 'claimer@example.com',
+        bookName: 'My Book',
+        feeInfo: { ...feeInfo, ...overrides },
+        from,
+        language,
+      });
+      const html = (lastParams() as any).Message.Body.Html.Data as string;
+      return html.match(/<table>.*?<\/table>/)?.[0] ?? '';
+    }
+
+    ['en', 'zh'].forEach((language) => {
+      it(`hides original price when it equals the price (${language})`, async () => {
+        const table = await getAmountTable(
+          { priceInDecimal: 900, customPriceDiffInDecimal: 0 },
+          { language },
+        );
+        expect(table).toContain('USD 9.00</td>');
+        expect(table).not.toMatch(/original|原價/);
+      });
+    });
+
+    it('shows original price when there is FX variance', async () => {
+      const table = await getAmountTable({
+        priceInDecimal: 994,
+        originalPriceInDecimal: 999,
+        customPriceDiffInDecimal: 0,
+      });
+      expect(table).toContain('USD 9.94（包含讀者貨幣的滙率差。原價：USD 9.99）');
+    });
+  });
+
   // The link is the whole verification flow, so pin its shape: host, path, and
   // the `lang` a GET from a mail client has no other way to carry.
   it('sendVerificationEmail links straight at the API with the sender locale', async () => {

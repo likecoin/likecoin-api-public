@@ -705,15 +705,19 @@ function formatNFTBookSalesAmountTable(
 
   let table = '<table>';
   if (isEn) {
-    const fxVarianceNote = hasFxVariance ? 'includes FX variance, ' : '';
-    table += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)} (${fxVarianceNote}original: USD ${formatEmailDecimalNumber(originalPriceInDecimal)})</td></tr>`;
+    const originalPriceNote = hasFxVariance
+      ? ` (includes FX variance, original: USD ${formatEmailDecimalNumber(originalPriceInDecimal)})`
+      : '';
+    table += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}${originalPriceNote}</td></tr>`;
     if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)} (extra reader support)</td></tr>`;
     table += `<tr><td>Revenue:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)} (royalty)</td></tr>`;
     if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)} (channel: ${from})</td></tr>`;
     table += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
   } else {
-    const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
-    table += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（${fxVarianceNote}原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+    const originalPriceNote = hasFxVariance
+      ? `（包含讀者貨幣的滙率差。原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）`
+      : '';
+    table += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}${originalPriceNote}</td></tr>`;
     if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
     table += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
     if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
