@@ -741,7 +741,7 @@ export function sendAutoDeliverNFTBookSalesEmail({
       content += `<p>Buyer email: ${buyerEmail}</p>`;
     }
     content += `<p>Reader email: ${claimerEmail}</p>`;
-    content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[Manage Orders]</a></p>`;
+    content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[Manage Books, Customers and Orders]</a></p>`;
   } else {
     const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
     title = `《${bookName}》訂單`;
@@ -758,7 +758,7 @@ export function sendAutoDeliverNFTBookSalesEmail({
       content += `<p>買家電郵：${buyerEmail}</p>`;
     }
     content += `<p>讀者電郵：${claimerEmail}</p>`;
-    content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[管理訂單]</a></p>`;
+    content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[管理書目、顧客及訂單]</a></p>`;
   }
 
   return sendSESTemplateEmail({
