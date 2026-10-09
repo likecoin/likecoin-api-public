@@ -402,6 +402,31 @@ describe('SES email params', () => {
       });
       expect(table).toContain('USD 9.94（包含讀者貨幣的滙率差。原價：USD 9.99）');
     });
+
+    it('omits total when royalty is the only revenue', async () => {
+      const table = await getAmountTable({ channelCommission: 0, customPriceDiffInDecimal: 0 });
+      expect(table).toContain('<td>權利金：</td><td>USD 4.00</td>');
+      expect(table).not.toMatch(/通路金|總收入/);
+    });
+
+    it('omits royalty and total when commission is the only revenue', async () => {
+      const table = await getAmountTable(
+        { royaltyToSplit: 0, customPriceDiffInDecimal: 0 },
+        { from: 'channel-1' },
+      );
+      expect(table).toContain('<td>通路金：</td><td>USD 0.50（channel-1）</td>');
+      expect(table).not.toMatch(/權利金|總收入/);
+    });
+
+    it('shows total when royalty and commission both apply', async () => {
+      const table = await getAmountTable(
+        { customPriceDiffInDecimal: 0 },
+        { language: 'en', from: 'channel-1' },
+      );
+      expect(table).toContain('<td>Royalty:</td><td>USD 4.00</td>');
+      expect(table).toContain('<td>Commission:</td><td>USD 0.50 (channel: channel-1)</td>');
+      expect(table).toContain('<td>Total:</td><td>USD 4.50</td>');
+    });
   });
 
   // The link is the whole verification flow, so pin its shape: host, path, and
