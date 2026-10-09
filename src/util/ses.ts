@@ -686,6 +686,43 @@ export function sendNFTBookMerchSaleEmail({
   });
 }
 
+function formatNFTBookSalesAmountTable(
+  feeInfo: TransactionFeeInfo,
+  { from, isEn }: { from?: string; isEn: boolean },
+) {
+  const {
+    priceInDecimal,
+    originalPriceInDecimal,
+    channelCommission,
+    customPriceDiffInDecimal,
+    likerLandTipFeeAmount,
+    royaltyToSplit,
+  } = feeInfo;
+  const customPriceDiffAfterFee = Math.max(0, customPriceDiffInDecimal - likerLandTipFeeAmount);
+  const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
+  const fxVarianceDiff = priceInDecimal - customPriceDiffInDecimal - originalPriceInDecimal;
+  const hasFxVariance = Math.round(fxVarianceDiff * 100) !== 0;
+
+  let table = '<table>';
+  if (isEn) {
+    const fxVarianceNote = hasFxVariance ? 'includes FX variance, ' : '';
+    table += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)} (${fxVarianceNote}original: USD ${formatEmailDecimalNumber(originalPriceInDecimal)})</td></tr>`;
+    if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)} (extra reader support)</td></tr>`;
+    table += `<tr><td>Revenue:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)} (royalty)</td></tr>`;
+    if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)} (channel: ${from})</td></tr>`;
+    table += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
+  } else {
+    const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
+    table += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（${fxVarianceNote}原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
+    if (customPriceDiffAfterFee) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
+    table += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
+    if (from) table += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
+    table += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
+  }
+  table += '</table>';
+  return table;
+}
+
 export function sendAutoDeliverNFTBookSalesEmail({
   email,
   classId,
@@ -709,51 +746,24 @@ export function sendAutoDeliverNFTBookSalesEmail({
   language?: string;
 }) {
   const isEn = language === 'en';
-  const {
-    priceInDecimal,
-    originalPriceInDecimal,
-    channelCommission,
-    customPriceDiffInDecimal,
-    likerLandTipFeeAmount,
-    royaltyToSplit,
-  } = feeInfo;
-  let customPriceDiffAfterFee = customPriceDiffInDecimal - likerLandTipFeeAmount;
-  customPriceDiffAfterFee = Math.max(0, customPriceDiffAfterFee);
-  const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
-  const fxVarianceDiff = priceInDecimal - customPriceDiffInDecimal - originalPriceInDecimal;
-  const hasFxVariance = Math.round(fxVarianceDiff * 100) !== 0;
 
   let title: string;
   let content: string;
   if (isEn) {
-    const fxVarianceNote = hasFxVariance ? 'includes FX variance, ' : '';
     title = `Order for "${bookName}"`;
     content = `<p>Congratulations! An order for "${bookName}" has been received and automatically delivered.</p>`;
     if (coupon) content += `<p>Coupon: ${coupon}</p>`;
-    content += '<table>';
-    content += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)} (${fxVarianceNote}original: USD ${formatEmailDecimalNumber(originalPriceInDecimal)})</td></tr>`;
-    if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)} (extra reader support)</td></tr>`;
-    content += `<tr><td>Revenue:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)} (royalty)</td></tr>`;
-    if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)} (channel: ${from})</td></tr>`;
-    content += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
-    content += '</table>';
+    content += formatNFTBookSalesAmountTable(feeInfo, { from, isEn });
     if (buyerEmail !== claimerEmail) {
       content += `<p>Buyer email: ${buyerEmail}</p>`;
     }
     content += `<p>Reader email: ${claimerEmail}</p>`;
     content += `<p><a href="${getNFTBookStoreClassPageURL(classId)}">[Manage Books, Customers and Orders]</a></p>`;
   } else {
-    const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
     title = `《${bookName}》訂單`;
     content = `<p>恭喜，收到《${bookName}》的訂單，作品已經自動發送。</p>`;
     if (coupon) content += `<p>優惠碼：${coupon}</p>`;
-    content += '<table>';
-    content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（${fxVarianceNote}原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
-    if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
-    content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
-    if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-    content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
-    content += '</table>';
+    content += formatNFTBookSalesAmountTable(feeInfo, { from, isEn });
     if (buyerEmail !== claimerEmail) {
       content += `<p>買家電郵：${buyerEmail}</p>`;
     }
@@ -869,51 +879,24 @@ export function sendManualNFTBookSalesEmail({
   language?: string;
 }) {
   const isEn = language === 'en';
-  const {
-    priceInDecimal,
-    originalPriceInDecimal,
-    channelCommission,
-    customPriceDiffInDecimal,
-    likerLandTipFeeAmount,
-    royaltyToSplit,
-  } = feeInfo;
-  let customPriceDiffAfterFee = customPriceDiffInDecimal - likerLandTipFeeAmount;
-  customPriceDiffAfterFee = Math.max(0, customPriceDiffAfterFee);
-  const totalRevenue = royaltyToSplit + channelCommission + customPriceDiffAfterFee;
-  const fxVarianceDiff = priceInDecimal - customPriceDiffInDecimal - originalPriceInDecimal;
-  const hasFxVariance = Math.round(fxVarianceDiff * 100) !== 0;
 
   let title: string;
   let content: string;
   if (isEn) {
-    const fxVarianceNote = hasFxVariance ? 'includes FX variance, ' : '';
     title = `Order received — please sign and deliver "${bookName}"`;
     content = `<p>Congratulations! An order for "${bookName}" has been received. Please go to the author management page to sign and deliver.</p>`;
     if (coupon) content += `<p>Coupon: ${coupon}</p>`;
-    content += '<table>';
-    content += `<tr><td>Price:</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)} (${fxVarianceNote}original: USD ${formatEmailDecimalNumber(originalPriceInDecimal)})</td></tr>`;
-    if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)} (extra reader support)</td></tr>`;
-    content += `<tr><td>Revenue:</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)} (royalty)</td></tr>`;
-    if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)} (channel: ${from})</td></tr>`;
-    content += `<tr><td>Total:</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
-    content += '</table>';
+    content += formatNFTBookSalesAmountTable(feeInfo, { from, isEn });
     if (buyerEmail !== claimerEmail) {
       content += `<p>Buyer email: ${buyerEmail}</p>`;
     }
     content += `<p>Reader email: ${claimerEmail}</p>`;
     content += `<p><a href="${getNFTBookStoreSendPageURL(classId, paymentId)}">[Sign & Deliver]</a></p>`;
   } else {
-    const fxVarianceNote = hasFxVariance ? '（包含讀者貨幣的滙率差）,' : '';
     title = `收到訂單，請簽發《${bookName}》訂單`;
     content = `<p>恭喜，收到《${bookName}》的訂單，請到作者管理介面簽發。</p>`;
     if (coupon) content += `<p>優惠碼：${coupon}</p>`;
-    content += '<table>';
-    content += `<tr><td>售價：</td><td>USD ${formatEmailDecimalNumber(priceInDecimal - customPriceDiffInDecimal)}（${fxVarianceNote}原價：USD ${formatEmailDecimalNumber(originalPriceInDecimal)}）</td></tr>`;
-    if (customPriceDiffAfterFee) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(customPriceDiffAfterFee)}（讀者額外支持）</td></tr>`;
-    content += `<tr><td>收益：</td><td>USD ${formatEmailDecimalNumber(royaltyToSplit)}（權利金）</td></tr>`;
-    if (from) content += `<tr><td></td><td>USD ${formatEmailDecimalNumber(channelCommission)}（通路：${from}）</td></tr>`;
-    content += `<tr><td>總計：</td><td>USD ${formatEmailDecimalNumber(totalRevenue)}</td></tr>`;
-    content += '</table>';
+    content += formatNFTBookSalesAmountTable(feeInfo, { from, isEn });
     if (buyerEmail !== claimerEmail) {
       content += `<p>買家電郵：${buyerEmail}</p>`;
     }
