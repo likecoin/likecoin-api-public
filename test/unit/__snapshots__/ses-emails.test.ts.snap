@@ -262,7 +262,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>Congratulations! An order for "My Book" has been received and automatically delivered.</p><p>Coupon: COUPON</p><table><tr><td>Price:</td><td>USD 9.90 (includes FX variance, original: USD 9.00)</td></tr><tr><td></td><td>USD 0.90 (extra reader support)</td></tr><tr><td>Revenue:</td><td>USD 4.00 (royalty)</td></tr><tr><td></td><td>USD 0.50 (channel: channel-1)</td></tr><tr><td>Total:</td><td>USD 5.40</td></tr></table><p>Buyer email: buyer@example.com</p><p>Reader email: claimer@example.com</p><p>Reader wallet: 0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[Manage Orders]</a></p></div></div>
+      ><div><p>Congratulations! An order for "My Book" has been received and automatically delivered.</p><p>Coupon: COUPON</p><table><tr><td>Price:</td><td>USD 9.90 (includes FX variance, original: USD 9.00)</td></tr><tr><td></td><td>USD 0.90 (extra reader support)</td></tr><tr><td>Royalty:</td><td>USD 4.00</td></tr><tr><td>Commission:</td><td>USD 0.50 (channel: channel-1)</td></tr><tr><td>Total:</td><td>USD 5.40</td></tr></table><p>Buyer email: buyer@example.com</p><p>Reader email: claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[Manage Books, Customers and Orders]</a></p></div></div>
     
                 </td>
               </tr>
@@ -487,7 +487,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",
@@ -763,7 +763,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>恭喜，收到《My Book》的訂單，作品已經自動發送。</p><p>優惠碼：COUPON</p><table><tr><td>售價：</td><td>USD 9.90（（包含讀者貨幣的滙率差）,原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>收益：</td><td>USD 4.00（權利金）</td></tr><tr><td></td><td>USD 0.50（通路：channel-1）</td></tr><tr><td>總計：</td><td>USD 5.40</td></tr></table><p>買家電郵：buyer@example.com</p><p>讀者電郵：claimer@example.com</p><p>讀者錢包：0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[管理訂單]</a></p></div></div>
+      ><div><p>恭喜，收到《My Book》的訂單，作品已經自動發送。</p><p>優惠碼：COUPON</p><table><tr><td>售　價：</td><td>USD 9.90（包含讀者貨幣的滙率差。原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>權利金：</td><td>USD 4.00</td></tr><tr><td>通路金：</td><td>USD 0.50（channel-1）</td></tr><tr><td>總收入：</td><td>USD 5.40</td></tr></table><p>買家電郵：buyer@example.com</p><p>讀者電郵：claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[管理書目、顧客及訂單]</a></p></div></div>
     
                 </td>
               </tr>
@@ -988,7 +988,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",
@@ -1260,7 +1260,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>恭喜，收到《My Book》的訂單，作品已經自動發送。</p><table><tr><td>售價：</td><td>USD 9.90（（包含讀者貨幣的滙率差）,原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>收益：</td><td>USD 4.00（權利金）</td></tr><tr><td>總計：</td><td>USD 5.40</td></tr></table><p>讀者電郵：claimer@example.com</p><p>讀者錢包：0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[管理訂單]</a></p></div></div>
+      ><div><p>恭喜，收到《My Book》的訂單，作品已經自動發送。</p><table><tr><td>售　價：</td><td>USD 9.90（包含讀者貨幣的滙率差。原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>權利金：</td><td>USD 4.00</td></tr><tr><td>通路金：</td><td>USD 0.50</td></tr><tr><td>總收入：</td><td>USD 5.40</td></tr></table><p>讀者電郵：claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/status/0xclass">[管理書目、顧客及訂單]</a></p></div></div>
     
                 </td>
               </tr>
@@ -1485,7 +1485,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",
@@ -1761,7 +1761,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>Congratulations! An order for "My Book" has been received. Please go to the author management page to sign and deliver.</p><p>Coupon: COUPON</p><table><tr><td>Price:</td><td>USD 9.90 (includes FX variance, original: USD 9.00)</td></tr><tr><td></td><td>USD 0.90 (extra reader support)</td></tr><tr><td>Revenue:</td><td>USD 4.00 (royalty)</td></tr><tr><td></td><td>USD 0.50 (channel: channel-1)</td></tr><tr><td>Total:</td><td>USD 5.40</td></tr></table><p>Buyer email: buyer@example.com</p><p>Reader email: claimer@example.com</p><p>Reader wallet: 0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[Sign & Deliver]</a></p></div></div>
+      ><div><p>Congratulations! An order for "My Book" has been received. Please go to the author management page to sign and deliver.</p><p>Coupon: COUPON</p><table><tr><td>Price:</td><td>USD 9.90 (includes FX variance, original: USD 9.00)</td></tr><tr><td></td><td>USD 0.90 (extra reader support)</td></tr><tr><td>Royalty:</td><td>USD 4.00</td></tr><tr><td>Commission:</td><td>USD 0.50 (channel: channel-1)</td></tr><tr><td>Total:</td><td>USD 5.40</td></tr></table><p>Buyer email: buyer@example.com</p><p>Reader email: claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[Sign & Deliver]</a></p></div></div>
     
                 </td>
               </tr>
@@ -1986,7 +1986,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",
@@ -2262,7 +2262,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>恭喜，收到《My Book》的訂單，請到作者管理介面簽發。</p><p>優惠碼：COUPON</p><table><tr><td>售價：</td><td>USD 9.90（（包含讀者貨幣的滙率差）,原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>收益：</td><td>USD 4.00（權利金）</td></tr><tr><td></td><td>USD 0.50（通路：channel-1）</td></tr><tr><td>總計：</td><td>USD 5.40</td></tr></table><p>買家電郵：buyer@example.com</p><p>讀者電郵：claimer@example.com</p><p>讀者錢包：0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[簽發作品]</a></p></div></div>
+      ><div><p>恭喜，收到《My Book》的訂單，請到作者管理介面簽發。</p><p>優惠碼：COUPON</p><table><tr><td>售　價：</td><td>USD 9.90（包含讀者貨幣的滙率差。原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>權利金：</td><td>USD 4.00</td></tr><tr><td>通路金：</td><td>USD 0.50（channel-1）</td></tr><tr><td>總收入：</td><td>USD 5.40</td></tr></table><p>買家電郵：buyer@example.com</p><p>讀者電郵：claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[簽發作品]</a></p></div></div>
     
                 </td>
               </tr>
@@ -2487,7 +2487,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",
@@ -2759,7 +2759,7 @@ a {
                   
       <div
          style="font-family:Arial;font-size:14px;line-height:1.5;text-align:left;color:#131313;"
-      ><div><p>恭喜，收到《My Book》的訂單，請到作者管理介面簽發。</p><table><tr><td>售價：</td><td>USD 9.90（（包含讀者貨幣的滙率差）,原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>收益：</td><td>USD 4.00（權利金）</td></tr><tr><td>總計：</td><td>USD 5.40</td></tr></table><p>讀者電郵：claimer@example.com</p><p>讀者錢包：0xwallet</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[簽發作品]</a></p></div></div>
+      ><div><p>恭喜，收到《My Book》的訂單，請到作者管理介面簽發。</p><table><tr><td>售　價：</td><td>USD 9.90（包含讀者貨幣的滙率差。原價：USD 9.00）</td></tr><tr><td></td><td>USD 0.90（讀者額外支持）</td></tr><tr><td>權利金：</td><td>USD 4.00</td></tr><tr><td>通路金：</td><td>USD 0.50</td></tr><tr><td>總收入：</td><td>USD 5.40</td></tr></table><p>讀者電郵：claimer@example.com</p><p><a href="https://publish.sepolia.3ook.com/my-books/send/0xclass/?payment_id=payment-1">[簽發作品]</a></p></div></div>
     
                 </td>
               </tr>
@@ -2984,7 +2984,7 @@ a {
   "ReplyToAddresses": [
     ""3ook.com" <cs@3ook.com>",
   ],
-  "Source": ""3ook.com" <cs@3ook.com>",
+  "Source": ""3ook.com sales team" <sales@3ook.com>",
   "Tags": [
     {
       "Name": "Function",

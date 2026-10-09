@@ -243,7 +243,6 @@ describe('SES email params', () => {
         buyerEmail: 'buyer@example.com',
         bookName: 'My Book',
         feeInfo,
-        wallet: '0xwallet',
         coupon: 'COUPON',
         from: 'channel-1',
         language,
@@ -275,7 +274,6 @@ describe('SES email params', () => {
         buyerEmail: 'buyer@example.com',
         bookName: 'My Book',
         feeInfo,
-        wallet: '0xwallet',
         coupon: 'COUPON',
         from: 'channel-1',
         language,
@@ -344,7 +342,6 @@ describe('SES email params', () => {
       buyerEmail: 'claimer@example.com',
       bookName: 'My Book',
       feeInfo,
-      wallet: '0xwallet',
     });
     const params = lastParams() as { Destination?: { ToAddresses?: string[] } };
     expect(params.Destination).not.toHaveProperty('ToAddresses');
@@ -360,11 +357,76 @@ describe('SES email params', () => {
       buyerEmail: 'claimer@example.com',
       bookName: 'My Book',
       feeInfo,
-      wallet: '0xwallet',
     });
     const params = lastParams() as { Destination?: { ToAddresses?: string[] } };
     expect(params.Destination).not.toHaveProperty('ToAddresses');
     expect(params).toMatchSnapshot();
+  });
+
+  describe('publisher order email amount table', () => {
+    async function getAmountTable(
+      overrides: Partial<TransactionFeeInfo>,
+      { language = 'zh', from }: { language?: string; from?: string } = {},
+    ) {
+      await sendAutoDeliverNFTBookSalesEmail({
+        email: 'author@example.com',
+        classId: '0xclass',
+        paymentId: 'payment-1',
+        claimerEmail: 'claimer@example.com',
+        buyerEmail: 'claimer@example.com',
+        bookName: 'My Book',
+        feeInfo: { ...feeInfo, ...overrides },
+        from,
+        language,
+      });
+      const html = (lastParams() as any).Message.Body.Html.Data as string;
+      return html.match(/<table>.*?<\/table>/)?.[0] ?? '';
+    }
+
+    ['en', 'zh'].forEach((language) => {
+      it(`hides original price when it equals the price (${language})`, async () => {
+        const table = await getAmountTable(
+          { priceInDecimal: 900, customPriceDiffInDecimal: 0 },
+          { language },
+        );
+        expect(table).toContain('USD 9.00</td>');
+        expect(table).not.toMatch(/original|原價/);
+      });
+    });
+
+    it('shows original price when there is FX variance', async () => {
+      const table = await getAmountTable({
+        priceInDecimal: 994,
+        originalPriceInDecimal: 999,
+        customPriceDiffInDecimal: 0,
+      });
+      expect(table).toContain('USD 9.94（包含讀者貨幣的滙率差。原價：USD 9.99）');
+    });
+
+    it('omits total when royalty is the only revenue', async () => {
+      const table = await getAmountTable({ channelCommission: 0, customPriceDiffInDecimal: 0 });
+      expect(table).toContain('<td>權利金：</td><td>USD 4.00</td>');
+      expect(table).not.toMatch(/通路金|總收入/);
+    });
+
+    it('omits royalty and total when commission is the only revenue', async () => {
+      const table = await getAmountTable(
+        { royaltyToSplit: 0, customPriceDiffInDecimal: 0 },
+        { from: 'channel-1' },
+      );
+      expect(table).toContain('<td>通路金：</td><td>USD 0.50（channel-1）</td>');
+      expect(table).not.toMatch(/權利金|總收入/);
+    });
+
+    it('shows total when royalty and commission both apply', async () => {
+      const table = await getAmountTable(
+        { customPriceDiffInDecimal: 0 },
+        { language: 'en', from: 'channel-1' },
+      );
+      expect(table).toContain('<td>Royalty:</td><td>USD 4.00</td>');
+      expect(table).toContain('<td>Commission:</td><td>USD 0.50 (channel: channel-1)</td>');
+      expect(table).toContain('<td>Total:</td><td>USD 4.50</td>');
+    });
   });
 
   // The link is the whole verification flow, so pin its shape: host, path, and
