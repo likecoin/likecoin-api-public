@@ -850,6 +850,7 @@ async function emitPlusInvoiceAnalytics({
       utmSource,
       utmContent,
       utmTerm,
+      fbc,
       giftCartId,
     }),
   ]);
