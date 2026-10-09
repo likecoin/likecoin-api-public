@@ -243,7 +243,6 @@ describe('SES email params', () => {
         buyerEmail: 'buyer@example.com',
         bookName: 'My Book',
         feeInfo,
-        wallet: '0xwallet',
         coupon: 'COUPON',
         from: 'channel-1',
         language,
@@ -275,7 +274,6 @@ describe('SES email params', () => {
         buyerEmail: 'buyer@example.com',
         bookName: 'My Book',
         feeInfo,
-        wallet: '0xwallet',
         coupon: 'COUPON',
         from: 'channel-1',
         language,
@@ -344,7 +342,6 @@ describe('SES email params', () => {
       buyerEmail: 'claimer@example.com',
       bookName: 'My Book',
       feeInfo,
-      wallet: '0xwallet',
     });
     const params = lastParams() as { Destination?: { ToAddresses?: string[] } };
     expect(params.Destination).not.toHaveProperty('ToAddresses');
@@ -360,7 +357,6 @@ describe('SES email params', () => {
       buyerEmail: 'claimer@example.com',
       bookName: 'My Book',
       feeInfo,
-      wallet: '0xwallet',
     });
     const params = lastParams() as { Destination?: { ToAddresses?: string[] } };
     expect(params.Destination).not.toHaveProperty('ToAddresses');
