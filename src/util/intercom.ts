@@ -205,6 +205,26 @@ export async function updateIntercomUserAttributes(
   }
 }
 
+export async function updateIntercomUserName(
+  userId: string,
+  name: string,
+): Promise<boolean> {
+  const client = getIntercomClient();
+  if (!client) return false;
+  try {
+    const contactId = await findIntercomContactIdByUserId(userId);
+    if (!contactId) {
+      throw new Error(`Contact with external_id ${userId} not found for name update`);
+    }
+    await client.contacts.update({ contact_id: contactId, name });
+    return true;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error updating Intercom user name:', error);
+    return false;
+  }
+}
+
 export async function sendIntercomEvent({
   userId,
   eventName,
