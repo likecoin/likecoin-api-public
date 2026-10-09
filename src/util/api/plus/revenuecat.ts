@@ -658,6 +658,7 @@ async function handleGrant(
       // only real subscription creations, so a trial conversion is not "new" here.
       isNew: isInitial,
       isTrial,
+      fbc: acquisitionEventPayload.fbc,
     }));
   }
   await Promise.all(sideEffects);
