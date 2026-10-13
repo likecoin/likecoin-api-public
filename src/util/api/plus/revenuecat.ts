@@ -58,6 +58,8 @@ export interface RevenueCatEvent {
   aliases?: string[];
   original_app_user_id?: string;
   product_id?: string;
+  // PRODUCT_CHANGE only: `product_id` is the old product, this is the new one.
+  new_product_id?: string;
   entitlement_id?: string | null;
   entitlement_ids?: string[] | null;
   period_type?: 'TRIAL' | 'INTRO' | 'NORMAL' | 'PROMOTIONAL' | 'PREPAID';
@@ -207,6 +209,16 @@ function isForOtherSubscription(event: RevenueCatEvent, likerPlus: LikerPlusData
   return false;
 }
 
+// RevenueCat sends PRODUCT_CHANGE and the RENEWAL of the new product within
+// milliseconds when a lapsed subscriber switches plan, carrying the old term's end.
+// Handled concurrently, the PRODUCT_CHANGE can land last and roll back the renewal,
+// so it must never move the period end backwards or grant an already-over term.
+function isStaleProductChange(event: RevenueCatEvent, likerPlus?: LikerPlusData): boolean {
+  if (event.type !== 'PRODUCT_CHANGE' || !event.expiration_at_ms) return false;
+  return event.expiration_at_ms <= Date.now()
+    || event.expiration_at_ms < (likerPlus?.currentPeriodEnd || 0);
+}
+
 const GRANT_EVENT_TYPES = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -240,6 +252,7 @@ async function handleGrant(
   req: Express.Request,
 ) {
   if (isSandboxLockedOut(isSandbox, user.likerPlus)) return;
+  if (isStaleProductChange(event, user.likerPlus)) return;
 
   const isInitial = event.type === 'INITIAL_PURCHASE';
   // A paid introductory offer (the $1/7-day trial) is a trial for entitlement, CRM and
@@ -272,7 +285,9 @@ async function handleGrant(
     console.warn(`RevenueCat ${event.type} for ${likerId} has no resolvable currentPeriodEnd; skipping grant`);
     return;
   }
-  const productMapping = mapProductIdToTierAndPeriod(event.product_id);
+  const productMapping = mapProductIdToTierAndPeriod(
+    event.type === 'PRODUCT_CHANGE' ? event.new_product_id || event.product_id : event.product_id,
+  );
   const period = productMapping?.period || user.likerPlus?.period;
   // Tier: the product mapping is authoritative; else the civic entitlement on
   // the event; else preserve the stored tier (renewals may omit product info).
