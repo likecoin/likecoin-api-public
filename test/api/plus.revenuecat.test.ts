@@ -677,6 +677,61 @@ describe('Plus RevenueCat webhook', () => {
     expect(mockSlackNotification).not.toHaveBeenCalled();
   });
 
+  it('keeps the RENEWAL when a lapsed PRODUCT_CHANGE lands after it', async () => {
+    // A lapsed monthly subscriber re-buying yearly gets a PRODUCT_CHANGE (old product,
+    // old term end) and a RENEWAL (new product, new end) milliseconds apart. Webhooks
+    // run concurrently, so the PRODUCT_CHANGE can land last and must not roll it back.
+    const renewalEnd = FUTURE_PERIOD_END_MS + 365 * 24 * 60 * 60 * 1000;
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        period: 'year',
+        currentPeriodStart: PURCHASED_AT_MS,
+        currentPeriodEnd: renewalEnd,
+      },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_product_change',
+        type: 'PRODUCT_CHANGE',
+        product_id: 'rc_plus_monthly',
+        new_product_id: 'rc_plus_yearly',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.period).toBe('year');
+    expect(user?.likerPlus?.currentPeriodStart).toBe(PURCHASED_AT_MS);
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(renewalEnd);
+  });
+
+  it('applies the new product on a mid-term PRODUCT_CHANGE', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, period: 'month' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_upgrade',
+        type: 'PRODUCT_CHANGE',
+        product_id: 'rc_plus_monthly',
+        new_product_id: 'rc_plus_yearly',
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.period).toBe('year');
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
+  });
+
   it('carries a live subscription to transferred_to on TRANSFER', async () => {
     // A pure account switch (log into a new account days after buying) emits only
     // TRANSFER — no grant event follows — so the destination must be populated from
