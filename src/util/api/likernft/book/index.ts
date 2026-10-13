@@ -373,6 +373,7 @@ export async function newNftBookInfo(
     nameByLocale,
     descriptionByLocale,
     descriptionFullByLocale,
+    promotionalImages,
   } = data;
   const previewContent = getPreviewContentFromHasPart(hasPart);
   const isNonNFT = isNonNFTProduct({ productType });
@@ -432,6 +433,7 @@ export async function newNftBookInfo(
     if (maxQuantityPerOrder) payload.maxQuantityPerOrder = maxQuantityPerOrder;
   }
   if (image) payload.image = image;
+  if (promotionalImages) payload.promotionalImages = promotionalImages;
   if (inLanguage) payload.inLanguage = inLanguage;
   if (name) payload.name = name;
   if (description) payload.description = description;
@@ -493,6 +495,35 @@ export async function getNftBookInfo(classId: string): Promise<NFTBookListingInf
   return doc.data()!;
 }
 
+// Names, descriptions and images are read from the arguments rather than the listing, since
+// a book takes them from chain metadata while a non-NFT product owns them.
+export async function updateStripeProductsFromListing(
+  classId: string,
+  bookInfo: NFTBookListingInfo,
+  {
+    name,
+    description,
+    image,
+    thumbnailUrl,
+  }: Pick<NFTBookListingInfo, 'name' | 'description' | 'image' | 'thumbnailUrl'>,
+) {
+  const { prices = [] } = bookInfo;
+  await Promise.all(prices.map(async (p, priceIndex) => {
+    if (p.stripeProductId) {
+      const stripeMetadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
+      const images: string[] = [];
+      if (image) images.push(parseImageURLFromMetadata(image));
+      if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
+      await getStripeClient().products.update(p.stripeProductId, {
+        name: [name, typeof p.name === 'object' ? getLocalizedTextWithFallback(p.name || {}, 'zh') : p.name].filter(Boolean).join(' - '),
+        description: [typeof p.description === 'object' ? getLocalizedTextWithFallback(p.description || {}, 'zh') : p.description, description].filter(Boolean).join('\n'),
+        images: images.length ? images : undefined,
+        metadata: stripeMetadata,
+      });
+    }
+  }));
+}
+
 export async function syncNFTBookInfoWithISCN(classId) {
   // Bypass cache: this sync runs after the user updated on-chain metadata,
   // so it must read fresh chain data to refresh the DB.
@@ -544,20 +575,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (image) payload.image = image;
   if (genre) payload.genre = genre;
   await likeNFTBookCollection.doc(classId).update(payload);
-  await Promise.all(prices.map(async (p, priceIndex) => {
-    if (p.stripeProductId) {
-      const stripeMetadata = getStripeProductMetadata(classId, priceIndex, bookInfo);
-      const images: string[] = [];
-      if (image) images.push(parseImageURLFromMetadata(image));
-      if (thumbnailUrl) images.push(parseImageURLFromMetadata(thumbnailUrl));
-      await getStripeClient().products.update(p.stripeProductId, {
-        name: [name, typeof p.name === 'object' ? getLocalizedTextWithFallback(p.name || {}, 'zh') : p.name].filter(Boolean).join(' - '),
-        description: [typeof p.description === 'object' ? getLocalizedTextWithFallback(p.description || {}, 'zh') : p.description, description].filter(Boolean).join('\n'),
-        images: images.length ? images : undefined,
-        metadata: stripeMetadata,
-      });
-    }
-  }));
+  await updateStripeProductsFromListing(classId, bookInfo, {
+    name, description, image, thumbnailUrl,
+  });
 
   try {
     await triggerNFTIndexerUpdate({ classId });
@@ -637,6 +657,12 @@ export async function updateNftBookInfo(classId: string, {
   nameByLocale,
   descriptionByLocale,
   descriptionFullByLocale,
+  name,
+  description,
+  thumbnailUrl,
+  image,
+  promotionalImages,
+  maxQuantityPerOrder,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -659,6 +685,13 @@ export async function updateNftBookInfo(classId: string, {
   nameByLocale?: BookLocalizedCopy | null;
   descriptionByLocale?: BookLocalizedCopy | null;
   descriptionFullByLocale?: BookLocalizedCopy | null;
+  // Presentational fields a non-NFT product owns; a book takes them from chain metadata.
+  name?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  image?: string;
+  promotionalImages?: string[];
+  maxQuantityPerOrder?: number;
 } = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -689,6 +722,12 @@ export async function updateNftBookInfo(classId: string, {
   if (signedMessageText !== undefined) { payload.signedMessageText = signedMessageText; }
   if (tableOfContents !== undefined) { payload.tableOfContents = tableOfContents; }
   if (descriptionFull !== undefined) { payload.descriptionFull = descriptionFull; }
+  if (name !== undefined) { payload.name = name; }
+  if (description !== undefined) { payload.description = description; }
+  if (thumbnailUrl !== undefined) { payload.thumbnailUrl = thumbnailUrl; }
+  if (image !== undefined) { payload.image = image; }
+  if (promotionalImages !== undefined) { payload.promotionalImages = promotionalImages; }
+  if (maxQuantityPerOrder !== undefined) { payload.maxQuantityPerOrder = maxQuantityPerOrder; }
   if (isAdultOnly !== undefined) {
     payload.isAdultOnly = isAdultOnly;
     if (isAdultOnly) { payload.isApprovedForAds = false; }
@@ -702,6 +741,13 @@ export async function updateNftBookInfo(classId: string, {
     });
   await likeNFTBookCollection.doc(classId).update(payload);
   await syncNFTBookInfoWithISCN(classId);
+  // The sync above skips non-NFT products, so their Stripe products follow the listing here.
+  if ([name, description, thumbnailUrl, image].some((v) => v !== undefined)) {
+    const bookInfo = await getNftBookInfo(classId);
+    if (isNonNFTProduct(bookInfo)) {
+      await updateStripeProductsFromListing(classId, bookInfo, bookInfo);
+    }
+  }
 }
 
 export async function listLatestNFTBookInfo({
