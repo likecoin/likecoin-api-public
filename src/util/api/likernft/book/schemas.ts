@@ -104,6 +104,14 @@ export const ListingSettingsBodySchema = z.object({
   nameByLocale: BookLocalizedCopySchema.nullish(),
   descriptionByLocale: BookLocalizedCopySchema.nullish(),
   descriptionFullByLocale: BookLocalizedCopySchema.nullish(),
+  // Presentational fields of a non-NFT product, which has no chain metadata to carry them.
+  // A book keeps these on chain, so the settings route rejects them there.
+  name: z.string().optional(),
+  description: z.string().optional(),
+  thumbnailUrl: z.string().optional(),
+  image: z.string().optional(),
+  promotionalImages: z.array(z.string()).optional(),
+  maxQuantityPerOrder: z.number().int().min(1).optional(),
 });
 
 export const NewListingBodySchema = ListingSettingsBodySchema.extend({
@@ -111,16 +119,11 @@ export const NewListingBodySchema = ListingSettingsBodySchema.extend({
   cancelUrl: z.string().optional(),
   prices: NFTBookPricesSchema,
   productType: BookProductTypeSchema.optional(),
-  // The fields below are read for non-NFT products only, which carry no chain class, so
-  // their presentational fields arrive in the body instead of class metadata.
+  // Read for non-NFT products only, which carry no chain class. Territories and the sale
+  // switch are not in the settings body: they are managed from the Slack book command.
   availableTerritories: z.array(TerritoryCodeSchema).min(1).optional(),
-  maxQuantityPerOrder: z.number().int().min(1).optional(),
   // Lets a SKU be created unbuyable; books are always created on sale.
   isApprovedForSale: z.boolean().optional(),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  thumbnailUrl: z.string().optional(),
-  image: z.string().optional(),
 });
 
 export const ImageUploadBodySchema = z.object({

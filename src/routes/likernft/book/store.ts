@@ -1049,6 +1049,7 @@ async function createMerchListing(classId: string, req: Request) {
     nameByLocale,
     descriptionByLocale,
     descriptionFullByLocale,
+    promotionalImages,
   } = req.body;
   // EVM casing is an EIP-55 checksum, not identity, so compare lowercased. The
   // session's own casing is kept as owner: checkIsAuthorized matches it exactly.
@@ -1093,6 +1094,7 @@ async function createMerchListing(classId: string, req: Request) {
     nameByLocale,
     descriptionByLocale,
     descriptionFullByLocale,
+    promotionalImages,
   });
 
   await sendNFTBookNewListingSlackNotification({
@@ -1135,7 +1137,16 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       nameByLocale,
       descriptionByLocale,
       descriptionFullByLocale,
+      name,
+      description,
+      thumbnailUrl,
+      image,
+      promotionalImages,
+      maxQuantityPerOrder,
     } = req.body;
+    const merchFields = {
+      name, description, thumbnailUrl, image, promotionalImages, maxQuantityPerOrder,
+    };
     const bookInfo = await getNftBookInfo(classId);
     const {
       ownerWallet,
@@ -1146,6 +1157,10 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       req,
     );
     if (!isAuthorized) throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    // A book keeps these on chain, where the ISCN sync would overwrite whatever is set here.
+    if (!isNonNFTProduct(bookInfo) && Object.values(merchFields).some((v) => v !== undefined)) {
+      throw new ValidationError('MERCH_ONLY_FIELDS', 400);
+    }
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     await updateNftBookInfo(classId, {
       moderatorWallets,
@@ -1165,6 +1180,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       nameByLocale,
       descriptionByLocale,
       descriptionFullByLocale,
+      ...merchFields,
     });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
