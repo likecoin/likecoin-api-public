@@ -709,6 +709,31 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.currentPeriodEnd).toBe(renewalEnd);
   });
 
+  it('ignores a live PRODUCT_CHANGE whose term ends before the stored period end', async () => {
+    // Still-future but older than the renewal already stored: only the period-end
+    // comparison, not the already-over check, can reject it.
+    const renewalEnd = FUTURE_PERIOD_END_MS + 365 * 24 * 60 * 60 * 1000;
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, period: 'year', currentPeriodEnd: renewalEnd },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_older_product_change',
+        type: 'PRODUCT_CHANGE',
+        product_id: 'rc_plus_monthly',
+        new_product_id: 'rc_plus_yearly',
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.currentPeriodEnd).toBe(renewalEnd);
+  });
+
   it('applies the new product on a mid-term PRODUCT_CHANGE', async () => {
     await userCollection.doc('testing').update({
       likerPlus: { ...liveAppStorePlus, period: 'month' },
