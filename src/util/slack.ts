@@ -42,7 +42,7 @@ const REVENUECAT_DASHBOARD_URL = 'https://app.revenuecat.com/';
 // Slack parses mrkdwn in workflow variables, so `<!channel>`-style sequences in
 // AI output derived from user metadata could ping the channel or spoof a link.
 // Escaping the three reserved characters keeps the text readable but inert.
-function escapeSlackText(text: string): string {
+export function escapeSlackText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
@@ -171,6 +171,12 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
         break;
       case 'clear_geoblock':
         actionText = '🌍 Territory restriction cleared';
+        break;
+      case 'adult_on':
+        actionText = '🔞 Marked adult only (ads denied)';
+        break;
+      case 'adult_off':
+        actionText = '🔞 Adult only cleared (ads stay denied)';
         break;
       default:
         actionText = action;
