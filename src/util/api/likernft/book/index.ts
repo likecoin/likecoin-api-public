@@ -566,7 +566,10 @@ export async function syncNFTBookInfoWithISCN(classId) {
   // descriptionFull is now a listing-owned field edited via /settings; do not
   // overwrite it from on-chain metadata on refresh.
   payload.previewContent = previewContent || FieldValue.delete();
-  if (keywords) payload.keywords = keywords;
+  // Always an array here, so truthiness can't tell "chain has none" apart:
+  // legacy books keep keywords only in the listing, and an empty chain read
+  // must not wipe them.
+  if (keywords.length) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
   if (publisher) payload.publisher = publisher;
