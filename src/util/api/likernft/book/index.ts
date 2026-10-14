@@ -657,6 +657,7 @@ export async function updateNftBookInfo(classId: string, {
   tableOfContents,
   descriptionFull,
   isAdultOnly,
+  isLikerLandArt,
   isPlusReadingEnabled,
   isPreviewEnabled,
   previewPercentage,
@@ -684,6 +685,7 @@ export async function updateNftBookInfo(classId: string, {
   tableOfContents?: string;
   descriptionFull?: string;
   isAdultOnly?: boolean;
+  isLikerLandArt?: true;
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
   previewPercentage?: number;
@@ -738,6 +740,7 @@ export async function updateNftBookInfo(classId: string, {
     payload.isAdultOnly = isAdultOnly;
     if (isAdultOnly) { payload.isApprovedForAds = false; }
   }
+  if (isLikerLandArt) { payload.isLikerLandArt = true; }
   if (isPlusReadingEnabled !== undefined) { payload.isPlusReadingEnabled = isPlusReadingEnabled; }
   if (isPreviewEnabled !== undefined) { payload.isPreviewEnabled = isPreviewEnabled; }
   if (previewPercentage !== undefined) { payload.previewPercentage = previewPercentage; }
