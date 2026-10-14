@@ -7,6 +7,7 @@ import {
 } from '../../../config/config';
 import {
   createBookListSlackBlocks,
+  escapeSlackText,
   formatBookTippingSlackText,
   sendNFTBookApprovalUpdateSlackNotification,
 } from '../../util/slack';
@@ -18,6 +19,11 @@ import {
   listBooksForAdmin,
   parseBookListQuery,
 } from '../../util/api/likernft/book/adminList';
+import {
+  BOOK_ADULT_ONLY_USAGE,
+  parseBookAdultOnlyQuery,
+  setBookAdultOnly,
+} from '../../util/api/likernft/book/adultOnly';
 import {
   BOOK_TIPPING_USAGE,
   parseBookTippingQuery,
@@ -246,6 +252,28 @@ router.post(
         blocks: createBookListSlackBlocks(query, result),
       });
     },
+    adult: async ({ params, req, res }) => {
+      const query = parseBookAdultOnlyQuery(params);
+      const result = await setBookAdultOnly(query);
+      await Promise.all([
+        updateAirtablePublicationRecord({ id: result.classId, isAdultOnly: result.isAdultOnly }),
+        publisher.publish(PUBSUB_TOPIC_MISC, null, {
+          logType: 'BookNFTAdultOnlyUpdate',
+          slackUserId: req.body.user_id,
+          ...query,
+        }),
+        sendNFTBookApprovalUpdateSlackNotification({
+          classId: result.classId,
+          className: result.className,
+          action: result.isAdultOnly ? 'adult_on' : 'adult_off',
+        }),
+      ]);
+
+      res.json({
+        response_type: 'in_channel',
+        text: `Adult only is \`${result.isAdultOnly ? 'on' : 'off'}\` for *${escapeSlackText(result.className)}*\nClass ID: \`${result.classId}\``,
+      });
+    },
     tipping: async ({ params, req, res }) => {
       const query = parseBookTippingQuery(params);
       const result = await setBookTippingEnabled(query);
@@ -286,6 +314,13 @@ Examples:
   \`/book list geoblocked limit:50\` - Every territory-restricted listing
   \`/book list noads asc\` - Listings with ads denied, oldest first
   \`/book list aireview\` - Listings the AI pre-screen flagged for a human read
+
+\`${BOOK_ADULT_ONLY_USAGE}\` Turn adult only (isAdultOnly) on or off
+On also denies ads. Off keeps ads denied; run \`approve_with_ads\` to re-enable.
+
+Examples:
+  \`/book adult 0x1234...5678 on\` - Mark as adult only and deny ads
+  \`/book adult 0x1234...5678 off\` - Clear adult only (ads stay denied)
 
 \`${BOOK_TIPPING_USAGE}\` Turn tipping (isTippingEnabled) on or off for a priced book
 Without a priceIndex, every edition is set. Tipping shows only on editions with isAllowCustomPrice on.
