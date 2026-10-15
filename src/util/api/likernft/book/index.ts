@@ -557,7 +557,10 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const {
     prices = [],
   } = bookInfo;
-  const keywords = Array.isArray(keywordString) ? keywordString : keywordString.split(',').map((k: string) => k.trim()).filter((k: string) => !!k);
+  // Both shapes get the same trim-and-drop-empties: a chain array of [''] is
+  // just as empty as the string ''.
+  const rawKeywords: string[] = Array.isArray(keywordString) ? keywordString : keywordString.split(',');
+  const keywords = rawKeywords.map((k) => k.trim()).filter((k) => !!k);
 
   const payload: any = {};
   if (inLanguage) payload.inLanguage = inLanguage;
