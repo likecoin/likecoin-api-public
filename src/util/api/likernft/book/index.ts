@@ -558,9 +558,9 @@ export async function syncNFTBookInfoWithISCN(classId) {
     prices = [],
   } = bookInfo;
   // Both shapes get the same trim-and-drop-empties: a chain array of [''] is
-  // just as empty as the string ''.
+  // just as empty as the string ''. Chain JSON is untrusted, so non-strings drop too.
   const rawKeywords: string[] = Array.isArray(keywordString) ? keywordString : keywordString.split(',');
-  const keywords = rawKeywords.map((k) => k.trim()).filter((k) => !!k);
+  const keywords = rawKeywords.filter((k) => typeof k === 'string').map((k) => k.trim()).filter((k) => !!k);
 
   const payload: any = {};
   if (inLanguage) payload.inLanguage = inLanguage;
