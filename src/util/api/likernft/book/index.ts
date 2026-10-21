@@ -362,6 +362,7 @@ export async function newNftBookInfo(
 
     image,
     isAdultOnly,
+    isLikerLandArt,
     isPlusReadingEnabled,
     isPreviewEnabled,
     previewPercentage,
@@ -465,6 +466,7 @@ export async function newNftBookInfo(
   if (signedMessageText !== undefined) payload.signedMessageText = signedMessageText;
   if (tableOfContents) payload.tableOfContents = tableOfContents;
   if (isAdultOnly !== undefined) payload.isAdultOnly = isAdultOnly;
+  if (isLikerLandArt) payload.isLikerLandArt = true;
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
   if (previewPercentage !== undefined) payload.previewPercentage = previewPercentage;
