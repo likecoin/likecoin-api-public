@@ -624,6 +624,7 @@ export function filterNFTBookListingInfo(
     isPendingReview,
     isAdultOnly,
     isLikerLandArt,
+    isPublicDomain,
     hasAIGeneratedContent,
     restrictedTerritories,
     isApprovedForSale,
@@ -693,6 +694,7 @@ export function filterNFTBookListingInfo(
     isPendingReview,
     isAdultOnly,
     isLikerLandArt,
+    isPublicDomain,
     hasAIGeneratedContent,
     restrictedTerritories,
     // Approval flags - default to true for backward compatibility with existing books

@@ -363,6 +363,7 @@ export async function newNftBookInfo(
     image,
     isAdultOnly,
     isLikerLandArt,
+    isPublicDomain,
     hasAIGeneratedContent,
     isPlusReadingEnabled,
     isPreviewEnabled,
@@ -468,6 +469,7 @@ export async function newNftBookInfo(
   if (tableOfContents) payload.tableOfContents = tableOfContents;
   if (isAdultOnly !== undefined) payload.isAdultOnly = isAdultOnly;
   if (isLikerLandArt) payload.isLikerLandArt = true;
+  if (isPublicDomain !== undefined) payload.isPublicDomain = isPublicDomain;
   if (hasAIGeneratedContent !== undefined) payload.hasAIGeneratedContent = hasAIGeneratedContent;
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
@@ -662,6 +664,7 @@ export async function updateNftBookInfo(classId: string, {
   descriptionFull,
   isAdultOnly,
   isLikerLandArt,
+  isPublicDomain,
   hasAIGeneratedContent,
   isPlusReadingEnabled,
   isPreviewEnabled,
@@ -691,6 +694,7 @@ export async function updateNftBookInfo(classId: string, {
   descriptionFull?: string;
   isAdultOnly?: boolean;
   isLikerLandArt?: true;
+  isPublicDomain?: boolean;
   hasAIGeneratedContent?: boolean;
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
@@ -747,6 +751,7 @@ export async function updateNftBookInfo(classId: string, {
     if (isAdultOnly) { payload.isApprovedForAds = false; }
   }
   if (isLikerLandArt) { payload.isLikerLandArt = true; }
+  if (isPublicDomain !== undefined) { payload.isPublicDomain = isPublicDomain; }
   if (hasAIGeneratedContent !== undefined) {
     payload.hasAIGeneratedContent = hasAIGeneratedContent;
   }

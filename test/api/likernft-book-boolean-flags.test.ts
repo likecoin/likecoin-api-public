@@ -23,22 +23,25 @@ const postSettings = (classId: string, payload: Record<string, unknown>) => axio
   })
   .catch((err) => (err as any).response);
 
-describe('book listing hasAIGeneratedContent setting', () => {
-  it('returns hasAIGeneratedContent of a listing', async () => {
-    const classId = mockEVMAddress(0x92);
-    await seedBook(classId, { hasAIGeneratedContent: true });
+describe.each([
+  ['hasAIGeneratedContent', 0x92],
+  ['isPublicDomain', 0x94],
+])('book listing %s setting', (flag, seed) => {
+  it(`returns ${flag} of a listing`, async () => {
+    const classId = mockEVMAddress(seed);
+    await seedBook(classId, { [flag]: true });
 
     const res = await axiosist.get(`${BASE_URL}/${classId}`);
     expect(res.status).toBe(200);
-    expect(res.data.hasAIGeneratedContent).toBe(true);
+    expect(res.data[flag]).toBe(true);
   });
 
-  it('rejects a non-boolean hasAIGeneratedContent', async () => {
-    const classId = mockEVMAddress(0x93);
-    await seedBook(classId, { hasAIGeneratedContent: true });
+  it(`rejects a non-boolean ${flag}`, async () => {
+    const classId = mockEVMAddress(seed + 1);
+    await seedBook(classId, { [flag]: true });
 
-    expect((await postSettings(classId, { hasAIGeneratedContent: 'yes' })).status).toBe(400);
+    expect((await postSettings(classId, { [flag]: 'yes' })).status).toBe(400);
     const stored = (await likeNFTBookCollection.doc(classId).get()).data();
-    expect(stored?.hasAIGeneratedContent).toBe(true);
+    expect(stored?.[flag]).toBe(true);
   });
 });

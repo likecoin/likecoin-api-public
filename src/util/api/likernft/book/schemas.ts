@@ -98,6 +98,7 @@ export const ListingSettingsBodySchema = z.object({
   isAdultOnly: z.boolean().optional(),
   // One-way: only `true` is accepted, so a listing cannot be switched back.
   isLikerLandArt: z.literal(true).optional(),
+  isPublicDomain: z.boolean().optional(),
   hasAIGeneratedContent: z.boolean().optional(),
   isPlusReadingEnabled: z.boolean().optional(),
   isPreviewEnabled: z.boolean().optional(),
@@ -513,6 +514,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   isPendingReview: z.boolean().optional(),
   isAdultOnly: z.boolean().optional(),
   isLikerLandArt: z.boolean().optional(),
+  isPublicDomain: z.boolean().optional(),
   hasAIGeneratedContent: z.boolean().optional(),
   restrictedTerritories: z.array(z.string()).optional(),
   sold: z.number().int().optional(),
