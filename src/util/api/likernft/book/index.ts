@@ -363,6 +363,7 @@ export async function newNftBookInfo(
     image,
     isAdultOnly,
     isLikerLandArt,
+    hasAIGeneratedContent,
     isPlusReadingEnabled,
     isPreviewEnabled,
     previewPercentage,
@@ -467,6 +468,7 @@ export async function newNftBookInfo(
   if (tableOfContents) payload.tableOfContents = tableOfContents;
   if (isAdultOnly !== undefined) payload.isAdultOnly = isAdultOnly;
   if (isLikerLandArt) payload.isLikerLandArt = true;
+  if (hasAIGeneratedContent !== undefined) payload.hasAIGeneratedContent = hasAIGeneratedContent;
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
   if (previewPercentage !== undefined) payload.previewPercentage = previewPercentage;
@@ -660,6 +662,7 @@ export async function updateNftBookInfo(classId: string, {
   descriptionFull,
   isAdultOnly,
   isLikerLandArt,
+  hasAIGeneratedContent,
   isPlusReadingEnabled,
   isPreviewEnabled,
   previewPercentage,
@@ -688,6 +691,7 @@ export async function updateNftBookInfo(classId: string, {
   descriptionFull?: string;
   isAdultOnly?: boolean;
   isLikerLandArt?: true;
+  hasAIGeneratedContent?: boolean;
   isPlusReadingEnabled?: boolean;
   isPreviewEnabled?: boolean;
   previewPercentage?: number;
@@ -743,6 +747,9 @@ export async function updateNftBookInfo(classId: string, {
     if (isAdultOnly) { payload.isApprovedForAds = false; }
   }
   if (isLikerLandArt) { payload.isLikerLandArt = true; }
+  if (hasAIGeneratedContent !== undefined) {
+    payload.hasAIGeneratedContent = hasAIGeneratedContent;
+  }
   if (isPlusReadingEnabled !== undefined) { payload.isPlusReadingEnabled = isPlusReadingEnabled; }
   if (isPreviewEnabled !== undefined) { payload.isPreviewEnabled = isPreviewEnabled; }
   if (previewPercentage !== undefined) { payload.previewPercentage = previewPercentage; }
