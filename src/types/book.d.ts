@@ -259,6 +259,7 @@ export interface NFTBookListingInfo {
   // while it awaits review. Owners and moderators still see it.
   isPendingReview?: boolean;
   isAdultOnly?: boolean;
+  isLikerLandArt?: boolean;
   // ISO 3166-1 alpha-2 country codes the storefront must not offer this listing in.
   // Admin-set, not author-editable; enforcement happens client-side.
   restrictedTerritories?: string[];
