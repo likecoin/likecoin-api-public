@@ -260,6 +260,7 @@ export interface NFTBookListingInfo {
   isPendingReview?: boolean;
   isAdultOnly?: boolean;
   isLikerLandArt?: boolean;
+  hasAIGeneratedContent?: boolean;
   // ISO 3166-1 alpha-2 country codes the storefront must not offer this listing in.
   // Admin-set, not author-editable; enforcement happens client-side.
   restrictedTerritories?: string[];
