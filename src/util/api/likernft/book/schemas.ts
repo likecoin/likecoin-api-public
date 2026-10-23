@@ -321,6 +321,9 @@ export const BookCMSTagBulkBodySchema = z.object({
     // null means delete the entry.
     order: z.number().int().min(0).nullable(),
   })),
+  // Tags whose book list `entries` is complete: books holding one of these tags
+  // but absent from its entries are removed, so unlinked books don't linger.
+  replaceTagIds: z.array(BookCMSTagIdSchema).default([]),
 });
 
 // Disjunction cost per name: publisher/author 2 (string | { name } shapes), genre/keyword 1.
