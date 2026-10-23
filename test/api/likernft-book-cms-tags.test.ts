@@ -180,6 +180,36 @@ describe('POST /bulk/cms/tags', () => {
     expect(data.cmsTags.feat).toBeUndefined();
   });
 
+  it('removes books missing from entries for tags in replaceTagIds', async () => {
+    await makeNFTBookStub(BOOK_ID_A, { cmsTags: { feat: 10, other: 5 } });
+    await makeNFTBookStub(BOOK_ID_B, { cmsTags: { feat: 20 } });
+    await makeNFTBookStub(BOOK_ID_C, { cmsTags: { other: 7 } });
+    const res = await post(`${BASE_URL}/bulk/cms/tags`, {
+      entries: [{ classId: BOOK_ID_A, tagId: 'feat', order: 1 }],
+      replaceTagIds: ['feat'],
+    }, AUTHORIZATION);
+    expect(res.status).toBe(200);
+    expect(res.data.updated).toBe(2);
+
+    const a = (await likeNFTBookCollection.doc(BOOK_ID_A).get()).data() as any;
+    const b = (await likeNFTBookCollection.doc(BOOK_ID_B).get()).data() as any;
+    const c = (await likeNFTBookCollection.doc(BOOK_ID_C).get()).data() as any;
+    expect(a.cmsTags).toEqual({ feat: 1, other: 5 });
+    expect(b.cmsTags.feat).toBeUndefined();
+    expect(c.cmsTags.other).toBe(7);
+  });
+
+  it('clears a replaced tag when entries is empty', async () => {
+    await makeNFTBookStub(BOOK_ID_C, { cmsTags: { feat: 10 } });
+    const res = await post(`${BASE_URL}/bulk/cms/tags`, {
+      entries: [],
+      replaceTagIds: ['feat'],
+    }, AUTHORIZATION);
+    expect(res.status).toBe(200);
+    const data = (await likeNFTBookCollection.doc(BOOK_ID_C).get()).data() as any;
+    expect(data.cmsTags.feat).toBeUndefined();
+  });
+
   it('skips missing classIds and returns errors map', async () => {
     await makeNFTBookStub(BOOK_ID_D);
     const res = await post(`${BASE_URL}/bulk/cms/tags`, {

@@ -404,12 +404,8 @@ router.put('/:classId/cms/tags', airtableAutomationAuth, validateParams(BookClas
 
 router.post('/bulk/cms/tags', airtableAutomationAuth, validateBody(BookCMSTagBulkBodySchema), async (req, res, next) => {
   try {
-    const { entries } = req.body;
-    if (!entries.length) {
-      sendValidatedJSON(res, BookCMSTagBulkResponseSchema, { updated: 0 });
-      return;
-    }
-    const result = await bulkSetNFTBookCMSTagOrder(entries);
+    const { entries, replaceTagIds } = req.body;
+    const result = await bulkSetNFTBookCMSTagOrder(entries, replaceTagIds);
     sendValidatedJSON(res, BookCMSTagBulkResponseSchema, result);
   } catch (err) {
     next(err);

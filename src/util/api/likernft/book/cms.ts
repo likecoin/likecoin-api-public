@@ -41,13 +41,36 @@ export async function syncNFTBookCMSTagEntries(
 // Bulk write with best-effort semantics: missing classIds are skipped and returned in
 // the `errors` map rather than aborting the whole batch. BULK_LIMIT applies to unique
 // classIds after grouping. Each entry's `order` is a number (set) or null (remove);
-// duplicates per classId merge.
+// duplicates per classId merge. Tags in `replaceTagIds` additionally drop every book
+// not listed for them in `entries`.
 const BULK_LIMIT = 500;
 const BULK_UPDATE_CONCURRENCY = 20;
 
-export async function bulkSetNFTBookCMSTagOrder(
+async function listStaleCMSTagEntries(
   entries: Array<{ classId: string; tagId: string; order: number | null }>,
+  replaceTagIds: string[],
 ) {
+  const listed = new Set(
+    entries.filter((e) => e.order !== null).map((e) => `${e.tagId}/${e.classId}`),
+  );
+  const snaps = await Promise.all(
+    [...new Set(replaceTagIds)].map((tagId) => likeNFTBookCollection
+      .where(`cmsTags.${tagId}`, '>=', 0)
+      .select()
+      .get()
+      .then((snap) => ({ tagId, snap }))),
+  );
+  return snaps.flatMap(({ tagId, snap }) => snap.docs
+    .filter((doc) => !listed.has(`${tagId}/${doc.id}`))
+    .map((doc) => ({ classId: doc.id, tagId, order: null })));
+}
+
+export async function bulkSetNFTBookCMSTagOrder(
+  requestedEntries: Array<{ classId: string; tagId: string; order: number | null }>,
+  replaceTagIds: string[] = [],
+) {
+  const staleEntries = await listStaleCMSTagEntries(requestedEntries, replaceTagIds);
+  const entries = [...requestedEntries, ...staleEntries];
   if (!entries.length) return { updated: 0 };
   const payloadByNFTClassId = new Map<string, any>();
   entries.forEach(({ classId, tagId, order }) => {
