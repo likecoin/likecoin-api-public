@@ -446,7 +446,7 @@ describe('SES email params', () => {
       Destination: { ToAddresses: string[] };
       Message: { Body: { Html: { Data: string } } };
     };
-    expect(params.Source).toBe('"3ook.com" <cs@3ook.com>');
+    expect(params.Source).toBe('=?UTF-8?B?M29vay5jb20g5bqX5ZOh?= <cs@3ook.com>'); // 3ook.com 店員
     expect(params.Destination.ToAddresses).toEqual(['user@example.com']);
     const html = params.Message.Body.Html.Data;
     expect(html).toContain('https://api.rinkeby.like.co/email/verify/uuid-123?lang=en');
