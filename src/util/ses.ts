@@ -50,7 +50,6 @@ const SALES_BCC = TEST_MODE ? undefined : [SALES_EMAIL];
 // sends BCC-only (used by sales emails when no recipient email is known).
 function sendSESTemplateEmail({
   functionName,
-  source = SYSTEM_EMAIL,
   to,
   cc,
   bcc,
@@ -59,7 +58,6 @@ function sendSESTemplateEmail({
   html,
 }: {
   functionName: string;
-  source?: string;
   to?: string[];
   cc?: string[];
   bcc?: string[];
@@ -68,7 +66,7 @@ function sendSESTemplateEmail({
   html: string;
 }) {
   const params: SendEmailCommandInput = {
-    Source: source,
+    Source: SYSTEM_EMAIL,
     ...(replyTo.length ? { ReplyToAddresses: replyTo } : {}),
     ConfigurationSetName: 'likeco_ses',
     Tags: [
@@ -783,7 +781,6 @@ export function sendAutoDeliverNFTBookSalesEmail({
 
   return sendSESTemplateEmail({
     functionName: 'sendAutoDeliverNFTBookSalesEmail',
-    source: SALES_EMAIL,
     to: email ? [email] : undefined,
     bcc: SALES_BCC,
     title,
@@ -916,7 +913,6 @@ export function sendManualNFTBookSalesEmail({
 
   return sendSESTemplateEmail({
     functionName: 'sendManualNFTBookSalesEmail',
-    source: SALES_EMAIL,
     to: email ? [email] : undefined,
     bcc: SALES_BCC,
     title,
