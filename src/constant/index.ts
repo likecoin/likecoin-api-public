@@ -163,7 +163,9 @@ export const STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS = [
 export const CUSTOMER_SERVICE_URL = 'mailto:cs@3ook.com';
 export const CUSTOMER_SERVICE_EMAIL = '"3ook.com" <cs@3ook.com>';
 export const SALES_EMAIL = '"3ook.com Sales Team" <sales@3ook.com>';
-export const SYSTEM_EMAIL = '"3ook.com" <cs@3ook.com>';
+// SES only accepts ASCII in Source, so a non-ASCII display name
+// must be an RFC 2047 encoded-word.
+export const SYSTEM_EMAIL = `=?UTF-8?B?${Buffer.from('3ook.com 店員').toString('base64')}?= <cs@3ook.com>`;
 
 export const LIKER_LAND_WAIVED_CHANNEL = 'liker_land_waived';
 
