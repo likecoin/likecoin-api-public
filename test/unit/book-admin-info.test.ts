@@ -131,4 +131,19 @@ describe('createBookInfoSlackBlocks', () => {
     const fieldSections = blocks.filter((block) => block.fields);
     fieldSections.forEach((block) => expect(block.fields.length).toBeLessThanOrEqual(10));
   });
+
+  it('caps author-supplied metadata fields within Slack field limits', () => {
+    const long = '&'.repeat(5000);
+    const blocks = createBookInfoSlackBlocks({
+      classId: CLASS_ID,
+      author: long,
+      publisher: long,
+      inLanguage: long,
+      isbn: long,
+    } as any);
+    blocks
+      .filter((block) => block.fields)
+      .flatMap((block) => block.fields)
+      .forEach((field) => expect(field.text.length).toBeLessThanOrEqual(2000));
+  });
 });

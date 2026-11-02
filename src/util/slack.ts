@@ -800,17 +800,19 @@ export function createBookInfoSlackBlocks(book: AdminBookInfo) {
   // Book names come from author-supplied metadata, so they can carry mrkdwn.
   const name = escapeSlackText((book.name || classId).slice(0, BOOK_LIST_NAME_LIMIT));
   const flagLabels = getBookListFlagLabels(book);
+  // Slack rejects the whole message when one field exceeds 2000 characters.
+  const formatMetadata = (value?: string) => escapeSlackText((value || '').slice(0, BOOK_LIST_NAME_LIMIT)) || '—';
   // Slack renders at most 10 fields per section, so this grid is capped at ten;
   // editions and totals go into their own blocks below.
   const fields = [
     ['Class ID', `\`${classId}\``],
     ['Chain', book.chain || 'unknown'],
-    ['Author', escapeSlackText(getAuthorNameFromMetadata(book.author)) || '—'],
-    ['Publisher', escapeSlackText(getPublisherNameFromMetadata(book.publisher)) || '—'],
+    ['Author', formatMetadata(getAuthorNameFromMetadata(book.author))],
+    ['Publisher', formatMetadata(getPublisherNameFromMetadata(book.publisher))],
     ['Owner', book.ownerWallet ? `\`${book.ownerWallet}\`` : '—'],
     ['Listed', formatBookListDate(getBookTimestampMillis(book))],
-    ['Language', escapeSlackText(book.inLanguage || '') || '—'],
-    ['ISBN', escapeSlackText(book.isbn || '') || '—'],
+    ['Language', formatMetadata(book.inLanguage)],
+    ['ISBN', formatMetadata(book.isbn)],
     ['Status', book.approvalStatus || '—'],
     ['Flags', flagLabels.length ? flagLabels.join(' ') : 'none'],
   ].map(([title, value]) => ({ type: 'mrkdwn', text: `*${title}*\n${value}` }));
