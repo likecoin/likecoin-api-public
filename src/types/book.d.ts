@@ -338,4 +338,25 @@ export interface NFTBookUserData {
   [key: string]: any;
 }
 
+export interface DistributionRoyaltyPayment {
+  paymentId: string;
+  transferId: string;
+  paidAt: { toMillis: () => number };
+  amountUsd: number;
+  payoutId?: string;
+}
+
+// `likeNFTBookUser/{wallet}/distributionRoyalties/{period}`, one doc per quarter (e.g. `2026Q2`).
+// Reversed payments are never written to `payments`.
+export interface DistributionRoyaltyData {
+  period: string;
+  periodStart: { toMillis: () => number };
+  grossUsd: number;
+  feeUsd: number;
+  payableUsd: number;
+  status: 'unpaid' | 'paid';
+  payments: DistributionRoyaltyPayment[];
+  updatedAt: { toMillis: () => number };
+}
+
 export type FreeBookClaimResult = z.infer<typeof BookFreeClaimResponseSchema>;

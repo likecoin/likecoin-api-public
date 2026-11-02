@@ -68,9 +68,15 @@ async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'm
   try {
     const { userExists, alreadyMigrated } = await db.runTransaction(
       async (t: admin.firestore.Transaction) => {
-        const [userDoc, userCommissionCollection, evmUserDoc] = await Promise.all([
+        const [
+          userDoc,
+          userCommissionCollection,
+          userDistributionRoyaltyCollection,
+          evmUserDoc,
+        ] = await Promise.all([
           t.get(likeNFTBookUserCollection.doc(likeWallet)),
           t.get(likeNFTBookUserCollection.doc(likeWallet).collection('commissions')),
+          t.get(likeNFTBookUserCollection.doc(likeWallet).collection('distributionRoyalties')),
           t.get(likeNFTBookUserCollection.doc(evmWallet)),
         ]);
         const oldUserData = userDoc.exists ? userDoc.data() : {};
@@ -106,6 +112,9 @@ async function migrateBookUser(likeWallet: string, evmWallet: string, method: 'm
           });
           userCommissionCollection.docs.forEach((doc) => {
             t.create(likeNFTBookUserCollection.doc(evmWallet).collection('commissions').doc(doc.id), doc.data());
+          });
+          userDistributionRoyaltyCollection.docs.forEach((doc) => {
+            t.create(likeNFTBookUserCollection.doc(evmWallet).collection('distributionRoyalties').doc(doc.id), doc.data());
           });
         }
         if (!userDoc.exists) {
