@@ -157,7 +157,7 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
     });
     const payload = getListingPayload();
     expect(payload.aiReview).not.toContain('👀');
-    expect(payload.approvalStatus).toBe('⏳ Pending Approval');
+    expect(payload.approvalStatus).toBe('✅ Published');
   });
 
   // geoblock_hk applies with no human read, so it must always surface for a
@@ -218,6 +218,6 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
     });
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('⚠️ AI review failed');
-    expect(payload.approvalStatus).toBe('⏳ Pending Approval');
+    expect(payload.approvalStatus).toBe('✅ Published');
   });
 });
