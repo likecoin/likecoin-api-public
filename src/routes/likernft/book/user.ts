@@ -9,6 +9,7 @@ import publisher from '../../../util/gcloudPub';
 import { filterBookPurchaseCommission, sendValidatedJSON } from '../../../util/ValidationHelper';
 import {
   getBookUserInfoFromWallet,
+  getDistributionRoyaltiesForWallet,
   getSubscriptionAffiliateReportForWallet,
 } from '../../../util/api/likernft/book/user';
 import { getPlusReadingReportForWallet } from '../../../util/api/plus/report';
@@ -30,6 +31,7 @@ import {
   BookUserPayoutResponseSchema,
   BookUserCommissionsResponseSchema,
   BookUserSubscriptionAffiliateResponseSchema,
+  BookUserDistributionRoyaltiesResponseSchema,
   BookUserConnectRefreshResponseSchema,
   type BookUserConnectStatusResponse,
   type StripeConnectSite,
@@ -412,6 +414,23 @@ router.get(
       }
       const report = await getSubscriptionAffiliateReportForWallet(wallet);
       sendValidatedJSON(res, BookUserSubscriptionAffiliateResponseSchema, report);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  '/distribution-royalties/list',
+  jwtAuth('read:nftbook'),
+  async (req, res, next) => {
+    try {
+      const { wallet } = req.user;
+      if (!wallet) {
+        throw new ValidationError('WALLET_NOT_SET', 403);
+      }
+      const result = await getDistributionRoyaltiesForWallet(wallet);
+      sendValidatedJSON(res, BookUserDistributionRoyaltiesResponseSchema, result);
     } catch (err) {
       next(err);
     }
