@@ -10,6 +10,13 @@ import {
 } from '../../util/slack';
 import { findUserDocByQuery, formatUserCivicLikerProperies } from '../../util/api/users';
 import { getBookUserInfo } from '../../util/api/likernft/book/user';
+import {
+  USER_UNLIMITED_UPLOAD_USAGE,
+  parseUserUnlimitedUploadQuery,
+  setUserUnlimitedSponsoredUpload,
+} from '../../util/api/likernft/book/unlimitedUpload';
+import publisher from '../../util/gcloudPub';
+import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
@@ -80,11 +87,25 @@ router.post(
   slackCommandHandler({
     get: getUserCommand,
     find: getUserCommand,
+    'unlimited-upload': async ({ params, req, res }) => {
+      const query = parseUserUnlimitedUploadQuery(params);
+      const result = await setUserUnlimitedSponsoredUpload(query);
+      await publisher.publish(PUBSUB_TOPIC_MISC, null, {
+        logType: 'BookUserUnlimitedUploadUpdate',
+        slackUserId: req.body.user_id,
+        ...result,
+      });
+      res.json({
+        response_type: 'ephemeral',
+        attachments: [getSlackAttachmentForMap('Unlimited Upload Set Result', result)],
+      });
+    },
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
         text: `\`/user get \${liker id}\` Get user info e.g. \`/user get likerid\`
-\`/user find \${param}\` Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\``,
+\`/user find \${param}\` Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\`
+\`${USER_UNLIMITED_UPLOAD_USAGE}\` Exempt user's wallet from daily Arweave sponsored upload limits (isUnlimitedSponsoredUpload) e.g. \`/user unlimited-upload team@like.co on\``,
       });
     },
   }),
