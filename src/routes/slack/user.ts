@@ -20,11 +20,22 @@ import { PUBSUB_TOPIC_MISC } from '../../constant';
 
 const router = Router();
 
+// Defaults the flag to false so an existing book user shows the quota exemption
+// state at a glance; without a book user doc there is no attachment at all.
+async function getBookPressUserInfo(wallet: string) {
+  const bookUser = await getBookUserInfo(wallet);
+  if (!bookUser) return null;
+  return {
+    ...bookUser,
+    isUnlimitedSponsoredUpload: bookUser.isUnlimitedSponsoredUpload === true,
+  };
+}
+
 async function getUserInfo(req, res, query) {
   const { queryType, userDoc } = await findUserDocByQuery(query);
   let userInfo: any = {};
   if (queryType === 'likeWallet' || queryType === 'evmWallet') {
-    const bookUser = await getBookUserInfo(query);
+    const bookUser = await getBookPressUserInfo(query);
     if (bookUser) {
       userInfo.bookInfo = bookUser;
     }
@@ -42,7 +53,7 @@ async function getUserInfo(req, res, query) {
     } = userData;
     const walletQuery = evmWallet || likeWallet;
     if (walletQuery && !userInfo.bookInfo) {
-      const bookUser = await getBookUserInfo(walletQuery);
+      const bookUser = await getBookPressUserInfo(walletQuery);
       if (bookUser) {
         userInfo.bookInfo = {
           id: walletQuery,
