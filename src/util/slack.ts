@@ -104,7 +104,7 @@ export async function sendNFTBookNewListingSlackNotification({
     // stays invisible until it is declared in the Slack workflow.
     let approvalStatusText = isAutoApproved
       ? '✅ Auto-approved (Trusted Publisher)'
-      : '⏳ Pending Approval';
+      : '✅ Published';
     if (completedVerdict?.action === 'stop_sale_review') {
       approvalStatusText = '🚫 Held for review by AI screen — release with'
         + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
