@@ -84,7 +84,7 @@ router.post(
       res.json({
         response_type: 'ephemeral',
         text: `\`/user get \${liker id}\` Get user info e.g. \`/user get likerid\`
-\`/user find \${param} Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\``,
+\`/user find \${param}\` Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\``,
       });
     },
   }),
