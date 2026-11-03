@@ -1,10 +1,16 @@
 import axios from 'axios';
 
 import { getBook3NFTClassPageURL } from './liker-land';
-import { getLocalizedTextWithFallback, getNFTBookStoreSendPageURL } from './api/likernft/book';
+import {
+  getAuthorNameFromMetadata,
+  getLocalizedTextWithFallback,
+  getNFTBookStoreSendPageURL,
+  getPublisherNameFromMetadata,
+} from './api/likernft/book';
 import {
   BOOK3_HOSTNAME,
   IS_TESTNET,
+  NFT_BOOK_TEXT_DEFAULT_LOCALE,
 } from '../constant';
 import {
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
@@ -29,6 +35,7 @@ import {
   type BookListQuery,
   type BookListResult,
 } from './api/likernft/book/adminList';
+import type { AdminBookInfo } from './api/likernft/book/adminInfo';
 import { getBookTimestampMillis } from './api/likernft/book/cms';
 import type { BookTippingResult } from './api/likernft/book/tipping';
 import type { PlusAffiliateListEntry } from './api/plus/slack';
@@ -769,4 +776,71 @@ export function formatPlusAffiliateListSlackText(entries: PlusAffiliateListEntry
     return `• ${who} · ${customVoiceCount} voice(s)`;
   });
   return `*${entries.length} active affiliate(s)*\n${lines.join('\n')}`;
+}
+
+function formatBookInfoEdition(price: NFTBookPrice, index: number): string {
+  // Edition names are author-supplied and may be a plain string or a locale map.
+  const label = getLocalizedTextWithFallback(price.name || '', NFT_BOOK_TEXT_DEFAULT_LOCALE)
+    || `Edition ${index + 1}`;
+  const name = escapeSlackText(label.slice(0, BOOK_LIST_NAME_LIMIT));
+  const details = [
+    formatBookListPrice(price.priceInDecimal),
+    `sold ${price.sold ?? 0}`,
+    // Auto-deliver mints on demand, so its stock is never decremented
+    // and the stored number says nothing about availability.
+    price.isAutoDeliver ? 'auto-deliver' : `stock ${price.stock ?? 0}`,
+    ...(price.isUnlisted ? ['🙈unlisted'] : []),
+  ];
+  return `*${index + 1}. ${name}* — ${details.join(' · ')}`;
+}
+
+export function createBookInfoSlackBlocks(book: AdminBookInfo) {
+  const { classId } = book;
+  const link = getBook3NFTClassPageURL({ classId });
+  // Book names come from author-supplied metadata, so they can carry mrkdwn.
+  const name = escapeSlackText((book.name || classId).slice(0, BOOK_LIST_NAME_LIMIT));
+  const flagLabels = getBookListFlagLabels(book);
+  // Slack rejects the whole message when one field exceeds 2000 characters.
+  const formatMetadata = (value?: string) => escapeSlackText((value || '').slice(0, BOOK_LIST_NAME_LIMIT)) || '—';
+  // Slack renders at most 10 fields per section, so this grid is capped at ten;
+  // editions and totals go into their own blocks below.
+  const fields = [
+    ['Class ID', `\`${classId}\``],
+    ['Chain', book.chain || 'unknown'],
+    ['Author', formatMetadata(getAuthorNameFromMetadata(book.author))],
+    ['Publisher', formatMetadata(getPublisherNameFromMetadata(book.publisher))],
+    ['Owner', book.ownerWallet ? `\`${book.ownerWallet}\`` : '—'],
+    ['Listed', formatBookListDate(getBookTimestampMillis(book))],
+    ['Language', formatMetadata(book.inLanguage)],
+    ['ISBN', formatMetadata(book.isbn)],
+    ['Status', book.approvalStatus || '—'],
+    ['Flags', flagLabels.length ? flagLabels.join(' ') : 'none'],
+  ].map(([title, value]) => ({ type: 'mrkdwn', text: `*${title}*\n${value}` }));
+
+  const blocks: any[] = [
+    { type: 'section', text: { type: 'mrkdwn', text: `*<${link}|${name}>*` } },
+    { type: 'section', fields },
+  ];
+
+  const prices = book.prices || [];
+  if (prices.length) {
+    // minPriceInDecimal is the cheapest *listed* edition, so it is absent
+    // when every edition is unlisted — say nothing rather than "unknown price".
+    const cheapest = book.minPriceInDecimal === undefined
+      ? '' : ` — from ${formatBookListPrice(book.minPriceInDecimal)}`;
+    const heading = `*${prices.length} edition(s)*${cheapest}`;
+    const lines = prices.map(formatBookInfoEdition);
+    let text = [heading, ...lines].join('\n');
+    if (text.length > SLACK_SECTION_TEXT_LIMIT) {
+      text = `${text.slice(0, SLACK_SECTION_TEXT_LIMIT)}\n…`;
+    }
+    blocks.push({ type: 'divider' });
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text } });
+    const totalSold = prices.reduce((sum, price) => sum + (price.sold ?? 0), 0);
+    blocks.push({
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: `Total sold: ${totalSold}` }],
+    });
+  }
+  return blocks;
 }
