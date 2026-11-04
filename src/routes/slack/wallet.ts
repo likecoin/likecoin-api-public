@@ -36,10 +36,10 @@ router.post(
         ],
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
-        text: '`/wallet list` List team wallets and remaining token',
+        text: `\`${command} list\` List team wallets and remaining token`,
       });
     },
   }),

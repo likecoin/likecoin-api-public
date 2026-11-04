@@ -16,8 +16,8 @@ async function getStored() {
 
 describe('parseBookAdultOnlyQuery', () => {
   it('parses on and off, case-insensitively', () => {
-    expect(parseBookAdultOnlyQuery([CLASS_ID, 'ON'])).toEqual({ classId: CLASS_ID, isAdultOnly: true });
-    expect(parseBookAdultOnlyQuery([CLASS_ID, 'off'])).toEqual({ classId: CLASS_ID, isAdultOnly: false });
+    expect(parseBookAdultOnlyQuery([CLASS_ID, 'ON'], '/book')).toEqual({ classId: CLASS_ID, isAdultOnly: true });
+    expect(parseBookAdultOnlyQuery([CLASS_ID, 'off'], '/book')).toEqual({ classId: CLASS_ID, isAdultOnly: false });
   });
 
   it.each([
@@ -26,7 +26,7 @@ describe('parseBookAdultOnlyQuery', () => {
     ['an unknown toggle', [CLASS_ID, 'yes']],
     ['extra params', [CLASS_ID, 'on', '1']],
   ])('rejects %s', (_label, params) => {
-    expect(() => parseBookAdultOnlyQuery(params)).toThrow();
+    expect(() => parseBookAdultOnlyQuery(params, '/book')).toThrow();
   });
 });
 

@@ -161,7 +161,7 @@ router.post(
         email, wallet, classId, status, cartId, paymentId, res,
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
         blocks: [
@@ -179,14 +179,14 @@ router.post(
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '*Usage 1: General Transaction Search*\n\n`/payment txs {email｜wallet} [classId｜status (optional)]`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify `classId` to refine the search.\n\n*Example:*\n `/payment txs user@example.com` or `/payment txs like1abcd... classId123`',
+              text: `*Usage 1: General Transaction Search*\n\n\`${command} txs {email｜wallet} [classId｜status (optional)]\`\n- Find all transactions related to a specific email or wallet.\n- Optionally specify \`classId\` to refine the search.\n\n*Example:*\n \`${command} txs user@example.com\` or \`${command} txs like1abcd... classId123\``,
             },
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '*Usage 2: Specific Transaction Details*\n\n`/payment txs {cartId｜classId+paymentId}`\n- Retrieve transaction details for a specific cart or class item using the `cartId` or `classId` along with the `paymentId`.\n\n*Example:*\n `/payment txs cartId123` or `/payment txs classId123 paymentId456`',
+              text: `*Usage 2: Specific Transaction Details*\n\n\`${command} txs {cartId｜classId+paymentId}\`\n- Retrieve transaction details for a specific cart or class item using the \`cartId\` or \`classId\` along with the \`paymentId\`.\n\n*Example:*\n \`${command} txs cartId123\` or \`${command} txs classId123 paymentId456\``,
             },
           },
         ],
