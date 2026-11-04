@@ -641,9 +641,13 @@ export const BookListModeratedResponseSchema = z.object({
     classId: z.string(),
     prices: z.array(NFTBookPriceFilteredSchema),
     pendingNFTCount: z.number().int().optional(),
+    pendingShipmentCount: z.number().int().optional(),
     stock: z.number().int(),
     sold: z.number().int(),
     ownerWallet: z.string(),
+    name: z.string().optional(),
+    // Absent means 'book'; clients must treat it that way rather than requiring it.
+    productType: BookProductTypeSchema.optional(),
   })),
   nextKey: z.number().nullable(),
 });

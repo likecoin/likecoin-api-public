@@ -81,6 +81,23 @@ describe('GET /list/moderated', () => {
     expect(res.data.nextKey).toBeNull();
   });
 
+  it('includes name, productType and pendingShipmentCount', async () => {
+    await likeNFTBookCollection.doc(ID_MODERATED).set({
+      classId: ID_MODERATED,
+      ownerWallet: 'wallet1',
+      chain: 'base',
+      prices: [],
+      moderatorWallets: [MODERATOR],
+      name: 'Merch item',
+      productType: 'merch',
+      pendingShipmentCount: 3,
+    } as any);
+    const res = await getModerated(MODERATOR);
+    expect(res.status).toBe(200);
+    const item = res.data.list.find((b: any) => b.classId === ID_MODERATED);
+    expect(item).toMatchObject({ name: 'Merch item', productType: 'merch', pendingShipmentCount: 3 });
+  });
+
   it('rejects a request without wallet', async () => {
     const res = await axiosist
       .get(`${BASE_URL}/list/moderated`, {

@@ -373,17 +373,23 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), validateQuery(BookListMod
         const {
           prices: docPrices = [],
           pendingNFTCount,
+          pendingShipmentCount,
           id,
           ownerWallet,
+          name,
+          productType,
         } = b;
         const { stock, sold, prices } = filterNFTBookPricesInfo(docPrices, true);
         return {
           classId: id,
           prices,
           pendingNFTCount,
+          pendingShipmentCount,
           stock,
           sold,
           ownerWallet,
+          name,
+          productType,
         };
       });
     sendValidatedJSON(res, BookListModeratedResponseSchema, { list, nextKey });
