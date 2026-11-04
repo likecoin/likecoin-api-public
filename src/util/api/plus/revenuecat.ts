@@ -35,7 +35,7 @@ import {
   updateAirtableSubscriptionStatus,
 } from '../../airtable';
 import logServerEvents from '../../logServerEvents';
-import { mapPlusEntitlementPersonProperties } from '../../posthog';
+import { mapPlusEntitlementPersonProperties, setPostHogPersonProperties } from '../../posthog';
 import publisher from '../../gcloudPub';
 import { splitByComma } from '../../misc';
 import {
@@ -549,6 +549,15 @@ async function handleGrant(
   // isInitial below so each subscription is still counted exactly once.
   else if (isTrialToPaidUpgrade) logEvent = 'Subscribe';
   else if (event.type === 'RENEWAL') logEvent = 'SubscriptionRenewed';
+  if (!logEvent) {
+    // Uncancel/extend/product change emit no event to carry the $set,
+    // and a product change can move the tier.
+    setPostHogPersonProperties({
+      evmWallet: user.evmWallet,
+      posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
+      properties: mapPlusEntitlementPersonProperties(tier),
+    });
+  }
 
   // Resolve once and reuse across Slack, analytics, and the Airtable record.
   const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
@@ -707,6 +716,7 @@ async function revokeIfRevenueCatOwned(
   likerId: string,
   likerPlus: LikerPlusData | undefined,
   isSandbox: boolean,
+  wallets: { evmWallet?: string; likeWallet?: string },
 ): Promise<boolean> {
   if (!likerPlus) return false;
   if (isOwnedOutsideRevenueCat(likerPlus)) return false;
@@ -721,6 +731,10 @@ async function revokeIfRevenueCatOwned(
   // Best-effort CRM cleanup: a failed Intercom write must not mask the completed
   // revoke (would skip the caller's audit log) nor fail the webhook into a retry.
   if (!isQuarantinedSandbox(isSandbox)) {
+    setPostHogPersonProperties({
+      ...wallets,
+      properties: mapPlusEntitlementPersonProperties(null),
+    });
     try {
       await clearIntercomPlusFlags(likerId);
     } catch (err) {
@@ -757,7 +771,11 @@ async function revokeOtherHoldersOfTransaction(
     .get();
   await Promise.all(snapshot.docs.map(async (doc) => {
     if (doc.id === keepLikerId) return;
-    const lp = (doc.data() as { likerPlus?: LikerPlusData }).likerPlus;
+    const { likerPlus: lp, evmWallet, likeWallet } = doc.data() as {
+      likerPlus?: LikerPlusData;
+      evmWallet?: string;
+      likeWallet?: string;
+    };
     // Skip records past the Plus access boundary — no live access to revoke, so
     // revoking would just emit a spurious audit log and Intercom write.
     if (!lp || !hasLivePlusAccess(lp)) return;
@@ -768,7 +786,7 @@ async function revokeOtherHoldersOfTransaction(
     const thisGrantWins = holderPeriodStart < keepPeriodStart
       || (holderPeriodStart === keepPeriodStart && keepLikerId > doc.id);
     if (!thisGrantWins) return;
-    const revoked = await revokeIfRevenueCatOwned(doc.id, lp, isSandbox);
+    const revoked = await revokeIfRevenueCatOwned(doc.id, lp, isSandbox, { evmWallet, likeWallet });
     if (!revoked) return;
     try {
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
@@ -1004,14 +1022,18 @@ async function handleTransfer(
   const fromIds = (event.transferred_from || []).filter((id) => id && !isAnonymousId(id));
   const toIds = (event.transferred_to || []).filter((id) => id && !isAnonymousId(id));
 
-  const sources = await Promise.all(fromIds.map(async (likerId) => ({
-    likerId,
-    likerPlus: (await getUserWithCivicLikerProperties(likerId))?.likerPlus,
-  })));
+  const sources = await Promise.all(fromIds.map(async (likerId) => {
+    const user = await getUserWithCivicLikerProperties(likerId);
+    return {
+      likerId,
+      likerPlus: user?.likerPlus,
+      wallets: { evmWallet: user?.evmWallet, likeWallet: user?.likeWallet },
+    };
+  }));
   const source = sources.find((s) => isTransferableLikerPlus(s.likerPlus, isSandbox));
   const carried = source?.likerPlus;
 
-  let carriedTo: string[] = [];
+  let carriedTo: { likerId: string; evmWallet?: string; likeWallet?: string }[] = [];
   if (carried) {
     const written = await Promise.all(toIds.map(async (likerId) => {
       if (fromIds.includes(likerId)) return undefined;
@@ -1023,24 +1045,37 @@ async function handleTransfer(
       await userCollection.doc(likerId).update({
         likerPlus: { ...carried, provider: 'revenuecat' },
       });
-      return likerId;
+      return { likerId, evmWallet: user.evmWallet, likeWallet: user.likeWallet };
     }));
-    carriedTo = written.filter((likerId): likerId is string => !!likerId);
+    carriedTo = written.filter((dest): dest is NonNullable<typeof dest> => !!dest);
   }
 
   // Revoke the source only after the carry, so a failed destination write leaves
   // the user with access on the old identity rather than none at all.
   await Promise.all(sources.map(
-    ({ likerId, likerPlus }) => revokeIfRevenueCatOwned(likerId, likerPlus, isSandbox),
+    ({ likerId, likerPlus, wallets }) => revokeIfRevenueCatOwned(
+      likerId,
+      likerPlus,
+      isSandbox,
+      wallets,
+    ),
   ));
 
   // CRM sync trails the Firestore writes: it is best-effort, and RevenueCat retries
   // this webhook on timeout, so it must not sit between the carry and the revoke.
   if (carried && !isQuarantinedSandbox(isSandbox)) {
-    await Promise.all(carriedTo.map((likerId) => setIntercomPlusFlags(likerId, {
-      isTrial: carried.currentType === 'trial',
-      tier: carried.tier || 'plus',
-    })));
+    const tier = carried.tier || 'plus';
+    await Promise.all(carriedTo.map(({ likerId, evmWallet, likeWallet }) => {
+      setPostHogPersonProperties({
+        evmWallet,
+        likeWallet,
+        properties: mapPlusEntitlementPersonProperties(tier),
+      });
+      return setIntercomPlusFlags(likerId, {
+        isTrial: carried.currentType === 'trial',
+        tier,
+      });
+    }));
   }
 
   try {
@@ -1050,7 +1085,7 @@ async function handleTransfer(
       transferredFrom: fromIds,
       transferredTo: toIds,
       carriedFrom: source?.likerId,
-      carriedTo,
+      carriedTo: carriedTo.map(({ likerId }) => likerId),
     });
   } catch (err) {
     // eslint-disable-next-line no-console
