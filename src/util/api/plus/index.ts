@@ -711,6 +711,14 @@ async function emitPlusInvoiceAnalytics({
     ...mapAttributionExtraProperties(subscriptionMetadata),
   };
 
+  // A live app record outranks this Stripe charge (see writePlusUserRecordAndAccrual),
+  // so the person reports the tier that record still grants.
+  const entitlementProperties = mapPlusEntitlementPersonProperties(
+    user.likerPlus?.provider === 'revenuecat' && hasLivePlusAccess(user.likerPlus)
+      ? user.likerPlus.tier || 'plus'
+      : tier,
+  );
+
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
     is_liker_plus_trial: isTrial,
@@ -742,7 +750,7 @@ async function emitPlusInvoiceAnalytics({
       email: user.email || stripeCustomer.email || undefined,
       // Pairs with the clear in processStripeSubscriptionCancellation so a
       // resubscriber isn't left reading false until their next browser identify.
-      set: mapPlusEntitlementPersonProperties(tier),
+      set: entitlementProperties,
       items: [{
         productId: `${tier}-${period}ly`,
         quantity: 1,
@@ -786,7 +794,7 @@ async function emitPlusInvoiceAnalytics({
       email: user.email || stripeCustomer.email || undefined,
       // Each renewal re-asserts the entitlement, so a person left stale by a
       // missed write heals within one billing period.
-      set: mapPlusEntitlementPersonProperties(tier),
+      set: entitlementProperties,
       value: amountPaid,
       currency,
       paymentId: invoice.id,
@@ -809,7 +817,7 @@ async function emitPlusInvoiceAnalytics({
     setPostHogPersonProperties({
       evmWallet,
       likeWallet,
-      properties: mapPlusEntitlementPersonProperties(tier),
+      properties: entitlementProperties,
     });
   }
 

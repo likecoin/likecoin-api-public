@@ -33,6 +33,8 @@ vi.mock('../../src/util/posthog', async (importOriginal) => {
   return { ...actual, setPostHogPersonProperties: mockSetPersonProperties };
 });
 
+// eslint-disable-next-line import/first
+import { userCollection } from '../../src/util/firebase';
 // eslint-disable-next-line import/first, import/no-relative-packages
 import config from '../../config/config';
 
@@ -112,5 +114,23 @@ describe('Stripe invoice PostHog entitlement writes', () => {
       likeWallet: undefined,
       properties: ENTITLED,
     });
+  });
+
+  it('keeps the tier of a live app record the charge does not replace', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        tier: 'civic',
+        provider: 'revenuecat',
+        subscriptionStatus: 'active',
+        currentPeriodStart: Date.now() - 86400000,
+        currentPeriodEnd: Date.now() + 86400000 * 30,
+      },
+    });
+    await processStripeSubscriptionInvoice(
+      buildInvoice('in_entitlement_app_held', 'subscription_cycle', 999) as never,
+      req as never,
+    );
+    const renewal = mockLogServerEvents.mock.calls.find(([event]) => event === 'SubscriptionRenewed');
+    expect(renewal?.[1].set).toEqual({ is_liker_plus: true, liker_plus_tier: 'civic' });
   });
 });
