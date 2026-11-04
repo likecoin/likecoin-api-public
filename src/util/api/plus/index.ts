@@ -54,7 +54,7 @@ import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
-import { mapPlusEntitlementPersonProperties } from '../../posthog';
+import { mapPlusEntitlementPersonProperties, setPostHogPersonProperties } from '../../posthog';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export type PlusPeriod = 'monthly' | 'yearly';
@@ -784,6 +784,9 @@ async function emitPlusInvoiceAnalytics({
       evmWallet,
       likeWallet,
       email: user.email || stripeCustomer.email || undefined,
+      // Each renewal re-asserts the entitlement, so a person left stale by a
+      // missed write heals within one billing period.
+      set: mapPlusEntitlementPersonProperties(tier),
       value: amountPaid,
       currency,
       paymentId: invoice.id,
@@ -800,6 +803,13 @@ async function emitPlusInvoiceAnalytics({
       gaSessionId,
       customerType: 'returning',
       extraProperties: invoiceExtraProperties,
+    });
+  } else {
+    // No event carries a $set here (a free renewal or a mid-term tier change).
+    setPostHogPersonProperties({
+      evmWallet,
+      likeWallet,
+      properties: mapPlusEntitlementPersonProperties(tier),
     });
   }
 

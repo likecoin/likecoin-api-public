@@ -27,7 +27,7 @@ vi.mock('../../config/config', () => ({
 }));
 
 // eslint-disable-next-line import/first
-import logPostHogEvents from '../../src/util/posthog';
+import logPostHogEvents, { setPostHogPersonProperties } from '../../src/util/posthog';
 
 function lastSetPayload() {
   const [{ properties }] = captureMock.mock.calls[captureMock.mock.calls.length - 1];
@@ -100,6 +100,38 @@ describe('logPostHogEvents person properties', () => {
 
   it('skips identify when there are no person props to write', () => {
     logPostHogEvents('SubscriptionCancelled', { evmWallet: '0xabc', paymentId: 'sub_123' });
+    expect(identifyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('setPostHogPersonProperties', () => {
+  beforeEach(() => {
+    identifyMock.mockClear();
+  });
+
+  it('identifies by evmWallet ahead of the other ids', () => {
+    setPostHogPersonProperties({
+      evmWallet: '0xabc',
+      likeWallet: 'like1abc',
+      posthogDistinctId: 'app-distinct-id',
+      properties: { is_liker_plus: false, liker_plus_tier: null },
+    });
+    expect(identifyMock).toHaveBeenCalledWith({
+      distinctId: '0xabc',
+      properties: { is_liker_plus: false, liker_plus_tier: null },
+    });
+  });
+
+  it('falls back to a forwarded id for a wallet-less user', () => {
+    setPostHogPersonProperties({
+      posthogDistinctId: 'app-distinct-id',
+      properties: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    });
+    expect(identifyMock.mock.calls[0][0].distinctId).toBe('app-distinct-id');
+  });
+
+  it('skips the write when there is no id to attach it to', () => {
+    setPostHogPersonProperties({ properties: { is_liker_plus: true } });
     expect(identifyMock).not.toHaveBeenCalled();
   });
 });

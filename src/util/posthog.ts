@@ -64,6 +64,37 @@ export async function shutdownPostHog(): Promise<void> {
   }
 }
 
+// Legacy likeWallet-only users (Cosmos-era, no evmWallet) must still be counted;
+// callers with neither wallet may pass a synthetic posthogDistinctId (e.g. `stripe:<customer>`).
+function resolveDistinctId({ evmWallet, likeWallet, posthogDistinctId }: {
+  evmWallet?: string;
+  likeWallet?: string;
+  posthogDistinctId?: string;
+}): string | undefined {
+  return evmWallet || likeWallet || posthogDistinctId;
+}
+
+// Person-only write for a lifecycle change that has no event to carry a $set,
+// e.g. a renewal that charged nothing or a shared seat being revoked.
+export function setPostHogPersonProperties({ properties, ...ids }: {
+  evmWallet?: string;
+  likeWallet?: string;
+  posthogDistinctId?: string;
+  properties: Record<string, unknown>;
+}) {
+  const client = getPostHogClient();
+  const distinctId = resolveDistinctId(ids);
+  if (!client || !distinctId) {
+    return;
+  }
+  try {
+    client.identify({ distinctId, properties });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('setPostHogPersonProperties error', error);
+  }
+}
+
 export default function logPostHogEvents(event: ServerEventName, {
   evmWallet,
   likeWallet,
@@ -95,9 +126,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   if (!client) {
     return;
   }
-  // Legacy likeWallet-only users (Cosmos-era, no evmWallet) must still be counted;
-  // callers with neither wallet may pass a synthetic posthogDistinctId (e.g. `stripe:<customer>`).
-  const distinctId = evmWallet || likeWallet || posthogDistinctId;
+  const distinctId = resolveDistinctId({ evmWallet, likeWallet, posthogDistinctId });
   if (!distinctId) {
     return;
   }
