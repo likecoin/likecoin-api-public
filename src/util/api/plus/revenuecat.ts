@@ -245,6 +245,7 @@ async function handleGrant(
   user: {
     email?: string;
     evmWallet?: string;
+    likeWallet?: string;
     likerPlus?: LikerPlusData;
     firstPaidAt?: unknown;
   },
@@ -554,6 +555,7 @@ async function handleGrant(
     // and a product change can move the tier.
     setPostHogPersonProperties({
       evmWallet: user.evmWallet,
+      likeWallet: user.likeWallet,
       posthogDistinctId: getSubscriberAttribute(event, 'posthogDistinctId'),
       properties: mapPlusEntitlementPersonProperties(tier),
     });
@@ -1033,7 +1035,7 @@ async function handleTransfer(
   const source = sources.find((s) => isTransferableLikerPlus(s.likerPlus, isSandbox));
   const carried = source?.likerPlus;
 
-  let carriedTo: { likerId: string; evmWallet?: string; likeWallet?: string }[] = [];
+  let carriedTo: string[] = [];
   if (carried) {
     const written = await Promise.all(toIds.map(async (likerId) => {
       if (fromIds.includes(likerId)) return undefined;
@@ -1045,9 +1047,18 @@ async function handleTransfer(
       await userCollection.doc(likerId).update({
         likerPlus: { ...carried, provider: 'revenuecat' },
       });
-      return { likerId, evmWallet: user.evmWallet, likeWallet: user.likeWallet };
+      // Right after the write: a retry skips this now-live destination,
+      // so a failed revoke below must not leave its person stale.
+      if (!isQuarantinedSandbox(isSandbox)) {
+        setPostHogPersonProperties({
+          evmWallet: user.evmWallet,
+          likeWallet: user.likeWallet,
+          properties: mapPlusEntitlementPersonProperties(carried.tier || 'plus'),
+        });
+      }
+      return likerId;
     }));
-    carriedTo = written.filter((dest): dest is NonNullable<typeof dest> => !!dest);
+    carriedTo = written.filter((likerId): likerId is string => !!likerId);
   }
 
   // Revoke the source only after the carry, so a failed destination write leaves
@@ -1064,18 +1075,10 @@ async function handleTransfer(
   // CRM sync trails the Firestore writes: it is best-effort, and RevenueCat retries
   // this webhook on timeout, so it must not sit between the carry and the revoke.
   if (carried && !isQuarantinedSandbox(isSandbox)) {
-    const tier = carried.tier || 'plus';
-    await Promise.all(carriedTo.map(({ likerId, evmWallet, likeWallet }) => {
-      setPostHogPersonProperties({
-        evmWallet,
-        likeWallet,
-        properties: mapPlusEntitlementPersonProperties(tier),
-      });
-      return setIntercomPlusFlags(likerId, {
-        isTrial: carried.currentType === 'trial',
-        tier,
-      });
-    }));
+    await Promise.all(carriedTo.map((likerId) => setIntercomPlusFlags(likerId, {
+      isTrial: carried.currentType === 'trial',
+      tier: carried.tier || 'plus',
+    })));
   }
 
   try {
@@ -1085,7 +1088,7 @@ async function handleTransfer(
       transferredFrom: fromIds,
       transferredTo: toIds,
       carriedFrom: source?.likerId,
-      carriedTo: carriedTo.map(({ likerId }) => likerId),
+      carriedTo,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
