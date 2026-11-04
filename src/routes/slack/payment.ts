@@ -122,7 +122,7 @@ async function handleTxsQuery({
 router.post(
   '/payment',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  slackCommandHandler({
+  slackCommandHandler('/payment', {
     txs: async ({ params, res }) => {
       const [mainParam, additionalFilter] = params;
 
@@ -192,7 +192,7 @@ router.post(
         ],
       });
     },
-  }, 'Invalid command. Please use `/payment help` to see the list of valid commands.'),
+  }, (command) => `Invalid command. Please use \`${command} help\` to see the list of valid commands.`),
 );
 
 export default router;

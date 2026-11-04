@@ -237,7 +237,7 @@ router.post(
     BOOK_ADMIN_ALLOWED_CHANNEL_IDS,
     BOOK_ADMIN_ALLOWED_USER_IDS,
   ),
-  slackCommandHandler({
+  slackCommandHandler('/book', {
     approve: async ({ params, req, res }) => {
       const slackUserId = req.body.user_id;
       const [classId, action = 'approve_with_ads', ...countryCodes] = params;
@@ -384,7 +384,7 @@ Examples:
   \`/book metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
       });
     },
-  }, 'Invalid command. Use `/book help` for usage.'),
+  }, (command) => `Invalid command. Use \`${command} help\` for usage.`),
 );
 
 export default router;

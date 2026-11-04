@@ -22,7 +22,7 @@ const router = Router();
 router.post(
   '/plus',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  slackCommandHandler({
+  slackCommandHandler('/plus', {
     sync: async ({ params, res }) => {
       // /plus sync <evmWallet|subscriptionId>
       if (params.length < 1) {
@@ -160,7 +160,7 @@ Grant VIP Plus until 2046-06-30, outside Stripe and RevenueCat. Only for users w
 \`/plus set vip reader@example.com\``,
       });
     },
-  }, 'Invalid command. Use /plus help for available commands.'),
+  }, (command) => `Invalid command. Use ${command} help for available commands.`),
 );
 
 export default router;
