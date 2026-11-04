@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
 import { SHARED_MEMBER_SEATS, ONE_DAY_IN_MS } from '../../src/constant';
 import {
   claimSharedMemberInvite,
@@ -11,7 +13,14 @@ import {
 } from '../../src/util/api/plus/sharedMember';
 import { processRevenueCatEvent } from '../../src/util/api/plus/revenuecat';
 import { userCollection } from '../../src/util/firebase';
+import { setPostHogPersonProperties } from '../../src/util/posthog';
 import type { LikerPlusData, UserCivicLikerProperties } from '../../src/types/user';
+
+vi.mock('../../src/util/posthog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/posthog')>();
+  return { ...actual, setPostHogPersonProperties: vi.fn() };
+});
+const mockSetPersonProperties = vi.mocked(setPostHogPersonProperties);
 
 const NOW = Date.now();
 const PERIOD_START = NOW - ONE_DAY_IN_MS;
@@ -279,6 +288,7 @@ describe('claimSharedMemberInvite', () => {
     const memberWallet = walletOf(101);
     const { inviteId, token } = await seedGiverWithInvite('giverclaim', walletOf(100));
     await seedUser('memberclaim', memberWallet);
+    mockSetPersonProperties.mockClear();
     const { memberLikerId } = await claimSharedMemberInvite({
       giverLikerId: 'giverclaim',
       inviteId,
@@ -305,6 +315,10 @@ describe('claimSharedMemberInvite', () => {
     expect(invite?.status).toBe('claimed');
     expect(invite?.memberLikerId).toBe('memberclaim');
     expect(invite?.memberWallet).toBe(memberWallet);
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: memberWallet,
+      properties: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    }));
   });
 
   it('rejects a token mismatch', async () => {
@@ -403,6 +417,7 @@ describe('extendSharedMemberAccess / revokeSharedMemberAccess', () => {
     await seedUser('foreign', walletOf(203), makeSharedMemberLikerPlus('someoneelse'));
 
     const newEnd = PERIOD_END + 365 * ONE_DAY_IN_MS;
+    mockSetPersonProperties.mockClear();
     await extendSharedMemberAccess('giverextend', {
       currentPeriodStart: PERIOD_END,
       currentPeriodEnd: newEnd,
@@ -426,6 +441,12 @@ describe('extendSharedMemberAccess / revokeSharedMemberAccess', () => {
       grantedBy: 'someoneelse',
       subscriptionStatus: 'active',
     });
+    // Only the extended member's person is written.
+    expect(mockSetPersonProperties).toHaveBeenCalledTimes(1);
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: walletOf(201),
+      properties: { is_liker_plus: true, liker_plus_tier: 'plus' },
+    }));
   });
 
   it('revokes only shared-granted records from this giver, keeping grantedBy', async () => {
@@ -433,6 +454,7 @@ describe('extendSharedMemberAccess / revokeSharedMemberAccess', () => {
     await seedUser('memB', walletOf(205), makeSharedMemberLikerPlus('giverrevoke'));
     await seedUser('upgradedB', walletOf(206), makeLikerPlus({ tier: 'plus', currentType: 'paid' }));
 
+    mockSetPersonProperties.mockClear();
     await revokeSharedMemberAccess('giverrevoke');
 
     const memB = await getLikerPlus('memB');
@@ -446,6 +468,11 @@ describe('extendSharedMemberAccess / revokeSharedMemberAccess', () => {
       subscriptionStatus: 'active',
       currentPeriodEnd: PERIOD_END,
     });
+    expect(mockSetPersonProperties).toHaveBeenCalledTimes(1);
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: walletOf(205),
+      properties: { is_liker_plus: false, liker_plus_tier: null },
+    }));
   });
 });
 
