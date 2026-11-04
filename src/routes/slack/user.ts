@@ -95,7 +95,7 @@ const getUserCommand = async ({ params, req, res }) => {
 router.post(
   '/user',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  slackCommandHandler({
+  slackCommandHandler('/user', {
     get: getUserCommand,
     find: getUserCommand,
     'unlimited-upload': async ({ params, req, res }) => {

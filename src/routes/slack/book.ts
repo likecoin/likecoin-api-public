@@ -226,7 +226,7 @@ router.post(
     BOOK_ADMIN_ALLOWED_CHANNEL_IDS,
     BOOK_ADMIN_ALLOWED_USER_IDS,
   ),
-  slackCommandHandler({
+  slackCommandHandler('/book', {
     approve: async ({ params, req, res }) => {
       const slackUserId = req.body.user_id;
       const [classId, action = 'approve_with_ads', ...countryCodes] = params;
@@ -330,7 +330,7 @@ Examples:
   \`/book tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only`,
       });
     },
-  }, 'Invalid command. Use `/book help` for usage.'),
+  }, (command) => `Invalid command. Use \`${command} help\` for usage.`),
 );
 
 export default router;
