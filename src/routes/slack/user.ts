@@ -11,7 +11,7 @@ import {
 import { findUserDocByQuery, formatUserCivicLikerProperies } from '../../util/api/users';
 import { getBookUserInfo } from '../../util/api/likernft/book/user';
 import {
-  USER_UNLIMITED_UPLOAD_USAGE,
+  getUserUnlimitedUploadUsage,
   parseUserUnlimitedUploadQuery,
   setUserUnlimitedSponsoredUpload,
 } from '../../util/api/likernft/book/unlimitedUpload';
@@ -98,8 +98,10 @@ router.post(
   slackCommandHandler('/user', {
     get: getUserCommand,
     find: getUserCommand,
-    'unlimited-upload': async ({ params, req, res }) => {
-      const query = parseUserUnlimitedUploadQuery(params);
+    'unlimited-upload': async ({
+      command, params, req, res,
+    }) => {
+      const query = parseUserUnlimitedUploadQuery(params, command);
       const result = await setUserUnlimitedSponsoredUpload(query);
       await publisher.publish(PUBSUB_TOPIC_MISC, null, {
         logType: 'BookUserUnlimitedUploadUpdate',
@@ -111,12 +113,12 @@ router.post(
         attachments: [getSlackAttachmentForMap('Unlimited Upload Set Result', result)],
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
-        text: `\`/user get \${liker id}\` Get user info e.g. \`/user get likerid\`
-\`/user find \${param}\` Find user by email/wallet/cosmosWallet e.g. \`/user find team@like.co\`
-\`${USER_UNLIMITED_UPLOAD_USAGE}\` Exempt user's wallet from daily Arweave sponsored upload limits (isUnlimitedSponsoredUpload) e.g. \`/user unlimited-upload team@like.co on\``,
+        text: `\`${command} get \${liker id}\` Get user info e.g. \`${command} get likerid\`
+\`${command} find \${param}\` Find user by email/wallet/cosmosWallet e.g. \`${command} find team@like.co\`
+\`${getUserUnlimitedUploadUsage(command)}\` Exempt user's wallet from daily Arweave sponsored upload limits (isUnlimitedSponsoredUpload) e.g. \`${command} unlimited-upload team@like.co on\``,
       });
     },
   }),

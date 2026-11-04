@@ -13,12 +13,15 @@ export interface UserUnlimitedUploadResult {
   isUnlimitedSponsoredUpload: boolean;
 }
 
-export const USER_UNLIMITED_UPLOAD_USAGE = '/user unlimited-upload <email|userId|wallet> <on|off>';
+export const getUserUnlimitedUploadUsage = (command: string) => `${command} unlimited-upload <email|userId|wallet> <on|off>`;
 
-export function parseUserUnlimitedUploadQuery(params: string[]): UserUnlimitedUploadQuery {
+export function parseUserUnlimitedUploadQuery(
+  params: string[],
+  command: string,
+): UserUnlimitedUploadQuery {
   const [query, toggle, ...rest] = params;
   if (!query || !toggle || rest.length) {
-    throw new Error(`Invalid params. Usage: ${USER_UNLIMITED_UPLOAD_USAGE}`);
+    throw new Error(`Invalid params. Usage: ${getUserUnlimitedUploadUsage(command)}`);
   }
   const normalizedToggle = toggle.toLowerCase();
   if (normalizedToggle !== 'on' && normalizedToggle !== 'off') {
