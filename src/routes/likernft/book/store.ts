@@ -51,6 +51,8 @@ import {
   BookBestsellingListQuerySchema,
   type BookBestsellingListQuery,
   BookBestsellingListResponseSchema,
+  BookListModeratedQuerySchema,
+  type BookListModeratedQuery,
   BookListModeratedResponseSchema,
   BookSearchResponseSchema,
   BookInfoResponseSchema,
@@ -358,13 +360,12 @@ router.get(
   },
 );
 
-router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) => {
+router.get('/list/moderated', jwtAuth('read:nftbook'), validateQuery(BookListModeratedQuerySchema), async (req: QueryRequest<BookListModeratedQuery>, res, next) => {
   try {
-    const { wallet, chain } = req.query;
-    if (!wallet) throw new ValidationError('INVALID_WALLET');
-    const moderatedBookInfos = await listNftBookInfoByModeratorWallet(
+    const { chain, limit, key } = req.query;
+    const { list: moderatedBookInfos, nextKey } = await listNftBookInfoByModeratorWallet(
       req.user.wallet,
-      { chain: chain as string },
+      { chain, limit, key },
     );
     const list = moderatedBookInfos
       .filter((b) => !b.redirectClassId)
@@ -385,7 +386,7 @@ router.get('/list/moderated', jwtAuth('read:nftbook'), async (req, res, next) =>
           ownerWallet,
         };
       });
-    sendValidatedJSON(res, BookListModeratedResponseSchema, { list });
+    sendValidatedJSON(res, BookListModeratedResponseSchema, { list, nextKey });
   } catch (err) {
     next(err);
   }
