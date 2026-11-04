@@ -1,5 +1,5 @@
 import {
-  describe, it, expect, vi, beforeEach,
+  describe, it, expect, vi, beforeEach, afterEach,
 } from 'vitest';
 
 const {
@@ -34,7 +34,7 @@ vi.mock('../../src/util/posthog', async (importOriginal) => {
 });
 
 // eslint-disable-next-line import/first
-import { userCollection } from '../../src/util/firebase';
+import { FieldValue, userCollection } from '../../src/util/firebase';
 // eslint-disable-next-line import/first, import/no-relative-packages
 import config from '../../config/config';
 
@@ -91,6 +91,12 @@ describe('Stripe invoice PostHog entitlement writes', () => {
     mockLogServerEvents.mockReset();
     mockSetPersonProperties.mockReset();
     seedSubscription();
+  });
+
+  // The stub's reset re-reads a cached fixture, so a live record would leak into
+  // later files and fail their checkouts as already subscribed.
+  afterEach(async () => {
+    await userCollection.doc('testing').update({ likerPlus: FieldValue.delete() });
   });
 
   it('re-asserts the entitlement on a paid renewal event', async () => {
