@@ -54,6 +54,7 @@ import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
+import { mapPlusEntitlementPersonProperties } from '../../posthog';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export type PlusPeriod = 'monthly' | 'yearly';
@@ -187,15 +188,6 @@ export async function resolveAffiliateGift({
     }
   }
   return result;
-}
-
-// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
-// same handlers write. A null tier means access was lost; the browser clears the
-// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
-export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
-  return tier
-    ? { is_liker_plus: true, liker_plus_tier: tier }
-    : { is_liker_plus: false, liker_plus_tier: null };
 }
 
 // Field names mirror the Stripe subscription-metadata keys so a whole metadata bag

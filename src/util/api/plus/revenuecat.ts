@@ -18,7 +18,6 @@ import {
   getPlusEquivalentUSDPrice,
   getPlusPredictedLTV,
   mapAttributionExtraProperties,
-  mapPlusEntitlementPersonProperties,
   resolveAffiliateGift,
 } from './index';
 // A shared-granted record is owned by the giver's lifecycle: terminal RevenueCat
@@ -36,6 +35,7 @@ import {
   updateAirtableSubscriptionStatus,
 } from '../../airtable';
 import logServerEvents from '../../logServerEvents';
+import { mapPlusEntitlementPersonProperties } from '../../posthog';
 import publisher from '../../gcloudPub';
 import { splitByComma } from '../../misc';
 import {

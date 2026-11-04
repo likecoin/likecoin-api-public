@@ -5,6 +5,7 @@ import {
   POSTHOG_API_KEY,
   POSTHOG_HOST,
 } from '../../config/config';
+import type { LikerPlusTier } from '../constant';
 import { SERVER_EVENT_MAP, buildItemId } from './analyticsEvents';
 import type { ServerEventName, AnalyticsItem } from './analyticsEvents';
 
@@ -29,6 +30,15 @@ function derivePostHogEventUUID(eventName: string, transactionId: string): strin
 
 function nonEmpty(properties?: Record<string, unknown>): Record<string, unknown> | undefined {
   return properties && Object.keys(properties).length > 0 ? properties : undefined;
+}
+
+// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
+// same handlers write. A null tier means access was lost; the browser clears the
+// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
+export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
+  return tier
+    ? { is_liker_plus: true, liker_plus_tier: tier }
+    : { is_liker_plus: false, liker_plus_tier: null };
 }
 
 let posthogClient: PostHog | null = null;
