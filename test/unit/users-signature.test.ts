@@ -404,6 +404,20 @@ describe('User Signature Verification Unit Tests', () => {
         });
       }).toThrow('PAYLOAD_ACTION_NOT_MATCH');
     });
+
+    it('should reject a malformed message as a 400 ValidationError', () => {
+      const message = 'not a json payload';
+      const sign = signERCProfile(message, privateKey0);
+
+      let error: unknown;
+      try {
+        checkEVMSignPayload({ signature: sign, message, inputWallet: testingWallet0 });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error).toMatchObject({ message: 'INVALID_PAYLOAD', status: 400 });
+    });
   });
 
   describe('normalizeUserEmail', () => {
