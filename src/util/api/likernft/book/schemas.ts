@@ -178,20 +178,28 @@ export const BookGiftInfoBodySchema = z.object({
   message: z.string().optional(),
 }).passthrough();
 
+// Auto-delivered books skip the stock check and mint one NFT per unit after payment,
+// so listings without maxQuantityPerOrder still need a hard ceiling.
+export const MAX_PURCHASE_QUANTITY = 100;
+
+const PurchaseQuantitySchema = z.coerce.number().int().positive()
+  .max(MAX_PURCHASE_QUANTITY)
+  .default(1);
+
 export const BookPurchaseNewBodySchema = TrackingFieldsSchema.extend({
   email: z.string().email().optional(),
   giftInfo: BookGiftInfoBodySchema.optional(),
   coupon: z.string().optional(),
   currency: z.enum(SUPPORTED_PLUS_CURRENCIES).optional(),
   customPriceInDecimal: z.coerce.number().int().min(0).optional(),
-  quantity: z.coerce.number().int().positive().default(1),
+  quantity: PurchaseQuantitySchema,
 });
 
 export const BookCartItemSchema = z.object({
   classId: z.string().min(1),
   priceIndex: z.coerce.number().int().min(0),
   customPriceInDecimal: z.coerce.number().int().min(0).optional(),
-  quantity: z.coerce.number().int().positive().default(1),
+  quantity: PurchaseQuantitySchema,
   from: z.string().optional(),
 });
 
