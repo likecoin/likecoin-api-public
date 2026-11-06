@@ -405,6 +405,20 @@ describe('USER tests', () => {
     expect(res.status).toBe(200);
   });
 
+  it('USER: Edit user by JSON from Web. Case: wallet-only token without Liker ID', async () => {
+    const token = jwtSign({ user: '', wallet: testingWallet1 });
+    const res = await axiosist.post('/api/users/update', {
+      displayName: testingDisplayName1,
+    }, {
+      headers: {
+        Cookie: `likecoin_auth=${token};`,
+      },
+    }).catch((err) => (err as any).response);
+
+    expect(res.status).toBe(404);
+    expect(res.data).toBe('USER_NOT_FOUND');
+  });
+
   it('USER: Edit user by JSON from Web. Case: Incorrect email format', async () => {
     const user = testingUser2;
     const token = jwtSign({ user });

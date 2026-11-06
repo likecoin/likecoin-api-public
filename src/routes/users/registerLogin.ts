@@ -184,6 +184,8 @@ router.post(
   async (req, res, next) => {
     try {
       const { user } = req.user;
+      // A wallet-only JWT from /wallet/authorize carries no Liker ID.
+      if (!user) throw new ValidationError('USER_NOT_FOUND', 404);
       const {
         email,
         magicDIDToken,
