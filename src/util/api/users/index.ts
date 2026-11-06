@@ -108,7 +108,7 @@ function parseActualLoginPayload(message, signMethod) {
     }
     return JSON.parse(payload.substr(payload.indexOf('{')));
   } catch (err) {
-    throw new Error('INVALID_PAYLOAD');
+    throw new ValidationError('INVALID_PAYLOAD', 400);
   }
 }
 
