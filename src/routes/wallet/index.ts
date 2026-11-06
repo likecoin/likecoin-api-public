@@ -31,6 +31,7 @@ import {
 import { validateBody, validateParams } from '../../middleware/validate';
 import publisher from '../../util/gcloudPub';
 import { PUBSUB_TOPIC_MISC } from '../../constant';
+import { WALLET_AUTHORIZE_PERMISSIONS } from '../../constant/jwt';
 import {
   checkAddressValid, checkCosmosAddressValid, filterUserDataMin, sendValidatedJSON,
 } from '../../util/ValidationHelper';
@@ -63,7 +64,11 @@ router.post('/authorize', validateBody(WalletAuthorizeBodySchema), async (req, r
     if (!signed) {
       throw new ValidationError('INVALID_SIGN');
     }
-    const { permissions } = signed;
+    const { permissions: requestedPermissions } = signed;
+    // Drop rather than reject unknown scopes, so a client asking for extra ones still signs in.
+    const permissions = Array.isArray(requestedPermissions)
+      ? requestedPermissions.filter((p) => WALLET_AUTHORIZE_PERMISSIONS.includes(p))
+      : [];
     const payload: any = { permissions };
     payload.wallet = inputWallet;
     if (isEVMWallet) {
@@ -87,6 +92,7 @@ router.post('/authorize', validateBody(WalletAuthorizeBodySchema), async (req, r
       wallet: inputWallet,
       jwtid,
       permissions,
+      requestedPermissions,
       signMethod,
       expiresIn,
       isEVMWallet,
