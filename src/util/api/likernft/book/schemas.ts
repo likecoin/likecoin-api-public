@@ -270,6 +270,15 @@ export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
+export const BookListModeratedQuerySchema = z.object({
+  wallet: z.string().min(1),
+  chain: z.string().optional(),
+  key: z.coerce.number().int().optional(),
+  limit: z.coerce.number().int().min(1).max(100)
+    .default(100),
+});
+export type BookListModeratedQuery = z.infer<typeof BookListModeratedQuerySchema>;
+
 // Scopes and paginates like its `/list*` siblings, except the cursor is the previous page's
 // last class id rather than a timestamp — ranking ties can't be resumed from a value alone.
 const BookRankedListQuerySchema = BookListPaginationQuerySchema
@@ -640,10 +649,15 @@ export const BookListModeratedResponseSchema = z.object({
     classId: z.string(),
     prices: z.array(NFTBookPriceFilteredSchema),
     pendingNFTCount: z.number().int().optional(),
+    pendingShipmentCount: z.number().int().optional(),
     stock: z.number().int(),
     sold: z.number().int(),
     ownerWallet: z.string(),
+    name: z.string().optional(),
+    // Absent means 'book'; clients must treat it that way rather than requiring it.
+    productType: BookProductTypeSchema.optional(),
   })),
+  nextKey: z.number().nullable(),
 });
 
 // Response mirrors the upsert body plus the server-assigned id and timestamps.
