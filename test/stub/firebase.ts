@@ -109,6 +109,8 @@ function docData(obj: StubData): any {
     ...obj,
   };
   delete res.id;
+  // Subcollections live on the stub doc, but real Firestore never returns them in data().
+  delete res.collection;
   return res;
 }
 

@@ -814,6 +814,29 @@ export const BookUserSubscriptionAffiliateResponseSchema = z.object({
   }),
 });
 
+const BookUserDistributionRoyaltySchema = z.object({
+  period: z.string(),
+  periodStart: z.number(),
+  grossUsd: z.number(),
+  feeUsd: z.number(),
+  payableUsd: z.number(),
+  status: z.enum(['unpaid', 'paid']),
+  payments: z.array(z.object({
+    paymentId: z.string(),
+    transferId: z.string(),
+    paidAt: z.number(),
+    amountUsd: z.number(),
+    payoutId: z.string().optional(),
+  })),
+  updatedAt: z.number().optional(),
+});
+
+export type BookUserDistributionRoyalty = z.infer<typeof BookUserDistributionRoyaltySchema>;
+
+export const BookUserDistributionRoyaltiesResponseSchema = z.object({
+  royalties: z.array(BookUserDistributionRoyaltySchema),
+});
+
 // Shared with the frontend's excerpt extraction cap; the schema enforces it
 // so the suggestion prompt never silently truncates.
 export const MAX_CONTENT_EXCERPT_CHARS = 20000;
