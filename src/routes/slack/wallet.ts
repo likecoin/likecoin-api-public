@@ -15,7 +15,7 @@ const router = Router();
 router.post(
   '/wallet',
   slackTokenChecker(SLACK_COMMAND_TOKEN, WALLET_ALLOWED_CHANNEL_IDS, WALLET_ALLOWED_USER_IDS),
-  slackCommandHandler({
+  slackCommandHandler('/wallet', {
     list: async ({ res }) => {
       const cosmosWallets = Object.keys(TEAM_WALLET_TABLE);
       const promises = cosmosWallets.map((d) => getCosmosAccountLIKE(d));
@@ -36,10 +36,10 @@ router.post(
         ],
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
-        text: '`/wallet list` List team wallets and remaining token',
+        text: `\`${command} list\` List team wallets and remaining token`,
       });
     },
   }),

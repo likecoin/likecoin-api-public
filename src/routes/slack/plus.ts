@@ -22,11 +22,11 @@ const router = Router();
 router.post(
   '/plus',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  slackCommandHandler({
-    sync: async ({ params, res }) => {
+  slackCommandHandler('/plus', {
+    sync: async ({ command, params, res }) => {
       // /plus sync <evmWallet|subscriptionId>
       if (params.length < 1) {
-        throw new Error('Invalid params length. Usage: /plus sync <evmWallet|subscriptionId>');
+        throw new Error(`Invalid params length. Usage: ${command} sync <evmWallet|subscriptionId>`);
       }
 
       const param = params[0];
@@ -54,10 +54,10 @@ router.post(
       });
     },
 
-    link: async ({ params, res }) => {
+    link: async ({ command, params, res }) => {
       // /plus link <subscriptionId> <evmWallet>
       if (params.length < 2) {
-        throw new Error('Invalid params length. Usage: /plus link <subscriptionId> <evmWallet>');
+        throw new Error(`Invalid params length. Usage: ${command} link <subscriptionId> <evmWallet>`);
       }
 
       const subscriptionId = params[0];
@@ -83,7 +83,7 @@ router.post(
       });
     },
 
-    affiliate: async ({ params, res }) => {
+    affiliate: async ({ command, params, res }) => {
       const [subcommand] = params;
       if (subcommand === 'list') {
         // /plus affiliate list
@@ -97,7 +97,7 @@ router.post(
       if (subcommand === 'set') {
         // /plus affiliate set <email|userId|wallet> <affiliateUserId>
         if (params.length < 3) {
-          throw new Error('Invalid params length. Usage: /plus affiliate set <email|userId|wallet> <affiliateUserId>');
+          throw new Error(`Invalid params length. Usage: ${command} affiliate set <email|userId|wallet> <affiliateUserId>`);
         }
         const result = await setUserPlusAffiliate(params[1], params[2]);
         const voices = result.customVoices
@@ -113,13 +113,13 @@ router.post(
         });
         return;
       }
-      throw new Error('Invalid affiliate command. Usage: /plus affiliate <list|set>');
+      throw new Error(`Invalid affiliate command. Usage: ${command} affiliate <list|set>`);
     },
 
-    set: async ({ params, res }) => {
+    set: async ({ command, params, res }) => {
       // /plus set vip <email|userId|wallet>
       if (params[0] !== 'vip' || params.length < 2) {
-        throw new Error('Invalid set command. Usage: /plus set vip <email|userId|wallet>');
+        throw new Error(`Invalid set command. Usage: ${command} set vip <email|userId|wallet>`);
       }
       const result = await setUserVIPPlus(params[1]);
       res.json({
@@ -128,39 +128,39 @@ router.post(
       });
     },
 
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
         text: `*Plus Legacy Member Management Commands*
 
-\`/plus sync <evmWallet|subscriptionId>\`
+\`${command} sync <evmWallet|subscriptionId>\`
 Sync a Stripe subscription with proper evmWallet metadata. Can work with either:
 - evmWallet (0x...): Find existing subscription for this wallet
 - subscriptionId (sub_...): Update subscription metadata with wallet info
 
-\`/plus link <subscriptionId> <evmWallet>\`
+\`${command} link <subscriptionId> <evmWallet>\`
 Create linkage between a Stripe subscription and an evmWallet.
 
-\`/plus affiliate list\`
+\`${command} affiliate list\`
 List active affiliates with their internal user ID, display name and voice count.
 
-\`/plus affiliate set <email|userId|wallet> <affiliateUserId>\`
+\`${command} affiliate set <email|userId|wallet> <affiliateUserId>\`
 Set the user's Plus affiliate, which decides whose custom voices they get. Both user IDs are internal IDs, not handles; the affiliate must have an active config.
 
-\`/plus set vip <email|userId|wallet>\`
+\`${command} set vip <email|userId|wallet>\`
 Grant VIP Plus until 2046-06-30, outside Stripe and RevenueCat. Only for users without an active Plus (including trial, app and shared); an expired record is overwritten.
 
 *Examples:*
-\`/plus sync 0x1234567890abcdef1234567890abcdef12345678\`
-\`/plus sync sub_1234567890abcdef\`
-\`/plus link sub_1234567890abcdef 0x1234567890abcdef1234567890abcdef12345678\`
-\`/plus affiliate list\`
-\`/plus affiliate set reader@example.com karen\`
-\`/plus affiliate set 0x1234567890abcdef1234567890abcdef12345678 karen\`
-\`/plus set vip reader@example.com\``,
+\`${command} sync 0x1234567890abcdef1234567890abcdef12345678\`
+\`${command} sync sub_1234567890abcdef\`
+\`${command} link sub_1234567890abcdef 0x1234567890abcdef1234567890abcdef12345678\`
+\`${command} affiliate list\`
+\`${command} affiliate set reader@example.com karen\`
+\`${command} affiliate set 0x1234567890abcdef1234567890abcdef12345678 karen\`
+\`${command} set vip reader@example.com\``,
       });
     },
-  }, 'Invalid command. Use /plus help for available commands.'),
+  }, (command) => `Invalid command. Use ${command} help for available commands.`),
 );
 
 export default router;
