@@ -1,5 +1,5 @@
 import {
-  describe, it, expect, beforeAll, afterAll,
+  describe, it, expect, beforeAll, afterAll, vi,
 } from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
@@ -72,6 +72,31 @@ describe('GET /list/moderated', () => {
     expect(ids).toContain(ID_OTHER);
     // The stub ignores `limit` and ordering, so the cursor is the last seeded book.
     expect(res.data.nextKey).toBe(1000);
+  });
+
+  it('queries a global moderator page newest-first from the key', async () => {
+    // The stub ignores ordering, limit and cursors, so assert on the query built instead.
+    const calls: unknown[][] = [];
+    const query: any = {
+      where: (...args: unknown[]) => { calls.push(['where', ...args]); return query; },
+      startAfter: (cursor: any) => { calls.push(['startAfter', cursor.toMillis()]); return query; },
+      limit: (n: number) => { calls.push(['limit', n]); return query; },
+      get: async () => ({ docs: [] }),
+    };
+    const spy = vi.spyOn(likeNFTBookCollection, 'orderBy').mockImplementation((...args: unknown[]) => {
+      calls.push(['orderBy', ...args]);
+      return query;
+    });
+    const res = await getModerated(GLOBAL_MODERATOR, '&limit=20&key=1500');
+    spy.mockRestore();
+    expect(res.status).toBe(200);
+    expect(calls).toEqual([
+      ['orderBy', 'timestamp', 'desc'],
+      ['where', 'chain', '==', 'base'],
+      ['startAfter', 1500],
+      ['limit', 20],
+    ]);
+    expect(res.data.nextKey).toBeNull();
   });
 
   it('ends pagination when a global moderator page is not full', async () => {
