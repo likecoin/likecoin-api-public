@@ -193,13 +193,14 @@ export async function queryAirtableForPublication({ query, fields }) {
 
     const formattedQueryString = query.replaceAll('"', '').toLowerCase();
 
-    const defaultFieldNames = ['Name', 'Description', 'Owner Name', 'Author', 'Publisher'];
+    const defaultFieldNames = ['Name', 'Description', 'Owner Name', 'Author', 'Publisher', 'ISBN'];
     const fieldMap = {
       name: 'Name',
       description: 'Description',
       owner: 'Owner Name',
       author: 'Author',
       publisher: 'Publisher',
+      isbn: 'ISBN',
     };
     const fieldNames = fields?.map((field) => fieldMap[field]).filter(Boolean) || defaultFieldNames;
     const formulas = fieldNames.map(
@@ -222,6 +223,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         'Type',
         'Product Page URL',
         'Author',
+        'ISBN',
         'Adult Only',
       ],
       filterByFormula: formula,
@@ -245,6 +247,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         'Product Page URL': url,
         Author: author,
         Publisher: publisher,
+        ISBN: isbn,
         'Adult Only': isAdultOnly,
       }) => ({
         timestamp,
@@ -262,6 +265,7 @@ export async function queryAirtableForPublication({ query, fields }) {
         iscnId,
         author,
         publisher,
+        isbn,
         isAdultOnly,
       }));
     return result;
