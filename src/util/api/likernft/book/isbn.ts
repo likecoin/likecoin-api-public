@@ -1,8 +1,9 @@
 import { FIRESTORE_QUERY_DISJUNCTION_LIMIT } from '../../../../constant';
 
-// "ISBN", "ISBN-13", "ISBN-10", with an optional colon. The "10"/"13" must be
-// consumed here; stripping non-digits afterwards would keep those label digits.
-const ISBN_LABEL = /^\s*isbn(?:[-\s]?(?:10|13))?\s*[:\s]?\s*/i;
+// "ISBN", "ISBN-13", or "ISBN-10", then a delimiter. The 10/13 counts as a
+// label only when a separator follows it, so an ISBN-10 may start with those
+// digits ("ISBN 1305504917").
+const ISBN_LABEL = /^\s*isbn(?:[-\s]?(?:10|13)(?=[\s:]))?[\s:]*/i;
 
 // Group lengths allowed by the ISBN standard: registration group 1-5 digits,
 // registrant and publication 1-7, together the 9 digits before the check digit.
@@ -93,6 +94,22 @@ function relatedCompacts(compact: string): string[] {
   return [];
 }
 
+// A listing may store the label the metadata arrived with. Equality cannot see
+// through it, so each grouping is also queried with the usual prefixes.
+function addLabelledForms(forms: Set<string>) {
+  [...forms].forEach((form) => {
+    if (/^\s*isbn/i.test(form)) return;
+    const digits = form.replace(/[^0-9Xx]/g, '');
+    let kind = '';
+    if (digits.length === 13) kind = '13';
+    else if (digits.length === 10) kind = '10';
+    if (!kind) return;
+    ['ISBN ', 'ISBN: ', `ISBN-${kind}: `, `ISBN-${kind} `].forEach((prefix) => {
+      forms.add(`${prefix}${form}`);
+    });
+  });
+}
+
 // Listings keep the ISBN string metadata arrived with, so hyphens, spaces and
 // ISBN-10 vs ISBN-13 are all stored. Expand the standard groupings and query
 // those strings; a normalized column would miss every existing listing.
@@ -110,6 +127,7 @@ export function ISBNLookupCandidates(input: string): string[] {
   [...forms].forEach((form) => {
     if (form.includes('X')) forms.add(form.replace(/X/g, 'x'));
   });
+  addLabelledForms(forms);
   return [...forms];
 }
 

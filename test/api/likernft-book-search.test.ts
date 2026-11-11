@@ -61,6 +61,23 @@ describe('GET /likernft/book/store/search?isbn=', () => {
     expect(res.headers['cache-control']).toBe(ISBN_CACHE);
   });
 
+  it('finds a listing that stored the ISBN-13 label', async () => {
+    await makeNFTBookStub(ID_BOOK, { isbn: `ISBN-13: ${TAIWAN_HYPHEN}` });
+
+    const res = await get({ isbn: TAIWAN_13 });
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((book: any) => book.classId)).toEqual([ID_BOOK]);
+    expect(res.data.list[0].isbn).toBe(`ISBN-13: ${TAIWAN_HYPHEN}`);
+  });
+
+  it('does not treat a leading 13 as the ISBN-10 label', async () => {
+    await makeNFTBookStub(ID_BOOK, { isbn: '1305504917' });
+
+    const res = await get({ isbn: 'ISBN 1305504917' });
+    expect(res.status).toBe(200);
+    expect(res.data.list.map((book: any) => book.classId)).toEqual([ID_BOOK]);
+  });
+
   it('finds a compact listing from a hyphenated, spaced or labelled ISBN', async () => {
     await makeNFTBookStub(ID_BOOK, { isbn: TAIWAN_13 });
 

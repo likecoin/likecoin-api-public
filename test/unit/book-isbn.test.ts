@@ -18,6 +18,9 @@ describe('compactISBN', () => {
     expect(compactISBN('ISBN-13: 978-626-653-162-5')).toBe(TAIWAN_13);
     expect(compactISBN('ISBN-10: 0-306-40615-2')).toBe(CANON_10);
     expect(compactISBN('isbn13 9780306406157')).toBe(CANON_13);
+    // The label's "13" must not eat an ISBN-10 that itself starts with 13.
+    expect(compactISBN('ISBN 1305504917')).toBe('1305504917');
+    expect(compactISBN('ISBN 1041234567')).toBe('1041234567');
   });
 });
 
@@ -51,6 +54,19 @@ describe('ISBNLookupCandidates', () => {
     expect(candidates).toContain('9786266531626');
     expect(candidates).not.toContain(TAIWAN_13);
     expect(candidates).not.toContain(TAIWAN_10);
+  });
+
+  it('keeps an ISBN-10 that starts with the label digits 10 or 13', () => {
+    const candidates = ISBNLookupCandidates('ISBN 1305504917');
+    expect(candidates).toContain('1305504917');
+    expect(candidates).not.toContain('05504917');
+  });
+
+  it('includes a label-prefixed hyphenation for a bare ISBN query', () => {
+    const candidates = ISBNLookupCandidates(TAIWAN_13);
+    expect(candidates).toContain('ISBN-13: 978-626-653-162-5');
+    expect(candidates).toContain('ISBN: 9786266531625');
+    expect(candidates).toContain(`ISBN-10: ${TAIWAN_10}`);
   });
 
   it('returns nothing for a string that is not 10 or 13 digits', () => {
