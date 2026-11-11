@@ -7,6 +7,7 @@ import {
   getNftBookInfo,
   listLatestNFTBookInfo,
   listFilteredNFTBookInfo,
+  listNftBookInfoByIsbn,
   listPopularNFTBookInfo,
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
@@ -29,6 +30,7 @@ import {
   upsertNFTBookCMSTag,
   listNFTBookCMSTags,
   getNFTBookCMSTag,
+  getBookTimestampMillis,
 } from '../../../util/api/likernft/book/cms';
 import { listBestsellingNFTBookInfo } from '../../../util/api/likernft/book/sales';
 import {
@@ -133,12 +135,40 @@ const pngUpload = multer({
   },
 });
 
+// ISBN → listing is stable, so cache it past the 60s list endpoints.
+// `q` stays uncached: Airtable search is a different, slower path.
+const BOOK_ISBN_SEARCH_CACHE_CONTROL = `public, max-age=${ONE_DAY_IN_S}, s-maxage=${ONE_DAY_IN_S}, stale-while-revalidate=${ONE_DAY_IN_S}, stale-if-error=${ONE_DAY_IN_S}`;
+
+// Public search has no viewer, so hidden, pending, redirected and fully
+// unlisted books stay out — the same rule as the list endpoints. Limit 1
+// after that filter, so a hidden duplicate cannot crowd out a visible one.
+function toPublicIsbnSearchList(books: NFTBookListingInfo[]) {
+  return books
+    .filter((book) => !book.redirectClassId && isBookVisibleToReaders(book))
+    .sort((a, b) => {
+      const byTime = getBookTimestampMillis(b) - getBookTimestampMillis(a);
+      if (byTime !== 0) return byTime;
+      return (b.classId || '').localeCompare(a.classId || '');
+    })
+    .slice(0, 1)
+    .map((book) => filterNFTBookListingInfo(book, false));
+}
+
 router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, next) => {
   try {
     const {
       q,
+      isbn,
       fields: fieldsString,
     } = req.query;
+    // `isbn` is the Firestore lookup. It wins when `q` is also present.
+    if (typeof isbn === 'string') {
+      const books = await listNftBookInfoByIsbn(isbn);
+      const list = toPublicIsbnSearchList(books);
+      res.set('Cache-Control', BOOK_ISBN_SEARCH_CACHE_CONTROL);
+      sendValidatedJSON(res, BookSearchResponseSchema, { list });
+      return;
+    }
     let fields;
     if (Array.isArray(fieldsString)) {
       fields = fieldsString;

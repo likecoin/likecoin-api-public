@@ -1,0 +1,128 @@
+import { FIRESTORE_QUERY_DISJUNCTION_LIMIT } from '../../../../constant';
+
+// "ISBN", "ISBN-13", "ISBN-10", with an optional colon. The "10"/"13" must be
+// consumed here; stripping non-digits afterwards would keep those label digits.
+const ISBN_LABEL = /^\s*isbn(?:[-\s]?(?:10|13))?\s*[:\s]?\s*/i;
+
+// Group lengths allowed by the ISBN standard: registration group 1-5 digits,
+// registrant and publication 1-7, together the 9 digits before the check digit.
+const GROUP_MIN = 1;
+const GROUP_MAX = 5;
+const REGISTRANT_MAX = 7;
+const PUBLICATION_MAX = 7;
+const BODY_LENGTH = 9;
+
+function isbn10CheckDigit(nine: string): string {
+  let sum = 0;
+  for (let i = 0; i < nine.length; i += 1) {
+    sum += Number(nine[i]) * (10 - i);
+  }
+  const check = (11 - (sum % 11)) % 11;
+  return check === 10 ? 'X' : String(check);
+}
+
+function isbn13CheckDigit(twelve: string): string {
+  let sum = 0;
+  for (let i = 0; i < twelve.length; i += 1) {
+    sum += Number(twelve[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+function isValidIsbn10(compact: string): boolean {
+  return /^\d{9}[\dX]$/.test(compact) && isbn10CheckDigit(compact.slice(0, 9)) === compact[9];
+}
+
+function isValidIsbn13(compact: string): boolean {
+  return /^\d{13}$/.test(compact) && isbn13CheckDigit(compact.slice(0, 12)) === compact[12];
+}
+
+// Only a valid check digit converts. A typo must not land on a different book.
+function toIsbn13(isbn10: string): string | undefined {
+  if (!isValidIsbn10(isbn10)) return undefined;
+  const body = `978${isbn10.slice(0, 9)}`;
+  return `${body}${isbn13CheckDigit(body)}`;
+}
+
+function toIsbn10(isbn13: string): string | undefined {
+  if (!isValidIsbn13(isbn13) || !isbn13.startsWith('978')) return undefined;
+  const body = isbn13.slice(3, 12);
+  return `${body}${isbn10CheckDigit(body)}`;
+}
+
+export function compactIsbn(input: string): string {
+  return input.trim().replace(ISBN_LABEL, '').replace(/[^0-9Xx]/g, '').toUpperCase();
+}
+
+// Same digits, every standard hyphenation, plus the space-separated twin.
+// Listings store whichever of these the metadata happened to use.
+function addGroupedForms(forms: Set<string>, compact: string) {
+  const is13 = compact.length === 13;
+  const nine = is13 ? compact.slice(3, 12) : compact.slice(0, BODY_LENGTH);
+  const check = is13 ? compact.slice(12) : compact.slice(BODY_LENGTH);
+  const prefix = is13 ? compact.slice(0, 3) : '';
+  for (let group = GROUP_MIN; group <= GROUP_MAX; group += 1) {
+    for (let registrant = GROUP_MIN; registrant <= REGISTRANT_MAX; registrant += 1) {
+      const publication = BODY_LENGTH - group - registrant;
+      if (publication >= GROUP_MIN && publication <= PUBLICATION_MAX) {
+        const hyphenatedBody = [
+          nine.slice(0, group),
+          nine.slice(group, group + registrant),
+          nine.slice(group + registrant),
+          check,
+        ].join('-');
+        const hyphenated = prefix ? `${prefix}-${hyphenatedBody}` : hyphenatedBody;
+        forms.add(hyphenated);
+        forms.add(hyphenated.replace(/-/g, ' '));
+      }
+    }
+  }
+}
+
+function relatedCompacts(compact: string): string[] {
+  if (isValidIsbn13(compact)) {
+    const as10 = toIsbn10(compact);
+    return as10 ? [compact, as10] : [compact];
+  }
+  if (isValidIsbn10(compact)) {
+    const as13 = toIsbn13(compact);
+    return as13 ? [compact, as13] : [compact];
+  }
+  // Bad check digit: still match this exact number, but do not convert it.
+  if (/^\d{13}$/.test(compact) || /^\d{9}[\dX]$/.test(compact)) return [compact];
+  return [];
+}
+
+// Listings keep the ISBN string metadata arrived with, so hyphens, spaces and
+// ISBN-10 vs ISBN-13 are all stored. Expand the standard groupings and query
+// those strings; a normalized column would miss every existing listing.
+export function isbnLookupCandidates(input: string): string[] {
+  const compacts = relatedCompacts(compactIsbn(input));
+  if (!compacts.length) return [];
+  const forms = new Set<string>();
+  compacts.forEach((compact) => {
+    forms.add(compact);
+    addGroupedForms(forms, compact);
+  });
+  const trimmed = input.trim();
+  if (trimmed) forms.add(trimmed);
+  // Check digit X is stored in either case.
+  [...forms].forEach((form) => {
+    if (form.includes('X')) forms.add(form.replace(/X/g, 'x'));
+  });
+  return [...forms];
+}
+
+// Firestore rejects an `in` filter past the disjunction limit, so callers
+// issue one query per chunk and merge.
+export function chunkIsbnLookupCandidates(
+  isbn: string,
+  limit = FIRESTORE_QUERY_DISJUNCTION_LIMIT,
+): string[][] {
+  const candidates = isbnLookupCandidates(isbn);
+  const chunks: string[][] = [];
+  for (let offset = 0; offset < candidates.length; offset += limit) {
+    chunks.push(candidates.slice(offset, offset + limit));
+  }
+  return chunks;
+}

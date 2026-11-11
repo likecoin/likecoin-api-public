@@ -251,6 +251,8 @@ export const BookIdParamsSchema = z.object({
 
 export const BookSearchQuerySchema = z.object({
   q: z.string().optional(),
+  // Separate from `q`. When set, the route looks the listing up in Firestore.
+  isbn: z.string().trim().min(1).optional(),
   fields: z.union([z.string(), z.array(z.string())]).optional(),
 }).passthrough();
 
@@ -621,6 +623,7 @@ export const BookPurchaseCommissionFilteredSchema = z.object({
 
 export const BookSearchResponseSchema = z.object({
   // queryAirtableForPublication returns null when the Airtable lookup errors.
+  // The isbn= path returns an array, empty when nothing public matches.
   list: z.array(z.unknown()).nullable(),
 });
 
