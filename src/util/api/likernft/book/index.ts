@@ -28,7 +28,7 @@ import { updateAirtablePublicationRecord } from '../../../airtable';
 import { checkIsTrustedPublisher } from './user';
 import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
-import { chunkIsbnLookupCandidates } from './isbn';
+import { chunkISBNLookupCandidates } from './isbn';
 import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
@@ -848,8 +848,8 @@ export async function listFilteredNFTBookInfo({
 // Match a listing by ISBN without scanning the collection. Stored values keep
 // their original hyphens and ISBN-10/13 form, so this is an `in` over the
 // standard groupings of that number, chunked at the disjunction limit.
-export async function listNftBookInfoByIsbn(isbn: string): Promise<NFTBookListingInfo[]> {
-  const chunks = chunkIsbnLookupCandidates(isbn);
+export async function listNFTBookInfoByISBN(isbn: string): Promise<NFTBookListingInfo[]> {
+  const chunks = chunkISBNLookupCandidates(isbn);
   if (!chunks.length) return [];
   const snapshots = await Promise.all(chunks.map((chunk) => (
     likeNFTBookCollection.where('isbn', 'in', chunk).get()

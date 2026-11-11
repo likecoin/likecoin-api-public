@@ -180,12 +180,12 @@ describe('GET /likernft/book/store/search?isbn=', () => {
 describe('GET /likernft/book/store/search?q=', () => {
   it('still requires q and does not apply the ISBN cache', async () => {
     const missing = await get({});
-    const blankIsbn = await get({ isbn: '   ' });
+    const blankISBN = await get({ isbn: '   ' });
     const byQ = await get({ q: TAIWAN_13 });
 
     expect(missing.status).toBe(400);
     expect(missing.data).toBe('INVALID_SEARCH_QUERY');
-    expect(blankIsbn.status).toBe(400);
+    expect(blankISBN.status).toBe(400);
     expect(byQ.status).toBe(200);
     expect(byQ.data).toEqual({ list: null });
     expect(byQ.headers['cache-control']).toBeUndefined();

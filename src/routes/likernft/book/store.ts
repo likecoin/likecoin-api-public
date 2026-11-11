@@ -7,7 +7,7 @@ import {
   getNftBookInfo,
   listLatestNFTBookInfo,
   listFilteredNFTBookInfo,
-  listNftBookInfoByIsbn,
+  listNFTBookInfoByISBN,
   listPopularNFTBookInfo,
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
@@ -142,7 +142,7 @@ const BOOK_ISBN_SEARCH_CACHE_CONTROL = `public, max-age=${ONE_DAY_IN_S}, s-maxag
 // Public search has no viewer, so hidden, pending, redirected and fully
 // unlisted books stay out — the same rule as the list endpoints. Limit 1
 // after that filter, so a hidden duplicate cannot crowd out a visible one.
-function toPublicIsbnSearchList(books: NFTBookListingInfo[]) {
+function toPublicISBNSearchList(books: NFTBookListingInfo[]) {
   return books
     .filter((book) => !book.redirectClassId && isBookVisibleToReaders(book))
     .sort((a, b) => {
@@ -163,8 +163,8 @@ router.get('/search', validateQuery(BookSearchQuerySchema), async (req, res, nex
     } = req.query;
     // `isbn` is the Firestore lookup. It wins when `q` is also present.
     if (typeof isbn === 'string') {
-      const books = await listNftBookInfoByIsbn(isbn);
-      const list = toPublicIsbnSearchList(books);
+      const books = await listNFTBookInfoByISBN(isbn);
+      const list = toPublicISBNSearchList(books);
       res.set('Cache-Control', BOOK_ISBN_SEARCH_CACHE_CONTROL);
       sendValidatedJSON(res, BookSearchResponseSchema, { list });
       return;
