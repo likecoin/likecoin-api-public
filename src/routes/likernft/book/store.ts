@@ -1018,6 +1018,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         usageInfo,
         isbn,
         genre,
+        datePublished,
         isDRMFree: !hideDownload,
         isHidden: false, // Don't hide new listing until hidden
         isAdultOnly: effectiveIsAdultOnly,

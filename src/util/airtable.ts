@@ -29,6 +29,7 @@ interface AirtablePublicationRecordParams {
   usageInfo?: string;
   isbn?: string;
   genre?: string;
+  datePublished?: string;
   iscnObject?: any;
   iscnContentMetadata?: any;
   metadata?: any;
@@ -62,6 +63,13 @@ const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIH
 // the testnet base has none, so status writes there are a no-op.
 const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
 
+// `Published Date` is a date field, so keep only a leading YYYY-MM-DD.
+// Chain metadata is author-entered, and anything else is left unset.
+export function toAirtablePublishedDate(datePublished: unknown): string | undefined {
+  if (typeof datePublished !== 'string') return undefined;
+  return datePublished.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+}
+
 let base: Airtable.Base | undefined;
 
 if (!process.env.CI && !TEST_MODE) {
@@ -88,6 +96,7 @@ export async function createAirtablePublicationRecord({
   usageInfo,
   isbn,
   genre,
+  datePublished,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -135,6 +144,8 @@ export async function createAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    const publishedDate = toAirtablePublishedDate(datePublished);
+    if (publishedDate) fields['Published Date'] = publishedDate;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
@@ -310,6 +321,7 @@ export async function updateAirtablePublicationRecord({
   usageInfo,
   isbn,
   genre,
+  datePublished,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -358,6 +370,8 @@ export async function updateAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    const publishedDate = toAirtablePublishedDate(datePublished);
+    if (publishedDate) fields['Published Date'] = publishedDate;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;

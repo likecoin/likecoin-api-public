@@ -366,6 +366,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         isbn,
         image,
         keywords,
+        datePublished,
       } = metadata;
       const stripeProducts = await Promise.all(prices
         .map((p, index) => createStripeProductFromNFTBookPrice(evmClassId, index, {
@@ -403,6 +404,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         publisher: getPublisherNameFromMetadata(publisher),
         usageInfo,
         isbn,
+        datePublished,
         isDRMFree: !hideDownload,
         isHidden,
       });
