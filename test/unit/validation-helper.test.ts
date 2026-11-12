@@ -6,6 +6,7 @@ import type { Response } from 'express';
 import {
   filterNFTBookListingInfo, isBookInLibrary, sanitizeFrom, sendValidatedJSON,
 } from '../../src/util/ValidationHelper';
+import { ARWEAVE_GATEWAY } from '../../src/constant';
 
 function mockRes() {
   const res: any = {};
@@ -162,5 +163,21 @@ describe('sanitizeFrom', () => {
     expect(sanitizeFrom('')).toBeUndefined();
     expect(sanitizeFrom('?fbclid=abc')).toBeUndefined();
     expect(sanitizeFrom(['@poonworks'])).toBeUndefined();
+  });
+});
+
+describe('filterNFTBookListingInfo imageUrl', () => {
+  const withThumbnail = (thumbnailUrl?: string) => filterNFTBookListingInfo(
+    { ...bookInfo([LISTED]), thumbnailUrl },
+  );
+
+  it('resolves an ar:// thumbnail through the Arweave gateway', () => {
+    const payload = withThumbnail('ar://abc');
+    expect(payload.imageUrl).toBe(`${ARWEAVE_GATEWAY}/abc`);
+    expect(payload.thumbnailUrl).toBe('ar://abc');
+  });
+
+  it('leaves imageUrl unset without a thumbnail', () => {
+    expect(withThumbnail(undefined).imageUrl).toBeUndefined();
   });
 });

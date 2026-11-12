@@ -5,6 +5,7 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
+import { parseImageURLFromMetadata } from './misc';
 import type { UserCivicLikerProperties } from '../types/user';
 import type {
   UserDataFiltered,
@@ -693,6 +694,7 @@ export function filterNFTBookListingInfo(
     reviewURL,
     keywords,
     thumbnailUrl,
+    imageUrl: thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined,
     author,
     usageInfo,
     isbn,

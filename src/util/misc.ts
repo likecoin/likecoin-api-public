@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
+import { ARWEAVE_GATEWAY } from '../constant';
 
 export function sleep(time) {
   return new Promise((resolve) => { setTimeout(resolve, time); });
@@ -82,4 +83,9 @@ export function getIpCountryFromRequest(req: Pick<Request, 'headers' | 'body'>):
   const header = req.headers['cf-ipcountry'];
   const country = (typeof header === 'string' ? header : req.body?.ipCountry) || '';
   return typeof country === 'string' ? country.toUpperCase() || undefined : undefined;
+}
+
+export function parseImageURLFromMetadata(image: string): string {
+  if (!image) return image;
+  return image.replace('ar://', `${ARWEAVE_GATEWAY}/`).replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
