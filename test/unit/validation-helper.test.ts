@@ -181,3 +181,10 @@ describe('filterNFTBookListingInfo imageUrl', () => {
     expect(withThumbnail(undefined).imageUrl).toBeUndefined();
   });
 });
+
+describe('filterNFTBookListingInfo datePublished', () => {
+  it('passes datePublished through', () => {
+    const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), datePublished: '2023-07-01' });
+    expect(payload.datePublished).toBe('2023-07-01');
+  });
+});

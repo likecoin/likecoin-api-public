@@ -882,6 +882,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     const {
       inLanguage,
+      datePublished,
       name,
       description,
       descriptionFull: iscnDescriptionFull,
@@ -930,6 +931,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
 
       // From ISCN content metadata
       inLanguage,
+      datePublished,
       name,
       description,
       hasPart,

@@ -350,6 +350,7 @@ export async function newNftBookInfo(
     tableOfContents,
 
     inLanguage,
+    datePublished,
     name,
     description,
     descriptionFull,
@@ -440,6 +441,8 @@ export async function newNftBookInfo(
   if (image) payload.image = image;
   if (promotionalImages) payload.promotionalImages = promotionalImages;
   if (inLanguage) payload.inLanguage = inLanguage;
+  // Chain JSON is untrusted, and a non-string would fail the listing response schema.
+  if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
   if (name) payload.name = name;
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
@@ -549,6 +552,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   };
   const {
     inLanguage,
+    datePublished,
     name,
     description,
     keywords: keywordString = '',
@@ -572,6 +576,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
 
   const payload: any = {};
   if (inLanguage) payload.inLanguage = inLanguage;
+  if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
   if (name) payload.name = name;
   if (description) payload.description = description;
   // descriptionFull is now a listing-owned field edited via /settings; do not

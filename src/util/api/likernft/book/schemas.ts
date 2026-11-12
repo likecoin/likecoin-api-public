@@ -503,6 +503,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   enableSignatureImage: BookSignatureImageSchema.optional(),
   recommendedClassIds: z.array(z.string()).optional(),
   inLanguage: z.string().optional(),
+  datePublished: z.string().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
