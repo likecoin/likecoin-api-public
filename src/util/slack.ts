@@ -7,6 +7,7 @@ import {
   IS_TESTNET,
 } from '../constant';
 import {
+  NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS,
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
@@ -106,7 +107,9 @@ export async function sendNFTBookNewListingSlackNotification({
       ? '✅ Auto-approved (Trusted Publisher)'
       : '✅ Published';
     if (completedVerdict?.action === 'stop_sale_review') {
-      approvalStatusText = '🚫 Held for review by AI screen — release with'
+      const mentions = NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS
+        .map((id) => `<@${id}> `).join('');
+      approvalStatusText = `${mentions}🚫 Held for review by AI screen — release with`
         + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
     } else if (completedVerdict && isPingedByAiReview) {
       approvalStatusText = `👀 Published, but the AI screen requests human review: ${escapeSlackText(completedVerdict.reason)}`;

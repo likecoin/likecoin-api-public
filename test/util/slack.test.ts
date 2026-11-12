@@ -16,6 +16,7 @@ vi.mock('../../config/config', async (importOriginal) => ({
   ...(await importOriginal() as object),
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK: WEBHOOK_URL,
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK: LISTING_WEBHOOK_URL,
+  NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS: ['UHELD'],
 }));
 
 vi.mock('axios', () => ({
@@ -181,6 +182,7 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('👀 Human review requested');
     expect(payload.approvalStatus).toContain('requests human review');
+    expect(payload.approvalStatus).not.toContain('<@UHELD>');
   });
 
   it('renders a held listing as a release request, not a ping', async () => {
@@ -189,7 +191,7 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
       aiReview: verdictOf({ action: 'stop_sale_review' }),
     });
     const payload = getListingPayload();
-    expect(payload.approvalStatus).toContain('🚫 Held for review');
+    expect(payload.approvalStatus).toMatch(/^<@UHELD> 🚫 Held for review/);
     expect(payload.approvalStatus).toContain('/book approve 0xclass');
   });
 
