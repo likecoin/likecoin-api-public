@@ -5,6 +5,7 @@ import {
   MIN_USER_ID_LENGTH,
   MAX_USER_ID_LENGTH,
 } from '../constant';
+import { getBook3URL } from './liker-land';
 import { parseImageURLFromMetadata } from './misc';
 import type { UserCivicLikerProperties } from '../types/user';
 import type {
@@ -658,6 +659,7 @@ export function filterNFTBookListingInfo(
   const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
+    canonicalUrl: getBook3URL(`/store/${id}`),
     productType,
     availableTerritories,
     maxQuantityPerOrder,

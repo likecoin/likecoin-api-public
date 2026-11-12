@@ -6,7 +6,7 @@ import type { Response } from 'express';
 import {
   filterNFTBookListingInfo, isBookInLibrary, sanitizeFrom, sendValidatedJSON,
 } from '../../src/util/ValidationHelper';
-import { ARWEAVE_GATEWAY } from '../../src/constant';
+import { ARWEAVE_GATEWAY, BOOK3_HOSTNAME } from '../../src/constant';
 
 function mockRes() {
   const res: any = {};
@@ -186,5 +186,12 @@ describe('filterNFTBookListingInfo datePublished', () => {
   it('passes datePublished through', () => {
     const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), datePublished: '2023-07-01' });
     expect(payload.datePublished).toBe('2023-07-01');
+  });
+});
+
+describe('filterNFTBookListingInfo canonicalUrl', () => {
+  it('links the store page', () => {
+    const payload = filterNFTBookListingInfo(bookInfo([LISTED]));
+    expect(payload.canonicalUrl).toBe(`https://${BOOK3_HOSTNAME}/store/0xabc`);
   });
 });
