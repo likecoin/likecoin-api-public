@@ -25,6 +25,7 @@ import { getStripeClient } from '../../../stripe';
 import { parseImageURLFromMetadata } from '../metadata';
 import { getBook3NFTClassPageURL } from '../../../liker-land';
 import { updateAirtablePublicationRecord } from '../../../airtable';
+import { isBookInLibrary } from '../../../ValidationHelper';
 import { checkIsTrustedPublisher } from './user';
 import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
@@ -612,7 +613,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
       hideDownload,
       isHidden,
       isAdultOnly,
-      isPlusReadingEnabled,
     } = bookInfo;
     const minPrice = prices.reduce((min, p) => Math.min(min, p.priceInDecimal), Infinity) / 100;
     const maxPrice = prices.reduce((max, p) => Math.max(max, p.priceInDecimal), 0) / 100;
@@ -641,7 +641,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       isDRMFree: !hideDownload,
       isHidden: !!isHidden,
       isAdultOnly: !!isAdultOnly,
-      isPlusReadingEnabled: !!isPlusReadingEnabled,
+      isPlusReadingEnabled: isBookInLibrary(bookInfo),
     });
   } catch (err) {
     // eslint-disable-next-line no-console

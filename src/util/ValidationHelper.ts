@@ -557,6 +557,15 @@ export function isBookUnlisted(prices: { isUnlisted?: boolean }[] = []) {
   return prices.length > 0 && prices.every((p) => p.isUnlisted);
 }
 
+// Matches the reader mask in `filterNFTBookListingInfo`,
+// so a book with every edition unlisted drops out of library search.
+export function isBookInLibrary(book: {
+  isPlusReadingEnabled?: boolean;
+  prices?: { isUnlisted?: boolean }[];
+}) {
+  return !!book.isPlusReadingEnabled && !isBookUnlisted(book.prices);
+}
+
 // What the listing endpoints hide from a reader. The class endpoint applies none
 // of it — a purchase link or QR code to a hidden edition has to keep working,
 // though `filterNFTBookListingInfo` still masks its library and preview flags.
