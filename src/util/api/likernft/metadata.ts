@@ -2,7 +2,7 @@ import path from 'path';
 import axios from 'axios';
 import sharp from 'sharp';
 
-import { API_EXTERNAL_HOSTNAME, ARWEAVE_GATEWAY, NFT_GEM_COLOR } from '../../../constant';
+import { API_EXTERNAL_HOSTNAME, NFT_GEM_COLOR } from '../../../constant';
 import { likeNFTCollection } from '../../firebase';
 import { getISCNPrefixDocName } from '.';
 import { getNFTISCNData, getNFTClassDataById } from '../../cosmos/nft';
@@ -53,10 +53,7 @@ export function encodedURL(url) {
   return encodeURI(url);
 }
 
-export function parseImageURLFromMetadata(image: string): string {
-  if (!image) return image;
-  return image.replace('ar://', `${ARWEAVE_GATEWAY}/`).replace('ipfs://', 'https://ipfs.io/ipfs/');
-}
+export { parseImageURLFromMetadata } from '../../misc';
 
 export async function getBasicImage(chainImage: string, title: string) {
   let imageBuffer;

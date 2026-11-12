@@ -517,6 +517,8 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   reviewURL: z.string().optional(),
   keywords: z.array(z.string()).optional(),
   thumbnailUrl: z.string().optional(),
+  // `thumbnailUrl` resolved to an https URL, for clients that can't open ar:// or ipfs://.
+  imageUrl: z.string().optional(),
   author: BookContributorSchema.optional(),
   usageInfo: z.string().optional(),
   isbn: z.string().optional(),
