@@ -99,6 +99,7 @@ import { getStripeClient } from '../../../util/stripe';
 import {
   filterNFTBookListingInfo,
   filterNFTBookPricesInfo,
+  isBookInLibrary,
   isBookVisibleToReaders,
   sendValidatedJSON,
 } from '../../../util/ValidationHelper';
@@ -1018,7 +1019,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         isDRMFree: !hideDownload,
         isHidden: false, // Don't hide new listing until hidden
         isAdultOnly: effectiveIsAdultOnly,
-        isPlusReadingEnabled,
+        isPlusReadingEnabled: isBookInLibrary({ isPlusReadingEnabled, prices }),
       }),
     ]);
 

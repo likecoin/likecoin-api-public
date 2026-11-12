@@ -3,7 +3,9 @@ import {
 } from 'vitest';
 import { z } from 'zod';
 import type { Response } from 'express';
-import { filterNFTBookListingInfo, sanitizeFrom, sendValidatedJSON } from '../../src/util/ValidationHelper';
+import {
+  filterNFTBookListingInfo, isBookInLibrary, sanitizeFrom, sendValidatedJSON,
+} from '../../src/util/ValidationHelper';
 
 function mockRes() {
   const res: any = {};
@@ -112,6 +114,20 @@ describe('filterNFTBookListingInfo library and preview masking', () => {
     const payload = filterNFTBookListingInfo(info);
     expect(payload.isPlusReadingEnabled).toBe(false);
     expect(payload.isPreviewEnabled).toBe(false);
+  });
+});
+
+describe('isBookInLibrary', () => {
+  it('is false when borrowing is on but every edition is unlisted', () => {
+    expect(isBookInLibrary(bookInfo([UNLISTED, UNLISTED]))).toBe(false);
+  });
+
+  it('is true when borrowing is on and at least one edition is listed', () => {
+    expect(isBookInLibrary(bookInfo([UNLISTED, LISTED]))).toBe(true);
+  });
+
+  it('is false when borrowing is off', () => {
+    expect(isBookInLibrary({ ...bookInfo([LISTED]), isPlusReadingEnabled: false })).toBe(false);
   });
 });
 
