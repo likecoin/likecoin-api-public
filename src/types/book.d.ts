@@ -236,6 +236,7 @@ export interface NFTBookListingInfo {
   enableSignatureImage?: BookSignatureImage;
   recommendedClassIds?: string[];
   inLanguage?: string;
+  datePublished?: string;
   name?: string;
   description?: string;
   descriptionFull?: string;
