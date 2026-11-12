@@ -107,7 +107,8 @@ export async function sendNFTBookNewListingSlackNotification({
       ? '✅ Auto-approved (Trusted Publisher)'
       : '✅ Published';
     if (completedVerdict?.action === 'stop_sale_review') {
-      const mentions = NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS
+      // Deployed config.js replaces this file wholesale, so the key may be absent
+      const mentions = (NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS || [])
         .map((id) => `<@${id}> `).join('');
       approvalStatusText = `${mentions}🚫 Held for review by AI screen — release with`
         + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
