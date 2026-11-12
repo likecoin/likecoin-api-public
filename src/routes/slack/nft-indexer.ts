@@ -14,7 +14,7 @@ const classIdRegex = /^0x[a-fA-F0-9]{40}$/;
 router.post(
   '/indexer',
   slackTokenChecker(SLACK_COMMAND_TOKEN, USER_ALLOWED_CHANNEL_IDS, USER_ALLOWED_USER_IDS),
-  slackCommandHandler({
+  slackCommandHandler('/indexer', {
     update: async ({ params, res }) => {
       let classId = '';
 
@@ -60,7 +60,7 @@ router.post(
 \`/indexer update 0x123abc...\` - Update specific EVM contract address`,
       });
     },
-  }, 'Invalid command. Use `/indexer help` for available commands.'),
+  }, () => 'Invalid command. Use `/indexer help` for available commands.'),
 );
 
 export default router;
