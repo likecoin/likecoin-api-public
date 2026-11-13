@@ -29,6 +29,7 @@ interface AirtablePublicationRecordParams {
   usageInfo?: string;
   isbn?: string;
   genre?: string;
+  datePublished?: string;
   iscnObject?: any;
   iscnContentMetadata?: any;
   metadata?: any;
@@ -62,6 +63,26 @@ const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIH
 // the testnet base has none, so status writes there are a no-op.
 const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
 
+// `Published Date` is a date field, so keep only a leading YYYY-MM-DD that is a real day.
+// Chain metadata is author-entered, and Airtable rejects the whole write on an impossible date.
+export function toAirtablePublishedDate(datePublished: unknown): string | undefined {
+  if (typeof datePublished !== 'string') return undefined;
+  const date = datePublished.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) return undefined;
+  // Date.parse rolls 2023-02-30 over to March, so round-trip to catch it.
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString().startsWith(date) ? date : undefined;
+}
+
+// For updates: an omitted or empty date leaves the cell alone, matching the Firestore guard,
+// but a supplied date that cannot be stored clears it,
+// so a book changed from 2023-07-01 to 2023 does not keep the stale full date.
+export function toAirtablePublishedDateUpdate(datePublished: unknown): string | null | undefined {
+  if (typeof datePublished !== 'string' || !datePublished) return undefined;
+  return toAirtablePublishedDate(datePublished) ?? null;
+}
+
 let base: Airtable.Base | undefined;
 
 if (!process.env.CI && !TEST_MODE) {
@@ -88,6 +109,7 @@ export async function createAirtablePublicationRecord({
   usageInfo,
   isbn,
   genre,
+  datePublished,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -135,6 +157,8 @@ export async function createAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    const publishedDate = toAirtablePublishedDate(datePublished);
+    if (publishedDate) fields['Published Date'] = publishedDate;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
@@ -310,6 +334,7 @@ export async function updateAirtablePublicationRecord({
   usageInfo,
   isbn,
   genre,
+  datePublished,
   iscnObject,
   iscnContentMetadata,
   metadata,
@@ -358,6 +383,8 @@ export async function updateAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    const publishedDate = toAirtablePublishedDateUpdate(datePublished);
+    if (publishedDate !== undefined) fields['Published Date'] = publishedDate;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;

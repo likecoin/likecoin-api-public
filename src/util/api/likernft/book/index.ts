@@ -640,6 +640,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       usageInfo,
       isbn,
       genre,
+      datePublished,
       iscnObject: null,
       iscnContentMetadata: metadata,
       metadata: classData,
