@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toAirtablePublishedDate } from '../../src/util/airtable';
+import { toAirtablePublishedDate, toAirtablePublishedDateUpdate } from '../../src/util/airtable';
 
 describe('toAirtablePublishedDate', () => {
   it('keeps a plain date', () => {
@@ -26,5 +26,21 @@ describe('toAirtablePublishedDate', () => {
     expect(toAirtablePublishedDate('')).toBeUndefined();
     expect(toAirtablePublishedDate(20230701)).toBeUndefined();
     expect(toAirtablePublishedDate(undefined)).toBeUndefined();
+  });
+});
+
+describe('toAirtablePublishedDateUpdate', () => {
+  it('writes a storable date', () => {
+    expect(toAirtablePublishedDateUpdate('2023-07-01T00:00:00Z')).toBe('2023-07-01');
+  });
+
+  it('clears the cell when a supplied date cannot be stored', () => {
+    expect(toAirtablePublishedDateUpdate('2023')).toBeNull();
+    expect(toAirtablePublishedDateUpdate('2023-02-29')).toBeNull();
+  });
+
+  it('leaves the cell alone when no date is supplied', () => {
+    expect(toAirtablePublishedDateUpdate(undefined)).toBeUndefined();
+    expect(toAirtablePublishedDateUpdate('')).toBeUndefined();
   });
 });

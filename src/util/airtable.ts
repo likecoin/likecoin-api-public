@@ -75,6 +75,14 @@ export function toAirtablePublishedDate(datePublished: unknown): string | undefi
   return parsed.toISOString().startsWith(date) ? date : undefined;
 }
 
+// For updates: an omitted or empty date leaves the cell alone, matching the Firestore guard,
+// but a supplied date that cannot be stored clears it,
+// so a book changed from 2023-07-01 to 2023 does not keep the stale full date.
+export function toAirtablePublishedDateUpdate(datePublished: unknown): string | null | undefined {
+  if (typeof datePublished !== 'string' || !datePublished) return undefined;
+  return toAirtablePublishedDate(datePublished) ?? null;
+}
+
 let base: Airtable.Base | undefined;
 
 if (!process.env.CI && !TEST_MODE) {
@@ -375,8 +383,8 @@ export async function updateAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
-    const publishedDate = toAirtablePublishedDate(datePublished);
-    if (publishedDate) fields['Published Date'] = publishedDate;
+    const publishedDate = toAirtablePublishedDateUpdate(datePublished);
+    if (publishedDate !== undefined) fields['Published Date'] = publishedDate;
 
     if (iscnIdPrefix) {
       fields['ISCN Id Prefix'] = iscnIdPrefix;
