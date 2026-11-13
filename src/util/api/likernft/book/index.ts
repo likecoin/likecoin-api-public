@@ -918,24 +918,34 @@ export async function listPopularNFTBookInfo({
   });
 }
 
+/**
+ * Global read-only moderators see every book, so their list pages newest-first by timestamp.
+ * Other moderators keep the unordered `array-contains` query and its fixed cap,
+ * since ordering it would need a new composite index; their `nextKey` is always null.
+ */
 export async function listNftBookInfoByModeratorWallet(
   moderatorWallet: string,
-  { chain = '' } = {},
-) {
-  const MAX_BOOK_ITEMS_LIMIT = 256;
-  let queryRef: Query = likeNFTBookCollection;
-  if (!LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)) {
-    queryRef = queryRef
-      .where('moderatorWallets', 'array-contains', moderatorWallet);
+  { chain = '', limit = 100, key }: { chain?: string; limit?: number; key?: number } = {},
+): Promise<{ list: (NFTBookListingInfo & { id: string })[]; nextKey: number | null }> {
+  if (LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES.includes(moderatorWallet)) {
+    const list = await listLatestNFTBookInfo({ chain, limit, key }) as
+      (NFTBookListingInfo & { id: string })[];
+    const last = list[list.length - 1];
+    const nextKey = list.length < limit ? null : (last?.timestamp?.toMillis() ?? null);
+    return { list, nextKey };
   }
+  const MAX_BOOK_ITEMS_LIMIT = 256;
+  let queryRef: Query = likeNFTBookCollection
+    .where('moderatorWallets', 'array-contains', moderatorWallet);
   if (chain) {
     queryRef = queryRef.where('chain', '==', chain);
   }
   const query = await queryRef.limit(MAX_BOOK_ITEMS_LIMIT).get();
-  return query.docs.map((doc) => {
+  const list = query.docs.map((doc) => {
     const docData = doc.data() as NFTBookListingInfo;
     return { id: doc.id, ...docData };
   });
+  return { list, nextKey: null };
 }
 
 export function getNFTBookStoreClassPageURL(classId: string) {
