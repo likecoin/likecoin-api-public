@@ -63,11 +63,16 @@ const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIH
 // the testnet base has none, so status writes there are a no-op.
 const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
 
-// `Published Date` is a date field, so keep only a leading YYYY-MM-DD.
-// Chain metadata is author-entered, and anything else is left unset.
+// `Published Date` is a date field, so keep only a leading YYYY-MM-DD that is a real day.
+// Chain metadata is author-entered, and Airtable rejects the whole write on an impossible date.
 export function toAirtablePublishedDate(datePublished: unknown): string | undefined {
   if (typeof datePublished !== 'string') return undefined;
-  return datePublished.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const date = datePublished.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) return undefined;
+  // Date.parse rolls 2023-02-30 over to March, so round-trip to catch it.
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString().startsWith(date) ? date : undefined;
 }
 
 let base: Airtable.Base | undefined;
