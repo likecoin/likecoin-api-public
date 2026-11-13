@@ -5,6 +5,7 @@ import {
   POSTHOG_API_KEY,
   POSTHOG_HOST,
 } from '../../config/config';
+import type { LikerPlusTier } from '../constant';
 import { SERVER_EVENT_MAP, buildItemId } from './analyticsEvents';
 import type { ServerEventName, AnalyticsItem } from './analyticsEvents';
 
@@ -31,6 +32,15 @@ function nonEmpty(properties?: Record<string, unknown>): Record<string, unknown>
   return properties && Object.keys(properties).length > 0 ? properties : undefined;
 }
 
+// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
+// same handlers write. A null tier means access was lost; the browser clears the
+// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
+export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
+  return tier
+    ? { is_liker_plus: true, liker_plus_tier: tier }
+    : { is_liker_plus: false, liker_plus_tier: null };
+}
+
 let posthogClient: PostHog | null = null;
 
 function getPostHogClient(): PostHog | null {
@@ -51,6 +61,37 @@ export async function shutdownPostHog(): Promise<void> {
   if (posthogClient) {
     await posthogClient.shutdown();
     posthogClient = null;
+  }
+}
+
+// Legacy likeWallet-only users (Cosmos-era, no evmWallet) must still be counted;
+// callers with neither wallet may pass a synthetic posthogDistinctId (e.g. `stripe:<customer>`).
+function resolveDistinctId({ evmWallet, likeWallet, posthogDistinctId }: {
+  evmWallet?: string;
+  likeWallet?: string;
+  posthogDistinctId?: string;
+}): string | undefined {
+  return evmWallet || likeWallet || posthogDistinctId;
+}
+
+// Person-only write for a lifecycle change that has no event to carry a $set,
+// e.g. a renewal that charged nothing or a shared seat being revoked.
+export function setPostHogPersonProperties({ properties, ...ids }: {
+  evmWallet?: string;
+  likeWallet?: string;
+  posthogDistinctId?: string;
+  properties: Record<string, unknown>;
+}) {
+  const client = getPostHogClient();
+  const distinctId = resolveDistinctId(ids);
+  if (!client || !distinctId) {
+    return;
+  }
+  try {
+    client.identify({ distinctId, properties });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('setPostHogPersonProperties error', error);
   }
 }
 
@@ -85,9 +126,7 @@ export default function logPostHogEvents(event: ServerEventName, {
   if (!client) {
     return;
   }
-  // Legacy likeWallet-only users (Cosmos-era, no evmWallet) must still be counted;
-  // callers with neither wallet may pass a synthetic posthogDistinctId (e.g. `stripe:<customer>`).
-  const distinctId = evmWallet || likeWallet || posthogDistinctId;
+  const distinctId = resolveDistinctId({ evmWallet, likeWallet, posthogDistinctId });
   if (!distinctId) {
     return;
   }

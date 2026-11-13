@@ -54,6 +54,7 @@ import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
+import { mapPlusEntitlementPersonProperties, setPostHogPersonProperties } from '../../posthog';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
 
 export type PlusPeriod = 'monthly' | 'yearly';
@@ -187,15 +188,6 @@ export async function resolveAffiliateGift({
     }
   }
   return result;
-}
-
-// PostHog person props for the Plus entitlement, mirroring the Intercom flags the
-// same handlers write. A null tier means access was lost; the browser clears the
-// tier with null too (liker-land-v3 use-logger.ts), where Intercom uses ''.
-export function mapPlusEntitlementPersonProperties(tier: LikerPlusTier | null) {
-  return tier
-    ? { is_liker_plus: true, liker_plus_tier: tier }
-    : { is_liker_plus: false, liker_plus_tier: null };
 }
 
 // Field names mirror the Stripe subscription-metadata keys so a whole metadata bag
@@ -719,6 +711,14 @@ async function emitPlusInvoiceAnalytics({
     ...mapAttributionExtraProperties(subscriptionMetadata),
   };
 
+  // A live app record outranks this Stripe charge (see writePlusUserRecordAndAccrual),
+  // so the person reports the tier that record still grants.
+  const entitlementProperties = mapPlusEntitlementPersonProperties(
+    user.likerPlus?.provider === 'revenuecat' && hasLivePlusAccess(user.likerPlus)
+      ? user.likerPlus.tier || 'plus'
+      : tier,
+  );
+
   await updateIntercomUserAttributes(likerId, {
     is_liker_plus: true,
     is_liker_plus_trial: isTrial,
@@ -750,7 +750,7 @@ async function emitPlusInvoiceAnalytics({
       email: user.email || stripeCustomer.email || undefined,
       // Pairs with the clear in processStripeSubscriptionCancellation so a
       // resubscriber isn't left reading false until their next browser identify.
-      set: mapPlusEntitlementPersonProperties(tier),
+      set: entitlementProperties,
       items: [{
         productId: `${tier}-${period}ly`,
         quantity: 1,
@@ -792,6 +792,9 @@ async function emitPlusInvoiceAnalytics({
       evmWallet,
       likeWallet,
       email: user.email || stripeCustomer.email || undefined,
+      // Each renewal re-asserts the entitlement, so a person left stale by a
+      // missed write heals within one billing period.
+      set: entitlementProperties,
       value: amountPaid,
       currency,
       paymentId: invoice.id,
@@ -808,6 +811,13 @@ async function emitPlusInvoiceAnalytics({
       gaSessionId,
       customerType: 'returning',
       extraProperties: invoiceExtraProperties,
+    });
+  } else {
+    // No event carries a $set here (a free renewal or a mid-term tier change).
+    setPostHogPersonProperties({
+      evmWallet,
+      likeWallet,
+      properties: entitlementProperties,
     });
   }
 

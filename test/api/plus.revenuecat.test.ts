@@ -8,6 +8,7 @@ import { userCollection } from '../../src/util/firebase';
 import { sendPlusSubscriptionSlackNotification } from '../../src/util/slack';
 import { sendIntercomEvent } from '../../src/util/intercom';
 import logServerEvents from '../../src/util/logServerEvents';
+import { setPostHogPersonProperties } from '../../src/util/posthog';
 
 // Override only the Slack post so the notification gate is observable: the real
 // helper early-returns on an unset webhook, so it silently passes either way.
@@ -34,6 +35,17 @@ vi.mock('../../src/util/intercom', async (importOriginal) => {
   return { ...actual, sendIntercomEvent: vi.fn() };
 });
 const mockIntercomEvent = vi.mocked(sendIntercomEvent);
+
+vi.mock('../../src/util/posthog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/posthog')>();
+  return { ...actual, setPostHogPersonProperties: vi.fn() };
+});
+const mockSetPersonProperties = vi.mocked(setPostHogPersonProperties);
+
+const TESTING_WALLET = '0x4b25758E41f9240C8EB8831cEc7F1a02686387fa'; // `testing` in test/data/user.json
+const TESTUSER_WALLET = '0x76ECdE1CC1D2D87D7f20c2C6EAe7529a7379920c'; // `testuser`
+const ENTITLED = { is_liker_plus: true, liker_plus_tier: 'plus' };
+const NOT_ENTITLED = { is_liker_plus: false, liker_plus_tier: null };
 
 const WEBHOOK_PATH = '/api/plus/revenuecat/webhook';
 const AUTH = 'test-rc-webhook-secret'; // matches REVENUECAT_WEBHOOK_AUTHORIZATION in test/setup.ts
@@ -735,6 +747,7 @@ describe('Plus RevenueCat webhook', () => {
   });
 
   it('applies the new product on a mid-term PRODUCT_CHANGE', async () => {
+    mockSetPersonProperties.mockClear();
     await userCollection.doc('testing').update({
       likerPlus: { ...liveAppStorePlus, period: 'month' },
     });
@@ -755,6 +768,11 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.period).toBe('year');
     expect(user?.likerPlus?.currentPeriodEnd).toBe(FUTURE_PERIOD_END_MS);
+    // No event is emitted for a product change, so the person write goes direct.
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: TESTING_WALLET,
+      properties: ENTITLED,
+    }));
   });
 
   it('carries a live subscription to transferred_to on TRANSFER', async () => {
@@ -767,6 +785,7 @@ describe('Plus RevenueCat webhook', () => {
       },
     });
     await userCollection.doc('testuser').update({ likerPlus: null });
+    mockSetPersonProperties.mockClear();
     const res = await post(
       {
         id: 'evt_transfer_carry',
@@ -795,6 +814,15 @@ describe('Plus RevenueCat webhook', () => {
     const origin = await getUserWithCivicLikerProperties('testing');
     expect(origin?.likerPlus?.subscriptionStatus).toBe('canceled');
     expect((origin?.likerPlus?.currentPeriodEnd || 0)).toBeLessThanOrEqual(Date.now());
+
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: TESTUSER_WALLET,
+      properties: ENTITLED,
+    }));
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: TESTING_WALLET,
+      properties: NOT_ENTITLED,
+    }));
   });
 
   it('does not carry an already-expired source record on TRANSFER', async () => {
@@ -876,8 +904,13 @@ describe('Plus RevenueCat webhook', () => {
         originalTransactionId: 'txn_123',
       },
     });
+    mockSetPersonProperties.mockClear();
     const res = await post({ ...baseEvent, type: 'INITIAL_PURCHASE' }, { Authorization: AUTH });
     expect(res.status).toBe(200);
+    expect(mockSetPersonProperties).toHaveBeenCalledWith(expect.objectContaining({
+      evmWallet: TESTUSER_WALLET,
+      properties: NOT_ENTITLED,
+    }));
     const granted = await getUserWithCivicLikerProperties('testing');
     expect(granted?.likerPlus?.subscriptionStatus).toBe('active');
     expect(granted?.likerPlus?.originalTransactionId).toBe('txn_123');

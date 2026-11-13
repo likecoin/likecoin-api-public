@@ -7,6 +7,7 @@ import { ValidationError } from '../../ValidationError';
 import { constantTimeEqual } from '../../misc';
 import { sendSharedMemberInviteEmail } from '../../ses';
 import { updateIntercomUserAttributes, sendIntercomEvent } from '../../intercom';
+import { mapPlusEntitlementPersonProperties, setPostHogPersonProperties } from '../../posthog';
 import { getBookUserInfoFromWallet } from '../likernft/book/user';
 import {
   getUserWithCivicLikerProperties,
@@ -212,6 +213,11 @@ export async function claimSharedMemberInvite({
     });
   });
 
+  setPostHogPersonProperties({
+    evmWallet: likerUserInfo.evmWallet,
+    likeWallet: likerUserInfo.likeWallet,
+    properties: mapPlusEntitlementPersonProperties('plus'),
+  });
   await Promise.all([
     updateIntercomUserAttributes(memberLikerId, {
       is_liker_plus: true,
@@ -248,19 +254,19 @@ function isSharedGrantFrom(
 // Atomically apply `fields` to the member's likerPlus, but only while the record
 // is still this giver's shared grant. The check and write share one transaction so
 // a member who buys their own sub between read and write can't have that paid
-// record clobbered. Returns whether the update was applied.
+// record clobbered. Returns the member's data if the update was applied, else null.
 async function updateSharedGrantIfOwned(
   memberLikerId: string,
   giverLikerId: string,
   fields: { [field: string]: string | number },
-): Promise<boolean> {
+): Promise<UserData | null> {
   const memberRef = userCollection.doc(memberLikerId);
   return db.runTransaction(async (transaction) => {
     const memberDoc = await transaction.get(memberRef);
-    const likerPlus = (memberDoc.data() as UserData | undefined)?.likerPlus;
-    if (!isSharedGrantFrom(likerPlus, giverLikerId)) return false;
+    const member = memberDoc.data() as UserData | undefined;
+    if (!member || !isSharedGrantFrom(member.likerPlus, giverLikerId)) return null;
     transaction.update(memberRef, fields);
-    return true;
+    return member;
   });
 }
 
@@ -268,11 +274,16 @@ async function revokeSharedMemberRecord(giverLikerId: string, memberLikerId: str
   // Keep currentType 'shared' and grantedBy: a lapsed giver's members retain
   // them with a past currentPeriodEnd, so a later Civic resubscribe/renewal by
   // the same giver resurrects exactly those members via extend. Intentional.
-  const didRevoke = await updateSharedGrantIfOwned(memberLikerId, giverLikerId, {
+  const member = await updateSharedGrantIfOwned(memberLikerId, giverLikerId, {
     'likerPlus.currentPeriodEnd': Date.now(),
     'likerPlus.subscriptionStatus': 'canceled',
   });
-  if (!didRevoke) return;
+  if (!member) return;
+  setPostHogPersonProperties({
+    evmWallet: member.evmWallet,
+    likeWallet: member.likeWallet,
+    properties: mapPlusEntitlementPersonProperties(null),
+  });
   // Best-effort CRM cleanup — must not fail the caller (webhook or API response).
   try {
     await updateIntercomUserAttributes(memberLikerId, {
@@ -294,12 +305,17 @@ async function extendSharedMemberRecord(
     currentPeriodEnd: number;
   },
 ) {
-  const didExtend = await updateSharedGrantIfOwned(memberLikerId, giverLikerId, {
+  const member = await updateSharedGrantIfOwned(memberLikerId, giverLikerId, {
     'likerPlus.currentPeriodStart': currentPeriodStart,
     'likerPlus.currentPeriodEnd': currentPeriodEnd,
     'likerPlus.subscriptionStatus': 'active',
   });
-  if (!didExtend) return;
+  if (!member) return;
+  setPostHogPersonProperties({
+    evmWallet: member.evmWallet,
+    likeWallet: member.likeWallet,
+    properties: mapPlusEntitlementPersonProperties('plus'),
+  });
   // Re-assert the member's Plus flags: a lapsed-then-renewed giver resurrects
   // members whose flags were cleared on revoke. Best-effort like the clear.
   try {
