@@ -2,12 +2,14 @@ import { z } from 'zod';
 import { isAddress, isHash } from 'viem';
 import {
   FIRESTORE_QUERY_DISJUNCTION_LIMIT,
+  ISO_ALPHA2_COUNTRY_CODES,
   MIN_BOOK_PRICE_DECIMAL,
   NFT_BOOK_TEXT_DEFAULT_LOCALE,
   STRIPE_SHIPPING_COUNTRY_CODES,
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
+import { expandRestrictedTerritories, RESTRICTED_TERRITORIES_SOURCES } from './restrictedTerritories';
 
 const LocalizedTextMap = z.record(z.string(), z.string())
   .refine(
@@ -117,6 +119,11 @@ export const ListingSettingsBodySchema = z.object({
   image: z.string().optional(),
   promotionalImages: z.array(z.string()).optional(),
   maxQuantityPerOrder: z.number().int().min(1).optional(),
+  // Validated and expanded as in the Slack `/book approve geoblock` lever; empty clears it.
+  restrictedTerritories: z.array(z.string().toUpperCase().refine(
+    (c) => ISO_ALPHA2_COUNTRY_CODES.has(c),
+    { message: 'INVALID_TERRITORY_CODE' },
+  )).transform(expandRestrictedTerritories).optional(),
 });
 
 export const NewListingBodySchema = ListingSettingsBodySchema.extend({
@@ -576,6 +583,8 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   isPublicDomain: z.boolean().optional(),
   hasAIGeneratedContent: z.boolean().optional(),
   restrictedTerritories: z.array(z.string()).optional(),
+  // Owner-only; 'review' and 'admin' lock the territories against owner edits.
+  restrictedTerritoriesSetBy: z.enum(RESTRICTED_TERRITORIES_SOURCES).optional(),
   sold: z.number().int().optional(),
   pendingNFTCount: z.number().int().optional(),
   pendingShipmentCount: z.number().int().optional(),

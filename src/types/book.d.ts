@@ -26,6 +26,7 @@ import type {
   NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS,
 } from '../util/api/likernft/book/complianceReview';
 import type { ManualMetadataField } from '../util/api/likernft/book/manualMetadata';
+import type { RestrictedTerritoriesSource } from '../util/api/likernft/book/restrictedTerritories';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
@@ -268,8 +269,10 @@ export interface NFTBookListingInfo {
   isPublicDomain?: boolean;
   hasAIGeneratedContent?: boolean;
   // ISO 3166-1 alpha-2 country codes the storefront must not offer this listing in.
-  // Admin-set, not author-editable; enforcement happens client-side.
+  // Enforcement happens client-side.
   restrictedTerritories?: string[];
+  // Absent on a listing geoblocked before this field existed, which only review or admin could do.
+  restrictedTerritoriesSetBy?: RestrictedTerritoriesSource;
   aiReview?: NFTBookComplianceReviewRecord;
   isLikerLandArt?: boolean;
   isApprovedForSale?: boolean;

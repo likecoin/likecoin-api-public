@@ -36,6 +36,10 @@ import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
 } from './complianceReview';
+import {
+  expandRestrictedTerritories,
+  getPublisherRestrictedTerritoriesUpdate,
+} from './restrictedTerritories';
 import type {
   BookContributor,
   BookLocalizedCopy,
@@ -374,6 +378,7 @@ export async function newNftBookInfo(
     isPlusReadingEnabled,
     isPreviewEnabled,
     previewPercentage,
+    restrictedTerritories,
 
     productType,
     availableTerritories,
@@ -485,10 +490,22 @@ export async function newNftBookInfo(
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
   if (previewPercentage !== undefined) payload.previewPercentage = previewPercentage;
+  if (restrictedTerritories?.length) {
+    payload.restrictedTerritories = restrictedTerritories;
+    payload.restrictedTerritoriesSetBy = 'publisher';
+  }
   // Verdict overrides go last so they win over the defaults above and over
   // author-supplied fields (notably isAdultOnly). Restrict-only by design.
   if (review.status === 'completed') {
-    Object.assign(payload, getListingFlagOverridesForReviewAction(review.verdict.action));
+    const overrides = getListingFlagOverridesForReviewAction(review.verdict.action);
+    // A review geoblock adds to the publisher's territories instead of lifting them.
+    if (overrides.restrictedTerritories && payload.restrictedTerritories) {
+      overrides.restrictedTerritories = expandRestrictedTerritories([
+        ...payload.restrictedTerritories,
+        ...overrides.restrictedTerritories,
+      ]);
+    }
+    Object.assign(payload, overrides);
     payload.aiReview = {
       ...review.verdict,
       model: review.model,
@@ -663,6 +680,28 @@ export async function syncNFTBookInfoWithISCN(classId) {
     // eslint-disable-next-line no-console
     console.error('Failed to sync NFT Book info with Airtable publication record:', err);
   }
+}
+
+// Returns what was written. Transactional, so a review or admin geoblock
+// landing mid-request is never lifted; an empty list clears the geoblock.
+export async function updatePublisherRestrictedTerritories(
+  classId: string,
+  requested?: string[],
+): Promise<string[] | undefined> {
+  if (requested === undefined) return undefined;
+  return db.runTransaction(async (t) => {
+    const ref = likeNFTBookCollection.doc(classId);
+    const doc = await t.get(ref);
+    const update = getPublisherRestrictedTerritoriesUpdate(doc.data() || {}, requested);
+    if (update !== undefined) {
+      const hasTerritories = update.length > 0;
+      t.update(ref, {
+        restrictedTerritories: hasTerritories ? update : FieldValue.delete(),
+        restrictedTerritoriesSetBy: hasTerritories ? 'publisher' : FieldValue.delete(),
+      });
+    }
+    return update;
+  });
 }
 
 export async function updateNftBookInfo(classId: string, {
