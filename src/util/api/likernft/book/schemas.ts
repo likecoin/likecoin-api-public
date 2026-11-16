@@ -277,6 +277,10 @@ export type BookListPaginationQuery = z.infer<typeof BookListPaginationQuerySche
 export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
   wallet: z.string().optional(),
   chain: z.string().default('base'),
+  // Book pages show keywords as hashtags, so a copied `#絕版重生` should still match.
+  keyword: z.string()
+    .transform((v) => v.trim().replace(/^#+/, '').trim() || undefined)
+    .optional(),
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 

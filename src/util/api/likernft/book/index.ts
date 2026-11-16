@@ -810,6 +810,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet,
   chain,
   isPlusReadingEnabled,
+  keyword,
   before,
   limit,
   key,
@@ -817,6 +818,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet?: string;
   chain?: string;
   isPlusReadingEnabled?: boolean;
+  keyword?: string;
   before?: number;
   limit?: number;
   key?: number;
@@ -827,6 +829,7 @@ export async function listLatestNFTBookInfo({
   if (isPlusReadingEnabled !== undefined) {
     snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
   }
+  if (keyword) snapshot = snapshot.where('keywords', 'array-contains', keyword);
   // `??` (not `||`) so a legitimate cursor of 0 is preserved; routes are
   // expected to reject NaN/array inputs before reaching this function.
   const tsNumber = before ?? key;
