@@ -514,6 +514,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   inLanguage: z.string().optional(),
   datePublished: z.string().optional(),
   name: z.string().optional(),
+  alternativeHeadline: z.string().optional(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
   nameByLocale: BookLocalizedCopySchema.optional(),

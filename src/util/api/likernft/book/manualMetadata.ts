@@ -1,7 +1,7 @@
 import { db, likeNFTBookCollection } from '../../../firebase';
 import type { NFTBookListingInfo } from '../../../../types/book';
 
-export const MANUAL_METADATA_FIELDS = ['name', 'isbn'] as const;
+export const MANUAL_METADATA_FIELDS = ['name', 'alternativeHeadline', 'isbn'] as const;
 export type ManualMetadataField = typeof MANUAL_METADATA_FIELDS[number];
 
 type ListingMetadata = Partial<Record<ManualMetadataField, string>>;

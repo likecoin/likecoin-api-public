@@ -25,6 +25,15 @@ describe('resolveListingMetadata', () => {
     expect(resolveListingMetadata({ name: '', isbn: 123 }, listing)).toEqual(listing);
   });
 
+  it('resolves alternativeHeadline like the other fields', () => {
+    expect(resolveListingMetadata(
+      { alternativeHeadline: 'Chain Subtitle' },
+      { alternativeHeadline: 'Listing Subtitle', manualMetadataFields: ['alternativeHeadline'] },
+    )).toEqual({ alternativeHeadline: 'Listing Subtitle' });
+    expect(resolveListingMetadata({ alternativeHeadline: 'Chain Subtitle' }, {}))
+      .toEqual({ alternativeHeadline: 'Chain Subtitle' });
+  });
+
   it('omits fields neither side has', () => {
     expect(resolveListingMetadata({}, {})).toEqual({});
   });

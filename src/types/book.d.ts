@@ -239,6 +239,7 @@ export interface NFTBookListingInfo {
   inLanguage?: string;
   datePublished?: string;
   name?: string;
+  alternativeHeadline?: string;
   description?: string;
   descriptionFull?: string;
   previewContent?: string;
