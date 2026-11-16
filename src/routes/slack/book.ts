@@ -31,6 +31,11 @@ import {
   setBookAdultOnly,
 } from '../../util/api/likernft/book/adultOnly';
 import {
+  BOOK_METADATA_USAGE,
+  parseBookMetadataQuery,
+  setBookManualMetadata,
+} from '../../util/api/likernft/book/manualMetadata';
+import {
   BOOK_TIPPING_USAGE,
   parseBookTippingQuery,
   setBookTippingEnabled,
@@ -303,6 +308,26 @@ router.post(
         text: formatBookTippingSlackText(result),
       });
     },
+    metadata: async ({ params, req, res }) => {
+      const query = parseBookMetadataQuery(params);
+      const result = await setBookManualMetadata(query);
+      if (query.action === 'set') {
+        await updateAirtablePublicationRecord({ id: result.classId, [query.field]: query.value });
+      }
+      publisher.publish(PUBSUB_TOPIC_MISC, null, {
+        logType: 'BookNFTManualMetadataUpdate',
+        slackUserId: req.body.user_id,
+        ...query,
+      });
+
+      const change = query.action === 'set'
+        ? `\`${query.field}\` set to \`${escapeSlackText(query.value)}\`; refresh keeps it`
+        : `\`${query.field}\` follows chain again from the next refresh`;
+      res.json({
+        response_type: 'in_channel',
+        text: `${change} for *${escapeSlackText(result.className)}*\nClass ID: \`${result.classId}\`\nManual fields: ${result.manualMetadataFields.map((f) => `\`${f}\``).join(', ') || 'none'}`,
+      });
+    },
     help: ({ res }) => {
       res.json({
         response_type: 'ephemeral',
@@ -348,7 +373,15 @@ Without a priceIndex, every edition is set. Tipping shows only on editions with 
 
 Examples:
   \`/book tipping 0x1234...5678 on\` - Enable tipping on every edition
-  \`/book tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only`,
+  \`/book tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only
+
+\`${BOOK_METADATA_USAGE}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
+A set field is kept on refresh until reset, so publish.3ook.com can prompt the publisher to sign it to chain.
+
+Examples:
+  \`/book metadata 0x1234...5678 set isbn 978-626-653-162-5\` - Set the ISBN, stored without hyphens
+  \`/book metadata 0x1234...5678 set alternativeHeadline A Subtitle\` - Set the subtitle
+  \`/book metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
       });
     },
   }, 'Invalid command. Use `/book help` for usage.'),
