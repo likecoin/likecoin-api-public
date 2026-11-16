@@ -30,6 +30,7 @@ import { checkIsTrustedPublisher } from './user';
 import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import { chunkISBNLookupCandidates } from './isbn';
+import { updateListingWithChainMetadata } from './manualMetadata';
 import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
@@ -577,7 +578,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const payload: any = {};
   if (inLanguage) payload.inLanguage = inLanguage;
   if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
-  if (name) payload.name = name;
   if (description) payload.description = description;
   // descriptionFull is now a listing-owned field edited via /settings; do not
   // overwrite it from on-chain metadata on refresh.
@@ -590,12 +590,15 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (author) payload.author = author;
   if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
-  if (isbn) payload.isbn = isbn;
   if (image) payload.image = image;
   if (genre) payload.genre = genre;
-  await likeNFTBookCollection.doc(classId).update(payload);
+  const listingMetadata = await updateListingWithChainMetadata(
+    classId,
+    { name, isbn },
+    payload,
+  );
   await updateStripeProductsFromListing(classId, bookInfo, {
-    name, description, image, thumbnailUrl,
+    name: listingMetadata.name, description, image, thumbnailUrl,
   });
 
   try {
@@ -624,7 +627,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     const priceRangeByCurrency = getBookPriceRangeByCurrency(prices);
     await updateAirtablePublicationRecord({
       id: classId,
-      name,
+      name: listingMetadata.name,
       description,
       iscnIdPrefix: '',
       ownerWallet,
@@ -638,7 +641,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       language: inLanguage,
       keywords,
       usageInfo,
-      isbn,
+      isbn: listingMetadata.isbn,
       genre,
       datePublished,
       iscnObject: null,

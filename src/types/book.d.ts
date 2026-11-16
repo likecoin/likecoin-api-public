@@ -25,6 +25,7 @@ import type {
   HK_RISK_LEVELS,
   NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS,
 } from '../util/api/likernft/book/complianceReview';
+import type { ManualMetadataField } from '../util/api/likernft/book/manualMetadata';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
 
@@ -251,6 +252,8 @@ export interface NFTBookListingInfo {
   author?: BookContributor;
   usageInfo?: string;
   isbn?: string;
+  // Fields staff corrected in the listing, which refresh must not overwrite from chain.
+  manualMetadataFields?: ManualMetadataField[];
   image?: string;
   publisher?: BookContributor;
   genre?: string;
