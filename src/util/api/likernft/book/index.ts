@@ -353,6 +353,7 @@ export async function newNftBookInfo(
     inLanguage,
     datePublished,
     name,
+    alternativeHeadline,
     description,
     descriptionFull,
     keywords,
@@ -445,6 +446,9 @@ export async function newNftBookInfo(
   // Chain JSON is untrusted, and a non-string would fail the listing response schema.
   if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
   if (name) payload.name = name;
+  if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+    payload.alternativeHeadline = alternativeHeadline;
+  }
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
   if (nameByLocale) payload.nameByLocale = nameByLocale;
@@ -555,6 +559,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     inLanguage,
     datePublished,
     name,
+    alternativeHeadline,
     description,
     keywords: keywordString = '',
     thumbnailUrl,
@@ -594,7 +599,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (genre) payload.genre = genre;
   const listingMetadata = await updateListingWithChainMetadata(
     classId,
-    { name, isbn },
+    { name, alternativeHeadline, isbn },
     payload,
   );
   await updateStripeProductsFromListing(classId, bookInfo, {

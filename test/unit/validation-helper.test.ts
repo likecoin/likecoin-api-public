@@ -202,6 +202,13 @@ describe('filterNFTBookListingInfo datePublished', () => {
   });
 });
 
+describe('filterNFTBookListingInfo alternativeHeadline', () => {
+  it('passes alternativeHeadline through', () => {
+    const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), alternativeHeadline: 'A Subtitle' });
+    expect(payload.alternativeHeadline).toBe('A Subtitle');
+  });
+});
+
 describe('filterNFTBookListingInfo canonicalUrl', () => {
   it('links the store page', () => {
     const payload = filterNFTBookListingInfo(bookInfo([LISTED]));
