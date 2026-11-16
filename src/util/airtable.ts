@@ -14,6 +14,7 @@ import { TransactionFeeInfo } from './api/likernft/book/type';
 
 interface AirtablePublicationRecordParams {
   name?: string | { zh: string, en: string };
+  alternativeHeadline?: string;
   description?: string | { zh: string, en: string };
   iscnIdPrefix?: string;
   ownerWallet?: string;
@@ -94,6 +95,7 @@ export async function createAirtablePublicationRecord({
   timestamp,
   id,
   name,
+  alternativeHeadline,
   description,
   iscnIdPrefix,
   ownerWallet,
@@ -157,6 +159,9 @@ export async function createAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+      fields.Subtitle = alternativeHeadline;
+    }
     const publishedDate = toAirtablePublishedDate(datePublished);
     if (publishedDate) fields['Published Date'] = publishedDate;
 
@@ -319,6 +324,7 @@ async function queryAirtablePublicationRecordById(id: string) {
 export async function updateAirtablePublicationRecord({
   id,
   name,
+  alternativeHeadline,
   description,
   iscnIdPrefix,
   ownerWallet,
@@ -383,6 +389,9 @@ export async function updateAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+      fields.Subtitle = alternativeHeadline;
+    }
     const publishedDate = toAirtablePublishedDateUpdate(datePublished);
     if (publishedDate !== undefined) fields['Published Date'] = publishedDate;
 

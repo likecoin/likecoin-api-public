@@ -392,6 +392,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         id: evmClassId,
         timestamp: new Date(),
         name: listingMetadata.name ?? name,
+        alternativeHeadline: listingMetadata.alternativeHeadline,
         description,
         metadata,
         ownerWallet,
