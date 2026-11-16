@@ -633,6 +633,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     await updateAirtablePublicationRecord({
       id: classId,
       name: listingMetadata.name,
+      alternativeHeadline: listingMetadata.alternativeHeadline,
       description,
       iscnIdPrefix: '',
       ownerWallet,
