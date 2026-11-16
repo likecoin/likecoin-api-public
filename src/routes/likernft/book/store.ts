@@ -33,6 +33,7 @@ import {
   getBookTimestampMillis,
 } from '../../../util/api/likernft/book/cms';
 import { listBestsellingNFTBookInfo } from '../../../util/api/likernft/book/sales';
+import transferNFTBookOwnership from '../../../util/api/likernft/book/ownership';
 import {
   ImageUploadBodySchema,
   ListingSettingsBodySchema,
@@ -63,6 +64,8 @@ import {
   ImageUploadResponseSchema,
   NewListingResponseSchema,
   ListingSettingsResponseSchema,
+  OwnershipTransferBodySchema,
+  OwnershipTransferResponseSchema,
   type BookListQuery,
   BookListPaginationQuerySchema,
   type BookListPaginationQuery,
@@ -1253,6 +1256,33 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
 
     sendValidatedJSON(res, ListingSettingsResponseSchema, {
       classId,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:classId/ownership', jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(OwnershipTransferBodySchema), async (req, res, next) => {
+  try {
+    const { classId } = req.params as Record<string, string>;
+    const { newOwnerWallet, txHash } = req.body;
+    const { fromWallet, toWallet } = await transferNFTBookOwnership(
+      classId,
+      { newOwnerWallet, txHash },
+      req,
+    );
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTOwnershipTransfer',
+      wallet: fromWallet,
+      newOwnerWallet: toWallet,
+      classId,
+      txHash,
+    });
+
+    sendValidatedJSON(res, OwnershipTransferResponseSchema, {
+      classId,
+      ownerWallet: toWallet,
     });
   } catch (err) {
     next(err);
