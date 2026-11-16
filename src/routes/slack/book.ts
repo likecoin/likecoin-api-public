@@ -38,7 +38,7 @@ import {
 import { FieldValue, likeNFTBookCollection } from '../../util/firebase';
 import publisher from '../../util/gcloudPub';
 import { BOOK3_HOSTNAME, ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../../constant';
-import { GEOBLOCK_HK_TERRITORIES } from '../../util/api/likernft/book/complianceReview';
+import { expandRestrictedTerritories } from '../../util/api/likernft/book/restrictedTerritories';
 import { updateAirtablePublicationRecord } from '../../util/airtable';
 import { splitByComma } from '../../util/misc';
 
@@ -61,15 +61,12 @@ function getRestrictedTerritories(countryCodeList?: string) {
   if (!codes.length) {
     throw new Error('No country code given. Expect 2-letter ISO codes, e.g. HK or HK,JP');
   }
-  const territories = new Set<string>();
   codes.forEach((code) => {
     if (!ISO_ALPHA2_COUNTRY_CODES.has(code)) {
       throw new Error(`Invalid country code: ${code}. Expect a 2-letter ISO code (GB, not UK)`);
     }
-    const expanded = code === DEFAULT_GEOBLOCK_COUNTRY ? GEOBLOCK_HK_TERRITORIES : [code];
-    expanded.forEach((territory) => territories.add(territory));
   });
-  return [...territories];
+  return expandRestrictedTerritories(codes);
 }
 
 async function approveBook(
