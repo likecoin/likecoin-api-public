@@ -89,7 +89,10 @@ async function approveBook(
   // approval flags. No Airtable mirror — restrictedTerritories has no Airtable column.
   if (action === 'geoblock') {
     const restrictedTerritories = getRestrictedTerritories(countryCodeList);
-    await likeNFTBookCollection.doc(classId).update({ restrictedTerritories });
+    await likeNFTBookCollection.doc(classId).update({
+      restrictedTerritories,
+      restrictedTerritoriesSetBy: 'admin',
+    });
     await Promise.all([
       publisher.publish(PUBSUB_TOPIC_MISC, null, {
         logType: 'BookNFTApprovalUpdate',
@@ -119,6 +122,7 @@ async function approveBook(
   if (action === 'clear_geoblock') {
     await likeNFTBookCollection.doc(classId).update({
       restrictedTerritories: FieldValue.delete(),
+      restrictedTerritoriesSetBy: FieldValue.delete(),
     });
     await Promise.all([
       publisher.publish(PUBSUB_TOPIC_MISC, null, {

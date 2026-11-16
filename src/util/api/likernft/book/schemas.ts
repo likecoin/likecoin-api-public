@@ -7,6 +7,7 @@ import {
   SUPPORTED_PLUS_CURRENCIES,
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
+import { RESTRICTED_TERRITORIES_SOURCES } from './restrictedTerritories';
 
 const LocalizedTextMap = z.record(z.string(), z.string())
   .refine(
@@ -543,6 +544,8 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   isPublicDomain: z.boolean().optional(),
   hasAIGeneratedContent: z.boolean().optional(),
   restrictedTerritories: z.array(z.string()).optional(),
+  // Owner-only; 'review' and 'admin' lock the territories against owner edits.
+  restrictedTerritoriesSetBy: z.enum(RESTRICTED_TERRITORIES_SOURCES).optional(),
   sold: z.number().int().optional(),
   pendingNFTCount: z.number().int().optional(),
   pendingShipmentCount: z.number().int().optional(),

@@ -161,6 +161,7 @@ export function getListingFlagOverridesForReviewAction(
         isApprovedForAds: false,
         approvalStatus: 'pending',
         restrictedTerritories: GEOBLOCK_HK_TERRITORIES,
+        restrictedTerritoriesSetBy: 'review',
       };
     case 'adult_review':
       return { isApprovedForAds: false, approvalStatus: 'pending', isAdultOnly: true };
