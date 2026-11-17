@@ -180,6 +180,19 @@ describe('filterNFTBookListingInfo imageUrl', () => {
   it('leaves imageUrl unset without a thumbnail', () => {
     expect(withThumbnail(undefined).imageUrl).toBeUndefined();
   });
+
+  it('resizes imageUrl to 300 and 600 px thumbnails', () => {
+    const { thumbnails } = withThumbnail('ar://abc');
+    const encoded = encodeURIComponent(`${ARWEAVE_GATEWAY}/abc`);
+    expect(thumbnails).toEqual({
+      small: { url: `https://static.like.co/thumbnail/?url=${encoded}&width=300`, width: 300 },
+      medium: { url: `https://static.like.co/thumbnail/?url=${encoded}&width=600`, width: 600 },
+    });
+  });
+
+  it('leaves thumbnails unset without a thumbnail', () => {
+    expect(withThumbnail(undefined).thumbnails).toBeUndefined();
+  });
 });
 
 describe('filterNFTBookListingInfo datePublished', () => {

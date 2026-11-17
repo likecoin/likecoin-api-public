@@ -174,6 +174,8 @@ export const ARWEAVE_GATEWAY = 'https://gateway.irys.xyz';
 // without propagation lag. Fallback order is irrelevant to membership checks.
 export const ARWEAVE_GATEWAYS = [`${ARWEAVE_GATEWAY}/`, 'https://arweave.net/'];
 
+export const STATIC_THUMBNAIL_ENDPOINT = 'https://static.like.co/thumbnail/';
+
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['zh', 'en'];
 export const NFT_BOOK_TEXT_DEFAULT_LOCALE = NFT_BOOK_TEXT_LOCALES[0];

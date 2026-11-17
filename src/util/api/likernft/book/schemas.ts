@@ -485,6 +485,11 @@ export const BookContributorSchema = z.union([
 // the NFTBookListingInfo source type can't drift apart.
 export const BookSignatureImageSchema = z.union([z.boolean(), z.literal('signed')]);
 
+const ImageThumbnailSchema = z.object({
+  url: z.string(),
+  width: z.number(),
+});
+
 export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
@@ -529,6 +534,11 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   thumbnailUrl: z.string().optional(),
   // `thumbnailUrl` resolved to an https URL, for clients that can't open ar:// or ipfs://.
   imageUrl: z.string().optional(),
+  // `imageUrl` resized for grids and lists. `thumbnailUrl` is the original cover, not one of these.
+  thumbnails: z.object({
+    small: ImageThumbnailSchema,
+    medium: ImageThumbnailSchema,
+  }).optional(),
   canonicalUrl: z.string().optional(),
   author: BookContributorSchema.optional(),
   usageInfo: z.string().optional(),
