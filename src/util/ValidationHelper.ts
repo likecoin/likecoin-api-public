@@ -656,7 +656,7 @@ export function filterNFTBookListingInfo(
   // Read `inputPrices`: the filtered copy matches only while it keeps every edition.
   const isAllEditionsUnlisted = isBookUnlisted(inputPrices);
   const shouldMaskReaderFlags = !isOwner && isAllEditionsUnlisted;
-  const imageUrl = thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined;
+  const coverUrl = thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined;
   const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
@@ -699,8 +699,8 @@ export function filterNFTBookListingInfo(
     reviewURL,
     keywords,
     thumbnailUrl,
-    imageUrl,
-    thumbnails: imageUrl ? getImageThumbnails(imageUrl) : undefined,
+    coverUrl,
+    thumbnails: coverUrl ? getImageThumbnails(coverUrl) : undefined,
     author,
     usageInfo,
     isbn,

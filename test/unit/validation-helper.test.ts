@@ -166,22 +166,22 @@ describe('sanitizeFrom', () => {
   });
 });
 
-describe('filterNFTBookListingInfo imageUrl', () => {
+describe('filterNFTBookListingInfo coverUrl', () => {
   const withThumbnail = (thumbnailUrl?: string) => filterNFTBookListingInfo(
     { ...bookInfo([LISTED]), thumbnailUrl },
   );
 
   it('resolves an ar:// thumbnail through the Arweave gateway', () => {
     const payload = withThumbnail('ar://abc');
-    expect(payload.imageUrl).toBe(`${ARWEAVE_GATEWAY}/abc`);
+    expect(payload.coverUrl).toBe(`${ARWEAVE_GATEWAY}/abc`);
     expect(payload.thumbnailUrl).toBe('ar://abc');
   });
 
-  it('leaves imageUrl unset without a thumbnail', () => {
-    expect(withThumbnail(undefined).imageUrl).toBeUndefined();
+  it('leaves coverUrl unset without a thumbnail', () => {
+    expect(withThumbnail(undefined).coverUrl).toBeUndefined();
   });
 
-  it('resizes imageUrl to 300 and 600 px thumbnails', () => {
+  it('resizes coverUrl to 300 and 600 px thumbnails', () => {
     const { thumbnails } = withThumbnail('ar://abc');
     const encoded = encodeURIComponent(`${ARWEAVE_GATEWAY}/abc`);
     expect(thumbnails).toEqual({

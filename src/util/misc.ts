@@ -90,16 +90,16 @@ export function parseImageURLFromMetadata(image: string): string {
   return image.replace('ar://', `${ARWEAVE_GATEWAY}/`).replace('ipfs://', 'https://ipfs.io/ipfs/');
 }
 
-function getImageThumbnail(imageUrl: string, width: number) {
+function getImageThumbnail(coverUrl: string, width: number) {
   // Same `url`, `width` order as 3ook.com builds, so both hit one resize cache entry.
-  const params = new URLSearchParams({ url: imageUrl, width: width.toString() });
+  const params = new URLSearchParams({ url: coverUrl, width: width.toString() });
   return { url: `${STATIC_THUMBNAIL_ENDPOINT}?${params.toString()}`, width };
 }
 
 // Widths match what 3ook.com requests: 300 for lists, 600 for the book page.
-export function getImageThumbnails(imageUrl: string) {
+export function getImageThumbnails(coverUrl: string) {
   return {
-    small: getImageThumbnail(imageUrl, 300),
-    medium: getImageThumbnail(imageUrl, 600),
+    small: getImageThumbnail(coverUrl, 300),
+    medium: getImageThumbnail(coverUrl, 600),
   };
 }
