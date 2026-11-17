@@ -170,8 +170,7 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
     });
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toContain('requests human review');
-    expect(payload.approvalStatus).toContain('test reason');
+    expect(payload.approvalStatus).toBe('<@UHELD> 👀 Published, but the AI screen requests human review');
   });
 
   it('pings when the verdict asks for human review', async () => {
@@ -181,8 +180,7 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
     });
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toContain('requests human review');
-    expect(payload.approvalStatus).not.toContain('<@UHELD>');
+    expect(payload.approvalStatus).toBe('<@UHELD> 👀 Published, but the AI screen requests human review');
   });
 
   it('renders a held listing as a release request, not a ping', async () => {
@@ -206,11 +204,10 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
       }),
     });
     const payload = getListingPayload();
-    for (const field of [payload.aiReview, payload.approvalStatus]) {
-      expect(field).not.toContain('<');
-      expect(field).not.toContain('>');
-      expect(field).toContain('&lt;!channel&gt; &amp; &lt;@U123&gt;');
-    }
+    expect(payload.aiReview).not.toContain('<');
+    expect(payload.aiReview).not.toContain('>');
+    expect(payload.aiReview).toContain('&lt;!channel&gt; &amp; &lt;@U123&gt;');
+    expect(payload.approvalStatus).not.toContain('U123');
   });
 
   it('marks a failed review and keeps the default status', async () => {
