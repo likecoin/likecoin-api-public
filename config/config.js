@@ -113,7 +113,7 @@ config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 config.NFT_BOOK_MERCH_OWNER_WALLETS = [];
 
 config.NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK = '';
-// Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds a listing
+// Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds or flags a listing
 config.NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS = [];
 config.NFT_BOOK_SALES_NOTIFICATION_WEBHOOK = '';
 config.NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK = '';
