@@ -533,8 +533,9 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   keywords: z.array(z.string()).optional(),
   thumbnailUrl: z.string().optional(),
   // `thumbnailUrl` resolved to an https URL, for clients that can't open ar:// or ipfs://.
-  imageUrl: z.string().optional(),
-  // `imageUrl` resized for grids and lists. `thumbnailUrl` is the original cover, not one of these.
+  productImageUrl: z.string().optional(),
+  // `productImageUrl` resized for grids and lists.
+  // `thumbnailUrl` is the original image, not one of these.
   thumbnails: z.object({
     small: ImageThumbnailSchema,
     medium: ImageThumbnailSchema,
