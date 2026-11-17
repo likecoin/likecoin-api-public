@@ -6,7 +6,7 @@ import {
   MAX_USER_ID_LENGTH,
 } from '../constant';
 import { getBook3URL } from './liker-land';
-import { parseImageURLFromMetadata } from './misc';
+import { getImageThumbnails, parseImageURLFromMetadata } from './misc';
 import type { UserCivicLikerProperties } from '../types/user';
 import type {
   UserDataFiltered,
@@ -656,6 +656,7 @@ export function filterNFTBookListingInfo(
   // Read `inputPrices`: the filtered copy matches only while it keeps every edition.
   const isAllEditionsUnlisted = isBookUnlisted(inputPrices);
   const shouldMaskReaderFlags = !isOwner && isAllEditionsUnlisted;
+  const imageUrl = thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined;
   const payload: NFTBookListingInfoFiltered = {
     id,
     classId: id,
@@ -698,7 +699,8 @@ export function filterNFTBookListingInfo(
     reviewURL,
     keywords,
     thumbnailUrl,
-    imageUrl: thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined,
+    imageUrl,
+    thumbnails: imageUrl ? getImageThumbnails(imageUrl) : undefined,
     author,
     usageInfo,
     isbn,
