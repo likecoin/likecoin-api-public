@@ -307,6 +307,8 @@ async function handleGrant(
   // Not gated on `isTrial`: a free trial already reports price 0, while a paid intro
   // reports its real charge, which must still reach firstPaidAt and the Airtable row.
   const hasCharge = event.price != null && event.price > 0;
+  // Resolve once and reuse across the record, Slack, analytics, and Airtable.
+  const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
 
   // Per-day value of this term, funding the reading-library revenue-share pool.
   // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
@@ -357,6 +359,21 @@ async function handleGrant(
     if (user.likerPlus?.giftPaymentId) likerPlus.giftPaymentId = user.likerPlus.giftPaymentId;
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
+  }
+  const isStoredTransaction = !!event.original_transaction_id
+    && event.original_transaction_id === user.likerPlus?.originalTransactionId;
+  // A no-charge grant keeps the last charge for later notices only when it names the
+  // stored transaction; any other subscription starts clean, never showing a lapsed price.
+  if (hasCharge && paymentAmount != null && paymentCurrency) {
+    likerPlus.lastPaymentAmount = paymentAmount;
+    likerPlus.lastPaymentCurrency = paymentCurrency;
+  } else if (
+    isStoredTransaction
+    && user.likerPlus?.lastPaymentAmount != null
+    && user.likerPlus.lastPaymentCurrency
+  ) {
+    likerPlus.lastPaymentAmount = user.likerPlus.lastPaymentAmount;
+    likerPlus.lastPaymentCurrency = user.likerPlus.lastPaymentCurrency;
   }
   const grantUpdate: Record<string, unknown> = { likerPlus };
   // Track first/last real payment like the Stripe path so getCustomerType can tell
@@ -560,9 +577,6 @@ async function handleGrant(
       properties: mapPlusEntitlementPersonProperties(tier),
     });
   }
-
-  // Resolve once and reuse across Slack, analytics, and the Airtable record.
-  const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
 
   // Independent notifications/analytics — fire in parallel (matches the Stripe path).
   // Skipped for uncancel/extend/product-change: nothing was bought, and announcing one

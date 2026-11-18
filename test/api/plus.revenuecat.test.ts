@@ -165,6 +165,88 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.environment).toBe('SANDBOX');
   });
 
+  it('records the charge in the purchased currency on a paid grant', async () => {
+    const res = await post(
+      {
+        ...baseEvent,
+        type: 'INITIAL_PURCHASE',
+        // A paid intro, so the charge is real but writes no rev-share accrual that
+        // would leak into plus-settle through the shared Firestore stub.
+        period_type: 'INTRO',
+        price: 1.03,
+        price_in_purchased_currency: 8,
+        currency: 'HKD',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBe(8);
+    expect(user?.likerPlus?.lastPaymentCurrency).toBe('HKD');
+  });
+
+  it('keeps the recorded charge across a no-charge grant on the same subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_uncancel',
+        type: 'UNCANCELLATION',
+        price: 0,
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBe(78);
+    expect(user?.likerPlus?.lastPaymentCurrency).toBe('HKD');
+  });
+
+  it('drops the recorded charge on a no-charge grant for another subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_uncancel_other',
+        type: 'UNCANCELLATION',
+        price: 0,
+        original_transaction_id: 'txn_other',
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBeUndefined();
+    expect(user?.likerPlus?.lastPaymentCurrency).toBeUndefined();
+  });
+
+  it('drops the recorded charge when a free trial starts a new subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_resub_trial',
+        type: 'INITIAL_PURCHASE',
+        period_type: 'TRIAL',
+        price: 0,
+        original_transaction_id: 'txn_new',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBeUndefined();
+    expect(user?.likerPlus?.lastPaymentCurrency).toBeUndefined();
+  });
+
   it('marks trial subscriptions with currentType=trial', async () => {
     const res = await post(
       { ...baseEvent, type: 'INITIAL_PURCHASE', period_type: 'TRIAL' },
