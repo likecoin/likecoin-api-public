@@ -375,6 +375,18 @@ async function handleGrant(
     likerPlus.lastPaymentAmount = user.likerPlus.lastPaymentAmount;
     likerPlus.lastPaymentCurrency = user.likerPlus.lastPaymentCurrency;
   }
+  if (
+    !hasCharge
+    && user.likerPlus
+    && (
+      user.likerPlus.skipPriceEstimate
+      || !isStoredTransaction
+      || user.likerPlus.period !== period
+      || (user.likerPlus.tier || 'plus') !== tier
+    )
+  ) {
+    likerPlus.skipPriceEstimate = true;
+  }
   const grantUpdate: Record<string, unknown> = { likerPlus };
   // Track first/last real payment like the Stripe path so getCustomerType can tell
   // resubscribers from first-time buyers.
@@ -933,10 +945,29 @@ async function recordAutoRenewChange(event: RevenueCatEvent, isSandbox: boolean)
   });
 }
 
-// Only a real charge is worth showing; stores send price 0 on many lifecycle events.
-function formatRevenueCatSlackPrice(event: RevenueCatEvent): string {
+const PERIOD_DAYS: Record<string, number> = { month: 30, year: 365 };
+
+// Only a real charge is worth showing; stores send price 0 on many lifecycle events,
+// including the cancellation and billing issue this formats, so fall back to the record.
+function formatRevenueCatSlackPrice(event: RevenueCatEvent, likerPlus: LikerPlusData): string {
   const { amount, currency } = getRevenueCatPaymentAmount(event);
-  return amount && currency ? `${amount.toFixed(2)} ${currency}` : 'N/A';
+  if (amount && currency) return `${amount.toFixed(2)} ${currency}`;
+  if (likerPlus.lastPaymentAmount && likerPlus.lastPaymentCurrency) {
+    return `${likerPlus.lastPaymentAmount.toFixed(2)} ${likerPlus.lastPaymentCurrency}`;
+  }
+  // Records from before lastPayment* existed: estimate from dailyValue. Civic funds
+  // dailyValue at the Plus rate, so an estimate there would understate its charge.
+  const periodDays = likerPlus.period ? PERIOD_DAYS[likerPlus.period] : undefined;
+  if (
+    likerPlus.dailyValue
+    && periodDays
+    && likerPlus.tier !== 'civic'
+    && !likerPlus.skipPriceEstimate
+  ) {
+    const estimate = likerPlus.dailyValue * periodDays;
+    return `≈ ${estimate.toFixed(2)} ${likerPlus.dailyValueCurrency || 'USD'}`;
+  }
+  return 'N/A';
 }
 
 async function notifyUnsubscribe(
@@ -955,7 +986,7 @@ async function notifyUnsubscribe(
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: event.original_transaction_id || likerPlus.originalTransactionId || 'N/A',
     email: user.email || 'N/A',
-    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    priceWithCurrency: formatRevenueCatSlackPrice(event, likerPlus),
     event: likerPlus.currentType === 'trial' ? 'unsubscribedTrial' : 'unsubscribed',
     userId: likerId,
     method: 'revenuecat',
@@ -1007,7 +1038,7 @@ async function handleBillingIssue(
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: transactionId || 'N/A',
     email: user.email || 'N/A',
-    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    priceWithCurrency: formatRevenueCatSlackPrice(event, user.likerPlus),
     event: 'paymentFailed',
     userId: likerId,
     method: 'revenuecat',
