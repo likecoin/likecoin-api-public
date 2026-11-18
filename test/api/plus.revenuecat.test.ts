@@ -165,6 +165,88 @@ describe('Plus RevenueCat webhook', () => {
     expect(user?.likerPlus?.environment).toBe('SANDBOX');
   });
 
+  it('records the charge in the purchased currency on a paid grant', async () => {
+    const res = await post(
+      {
+        ...baseEvent,
+        type: 'INITIAL_PURCHASE',
+        // A paid intro, so the charge is real but writes no rev-share accrual that
+        // would leak into plus-settle through the shared Firestore stub.
+        period_type: 'INTRO',
+        price: 1.03,
+        price_in_purchased_currency: 8,
+        currency: 'HKD',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBe(8);
+    expect(user?.likerPlus?.lastPaymentCurrency).toBe('HKD');
+  });
+
+  it('keeps the recorded charge across a no-charge grant on the same subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_uncancel',
+        type: 'UNCANCELLATION',
+        price: 0,
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBe(78);
+    expect(user?.likerPlus?.lastPaymentCurrency).toBe('HKD');
+  });
+
+  it('drops the recorded charge on a no-charge grant for another subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_uncancel_other',
+        type: 'UNCANCELLATION',
+        price: 0,
+        original_transaction_id: 'txn_other',
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBeUndefined();
+    expect(user?.likerPlus?.lastPaymentCurrency).toBeUndefined();
+  });
+
+  it('drops the recorded charge when a free trial starts a new subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_resub_trial',
+        type: 'INITIAL_PURCHASE',
+        period_type: 'TRIAL',
+        price: 0,
+        original_transaction_id: 'txn_new',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.lastPaymentAmount).toBeUndefined();
+    expect(user?.likerPlus?.lastPaymentCurrency).toBeUndefined();
+  });
+
   it('marks trial subscriptions with currentType=trial', async () => {
     const res = await post(
       { ...baseEvent, type: 'INITIAL_PURCHASE', period_type: 'TRIAL' },
@@ -461,6 +543,186 @@ describe('Plus RevenueCat webhook', () => {
     }));
   });
 
+  it('shows the recorded charge on a CANCELLATION that carries no price', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        period: 'month',
+        dailyValue: 0.33,
+        lastPaymentAmount: 78,
+        lastPaymentCurrency: 'HKD',
+      },
+    });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_recorded',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'unsubscribed',
+      priceWithCurrency: '78.00 HKD',
+    }));
+  });
+
+  it('estimates the charge from dailyValue when none is recorded', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        period: 'month',
+        dailyValue: 0.333,
+        dailyValueCurrency: 'USD',
+      },
+    });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_estimate',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'unsubscribed',
+      priceWithCurrency: '≈ 9.99 USD',
+    }));
+  });
+
+  it('does not estimate after a no-charge grant for another subscription', async () => {
+    // The stored dailyValue was funded by the previous subscription, not this one.
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        period: 'year',
+        dailyValue: 0.27,
+        dailyValueCurrency: 'USD',
+      },
+    });
+    await post(
+      {
+        ...baseEvent,
+        id: 'evt_uncancel_other_sub',
+        type: 'UNCANCELLATION',
+        price: 0,
+        original_transaction_id: 'txn_other',
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_other_sub',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+        original_transaction_id: 'txn_other',
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      subscriptionId: 'txn_other',
+      priceWithCurrency: 'N/A',
+    }));
+  });
+
+  it('does not estimate after a no-charge plan switch', async () => {
+    // A monthly dailyValue survives a no-charge switch to yearly; scaling it by 365
+    // would report a charge that never happened.
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        period: 'month',
+        dailyValue: 0.333,
+        dailyValueCurrency: 'USD',
+      },
+    });
+    await post(
+      {
+        ...baseEvent,
+        id: 'evt_switch_yearly',
+        type: 'PRODUCT_CHANGE',
+        product_id: 'rc_plus_monthly',
+        new_product_id: 'rc_plus_yearly',
+        price: 0,
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.period).toBe('year');
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_switched',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      priceWithCurrency: 'N/A',
+    }));
+  });
+
+  it('does not estimate after a no-charge Civic to Plus switch', async () => {
+    // Civic's dailyValue is funded at the Plus rate, so once the tier reads plus an
+    // estimate would show about a tenth of the Civic charge.
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...liveAppStorePlus,
+        tier: 'civic',
+        period: 'year',
+        dailyValue: 0.27,
+        dailyValueCurrency: 'USD',
+      },
+    });
+    await post(
+      {
+        ...baseEvent,
+        id: 'evt_switch_plus',
+        type: 'PRODUCT_CHANGE',
+        product_id: 'rc_civic_yearly',
+        new_product_id: 'rc_plus_yearly',
+        price: 0,
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.tier).toBe('plus');
+    mockSlackNotification.mockClear();
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_unsub_civic_switched',
+        type: 'CANCELLATION',
+        cancel_reason: 'UNSUBSCRIBE',
+        price: 0,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      priceWithCurrency: 'N/A',
+    }));
+  });
+
   it('does not announce the CANCELLATION that Play pairs with a failed charge', async () => {
     await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
     mockSlackNotification.mockClear();
@@ -556,6 +818,22 @@ describe('Plus RevenueCat webhook', () => {
       event: 'paymentFailed',
       subscriptionId: 'txn_123',
       method: 'revenuecat',
+    }));
+  });
+
+  it('shows the recorded charge on a BILLING_ISSUE', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, lastPaymentAmount: 78, lastPaymentCurrency: 'HKD' },
+    });
+    mockSlackNotification.mockClear();
+    const res = await post(
+      { ...baseEvent, id: 'evt_dun_recorded', type: 'BILLING_ISSUE' },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    expect(mockSlackNotification).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'paymentFailed',
+      priceWithCurrency: '78.00 HKD',
     }));
   });
 
