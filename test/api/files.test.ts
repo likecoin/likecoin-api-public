@@ -10,6 +10,8 @@ import { iscnArweaveTxCollection } from '../../src/util/firebase';
 const OPEN_ID = 'files-open-cover';
 const PROTECTED_ID = 'files-protected-ebook';
 const PENDING_ID = 'files-pending-cover';
+const NO_TIER_ID = 'files-no-tier';
+const PROTECTED_PUBLIC_ID = 'files-protected-tier-public-flag';
 const PLAINTEXT = Buffer.from('fake-jpeg-bytes');
 
 const reads: string[] = [];
@@ -70,6 +72,19 @@ describe('Public files API', () => {
       isRequireAuth: false,
       contentBucketPath: PENDING_ID,
     });
+    await iscnArweaveTxCollection.doc(NO_TIER_ID).set({
+      status: 'complete',
+      isRequireAuth: false,
+      contentBucketPath: NO_TIER_ID,
+      contentType: 'application/epub+zip',
+    });
+    await iscnArweaveTxCollection.doc(PROTECTED_PUBLIC_ID).set({
+      tier: 'protected',
+      status: 'complete',
+      isRequireAuth: false,
+      contentBucketPath: PROTECTED_PUBLIC_ID,
+      contentType: 'application/epub+zip',
+    });
   });
 
   it('serves a public open-tier file with cache and CORS headers', async () => {
@@ -97,6 +112,21 @@ describe('Public files API', () => {
   it('answers 404 for a pending upload and for an unknown id', async () => {
     expect((await getFile(PENDING_ID)).status).toBe(404);
     expect((await getFile('no-such-id')).status).toBe(404);
+    expect(reads).toEqual([]);
+  });
+
+  it('answers 404 unless the record is explicitly open-tier', async () => {
+    expect((await getFile(NO_TIER_ID)).status).toBe(404);
+    expect((await getFile(PROTECTED_PUBLIC_ID)).status).toBe(404);
+    expect(reads).toEqual([]);
+  });
+
+  it('answers 404 for an id that cannot exist, without reading anything', async () => {
+    const res = await getFile('a%2Fb');
+    const tooLong = await getFile('a'.repeat(129));
+
+    expect(res.status).toBe(404);
+    expect(tooLong.status).toBe(404);
     expect(reads).toEqual([]);
   });
 

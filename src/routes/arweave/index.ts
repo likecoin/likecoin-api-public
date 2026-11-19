@@ -125,9 +125,9 @@ router.post(
       const { wallet } = req.user;
       const id = uuidv4();
       // Both tiers: staging costs the caller nothing up front, so the quota is all
-      // that stands between write:iscn and unbounded free storage. The open tier
-      // releases this once /v2/gcs/arweave settles the real charge; an abandoned
-      // upload keeps it, which is exactly the rate limit we want.
+      // that stands between write:iscn and unbounded free storage. An abandoned
+      // upload keeps the reservation, which is exactly the rate limit we want, and so
+      // does a GCS-only finalize; only a settled /v2/gcs/arweave charge releases it.
       const uploadUrl = await withReservedQuota(wallet, fileSize, '0', async () => {
         await createNewGcsUploadTx(id, {
           fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet, tier,
