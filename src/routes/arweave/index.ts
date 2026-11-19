@@ -125,9 +125,9 @@ router.post(
       const { wallet } = req.user;
       const id = uuidv4();
       // Both tiers: staging costs the caller nothing up front, so the quota is all
-      // that stands between write:iscn and unbounded free storage. An abandoned
-      // upload keeps the reservation, which is exactly the rate limit we want, and so
-      // does a GCS-only finalize; only a settled /v2/gcs/arweave charge releases it.
+      // that stands between write:iscn and unbounded free storage. An abandoned upload
+      // keeps the reservation, which is exactly the rate limit we want, and so does
+      // a GCS-only finalize; only a settled /v2/gcs/arweave charge releases it.
       const uploadUrl = await withReservedQuota(wallet, fileSize, '0', async () => {
         await createNewGcsUploadTx(id, {
           fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet, tier,
@@ -204,36 +204,21 @@ router.post(
       const { ipfsHash, paymentTxHash, txToken } = req.body;
       const { wallet } = req.user;
       const tx = await getOwnedPendingGcsTx(txHash, wallet, 'open');
-      if (ARWEAVE_UPLOAD_DISABLED) {
-        const { contentBucketPath, fileSHA256 } = await finalizeOpenUploadToGcs(
-          txHash,
-          tx,
-          { ipfsHash },
-        );
-        sendValidatedJSON(res, ArweaveGcsArweaveResponseSchema, {
-          id: txHash,
-          link: `https://${FILES_HOSTNAME}/${txHash}`,
-        });
-        publisher.publish(PUBSUB_TOPIC_MISC, req, {
-          logType: 'arweaveGcsArweaveUploadV2',
-          wallet,
-          txHash,
-          ipfsHash,
-          fileSize: tx.fileSize,
-          contentBucketPath,
-          fileSHA256,
-        });
-        return;
-      }
       const {
         arweaveId, contentBucketPath, fileSHA256, isSponsored,
-      } = await uploadStagedObjectToArweave(txHash, tx, {
-        wallet, ipfsHash, paymentTxHash, txToken,
-      });
+      } = ARWEAVE_UPLOAD_DISABLED
+        ? {
+          arweaveId: undefined,
+          isSponsored: undefined,
+          ...await finalizeOpenUploadToGcs(txHash, tx, { ipfsHash }),
+        }
+        : await uploadStagedObjectToArweave(txHash, tx, {
+          wallet, ipfsHash, paymentTxHash, txToken,
+        });
       sendValidatedJSON(res, ArweaveGcsArweaveResponseSchema, {
         id: txHash,
         arweaveId,
-        link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        link: arweaveId ? `${ARWEAVE_GATEWAY}/${arweaveId}` : `https://${FILES_HOSTNAME}/${txHash}`,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveGcsArweaveUploadV2',
