@@ -639,6 +639,7 @@ export function filterNFTBookListingInfo(
     isPublicDomain,
     hasAIGeneratedContent,
     restrictedTerritories,
+    restrictedTerritoriesSetBy,
     isApprovedForSale,
     isApprovedForIndexing,
     isApprovedForAds,
@@ -731,6 +732,7 @@ export function filterNFTBookListingInfo(
     payload.moderatorWallets = moderatorWallets;
     payload.connectedWallets = connectedWallets;
     payload.approvalStatus = approvalStatus || 'approved';
+    payload.restrictedTerritoriesSetBy = restrictedTerritoriesSetBy;
   }
   return payload;
 }
