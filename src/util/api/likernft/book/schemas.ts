@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAddress, isHash } from 'viem';
 import {
   FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   MIN_BOOK_PRICE_DECIMAL,
@@ -397,6 +398,15 @@ export const ClassIdResponseSchema = z.object({
 });
 
 export const NewListingResponseSchema = ClassIdResponseSchema;
+
+export const OwnershipTransferBodySchema = z.object({
+  newOwnerWallet: z.string().refine((v) => isAddress(v), { message: 'invalid EVM address' }),
+  txHash: z.string().refine((v) => isHash(v), { message: 'invalid tx hash' }).optional(),
+});
+
+export const OwnershipTransferResponseSchema = ClassIdResponseSchema.extend({
+  ownerWallet: z.string(),
+});
 export const ListingSettingsResponseSchema = ClassIdResponseSchema;
 
 export const StripeCheckoutResponseSchema = z.object({

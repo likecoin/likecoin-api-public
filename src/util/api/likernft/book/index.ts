@@ -5,6 +5,7 @@ import { ValidationError } from '../../../ValidationError';
 import {
   FieldValue,
   Timestamp,
+  db,
   likeNFTBookCollection,
 } from '../../../firebase';
 import { LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES } from '../../../../../config/config';
@@ -726,6 +727,11 @@ export async function updateNftBookInfo(classId: string, {
   image?: string;
   promotionalImages?: string[];
   maxQuantityPerOrder?: number;
+} = {}, {
+  expectedOwnerWallet,
+}: {
+  // Rejects the write if the listing changed owner after the caller authorized against this wallet.
+  expectedOwnerWallet?: string;
 } = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -778,7 +784,18 @@ export async function updateNftBookInfo(classId: string, {
     .forEach(([key, value]) => {
       if (value !== undefined) payload[key] = value ?? FieldValue.delete();
     });
-  await likeNFTBookCollection.doc(classId).update(payload);
+  const bookRef = likeNFTBookCollection.doc(classId);
+  if (expectedOwnerWallet === undefined) {
+    await bookRef.update(payload);
+  } else {
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(bookRef);
+      if (doc.data()?.ownerWallet !== expectedOwnerWallet) {
+        throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+      }
+      t.update(bookRef, payload);
+    });
+  }
   await syncNFTBookInfoWithISCN(classId);
   // The sync above skips non-NFT products, so their Stripe products follow the listing here.
   if ([name, description, thumbnailUrl, image].some((v) => v !== undefined)) {
