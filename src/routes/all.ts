@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import arweave from './arweave';
 import email from './email';
+import files from './files';
 import likerland from './likerland';
 import likernft from './likernft';
 import misc from './misc';
@@ -13,6 +14,7 @@ const router = Router();
 
 router.use('/arweave', arweave);
 router.use('/email', email);
+router.use('/files', files);
 router.use('/likerland', likerland);
 router.use('/likernft', likernft);
 router.use('/misc', misc);
