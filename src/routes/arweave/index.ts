@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { pipeline } from 'stream';
 import uuidv4 from 'uuid/v4';
 import {
   ARWEAVE_MAX_SIZE_V2,
@@ -32,8 +31,9 @@ import {
   promoteStagedObject,
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
+import { serveTierFile, toContentError } from '../../util/api/arweave/serve';
 import { finalizeOpenUploadToGcs, uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
-import { getTierContentUri, getTierFileStream, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
+import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -51,17 +51,10 @@ import {
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { arweaveAdminAuth } from '../../middleware/arweave-admin-auth';
 import { validateBody, validateParams } from '../../middleware/validate';
-import { isNotFoundError } from '../../util/misc';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
-
-// A read that fails after the metadata probe — a deleted generation, revoked
-// access — must answer 404 like the pre-flight checks, not 500.
-function toContentError(error: unknown): unknown {
-  return isNotFoundError(error) ? new ValidationError('CONTENT_OBJECT_NOT_FOUND', 404) : error;
-}
 
 function getArweaveLinkV2Url(txHash: string): string {
   return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
@@ -342,29 +335,11 @@ router.get(
       // Ingest decrypts on the way in, so the bucket copy is plaintext even for a
       // legacy doc that still carries an encryptedKey — no key is read here.
       if (!tx.contentBucketPath) throw new ValidationError('NO_INGESTED_COPY', 404);
-      const { stream, contentType, size } = await getTierFileStream(tier, tx.contentBucketPath);
-      // Answer from the source's own error, not pipeline's callback: pipeline
-      // destroys `res` before calling back, so a status written there is composed
-      // into a dead socket and the caller only ever sees a connection reset.
-      // req.destroyed filters the reader who cancelled before the first byte, which
-      // reaches both handlers as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
-      stream.once('error', (err) => {
-        if (!res.headersSent && !req.destroyed) next(toContentError(err));
-      });
       // jwtOptionalAuth already set no-store, so the bytes stop at the browser.
-      res.set('Content-Type', tx.contentType || contentType || 'application/octet-stream');
-      if (size !== undefined) res.set('Content-Length', String(size));
-      // Express routes HEAD here too, and res.write() silently discards a HEAD body
-      // while still draining the source — a whole-object read of GCS egress per call.
-      if (req.method === 'HEAD') {
-        stream.destroy();
-        res.end();
-        return;
-      }
-      // pipeline, not pipe: pipe only unpipes on a client abort, leaving the GCS
-      // read open.
-      pipeline(stream, res, (err) => {
-        if (err && !res.headersSent && !req.destroyed) next(toContentError(err));
+      await serveTierFile(req, res, next, {
+        tier,
+        objectPath: tx.contentBucketPath,
+        contentType: tx.contentType,
       });
     } catch (error) {
       next(toContentError(error));
