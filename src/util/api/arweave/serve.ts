@@ -28,14 +28,19 @@ export async function serveTierFile(
   const {
     stream, contentType: bucketContentType, size,
   } = await getTierFileStream(tier, objectPath);
+  // Caller headers are already set when the stream fails, and errorHandler keeps
+  // them, so a public route's immutable Cache-Control would cache the error.
+  const forwardUnsent = (err: unknown) => {
+    if (res.headersSent || req.destroyed) return;
+    res.set('Cache-Control', 'no-store');
+    next(toContentError(err));
+  };
   // Answer from the source's own error, not pipeline's callback: pipeline
   // destroys `res` before calling back, so a status written there is composed
   // into a dead socket and the caller only ever sees a connection reset.
   // req.destroyed filters the reader who cancelled before the first byte, which
   // reaches both handlers as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
-  stream.once('error', (err) => {
-    if (!res.headersSent && !req.destroyed) next(toContentError(err));
-  });
+  stream.once('error', forwardUnsent);
   res.set('Content-Type', contentType || bucketContentType || 'application/octet-stream');
   if (size !== undefined) res.set('Content-Length', String(size));
   if (headers) res.set(headers);
@@ -49,6 +54,6 @@ export async function serveTierFile(
   // pipeline, not pipe: pipe only unpipes on a client abort, leaving the GCS
   // read open.
   pipeline(stream, res, (err) => {
-    if (err && !res.headersSent && !req.destroyed) next(toContentError(err));
+    if (err) forwardUnsent(err);
   });
 }
