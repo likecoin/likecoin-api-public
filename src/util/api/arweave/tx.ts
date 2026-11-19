@@ -74,7 +74,7 @@ export async function getArweaveTxInfo(txHash: string): Promise<ArweaveTxData | 
 
 // Consume a Base payment exactly once.
 //
-// GCS-direct docs are keyed on gcs-<uuid>, so the doc id carries no uniqueness
+// GCS-direct docs are keyed on a bare uuid, so the doc id carries no uniqueness
 // against the payment, and checkArweaveTxV2 is pure read-only verification that
 // happily passes the same hash twice — without this claim a caller could stage a
 // file N times and settle all N against one payment.

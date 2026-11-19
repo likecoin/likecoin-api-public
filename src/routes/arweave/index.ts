@@ -6,9 +6,12 @@ import {
   estimateUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
+import {
+  API_HOSTNAME, ARWEAVE_GATEWAY, FILES_HOSTNAME, PUBSUB_TOPIC_MISC,
+} from '../../constant';
 import {
   ARWEAVE_EVM_TARGET_ADDRESS,
+  ARWEAVE_UPLOAD_DISABLED,
 } from '../../../config/config';
 import {
   createNewGcsUploadTx,
@@ -29,7 +32,7 @@ import {
   promoteStagedObject,
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
-import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
+import { finalizeOpenUploadToGcs, uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
 import { getTierContentUri, getTierFileStream, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
@@ -72,7 +75,9 @@ router.post(
     try {
       const { fileSize, ipfsHash } = req.body;
       const [{ arweaveId, ETH }, quota] = await Promise.all([
-        estimateUploadToArweaveV2(fileSize, ipfsHash),
+        ARWEAVE_UPLOAD_DISABLED
+          ? Promise.resolve({ arweaveId: undefined, ETH: '0' })
+          : estimateUploadToArweaveV2(fileSize, ipfsHash),
         req.user?.wallet ? getRemainingQuota(req.user.wallet) : Promise.resolve(null),
       ]);
 
@@ -125,7 +130,7 @@ router.post(
       if (!isEbookTierBucketEnabled(tier)) throw new ValidationError(`${tier.toUpperCase()}_BUCKET_NOT_CONFIGURED`, 501);
       if (fileSize > ARWEAVE_MAX_SIZE_V2) throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
       const { wallet } = req.user;
-      const id = `gcs-${uuidv4()}`;
+      const id = uuidv4();
       // Both tiers: staging costs the caller nothing up front, so the quota is all
       // that stands between write:iscn and unbounded free storage. The open tier
       // releases this once /v2/gcs/arweave settles the real charge; an abandoned
@@ -206,6 +211,27 @@ router.post(
       const { ipfsHash, paymentTxHash, txToken } = req.body;
       const { wallet } = req.user;
       const tx = await getOwnedPendingGcsTx(txHash, wallet, 'open');
+      if (ARWEAVE_UPLOAD_DISABLED) {
+        const { contentBucketPath, fileSHA256 } = await finalizeOpenUploadToGcs(
+          txHash,
+          tx,
+          { ipfsHash },
+        );
+        sendValidatedJSON(res, ArweaveGcsArweaveResponseSchema, {
+          id: txHash,
+          link: `https://${FILES_HOSTNAME}/${txHash}`,
+        });
+        publisher.publish(PUBSUB_TOPIC_MISC, req, {
+          logType: 'arweaveGcsArweaveUploadV2',
+          wallet,
+          txHash,
+          ipfsHash,
+          fileSize: tx.fileSize,
+          contentBucketPath,
+          fileSHA256,
+        });
+        return;
+      }
       const {
         arweaveId, contentBucketPath, fileSHA256, isSponsored,
       } = await uploadStagedObjectToArweave(txHash, tx, {

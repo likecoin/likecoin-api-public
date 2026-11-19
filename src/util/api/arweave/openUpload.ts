@@ -11,6 +11,7 @@ import {
   getStagedHashingReadStream,
   getStagedReadStream,
   promoteStagedObject,
+  verifyStagedObject,
   verifyStagedObjectSize,
 } from './ingest';
 import { claimArweaveTxPayment, markGcsTxCompleted } from './tx';
@@ -166,6 +167,32 @@ export async function uploadStagedObjectToArweave(txHash: string, tx: ArweaveTxD
     .finally(() => deleteStagedObject(txHash, 'open'));
 
   return { ...uploaded, fileSHA256: computedSHA256, isSponsored };
+}
+
+/**
+ * Finish an open-tier upload without Arweave (ARWEAVE_UPLOAD_DISABLED): verify,
+ * promote under the txHash, mark complete. No payment or IPFS push, and the quota
+ * upload_init reserved stays, so the limits match today's sponsored uploads.
+ */
+export async function finalizeOpenUploadToGcs(txHash: string, tx: ArweaveTxData, {
+  ipfsHash,
+}: {
+  ipfsHash?: string;
+}): Promise<{ contentBucketPath: string; fileSHA256: string }> {
+  const { computedSHA256, generation } = await verifyStagedObject(txHash, 'open', {
+    fileSize: tx.fileSize,
+    fileSHA256: tx.fileSHA256,
+  });
+  const contentBucketPath = await promoteStagedObject(txHash, 'open', {
+    contentType: tx.contentType || 'application/octet-stream',
+    fileSHA256: computedSHA256,
+    ipfsHash,
+    generation,
+  });
+  await markGcsTxCompleted(txHash, { contentBucketPath, isRequireAuth: false });
+  // Self-swallowing, so it stays off the response path.
+  deleteStagedObject(txHash, 'open');
+  return { contentBucketPath, fileSHA256: computedSHA256 };
 }
 
 export default uploadStagedObjectToArweave;

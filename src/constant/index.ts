@@ -25,6 +25,7 @@ export const NFT_BOOKSTORE_HOSTNAME = IS_TESTNET ? 'publish.sepolia.3ook.com' : 
 
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;
 
+export const FILES_HOSTNAME = IS_TESTNET ? 'files-testnet.3ook.com' : 'files.3ook.com';
 export const BOOK3_HOSTNAME = IS_TESTNET ? 'sepolia.3ook.com' : '3ook.com';
 export const BOOK3_CART_PAGES = ['list', 'checkout'];
 
