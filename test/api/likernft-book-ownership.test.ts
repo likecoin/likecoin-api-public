@@ -8,6 +8,7 @@ import { jwtSign } from './jwt';
 import { likeNFTBookCollection, likeNFTBookUserCollection } from '../../src/util/firebase';
 import { getNFTClassOwner } from '../../src/util/evm/nft';
 import { updateAirtablePublicationRecord } from '../../src/util/airtable';
+import { validateConnectedWallets } from '../../src/util/api/likernft/book/user';
 
 vi.mock('../../src/util/evm/nft', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/util/evm/nft')>()),
@@ -18,8 +19,14 @@ vi.mock('../../src/util/airtable', async (importOriginal) => ({
   updateAirtablePublicationRecord: vi.fn(),
 }));
 
+vi.mock('../../src/util/api/likernft/book/user', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/util/api/likernft/book/user')>();
+  return { ...actual, validateConnectedWallets: vi.fn(actual.validateConnectedWallets) };
+});
+
 const mockGetNFTClassOwner = vi.mocked(getNFTClassOwner);
 const mockUpdateAirtable = vi.mocked(updateAirtablePublicationRecord);
+const mockValidateConnectedWallets = vi.mocked(validateConnectedWallets);
 
 const BASE_URL = '/api/likernft/book/store';
 const OWNER = mockEVMAddress(0x91);
@@ -158,5 +165,36 @@ describe('POST /likernft/book/store/:classId/ownership', () => {
     const res = await postOwnership(classId, { newOwnerWallet: NEW_OWNER });
     expect(res.status).toBe(400);
     expect(res.data).toContain('OWNERSHIP_TRANSFER_NOT_SUPPORTED');
+  });
+});
+
+describe('POST /likernft/book/store/:classId/settings during an ownership transfer', () => {
+  it('rejects a split authorized for the old owner once the transfer has landed', async () => {
+    const classId = mockEVMAddress(0xb1);
+    await seedListing(classId, { connectedWallets: { [OWNER]: 70, [AUTHOR]: 30 } });
+    await Promise.all([OWNER, AUTHOR, NEW_OWNER].map((wallet) => likeNFTBookUserCollection
+      .doc(getAddress(wallet))
+      .set({ isStripeConnectReady: true } as any)));
+    mockGetNFTClassOwner.mockResolvedValue(getAddress(NEW_OWNER));
+    // The transfer commits while settings awaits payout validation,
+    // after it has already authorized the old owner.
+    mockValidateConnectedWallets.mockImplementationOnce(async () => {
+      expect((await postOwnership(classId, { newOwnerWallet: NEW_OWNER })).status).toBe(200);
+      return true;
+    });
+
+    const res = await axiosist
+      .post(`${BASE_URL}/${classId}/settings`, { connectedWallets: { [OWNER]: 100 } }, {
+        headers: {
+          Authorization: `Bearer ${jwtSign({ wallet: OWNER, permissions: ['read:nftbook', 'write:nftbook'] })}`,
+        },
+      })
+      .catch((err) => (err as any).response);
+    expect(res.status).toBe(403);
+    expect(res.data).toContain('NOT_OWNER_OF_NFT_CLASS');
+
+    const stored = await getStored(classId);
+    expect(stored?.ownerWallet).toBe(getAddress(NEW_OWNER));
+    expect(stored?.connectedWallets).toEqual({ [AUTHOR]: 30, [getAddress(NEW_OWNER)]: 70 });
   });
 });

@@ -1233,7 +1233,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       descriptionByLocale,
       descriptionFullByLocale,
       ...merchFields,
-    });
+    }, { expectedOwnerWallet: ownerWallet });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTListingUpdate',
