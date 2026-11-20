@@ -133,4 +133,9 @@ describe('GET /list/moderated', () => {
       .catch((err) => (err as any).response);
     expect(res.status).toBe(400);
   });
+
+  it('rejects an out-of-range key with 400', async () => {
+    const res = await getModerated(GLOBAL_MODERATOR, `&key=${253402300799999 + 1}`);
+    expect(res.status).toBe(400);
+  });
 });
