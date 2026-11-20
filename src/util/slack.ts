@@ -67,16 +67,23 @@ async function postSlackBotMessage({ channel, text, threadTs }: {
   text: string;
   threadTs?: string;
 }): Promise<string> {
-  const { data } = await axios.post('https://slack.com/api/chat.postMessage', {
-    channel,
-    text,
-    thread_ts: threadTs,
-    unfurl_links: false,
-    unfurl_media: false,
-  }, {
-    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
-    timeout: 2500,
-  });
+  let data;
+  try {
+    ({ data } = await axios.post('https://slack.com/api/chat.postMessage', {
+      channel,
+      text,
+      thread_ts: threadTs,
+      unfurl_links: false,
+      unfurl_media: false,
+    }, {
+      headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
+      timeout: 2500,
+    }));
+  } catch (err) {
+    // Axios errors carry the request config, so rethrow without the token header
+    const { code, response } = err as { code?: string; response?: { status?: number } };
+    throw new Error(`Slack chat.postMessage request failed: ${response?.status || code || 'unknown'}`);
+  }
   if (!data?.ok) throw new Error(`Slack chat.postMessage failed: ${data?.error}`);
   return data.ts;
 }

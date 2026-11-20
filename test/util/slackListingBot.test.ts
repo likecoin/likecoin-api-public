@@ -113,6 +113,20 @@ describe('listing notifications via Slack bot', () => {
     expect(postMock).toHaveBeenCalledTimes(1);
   });
 
+  it('logs transport failures without the bot token', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    postMock.mockRejectedValue(Object.assign(new Error('timeout'), {
+      code: 'ECONNABORTED',
+      config: { headers: { Authorization: 'Bearer xoxb-test' } },
+    }));
+    await sendNFTBookNewListingSlackNotification({ ...baseParams });
+    const logged = consoleError.mock.calls.flat();
+    expect(logged).toHaveLength(1);
+    expect(JSON.stringify(logged, Object.getOwnPropertyNames(logged[0]))).not.toContain('xoxb-test');
+    expect(String(logged[0])).toContain('ECONNABORTED');
+    consoleError.mockRestore();
+  });
+
   it('posts approval updates through the bot', async () => {
     await sendNFTBookApprovalUpdateSlackNotification({
       classId: '0xclass',
