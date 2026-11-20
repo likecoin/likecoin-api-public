@@ -136,8 +136,10 @@ function stagedObjectPath(txHash: string): string {
 // [A-Za-z0-9_-]. The length bound is what separates a real id from a path
 // fragment using the same alphabet, and the id becomes an object name.
 // Mirrors ebook-cors nft/open.js, which derives the same path on the read side.
+export const ARWEAVE_ID_REGEX = /^[A-Za-z0-9_-]{43}$/;
+
 export function assertValidArweaveId(arweaveId?: string): string {
-  if (!arweaveId || !/^[A-Za-z0-9_-]{43}$/.test(arweaveId)) throw new ValidationError('INVALID_ARWEAVE_ID');
+  if (!arweaveId || !ARWEAVE_ID_REGEX.test(arweaveId)) throw new ValidationError('INVALID_ARWEAVE_ID');
   return arweaveId;
 }
 
