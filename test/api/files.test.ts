@@ -16,12 +16,18 @@ const PROTECTED_ID = 'files-protected-ebook';
 const PENDING_ID = 'files-pending-cover';
 const NO_TIER_ID = 'files-no-tier';
 const PROTECTED_PUBLIC_ID = 'files-protected-tier-public-flag';
+const ARWEAVE_ID = 'A'.repeat(43);
+const GONE_ARWEAVE_ID = 'B'.repeat(43);
+const PROTECTED_ARWEAVE_ID = 'C'.repeat(43);
+const PENDING_ARWEAVE_ID = 'D'.repeat(43);
+const UUID_ID = '123e4567-e89b-42d3-a456-426614174000';
 const PLAINTEXT = Buffer.from('fake-jpeg-bytes');
 
 const reads: string[] = [];
 let bytesPulled = 0;
 let readError: { code: number } | null = null;
 let streamError: { code: number } | null = null;
+let missingObjects: string[] = [];
 
 // Per-file for the same reason as arweave-content.test.ts: a global stub would
 // make the protected bucket look configured to unrelated suites.
@@ -33,6 +39,7 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
     getTierFileStream: async (tier: string, objectPath: string) => {
       reads.push(`${tier}:${objectPath}`);
       if (readError) throw readError;
+      if (missingObjects.includes(objectPath)) throw Object.assign(new Error('No such object'), { code: 404 });
       // Pulled lazily so a HEAD that never reads the body leaves the count at zero.
       return {
         stream: streamError
@@ -41,7 +48,7 @@ vi.mock('../../src/util/gcloudStorage', async (importOriginal) => {
             bytesPulled += PLAINTEXT.length;
             yield PLAINTEXT;
           }())),
-        contentType: 'application/octet-stream',
+        contentType: objectPath === ARWEAVE_ID ? 'image/png' : 'application/octet-stream',
         size: PLAINTEXT.length,
       };
     },
@@ -58,6 +65,19 @@ describe('Public files API', () => {
     bytesPulled = 0;
     readError = null;
     streamError = null;
+    missingObjects = [GONE_ARWEAVE_ID];
+    await iscnArweaveTxCollection.doc(PROTECTED_ARWEAVE_ID).set({
+      tier: 'protected',
+      status: 'complete',
+      isRequireAuth: true,
+      contentBucketPath: PROTECTED_ARWEAVE_ID,
+    });
+    await iscnArweaveTxCollection.doc(PENDING_ARWEAVE_ID).set({
+      tier: 'open',
+      status: 'pending',
+      isRequireAuth: false,
+      contentBucketPath: PENDING_ARWEAVE_ID,
+    });
     await iscnArweaveTxCollection.doc(OPEN_ID).set({
       tier: 'open',
       status: 'complete',
@@ -144,6 +164,47 @@ describe('Public files API', () => {
 
     expect(res.status).toBe(404);
     expect(String(res.headers['cache-control'])).not.toContain('immutable');
+  });
+
+  it('serves the open-bucket object named by an Arweave id that has no record', async () => {
+    const res = await getFile(ARWEAVE_ID, { headers: { Origin: 'https://publish.3ook.com' } });
+
+    expect(res.status).toBe(200);
+    expect(Buffer.from(res.data)).toEqual(PLAINTEXT);
+    expect(reads).toEqual([`open:${ARWEAVE_ID}`]);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(res.headers['access-control-allow-origin']).toBe('*');
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('answers 404 without a cacheable header for an Arweave id with no record and no object', async () => {
+    const res = await getFile(GONE_ARWEAVE_ID);
+
+    expect(res.status).toBe(404);
+    expect(String(res.headers['cache-control'])).not.toContain('immutable');
+  });
+
+  it('never reads the bucket for a record-less id that is not Arweave-shaped', async () => {
+    expect((await getFile(UUID_ID)).status).toBe(404);
+    expect((await getFile(`gcs-${UUID_ID}`)).status).toBe(404);
+    expect((await getFile('A'.repeat(42))).status).toBe(404);
+    expect((await getFile('A'.repeat(44))).status).toBe(404);
+    expect(reads).toEqual([]);
+  });
+
+  it('does not fall back when a record exists but is protected or pending', async () => {
+    expect((await getFile(PROTECTED_ARWEAVE_ID)).status).toBe(404);
+    expect((await getFile(PENDING_ARWEAVE_ID)).status).toBe(404);
+    expect(reads).toEqual([]);
+  });
+
+  it('HEAD on an Arweave id fallback does not read the body', async () => {
+    const res = await getFile(ARWEAVE_ID, { method: 'head' });
+
+    expect(res.status).toBe(200);
+    expect(bytesPulled).toBe(0);
   });
 
   it('HEAD returns headers without reading the object body', async () => {

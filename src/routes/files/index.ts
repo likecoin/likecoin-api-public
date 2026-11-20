@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { getArweaveTxInfo } from '../../util/api/arweave/tx';
 import { serveTierFile, toContentError } from '../../util/api/arweave/serve';
+import { ARWEAVE_ID_REGEX } from '../../util/api/arweave/ingest';
 import { isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import { ValidationError } from '../../util/ValidationError';
 
@@ -24,13 +25,19 @@ router.get(
       // The tier must be stated: a missing one defaults to protected elsewhere,
       // and a protected object must never get a public immutable cache header.
       const tier = 'open';
+      if (!isEbookTierBucketEnabled(tier)) throw new ValidationError('FILE_NOT_FOUND', 404);
+      // Only a missing record falls back to the object named by the id, which is
+      // how files from the retired Arweave bundler are still reachable.
+      const isArweaveFallback = !tx && ARWEAVE_ID_REGEX.test(id);
       if (
-        !tx
-        || tx.status !== 'complete'
-        || tx.isRequireAuth !== false
-        || tx.tier !== tier
-        || !tx.contentBucketPath
-        || !isEbookTierBucketEnabled(tier)
+        !isArweaveFallback
+        && (
+          !tx
+          || tx.status !== 'complete'
+          || tx.isRequireAuth !== false
+          || tx.tier !== tier
+          || !tx.contentBucketPath
+        )
       ) {
         throw new ValidationError('FILE_NOT_FOUND', 404);
       }
@@ -39,8 +46,8 @@ router.get(
       res.removeHeader('Access-Control-Allow-Credentials');
       await serveTierFile(req, res, next, {
         tier,
-        objectPath: tx.contentBucketPath,
-        contentType: tx.contentType,
+        objectPath: tx?.contentBucketPath || id,
+        contentType: tx?.contentType,
         headers: {
           'Cache-Control': 'public, max-age=31536000, immutable',
           'Access-Control-Allow-Origin': '*',
