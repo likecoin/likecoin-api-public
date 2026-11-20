@@ -14,12 +14,14 @@ import {
 } from '../constant';
 import {
   NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS,
+  NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID,
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK,
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
+  SLACK_BOT_TOKEN,
 } from '../../config/config';
 import { Timestamp } from './firebase';
 import { isNFTBookPriceTippingEnabled } from './ValidationHelper';
@@ -54,6 +56,35 @@ export function escapeSlackText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Workflow variables render `<@U…>` as plain text, so listing notifications
+// that mention reviewers go through a bot when one is configured.
+const IS_LISTING_BOT_ENABLED = !!(SLACK_BOT_TOKEN && NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID);
+
+// chat.postMessage answers HTTP 200 even on failure, so check `ok` and throw.
+// Callers await this before replying to slash commands, which Slack cuts off at 3s.
+async function postSlackBotMessage({ channel, text, threadTs }: {
+  channel: string;
+  text: string;
+  threadTs?: string;
+}): Promise<string> {
+  const { data } = await axios.post('https://slack.com/api/chat.postMessage', {
+    channel,
+    text,
+    thread_ts: threadTs,
+    unfurl_links: false,
+    unfurl_media: false,
+  }, {
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
+    timeout: 2500,
+  });
+  if (!data?.ok) throw new Error(`Slack chat.postMessage failed: ${data?.error}`);
+  return data.ts;
+}
+
+function getListingBotHeadline(statusText: string, className: string, classLink: string): string {
+  return `${statusText}《${escapeSlackText(className)}》on <${classLink}|${BOOK3_HOSTNAME}>`;
+}
+
 export async function sendNFTBookNewListingSlackNotification({
   wallet,
   classId,
@@ -80,7 +111,7 @@ export async function sendNFTBookNewListingSlackNotification({
   contentFingerprints?: string[];
   aiReview?: BookComplianceReviewOutcome;
 }) {
-  if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
+  if (!IS_LISTING_BOT_ENABLED && !NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
     const classLink = getBook3NFTClassPageURL({ classId });
     const editions = prices.map(
@@ -108,21 +139,22 @@ export async function sendNFTBookNewListingSlackNotification({
     }
 
     // Held/pinged listings repurpose the approvalStatus line as the review
-    // request: that workflow variable already renders, while the aiReview key
-    // stays invisible until it is declared in the Slack workflow.
+    // request, since the webhook's aiReview key stays invisible until it is
+    // declared in the Slack workflow.
     let approvalStatusText = isAutoApproved
       ? '✅ Auto-approved (Trusted Publisher)'
       : '✅ Published';
-    // Deployed config.js replaces this file wholesale, so the key may be absent
-    const mentions = (NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS || [])
-      .map((id) => `<@${id}> `).join('');
-    if (completedVerdict?.action === 'stop_sale_review') {
-      approvalStatusText = `${mentions}🚫 Held for review by AI screen — release with`
-        + ` \`/book approve ${classId} <approve_with_ads|approve_no_ads|approve_hidden|reject>\``;
-    } else if (completedVerdict && isPingedByAiReview) {
+    const isHeld = completedVerdict?.action === 'stop_sale_review';
+    const needsReviewer = isHeld || isPingedByAiReview;
+    if (isHeld) {
+      // No `<a|b>` placeholder: bot mrkdwn would parse it as a link
+      approvalStatusText = '🚫 Held for review by AI screen — release with'
+        + ` \`/book approve ${classId} approve_with_ads|approve_no_ads|approve_hidden|reject\``;
+    } else if (needsReviewer) {
       // The reason stays in the aiReview field; the channel line only flags the book
-      approvalStatusText = `${mentions}👀 Published, but the AI screen requests human review`;
+      approvalStatusText = '👀 Published, but the AI screen requests human review';
     }
+    const adultOnlyText = isAdultOnly ? '🔞 Adult Content (18+)' : '';
 
     const filesText = (fileRecords || []).map((f) => {
       const label = [f.name, f.contentType, f.isEncrypted ? 'encrypted' : ''].filter(Boolean).join(', ');
@@ -130,6 +162,35 @@ export async function sendNFTBookNewListingSlackNotification({
     }).join('\n\n') || 'N/A';
 
     const fingerprintsText = (contentFingerprints || []).join('\n') || 'N/A';
+
+    if (IS_LISTING_BOT_ENABLED) {
+      // Deployed config.js replaces this file wholesale, so the key may be absent
+      const mentions = needsReviewer
+        ? (NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS || []).map((id) => `<@${id}> `).join('')
+        : '';
+      const threadTs = await postSlackBotMessage({
+        channel: NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID,
+        text: getListingBotHeadline(`${mentions}${approvalStatusText}`, className, classLink),
+      });
+      const details = [
+        adultOnlyText,
+        `*Editions:*\n${escapeSlackText(editions) || 'N/A'}`,
+        `*Files:*\n${escapeSlackText(filesText)}`,
+        `*Fingerprints:*\n${escapeSlackText(fingerprintsText)}`,
+        `*AI Review:*\n${aiReviewText}`,
+        `*Owner:* <https://${BOOK3_HOSTNAME}/shelf/${wallet}|${wallet}>`,
+      ].filter(Boolean).join('\n\n');
+      // Listing requests wait on this call, so the detail reply is not awaited
+      postSlackBotMessage({
+        channel: NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID,
+        text: details,
+        threadTs,
+      }).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      });
+      return;
+    }
 
     const payload: any = {
       network: IS_TESTNET ? 'testnet' : 'mainnet',
@@ -139,7 +200,7 @@ export async function sendNFTBookNewListingSlackNotification({
       editions,
       classId,
       approvalStatus: approvalStatusText,
-      ...(isAdultOnly ? { adultOnly: '🔞 Adult Content (18+)' } : {}),
+      ...(adultOnlyText ? { adultOnly: adultOnlyText } : {}),
       files: filesText,
       fingerprints: fingerprintsText,
       aiReview: aiReviewText,
@@ -163,7 +224,7 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
   action: string;
   restrictedTerritories?: string[];
 }) {
-  if (!NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
+  if (!IS_LISTING_BOT_ENABLED && !NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK) return;
   try {
     const classLink = getBook3NFTClassPageURL({ classId });
 
@@ -192,6 +253,14 @@ export async function sendNFTBookApprovalUpdateSlackNotification({
         break;
       default:
         actionText = action;
+    }
+
+    if (IS_LISTING_BOT_ENABLED) {
+      await postSlackBotMessage({
+        channel: NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID,
+        text: getListingBotHeadline(actionText, className, classLink),
+      });
+      return;
     }
 
     await axios.post(NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK, {
