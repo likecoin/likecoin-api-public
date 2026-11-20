@@ -198,3 +198,25 @@ describe('non-book merch in the listings', () => {
     expect(ids).not.toContain(ID_MERCH);
   });
 });
+
+describe('timestamp cursor bounds', () => {
+  const PATHS = ['/list', '/list/free', '/list/drm-free'];
+  const OUT_OF_RANGE = [
+    // 9.58e47 ms, the value an automated probe sent on 2026-11-20 that once threw a 500.
+    '958299333740141500000000000000000000000000000000',
+    String(253402300799999 + 1),
+    String(-62135596800000 - 1),
+  ];
+  const CASES = PATHS.flatMap((path) => ['before', 'key']
+    .flatMap((param) => OUT_OF_RANGE.map((value) => [path, param, value])));
+
+  it.each(CASES)('rejects %s?%s=%s with 400', async (path, param, value) => {
+    const res = await get(`${BASE_URL}${path}?${param}=${value}`);
+    expect(res.status).toBe(400);
+  });
+
+  it.each(PATHS)('accepts an in-range cursor on %s', async (path) => {
+    const res = await get(`${BASE_URL}${path}?before=${Date.now()}`);
+    expect(res.status).toBe(200);
+  });
+});
