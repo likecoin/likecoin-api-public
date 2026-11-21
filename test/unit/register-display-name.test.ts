@@ -6,6 +6,7 @@ import { handleUserRegistration } from '../../src/util/api/users/register';
 import { userCollection } from '../../src/util/firebase';
 import {
   DISPLAY_NAME_PLACES_HK,
+  DISPLAY_NAME_PLACES_TW,
   DISPLAY_NAME_PLACES_EN,
 } from '../../src/constant/displayName';
 
@@ -24,8 +25,12 @@ function makeRegistration(user: string, extra: Record<string, unknown> = {}) {
   };
 }
 
+async function storedUser(user: string) {
+  return (await userCollection.doc(user).get()).data();
+}
+
 async function storedDisplayName(user: string) {
-  return (await userCollection.doc(user).get()).data()?.displayName;
+  return (await storedUser(user))?.displayName;
 }
 
 describe('registration display name', () => {
@@ -55,5 +60,55 @@ describe('registration display name', () => {
     await handleUserRegistration(makeRegistration('wxyzab'));
     const name = await storedDisplayName('wxyzab') as string;
     expect(DISPLAY_NAME_PLACES_EN).toContain(name.slice(0, name.lastIndexOf("'s ")));
+  });
+
+  it('trusts the relayed body country over the relay server\'s own header', async () => {
+    const registration = makeRegistration('hkrelay');
+    registration.req.headers = { 'cf-ipcountry': 'TW' };
+    registration.req.body = { ipCountry: 'hk' };
+    const { userPayload } = await handleUserRegistration(registration);
+    const { displayName, registerRegion } = await storedUser('hkrelay') as any;
+    expect(DISPLAY_NAME_PLACES_HK).toContain(displayName.split('的')[0]);
+    expect(registerRegion).toBe('HK');
+    expect(userPayload.registerRegion).toBe('HK');
+  });
+
+  it('falls back to the header for a direct signup', async () => {
+    const registration = makeRegistration('twdirect');
+    registration.req.headers = { 'cf-ipcountry': 'TW' };
+    await handleUserRegistration(registration);
+    const { displayName, registerRegion } = await storedUser('twdirect') as any;
+    expect(DISPLAY_NAME_PLACES_TW).toContain(displayName.split('的')[0]);
+    expect(registerRegion).toBe('TW');
+  });
+
+  it('records no region and names by locale when the country is unknown', async () => {
+    const { userPayload } = await handleUserRegistration(makeRegistration('noregion', { locale: 'en' }));
+    const { displayName, registerRegion } = await storedUser('noregion') as any;
+    expect(DISPLAY_NAME_PLACES_EN).toContain(displayName.slice(0, displayName.lastIndexOf("'s ")));
+    expect(registerRegion).toBeUndefined();
+    expect(userPayload.registerRegion).toBeUndefined();
+  });
+
+  // An unknown body country must not fall through to the header, which names the relay.
+  it('ignores Cloudflare placeholders without falling back to the header', async () => {
+    const registration = makeRegistration('torsignup', { locale: 'en' });
+    registration.req.headers = { 'cf-ipcountry': 'TW' };
+    registration.req.body = { ipCountry: 'T1' };
+    await handleUserRegistration(registration);
+    const { displayName, registerRegion } = await storedUser('torsignup') as any;
+    expect(DISPLAY_NAME_PLACES_EN).toContain(displayName.slice(0, displayName.lastIndexOf("'s ")));
+    expect(registerRegion).toBeUndefined();
+
+    const direct = makeRegistration('xxsignup', { locale: 'en' });
+    direct.req.headers = { 'cf-ipcountry': 'XX' };
+    await handleUserRegistration(direct);
+    expect((await storedUser('xxsignup') as any).registerRegion).toBeUndefined();
+
+    const blank = makeRegistration('blanksignup', { locale: 'en' });
+    blank.req.headers = { 'cf-ipcountry': 'TW' };
+    blank.req.body = { ipCountry: '' };
+    await handleUserRegistration(blank);
+    expect((await storedUser('blanksignup') as any).registerRegion).toBeUndefined();
   });
 });

@@ -1,9 +1,10 @@
 import { checksumAddress } from 'viem';
-import { ISO_ALPHA2_COUNTRY_CODES, ONE_DAY_IN_MS } from '../../../constant';
+import { ONE_DAY_IN_MS } from '../../../constant';
 import {
   FieldValue, Timestamp, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
+import { parseCountryCode } from '../../misc';
 import { getReadingScoreIncrement } from '../likernft/book/popularity';
 import type { NFTBookListingInfo } from '../../../types/book';
 import type { PlusReadingAccrualData } from '../../../types/user';
@@ -77,18 +78,6 @@ export function getDayStartMs(timestampMs: number): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-/**
- * Reader region for a usage rollup's `byRegion` bucket: an ISO 3166-1 alpha-2 code,
- * uppercased and allowlisted. Cloudflare answers `XX` for an unresolvable IP and `T1` for
- * Tor, and the value becomes a Firestore map key, so anything unrecognised is dropped
- * rather than allowed to open a bucket no ranking would ever read.
- */
-export function parseUsageRegion(ipCountry?: string): string | undefined {
-  const code = ipCountry?.trim().toUpperCase();
-  if (!code || !ISO_ALPHA2_COUNTRY_CODES.has(code)) return undefined;
-  return code;
-}
-
 // How long a dedup receipt is kept. Retries of a dropped forward arrive within
 // seconds; days of margin covers a stuck queue. A Firestore TTL policy on
 // `plusUsageReceipts.expireAt` purges them so they don't grow unbounded.
@@ -147,7 +136,8 @@ export async function recordPlusReadingUsage({
   const dayMs = getDayStartMs(ts);
   const normalizedClassId = classId.toLowerCase();
   const normalizedReaderWallet = checksumAddress(readerWallet as `0x${string}`);
-  const region = parseUsageRegion(ipCountry);
+  // The region becomes a Firestore map key, so an unrecognised code must not open a bucket.
+  const region = parseCountryCode(ipCountry);
 
   const bookDocRef = likeNFTBookCollection.doc(normalizedClassId);
   const bookDoc = await bookDocRef.get();

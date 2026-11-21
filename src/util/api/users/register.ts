@@ -20,7 +20,7 @@ import {
 import { isHandleAvailable } from './handle';
 import { getRandomDisplayName } from './displayName';
 import { ValidationError } from '../../ValidationError';
-import { getIpCountryFromRequest } from '../../misc';
+import { parseCountryCode } from '../../misc';
 import { checkUserNameValid, checkCosmosAddressValid, checkAddressValid } from '../../ValidationHelper';
 import {
   handleAvatarUploadAndGetURL,
@@ -38,6 +38,15 @@ function getBool(value = false) {
     return value !== 'false';
   }
   return value;
+}
+
+// 3ook.com relays signups through its server, which Cloudflare geolocates as TW,
+// so a country in the body is the end user's and outranks the header outright.
+function getRegisterRegion(req): string | undefined {
+  const { ipCountry } = req.body || {};
+  if (typeof ipCountry === 'string') return parseCountryCode(ipCountry);
+  const header = req.headers['cf-ipcountry'];
+  return typeof header === 'string' ? parseCountryCode(header) : undefined;
 }
 
 function getRandomPaddedDigits(length) {
@@ -119,11 +128,12 @@ export async function handleUserRegistration({
   const evmWallet = rawEvmWallet && checksumAddress(rawEvmWallet);
 
   const locale = inputLocale || defaultLocale;
+  const registerRegion = getRegisterRegion(req);
   // The signup handle doubles as the referral code, so it must not become a name.
   // Generated from the locale as sent: `defaultLocale` is 'zh', and defaulting
   // first would name every locale-less caller in Chinese.
   const displayName = inputDisplayName || getRandomDisplayName({
-    ipCountry: getIpCountryFromRequest(req),
+    ipCountry: registerRegion,
     locale: inputLocale,
   });
 
@@ -182,6 +192,7 @@ export async function handleUserRegistration({
     cosmosWallet,
     isEmailEnabled,
     locale,
+    registerRegion,
   };
 
   if (avatarURL) {
@@ -303,6 +314,7 @@ export async function handleUserRegistration({
       avatar: avatarURL,
       referrer: referrer || undefined,
       locale,
+      registerRegion,
       isEmailVerified: createObj.isEmailVerified || false,
       isEmailBlacklisted: createObj.isEmailBlacklisted || undefined,
       isEmailDuplicated: createObj.isEmailDuplicated || undefined,
