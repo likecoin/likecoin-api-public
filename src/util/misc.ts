@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
-import { ARWEAVE_GATEWAY, STATIC_THUMBNAIL_ENDPOINT } from '../constant';
+import { ARWEAVE_GATEWAY, ISO_ALPHA2_COUNTRY_CODES, STATIC_THUMBNAIL_ENDPOINT } from '../constant';
 
 export function sleep(time) {
   return new Promise((resolve) => { setTimeout(resolve, time); });
@@ -83,6 +83,16 @@ export function getIpCountryFromRequest(req: Pick<Request, 'headers' | 'body'>):
   const header = req.headers['cf-ipcountry'];
   const country = (typeof header === 'string' ? header : req.body?.ipCountry) || '';
   return typeof country === 'string' ? country.toUpperCase() || undefined : undefined;
+}
+
+/**
+ * An ISO 3166-1 alpha-2 code, uppercased and allowlisted. Cloudflare answers `XX`
+ * for an unresolvable IP and `T1` for Tor, so anything unrecognised is dropped.
+ */
+export function parseCountryCode(code?: string): string | undefined {
+  const normalized = code?.trim().toUpperCase();
+  if (!normalized || !ISO_ALPHA2_COUNTRY_CODES.has(normalized)) return undefined;
+  return normalized;
 }
 
 export function parseImageURLFromMetadata(image: string): string {
