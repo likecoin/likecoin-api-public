@@ -66,10 +66,11 @@ describe('registration display name', () => {
     const registration = makeRegistration('hkrelay');
     registration.req.headers = { 'cf-ipcountry': 'TW' };
     registration.req.body = { ipCountry: 'hk' };
-    await handleUserRegistration(registration);
+    const { userPayload } = await handleUserRegistration(registration);
     const { displayName, registerRegion } = await storedUser('hkrelay') as any;
     expect(DISPLAY_NAME_PLACES_HK).toContain(displayName.split('的')[0]);
     expect(registerRegion).toBe('HK');
+    expect(userPayload.registerRegion).toBe('HK');
   });
 
   it('falls back to the header for a direct signup', async () => {
@@ -82,10 +83,11 @@ describe('registration display name', () => {
   });
 
   it('records no region and names by locale when the country is unknown', async () => {
-    await handleUserRegistration(makeRegistration('noregion', { locale: 'en' }));
+    const { userPayload } = await handleUserRegistration(makeRegistration('noregion', { locale: 'en' }));
     const { displayName, registerRegion } = await storedUser('noregion') as any;
     expect(DISPLAY_NAME_PLACES_EN).toContain(displayName.slice(0, displayName.lastIndexOf("'s ")));
     expect(registerRegion).toBeUndefined();
+    expect(userPayload.registerRegion).toBeUndefined();
   });
 
   // An unknown body country must not fall through to the header, which names the relay.

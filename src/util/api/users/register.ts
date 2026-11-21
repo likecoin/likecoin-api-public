@@ -314,6 +314,7 @@ export async function handleUserRegistration({
       avatar: avatarURL,
       referrer: referrer || undefined,
       locale,
+      registerRegion,
       isEmailVerified: createObj.isEmailVerified || false,
       isEmailBlacklisted: createObj.isEmailBlacklisted || undefined,
       isEmailDuplicated: createObj.isEmailDuplicated || undefined,
