@@ -53,6 +53,13 @@ describe('createAirtableSubscriptionPaymentRecord', () => {
     await createAirtableSubscriptionPaymentRecord(RECORD);
     const [[{ fields }]] = mockCreate.mock.calls[0];
     expect(fields).not.toHaveProperty('FB Click ID');
+    expect(fields).not.toHaveProperty('HTTP Referrer');
     expect(fields['UTM Source']).toBe('facebook');
+  });
+
+  it('writes referrer to HTTP Referrer', async () => {
+    await createAirtableSubscriptionPaymentRecord({ ...RECORD, referrer: 'https://www.instagram.com/' });
+    const [[{ fields }]] = mockCreate.mock.calls[0];
+    expect(fields['HTTP Referrer']).toBe('https://www.instagram.com/');
   });
 });
