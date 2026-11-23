@@ -46,6 +46,8 @@ describe('usage errors', () => {
     [plusRouter, '/plus_test', 'sync', 'Usage: /plus_test sync '],
     [bookRouter, '/book_test', 'approve', 'Usage: /book_test approve '],
     [bookRouter, '/book_test', 'tipping', 'Usage: /book_test tipping '],
+    [bookRouter, '/book_test', 'info', 'Usage: /book_test info '],
+    [bookRouter, '/book_test', 'metadata', 'Usage: /book_test metadata '],
     [bookRouter, '/book_test', 'foo', 'Use `/book_test help` for usage.'],
     [userRouter, '/user_test', 'unlimited-upload', 'Usage: /user_test unlimited-upload '],
     [indexerRouter, '/indexer_test', 'foo', 'Use `/indexer_test help` for available commands.'],

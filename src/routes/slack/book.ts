@@ -31,7 +31,7 @@ import {
   setBookAdultOnly,
 } from '../../util/api/likernft/book/adultOnly';
 import {
-  BOOK_METADATA_USAGE,
+  getBookMetadataUsage,
   parseBookMetadataQuery,
   setBookManualMetadata,
 } from '../../util/api/likernft/book/manualMetadata';
@@ -256,8 +256,8 @@ router.post(
         text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
       });
     },
-    info: async ({ params, res }) => {
-      const classId = parseBookInfoClassId(params[0]);
+    info: async ({ command, params, res }) => {
+      const classId = parseBookInfoClassId(params[0], command);
       const book = await getBookInfoForAdmin(classId);
 
       res.json({
@@ -314,8 +314,10 @@ router.post(
         text: formatBookTippingSlackText(result),
       });
     },
-    metadata: async ({ params, req, res }) => {
-      const query = parseBookMetadataQuery(params);
+    metadata: async ({
+      command, params, req, res,
+    }) => {
+      const query = parseBookMetadataQuery(params, command);
       const result = await setBookManualMetadata(query);
       if (query.action === 'set') {
         await updateAirtablePublicationRecord({ id: result.classId, [query.field]: query.value });
@@ -351,11 +353,11 @@ Examples:
   \`${command} approve 0x1234...5678  geoblock HK,JP,GB\` - Restrict several countries; replaces the whole list, HK still implies CN
   \`${command} approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)
 
-\`/book info ${BOOK_INFO_USAGE}\` Show one book listing's metadata, status and editions
+\`${command} info ${BOOK_INFO_USAGE}\` Show one book listing's metadata, status and editions
 
 Examples:
-  \`/book info 0x1234...5678\` - Look up by class ID
-  \`/book info https://${BOOK3_HOSTNAME}/store/0x1234...5678\` - Look up by store link
+  \`${command} info 0x1234...5678\` - Look up by class ID
+  \`${command} info https://${BOOK3_HOSTNAME}/store/0x1234...5678\` - Look up by store link
 
 \`${command} list [asc|desc] [<flag>...] [owner:<wallet>] [limit:<n>]\` List ${BOOK_LIST_CHAIN}-chain book listings
 Flags (combinable, all must match): \`${BOOK_LIST_FLAG_USAGE}\`
@@ -381,13 +383,13 @@ Examples:
   \`${command} tipping 0x1234...5678 on\` - Enable tipping on every edition
   \`${command} tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only
 
-\`${BOOK_METADATA_USAGE}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
+\`${getBookMetadataUsage(command)}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
 A set field is kept on refresh until reset, so publish.3ook.com can prompt the publisher to sign it to chain.
 
 Examples:
-  \`/book metadata 0x1234...5678 set isbn 978-626-653-162-5\` - Set the ISBN, stored without hyphens
-  \`/book metadata 0x1234...5678 set alternativeHeadline A Subtitle\` - Set the subtitle
-  \`/book metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
+  \`${command} metadata 0x1234...5678 set isbn 978-626-653-162-5\` - Set the ISBN, stored without hyphens
+  \`${command} metadata 0x1234...5678 set alternativeHeadline A Subtitle\` - Set the subtitle
+  \`${command} metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
       });
     },
   }, (command) => `Invalid command. Use \`${command} help\` for usage.`),
