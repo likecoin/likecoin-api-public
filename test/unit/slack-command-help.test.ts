@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Router } from 'express';
 
 import bookRouter from '../../src/routes/slack/book';
+import indexerRouter from '../../src/routes/slack/nft-indexer';
 import paymentRouter from '../../src/routes/slack/payment';
 import plusRouter from '../../src/routes/slack/plus';
 import userRouter from '../../src/routes/slack/user';
@@ -23,6 +24,7 @@ describe.each([
   ['/plus', plusRouter],
   ['/wallet', walletRouter],
   ['/payment', paymentRouter],
+  ['/indexer', indexerRouter],
 ])('%s help', (command, router) => {
   const testCommand = `${command}_test`;
 
@@ -46,6 +48,7 @@ describe('usage errors', () => {
     [bookRouter, '/book_test', 'tipping', 'Usage: /book_test tipping '],
     [bookRouter, '/book_test', 'foo', 'Use `/book_test help` for usage.'],
     [userRouter, '/user_test', 'unlimited-upload', 'Usage: /user_test unlimited-upload '],
+    [indexerRouter, '/indexer_test', 'foo', 'Use `/indexer_test help` for available commands.'],
   ])('%#: name the typed command', async (router, command, text, expected) => {
     expect(await runSlackCommand(router, { command, text })).toContain(expected);
   });

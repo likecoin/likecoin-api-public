@@ -48,19 +48,19 @@ router.post(
         }] : [],
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
         text: `*NFT Indexer Commands:*
-\`/indexer update\` - Trigger indexer update for entire LikeCoin protocol
-\`/indexer update {classId}\` - Trigger indexer update for specific EVM contract
+\`${command} update\` - Trigger indexer update for entire LikeCoin protocol
+\`${command} update {classId}\` - Trigger indexer update for specific EVM contract
 
 *Examples:*
-\`/indexer update\` - Update all
-\`/indexer update 0x123abc...\` - Update specific EVM contract address`,
+\`${command} update\` - Update all
+\`${command} update 0x123abc...\` - Update specific EVM contract address`,
       });
     },
-  }, () => 'Invalid command. Use `/indexer help` for available commands.'),
+  }, (command) => `Invalid command. Use \`${command} help\` for available commands.`),
 );
 
 export default router;
