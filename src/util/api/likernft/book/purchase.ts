@@ -786,6 +786,7 @@ export async function formatStripeCheckoutSession({
     if (item.isPlusPrice && item.priceIndex !== undefined) {
       productMetadata.priceIndex = item.priceIndex.toString();
     }
+    if (item.isPlusPrice) productMetadata.isPlusPrice = 'true';
 
     if (item.stripePriceId) {
       lineItems.push({
