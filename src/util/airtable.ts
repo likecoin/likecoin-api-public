@@ -61,6 +61,7 @@ const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHp
 const MERCH_SALES_TABLE_ID = IS_TESTNET ? 'tblxdambGNlYsrFOv' : 'tblnlo0s0XuBr41H5';
 const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
+const PLUS_GIFT_SALES_TABLE_ID = IS_TESTNET ? 'tblPVeqCSQYr548XJ' : 'tblknxyekyZ9k4JrU';
 // Only the production base rolls payment rows up into a Subscriptions table;
 // the testnet base has none, so status writes there are a no-op.
 const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
@@ -1094,6 +1095,80 @@ export async function updateAirtableSubscriptionStatus({
       [{ id: record.id, fields: fields as unknown as Partial<FieldSet> }],
       { typecast: true },
     );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}
+
+export async function createAirtablePlusGiftSalesRecord({
+  giftCartId,
+  session,
+  pi,
+  stripeFeeAmount,
+  coupon,
+  period,
+  quantity,
+  price,
+}: {
+  giftCartId: string;
+  session: Stripe.Checkout.Session;
+  pi?: Stripe.PaymentIntent;
+  stripeFeeAmount: number;
+  coupon?: string;
+  period: string;
+  quantity: number;
+  price: Stripe.Price;
+}): Promise<void> {
+  try {
+    if (!base) throw new Error('Airtable base is not initialized');
+    const metadata = session.metadata || {};
+    const fields: Partial<FieldSet> = {
+      'Gift Cart ID': giftCartId,
+      Date: new Date().toISOString(),
+      Status: 'paid',
+      Period: period,
+      Quantity: quantity,
+      'Price ID': price.id,
+      'Price Name': price.nickname || '',
+      'Customer Email': session.customer_details?.email || undefined,
+      'Gift From Name': metadata.giftFromName || '',
+      'Gift To Email': metadata.giftToEmail || undefined,
+      'Gift To Name': metadata.giftToName || '',
+      'Gift Message': metadata.giftMessage || '',
+      'Payment Amount': (session.amount_total || 0) / 100,
+      'Payment Currency': session.currency || 'usd',
+      'Stripe Fee': stripeFeeAmount / 100,
+      Coupon: coupon || '',
+      'Payment Intent ID': pi?.id || (session.payment_intent as string | null) || '',
+      'Checkout Session ID': session.id,
+      Channel: metadata.from || '',
+      'UTM Source': metadata.utmSource || '',
+      'UTM Medium': metadata.utmMedium || '',
+      'UTM Campaign': metadata.utmCampaign || '',
+      'UTM Content': metadata.utmContent || '',
+      'UTM Term': metadata.utmTerm || '',
+      'HTTP Referrer': metadata.referrer || '',
+      'GA Client ID': metadata.gaClientId || '',
+      'GA Session ID': metadata.gaSessionId || '',
+      'FB Click ID': metadata.fbc || '',
+      'Raw Data': convertObjectToAirtableLongText(session),
+    };
+    const balanceTx = (pi?.latest_charge as Stripe.Charge | undefined)?.balance_transaction;
+    if (balanceTx && typeof balanceTx !== 'string') {
+      const balanceTxAmount = balanceTx.amount / 100;
+      fields['Balance Tx Amount'] = balanceTxAmount;
+      fields['Balance Tx Currency'] = balanceTx.currency;
+      if (balanceTx.exchange_rate) fields['Balance Tx Exchange Rate'] = balanceTx.exchange_rate;
+      fields['Balance Tx Net Amount'] = balanceTxAmount - stripeFeeAmount / 100;
+    }
+    const { evmWallet } = metadata;
+    if (evmWallet) {
+      fields['Customer Wallet'] = evmWallet;
+      const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+      if (user) fields['Customer User ID'] = user.user;
+    }
+    await base(PLUS_GIFT_SALES_TABLE_ID).create([{ fields }], { typecast: true });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
