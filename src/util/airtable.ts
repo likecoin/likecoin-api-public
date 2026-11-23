@@ -951,7 +951,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   fbc?: string;
   referrer?: string;
   giftCartId?: string;
-}): Promise<void> {
+}): Promise<string | undefined> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
     const fields: Partial<FieldSet> = {
@@ -988,10 +988,13 @@ export async function createAirtableSubscriptionPaymentRecord({
       ...(referrer ? { 'HTTP Referrer': referrer } : {}),
       'Gift Cart ID': giftCartId || '',
     };
-    await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
+    const [record] = await base(SUBSCRIPTION_PAYMENT_TABLE_ID)
+      .create([{ fields }], { typecast: true });
+    return record.id;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
+    return undefined;
   }
 }
 

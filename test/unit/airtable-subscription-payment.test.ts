@@ -39,6 +39,11 @@ const RECORD = {
 describe('createAirtableSubscriptionPaymentRecord', () => {
   beforeEach(() => {
     mockCreate.mockReset();
+    mockCreate.mockResolvedValue([{ id: 'recPayment' }]);
+  });
+
+  it('returns the new record ID', async () => {
+    await expect(createAirtableSubscriptionPaymentRecord(RECORD)).resolves.toBe('recPayment');
   });
 
   it('writes fbc to FB Click ID', async () => {
