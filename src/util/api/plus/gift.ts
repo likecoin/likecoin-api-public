@@ -2,7 +2,12 @@ import crypto from 'crypto';
 import type Stripe from 'stripe';
 import uuidv4 from 'uuid/v4';
 
-import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
+import {
+  getStripeClient,
+  getStripeFeeFromPaymentIntent,
+  getStripePromotionCodesFromCheckoutSession,
+  resolveCheckoutDiscountsFromCoupon,
+} from '../../stripe';
 import type { PlusCheckoutTrackingInfo, PlusPeriod } from '.';
 import {
   FieldValue, likeNFTBookUserCollection, likePlusGiftCartCollection, userCollection, db,
@@ -21,10 +26,14 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo'
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
+import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
 import logServerEvents from '../../logServerEvents';
 import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
-import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
+import {
+  createAirtablePlusGiftSalesRecord,
+  createAirtableSubscriptionPaymentRecord,
+} from '../../airtable';
 
 export async function createPlusGiftCheckoutSession(
   {
@@ -437,6 +446,50 @@ export async function claimPlusGiftCart({
   }
 }
 
+// Written right after the cart so a later failure, which webhook retries skip, cannot lose the row.
+async function createPlusGiftSalesRecord(
+  session: Stripe.Checkout.Session,
+  {
+    giftCartId,
+    period,
+    quantity,
+    price,
+  }: {
+    giftCartId: string,
+    period: PlusPeriod,
+    quantity: number,
+    price: Stripe.Price,
+  },
+) {
+  const logAndSkip = (error: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    return undefined;
+  };
+  // The Stripe lookups only add fee and coupon detail, so the sale is still recorded without them.
+  const paymentIntentId = session.payment_intent as string | null;
+  const [pi, coupon] = await Promise.all([
+    paymentIntentId
+      ? getStripeClient().paymentIntents.retrieve(paymentIntentId, {
+        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+      }).catch(logAndSkip)
+      : undefined,
+    getStripePromotionCodesFromCheckoutSession(session.id)
+      .then(([code]) => code)
+      .catch(logAndSkip),
+  ]);
+  await createAirtablePlusGiftSalesRecord({
+    giftCartId,
+    session,
+    pi,
+    stripeFeeAmount: pi ? getStripeFeeFromPaymentIntent(pi) : 0,
+    coupon,
+    period,
+    quantity,
+    price,
+  });
+}
+
 export async function processPlusGiftStripePurchase(
   session: Stripe.Checkout.Session,
 ) {
@@ -507,6 +560,13 @@ export async function processPlusGiftStripePurchase(
     claimToken,
     ipCountry,
     fbc,
+  });
+
+  await createPlusGiftSalesRecord(session, {
+    giftCartId: paymentId,
+    period,
+    quantity,
+    price: lineItem.price,
   });
 
   await sendPlusGiftPendingClaimEmail({
