@@ -34,7 +34,11 @@ export function calculateItemPrices(items: CartItemWithInfo[], from?: string): I
         originalPriceInDecimal - priceInDecimalWithoutTip,
         0,
       );
-      const likerLandFeeAmount = isFree ? 0 : Math.ceil(
+      const isNonNFT = isNonNFTProduct(item);
+      // Merch takes no coupons, so only the member price discounts it and skips the platform fee.
+      // Flagged, not inferred: settlement converts the charge to USD, off the USD list price.
+      const isFeeWaived = isFree || (isNonNFT && !!item.isPlusPrice);
+      const likerLandFeeAmount = isFeeWaived ? 0 : Math.ceil(
         originalPriceInDecimal * NFT_BOOK_LIKER_LAND_FEE_RATIO,
       );
       const likerLandTipFeeAmount = Math.ceil(
@@ -44,7 +48,7 @@ export function calculateItemPrices(items: CartItemWithInfo[], from?: string): I
       let likerLandCommission = 0;
       const { platformCommissionRatio, channelCommissionRatio } = item;
       const isCommissionByRatio = (
-        isNonNFTProduct(item)
+        isNonNFT
         || platformCommissionRatio !== undefined
         || channelCommissionRatio !== undefined
       );

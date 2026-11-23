@@ -12,6 +12,7 @@ import {
   assertNoDuplicateClassIds,
   assertOrderQuantityLimits,
   assertSingleProductTypeCart,
+  formatCartItemInfosFromSession,
   formatCartItemsWithInfo,
   getMerchShippingFromSession,
   getIsEligibleForPlusPrice,
@@ -436,6 +437,7 @@ describe('formatStripeCheckoutSession for merch', () => {
     const [line] = payload.line_items;
     expect(line.price_data.unit_amount).toBe(169800);
     expect(line.price_data.product_data.metadata.priceIndex).toBe('0');
+    expect(line.price_data.product_data.metadata.isPlusPrice).toBe('true');
   });
 
   it('leaves a book session as before', async () => {
@@ -520,11 +522,57 @@ describe('calculateItemPrices for merch', () => {
       priceInDecimal: 21900 + 1000,
       customPriceDiffInDecimal: 1000,
       originalPriceInDecimal: 25800,
+      isPlusPrice: true,
     });
     expect(pricesFor(item, AFFILIATE)).toMatchObject({
       likerLandCommission: 4380,
       channelCommission: 2190,
+      likerLandFeeAmount: 0,
     });
+  });
+
+  it('waives the platform fee on a member price, leaving the owner the price paid less Stripe', () => {
+    const item = merchItem({
+      priceInDecimal: 21900, originalPriceInDecimal: 25800, isPlusPrice: true,
+    });
+    const itemPrice = pricesFor(item, NFT_BOOK_DEFAULT_FROM_CHANNEL);
+    expect(itemPrice).toMatchObject({
+      likerLandFeeAmount: 0,
+      likerLandCommission: 0,
+      channelCommission: 0,
+    });
+
+    const stripeFeeAmount = calculateStripeFee(21900, 'usd');
+    const feeInfo = calculateItemFeeInfo(itemPrice, {
+      totalStripeFeeAmount: stripeFeeAmount,
+      totalPriceInDecimal: 21900,
+    });
+    expect(feeInfo.likerLandFeeAmount).toBe(0);
+    expect(feeInfo.royaltyToSplit).toBe(21900 - stripeFeeAmount);
+  });
+
+  it('charges the platform fee at list price, even when FX conversion lands below it', () => {
+    const item = merchItem({ priceInDecimal: 25800, originalPriceInDecimal: 25800 });
+    expect(pricesFor(item, NFT_BOOK_DEFAULT_FROM_CHANNEL).likerLandFeeAmount).toBe(1290);
+    // HKD 1,998 settled at 7.8 HKD/USD
+    const converted = merchItem({ priceInDecimal: 25615, originalPriceInDecimal: 25800 });
+    expect(pricesFor(converted, NFT_BOOK_DEFAULT_FROM_CHANNEL).likerLandFeeAmount).toBe(1290);
+  });
+
+  it('waives the platform fee but keeps the platform ratio on a discounted bundle', () => {
+    const item = merchItem({
+      platformCommissionRatio: 0.3148, priceInDecimal: 200000, isPlusPrice: true,
+    });
+    expect(pricesFor(item, AFFILIATE)).toMatchObject({
+      likerLandFeeAmount: 0,
+      likerLandCommission: 62960,
+      channelCommission: 0,
+    });
+  });
+
+  it('keeps the platform fee on a discounted book', () => {
+    const book = cartItem({ priceInDecimal: 8000, originalPriceInDecimal: 10000 });
+    expect(pricesFor(book, NFT_BOOK_DEFAULT_FROM_CHANNEL).likerLandFeeAmount).toBe(500);
   });
 
   it('does not round a whole-cent commission up on float error', () => {
@@ -561,6 +609,39 @@ describe('formatCartItemsWithInfo for merch', () => {
       { classId: SKU_ID, priceIndex: 0, quantity: 1 },
       { classId: SKU_ID, priceIndex: 0, quantity: 1 },
     ])).rejects.toThrow('CART_DUPLICATE_CLASS_ID');
+  });
+});
+
+describe('formatCartItemInfosFromSession for merch', () => {
+  const SKU_ID = 'merch-sku-1';
+  let spies: MockInstance[] = [];
+  afterEach(() => {
+    spies.forEach((spy) => spy.mockRestore());
+    spies = [];
+  });
+
+  async function settle(productMetadata: Record<string, string>) {
+    await likeNFTBookCollection.doc(SKU_ID).set(merchListing({ classId: SKU_ID }));
+    const stripe = getStripeClient();
+    spies = [
+      vi.spyOn(stripe.checkout.sessions, 'listLineItems').mockReturnValue([{
+        quantity: 1,
+        amount_total: 21900,
+        price: { product: { metadata: { classId: SKU_ID, priceIndex: '0', ...productMetadata } } },
+      }] as any),
+      vi.spyOn(stripe.checkout.sessions, 'retrieve').mockResolvedValue({} as any),
+    ];
+    return formatCartItemInfosFromSession({ id: 'cs_merch', metadata: { from: 'liker_land' } } as any);
+  }
+
+  it('waives the platform fee only on a line the session marks member-priced', async () => {
+    const memberPriced = await settle({ isPlusPrice: 'true' });
+    expect(memberPriced.itemInfos[0].isPlusPrice).toBe(true);
+    expect(memberPriced.feeInfo.likerLandFeeAmount).toBe(0);
+
+    const listPriced = await settle({});
+    expect(listPriced.itemInfos[0].isPlusPrice).toBe(false);
+    expect(listPriced.feeInfo.likerLandFeeAmount).toBe(1290);
   });
 });
 

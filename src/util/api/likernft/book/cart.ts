@@ -1596,6 +1596,7 @@ export async function formatCartItemInfosFromSession(
   }
 
   const items: CartItem[] = [];
+  const plusPriceFlags: boolean[] = [];
   const lineItems: Stripe.LineItem[] = [];
   const stripeFeeAmount = await getStripeFeeFromCheckoutSession(session);
   for await (const lineItem of getStripeClient().checkout.sessions.listLineItems(
@@ -1613,6 +1614,7 @@ export async function formatCartItemInfosFromSession(
       classId,
       priceIndex,
       tippingFor,
+      isPlusPrice,
     } = (lineItem.price.product as Stripe.Product).metadata || {};
     if (!classId) {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -1630,6 +1632,7 @@ export async function formatCartItemInfosFromSession(
         priceInDecimal: Math.round(lineItem.amount_total / conversionRate / quantity),
         quantity,
       });
+      plusPriceFlags.push(isPlusPrice === 'true');
     }
   }
   if (fromListString) {
@@ -1638,7 +1641,9 @@ export async function formatCartItemInfosFromSession(
       items[index].from = f || items[index].from || from;
     });
   }
-  const itemInfos = await formatCartItemsWithInfo(items);
+  // Read from the session, not the cart input: a client must not mark its own item member-priced.
+  const itemInfos = (await formatCartItemsWithInfo(items))
+    .map((info, index) => ({ ...info, isPlusPrice: plusPriceFlags[index] }));
   const itemPrices = await calculateItemPrices(itemInfos, from);
   const totalPriceInDecimal = itemPrices.reduce(
     (acc, item) => acc + item.priceInDecimal * item.quantity,
