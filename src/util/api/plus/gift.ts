@@ -33,6 +33,7 @@ import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom'
 import {
   createAirtablePlusGiftSalesRecord,
   createAirtableSubscriptionPaymentRecord,
+  updateAirtablePlusGiftSalesRecord,
 } from '../../airtable';
 
 export async function createPlusGiftCheckoutSession(
@@ -405,7 +406,7 @@ export async function claimPlusGiftCart({
       }
     } catch { /* ignore */ }
 
-    await Promise.all([
+    const [claimPaymentRecordId] = await Promise.all([
       createAirtableSubscriptionPaymentRecord({
         subscriptionId: subscription.id,
         customerId: stripeCustomerId,
@@ -436,12 +437,22 @@ export async function claimPlusGiftCart({
         language: senderLocale || 'zh',
       }) : Promise.resolve(),
     ]);
+
+    await updateAirtablePlusGiftSalesRecord({
+      giftCartId: cartId,
+      status: 'claimed',
+      claimedSubscriptionId: subscription.id,
+      claimerEmail: likerUserInfo.email,
+      claimerUserId: likerId,
+      claimPaymentRecordId,
+    });
   } catch (error) {
     await likePlusGiftCartCollection.doc(cartId).update({
       status: 'error',
       errorMessage: error instanceof Error ? error.message : String(error),
       errorTimestamp: FieldValue.serverTimestamp(),
     });
+    await updateAirtablePlusGiftSalesRecord({ giftCartId: cartId, status: 'error' });
     throw error;
   }
 }

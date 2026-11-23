@@ -1135,3 +1135,48 @@ export async function createAirtablePlusGiftSalesRecord({
     console.error(error);
   }
 }
+
+export async function updateAirtablePlusGiftSalesRecord({
+  giftCartId,
+  status,
+  claimedSubscriptionId,
+  claimerEmail,
+  claimerUserId,
+  claimPaymentRecordId,
+}: {
+  giftCartId: string;
+  status: 'claimed' | 'error';
+  claimedSubscriptionId?: string;
+  claimerEmail?: string;
+  claimerUserId?: string;
+  claimPaymentRecordId?: string;
+}): Promise<void> {
+  try {
+    if (!base) throw new Error('Airtable base is not initialized');
+    const escapedGiftCartId = giftCartId.replace(/'/g, "\\'");
+    const [record] = await base(PLUS_GIFT_SALES_TABLE_ID)
+      .select({
+        filterByFormula: `{Gift Cart ID} = '${escapedGiftCartId}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+    if (!record) {
+      // Gifts bought before this table existed have no row to update.
+      // eslint-disable-next-line no-console
+      console.warn(`Airtable plus gift sales record not found for ${giftCartId}`);
+      return;
+    }
+    const fields: Partial<FieldSet> = { Status: status };
+    if (status === 'claimed') {
+      fields['Claimed Date'] = new Date().toISOString();
+      fields['Claimed Subscription ID'] = claimedSubscriptionId || '';
+      fields['Claimer Email'] = claimerEmail || undefined;
+      fields['Claimer User ID'] = claimerUserId || '';
+      if (claimPaymentRecordId) fields['Claim Payment'] = [claimPaymentRecordId];
+    }
+    await base(PLUS_GIFT_SALES_TABLE_ID).update(record.id, fields, { typecast: true });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}

@@ -2,13 +2,21 @@ import {
   describe, it, expect, vi, beforeEach,
 } from 'vitest';
 
-const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
+const { mockCreate, mockUpdate, mockFirstPage } = vi.hoisted(() => ({
+  mockCreate: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockFirstPage: vi.fn(),
+}));
 
 vi.mock('airtable', () => ({
   default: class {
     // eslint-disable-next-line class-methods-use-this
     base() {
-      return () => ({ create: mockCreate });
+      return () => ({
+        create: mockCreate,
+        update: mockUpdate,
+        select: () => ({ firstPage: mockFirstPage }),
+      });
     }
   },
 }));
@@ -21,7 +29,10 @@ vi.mock('../../src/constant', async (importOriginal) => ({
 vi.stubEnv('CI', '');
 
 // eslint-disable-next-line import/first
-const { createAirtablePlusGiftSalesRecord } = await import('../../src/util/airtable');
+const {
+  createAirtablePlusGiftSalesRecord,
+  updateAirtablePlusGiftSalesRecord,
+} = await import('../../src/util/airtable');
 
 const WALLET = '0x4b25758E41f9240C8EB8831cEc7F1a02686387fa'; // user `testing` in test/data/user.json
 
@@ -125,5 +136,50 @@ describe('createAirtablePlusGiftSalesRecord', () => {
       quantity: 1,
       price: { id: 'price_gift_monthly', nickname: null } as any,
     })).resolves.toBeUndefined();
+  });
+});
+
+describe('updateAirtablePlusGiftSalesRecord', () => {
+  beforeEach(() => {
+    mockUpdate.mockReset();
+    mockFirstPage.mockReset();
+  });
+
+  it('marks the row claimed and links the claim payment', async () => {
+    mockFirstPage.mockResolvedValue([{ id: 'recGift' }]);
+    await updateAirtablePlusGiftSalesRecord({
+      giftCartId: 'cart_1',
+      status: 'claimed',
+      claimedSubscriptionId: 'sub_1',
+      claimerEmail: 'friend@example.com',
+      claimerUserId: 'testuser',
+      claimPaymentRecordId: 'recPayment',
+    });
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    const [recordId, fields] = mockUpdate.mock.calls[0];
+    expect(recordId).toBe('recGift');
+    expect(fields).toMatchObject({
+      Status: 'claimed',
+      'Claimed Subscription ID': 'sub_1',
+      'Claimer Email': 'friend@example.com',
+      'Claimer User ID': 'testuser',
+      'Claim Payment': ['recPayment'],
+    });
+    expect(fields['Claimed Date']).toEqual(expect.any(String));
+  });
+
+  it('only sets Status on error', async () => {
+    mockFirstPage.mockResolvedValue([{ id: 'recGift' }]);
+    await updateAirtablePlusGiftSalesRecord({ giftCartId: 'cart_1', status: 'error' });
+    expect(mockUpdate.mock.calls[0][1]).toEqual({ Status: 'error' });
+  });
+
+  it('skips the update without throwing when the row is missing', async () => {
+    mockFirstPage.mockResolvedValue([]);
+    await expect(updateAirtablePlusGiftSalesRecord({
+      giftCartId: 'cart_old',
+      status: 'claimed',
+    })).resolves.toBeUndefined();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
