@@ -44,7 +44,7 @@ export async function updateListingWithChainMetadata(
   });
 }
 
-export const BOOK_METADATA_USAGE = `/book metadata <classId> set <${MANUAL_METADATA_FIELDS.join('|')}> <value> | /book metadata <classId> reset <field>`;
+export const getBookMetadataUsage = (command: string) => `${command} metadata <classId> set <${MANUAL_METADATA_FIELDS.join('|')}> <value> | ${command} metadata <classId> reset <field>`;
 
 export type BookMetadataQuery = {
   classId: string;
@@ -67,23 +67,23 @@ function isManualMetadataField(field: string): field is ManualMetadataField {
   return (MANUAL_METADATA_FIELDS as readonly string[]).includes(field);
 }
 
-export function parseBookMetadataQuery(params: string[]): BookMetadataQuery {
+export function parseBookMetadataQuery(params: string[], command: string): BookMetadataQuery {
   const [rawClassId, action, field, ...valueParts] = params;
   if (!rawClassId || !action || !field) {
-    throw new Error(`Invalid params. Usage: ${BOOK_METADATA_USAGE}`);
+    throw new Error(`Invalid params. Usage: ${getBookMetadataUsage(command)}`);
   }
-  const classId = parseBookInfoClassId(rawClassId);
+  const classId = parseBookInfoClassId(rawClassId, command);
   if (!isManualMetadataField(field)) {
     throw new Error(`Invalid field: ${field}. Must be one of ${MANUAL_METADATA_FIELDS.join(', ')}`);
   }
   if (action === 'reset') {
-    if (valueParts.length) throw new Error(`Invalid params. Usage: ${BOOK_METADATA_USAGE}`);
+    if (valueParts.length) throw new Error(`Invalid params. Usage: ${getBookMetadataUsage(command)}`);
     return { classId, action, field };
   }
   if (action !== 'set') throw new Error(`Invalid action: ${action}. Must be set or reset`);
   // Slack splits the command text on whitespace, so a value with spaces arrives in parts.
   const value = valueParts.join(' ');
-  if (!value) throw new Error(`Missing value. Usage: ${BOOK_METADATA_USAGE}`);
+  if (!value) throw new Error(`Missing value. Usage: ${getBookMetadataUsage(command)}`);
   if (field === 'isbn') {
     if (!isValidISBN(value)) throw new Error(`Invalid ISBN: ${value}`);
     return {

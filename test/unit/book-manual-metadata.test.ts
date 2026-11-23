@@ -71,26 +71,26 @@ const CLASS_ID = '0x1111111111111111111111111111111111111111';
 
 describe('parseBookMetadataQuery', () => {
   it('joins a value that Slack split on spaces', () => {
-    expect(parseBookMetadataQuery([CLASS_ID, 'set', 'alternativeHeadline', 'A', 'Long', 'Subtitle']))
+    expect(parseBookMetadataQuery([CLASS_ID, 'set', 'alternativeHeadline', 'A', 'Long', 'Subtitle'], '/book'))
       .toEqual({
         classId: CLASS_ID, action: 'set', field: 'alternativeHeadline', value: 'A Long Subtitle',
       });
   });
 
   it('stores a valid ISBN without hyphens', () => {
-    expect(parseBookMetadataQuery([CLASS_ID, 'set', 'isbn', '978-626-653-162-5']))
+    expect(parseBookMetadataQuery([CLASS_ID, 'set', 'isbn', '978-626-653-162-5'], '/book'))
       .toEqual({
         classId: CLASS_ID, action: 'set', field: 'isbn', value: '9786266531625',
       });
   });
 
   it('lowercases a checksummed class ID', () => {
-    expect(parseBookMetadataQuery(['0xAbCdEf0000000000000000000000000000000000', 'reset', 'name']))
+    expect(parseBookMetadataQuery(['0xAbCdEf0000000000000000000000000000000000', 'reset', 'name'], '/book'))
       .toEqual({ classId: '0xabcdef0000000000000000000000000000000000', action: 'reset', field: 'name' });
   });
 
   it('parses reset', () => {
-    expect(parseBookMetadataQuery([CLASS_ID, 'reset', 'name']))
+    expect(parseBookMetadataQuery([CLASS_ID, 'reset', 'name'], '/book'))
       .toEqual({ classId: CLASS_ID, action: 'reset', field: 'name' });
   });
 
@@ -103,7 +103,7 @@ describe('parseBookMetadataQuery', () => {
     ['a value on reset', [CLASS_ID, 'reset', 'name', 'Book']],
     ['a bad ISBN check digit', [CLASS_ID, 'set', 'isbn', '9786266531626']],
   ])('rejects %s', (_label, params) => {
-    expect(() => parseBookMetadataQuery(params)).toThrow();
+    expect(() => parseBookMetadataQuery(params, '/book')).toThrow();
   });
 });
 

@@ -17,12 +17,12 @@ async function getStoredPrices() {
 
 describe('parseBookTippingQuery', () => {
   it('parses on and off, case-insensitively', () => {
-    expect(parseBookTippingQuery([CLASS_ID, 'ON'])).toEqual({
+    expect(parseBookTippingQuery([CLASS_ID, 'ON'], '/book')).toEqual({
       classId: CLASS_ID,
       isTippingEnabled: true,
       priceIndex: undefined,
     });
-    expect(parseBookTippingQuery([CLASS_ID, 'off', '2'])).toEqual({
+    expect(parseBookTippingQuery([CLASS_ID, 'off', '2'], '/book')).toEqual({
       classId: CLASS_ID,
       isTippingEnabled: false,
       priceIndex: 2,
@@ -38,7 +38,7 @@ describe('parseBookTippingQuery', () => {
     ['a fractional priceIndex', [CLASS_ID, 'on', '1.5']],
     ['extra params', [CLASS_ID, 'on', '0', '1']],
   ])('rejects %s', (_label, params) => {
-    expect(() => parseBookTippingQuery(params)).toThrow();
+    expect(() => parseBookTippingQuery(params, '/book')).toThrow();
   });
 });
 

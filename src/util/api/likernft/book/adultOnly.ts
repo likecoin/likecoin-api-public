@@ -11,12 +11,12 @@ export interface BookAdultOnlyResult {
   isAdultOnly: boolean;
 }
 
-export const BOOK_ADULT_ONLY_USAGE = '/book adult <classId> <on|off>';
+export const getBookAdultOnlyUsage = (command: string) => `${command} adult <classId> <on|off>`;
 
-export function parseBookAdultOnlyQuery(params: string[]): BookAdultOnlyQuery {
+export function parseBookAdultOnlyQuery(params: string[], command: string): BookAdultOnlyQuery {
   const [classId, toggle, ...rest] = params;
   if (!classId || !toggle || rest.length) {
-    throw new Error(`Invalid params. Usage: ${BOOK_ADULT_ONLY_USAGE}`);
+    throw new Error(`Invalid params. Usage: ${getBookAdultOnlyUsage(command)}`);
   }
   const normalizedToggle = toggle.toLowerCase();
   if (normalizedToggle !== 'on' && normalizedToggle !== 'off') {

@@ -30,6 +30,7 @@ export const slackTokenChecker = (
 };
 
 export interface SlackCommandContext {
+  command: string;
   params: string[];
   req: Request;
   res: Response;
@@ -48,18 +49,24 @@ export function normalizeSlackCommandText(text: string): string {
     .replace(/`/g, '');
 }
 
+// Slack sends the slash command as typed, e.g. `/user_test` from the testnet app,
+// so messages echo it back instead of the production name.
 export const slackCommandHandler = (
+  defaultCommand: string,
   commands: Record<string, SlackCommandFn>,
-  invalidCommandMessage = 'Invalid command',
+  getInvalidCommandMessage: (command: string) => string = () => 'Invalid command',
 ) => async (req: Request, res: Response): Promise<void> => {
   try {
+    const command = req.body.command || defaultCommand;
     const text = normalizeSlackCommandText(req.body.text || '').trim();
-    const [command, ...params] = text ? text.split(/\s+/) : ['help'];
-    const commandFn = Object.prototype.hasOwnProperty.call(commands, command)
-      ? commands[command]
+    const [subcommand, ...params] = text ? text.split(/\s+/) : ['help'];
+    const commandFn = Object.prototype.hasOwnProperty.call(commands, subcommand)
+      ? commands[subcommand]
       : null;
-    if (!commandFn) throw new Error(invalidCommandMessage);
-    await commandFn({ params, req, res });
+    if (!commandFn) throw new Error(getInvalidCommandMessage(command));
+    await commandFn({
+      command, params, req, res,
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

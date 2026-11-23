@@ -15,7 +15,7 @@ describe('parseBookInfoClassId', () => {
     ['a bare EVM class id', CLASS_ID],
     ['a legacy cosmos class id', 'likenft1acdefgh'],
   ])('accepts %s', (_label, input) => {
-    expect(parseBookInfoClassId(input)).toBe(input);
+    expect(parseBookInfoClassId(input, '/book')).toBe(input);
   });
 
   it.each([
@@ -26,11 +26,11 @@ describe('parseBookInfoClassId', () => {
     ['a Slack-wrapped URL', `<https://3ook.com/store/${CLASS_ID}>`],
     ['a Slack-wrapped labelled URL', `<https://3ook.com/store/${CLASS_ID}|3ook.com>`],
   ])('extracts the class id from %s', (_label, input) => {
-    expect(parseBookInfoClassId(input)).toBe(CLASS_ID);
+    expect(parseBookInfoClassId(input, '/book')).toBe(CLASS_ID);
   });
 
   it('lowercases a checksummed EVM class id', () => {
-    expect(parseBookInfoClassId('0x1234567890ABCDEF1234567890abcdef12345678')).toBe(CLASS_ID);
+    expect(parseBookInfoClassId('0x1234567890ABCDEF1234567890abcdef12345678', '/book')).toBe(CLASS_ID);
   });
 
   it.each([
@@ -40,7 +40,7 @@ describe('parseBookInfoClassId', () => {
     ['an unrelated URL', 'https://3ook.com/shelf'],
     ['a bare word', 'nonsense'],
   ])('rejects %s', (_label, input) => {
-    expect(() => parseBookInfoClassId(input)).toThrow();
+    expect(() => parseBookInfoClassId(input, '/book')).toThrow();
   });
 });
 

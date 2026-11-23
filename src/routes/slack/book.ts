@@ -26,17 +26,17 @@ import {
   parseBookListQuery,
 } from '../../util/api/likernft/book/adminList';
 import {
-  BOOK_ADULT_ONLY_USAGE,
+  getBookAdultOnlyUsage,
   parseBookAdultOnlyQuery,
   setBookAdultOnly,
 } from '../../util/api/likernft/book/adultOnly';
 import {
-  BOOK_METADATA_USAGE,
+  getBookMetadataUsage,
   parseBookMetadataQuery,
   setBookManualMetadata,
 } from '../../util/api/likernft/book/manualMetadata';
 import {
-  BOOK_TIPPING_USAGE,
+  getBookTippingUsage,
   parseBookTippingQuery,
   setBookTippingEnabled,
 } from '../../util/api/likernft/book/tipping';
@@ -237,12 +237,14 @@ router.post(
     BOOK_ADMIN_ALLOWED_CHANNEL_IDS,
     BOOK_ADMIN_ALLOWED_USER_IDS,
   ),
-  slackCommandHandler({
-    approve: async ({ params, req, res }) => {
+  slackCommandHandler('/book', {
+    approve: async ({
+      command, params, req, res,
+    }) => {
       const slackUserId = req.body.user_id;
       const [classId, action = 'approve_with_ads', ...countryCodes] = params;
       if (!classId) {
-        throw new Error(`Missing classId. Usage: /book approve <classId> ${BOOK_APPROVAL_USAGE}`);
+        throw new Error(`Missing classId. Usage: ${command} approve <classId> ${BOOK_APPROVAL_USAGE}`);
       }
       if (!BOOK_APPROVAL_ACTIONS.includes(action)) {
         throw new Error(`Invalid action. Must be one of ${BOOK_APPROVAL_ACTIONS.join(', ')}`);
@@ -254,8 +256,8 @@ router.post(
         text: `Book approval updated for *${result.className}*\nClass ID: \`${result.classId}\`\nStatus: \`${result.approvalStatus}\``,
       });
     },
-    info: async ({ params, res }) => {
-      const classId = parseBookInfoClassId(params[0]);
+    info: async ({ command, params, res }) => {
+      const classId = parseBookInfoClassId(params[0], command);
       const book = await getBookInfoForAdmin(classId);
 
       res.json({
@@ -272,8 +274,10 @@ router.post(
         blocks: createBookListSlackBlocks(query, result),
       });
     },
-    adult: async ({ params, req, res }) => {
-      const query = parseBookAdultOnlyQuery(params);
+    adult: async ({
+      command, params, req, res,
+    }) => {
+      const query = parseBookAdultOnlyQuery(params, command);
       const result = await setBookAdultOnly(query);
       await Promise.all([
         updateAirtablePublicationRecord({ id: result.classId, isAdultOnly: result.isAdultOnly }),
@@ -294,8 +298,10 @@ router.post(
         text: `Adult only is \`${result.isAdultOnly ? 'on' : 'off'}\` for *${escapeSlackText(result.className)}*\nClass ID: \`${result.classId}\``,
       });
     },
-    tipping: async ({ params, req, res }) => {
-      const query = parseBookTippingQuery(params);
+    tipping: async ({
+      command, params, req, res,
+    }) => {
+      const query = parseBookTippingQuery(params, command);
       const result = await setBookTippingEnabled(query);
       publisher.publish(PUBSUB_TOPIC_MISC, null, {
         logType: 'BookNFTTippingUpdate',
@@ -308,8 +314,10 @@ router.post(
         text: formatBookTippingSlackText(result),
       });
     },
-    metadata: async ({ params, req, res }) => {
-      const query = parseBookMetadataQuery(params);
+    metadata: async ({
+      command, params, req, res,
+    }) => {
+      const query = parseBookMetadataQuery(params, command);
       const result = await setBookManualMetadata(query);
       if (query.action === 'set') {
         await updateAirtablePublicationRecord({ id: result.classId, [query.field]: query.value });
@@ -328,63 +336,63 @@ router.post(
         text: `${change} for *${escapeSlackText(result.className)}*\nClass ID: \`${result.classId}\`\nManual fields: ${result.manualMetadataFields.map((f) => `\`${f}\``).join(', ') || 'none'}`,
       });
     },
-    help: ({ res }) => {
+    help: ({ command, res }) => {
       res.json({
         response_type: 'ephemeral',
-        text: `\`/book approve <classId> ${BOOK_APPROVAL_USAGE}\` Approve or reject a book listing
+        text: `\`${command} approve <classId> ${BOOK_APPROVAL_USAGE}\` Approve or reject a book listing
 
 Examples:
-  \`/book approve 0x1234...5678 \` - Approve for listing & ads (default)
-  \`/book approve 0x1234...5678  approve_with_ads\` - Approve for listing & ads
-  \`/book approve 0x1234...5678  approve_no_ads\` - Approve for listing (no ads)
-  \`/book approve 0x1234...5678  approve_hidden\` - Approve but keep hidden (no ads)
-  \`/book approve 0x1234...5678  pending_review\` - Hold for review; 404 to public until approved
-  \`/book approve 0x1234...5678  reject\` - Reject/hide listing
-  \`/book approve 0x1234...5678  geoblock\` - Restrict purchase in HK & CN (default countries; approval flags untouched)
-  \`/book approve 0x1234...5678  geoblock JP\` - Restrict purchase in the given 2-letter ISO country (GB, not UK)
-  \`/book approve 0x1234...5678  geoblock HK,JP,GB\` - Restrict several countries; replaces the whole list, HK still implies CN
-  \`/book approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)
+  \`${command} approve 0x1234...5678 \` - Approve for listing & ads (default)
+  \`${command} approve 0x1234...5678  approve_with_ads\` - Approve for listing & ads
+  \`${command} approve 0x1234...5678  approve_no_ads\` - Approve for listing (no ads)
+  \`${command} approve 0x1234...5678  approve_hidden\` - Approve but keep hidden (no ads)
+  \`${command} approve 0x1234...5678  pending_review\` - Hold for review; 404 to public until approved
+  \`${command} approve 0x1234...5678  reject\` - Reject/hide listing
+  \`${command} approve 0x1234...5678  geoblock\` - Restrict purchase in HK & CN (default countries; approval flags untouched)
+  \`${command} approve 0x1234...5678  geoblock JP\` - Restrict purchase in the given 2-letter ISO country (GB, not UK)
+  \`${command} approve 0x1234...5678  geoblock HK,JP,GB\` - Restrict several countries; replaces the whole list, HK still implies CN
+  \`${command} approve 0x1234...5678  clear_geoblock\` - Remove territory restriction (approval flags untouched)
 
-\`/book info ${BOOK_INFO_USAGE}\` Show one book listing's metadata, status and editions
+\`${command} info ${BOOK_INFO_USAGE}\` Show one book listing's metadata, status and editions
 
 Examples:
-  \`/book info 0x1234...5678\` - Look up by class ID
-  \`/book info https://${BOOK3_HOSTNAME}/store/0x1234...5678\` - Look up by store link
+  \`${command} info 0x1234...5678\` - Look up by class ID
+  \`${command} info https://${BOOK3_HOSTNAME}/store/0x1234...5678\` - Look up by store link
 
-\`/book list [asc|desc] [<flag>...] [owner:<wallet>] [limit:<n>]\` List ${BOOK_LIST_CHAIN}-chain book listings
+\`${command} list [asc|desc] [<flag>...] [owner:<wallet>] [limit:<n>]\` List ${BOOK_LIST_CHAIN}-chain book listings
 Flags (combinable, all must match): \`${BOOK_LIST_FLAG_USAGE}\`
 Newest first, ${BOOK_LIST_DEFAULT_LIMIT} results by default (limit max ${BOOK_LIST_MAX_LIMIT}). Legacy \`like\`-chain listings are never shown.
 
 Examples:
-  \`/book list pending\` - Listings held for review
-  \`/book list geoblocked limit:50\` - Every territory-restricted listing
-  \`/book list noads asc\` - Listings with ads denied, oldest first
-  \`/book list aireview\` - Listings the AI pre-screen flagged for a human read
+  \`${command} list pending\` - Listings held for review
+  \`${command} list geoblocked limit:50\` - Every territory-restricted listing
+  \`${command} list noads asc\` - Listings with ads denied, oldest first
+  \`${command} list aireview\` - Listings the AI pre-screen flagged for a human read
 
-\`${BOOK_ADULT_ONLY_USAGE}\` Turn adult only (isAdultOnly) on or off
+\`${getBookAdultOnlyUsage(command)}\` Turn adult only (isAdultOnly) on or off
 On also denies ads. Off keeps ads denied; run \`approve_with_ads\` to re-enable.
 
 Examples:
-  \`/book adult 0x1234...5678 on\` - Mark as adult only and deny ads
-  \`/book adult 0x1234...5678 off\` - Clear adult only (ads stay denied)
+  \`${command} adult 0x1234...5678 on\` - Mark as adult only and deny ads
+  \`${command} adult 0x1234...5678 off\` - Clear adult only (ads stay denied)
 
-\`${BOOK_TIPPING_USAGE}\` Turn tipping (isTippingEnabled) on or off for a priced book
+\`${getBookTippingUsage(command)}\` Turn tipping (isTippingEnabled) on or off for a priced book
 Without a priceIndex, every edition is set. Tipping shows only on editions with isAllowCustomPrice on.
 
 Examples:
-  \`/book tipping 0x1234...5678 on\` - Enable tipping on every edition
-  \`/book tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only
+  \`${command} tipping 0x1234...5678 on\` - Enable tipping on every edition
+  \`${command} tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only
 
-\`${BOOK_METADATA_USAGE}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
+\`${getBookMetadataUsage(command)}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
 A set field is kept on refresh until reset, so publish.3ook.com can prompt the publisher to sign it to chain.
 
 Examples:
-  \`/book metadata 0x1234...5678 set isbn 978-626-653-162-5\` - Set the ISBN, stored without hyphens
-  \`/book metadata 0x1234...5678 set alternativeHeadline A Subtitle\` - Set the subtitle
-  \`/book metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
+  \`${command} metadata 0x1234...5678 set isbn 978-626-653-162-5\` - Set the ISBN, stored without hyphens
+  \`${command} metadata 0x1234...5678 set alternativeHeadline A Subtitle\` - Set the subtitle
+  \`${command} metadata 0x1234...5678 reset name\` - Let refresh copy the name from chain again`,
       });
     },
-  }, 'Invalid command. Use `/book help` for usage.'),
+  }, (command) => `Invalid command. Use \`${command} help\` for usage.`),
 );
 
 export default router;
