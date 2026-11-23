@@ -48,6 +48,7 @@ import {
 } from '../../../firebase';
 import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotionCodesFromCheckoutSession } from '../../../stripe';
 import {
+  type AirtableMerchSalesInfo,
   convertObjectToAirtableLongText,
   createAirtableBookSalesRecordFromFreePurchase,
   createAirtableBookSalesRecordFromStripePaymentIntent,
@@ -432,6 +433,7 @@ export async function processNFTBookCart(
     }
 
     const infoList = classInfos;
+    const firstMerchItemIndex = infoList.findIndex((info) => isNonNFTProduct(info.listingData));
     const bookNames: string[] = [];
     let promoOwnerLikerId: string | undefined;
     let promoOwnerDisplayName: string | undefined;
@@ -547,6 +549,14 @@ export async function processNFTBookCart(
         );
       }
 
+      // eslint-disable-next-line no-use-before-define
+      const merch = getAirtableMerchSalesInfo({
+        listingData,
+        name: bookName,
+        isPlusPrice: itemInfos[itemIndex]?.isPlusPrice,
+        session,
+        hasShippingCost: itemIndex === firstMerchItemIndex,
+      });
       const notifications: Promise<any>[] = [
         price > 0 ? sendNFTBookSalesSlackNotification({
           classId,
@@ -575,6 +585,7 @@ export async function processNFTBookCart(
             coupon,
             cartId,
             isGift,
+            merch,
           }) : createAirtableBookSalesRecordFromFreePurchase({
             classId,
             priceIndex,
@@ -595,6 +606,7 @@ export async function processNFTBookCart(
             coupon,
             cartId,
             rawData: convertObjectToAirtableLongText(session),
+            merch,
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
@@ -1063,6 +1075,33 @@ export function getMerchShippingFromSession(
     };
   }
   return result;
+}
+
+// Stripe charges shipping once per session, so only the first merch row carries the cost.
+export function getAirtableMerchSalesInfo({
+  listingData,
+  name,
+  isPlusPrice,
+  session,
+  hasShippingCost,
+}: {
+  listingData: Pick<NFTBookListingInfo, 'productType' | 'nameByLocale'>;
+  name: string;
+  isPlusPrice?: boolean;
+  session?: Stripe.Checkout.Session;
+  hasShippingCost: boolean;
+}): AirtableMerchSalesInfo | undefined {
+  if (!isNonNFTProduct(listingData)) return undefined;
+  const { phone, shippingDetails } = getMerchShippingFromSession(session);
+  const shippingCost = session?.shipping_cost?.amount_total;
+  return {
+    productName: listingData.nameByLocale?.zh || name,
+    isPlusPrice,
+    shippingCountry: shippingDetails?.address?.country || undefined,
+    shippingCost: (hasShippingCost && typeof shippingCost === 'number') ? shippingCost / 100 : undefined,
+    customerName: shippingDetails?.name || session?.customer_details?.name || undefined,
+    customerPhone: phone,
+  };
 }
 
 export async function processNFTBookCartStripePurchase(
