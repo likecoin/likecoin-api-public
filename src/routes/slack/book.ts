@@ -31,6 +31,11 @@ import {
   setBookAdultOnly,
 } from '../../util/api/likernft/book/adultOnly';
 import {
+  getBookCommissionUsage,
+  parseBookCommissionQuery,
+  setBookCommission,
+} from '../../util/api/likernft/book/commission';
+import {
   getBookMetadataUsage,
   parseBookMetadataQuery,
   setBookManualMetadata,
@@ -314,6 +319,27 @@ router.post(
         text: formatBookTippingSlackText(result),
       });
     },
+    commission: async ({
+      command, params, req, res,
+    }) => {
+      const query = parseBookCommissionQuery(params, command);
+      const result = await setBookCommission(query);
+      publisher.publish(PUBSUB_TOPIC_MISC, null, {
+        logType: 'BookNFTCommissionUpdate',
+        slackUserId: req.body.user_id,
+        classId: query.classId,
+        ...(query.ratios || { isReset: true }),
+      });
+
+      const { ratios } = result;
+      const change = ratios
+        ? `Platform: \`${ratios.platformCommissionRatio}\`, channel: \`${ratios.channelCommissionRatio}\``
+        : 'Ratios cleared: a book takes the default commission again, merch none';
+      res.json({
+        response_type: 'in_channel',
+        text: `Commission updated for *${escapeSlackText(result.className)}*\nClass ID: \`${result.classId}\`\n${change}`,
+      });
+    },
     metadata: async ({
       command, params, req, res,
     }) => {
@@ -382,6 +408,16 @@ Without a priceIndex, every edition is set. Tipping shows only on editions with 
 Examples:
   \`${command} tipping 0x1234...5678 on\` - Enable tipping on every edition
   \`${command} tipping 0x1234...5678 off 1\` - Disable tipping on edition #1 only
+
+\`${getBookCommissionUsage(command)}\` Set a listing's commission ratios on the price paid
+Platform is kept by 3ook.com on every order; channel goes to the affiliate only when \`from\` is one. With the 5% fee, they must not exceed 1.
+Unset, a book takes the default commission and merch none; once either is set, the other counts as 0. \`reset\` unsets both.
+
+Examples:
+  \`${command} commission boox-go-7 0.3148 0\` - Keep 31.48%, pay affiliates nothing
+  \`${command} commission boox-go-7 0.3148 0.1\` - Also pay affiliates 10%
+  \`${command} commission 0x1234...5678 0 0\` - Take no commission on a book
+  \`${command} commission 0x1234...5678 reset\` - Back to the default book commission
 
 \`${getBookMetadataUsage(command)}\` Correct the listing name, subtitle (alternativeHeadline) or ISBN
 A set field is kept on refresh until reset, so publish.3ook.com can prompt the publisher to sign it to chain.
