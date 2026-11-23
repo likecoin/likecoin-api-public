@@ -80,6 +80,25 @@ export async function getStripePromotionCodesFromCheckoutSession(sessionId: stri
   return promotionCodes;
 }
 
+// Expects a payment intent retrieved with STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS.
+export function getStripeFeeFromPaymentIntent(paymentIntent: Stripe.PaymentIntent) {
+  const balanceTx = (paymentIntent.latest_charge as Stripe.Charge)
+    ?.balance_transaction as Stripe.BalanceTransaction;
+  // balanceTx can be null when capture is automatic_async
+  if (!balanceTx) {
+    // eslint-disable-next-line no-console
+    console.warn(`No balance transaction found for payment intent ${paymentIntent.id}`);
+    return 0;
+  }
+  if (balanceTx.currency !== 'usd') {
+    // eslint-disable-next-line no-console
+    console.warn(`Balance transaction currency is not USD for payment intent ${paymentIntent.id}`);
+  }
+  const stripeFees = balanceTx.fee_details.filter((fee) => fee.type === 'stripe_fee' && fee.currency === balanceTx.currency);
+  const stripeFee = stripeFees.reduce((prev, curr) => prev + curr.amount, 0);
+  return stripeFee;
+}
+
 export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.Session) {
   const stripe = getStripeClient();
   const paymentIntent = session.payment_intent;
@@ -89,21 +108,7 @@ export async function getStripeFeeFromCheckoutSession(session: Stripe.Checkout.S
   const expandedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent as string, {
     expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
   });
-  const balanceTx = (expandedPaymentIntent.latest_charge as Stripe.Charge)
-    ?.balance_transaction as Stripe.BalanceTransaction;
-  // balanceTx can be null when capture is automatic_async
-  if (!balanceTx) {
-    // eslint-disable-next-line no-console
-    console.warn(`No balance transaction found for payment intent ${paymentIntent}`);
-    return 0;
-  }
-  if (balanceTx.currency !== 'usd') {
-    // eslint-disable-next-line no-console
-    console.warn(`Balance transaction currency is not USD for payment intent ${paymentIntent}`);
-  }
-  const stripeFees = balanceTx.fee_details.filter((fee) => fee.type === 'stripe_fee' && fee.currency === balanceTx.currency);
-  const stripeFee = stripeFees.reduce((prev, curr) => prev + curr.amount, 0);
-  return stripeFee;
+  return getStripeFeeFromPaymentIntent(expandedPaymentIntent);
 }
 
 export function normalizeLanguageForStripeLocale(
