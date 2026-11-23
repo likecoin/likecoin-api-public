@@ -58,6 +58,7 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
 }
 
 const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHpE';
+const MERCH_SALES_TABLE_ID = IS_TESTNET ? 'tblxdambGNlYsrFOv' : 'tblnlo0s0XuBr41H5';
 const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
 // Only the production base rolls payment rows up into a Subscriptions table;
@@ -672,6 +673,32 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   };
 }
 
+// Merch is not in Publications, so Sales (Merch) names the product in text columns
+// instead of the Product link that Sales (Book) uses.
+export interface AirtableMerchSalesInfo {
+  productName: string;
+  isPlusPrice?: boolean;
+  shippingCountry?: string;
+  shippingCost?: number;
+  customerName?: string;
+  customerPhone?: string;
+}
+
+function getAirtableMerchSalesFields(
+  productId: string,
+  merch: AirtableMerchSalesInfo,
+): Partial<FieldSet> {
+  return {
+    'Product ID': productId,
+    'Product Name': merch.productName,
+    'Is Member Price': !!merch.isPlusPrice,
+    'Shipping Country': merch.shippingCountry,
+    'Shipping Cost': merch.shippingCost,
+    'Customer Name': merch.customerName,
+    'Customer Phone': merch.customerPhone,
+  };
+}
+
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
   paymentId,
@@ -688,6 +715,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   coupon,
   cartId,
   isGift,
+  merch,
 }: {
   pi: Stripe.PaymentIntent,
   paymentId: string,
@@ -704,6 +732,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   coupon?: string,
   cartId?: string,
   isGift?: boolean,
+  merch?: AirtableMerchSalesInfo,
 }): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -756,7 +785,10 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'Raw Data': record.rawData,
       Gifting: !!isGift,
     };
-    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(record.productId)];
+    if (merch) Object.assign(fields, getAirtableMerchSalesFields(record.productId, merch));
+    const queries: Promise<any>[] = [
+      merch ? Promise.resolve(null) : queryAirtablePublicationRecordById(record.productId),
+    ];
     if (evmWallet) {
       fields['Customer Wallet'] = evmWallet;
       queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
@@ -774,7 +806,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
+    const tableId = merch ? MERCH_SALES_TABLE_ID : BOOK_SALES_TABLE_ID;
+    await base(tableId).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -801,6 +834,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   coupon,
   cartId,
   rawData,
+  merch,
 }: {
   classId?: string,
   priceIndex?: number,
@@ -821,6 +855,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   coupon?: string,
   cartId?: string,
   rawData?: string,
+  merch?: AirtableMerchSalesInfo,
 }): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -864,7 +899,10 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
       'Raw Data': rawData || '',
     };
     const productId = classId || '';
-    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(productId)];
+    if (merch) Object.assign(fields, getAirtableMerchSalesFields(productId, merch));
+    const queries: Promise<any>[] = [
+      merch ? Promise.resolve(null) : queryAirtablePublicationRecordById(productId),
+    ];
     if (evmWallet) {
       fields['Customer Wallet'] = evmWallet;
       queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
@@ -882,7 +920,8 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
+    const tableId = merch ? MERCH_SALES_TABLE_ID : BOOK_SALES_TABLE_ID;
+    await base(tableId).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
