@@ -31,7 +31,10 @@ import {
   NFTBookPriceFilteredSchema,
 } from '../../src/util/api/likernft/book/schemas';
 import { formatStripeCheckoutSession } from '../../src/util/api/likernft/book/purchase';
-import { getStripeClient } from '../../src/util/stripe';
+import { calculateItemPrices } from '../../src/util/api/likernft/book/price';
+import { calculateItemFeeInfo } from '../../src/util/api/likernft/book/payment';
+import { calculateStripeFee, getStripeClient } from '../../src/util/stripe';
+import { LIKER_LAND_WAIVED_CHANNEL, NFT_BOOK_DEFAULT_FROM_CHANNEL } from '../../src/constant';
 import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
 import type { NFTBookListingInfo, NFTBookPrice } from '../../src/types/book';
 
@@ -189,13 +192,27 @@ describe('response filters carry merch fields', () => {
 
   it('exposes productType and territories publicly, the despatch count to the owner only', () => {
     const publicView = NFTBookListingInfoFilteredSchema.parse(
-      filterNFTBookListingInfo(merchListing(), false),
+      filterNFTBookListingInfo(merchListing({
+        platformCommissionRatio: 0.3148,
+        channelCommissionRatio: 0.1,
+      }), false),
     );
     expect(publicView.productType).toBe('merch');
     expect(publicView.availableTerritories).toEqual(['HK']);
     expect(publicView.nameByLocale).toEqual({ en: 'Boox Go 7', zh: 'Boox Go 7 電子閱讀器' });
     expect(publicView.maxQuantityPerOrder).toBe(1);
     expect(publicView.pendingShipmentCount).toBeUndefined();
+    expect(publicView).not.toHaveProperty('platformCommissionRatio');
+    expect(publicView).not.toHaveProperty('channelCommissionRatio');
+
+    const publicBookView = filterNFTBookListingInfo({
+      classId: '0xbook',
+      ownerWallet: '0xowner',
+      platformCommissionRatio: 0.1,
+      channelCommissionRatio: 0.2,
+    }, false);
+    expect(publicBookView).not.toHaveProperty('platformCommissionRatio');
+    expect(publicBookView).not.toHaveProperty('channelCommissionRatio');
 
     const ownerView = NFTBookListingInfoFilteredSchema.parse(
       filterNFTBookListingInfo(merchListing(), true),
@@ -434,6 +451,88 @@ describe('formatStripeCheckoutSession for merch', () => {
   });
 });
 
+describe('calculateItemPrices for merch', () => {
+  const AFFILIATE = '@affiliate';
+  const merchItem = (overrides: Partial<CartItemWithInfo> = {}) => cartItem({
+    productType: 'merch',
+    priceInDecimal: 247800,
+    originalPriceInDecimal: 247800,
+    ...overrides,
+  });
+  const pricesFor = (item: CartItemWithInfo, from: string) => calculateItemPrices([item], from)[0];
+
+  it.each([NFT_BOOK_DEFAULT_FROM_CHANNEL, AFFILIATE])('takes no commission without ratios (from %s)', (from) => {
+    const item = merchItem({ priceInDecimal: 25800, originalPriceInDecimal: 25800 });
+    const itemPrice = pricesFor(item, from);
+    expect(itemPrice.likerLandCommission).toBe(0);
+    expect(itemPrice.channelCommission).toBe(0);
+
+    const stripeFeeAmount = calculateStripeFee(25800, 'usd');
+    const { royaltyToSplit } = calculateItemFeeInfo(itemPrice, {
+      totalStripeFeeAmount: stripeFeeAmount,
+      totalPriceInDecimal: 25800,
+    });
+    expect(royaltyToSplit).toBe(25800 - Math.ceil(25800 * 0.05) - stripeFeeAmount);
+  });
+
+  it.each([NFT_BOOK_DEFAULT_FROM_CHANNEL, AFFILIATE])('keeps the platform ratio and pays no affiliate (from %s)', (from) => {
+    const itemPrice = pricesFor(merchItem({ platformCommissionRatio: 0.3148 }), from);
+    expect(itemPrice.likerLandCommission).toBe(78008);
+    expect(itemPrice.channelCommission).toBe(0);
+  });
+
+  it('pays the channel ratio on top only to an affiliate', () => {
+    const item = merchItem({ platformCommissionRatio: 0.3148, channelCommissionRatio: 0.1 });
+    expect(pricesFor(item, AFFILIATE)).toMatchObject({
+      likerLandCommission: 78008,
+      channelCommission: 24780,
+    });
+    expect(pricesFor(item, NFT_BOOK_DEFAULT_FROM_CHANNEL)).toMatchObject({
+      likerLandCommission: 78008,
+      channelCommission: 0,
+    });
+  });
+
+  it('waives both ratios for liker_land_waived', () => {
+    const item = merchItem({ platformCommissionRatio: 0.3148, channelCommissionRatio: 0.1 });
+    expect(pricesFor(item, LIKER_LAND_WAIVED_CHANNEL)).toMatchObject({
+      likerLandCommission: 0,
+      channelCommission: 0,
+    });
+  });
+
+  it('follows the item channel over the cart channel', () => {
+    const item = merchItem({ platformCommissionRatio: 0.3148, channelCommissionRatio: 0.1 });
+    expect(pricesFor({ ...item, from: LIKER_LAND_WAIVED_CHANNEL }, AFFILIATE)).toMatchObject({
+      likerLandCommission: 0,
+      channelCommission: 0,
+    });
+    expect(pricesFor({ ...item, from: AFFILIATE }, LIKER_LAND_WAIVED_CHANNEL)).toMatchObject({
+      likerLandCommission: 78008,
+      channelCommission: 24780,
+    });
+  });
+
+  it('takes the ratios on the price paid, excluding the tip', () => {
+    const item = merchItem({
+      platformCommissionRatio: 0.2,
+      channelCommissionRatio: 0.1,
+      priceInDecimal: 21900 + 1000,
+      customPriceDiffInDecimal: 1000,
+      originalPriceInDecimal: 25800,
+    });
+    expect(pricesFor(item, AFFILIATE)).toMatchObject({
+      likerLandCommission: 4380,
+      channelCommission: 2190,
+    });
+  });
+
+  it('does not round a whole-cent commission up on float error', () => {
+    const item = merchItem({ platformCommissionRatio: 0.3148, priceInDecimal: 200000 });
+    expect(pricesFor(item, NFT_BOOK_DEFAULT_FROM_CHANNEL).likerLandCommission).toBe(62960);
+  });
+});
+
 describe('formatCartItemsWithInfo for merch', () => {
   // Not EVM-shaped, so a chain read would go to the Cosmos query.
   const SKU_ID = 'merch-sku-1';
@@ -443,6 +542,17 @@ describe('formatCartItemsWithInfo for merch', () => {
     const [item] = await formatCartItemsWithInfo([{ classId: SKU_ID, priceIndex: 0 }]);
     expect(item.name).toContain('Boox Go 7');
     expect(item.productType).toBe('merch');
+  });
+
+  it('carries the commission ratios onto the cart item', async () => {
+    await likeNFTBookCollection.doc(SKU_ID).set(merchListing({
+      classId: SKU_ID,
+      platformCommissionRatio: 0.3148,
+      channelCommissionRatio: 0.1,
+    }));
+    const [item] = await formatCartItemsWithInfo([{ classId: SKU_ID, priceIndex: 0 }]);
+    expect(item.platformCommissionRatio).toBe(0.3148);
+    expect(item.channelCommissionRatio).toBe(0.1);
   });
 
   it('rejects the same SKU on two cart lines', async () => {

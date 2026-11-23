@@ -212,6 +212,10 @@ export interface NFTBookListingInfo {
   descriptionFullByLocale?: BookLocalizedCopy;
   // Per-order cap, summed across a cart; `stock` still bounds the shelf.
   maxQuantityPerOrder?: number;
+  // Admin-set, 0–1 of the price paid. Unset, a book takes the default commission and merch none;
+  // kept out of filterNFTBookListingInfo so no listing response exposes them.
+  platformCommissionRatio?: number;
+  channelCommissionRatio?: number;
   likeClassId?: string;
   evmClassId?: string;
   redirectClassId?: string;

@@ -36,6 +36,8 @@ export type CartItemWithInfo = CartItem & {
   maxQuantityPerOrder?: number,
   plusPriceInDecimal?: number,
   plusPriceInDecimalByCurrency?: BookPriceInDecimalByCurrency,
+  platformCommissionRatio?: number,
+  channelCommissionRatio?: number,
   // Set once the member price has replaced the list price for this checkout.
   isPlusPrice?: boolean,
 }
