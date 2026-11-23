@@ -918,6 +918,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmContent,
   utmTerm,
   fbc,
+  referrer,
   giftCartId,
 }: {
   subscriptionId: string;
@@ -948,6 +949,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmContent?: string;
   utmTerm?: string;
   fbc?: string;
+  referrer?: string;
   giftCartId?: string;
 }): Promise<void> {
   try {
@@ -981,8 +983,9 @@ export async function createAirtableSubscriptionPaymentRecord({
       'UTM Source': utmSource || '',
       'UTM Content': utmContent || '',
       'UTM Term': utmTerm || '',
-      // Only sent when set, so a base without this column still accepts the rest.
+      // Only sent when set, so a base without these columns still accepts the rest.
       ...(fbc ? { 'FB Click ID': fbc } : {}),
+      ...(referrer ? { 'HTTP Referrer': referrer } : {}),
       'Gift Cart ID': giftCartId || '',
     };
     await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });

@@ -711,6 +711,7 @@ async function handleGrant(
       isNew: isInitial,
       isTrial,
       fbc: acquisitionEventPayload.fbc,
+      referrer,
     }));
   }
   await Promise.all(sideEffects);
