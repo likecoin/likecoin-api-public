@@ -1351,6 +1351,8 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         productType,
         availableTerritories,
         maxQuantityPerOrder,
+        platformCommissionRatio,
+        channelCommissionRatio,
       } = bookInfo;
 
       if (isApprovedForSale === false) {
@@ -1383,6 +1385,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         plusPriceInDecimal,
         plusPriceInDecimalByCurrency,
       };
+      const commissionRatios = { platformCommissionRatio, channelCommissionRatio };
       const displayInfo = isNonNFTProduct(bookInfo)
         ? { ...bookInfo, image: bookInfo.image || bookInfo.thumbnailUrl }
         : metadata;
@@ -1415,6 +1418,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         chain,
         isAutoDeliver,
         nonNFTFields,
+        commissionRatios,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -1437,6 +1441,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       isAutoDeliver,
       isUnlisted,
       nonNFTFields,
+      commissionRatios,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -1481,6 +1486,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       stripePriceId,
       chain,
       ...nonNFTFields,
+      ...commissionRatios,
     };
   }));
   // eslint-disable-next-line no-use-before-define

@@ -4,6 +4,7 @@ import {
 import { calculateStripeFee, normalizeLanguageForStripeLocale } from '../../src/util/stripe';
 import { checkIsFromLikerLand, calculateItemPrices } from '../../src/util/api/likernft/book/price';
 import { NFT_BOOK_DEFAULT_FROM_CHANNEL, LIKER_LAND_WAIVED_CHANNEL } from '../../src/constant';
+import type { CartItemWithInfo } from '../../src/util/api/likernft/book/type';
 
 const mockItem = {
   classId: 'test-class-id',
@@ -251,6 +252,55 @@ describe('calculateItemPrices', () => {
         expect(calculatedTotalFees).toBe(totalFees);
         expect(10000 - calculatedTotalFees).toBe(royalty);
       });
+    });
+  });
+});
+
+describe('calculateItemPrices for a book with admin-set ratios', () => {
+  const AFFILIATE = '@affiliate';
+  const pricesFor = (item: CartItemWithInfo, from: string) => calculateItemPrices([item], from)[0];
+
+  it('keeps the default commission while neither ratio is set', () => {
+    expect(pricesFor(mockItem, NFT_BOOK_DEFAULT_FROM_CHANNEL).likerLandCommission).toBe(3000);
+    expect(pricesFor(mockItem, AFFILIATE).channelCommission).toBe(3000);
+  });
+
+  it('takes the platform ratio on every channel and the channel ratio only for an affiliate', () => {
+    const book = { ...mockItem, platformCommissionRatio: 0.1, channelCommissionRatio: 0.2 };
+    expect(pricesFor(book, NFT_BOOK_DEFAULT_FROM_CHANNEL)).toMatchObject({
+      likerLandCommission: 1000,
+      channelCommission: 0,
+      likerLandFeeAmount: 500,
+    });
+    expect(pricesFor(book, AFFILIATE)).toMatchObject({
+      likerLandCommission: 1000,
+      channelCommission: 2000,
+    });
+    expect(pricesFor(book, LIKER_LAND_WAIVED_CHANNEL)).toMatchObject({
+      likerLandCommission: 0,
+      channelCommission: 0,
+    });
+  });
+
+  it('treats the unset ratio as 0', () => {
+    const book = { ...mockItem, channelCommissionRatio: 0.2 };
+    expect(pricesFor(book, AFFILIATE)).toMatchObject({
+      likerLandCommission: 0,
+      channelCommission: 2000,
+    });
+  });
+
+  it('takes the ratios on the price paid after a coupon, and keeps the platform fee', () => {
+    const book = {
+      ...mockItem,
+      priceInDecimal: 8000,
+      platformCommissionRatio: 0.1,
+      channelCommissionRatio: 0.2,
+    };
+    expect(pricesFor(book, AFFILIATE)).toMatchObject({
+      likerLandCommission: 800,
+      channelCommission: 1600,
+      likerLandFeeAmount: 500,
     });
   });
 });
