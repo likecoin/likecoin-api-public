@@ -138,7 +138,8 @@ export function formatUserCivicLikerProperies(
     if (renewalFirst <= now && now <= renewalLast) {
       payload.likerPlusSince = since;
       payload.isLikerPlus = true;
-      payload.isLikerPlusTrial = currentType === 'trial';
+      // A gift rides a Stripe trial, so it keeps trial limits (no member price, no Civic upgrade).
+      payload.isLikerPlusTrial = currentType === 'trial' || currentType === 'gift';
       payload.isSubscribedCivicLiker = true;
       payload.likerPlusPeriod = period;
       // Pre-Civic records have no tier; they are Plus.
