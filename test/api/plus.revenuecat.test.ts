@@ -619,6 +619,9 @@ describe('Plus RevenueCat webhook', () => {
       },
       { Authorization: AUTH },
     );
+    // Nor does it fund this subscription's library reading.
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.dailyValue).toBe(0);
     mockSlackNotification.mockClear();
     const res = await post(
       {
@@ -663,6 +666,8 @@ describe('Plus RevenueCat webhook', () => {
     );
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.period).toBe('year');
+    // The same subscription's earlier charge still funds the switched plan.
+    expect(user?.likerPlus?.dailyValue).toBe(0.333);
     mockSlackNotification.mockClear();
     const res = await post(
       {
@@ -924,6 +929,47 @@ describe('Plus RevenueCat webhook', () => {
     const user = await getUserWithCivicLikerProperties('testing');
     expect(user?.likerPlus?.subscriptionStatus).toBe('active');
     expect(user?.likerPlus?.subscriptionId).toBe('sub_legacy');
+  });
+
+  it.each([
+    ['leaves a legacy term unpriced on a no-charge grant for the same subscription', 'txn_123', undefined],
+    ['zeroes a legacy term on a no-charge grant for another subscription', 'txn_other', 0],
+  ])('%s', async (_, originalTransactionId, expected) => {
+    // Paid terms from before dailyValue existed carry none and still count as paid.
+    await userCollection.doc('testing').update({ likerPlus: { ...liveAppStorePlus } });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: `evt_uncancel_legacy_${originalTransactionId}`,
+        type: 'UNCANCELLATION',
+        price: 0,
+        original_transaction_id: originalTransactionId,
+        expiration_at_ms: FUTURE_PERIOD_END_MS,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.dailyValue).toBe(expected);
+  });
+
+  it('zeroes dailyValue on a free renewal of a paid subscription', async () => {
+    await userCollection.doc('testing').update({
+      likerPlus: { ...liveAppStorePlus, dailyValue: 0.33, dailyValueCurrency: 'USD' },
+    });
+    const res = await post(
+      {
+        ...baseEvent,
+        id: 'evt_free_renewal',
+        type: 'RENEWAL',
+        price: 0,
+        expiration_at_ms: FUTURE_PERIOD_END_MS + 30 * 24 * 60 * 60 * 1000,
+      },
+      { Authorization: AUTH },
+    );
+    expect(res.status).toBe(200);
+    const user = await getUserWithCivicLikerProperties('testing');
+    expect(user?.likerPlus?.dailyValue).toBe(0);
   });
 
   it('preserves dailyValue on a SUBSCRIPTION_EXTENDED that reports price 0', async () => {

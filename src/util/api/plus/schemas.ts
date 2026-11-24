@@ -297,7 +297,8 @@ const PlusReadingUsageEntrySchema = z.object({
     .optional(),
   readerWallet: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_READER_WALLET'),
   classId: z.string().regex(EVM_ADDRESS_REGEX, 'INVALID_CLASS_ID'),
-  // Rev-share-eligible (paid Plus, borrowed) durations that fund the payout pool.
+  // Borrowed Plus durations. Only a reader whose term someone paid for funds the payout
+  // pool (see isPlusReadingFunded); the rest is recorded as non-library engagement.
   readingTimeMs: UsageDurationSchema,
   ttsTimeMs: UsageDurationSchema,
   // Non-rev-share engagement (owned copies, trial/non-Plus reads). Recorded for

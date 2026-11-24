@@ -314,22 +314,30 @@ async function handleGrant(
   // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
   // `price` is normalized to USD, so the pool funds in USD — the actual transaction
   // price still captures intro/promotional and monthly/yearly differences.
-  // No-charge grants preserve the stored dailyValue rather than zeroing accrual.
+  // No-charge grants preserve the stored dailyValue rather than zeroing accrual, but only
+  // within the stored subscription and term: another subscription's charge does not fund
+  // this one, and a free renewal starts a new term nobody paid for.
+  // A legacy term priced before dailyValue existed stays unpriced rather than 0,
+  // so isPlusReadingFunded still reads it as paid.
   // Civic funds at the Plus-tier rate (see getPlusEquivalentUSDPrice), never
   // its own 10× charge.
-  let dailyValue = 0;
+  const isStoredTransaction = !!event.original_transaction_id
+    && event.original_transaction_id === user.likerPlus?.originalTransactionId;
+  let dailyValue: number | undefined = 0;
   if (!isTrial) {
     let fundingAmount = event.price;
     if (tier === 'civic') {
       fundingAmount = getPlusEquivalentUSDPrice(period);
     }
-    dailyValue = hasCharge && fundingAmount != null
-      ? calculatePlusDailyValue({
+    if (hasCharge && fundingAmount != null) {
+      dailyValue = calculatePlusDailyValue({
         amountPaid: fundingAmount,
         currentPeriodStart: purchasedAtMs,
         currentPeriodEnd,
-      })
-      : (user.likerPlus?.dailyValue ?? 0);
+      });
+    } else if (isStoredTransaction && !isInitial && event.type !== 'RENEWAL') {
+      dailyValue = user.likerPlus?.dailyValue;
+    }
   }
 
   const likerPlus: LikerPlusData = {
@@ -338,12 +346,12 @@ async function handleGrant(
     currentPeriodStart: purchasedAtMs,
     currentPeriodEnd,
     currentType: isTrial ? 'trial' : 'paid',
-    dailyValue,
     dailyValueCurrency: 'USD',
     subscriptionStatus: 'active',
     provider: 'revenuecat',
   };
   // Omit undefined optional fields — Firestore rejects undefined values.
+  if (dailyValue !== undefined) likerPlus.dailyValue = dailyValue;
   if (period) likerPlus.period = period;
   if (event.store) likerPlus.store = event.store;
   if (event.original_transaction_id) {
@@ -360,8 +368,6 @@ async function handleGrant(
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
   }
-  const isStoredTransaction = !!event.original_transaction_id
-    && event.original_transaction_id === user.likerPlus?.originalTransactionId;
   // A no-charge grant keeps the last charge for later notices only when it names the
   // stored transaction; any other subscription starts clean, never showing a lapsed price.
   if (hasCharge && paymentAmount != null && paymentCurrency) {
@@ -537,7 +543,7 @@ async function handleGrant(
   // Accrue this term's value to the rev-share pool, only on a real new charge: an extend
   // shares the running term's accrual key, so accruing would overwrite it with a longer,
   // unpaid-for paidDays. After the quarantine return so sandbox never funds real payouts.
-  if (hasCharge && dailyValue > 0 && transactionId) {
+  if (hasCharge && dailyValue && dailyValue > 0 && transactionId) {
     // Best-effort: accrual is not yet used for payouts, so a transient Firestore
     // failure must not fail (and make RevenueCat retry) the subscription webhook.
     try {
