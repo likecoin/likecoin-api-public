@@ -141,6 +141,7 @@ describe('getListingFlagOverridesForReviewAction', () => {
       isApprovedForAds: false,
       approvalStatus: 'pending',
       restrictedTerritories: ['HK', 'CN'],
+      restrictedTerritoriesSetBy: 'review',
     }],
     ['adult_review', { isApprovedForAds: false, approvalStatus: 'pending', isAdultOnly: true }],
     ['stop_sale_review', {

@@ -36,6 +36,10 @@ import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
 } from './complianceReview';
+import {
+  expandRestrictedTerritories,
+  getPublisherRestrictedTerritoriesUpdate,
+} from './restrictedTerritories';
 import type {
   BookContributor,
   BookLocalizedCopy,
@@ -374,6 +378,7 @@ export async function newNftBookInfo(
     isPlusReadingEnabled,
     isPreviewEnabled,
     previewPercentage,
+    restrictedTerritories,
 
     productType,
     availableTerritories,
@@ -485,10 +490,22 @@ export async function newNftBookInfo(
   if (isPlusReadingEnabled !== undefined) payload.isPlusReadingEnabled = isPlusReadingEnabled;
   if (isPreviewEnabled !== undefined) payload.isPreviewEnabled = isPreviewEnabled;
   if (previewPercentage !== undefined) payload.previewPercentage = previewPercentage;
+  if (restrictedTerritories?.length) {
+    payload.restrictedTerritories = restrictedTerritories;
+    payload.restrictedTerritoriesSetBy = 'publisher';
+  }
   // Verdict overrides go last so they win over the defaults above and over
   // author-supplied fields (notably isAdultOnly). Restrict-only by design.
   if (review.status === 'completed') {
-    Object.assign(payload, getListingFlagOverridesForReviewAction(review.verdict.action));
+    const overrides = getListingFlagOverridesForReviewAction(review.verdict.action);
+    // A review geoblock adds to the publisher's territories instead of lifting them.
+    if (overrides.restrictedTerritories && payload.restrictedTerritories) {
+      overrides.restrictedTerritories = expandRestrictedTerritories([
+        ...payload.restrictedTerritories,
+        ...overrides.restrictedTerritories,
+      ]);
+    }
+    Object.assign(payload, overrides);
     payload.aiReview = {
       ...review.verdict,
       model: review.model,
@@ -695,6 +712,7 @@ export async function updateNftBookInfo(classId: string, {
   image,
   promotionalImages,
   maxQuantityPerOrder,
+  restrictedTerritories,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -727,6 +745,8 @@ export async function updateNftBookInfo(classId: string, {
   image?: string;
   promotionalImages?: string[];
   maxQuantityPerOrder?: number;
+  // Publisher-requested geoblock; an empty list clears it unless review or admin set it.
+  restrictedTerritories?: string[];
 } = {}, {
   expectedOwnerWallet,
 }: {
@@ -785,15 +805,30 @@ export async function updateNftBookInfo(classId: string, {
       if (value !== undefined) payload[key] = value ?? FieldValue.delete();
     });
   const bookRef = likeNFTBookCollection.doc(classId);
-  if (expectedOwnerWallet === undefined) {
+  let restrictedTerritoriesUpdate: string[] | undefined;
+  if (expectedOwnerWallet === undefined && restrictedTerritories === undefined) {
     await bookRef.update(payload);
   } else {
+    // One transaction, so a rejected request writes nothing
+    // and a review or admin geoblock landing mid-request is never lifted.
     await db.runTransaction(async (t) => {
       const doc = await t.get(bookRef);
-      if (doc.data()?.ownerWallet !== expectedOwnerWallet) {
+      const data = (doc.data() || {}) as Partial<NFTBookListingInfo>;
+      if (expectedOwnerWallet !== undefined && data.ownerWallet !== expectedOwnerWallet) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }
-      t.update(bookRef, payload);
+      restrictedTerritoriesUpdate = restrictedTerritories === undefined
+        ? undefined
+        : getPublisherRestrictedTerritoriesUpdate(data, restrictedTerritories);
+      const geoblockPayload: any = {};
+      if (restrictedTerritoriesUpdate !== undefined) {
+        const hasTerritories = restrictedTerritoriesUpdate.length > 0;
+        geoblockPayload.restrictedTerritories = hasTerritories
+          ? restrictedTerritoriesUpdate
+          : FieldValue.delete();
+        geoblockPayload.restrictedTerritoriesSetBy = hasTerritories ? 'publisher' : FieldValue.delete();
+      }
+      t.update(bookRef, { ...payload, ...geoblockPayload });
     });
   }
   await syncNFTBookInfoWithISCN(classId);
@@ -804,6 +839,7 @@ export async function updateNftBookInfo(classId: string, {
       await updateStripeProductsFromListing(classId, bookInfo, bookInfo);
     }
   }
+  return { restrictedTerritories: restrictedTerritoriesUpdate };
 }
 
 export async function listLatestNFTBookInfo({

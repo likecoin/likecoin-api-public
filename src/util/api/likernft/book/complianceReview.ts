@@ -9,6 +9,7 @@ import type {
   NFTBookComplianceReviewVerdict,
   NFTBookListingInfo,
 } from '../../../../types/book';
+import { GEOBLOCK_HK_TERRITORIES } from './restrictedTerritories';
 
 // Single source of the verdict vocabulary: the unions in types/book.d.ts are
 // derived from these arrays, so the runtime checks and the types cannot drift.
@@ -146,9 +147,6 @@ export async function reviewBookListingContent({
 // with no human read (undo: `/book approve <classId> clear_geoblock`).
 export const FORCE_PING_REVIEW_ACTIONS: NFTBookComplianceReviewAction[] = ['geoblock_hk'];
 
-// An HK geoblock implies CN. Shared with the Slack `/book approve <classId> geoblock` lever.
-export const GEOBLOCK_HK_TERRITORIES = ['HK', 'CN'];
-
 // Restrict-only initial-flag overrides per verdict. stop_sale_review mirrors
 // the Slack /book `pending_review` combo (src/routes/slack/book.ts) so admins
 // release it with `/book approve`; the others only withhold ads plus their tag.
@@ -163,6 +161,7 @@ export function getListingFlagOverridesForReviewAction(
         isApprovedForAds: false,
         approvalStatus: 'pending',
         restrictedTerritories: GEOBLOCK_HK_TERRITORIES,
+        restrictedTerritoriesSetBy: 'review',
       };
     case 'adult_review':
       return { isApprovedForAds: false, approvalStatus: 'pending', isAdultOnly: true };

@@ -860,6 +860,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       isPlusReadingEnabled = false,
       isPreviewEnabled = false,
       previewPercentage,
+      restrictedTerritories,
       productType,
     } = req.body;
 
@@ -941,6 +942,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       isPlusReadingEnabled,
       isPreviewEnabled,
       previewPercentage,
+      restrictedTerritories,
 
       // From ISCN content metadata
       inLanguage,
@@ -1101,6 +1103,7 @@ async function createMerchListing(classId: string, req: Request) {
     descriptionByLocale,
     descriptionFullByLocale,
     promotionalImages,
+    restrictedTerritories,
   } = req.body;
   // EVM casing is an EIP-55 checksum, not identity, so compare lowercased. The
   // session's own casing is kept as owner: checkIsAuthorized matches it exactly.
@@ -1146,6 +1149,7 @@ async function createMerchListing(classId: string, req: Request) {
     descriptionByLocale,
     descriptionFullByLocale,
     promotionalImages,
+    restrictedTerritories,
   });
 
   await sendNFTBookNewListingSlackNotification({
@@ -1197,6 +1201,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       image,
       promotionalImages,
       maxQuantityPerOrder,
+      restrictedTerritories,
     } = req.body;
     const merchFields = {
       name, description, thumbnailUrl, image, promotionalImages, maxQuantityPerOrder,
@@ -1216,7 +1221,9 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       throw new ValidationError('MERCH_ONLY_FIELDS', 400);
     }
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
-    await updateNftBookInfo(classId, {
+    const {
+      restrictedTerritories: restrictedTerritoriesUpdate,
+    } = await updateNftBookInfo(classId, {
       moderatorWallets,
       connectedWallets,
       mustClaimToView,
@@ -1237,6 +1244,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       nameByLocale,
       descriptionByLocale,
       descriptionFullByLocale,
+      restrictedTerritories,
       ...merchFields,
     }, { expectedOwnerWallet: ownerWallet });
 
@@ -1255,6 +1263,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       isPublicDomain,
       hasAIGeneratedContent,
       isPlusReadingEnabled,
+      restrictedTerritories: restrictedTerritoriesUpdate,
       moderatorWalletCount: moderatorWallets ? moderatorWallets.length : 0,
       connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });
