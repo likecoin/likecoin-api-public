@@ -204,6 +204,26 @@ describe('Stripe Plus term funding', () => {
   });
 
   it.each([
+    ['keeps the funding a proration invoice finds on the same subscription', SUB_ID, 0.27, 0.27],
+    ['drops funding a proration invoice finds on another subscription', 'sub_previous', 0.27, 0],
+    ['leaves a legacy term on the same subscription unpriced', SUB_ID, undefined, undefined],
+    ['zeroes a legacy term from another subscription', 'sub_previous', undefined, 0],
+  ])('%s', async (_, storedSubscriptionId, storedDailyValue, expected) => {
+    await userCollection.doc('testing').update({
+      likerPlus: {
+        ...CLAIM_RECORD,
+        currentType: 'paid',
+        subscriptionId: storedSubscriptionId,
+        ...(storedDailyValue !== undefined && { dailyValue: storedDailyValue }),
+        dailyValueCurrency: 'USD',
+      },
+    });
+    seedSubscription({ status: 'active', metadata: {} });
+    await processInvoice('subscription_update', 1000);
+    expect((await readLikerPlus()).dailyValue).toBe(expected);
+  });
+
+  it.each([
     ['the claim lands first', true],
     ['the invoice lands first', false],
   ])('ends in the invoice record when %s', async (_, isClaimFirst) => {

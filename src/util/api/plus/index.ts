@@ -536,6 +536,10 @@ async function writePlusUserRecordAndAccrual({
   } = ctx;
   const { affiliateFrom } = subscriptionMetadata;
   const isCivic = ctx.tier === 'civic';
+  // A partial invoice keeps the stored funding only if it priced this same subscription.
+  const storedLikerPlus = user.likerPlus?.subscriptionId === subscriptionId
+    ? user.likerPlus
+    : undefined;
   let fundingAmountPaid = isTrial ? 0 : amountPaid;
   let fundingAmountPaidUSD = isTrial ? 0 : amountPaidUSD;
   let fundingCurrency = currency;
@@ -551,16 +555,19 @@ async function writePlusUserRecordAndAccrual({
     fundingAmountPaidUSD = fundingAmountPaid;
     fundingCurrency = 'USD';
   }
-  const dailyValue = isFullTermInvoice
-    ? calculatePlusDailyValue({
+  // A legacy term priced before dailyValue existed stays unpriced rather than 0,
+  // so isPlusReadingFunded still reads it as paid.
+  let dailyValue = storedLikerPlus ? storedLikerPlus.dailyValue : 0;
+  if (isFullTermInvoice) {
+    dailyValue = calculatePlusDailyValue({
       amountPaid: fundingAmountPaid,
       currentPeriodStart,
       currentPeriodEnd,
-    })
-    : (user.likerPlus?.dailyValue ?? 0);
+    });
+  }
   const dailyValueCurrency = isFullTermInvoice
     ? fundingCurrency
-    : (user.likerPlus?.dailyValueCurrency ?? currency);
+    : (storedLikerPlus?.dailyValueCurrency ?? currency);
   // A user billed by both Stripe and the app keeps the app record while in period:
   // only it knows the app subscription, and a later Stripe cancellation would revoke it.
   // An expired app record is still replaced, as when a user moves from app to web.
@@ -580,7 +587,7 @@ async function writePlusUserRecordAndAccrual({
       currentPeriodStart,
       currentPeriodEnd,
       currentType,
-      dailyValue,
+      ...(dailyValue !== undefined && { dailyValue }),
       dailyValueCurrency,
       subscriptionId,
       customerId: stripeCustomer.id,
@@ -603,7 +610,7 @@ async function writePlusUserRecordAndAccrual({
   // proration invoices reuse the stored dailyValue (already accrued at the cycle), and
   // trials other than gifts fund nothing. The charge is normalized from its invoice currency
   // to USD so the pool stays single-currency.
-  if (isFullTermInvoice && dailyValue > 0) {
+  if (isFullTermInvoice && dailyValue && dailyValue > 0) {
     const dailyValueUSD = calculatePlusDailyValue({
       amountPaid: fundingAmountPaidUSD,
       currentPeriodStart,
