@@ -245,7 +245,7 @@ export async function createPlusGiftCart({
     timestamp: FieldValue.serverTimestamp(),
   };
   if (ipCountry) payload.ipCountry = ipCountry;
-  // The recipient's payment record is written at claim time,
+  // The recipient's payment record is written from the trial invoice after the claim,
   // long after the purchase session that carried the buyer's ad click.
   if (fbc) payload.fbc = fbc;
   await likePlusGiftCartCollection.doc(paymentId).create(payload);
