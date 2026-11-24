@@ -7,8 +7,9 @@ import {
   getDayStartMs,
   getPeriodBoundsMs,
   getUsageDayId,
-  parseUsageRegion,
+  isPlusReadingFunded,
 } from '../../src/util/api/plus/revenueShare';
+import type { LikerPlusData } from '../../src/types/user';
 
 const monthStart = Date.UTC(2026, 0, 1);
 
@@ -72,6 +73,42 @@ describe('calculatePlusDailyValue', () => {
       currentPeriodEnd: monthStart + 30 * ONE_DAY_IN_MS - 5000,
     });
     expect(daily).toBeCloseTo(9 / 30, 10);
+  });
+});
+
+describe('isPlusReadingFunded', () => {
+  const plus = (likerPlus: Partial<LikerPlusData>) => likerPlus as LikerPlusData;
+
+  it.each([
+    ['a paid web or app term', plus({ currentType: 'paid', dailyValue: 0.3 }), true],
+    ['a Civic term', plus({ currentType: 'paid', tier: 'civic', dailyValue: 0.27 }), true],
+    ['a partial-discount coupon term', plus({ currentType: 'paid', dailyValue: 0.1 }), true],
+    ['a paid term from before dailyValue existed', plus({ currentType: 'paid' }), true],
+    ['a 100%-off coupon term', plus({ currentType: 'paid', dailyValue: 0 }), false],
+    ['a web trial', plus({ currentType: 'trial', dailyValue: 0 }), false],
+    ['a Play intro offer', plus({ currentType: 'trial', dailyValue: 0, provider: 'revenuecat' }), false],
+    ['a claimed Plus gift', plus({ currentType: 'gift', dailyValue: 0.27 }), true],
+    ['a Plus gift bought with a 100%-off coupon', plus({ currentType: 'gift', dailyValue: 0 }), false],
+    ['a Plus gift the invoice has not priced yet', plus({ currentType: 'gift' }), false],
+
+    ['a VIP grant', plus({ currentType: 'paid', isVIP: true }), false],
+    // The suite runs as testnet, where store sandbox purchases are the real test traffic.
+    ['a sandbox store purchase on testnet', plus({ currentType: 'paid', dailyValue: 0.3, environment: 'SANDBOX' }), true],
+    ['a VIP grant with a stale dailyValue', plus({ currentType: 'paid', isVIP: true, dailyValue: 0.3 }), false],
+    ['no Plus record', undefined, false],
+    ['an unknown reader', null, false],
+  ])('%s → %s', (_, likerPlus, expected) => {
+    expect(isPlusReadingFunded(likerPlus)).toBe(expected);
+  });
+
+  const seat = plus({ currentType: 'shared', dailyValue: 0, grantedBy: 'giver' });
+  it.each([
+    ['a paid Civic giver', plus({ currentType: 'paid', tier: 'civic', dailyValue: 0.27 }), true],
+    ['a 100%-off Civic giver', plus({ currentType: 'paid', tier: 'civic', dailyValue: 0 }), false],
+    ['a missing giver', undefined, false],
+    ['a giver that is itself a seat', seat, false],
+  ])('counts a shared-membership seat from %s → %s', (_, giver, expected) => {
+    expect(isPlusReadingFunded(seat, giver)).toBe(expected);
   });
 });
 
@@ -223,31 +260,5 @@ describe('accruePoolUSD', () => {
 
   it('returns 0 for no accruals', () => {
     expect(accruePoolUSD([], mar.startMs, mar.endMs)).toBe(0);
-  });
-});
-
-describe('parseUsageRegion', () => {
-  it('uppercases a recognised country code', () => {
-    expect(parseUsageRegion('tw')).toBe('TW');
-    expect(parseUsageRegion('HK')).toBe('HK');
-    expect(parseUsageRegion(' gb ')).toBe('GB');
-  });
-
-  it('drops the placeholders Cloudflare sends for unresolvable IPs', () => {
-    // XX = unknown, T1 = Tor. Both would otherwise open a map key on every rollup.
-    expect(parseUsageRegion('XX')).toBeUndefined();
-    expect(parseUsageRegion('T1')).toBeUndefined();
-  });
-
-  it('drops anything not on the allowlist rather than trusting the caller', () => {
-    expect(parseUsageRegion('ZZ')).toBeUndefined();
-    expect(parseUsageRegion('TAIWAN')).toBeUndefined();
-    expect(parseUsageRegion('../../etc')).toBeUndefined();
-  });
-
-  it('returns undefined for a missing or empty country', () => {
-    expect(parseUsageRegion()).toBeUndefined();
-    expect(parseUsageRegion('')).toBeUndefined();
-    expect(parseUsageRegion('   ')).toBeUndefined();
   });
 });

@@ -63,6 +63,13 @@ export interface LikerPlusData {
   giftPaymentId?: string;
   giftClaimToken?: string;
   affiliateFrom?: string;
+  // RevenueCat-only: the last real charge, in the currency the customer paid.
+  // Cancellation and billing-issue events carry no price, so their notices read it here.
+  lastPaymentAmount?: number;
+  lastPaymentCurrency?: string;
+  // Set when a no-charge grant moves the record to another subscription, period or tier,
+  // so `dailyValue` no longer prices it; the next charge rebuilds the record without it.
+  skipPriceEstimate?: boolean;
   // Granted by staff through `/plus set vip`: long-lived Plus with no billing
   // system behind it, hence no provider, subscriptionId or dailyValue.
   isVIP?: boolean;

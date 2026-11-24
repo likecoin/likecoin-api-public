@@ -25,6 +25,7 @@ export const NFT_BOOKSTORE_HOSTNAME = IS_TESTNET ? 'publish.sepolia.3ook.com' : 
 
 export const API_EXTERNAL_HOSTNAME = process.env.API_EXTERNAL_HOSTNAME || `api.${EXTERNAL_HOSTNAME}`;
 
+export const FILES_HOSTNAME = IS_TESTNET ? 'files-testnet.3ook.com' : 'files.3ook.com';
 export const BOOK3_HOSTNAME = IS_TESTNET ? 'sepolia.3ook.com' : '3ook.com';
 export const BOOK3_CART_PAGES = ['list', 'checkout'];
 
@@ -173,6 +174,8 @@ export const ARWEAVE_GATEWAY = 'https://gateway.irys.xyz';
 // Irys first: it is the bundler we upload through, so it serves fresh uploads
 // without propagation lag. Fallback order is irrelevant to membership checks.
 export const ARWEAVE_GATEWAYS = [`${ARWEAVE_GATEWAY}/`, 'https://arweave.net/'];
+
+export const STATIC_THUMBNAIL_ENDPOINT = 'https://static.like.co/thumbnail/';
 
 export const MIN_BOOK_PRICE_DECIMAL = 90; // 0.90 USD
 export const NFT_BOOK_TEXT_LOCALES = ['zh', 'en'];

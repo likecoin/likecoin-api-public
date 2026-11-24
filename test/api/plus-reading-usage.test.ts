@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, beforeEach,
+} from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
-import { likeNFTBookCollection } from '../../src/util/firebase';
+import { likeNFTBookCollection, userCollection } from '../../src/util/firebase';
 
 const PATH = '/api/plus/reading/usage';
 const AUTH = 'test-plus-reading-service-token'; // matches PLUS_READING_SERVICE_TOKEN in test/setup.ts
@@ -21,7 +23,14 @@ const seedBook = (classId: string, data: Record<string, unknown> = {}) => likeNF
     classId, ownerWallet: OWNER, isPlusReadingEnabled: true, ...data,
   }).filter(([, v]) => v !== undefined)) as any);
 
+// A reader whose current term someone paid for, so library minutes fund the pool.
+const seedReader = (wallet: string, likerPlus: Record<string, unknown>) => userCollection
+  .doc(`reader-${wallet}`)
+  .set({ evmWallet: wallet, likerPlus } as any);
+
 describe('POST /plus/reading/usage', () => {
+  beforeEach(() => seedReader(READER, { currentType: 'paid', dailyValue: 0.3 }));
+
   it('rejects requests without the service token', async () => {
     const noAuth = await post({
       readerWallet: READER, classId: CLASS_ID, readingTimeMs: 1000, ttsTimeMs: 0,
@@ -281,5 +290,91 @@ describe('POST /plus/reading/usage', () => {
       { dayId: '2026-03-10', applied: true },
       { dayId: '2026-03-11', applied: true },
     ]);
+  });
+  // The forwarder sends every borrowed Plus read; the API decides whether anyone paid.
+  it.each([
+    ['an unknown reader', null, 0x81, 18],
+    ['a 100%-off coupon term', { currentType: 'paid', dailyValue: 0 }, 0x82, 19],
+    ['a trial', { currentType: 'trial', dailyValue: 0 }, 0x83, 20],
+    ['a VIP grant', { currentType: 'paid', isVIP: true }, 0x84, 21],
+    ['a seat from a 100%-off Civic giver', { currentType: 'shared', dailyValue: 0, grantedBy: 'free-giver' }, 0x85, 26],
+  ])('reclassifies library reads by %s as non-library engagement', async (_label, likerPlus, addrByte, dayOfMonth) => {
+    const classId = mockEVMAddress(addrByte as number);
+    const reader = mockEVMAddress((addrByte as number) + 0x100);
+    await seedBook(classId);
+    if (likerPlus) await seedReader(reader, likerPlus as Record<string, unknown>);
+    await userCollection.doc('free-giver').set({
+      likerPlus: { currentType: 'paid', tier: 'civic', dailyValue: 0 },
+    } as any);
+    const dayId = `2026-03-${dayOfMonth}`;
+
+    const res = await post({
+      readerWallet: reader,
+      classId,
+      readingTimeMs: 1500,
+      ttsTimeMs: 4200,
+      nonLibraryReadingTimeMs: 100,
+      occurredAt: Date.UTC(2026, 2, dayOfMonth as number, 8),
+    }, AUTH_HEADER);
+    expect(res.status).toBe(200);
+
+    const dayDocRef = likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId);
+    const day = (await dayDocRef.get()).data() as any;
+    expect(day.readingTimeMs).toBe(0);
+    expect(day.ttsTimeMs).toBe(0);
+    expect(day.nonLibraryReadingTimeMs).toBe(1600);
+    expect(day.nonLibraryTtsTimeMs).toBe(4200);
+    expect((await dayDocRef.collection('readers').get()).size).toBe(0);
+  });
+
+  it.each([
+    ['a claimed Plus gift', { currentType: 'gift', dailyValue: 0.27 }, 0x91, 22],
+    ['a seat from a paid Civic giver', { currentType: 'shared', dailyValue: 0, grantedBy: 'paid-giver' }, 0x92, 23],
+  ])('counts library reads by %s', async (_label, likerPlus, addrByte, dayOfMonth) => {
+    const classId = mockEVMAddress(addrByte as number);
+    const reader = mockEVMAddress((addrByte as number) + 0x100);
+    await seedBook(classId);
+    await seedReader(reader, likerPlus);
+    await userCollection.doc('paid-giver').set({
+      likerPlus: { currentType: 'paid', tier: 'civic', dailyValue: 0.27 },
+    } as any);
+    const dayId = `2026-03-${dayOfMonth}`;
+
+    await post({
+      readerWallet: reader,
+      classId,
+      readingTimeMs: 1500,
+      ttsTimeMs: 4200,
+      occurredAt: Date.UTC(2026, 2, dayOfMonth as number, 8),
+    }, AUTH_HEADER);
+
+    const dayDocRef = likeNFTBookCollection.doc(classId).collection('plusUsage').doc(dayId);
+    const day = (await dayDocRef.get()).data() as any;
+    expect(day.readingTimeMs).toBe(1500);
+    expect(day.ttsTimeMs).toBe(4200);
+    expect(day.nonLibraryReadingTimeMs).toBe(0);
+  });
+
+  it('judges each reader in a batch separately', async () => {
+    const classId = mockEVMAddress(0xa1);
+    const unpaidReader = mockEVMAddress(0x1a1);
+    await seedBook(classId);
+    await seedReader(unpaidReader, { currentType: 'trial', dailyValue: 0 });
+
+    await post({
+      entries: [
+        {
+          id: 'mix-1', readerWallet: READER, classId, readingTimeMs: 100, ttsTimeMs: 0, occurredAt: Date.UTC(2026, 2, 24, 8),
+        },
+        {
+          id: 'mix-2', readerWallet: unpaidReader, classId, readingTimeMs: 200, ttsTimeMs: 0, occurredAt: Date.UTC(2026, 2, 25, 8),
+        },
+      ],
+    }, AUTH_HEADER);
+
+    const readDay = async (dayId: string) => (await likeNFTBookCollection.doc(classId)
+      .collection('plusUsage').doc(dayId).get()).data() as any;
+    expect(await readDay('2026-03-24')).toMatchObject({ readingTimeMs: 100, nonLibraryReadingTimeMs: 0 });
+    expect(await readDay('2026-03-25')).toMatchObject({ readingTimeMs: 0, nonLibraryReadingTimeMs: 200 });
   });
 });

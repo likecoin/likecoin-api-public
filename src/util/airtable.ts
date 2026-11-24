@@ -14,6 +14,7 @@ import { TransactionFeeInfo } from './api/likernft/book/type';
 
 interface AirtablePublicationRecordParams {
   name?: string | { zh: string, en: string };
+  alternativeHeadline?: string;
   description?: string | { zh: string, en: string };
   iscnIdPrefix?: string;
   ownerWallet?: string;
@@ -57,8 +58,10 @@ interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecor
 }
 
 const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHpE';
+const MERCH_SALES_TABLE_ID = IS_TESTNET ? 'tblxdambGNlYsrFOv' : 'tblnlo0s0XuBr41H5';
 const PUBLICATIONS_TABLE_ID = IS_TESTNET ? 'tblIWidWunE26KkyE' : 'tblgXqb89EtLtmaKw';
 const SUBSCRIPTION_PAYMENT_TABLE_ID = IS_TESTNET ? 'tblZ5AOkEi2M2IUSf' : 'tbllIHPWRWXYz2BqQ';
+const PLUS_GIFT_SALES_TABLE_ID = IS_TESTNET ? 'tblPVeqCSQYr548XJ' : 'tblknxyekyZ9k4JrU';
 // Only the production base rolls payment rows up into a Subscriptions table;
 // the testnet base has none, so status writes there are a no-op.
 const SUBSCRIPTIONS_TABLE_ID = IS_TESTNET ? '' : 'tbl2SOxYxMU4no8Xx';
@@ -94,6 +97,7 @@ export async function createAirtablePublicationRecord({
   timestamp,
   id,
   name,
+  alternativeHeadline,
   description,
   iscnIdPrefix,
   ownerWallet,
@@ -157,6 +161,9 @@ export async function createAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+      fields.Subtitle = alternativeHeadline;
+    }
     const publishedDate = toAirtablePublishedDate(datePublished);
     if (publishedDate) fields['Published Date'] = publishedDate;
 
@@ -319,6 +326,7 @@ async function queryAirtablePublicationRecordById(id: string) {
 export async function updateAirtablePublicationRecord({
   id,
   name,
+  alternativeHeadline,
   description,
   iscnIdPrefix,
   ownerWallet,
@@ -383,6 +391,9 @@ export async function updateAirtablePublicationRecord({
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
     if (genre) fields.Genre = genre;
+    if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+      fields.Subtitle = alternativeHeadline;
+    }
     const publishedDate = toAirtablePublishedDateUpdate(datePublished);
     if (publishedDate !== undefined) fields['Published Date'] = publishedDate;
 
@@ -663,6 +674,32 @@ function normalizeStripePaymentIntentForAirtableBookSalesRecord(
   };
 }
 
+// Merch is not in Publications, so Sales (Merch) names the product in text columns
+// instead of the Product link that Sales (Book) uses.
+export interface AirtableMerchSalesInfo {
+  productName: string;
+  isPlusPrice?: boolean;
+  shippingCountry?: string;
+  shippingCost?: number;
+  customerName?: string;
+  customerPhone?: string;
+}
+
+function getAirtableMerchSalesFields(
+  productId: string,
+  merch: AirtableMerchSalesInfo,
+): Partial<FieldSet> {
+  return {
+    'Product ID': productId,
+    'Product Name': merch.productName,
+    'Is Member Price': !!merch.isPlusPrice,
+    'Shipping Country': merch.shippingCountry,
+    'Shipping Cost': merch.shippingCost,
+    'Customer Name': merch.customerName,
+    'Customer Phone': merch.customerPhone,
+  };
+}
+
 export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   pi,
   paymentId,
@@ -679,6 +716,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   coupon,
   cartId,
   isGift,
+  merch,
 }: {
   pi: Stripe.PaymentIntent,
   paymentId: string,
@@ -695,6 +733,7 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
   coupon?: string,
   cartId?: string,
   isGift?: boolean,
+  merch?: AirtableMerchSalesInfo,
 }): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -747,7 +786,10 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
       'Raw Data': record.rawData,
       Gifting: !!isGift,
     };
-    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(record.productId)];
+    if (merch) Object.assign(fields, getAirtableMerchSalesFields(record.productId, merch));
+    const queries: Promise<any>[] = [
+      merch ? Promise.resolve(null) : queryAirtablePublicationRecordById(record.productId),
+    ];
     if (evmWallet) {
       fields['Customer Wallet'] = evmWallet;
       queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
@@ -765,7 +807,8 @@ export async function createAirtableBookSalesRecordFromStripePaymentIntent({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
+    const tableId = merch ? MERCH_SALES_TABLE_ID : BOOK_SALES_TABLE_ID;
+    await base(tableId).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -792,6 +835,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   coupon,
   cartId,
   rawData,
+  merch,
 }: {
   classId?: string,
   priceIndex?: number,
@@ -812,6 +856,7 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
   coupon?: string,
   cartId?: string,
   rawData?: string,
+  merch?: AirtableMerchSalesInfo,
 }): Promise<void> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
@@ -855,7 +900,10 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
       'Raw Data': rawData || '',
     };
     const productId = classId || '';
-    const queries: Promise<any>[] = [queryAirtablePublicationRecordById(productId)];
+    if (merch) Object.assign(fields, getAirtableMerchSalesFields(productId, merch));
+    const queries: Promise<any>[] = [
+      merch ? Promise.resolve(null) : queryAirtablePublicationRecordById(productId),
+    ];
     if (evmWallet) {
       fields['Customer Wallet'] = evmWallet;
       queries.push(getUserWithCivicLikerPropertiesByWallet(evmWallet));
@@ -873,7 +921,8 @@ export async function createAirtableBookSalesRecordFromFreePurchase({
     if (cartId) {
       fields['Cart ID'] = cartId;
     }
-    await base(BOOK_SALES_TABLE_ID).create([{ fields }], { typecast: true });
+    const tableId = merch ? MERCH_SALES_TABLE_ID : BOOK_SALES_TABLE_ID;
+    await base(tableId).create([{ fields }], { typecast: true });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
@@ -909,6 +958,7 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmContent,
   utmTerm,
   fbc,
+  referrer,
   giftCartId,
 }: {
   subscriptionId: string;
@@ -939,8 +989,9 @@ export async function createAirtableSubscriptionPaymentRecord({
   utmContent?: string;
   utmTerm?: string;
   fbc?: string;
+  referrer?: string;
   giftCartId?: string;
-}): Promise<void> {
+}): Promise<string | undefined> {
   try {
     if (!base) throw new Error('Airtable base is not initialized');
     const fields: Partial<FieldSet> = {
@@ -972,14 +1023,18 @@ export async function createAirtableSubscriptionPaymentRecord({
       'UTM Source': utmSource || '',
       'UTM Content': utmContent || '',
       'UTM Term': utmTerm || '',
-      // Only sent when set, so a base without this column still accepts the rest.
+      // Only sent when set, so a base without these columns still accepts the rest.
       ...(fbc ? { 'FB Click ID': fbc } : {}),
+      ...(referrer ? { 'HTTP Referrer': referrer } : {}),
       'Gift Cart ID': giftCartId || '',
     };
-    await base(SUBSCRIPTION_PAYMENT_TABLE_ID).create([{ fields }], { typecast: true });
+    const [record] = await base(SUBSCRIPTION_PAYMENT_TABLE_ID)
+      .create([{ fields }], { typecast: true });
+    return record.id;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
+    return undefined;
   }
 }
 
@@ -1040,6 +1095,126 @@ export async function updateAirtableSubscriptionStatus({
       [{ id: record.id, fields: fields as unknown as Partial<FieldSet> }],
       { typecast: true },
     );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}
+
+export async function createAirtablePlusGiftSalesRecord({
+  giftCartId,
+  session,
+  pi,
+  stripeFeeAmount,
+  coupon,
+  period,
+  quantity,
+  price,
+}: {
+  giftCartId: string;
+  session: Stripe.Checkout.Session;
+  pi?: Stripe.PaymentIntent;
+  stripeFeeAmount: number;
+  coupon?: string;
+  period: string;
+  quantity: number;
+  price: Stripe.Price;
+}): Promise<void> {
+  try {
+    if (!base) throw new Error('Airtable base is not initialized');
+    const metadata = session.metadata || {};
+    const fields: Partial<FieldSet> = {
+      'Gift Cart ID': giftCartId,
+      Date: new Date().toISOString(),
+      Status: 'paid',
+      Period: period,
+      Quantity: quantity,
+      'Price ID': price.id,
+      'Price Name': price.nickname || '',
+      'Customer Email': session.customer_details?.email || undefined,
+      'Gift From Name': metadata.giftFromName || '',
+      'Gift To Email': metadata.giftToEmail || undefined,
+      'Gift To Name': metadata.giftToName || '',
+      'Gift Message': metadata.giftMessage || '',
+      'Payment Amount': (session.amount_total || 0) / 100,
+      'Payment Currency': session.currency || 'usd',
+      'Stripe Fee': stripeFeeAmount / 100,
+      Coupon: coupon || '',
+      'Payment Intent ID': pi?.id || (session.payment_intent as string | null) || '',
+      'Checkout Session ID': session.id,
+      Channel: metadata.from || '',
+      'UTM Source': metadata.utmSource || '',
+      'UTM Medium': metadata.utmMedium || '',
+      'UTM Campaign': metadata.utmCampaign || '',
+      'UTM Content': metadata.utmContent || '',
+      'UTM Term': metadata.utmTerm || '',
+      'HTTP Referrer': metadata.referrer || '',
+      'GA Client ID': metadata.gaClientId || '',
+      'GA Session ID': metadata.gaSessionId || '',
+      'FB Click ID': metadata.fbc || '',
+      'Raw Data': convertObjectToAirtableLongText(session),
+    };
+    const balanceTx = (pi?.latest_charge as Stripe.Charge | undefined)?.balance_transaction;
+    if (balanceTx && typeof balanceTx !== 'string') {
+      const balanceTxAmount = balanceTx.amount / 100;
+      fields['Balance Tx Amount'] = balanceTxAmount;
+      fields['Balance Tx Currency'] = balanceTx.currency;
+      if (balanceTx.exchange_rate) fields['Balance Tx Exchange Rate'] = balanceTx.exchange_rate;
+      fields['Balance Tx Net Amount'] = balanceTxAmount - stripeFeeAmount / 100;
+    }
+    const { evmWallet } = metadata;
+    if (evmWallet) {
+      fields['Customer Wallet'] = evmWallet;
+      const user = await getUserWithCivicLikerPropertiesByWallet(evmWallet);
+      if (user) fields['Customer User ID'] = user.user;
+    }
+    await base(PLUS_GIFT_SALES_TABLE_ID).create([{ fields }], { typecast: true });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}
+
+export async function updateAirtablePlusGiftSalesRecord({
+  giftCartId,
+  status,
+  claimedSubscriptionId,
+  claimerEmail,
+  claimerUserId,
+  claimPaymentRecordId,
+}: {
+  giftCartId: string;
+  status?: 'claimed' | 'error';
+  claimedSubscriptionId?: string;
+  claimerEmail?: string;
+  claimerUserId?: string;
+  claimPaymentRecordId?: string;
+}): Promise<void> {
+  try {
+    if (!base) throw new Error('Airtable base is not initialized');
+    const escapedGiftCartId = giftCartId.replace(/'/g, "\\'");
+    const [record] = await base(PLUS_GIFT_SALES_TABLE_ID)
+      .select({
+        filterByFormula: `{Gift Cart ID} = '${escapedGiftCartId}'`,
+        maxRecords: 1,
+      })
+      .firstPage();
+    if (!record) {
+      // Gifts bought before this table existed have no row to update.
+      // eslint-disable-next-line no-console
+      console.warn(`Airtable plus gift sales record not found for ${giftCartId}`);
+      return;
+    }
+    const fields: Partial<FieldSet> = {};
+    if (status) fields.Status = status;
+    if (status === 'claimed') {
+      fields['Claimed Date'] = new Date().toISOString();
+      fields['Claimed Subscription ID'] = claimedSubscriptionId || '';
+      fields['Claimer Email'] = claimerEmail || undefined;
+      fields['Claimer User ID'] = claimerUserId || '';
+    }
+    if (claimPaymentRecordId) fields['Claim Payment'] = [claimPaymentRecordId];
+    await base(PLUS_GIFT_SALES_TABLE_ID).update(record.id, fields, { typecast: true });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);

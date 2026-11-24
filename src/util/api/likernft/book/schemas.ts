@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAddress, isHash } from 'viem';
 import {
   FIRESTORE_QUERY_DISJUNCTION_LIMIT,
   ISO_ALPHA2_COUNTRY_CODES,
@@ -263,11 +264,18 @@ export const BookSearchQuerySchema = z.object({
   fields: z.union([z.string(), z.array(z.string())]).optional(),
 }).passthrough();
 
+// Timestamp cursor in ms, bounded to what Firestore's Timestamp can hold (years 0001–9999)
+// so an out-of-range value is a 400 here rather than a throw in `Timestamp.fromMillis`.
+const TimestampCursorSchema = z.coerce.number().int()
+  .min(-62135596800000)
+  .max(253402300799999)
+  .optional();
+
 export const BookListPaginationQuerySchema = z.object({
   productType: BookProductTypeFilterSchema,
   library: z.literal('1').optional(),
-  before: z.coerce.number().int().optional(),
-  key: z.coerce.number().int().optional(),
+  before: TimestampCursorSchema,
+  key: TimestampCursorSchema,
   limit: z.coerce.number().int().min(1).max(100)
     .default(10),
 });
@@ -276,13 +284,17 @@ export type BookListPaginationQuery = z.infer<typeof BookListPaginationQuerySche
 export const BookListQuerySchema = BookListPaginationQuerySchema.extend({
   wallet: z.string().optional(),
   chain: z.string().default('base'),
+  // Book pages show keywords as hashtags, so a copied `#絕版重生` should still match.
+  keyword: z.string()
+    .transform((v) => v.trim().replace(/^#+/, '').trim() || undefined)
+    .optional(),
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 
 export const BookListModeratedQuerySchema = z.object({
   wallet: z.string().min(1),
   chain: z.string().optional(),
-  key: z.coerce.number().int().optional(),
+  key: TimestampCursorSchema,
   limit: z.coerce.number().int().min(1).max(100)
     .default(100),
 });
@@ -404,6 +416,15 @@ export const ClassIdResponseSchema = z.object({
 });
 
 export const NewListingResponseSchema = ClassIdResponseSchema;
+
+export const OwnershipTransferBodySchema = z.object({
+  newOwnerWallet: z.string().refine((v) => isAddress(v), { message: 'invalid EVM address' }),
+  txHash: z.string().refine((v) => isHash(v), { message: 'invalid tx hash' }).optional(),
+});
+
+export const OwnershipTransferResponseSchema = ClassIdResponseSchema.extend({
+  ownerWallet: z.string(),
+});
 export const ListingSettingsResponseSchema = ClassIdResponseSchema;
 
 export const StripeCheckoutResponseSchema = z.object({
@@ -492,6 +513,11 @@ export const BookContributorSchema = z.union([
 // the NFTBookListingInfo source type can't drift apart.
 export const BookSignatureImageSchema = z.union([z.boolean(), z.literal('signed')]);
 
+const ImageThumbnailSchema = z.object({
+  url: z.string(),
+  width: z.number(),
+});
+
 export const NFTBookListingInfoFilteredSchema = z.object({
   id: z.string(),
   classId: z.string(),
@@ -521,6 +547,7 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   inLanguage: z.string().optional(),
   datePublished: z.string().optional(),
   name: z.string().optional(),
+  alternativeHeadline: z.string().optional(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
   nameByLocale: BookLocalizedCopySchema.optional(),
@@ -535,7 +562,13 @@ export const NFTBookListingInfoFilteredSchema = z.object({
   keywords: z.array(z.string()).optional(),
   thumbnailUrl: z.string().optional(),
   // `thumbnailUrl` resolved to an https URL, for clients that can't open ar:// or ipfs://.
-  imageUrl: z.string().optional(),
+  productImageUrl: z.string().optional(),
+  // `productImageUrl` resized for grids and lists.
+  // `thumbnailUrl` is the original image, not one of these.
+  thumbnails: z.object({
+    small: ImageThumbnailSchema,
+    medium: ImageThumbnailSchema,
+  }).optional(),
   canonicalUrl: z.string().optional(),
   author: BookContributorSchema.optional(),
   usageInfo: z.string().optional(),

@@ -39,6 +39,11 @@ const RECORD = {
 describe('createAirtableSubscriptionPaymentRecord', () => {
   beforeEach(() => {
     mockCreate.mockReset();
+    mockCreate.mockResolvedValue([{ id: 'recPayment' }]);
+  });
+
+  it('returns the new record ID', async () => {
+    await expect(createAirtableSubscriptionPaymentRecord(RECORD)).resolves.toBe('recPayment');
   });
 
   it('writes fbc to FB Click ID', async () => {
@@ -53,6 +58,13 @@ describe('createAirtableSubscriptionPaymentRecord', () => {
     await createAirtableSubscriptionPaymentRecord(RECORD);
     const [[{ fields }]] = mockCreate.mock.calls[0];
     expect(fields).not.toHaveProperty('FB Click ID');
+    expect(fields).not.toHaveProperty('HTTP Referrer');
     expect(fields['UTM Source']).toBe('facebook');
+  });
+
+  it('writes referrer to HTTP Referrer', async () => {
+    await createAirtableSubscriptionPaymentRecord({ ...RECORD, referrer: 'https://www.instagram.com/' });
+    const [[{ fields }]] = mockCreate.mock.calls[0];
+    expect(fields['HTTP Referrer']).toBe('https://www.instagram.com/');
   });
 });

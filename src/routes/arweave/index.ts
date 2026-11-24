@@ -1,14 +1,16 @@
 import { Router } from 'express';
-import { pipeline } from 'stream';
 import uuidv4 from 'uuid/v4';
 import {
   ARWEAVE_MAX_SIZE_V2,
   estimateUploadToArweaveV2,
 } from '../../util/api/arweave';
 import publisher from '../../util/gcloudPub';
-import { API_HOSTNAME, ARWEAVE_GATEWAY, PUBSUB_TOPIC_MISC } from '../../constant';
+import {
+  API_HOSTNAME, ARWEAVE_GATEWAY, FILES_HOSTNAME, PUBSUB_TOPIC_MISC,
+} from '../../constant';
 import {
   ARWEAVE_EVM_TARGET_ADDRESS,
+  ARWEAVE_UPLOAD_DISABLED,
 } from '../../../config/config';
 import {
   createNewGcsUploadTx,
@@ -29,8 +31,9 @@ import {
   promoteStagedObject,
   verifyStagedObject,
 } from '../../util/api/arweave/ingest';
-import { uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
-import { getTierContentUri, getTierFileStream, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
+import { serveTierFile, toContentError } from '../../util/api/arweave/serve';
+import { finalizeOpenUploadToGcs, uploadStagedObjectToArweave } from '../../util/api/arweave/openUpload';
+import { getTierContentUri, isEbookTierBucketEnabled } from '../../util/gcloudStorage';
 import {
   ArweaveEstimateBodySchema,
   ArweaveEstimateResponseSchema,
@@ -48,17 +51,10 @@ import {
 import { jwtAuth, jwtOptionalAuth } from '../../middleware/jwt';
 import { arweaveAdminAuth } from '../../middleware/arweave-admin-auth';
 import { validateBody, validateParams } from '../../middleware/validate';
-import { isNotFoundError } from '../../util/misc';
 import { sendValidatedJSON } from '../../util/ValidationHelper';
 import { ValidationError } from '../../util/ValidationError';
 
 const router = Router();
-
-// A read that fails after the metadata probe — a deleted generation, revoked
-// access — must answer 404 like the pre-flight checks, not 500.
-function toContentError(error: unknown): unknown {
-  return isNotFoundError(error) ? new ValidationError('CONTENT_OBJECT_NOT_FOUND', 404) : error;
-}
 
 function getArweaveLinkV2Url(txHash: string): string {
   return `https://${API_HOSTNAME}/arweave/v2/link/${txHash}`;
@@ -72,7 +68,9 @@ router.post(
     try {
       const { fileSize, ipfsHash } = req.body;
       const [{ arweaveId, ETH }, quota] = await Promise.all([
-        estimateUploadToArweaveV2(fileSize, ipfsHash),
+        ARWEAVE_UPLOAD_DISABLED
+          ? Promise.resolve({ arweaveId: undefined, ETH: '0' })
+          : estimateUploadToArweaveV2(fileSize, ipfsHash),
         req.user?.wallet ? getRemainingQuota(req.user.wallet) : Promise.resolve(null),
       ]);
 
@@ -125,11 +123,11 @@ router.post(
       if (!isEbookTierBucketEnabled(tier)) throw new ValidationError(`${tier.toUpperCase()}_BUCKET_NOT_CONFIGURED`, 501);
       if (fileSize > ARWEAVE_MAX_SIZE_V2) throw new ValidationError('FILE_SIZE_LIMIT_EXCEEDED');
       const { wallet } = req.user;
-      const id = `gcs-${uuidv4()}`;
+      const id = uuidv4();
       // Both tiers: staging costs the caller nothing up front, so the quota is all
-      // that stands between write:iscn and unbounded free storage. The open tier
-      // releases this once /v2/gcs/arweave settles the real charge; an abandoned
-      // upload keeps it, which is exactly the rate limit we want.
+      // that stands between write:iscn and unbounded free storage. An abandoned upload
+      // keeps the reservation, which is exactly the rate limit we want, and so does
+      // a GCS-only finalize; only a settled /v2/gcs/arweave charge releases it.
       const uploadUrl = await withReservedQuota(wallet, fileSize, '0', async () => {
         await createNewGcsUploadTx(id, {
           fileSize, fileSHA256, contentType, fileName, ownerWallet: wallet, tier,
@@ -208,13 +206,19 @@ router.post(
       const tx = await getOwnedPendingGcsTx(txHash, wallet, 'open');
       const {
         arweaveId, contentBucketPath, fileSHA256, isSponsored,
-      } = await uploadStagedObjectToArweave(txHash, tx, {
-        wallet, ipfsHash, paymentTxHash, txToken,
-      });
+      } = ARWEAVE_UPLOAD_DISABLED
+        ? {
+          arweaveId: undefined,
+          isSponsored: undefined,
+          ...await finalizeOpenUploadToGcs(txHash, tx, { ipfsHash }),
+        }
+        : await uploadStagedObjectToArweave(txHash, tx, {
+          wallet, ipfsHash, paymentTxHash, txToken,
+        });
       sendValidatedJSON(res, ArweaveGcsArweaveResponseSchema, {
         id: txHash,
         arweaveId,
-        link: `${ARWEAVE_GATEWAY}/${arweaveId}`,
+        link: arweaveId ? `${ARWEAVE_GATEWAY}/${arweaveId}` : `https://${FILES_HOSTNAME}/${txHash}`,
       });
       publisher.publish(PUBSUB_TOPIC_MISC, req, {
         logType: 'arweaveGcsArweaveUploadV2',
@@ -316,29 +320,11 @@ router.get(
       // Ingest decrypts on the way in, so the bucket copy is plaintext even for a
       // legacy doc that still carries an encryptedKey — no key is read here.
       if (!tx.contentBucketPath) throw new ValidationError('NO_INGESTED_COPY', 404);
-      const { stream, contentType, size } = await getTierFileStream(tier, tx.contentBucketPath);
-      // Answer from the source's own error, not pipeline's callback: pipeline
-      // destroys `res` before calling back, so a status written there is composed
-      // into a dead socket and the caller only ever sees a connection reset.
-      // req.destroyed filters the reader who cancelled before the first byte, which
-      // reaches both handlers as ERR_STREAM_PREMATURE_CLOSE with headers unsent.
-      stream.once('error', (err) => {
-        if (!res.headersSent && !req.destroyed) next(toContentError(err));
-      });
       // jwtOptionalAuth already set no-store, so the bytes stop at the browser.
-      res.set('Content-Type', tx.contentType || contentType || 'application/octet-stream');
-      if (size !== undefined) res.set('Content-Length', String(size));
-      // Express routes HEAD here too, and res.write() silently discards a HEAD body
-      // while still draining the source — a whole-object read of GCS egress per call.
-      if (req.method === 'HEAD') {
-        stream.destroy();
-        res.end();
-        return;
-      }
-      // pipeline, not pipe: pipe only unpipes on a client abort, leaving the GCS
-      // read open.
-      pipeline(stream, res, (err) => {
-        if (err && !res.headersSent && !req.destroyed) next(toContentError(err));
+      await serveTierFile(req, res, next, {
+        tier,
+        objectPath: tx.contentBucketPath,
+        contentType: tx.contentType,
       });
     } catch (error) {
       next(toContentError(error));

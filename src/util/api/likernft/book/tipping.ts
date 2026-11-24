@@ -13,12 +13,12 @@ export interface BookTippingResult {
   prices: Pick<NFTBookPrice, 'name' | 'priceInDecimal' | 'isAllowCustomPrice' | 'isTippingEnabled'>[];
 }
 
-export const BOOK_TIPPING_USAGE = '/book tipping <classId> <on|off> [priceIndex]';
+export const getBookTippingUsage = (command: string) => `${command} tipping <classId> <on|off> [priceIndex]`;
 
-export function parseBookTippingQuery(params: string[]): BookTippingQuery {
+export function parseBookTippingQuery(params: string[], command: string): BookTippingQuery {
   const [classId, toggle, priceIndexText, ...rest] = params;
   if (!classId || !toggle || rest.length) {
-    throw new Error(`Invalid params. Usage: ${BOOK_TIPPING_USAGE}`);
+    throw new Error(`Invalid params. Usage: ${getBookTippingUsage(command)}`);
   }
   const normalizedToggle = toggle.toLowerCase();
   if (normalizedToggle !== 'on' && normalizedToggle !== 'off') {

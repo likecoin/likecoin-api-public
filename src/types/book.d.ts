@@ -25,6 +25,7 @@ import type {
   HK_RISK_LEVELS,
   NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS,
 } from '../util/api/likernft/book/complianceReview';
+import type { ManualMetadataField } from '../util/api/likernft/book/manualMetadata';
 import type { RestrictedTerritoriesSource } from '../util/api/likernft/book/restrictedTerritories';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
@@ -212,6 +213,10 @@ export interface NFTBookListingInfo {
   descriptionFullByLocale?: BookLocalizedCopy;
   // Per-order cap, summed across a cart; `stock` still bounds the shelf.
   maxQuantityPerOrder?: number;
+  // Admin-set, 0–1 of the price paid. Unset, a book takes the default commission and merch none;
+  // kept out of filterNFTBookListingInfo so no listing response exposes them.
+  platformCommissionRatio?: number;
+  channelCommissionRatio?: number;
   likeClassId?: string;
   evmClassId?: string;
   redirectClassId?: string;
@@ -239,6 +244,7 @@ export interface NFTBookListingInfo {
   inLanguage?: string;
   datePublished?: string;
   name?: string;
+  alternativeHeadline?: string;
   description?: string;
   descriptionFull?: string;
   previewContent?: string;
@@ -252,6 +258,8 @@ export interface NFTBookListingInfo {
   author?: BookContributor;
   usageInfo?: string;
   isbn?: string;
+  // Fields staff corrected in the listing, which refresh must not overwrite from chain.
+  manualMetadataFields?: ManualMetadataField[];
   image?: string;
   publisher?: BookContributor;
   genre?: string;

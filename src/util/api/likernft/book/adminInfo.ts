@@ -19,12 +19,12 @@ function unwrapSlackLink(raw: string): string {
   return match ? match[1] : raw;
 }
 
-export function parseBookInfoClassId(input?: string): string {
+export function parseBookInfoClassId(input: string | undefined, command: string): string {
   const raw = unwrapSlackLink((input || '').trim());
-  if (!raw) throw new Error(`Missing class ID. Usage: /book info ${BOOK_INFO_USAGE}`);
+  if (!raw) throw new Error(`Missing class ID. Usage: ${command} info ${BOOK_INFO_USAGE}`);
   const classId = raw.includes('/') ? raw.match(STORE_PATH_REGEX)?.[1] : raw;
   if (!classId || !(EVM_CLASS_ID_REGEX.test(classId) || LEGACY_CLASS_ID_REGEX.test(classId))) {
-    throw new Error(`Invalid class ID or book URL: ${raw}. Usage: /book info ${BOOK_INFO_USAGE}`);
+    throw new Error(`Invalid class ID or book URL: ${raw}. Usage: ${command} info ${BOOK_INFO_USAGE}`);
   }
   // Book docs are keyed by lowercase class ID, but explorers show checksummed addresses.
   return classId.toLowerCase();

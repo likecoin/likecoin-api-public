@@ -34,9 +34,9 @@ beforeEach(async () => {
 
 describe('parseUserUnlimitedUploadQuery', () => {
   it('parses on and off, case-insensitively', () => {
-    expect(parseUserUnlimitedUploadQuery(['alice', 'ON']))
+    expect(parseUserUnlimitedUploadQuery(['alice', 'ON'], '/user'))
       .toEqual({ query: 'alice', isUnlimitedSponsoredUpload: true });
-    expect(parseUserUnlimitedUploadQuery([EVM_WALLET, 'off']))
+    expect(parseUserUnlimitedUploadQuery([EVM_WALLET, 'off'], '/user'))
       .toEqual({ query: EVM_WALLET, isUnlimitedSponsoredUpload: false });
   });
 
@@ -46,7 +46,7 @@ describe('parseUserUnlimitedUploadQuery', () => {
     ['an unknown toggle', ['alice', 'yes']],
     ['extra params', ['alice', 'on', '1']],
   ])('rejects %s', (_label, params) => {
-    expect(() => parseUserUnlimitedUploadQuery(params)).toThrow();
+    expect(() => parseUserUnlimitedUploadQuery(params, '/user')).toThrow();
   });
 });
 

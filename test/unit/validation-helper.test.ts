@@ -166,19 +166,32 @@ describe('sanitizeFrom', () => {
   });
 });
 
-describe('filterNFTBookListingInfo imageUrl', () => {
+describe('filterNFTBookListingInfo productImageUrl', () => {
   const withThumbnail = (thumbnailUrl?: string) => filterNFTBookListingInfo(
     { ...bookInfo([LISTED]), thumbnailUrl },
   );
 
   it('resolves an ar:// thumbnail through the Arweave gateway', () => {
     const payload = withThumbnail('ar://abc');
-    expect(payload.imageUrl).toBe(`${ARWEAVE_GATEWAY}/abc`);
+    expect(payload.productImageUrl).toBe(`${ARWEAVE_GATEWAY}/abc`);
     expect(payload.thumbnailUrl).toBe('ar://abc');
   });
 
-  it('leaves imageUrl unset without a thumbnail', () => {
-    expect(withThumbnail(undefined).imageUrl).toBeUndefined();
+  it('leaves productImageUrl unset without a thumbnail', () => {
+    expect(withThumbnail(undefined).productImageUrl).toBeUndefined();
+  });
+
+  it('resizes productImageUrl to 300 and 600 px thumbnails', () => {
+    const { thumbnails } = withThumbnail('ar://abc');
+    const encoded = encodeURIComponent(`${ARWEAVE_GATEWAY}/abc`);
+    expect(thumbnails).toEqual({
+      small: { url: `https://static.like.co/thumbnail/?url=${encoded}&width=300`, width: 300 },
+      medium: { url: `https://static.like.co/thumbnail/?url=${encoded}&width=600`, width: 600 },
+    });
+  });
+
+  it('leaves thumbnails unset without a thumbnail', () => {
+    expect(withThumbnail(undefined).thumbnails).toBeUndefined();
   });
 });
 
@@ -186,6 +199,13 @@ describe('filterNFTBookListingInfo datePublished', () => {
   it('passes datePublished through', () => {
     const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), datePublished: '2023-07-01' });
     expect(payload.datePublished).toBe('2023-07-01');
+  });
+});
+
+describe('filterNFTBookListingInfo alternativeHeadline', () => {
+  it('passes alternativeHeadline through', () => {
+    const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), alternativeHeadline: 'A Subtitle' });
+    expect(payload.alternativeHeadline).toBe('A Subtitle');
   });
 });
 

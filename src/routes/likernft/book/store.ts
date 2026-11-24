@@ -34,6 +34,7 @@ import {
   getBookTimestampMillis,
 } from '../../../util/api/likernft/book/cms';
 import { listBestsellingNFTBookInfo } from '../../../util/api/likernft/book/sales';
+import transferNFTBookOwnership from '../../../util/api/likernft/book/ownership';
 import {
   ImageUploadBodySchema,
   ListingSettingsBodySchema,
@@ -64,6 +65,8 @@ import {
   ImageUploadResponseSchema,
   NewListingResponseSchema,
   ListingSettingsResponseSchema,
+  OwnershipTransferBodySchema,
+  OwnershipTransferResponseSchema,
   type BookListQuery,
   BookListPaginationQuerySchema,
   type BookListPaginationQuery,
@@ -246,6 +249,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       wallet,
       chain,
       library,
+      keyword,
       before,
       limit,
       key,
@@ -255,6 +259,7 @@ router.get('/list', jwtOptionalAuth('read:nftbook'), validateQuery(BookListQuery
       ownerWallet: wallet,
       chain,
       isPlusReadingEnabled: library === '1' || undefined,
+      keyword,
       before,
       limit,
       key,
@@ -893,6 +898,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       inLanguage,
       datePublished,
       name,
+      alternativeHeadline,
       description,
       descriptionFull: iscnDescriptionFull,
       keywords: keywordString = '',
@@ -943,6 +949,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
       inLanguage,
       datePublished,
       name,
+      alternativeHeadline,
       description,
       hasPart,
       keywords,
@@ -1010,6 +1017,7 @@ router.post(['/:classId/new', '/class/:classId/new'], jwtAuth('write:nftbook'), 
         id: classId,
         timestamp: new Date(),
         name: className,
+        alternativeHeadline,
         description: metadata?.description || '',
         iscnIdPrefix: metadata.iscnIdPrefix,
         iscnObject: null,
@@ -1240,7 +1248,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       descriptionByLocale,
       descriptionFullByLocale,
       ...merchFields,
-    });
+    }, { expectedOwnerWallet: ownerWallet });
 
     publisher.publish(PUBSUB_TOPIC_MISC, req, {
       logType: 'BookNFTListingUpdate',
@@ -1264,6 +1272,33 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
 
     sendValidatedJSON(res, ListingSettingsResponseSchema, {
       classId,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:classId/ownership', jwtAuth('write:nftbook'), validateParams(BookClassIdParamsSchema), validateBody(OwnershipTransferBodySchema), async (req, res, next) => {
+  try {
+    const { classId } = req.params as Record<string, string>;
+    const { newOwnerWallet, txHash } = req.body;
+    const { fromWallet, toWallet } = await transferNFTBookOwnership(
+      classId,
+      { newOwnerWallet, txHash },
+      req,
+    );
+
+    publisher.publish(PUBSUB_TOPIC_MISC, req, {
+      logType: 'BookNFTOwnershipTransfer',
+      wallet: fromWallet,
+      newOwnerWallet: toWallet,
+      classId,
+      txHash,
+    });
+
+    sendValidatedJSON(res, OwnershipTransferResponseSchema, {
+      classId,
+      ownerWallet: toWallet,
     });
   } catch (err) {
     next(err);

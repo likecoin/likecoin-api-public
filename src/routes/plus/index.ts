@@ -28,11 +28,13 @@ import {
   PlusSweepResponseSchema,
   PlusVoicesResponseSchema,
 } from '../../util/api/plus/schemas';
-import { likeNFTBookUserCollection } from '../../util/firebase';
+import { likeNFTBookUserCollection, userCollection } from '../../util/firebase';
 import type { PlusSelfAffiliateEntry } from '../../util/api/plus/schemas';
 import { plusReadingServiceAuth } from '../../middleware/plus-reading-service-auth';
 import { plusSettleAdminAuth } from '../../middleware/plus-settle-admin-auth';
-import { getUsageDayId, recordPlusReadingUsage } from '../../util/api/plus/revenueShare';
+import {
+  getUsageDayId, isPlusReadingFunded, recordPlusReadingUsage,
+} from '../../util/api/plus/revenueShare';
 import { formatPlusSettleCSV, settlePlusReadingPeriod, sweepPlusReadingPendingPayouts } from '../../util/api/plus/settleJob';
 import { getBookUserInfo, getBookUserInfoFromWallet, getBookUserInfoFromLikerId } from '../../util/api/likernft/book/user';
 import type { NFTBookUserData } from '../../types/book';
@@ -79,6 +81,18 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
   try {
     // Accept either a single (legacy flat) entry or a batch under `entries`.
     const entries = Array.isArray(req.body.entries) ? req.body.entries : [req.body];
+    // A batch usually repeats one reader, so look each up once per request.
+    const fundingByWallet = new Map<string, boolean>();
+    const getIsReaderFunded = async (wallet: string) => {
+      const key = wallet.toLowerCase();
+      if (!fundingByWallet.has(key)) {
+        const likerPlus = (await getUserWithCivicLikerPropertiesByWallet(wallet))?.likerPlus;
+        const giverId = likerPlus?.currentType === 'shared' ? likerPlus.grantedBy : undefined;
+        const giverDoc = giverId ? await userCollection.doc(giverId).get() : undefined;
+        fundingByWallet.set(key, isPlusReadingFunded(likerPlus, giverDoc?.data()?.likerPlus));
+      }
+      return fundingByWallet.get(key) as boolean;
+    };
 
     const results: Array<{ dayId: string; applied: boolean }> = [];
     for (const entry of entries) {
@@ -110,6 +124,8 @@ router.post('/reading/usage', plusReadingServiceAuth, validateBody(PlusReadingUs
         ttsTimeMs,
         nonLibraryReadingTimeMs,
         nonLibraryTtsTimeMs,
+        isReaderFunded: (readingTimeMs > 0 || ttsTimeMs > 0)
+          && await getIsReaderFunded(readerWallet),
         occurredAt,
         // From the entry, never getIpCountryFromRequest: the header is the forwarder's.
         ipCountry,

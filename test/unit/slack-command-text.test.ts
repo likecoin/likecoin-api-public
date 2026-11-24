@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, vi,
+} from 'vitest';
 
 import { normalizeSlackCommandText, slackCommandHandler } from '../../src/middleware/slack';
 
@@ -27,15 +29,25 @@ describe('normalizeSlackCommandText', () => {
 });
 
 describe('slackCommandHandler', () => {
-  async function run(text: string | undefined) {
-    const calls: Array<{ command: string; params: string[] }> = [];
-    const record = (command: string) => async ({ params }: { params: string[] }) => {
-      calls.push({ command, params });
+  async function runWithBody(body: Record<string, unknown>) {
+    const calls: Array<{ command: string; params: string[]; slashCommand: string }> = [];
+    const record = (command: string) => async (
+      { params, command: slashCommand }: { params: string[]; command: string },
+    ) => {
+      calls.push({ command, params, slashCommand });
     };
-    const handler = slackCommandHandler({ affiliate: record('affiliate'), help: record('help') });
-    const res = { json: () => res };
-    await handler({ body: { text } } as any, res as any);
-    return calls;
+    const handler = slackCommandHandler(
+      '/plus',
+      { affiliate: record('affiliate'), help: record('help') },
+      (command) => `Invalid command. Use ${command} help`,
+    );
+    const json = vi.fn();
+    await handler({ body } as any, { json } as any);
+    return { calls, json };
+  }
+
+  async function run(text: string | undefined) {
+    return (await runWithBody({ text })).calls.map(({ command, params }) => ({ command, params }));
   }
 
   it('dispatches a command pasted as code with a mailto link', async () => {
@@ -48,5 +60,20 @@ describe('slackCommandHandler', () => {
     ['only backticks', '``'],
   ])('falls back to help when the text is %s', async (_label, text) => {
     expect(await run(text)).toEqual([{ command: 'help', params: [] }]);
+  });
+
+  it('passes the typed slash command to the handler', async () => {
+    const { calls } = await runWithBody({ command: '/plus_test', text: 'help' });
+    expect(calls).toEqual([{ command: 'help', params: [], slashCommand: '/plus_test' }]);
+  });
+
+  it('falls back to the default slash command when Slack sends none', async () => {
+    const { calls } = await runWithBody({ text: 'help' });
+    expect(calls).toEqual([{ command: 'help', params: [], slashCommand: '/plus' }]);
+  });
+
+  it('names the typed slash command in the invalid command message', async () => {
+    const { json } = await runWithBody({ command: '/plus_test', text: 'foo' });
+    expect(json.mock.calls[0][0].attachments[0].text).toContain('Use /plus_test help');
   });
 });

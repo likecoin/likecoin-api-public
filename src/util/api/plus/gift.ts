@@ -2,7 +2,12 @@ import crypto from 'crypto';
 import type Stripe from 'stripe';
 import uuidv4 from 'uuid/v4';
 
-import { getStripeClient, resolveCheckoutDiscountsFromCoupon } from '../../stripe';
+import {
+  getStripeClient,
+  getStripeFeeFromPaymentIntent,
+  getStripePromotionCodesFromCheckoutSession,
+  resolveCheckoutDiscountsFromCoupon,
+} from '../../stripe';
 import type { PlusCheckoutTrackingInfo, PlusPeriod } from '.';
 import {
   FieldValue, likeNFTBookUserCollection, likePlusGiftCartCollection, userCollection, db,
@@ -21,10 +26,17 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo'
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
+import type { LikerPlusData, UserData } from '../../../types/user';
+import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
+import { convertCurrencyToUSDPrice } from '../../pricing';
 import logServerEvents from '../../logServerEvents';
 import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
-import { createAirtableSubscriptionPaymentRecord } from '../../airtable';
+import {
+  createAirtablePlusGiftSalesRecord,
+  createAirtableSubscriptionPaymentRecord,
+  updateAirtablePlusGiftSalesRecord,
+} from '../../airtable';
 
 export async function createPlusGiftCheckoutSession(
   {
@@ -235,10 +247,46 @@ export async function createPlusGiftCart({
     timestamp: FieldValue.serverTimestamp(),
   };
   if (ipCountry) payload.ipCountry = ipCountry;
-  // The recipient's payment record is written at claim time,
+  // The recipient's payment record is written from the trial invoice after the claim,
   // long after the purchase session that carried the buyer's ad click.
   if (fbc) payload.fbc = fbc;
   await likePlusGiftCartCollection.doc(paymentId).create(payload);
+}
+
+// The trial invoice webhook writes the complete gift record (with its dailyValue), so the claim
+// only fills the gap until it lands and never overwrites it, whichever arrives first.
+export async function writePlusGiftClaimRecord(likerId: string, likerPlus: LikerPlusData) {
+  const userRef = userCollection.doc(likerId);
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    const current = (userDoc.data() as UserData | undefined)?.likerPlus;
+    if (current?.subscriptionId === likerPlus.subscriptionId) return;
+    transaction.update(userRef, { likerPlus });
+  });
+}
+
+/**
+ * What the giver paid for a gift cart, in USD and in the checkout currency. Prefers the charge's
+ * balance transaction (the settled USD amount) and falls back to tier-based conversion.
+ */
+export async function getPlusGiftCartPayment(
+  cartId: string,
+): Promise<{ amountUSD: number; currency: string }> {
+  const cartDoc = await likePlusGiftCartCollection.doc(cartId).get();
+  const sessionId = cartDoc.data()?.sessionId;
+  if (!sessionId) return { amountUSD: 0, currency: 'USD' };
+  const session = await getStripeClient().checkout.sessions.retrieve(sessionId, {
+    expand: ['payment_intent.latest_charge.balance_transaction'],
+  });
+  const currency = (session.currency || 'usd').toUpperCase();
+  const amount = (session.amount_total || 0) / 100;
+  if (!(amount > 0)) return { amountUSD: 0, currency };
+  const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null;
+  const balanceTx = (paymentIntent?.latest_charge as Stripe.Charge | null)?.balance_transaction;
+  const amountUSD = balanceTx && typeof balanceTx !== 'string'
+    ? balanceTx.amount / 100
+    : convertCurrencyToUSDPrice(amount, currency.toLowerCase() as SupportedPlusCurrency);
+  return { amountUSD, currency };
 }
 
 export async function claimPlusGiftCart({
@@ -262,7 +310,6 @@ export async function claimPlusGiftCart({
     giftInfo,
     period,
     quantity,
-    fbc,
   } = cartData;
   if (claimToken !== token) {
     throw new ValidationError('Invalid claim token for plus gift cart');
@@ -359,16 +406,14 @@ export async function claimPlusGiftCart({
     const since = startDate * 1000; // Convert to milliseconds
     const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
     const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
-    await userCollection.doc(likerId).update({
-      likerPlus: {
-        period: subscriptionPeriod,
-        since,
-        currentPeriodStart,
-        currentPeriodEnd,
-        currentType: 'gift',
-        subscriptionId: subscription.id,
-        customerId: stripeCustomerId,
-      },
+    await writePlusGiftClaimRecord(likerId, {
+      period: subscriptionPeriod,
+      since,
+      currentPeriodStart,
+      currentPeriodEnd,
+      currentType: 'gift',
+      subscriptionId: subscription.id,
+      customerId: stripeCustomerId,
     });
 
     await Promise.all([
@@ -396,45 +441,93 @@ export async function claimPlusGiftCart({
       }
     } catch { /* ignore */ }
 
-    await Promise.all([
-      createAirtableSubscriptionPaymentRecord({
-        subscriptionId: subscription.id,
-        customerId: stripeCustomerId,
-        customerEmail: likerUserInfo.email || '',
-        customerUserId: likerId,
-        customerWallet: likerUserInfo.evmWallet || '',
-        productId: item.price.product as string,
-        priceId: item.price.id,
-        priceName: item.price.nickname || '',
-        price: 0,
-        currency: 'USD',
-        invoiceId: '',
-        couponId: '',
-        couponName: '',
-        since,
-        periodInterval: period === 'yearly' ? 'year' : 'month',
-        periodStartAt: currentPeriodStart,
-        periodEndAt: currentPeriodEnd,
-        isNew: true,
-        isTrial: true,
-        channel: '',
-        fbc,
-      }),
-      shouldNotifySender ? sendPlusGiftClaimedEmail({
+    if (shouldNotifySender) {
+      await sendPlusGiftClaimedEmail({
         fromEmail: email || '',
         toName: giftInfo.toName,
         fromName: giftInfo.fromName,
         language: senderLocale || 'zh',
-      }) : Promise.resolve(),
-    ]);
+      });
+    }
+
+    await updateAirtablePlusGiftSalesRecord({
+      giftCartId: cartId,
+      status: 'claimed',
+      claimedSubscriptionId: subscription.id,
+      claimerEmail: likerUserInfo.email,
+      claimerUserId: likerId,
+    });
   } catch (error) {
     await likePlusGiftCartCollection.doc(cartId).update({
       status: 'error',
       errorMessage: error instanceof Error ? error.message : String(error),
       errorTimestamp: FieldValue.serverTimestamp(),
     });
+    await updateAirtablePlusGiftSalesRecord({ giftCartId: cartId, status: 'error' });
     throw error;
   }
+}
+
+// Only the trial invoice's webhook writes a claimed gift's payment row:
+// it alone has the Invoice ID, and a claim racing it on an Airtable lookup could add a second row.
+export async function createPlusGiftClaimPaymentRecord(
+  record: Parameters<typeof createAirtableSubscriptionPaymentRecord>[0],
+  giftCartId: string,
+) {
+  const cartDoc = await likePlusGiftCartCollection.doc(giftCartId).get();
+  const claimPaymentRecordId = await createAirtableSubscriptionPaymentRecord({
+    ...record,
+    // The claim may have written the user's Plus record first, so the webhook sees it as old.
+    isNew: true,
+    fbc: cartDoc.data()?.fbc || record.fbc,
+  });
+  if (claimPaymentRecordId) {
+    await updateAirtablePlusGiftSalesRecord({ giftCartId, claimPaymentRecordId });
+  }
+}
+
+// Written right after the cart so a later failure, which webhook retries skip, cannot lose the row.
+async function createPlusGiftSalesRecord(
+  session: Stripe.Checkout.Session,
+  {
+    giftCartId,
+    period,
+    quantity,
+    price,
+  }: {
+    giftCartId: string,
+    period: PlusPeriod,
+    quantity: number,
+    price: Stripe.Price,
+  },
+) {
+  const logAndSkip = (error: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    return undefined;
+  };
+  // The Stripe lookups only add fee and coupon detail, so the sale is still recorded without them.
+  const paymentIntentId = session.payment_intent as string | null;
+  const [pi, coupon] = await Promise.all([
+    paymentIntentId
+      ? getStripeClient().paymentIntents.retrieve(paymentIntentId, {
+        expand: STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS,
+      }).catch(logAndSkip)
+      : undefined,
+    getStripePromotionCodesFromCheckoutSession(session.id)
+      .then(([code]) => code)
+      .catch(logAndSkip),
+  ]);
+  await createAirtablePlusGiftSalesRecord({
+    giftCartId,
+    session,
+    pi,
+    stripeFeeAmount: pi ? getStripeFeeFromPaymentIntent(pi) : 0,
+    coupon,
+    period,
+    quantity,
+    price,
+  });
 }
 
 export async function processPlusGiftStripePurchase(
@@ -507,6 +600,13 @@ export async function processPlusGiftStripePurchase(
     claimToken,
     ipCountry,
     fbc,
+  });
+
+  await createPlusGiftSalesRecord(session, {
+    giftCartId: paymentId,
+    period,
+    quantity,
+    price: lineItem.price,
   });
 
   await sendPlusGiftPendingClaimEmail({

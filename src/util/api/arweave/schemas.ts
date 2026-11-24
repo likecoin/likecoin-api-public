@@ -65,7 +65,7 @@ export const ArweaveGcsFinalizeResponseSchema = z.object({
 // No contentUri: the client only needs the arweaveId it puts on-chain, and the
 // bucket path is internal.
 export const ArweaveGcsArweaveResponseSchema = ArweaveGcsFinalizeResponseSchema.extend({
-  arweaveId: z.string(),
+  arweaveId: z.string().optional(),
 });
 
 export const ArweaveEstimateResponseSchema = z.object({

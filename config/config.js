@@ -73,6 +73,8 @@ config.ARWEAVE_LINK_INTERNAL_TOKEN = '';
 // limits are coupled: they cross over at a 10MB average file, so tune them together.
 config.ARWEAVE_SPONSORED_DAILY_UPLOAD_LIMIT = 20;
 config.ARWEAVE_SPONSORED_DAILY_BYTES_LIMIT = 200 * 1024 * 1024; // 200MB
+// Irys retired its Arweave node: keep open-tier uploads in GCS only.
+config.ARWEAVE_UPLOAD_DISABLED = process.env.ARWEAVE_UPLOAD_DISABLED === 'true';
 // Cloud KMS cryptoKey resource name used to wrap content keys at rest in
 // Firestore. Empty = passthrough (dev/test store plaintext); prod sets this.
 config.ARWEAVE_KEY_KMS_NAME = process.env.ARWEAVE_KEY_KMS_NAME || '';
@@ -113,7 +115,7 @@ config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 config.NFT_BOOK_MERCH_OWNER_WALLETS = [];
 
 config.NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK = '';
-// Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds a listing
+// Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds or flags a listing
 config.NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS = [];
 config.NFT_BOOK_SALES_NOTIFICATION_WEBHOOK = '';
 config.NFT_BOOK_SALES_INVALID_CHANNEL_ID_NOTIFICATION_WEBHOOK = '';

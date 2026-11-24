@@ -124,7 +124,7 @@ export function createHeadCaptureTransform(length: number): {
 }
 
 // txHash doubles as the object name; callers only ever mint an on-chain hash,
-// sponsored-<uuid> or gcs-<uuid>, so reject anything that could traverse paths
+// sponsored-<uuid> or a bare uuid, so reject anything that could traverse paths
 // or collide with the staging prefix. Every staging-path composition goes
 // through here so all call sites share the same defense.
 function stagedObjectPath(txHash: string): string {
@@ -136,8 +136,10 @@ function stagedObjectPath(txHash: string): string {
 // [A-Za-z0-9_-]. The length bound is what separates a real id from a path
 // fragment using the same alphabet, and the id becomes an object name.
 // Mirrors ebook-cors nft/open.js, which derives the same path on the read side.
+export const ARWEAVE_ID_REGEX = /^[A-Za-z0-9_-]{43}$/;
+
 export function assertValidArweaveId(arweaveId?: string): string {
-  if (!arweaveId || !/^[A-Za-z0-9_-]{43}$/.test(arweaveId)) throw new ValidationError('INVALID_ARWEAVE_ID');
+  if (!arweaveId || !ARWEAVE_ID_REGEX.test(arweaveId)) throw new ValidationError('INVALID_ARWEAVE_ID');
   return arweaveId;
 }
 
@@ -259,7 +261,7 @@ export async function verifyStagedObject(txHash: string, tier: ContentTier, {
 //
 // The open tier is keyed by its arweaveId (itself a content hash) so readers
 // derive the path from an ar:// target with no lookup; the protected tier by
-// txHash.
+// txHash, as is an open upload that never reached Arweave.
 export async function promoteStagedObject(txHash: string, tier: ContentTier, {
   contentType,
   fileSHA256,
@@ -274,7 +276,7 @@ export async function promoteStagedObject(txHash: string, tier: ContentTier, {
   generation?: string;
 }): Promise<string> {
   const bucket = getEbookTierBucket(tier);
-  const contentBucketPath = tier === 'open' ? assertValidArweaveId(arweaveId) : txHash;
+  const contentBucketPath = tier === 'open' && arweaveId ? assertValidArweaveId(arweaveId) : txHash;
   await getStagedFile(txHash, tier, generation).copy(bucket.file(contentBucketPath), {
     contentType,
     metadata: {

@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
 import axiosist from './axiosist';
 import mockEVMAddress from './address';
 import { likeNFTBookCollection } from '../../src/util/firebase';
+import { makeTimestampFromMillis as ts } from '../stub/firebase';
 
 const BASE_URL = '/api/likernft/book/store';
 
@@ -196,5 +199,120 @@ describe('non-book merch in the listings', () => {
     const ids = res.data.list.map((b: any) => b.classId);
     expect(ids).toContain(ID_BOOK);
     expect(ids).not.toContain(ID_MERCH);
+  });
+});
+
+describe('timestamp cursor bounds', () => {
+  const PATHS = ['/list', '/list/free', '/list/drm-free'];
+  const OUT_OF_RANGE = [
+    // 9.58e47 ms, the value an automated probe sent on 2026-11-20 that once threw a 500.
+    '958299333740141500000000000000000000000000000000',
+    String(253402300799999 + 1),
+    String(-62135596800000 - 1),
+  ];
+  const CASES = PATHS.flatMap((path) => ['before', 'key']
+    .flatMap((param) => OUT_OF_RANGE.map((value) => [path, param, value])));
+
+  it.each(CASES)('rejects %s?%s=%s with 400', async (path, param, value) => {
+    const res = await get(`${BASE_URL}${path}?${param}=${value}`);
+    expect(res.status).toBe(400);
+  });
+
+  it.each(PATHS)('accepts an in-range cursor on %s', async (path) => {
+    const res = await get(`${BASE_URL}${path}?before=${Date.now()}`);
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('GET /list?keyword=', () => {
+  const ID_EXACT = mockEVMAddress(0x70);
+  const ID_PARTIAL = mockEVMAddress(0x71);
+  const ID_NONE = mockEVMAddress(0x72);
+  const ID_KEYWORD_HIDDEN = mockEVMAddress(0x73);
+  const ID_KEYWORD_REDIRECTED = mockEVMAddress(0x74);
+  const KEYWORD = '絕版重生';
+
+  async function seedKeywordBooks() {
+    await makeNFTBookStub(ID_EXACT, { keywords: ['小說', KEYWORD], timestamp: ts(3000) });
+    await makeNFTBookStub(ID_PARTIAL, { keywords: [`${KEYWORD}計劃`], timestamp: ts(2000) });
+    await makeNFTBookStub(ID_NONE, { timestamp: ts(1000) });
+  }
+
+  const listIds = async (query: string) => {
+    const res = await get(`${BASE_URL}/list?limit=100&${query}`);
+    expect(res.status).toBe(200);
+    return res.data.list.map((b: any) => b.classId);
+  };
+
+  it('returns only books with an exact keyword match', async () => {
+    await seedKeywordBooks();
+    const ids = await listIds(`keyword=${encodeURIComponent(KEYWORD)}`);
+    expect(ids).toEqual([ID_EXACT]);
+  });
+
+  it('trims the keyword and drops a leading #', async () => {
+    await seedKeywordBooks();
+    const ids = await listIds(`keyword=${encodeURIComponent(`  #${KEYWORD} `)}`);
+    expect(ids).toEqual([ID_EXACT]);
+  });
+
+  it('excludes hidden and redirected books', async () => {
+    await makeNFTBookStub(ID_EXACT, { keywords: [KEYWORD] });
+    await makeNFTBookStub(ID_KEYWORD_HIDDEN, { keywords: [KEYWORD], isHidden: true });
+    await makeNFTBookStub(ID_KEYWORD_REDIRECTED, {
+      keywords: [KEYWORD],
+      redirectClassId: ID_EXACT,
+    });
+    const ids = await listIds(`keyword=${encodeURIComponent(KEYWORD)}`);
+    expect(ids).toEqual([ID_EXACT]);
+  });
+
+  it('combines the keyword with library=1', async () => {
+    await makeNFTBookStub(ID_EXACT, { keywords: [KEYWORD], isPlusReadingEnabled: true });
+    await makeNFTBookStub(ID_PARTIAL, { keywords: [KEYWORD], isPlusReadingEnabled: false });
+    const ids = await listIds(`keyword=${encodeURIComponent(KEYWORD)}&library=1`);
+    expect(ids).toEqual([ID_EXACT]);
+  });
+
+  it.each(['', 'keyword=', `keyword=${encodeURIComponent(' # ')}`])(
+    'lists every book when the keyword is absent or blank (%j)',
+    async (query) => {
+      await seedKeywordBooks();
+      const ids = await listIds(query);
+      expect(ids).toEqual(expect.arrayContaining([ID_EXACT, ID_PARTIAL, ID_NONE]));
+    },
+  );
+
+  it('returns the timestamp cursor of a full page', async () => {
+    await seedKeywordBooks();
+    const res = await get(`${BASE_URL}/list?limit=1&keyword=${encodeURIComponent(KEYWORD)}`);
+    expect(res.status).toBe(200);
+    expect(res.data.nextKey).toBe(3000);
+  });
+
+  it('queries a keyword page newest-first from the key', async () => {
+    // The stub ignores ordering, limit and cursors, so assert on the query built instead.
+    const calls: unknown[][] = [];
+    const query: any = {
+      where: (...args: unknown[]) => { calls.push(['where', ...args]); return query; },
+      startAfter: (cursor: any) => { calls.push(['startAfter', cursor.toMillis()]); return query; },
+      limit: (n: number) => { calls.push(['limit', n]); return query; },
+      get: async () => ({ docs: [] }),
+    };
+    const spy = vi.spyOn(likeNFTBookCollection, 'orderBy').mockImplementation((...args: unknown[]) => {
+      calls.push(['orderBy', ...args]);
+      return query;
+    });
+    const res = await get(`${BASE_URL}/list?limit=20&key=1500&keyword=${encodeURIComponent(KEYWORD)}`);
+    spy.mockRestore();
+    expect(res.status).toBe(200);
+    expect(calls).toEqual([
+      ['orderBy', 'timestamp', 'desc'],
+      ['where', 'chain', '==', 'base'],
+      ['where', 'keywords', 'array-contains', KEYWORD],
+      ['startAfter', 1500],
+      ['limit', 20],
+    ]);
+    expect(res.data.nextKey).toBeNull();
   });
 });

@@ -33,6 +33,18 @@ function makeUserDoc(likerPlus: Partial<LikerPlusData>): DocumentSnapshot<UserDa
   } as unknown as DocumentSnapshot<UserData>;
 }
 
+describe('likerPlus trial flag', () => {
+  it.each([
+    ['trial', true],
+    ['gift', true],
+    ['paid', false],
+    ['shared', false],
+  ])('reads currentType %s as isLikerPlusTrial %s', (currentType, expected) => {
+    const payload = formatUserCivicLikerProperies(makeUserDoc({ currentType }));
+    expect(payload.isLikerPlusTrial).toBe(expected);
+  });
+});
+
 describe('likerPlus access window', () => {
   it('grants access inside the period', () => {
     const payload = formatUserCivicLikerProperies(makeUserDoc({}));

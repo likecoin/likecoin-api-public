@@ -48,6 +48,7 @@ import {
 } from '../../../firebase';
 import { getStripeClient, getStripeFeeFromCheckoutSession, getStripePromotionCodesFromCheckoutSession } from '../../../stripe';
 import {
+  type AirtableMerchSalesInfo,
   convertObjectToAirtableLongText,
   createAirtableBookSalesRecordFromFreePurchase,
   createAirtableBookSalesRecordFromStripePaymentIntent,
@@ -432,6 +433,7 @@ export async function processNFTBookCart(
     }
 
     const infoList = classInfos;
+    const firstMerchItemIndex = infoList.findIndex((info) => isNonNFTProduct(info.listingData));
     const bookNames: string[] = [];
     let promoOwnerLikerId: string | undefined;
     let promoOwnerDisplayName: string | undefined;
@@ -547,6 +549,14 @@ export async function processNFTBookCart(
         );
       }
 
+      // eslint-disable-next-line no-use-before-define
+      const merch = getAirtableMerchSalesInfo({
+        listingData,
+        name: bookName,
+        isPlusPrice: itemInfos[itemIndex]?.isPlusPrice,
+        session,
+        hasShippingCost: itemIndex === firstMerchItemIndex,
+      });
       const notifications: Promise<any>[] = [
         price > 0 ? sendNFTBookSalesSlackNotification({
           classId,
@@ -575,6 +585,7 @@ export async function processNFTBookCart(
             coupon,
             cartId,
             isGift,
+            merch,
           }) : createAirtableBookSalesRecordFromFreePurchase({
             classId,
             priceIndex,
@@ -595,6 +606,7 @@ export async function processNFTBookCart(
             coupon,
             cartId,
             rawData: convertObjectToAirtableLongText(session),
+            merch,
           }),
         publisher.publish(PUBSUB_TOPIC_MISC, req, {
           logType: 'BookNFTPurchaseComplete',
@@ -1065,6 +1077,33 @@ export function getMerchShippingFromSession(
   return result;
 }
 
+// Stripe charges shipping once per session, so only the first merch row carries the cost.
+export function getAirtableMerchSalesInfo({
+  listingData,
+  name,
+  isPlusPrice,
+  session,
+  hasShippingCost,
+}: {
+  listingData: Pick<NFTBookListingInfo, 'productType' | 'nameByLocale'>;
+  name: string;
+  isPlusPrice?: boolean;
+  session?: Stripe.Checkout.Session;
+  hasShippingCost: boolean;
+}): AirtableMerchSalesInfo | undefined {
+  if (!isNonNFTProduct(listingData)) return undefined;
+  const { phone, shippingDetails } = getMerchShippingFromSession(session);
+  const shippingCost = session?.shipping_cost?.amount_total;
+  return {
+    productName: listingData.nameByLocale?.zh || name,
+    isPlusPrice,
+    shippingCountry: shippingDetails?.address?.country || undefined,
+    shippingCost: (hasShippingCost && typeof shippingCost === 'number') ? shippingCost / 100 : undefined,
+    customerName: shippingDetails?.name || session?.customer_details?.name || undefined,
+    customerPhone: phone,
+  };
+}
+
 export async function processNFTBookCartStripePurchase(
   session: Stripe.Checkout.Session,
   req: Express.Request,
@@ -1351,6 +1390,8 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         productType,
         availableTerritories,
         maxQuantityPerOrder,
+        platformCommissionRatio,
+        channelCommissionRatio,
       } = bookInfo;
 
       if (isApprovedForSale === false) {
@@ -1383,6 +1424,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         plusPriceInDecimal,
         plusPriceInDecimalByCurrency,
       };
+      const commissionRatios = { platformCommissionRatio, channelCommissionRatio };
       const displayInfo = isNonNFTProduct(bookInfo)
         ? { ...bookInfo, image: bookInfo.image || bookInfo.thumbnailUrl }
         : metadata;
@@ -1415,6 +1457,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
         chain,
         isAutoDeliver,
         nonNFTFields,
+        commissionRatios,
       };
     } else {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -1437,6 +1480,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       isAutoDeliver,
       isUnlisted,
       nonNFTFields,
+      commissionRatios,
     } = info;
 
     name = name.length > 80 ? `${name.substring(0, 79)}…` : name;
@@ -1481,6 +1525,7 @@ export async function formatCartItemsWithInfo(items: CartItem[]) {
       stripePriceId,
       chain,
       ...nonNFTFields,
+      ...commissionRatios,
     };
   }));
   // eslint-disable-next-line no-use-before-define
@@ -1590,6 +1635,7 @@ export async function formatCartItemInfosFromSession(
   }
 
   const items: CartItem[] = [];
+  const plusPriceFlags: boolean[] = [];
   const lineItems: Stripe.LineItem[] = [];
   const stripeFeeAmount = await getStripeFeeFromCheckoutSession(session);
   for await (const lineItem of getStripeClient().checkout.sessions.listLineItems(
@@ -1607,6 +1653,7 @@ export async function formatCartItemInfosFromSession(
       classId,
       priceIndex,
       tippingFor,
+      isPlusPrice,
     } = (lineItem.price.product as Stripe.Product).metadata || {};
     if (!classId) {
       throw new ValidationError('ITEM_ID_NOT_SET');
@@ -1624,6 +1671,7 @@ export async function formatCartItemInfosFromSession(
         priceInDecimal: Math.round(lineItem.amount_total / conversionRate / quantity),
         quantity,
       });
+      plusPriceFlags.push(isPlusPrice === 'true');
     }
   }
   if (fromListString) {
@@ -1632,7 +1680,9 @@ export async function formatCartItemInfosFromSession(
       items[index].from = f || items[index].from || from;
     });
   }
-  const itemInfos = await formatCartItemsWithInfo(items);
+  // Read from the session, not the cart input: a client must not mark its own item member-priced.
+  const itemInfos = (await formatCartItemsWithInfo(items))
+    .map((info, index) => ({ ...info, isPlusPrice: plusPriceFlags[index] }));
   const itemPrices = await calculateItemPrices(itemInfos, from);
   const totalPriceInDecimal = itemPrices.reduce(
     (acc, item) => acc + item.priceInDecimal * item.quantity,

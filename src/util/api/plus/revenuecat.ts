@@ -307,27 +307,37 @@ async function handleGrant(
   // Not gated on `isTrial`: a free trial already reports price 0, while a paid intro
   // reports its real charge, which must still reach firstPaidAt and the Airtable row.
   const hasCharge = event.price != null && event.price > 0;
+  // Resolve once and reuse across the record, Slack, analytics, and Airtable.
+  const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
 
   // Per-day value of this term, funding the reading-library revenue-share pool.
   // Gated on the same `isTrial` as currentType so the two always agree. RevenueCat's
   // `price` is normalized to USD, so the pool funds in USD — the actual transaction
   // price still captures intro/promotional and monthly/yearly differences.
-  // No-charge grants preserve the stored dailyValue rather than zeroing accrual.
+  // No-charge grants preserve the stored dailyValue rather than zeroing accrual, but only
+  // within the stored subscription and term: another subscription's charge does not fund
+  // this one, and a free renewal starts a new term nobody paid for.
+  // A legacy term priced before dailyValue existed stays unpriced rather than 0,
+  // so isPlusReadingFunded still reads it as paid.
   // Civic funds at the Plus-tier rate (see getPlusEquivalentUSDPrice), never
   // its own 10× charge.
-  let dailyValue = 0;
+  const isStoredTransaction = !!event.original_transaction_id
+    && event.original_transaction_id === user.likerPlus?.originalTransactionId;
+  let dailyValue: number | undefined = 0;
   if (!isTrial) {
     let fundingAmount = event.price;
     if (tier === 'civic') {
       fundingAmount = getPlusEquivalentUSDPrice(period);
     }
-    dailyValue = hasCharge && fundingAmount != null
-      ? calculatePlusDailyValue({
+    if (hasCharge && fundingAmount != null) {
+      dailyValue = calculatePlusDailyValue({
         amountPaid: fundingAmount,
         currentPeriodStart: purchasedAtMs,
         currentPeriodEnd,
-      })
-      : (user.likerPlus?.dailyValue ?? 0);
+      });
+    } else if (isStoredTransaction && !isInitial && event.type !== 'RENEWAL') {
+      dailyValue = user.likerPlus?.dailyValue;
+    }
   }
 
   const likerPlus: LikerPlusData = {
@@ -336,12 +346,12 @@ async function handleGrant(
     currentPeriodStart: purchasedAtMs,
     currentPeriodEnd,
     currentType: isTrial ? 'trial' : 'paid',
-    dailyValue,
     dailyValueCurrency: 'USD',
     subscriptionStatus: 'active',
     provider: 'revenuecat',
   };
   // Omit undefined optional fields — Firestore rejects undefined values.
+  if (dailyValue !== undefined) likerPlus.dailyValue = dailyValue;
   if (period) likerPlus.period = period;
   if (event.store) likerPlus.store = event.store;
   if (event.original_transaction_id) {
@@ -357,6 +367,31 @@ async function handleGrant(
     if (user.likerPlus?.giftPaymentId) likerPlus.giftPaymentId = user.likerPlus.giftPaymentId;
     if (user.likerPlus?.giftClaimToken) likerPlus.giftClaimToken = user.likerPlus.giftClaimToken;
     if (user.likerPlus?.affiliateFrom) likerPlus.affiliateFrom = user.likerPlus.affiliateFrom;
+  }
+  // A no-charge grant keeps the last charge for later notices only when it names the
+  // stored transaction; any other subscription starts clean, never showing a lapsed price.
+  if (hasCharge && paymentAmount != null && paymentCurrency) {
+    likerPlus.lastPaymentAmount = paymentAmount;
+    likerPlus.lastPaymentCurrency = paymentCurrency;
+  } else if (
+    isStoredTransaction
+    && user.likerPlus?.lastPaymentAmount != null
+    && user.likerPlus.lastPaymentCurrency
+  ) {
+    likerPlus.lastPaymentAmount = user.likerPlus.lastPaymentAmount;
+    likerPlus.lastPaymentCurrency = user.likerPlus.lastPaymentCurrency;
+  }
+  if (
+    !hasCharge
+    && user.likerPlus
+    && (
+      user.likerPlus.skipPriceEstimate
+      || !isStoredTransaction
+      || user.likerPlus.period !== period
+      || (user.likerPlus.tier || 'plus') !== tier
+    )
+  ) {
+    likerPlus.skipPriceEstimate = true;
   }
   const grantUpdate: Record<string, unknown> = { likerPlus };
   // Track first/last real payment like the Stripe path so getCustomerType can tell
@@ -508,7 +543,7 @@ async function handleGrant(
   // Accrue this term's value to the rev-share pool, only on a real new charge: an extend
   // shares the running term's accrual key, so accruing would overwrite it with a longer,
   // unpaid-for paidDays. After the quarantine return so sandbox never funds real payouts.
-  if (hasCharge && dailyValue > 0 && transactionId) {
+  if (hasCharge && dailyValue && dailyValue > 0 && transactionId) {
     // Best-effort: accrual is not yet used for payouts, so a transient Firestore
     // failure must not fail (and make RevenueCat retry) the subscription webhook.
     try {
@@ -560,9 +595,6 @@ async function handleGrant(
       properties: mapPlusEntitlementPersonProperties(tier),
     });
   }
-
-  // Resolve once and reuse across Slack, analytics, and the Airtable record.
-  const { amount: paymentAmount, currency: paymentCurrency } = getRevenueCatPaymentAmount(event);
 
   // Independent notifications/analytics — fire in parallel (matches the Stripe path).
   // Skipped for uncancel/extend/product-change: nothing was bought, and announcing one
@@ -685,6 +717,7 @@ async function handleGrant(
       isNew: isInitial,
       isTrial,
       fbc: acquisitionEventPayload.fbc,
+      referrer,
     }));
   }
   await Promise.all(sideEffects);
@@ -919,10 +952,29 @@ async function recordAutoRenewChange(event: RevenueCatEvent, isSandbox: boolean)
   });
 }
 
-// Only a real charge is worth showing; stores send price 0 on many lifecycle events.
-function formatRevenueCatSlackPrice(event: RevenueCatEvent): string {
+const PERIOD_DAYS: Record<string, number> = { month: 30, year: 365 };
+
+// Only a real charge is worth showing; stores send price 0 on many lifecycle events,
+// including the cancellation and billing issue this formats, so fall back to the record.
+function formatRevenueCatSlackPrice(event: RevenueCatEvent, likerPlus: LikerPlusData): string {
   const { amount, currency } = getRevenueCatPaymentAmount(event);
-  return amount && currency ? `${amount.toFixed(2)} ${currency}` : 'N/A';
+  if (amount && currency) return `${amount.toFixed(2)} ${currency}`;
+  if (likerPlus.lastPaymentAmount && likerPlus.lastPaymentCurrency) {
+    return `${likerPlus.lastPaymentAmount.toFixed(2)} ${likerPlus.lastPaymentCurrency}`;
+  }
+  // Records from before lastPayment* existed: estimate from dailyValue. Civic funds
+  // dailyValue at the Plus rate, so an estimate there would understate its charge.
+  const periodDays = likerPlus.period ? PERIOD_DAYS[likerPlus.period] : undefined;
+  if (
+    likerPlus.dailyValue
+    && periodDays
+    && likerPlus.tier !== 'civic'
+    && !likerPlus.skipPriceEstimate
+  ) {
+    const estimate = likerPlus.dailyValue * periodDays;
+    return `≈ ${estimate.toFixed(2)} ${likerPlus.dailyValueCurrency || 'USD'}`;
+  }
+  return 'N/A';
 }
 
 async function notifyUnsubscribe(
@@ -941,7 +993,7 @@ async function notifyUnsubscribe(
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: event.original_transaction_id || likerPlus.originalTransactionId || 'N/A',
     email: user.email || 'N/A',
-    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    priceWithCurrency: formatRevenueCatSlackPrice(event, likerPlus),
     event: likerPlus.currentType === 'trial' ? 'unsubscribedTrial' : 'unsubscribed',
     userId: likerId,
     method: 'revenuecat',
@@ -993,7 +1045,7 @@ async function handleBillingIssue(
   await sendPlusSubscriptionSlackNotification({
     subscriptionId: transactionId || 'N/A',
     email: user.email || 'N/A',
-    priceWithCurrency: formatRevenueCatSlackPrice(event),
+    priceWithCurrency: formatRevenueCatSlackPrice(event, user.likerPlus),
     event: 'paymentFailed',
     userId: likerId,
     method: 'revenuecat',

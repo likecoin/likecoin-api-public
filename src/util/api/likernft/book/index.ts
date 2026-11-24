@@ -31,6 +31,7 @@ import { checkIsTrustedPublisher } from './user';
 import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import { chunkISBNLookupCandidates } from './isbn';
+import { updateListingWithChainMetadata } from './manualMetadata';
 import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
@@ -357,6 +358,7 @@ export async function newNftBookInfo(
     inLanguage,
     datePublished,
     name,
+    alternativeHeadline,
     description,
     descriptionFull,
     keywords,
@@ -450,6 +452,9 @@ export async function newNftBookInfo(
   // Chain JSON is untrusted, and a non-string would fail the listing response schema.
   if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
   if (name) payload.name = name;
+  if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
+    payload.alternativeHeadline = alternativeHeadline;
+  }
   if (description) payload.description = description;
   if (descriptionFull) payload.descriptionFull = descriptionFull;
   if (nameByLocale) payload.nameByLocale = nameByLocale;
@@ -572,6 +577,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     inLanguage,
     datePublished,
     name,
+    alternativeHeadline,
     description,
     keywords: keywordString = '',
     thumbnailUrl,
@@ -595,7 +601,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
   const payload: any = {};
   if (inLanguage) payload.inLanguage = inLanguage;
   if (typeof datePublished === 'string' && datePublished) payload.datePublished = datePublished;
-  if (name) payload.name = name;
   if (description) payload.description = description;
   // descriptionFull is now a listing-owned field edited via /settings; do not
   // overwrite it from on-chain metadata on refresh.
@@ -608,12 +613,15 @@ export async function syncNFTBookInfoWithISCN(classId) {
   if (author) payload.author = author;
   if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
-  if (isbn) payload.isbn = isbn;
   if (image) payload.image = image;
   if (genre) payload.genre = genre;
-  await likeNFTBookCollection.doc(classId).update(payload);
+  const listingMetadata = await updateListingWithChainMetadata(
+    classId,
+    { name, alternativeHeadline, isbn },
+    payload,
+  );
   await updateStripeProductsFromListing(classId, bookInfo, {
-    name, description, image, thumbnailUrl,
+    name: listingMetadata.name, description, image, thumbnailUrl,
   });
 
   try {
@@ -642,7 +650,8 @@ export async function syncNFTBookInfoWithISCN(classId) {
     const priceRangeByCurrency = getBookPriceRangeByCurrency(prices);
     await updateAirtablePublicationRecord({
       id: classId,
-      name,
+      name: listingMetadata.name,
+      alternativeHeadline: listingMetadata.alternativeHeadline,
       description,
       iscnIdPrefix: '',
       ownerWallet,
@@ -656,7 +665,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
       language: inLanguage,
       keywords,
       usageInfo,
-      isbn,
+      isbn: listingMetadata.isbn,
       genre,
       datePublished,
       iscnObject: null,
@@ -757,6 +766,11 @@ export async function updateNftBookInfo(classId: string, {
   image?: string;
   promotionalImages?: string[];
   maxQuantityPerOrder?: number;
+} = {}, {
+  expectedOwnerWallet,
+}: {
+  // Rejects the write if the listing changed owner after the caller authorized against this wallet.
+  expectedOwnerWallet?: string;
 } = {}) {
   const timestamp = FieldValue.serverTimestamp();
   const payload: any = {
@@ -809,7 +823,18 @@ export async function updateNftBookInfo(classId: string, {
     .forEach(([key, value]) => {
       if (value !== undefined) payload[key] = value ?? FieldValue.delete();
     });
-  await likeNFTBookCollection.doc(classId).update(payload);
+  const bookRef = likeNFTBookCollection.doc(classId);
+  if (expectedOwnerWallet === undefined) {
+    await bookRef.update(payload);
+  } else {
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(bookRef);
+      if (doc.data()?.ownerWallet !== expectedOwnerWallet) {
+        throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+      }
+      t.update(bookRef, payload);
+    });
+  }
   await syncNFTBookInfoWithISCN(classId);
   // The sync above skips non-NFT products, so their Stripe products follow the listing here.
   if ([name, description, thumbnailUrl, image].some((v) => v !== undefined)) {
@@ -824,6 +849,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet,
   chain,
   isPlusReadingEnabled,
+  keyword,
   before,
   limit,
   key,
@@ -831,6 +857,7 @@ export async function listLatestNFTBookInfo({
   ownerWallet?: string;
   chain?: string;
   isPlusReadingEnabled?: boolean;
+  keyword?: string;
   before?: number;
   limit?: number;
   key?: number;
@@ -841,6 +868,7 @@ export async function listLatestNFTBookInfo({
   if (isPlusReadingEnabled !== undefined) {
     snapshot = snapshot.where('isPlusReadingEnabled', '==', isPlusReadingEnabled);
   }
+  if (keyword) snapshot = snapshot.where('keywords', 'array-contains', keyword);
   // `??` (not `||`) so a legitimate cursor of 0 is preserved; routes are
   // expected to reject NaN/array inputs before reaching this function.
   const tsNumber = before ?? key;

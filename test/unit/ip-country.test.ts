@@ -1,7 +1,7 @@
 import {
   describe, it, expect,
 } from 'vitest';
-import { getIpCountryFromRequest } from '../../src/util/misc';
+import { getIpCountryFromRequest, parseCountryCode } from '../../src/util/misc';
 
 describe('getIpCountryFromRequest', () => {
   it('prefers the Cloudflare header and uppercases it', () => {
@@ -27,5 +27,30 @@ describe('getIpCountryFromRequest', () => {
 
   it('ignores a duplicated header rather than throwing', () => {
     expect(getIpCountryFromRequest({ headers: { 'cf-ipcountry': ['HK', 'US'] }, body: {} } as any)).toBeUndefined();
+  });
+});
+
+describe('parseCountryCode', () => {
+  it('uppercases a recognised country code', () => {
+    expect(parseCountryCode('tw')).toBe('TW');
+    expect(parseCountryCode('HK')).toBe('HK');
+    expect(parseCountryCode(' gb ')).toBe('GB');
+  });
+
+  it('drops the placeholders Cloudflare sends for unresolvable IPs', () => {
+    expect(parseCountryCode('XX')).toBeUndefined();
+    expect(parseCountryCode('T1')).toBeUndefined();
+  });
+
+  it('drops anything not on the allowlist rather than trusting the caller', () => {
+    expect(parseCountryCode('ZZ')).toBeUndefined();
+    expect(parseCountryCode('TAIWAN')).toBeUndefined();
+    expect(parseCountryCode('../../etc')).toBeUndefined();
+  });
+
+  it('returns undefined for a missing or empty country', () => {
+    expect(parseCountryCode()).toBeUndefined();
+    expect(parseCountryCode('')).toBeUndefined();
+    expect(parseCountryCode('   ')).toBeUndefined();
   });
 });

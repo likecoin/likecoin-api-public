@@ -17,6 +17,7 @@ import {
   getPublisherNameFromMetadata,
 } from '../likernft/book';
 import { getStripeClient } from '../../stripe';
+import { resolveListingMetadata } from '../likernft/book/manualMetadata';
 import { bookCacheBucket } from '../../gcloudStorage';
 import { updateIntercomUserAttributes } from '../../intercom';
 import type { WalletEvmMigrateResult } from './schemas';
@@ -363,11 +364,11 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         author,
         publisher,
         usageInfo,
-        isbn,
         image,
         keywords,
         datePublished,
       } = metadata;
+      const listingMetadata = resolveListingMetadata(metadata, classData);
       const stripeProducts = await Promise.all(prices
         .map((p, index) => createStripeProductFromNFTBookPrice(evmClassId, index, {
           bookInfo: classData,
@@ -390,7 +391,8 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
       await createAirtablePublicationRecord({
         id: evmClassId,
         timestamp: new Date(),
-        name,
+        name: listingMetadata.name ?? name,
+        alternativeHeadline: listingMetadata.alternativeHeadline,
         description,
         metadata,
         ownerWallet,
@@ -403,7 +405,7 @@ export async function migrateBookClassId(likeClassId: string, evmClassId: string
         author: getAuthorNameFromMetadata(author),
         publisher: getPublisherNameFromMetadata(publisher),
         usageInfo,
-        isbn,
+        isbn: listingMetadata.isbn,
         datePublished,
         isDRMFree: !hideDownload,
         isHidden,

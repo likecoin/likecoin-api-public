@@ -55,6 +55,11 @@ export function compactISBN(input: string): string {
   return input.trim().replace(ISBN_LABEL, '').replace(/[^0-9Xx]/g, '').toUpperCase();
 }
 
+export function isValidISBN(input: string): boolean {
+  const compact = compactISBN(input);
+  return isValidISBN13(compact) || isValidISBN10(compact);
+}
+
 // Same digits, every standard hyphenation, plus the space-separated twin.
 // Listings store whichever of these the metadata happened to use.
 function addGroupedForms(forms: Set<string>, compact: string) {
