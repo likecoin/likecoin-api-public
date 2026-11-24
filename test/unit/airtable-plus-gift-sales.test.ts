@@ -174,6 +174,12 @@ describe('updateAirtablePlusGiftSalesRecord', () => {
     expect(mockUpdate.mock.calls[0][1]).toEqual({ Status: 'error' });
   });
 
+  it('only links the claim payment without a status', async () => {
+    mockFirstPage.mockResolvedValue([{ id: 'recGift' }]);
+    await updateAirtablePlusGiftSalesRecord({ giftCartId: 'cart_1', claimPaymentRecordId: 'recPayment' });
+    expect(mockUpdate.mock.calls[0][1]).toEqual({ 'Claim Payment': ['recPayment'] });
+  });
+
   it('skips the update without throwing when the row is missing', async () => {
     mockFirstPage.mockResolvedValue([]);
     await expect(updateAirtablePlusGiftSalesRecord({
