@@ -1184,7 +1184,7 @@ export async function updateAirtablePlusGiftSalesRecord({
   claimPaymentRecordId,
 }: {
   giftCartId: string;
-  status: 'claimed' | 'error';
+  status?: 'claimed' | 'error';
   claimedSubscriptionId?: string;
   claimerEmail?: string;
   claimerUserId?: string;
@@ -1205,14 +1205,15 @@ export async function updateAirtablePlusGiftSalesRecord({
       console.warn(`Airtable plus gift sales record not found for ${giftCartId}`);
       return;
     }
-    const fields: Partial<FieldSet> = { Status: status };
+    const fields: Partial<FieldSet> = {};
+    if (status) fields.Status = status;
     if (status === 'claimed') {
       fields['Claimed Date'] = new Date().toISOString();
       fields['Claimed Subscription ID'] = claimedSubscriptionId || '';
       fields['Claimer Email'] = claimerEmail || undefined;
       fields['Claimer User ID'] = claimerUserId || '';
-      if (claimPaymentRecordId) fields['Claim Payment'] = [claimPaymentRecordId];
     }
+    if (claimPaymentRecordId) fields['Claim Payment'] = [claimPaymentRecordId];
     await base(PLUS_GIFT_SALES_TABLE_ID).update(record.id, fields, { typecast: true });
   } catch (error) {
     // eslint-disable-next-line no-console

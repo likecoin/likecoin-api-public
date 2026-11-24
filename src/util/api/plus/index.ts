@@ -51,6 +51,7 @@ import {
   updateAirtableSubscriptionStatus,
 } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
+import { createPlusGiftClaimPaymentRecord } from './gift';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
@@ -692,6 +693,8 @@ async function emitPlusInvoiceAnalytics({
     gaClientId,
     gaSessionId,
     referrer,
+    isGift,
+    giftCartId: claimedGiftCartId,
   } = subscriptionMetadata;
   const { billing_reason: billingReason } = invoice;
   const isSubscriptionCreation = billingReason === 'subscription_create';
@@ -821,6 +824,40 @@ async function emitPlusInvoiceAnalytics({
     });
   }
 
+  // isGift is only set by a gift claim; giftCartId also marks a yearly plan's free-book cart.
+  const isGiftClaimInvoice = isSubscriptionCreation && isGift === 'true';
+  const paymentRecord = {
+    subscriptionId,
+    customerId,
+    customerEmail: user.email || '',
+    customerUserId: likerId,
+    customerWallet: user.evmWallet || '',
+    productId,
+    priceId: item.price.id,
+    priceName: item.price.nickname || '',
+    price: amountPaid,
+    currency,
+    balanceTxAmount,
+    balanceTxExchangeRate,
+    invoiceId: invoice.id,
+    couponId: coupon?.id || '',
+    couponName: coupon?.name || '',
+    since,
+    periodInterval: period,
+    periodStartAt: currentPeriodStart,
+    periodEndAt: currentPeriodEnd,
+    isNew: isNewSubscription,
+    isTrial,
+    channel: from,
+    utmCampaign,
+    utmMedium,
+    utmSource,
+    utmContent,
+    utmTerm,
+    fbc,
+    referrer,
+    giftCartId,
+  };
   await Promise.all([
     // Renewals are routine and not announced, unlike a trial conversion.
     ...(isNewSubscription || isTrialToPaidUpgrade ? [sendPlusSubscriptionSlackNotification({
@@ -832,38 +869,9 @@ async function emitPlusInvoiceAnalytics({
       stripeCustomerId: customerId,
       method: 'stripe',
     })] : []),
-    createAirtableSubscriptionPaymentRecord({
-      subscriptionId,
-      customerId,
-      customerEmail: user.email || '',
-      customerUserId: likerId,
-      customerWallet: user.evmWallet || '',
-      productId,
-      priceId: item.price.id,
-      priceName: item.price.nickname || '',
-      price: amountPaid,
-      currency,
-      balanceTxAmount,
-      balanceTxExchangeRate,
-      invoiceId: invoice.id,
-      couponId: coupon?.id || '',
-      couponName: coupon?.name || '',
-      since,
-      periodInterval: period,
-      periodStartAt: currentPeriodStart,
-      periodEndAt: currentPeriodEnd,
-      isNew: isNewSubscription,
-      isTrial,
-      channel: from,
-      utmCampaign,
-      utmMedium,
-      utmSource,
-      utmContent,
-      utmTerm,
-      fbc,
-      referrer,
-      giftCartId,
-    }),
+    isGiftClaimInvoice
+      ? createPlusGiftClaimPaymentRecord(paymentRecord, claimedGiftCartId)
+      : createAirtableSubscriptionPaymentRecord(paymentRecord),
   ]);
 
   publisher.publish(PUBSUB_TOPIC_MISC, req, {
