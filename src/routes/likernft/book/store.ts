@@ -12,7 +12,6 @@ import {
   listNftBookInfoByModeratorWallet,
   newNftBookInfo,
   updateNftBookInfo,
-  updatePublisherRestrictedTerritories,
   getLocalizedTextWithFallback,
   createStripeProductFromNFTBookPrice,
   checkIsAuthorized,
@@ -1222,12 +1221,9 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       throw new ValidationError('MERCH_ONLY_FIELDS', 400);
     }
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
-    const restrictedTerritoriesUpdate = await updatePublisherRestrictedTerritories(
-      classId,
-      restrictedTerritories,
-      { expectedOwnerWallet: ownerWallet },
-    );
-    await updateNftBookInfo(classId, {
+    const {
+      restrictedTerritories: restrictedTerritoriesUpdate,
+    } = await updateNftBookInfo(classId, {
       moderatorWallets,
       connectedWallets,
       mustClaimToView,
@@ -1248,6 +1244,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       nameByLocale,
       descriptionByLocale,
       descriptionFullByLocale,
+      restrictedTerritories,
       ...merchFields,
     }, { expectedOwnerWallet: ownerWallet });
 

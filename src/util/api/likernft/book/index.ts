@@ -682,33 +682,6 @@ export async function syncNFTBookInfoWithISCN(classId) {
   }
 }
 
-// Returns what was written. Transactional, so a review or admin geoblock
-// landing mid-request is never lifted; an empty list clears the geoblock.
-export async function updatePublisherRestrictedTerritories(
-  classId: string,
-  requested: string[] | undefined,
-  { expectedOwnerWallet }: { expectedOwnerWallet: string },
-): Promise<string[] | undefined> {
-  if (requested === undefined) return undefined;
-  return db.runTransaction(async (t) => {
-    const ref = likeNFTBookCollection.doc(classId);
-    const doc = await t.get(ref);
-    const data = (doc.data() || {}) as Partial<NFTBookListingInfo>;
-    if (data.ownerWallet !== expectedOwnerWallet) {
-      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
-    }
-    const update = getPublisherRestrictedTerritoriesUpdate(data, requested);
-    if (update !== undefined) {
-      const hasTerritories = update.length > 0;
-      t.update(ref, {
-        restrictedTerritories: hasTerritories ? update : FieldValue.delete(),
-        restrictedTerritoriesSetBy: hasTerritories ? 'publisher' : FieldValue.delete(),
-      });
-    }
-    return update;
-  });
-}
-
 export async function updateNftBookInfo(classId: string, {
   prices,
   moderatorWallets,
@@ -739,6 +712,7 @@ export async function updateNftBookInfo(classId: string, {
   image,
   promotionalImages,
   maxQuantityPerOrder,
+  restrictedTerritories,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -771,6 +745,8 @@ export async function updateNftBookInfo(classId: string, {
   image?: string;
   promotionalImages?: string[];
   maxQuantityPerOrder?: number;
+  // Publisher-requested geoblock; an empty list clears it unless review or admin set it.
+  restrictedTerritories?: string[];
 } = {}, {
   expectedOwnerWallet,
 }: {
@@ -829,15 +805,30 @@ export async function updateNftBookInfo(classId: string, {
       if (value !== undefined) payload[key] = value ?? FieldValue.delete();
     });
   const bookRef = likeNFTBookCollection.doc(classId);
-  if (expectedOwnerWallet === undefined) {
+  let restrictedTerritoriesUpdate: string[] | undefined;
+  if (expectedOwnerWallet === undefined && restrictedTerritories === undefined) {
     await bookRef.update(payload);
   } else {
+    // One transaction, so a rejected request writes nothing
+    // and a review or admin geoblock landing mid-request is never lifted.
     await db.runTransaction(async (t) => {
       const doc = await t.get(bookRef);
-      if (doc.data()?.ownerWallet !== expectedOwnerWallet) {
+      const data = (doc.data() || {}) as Partial<NFTBookListingInfo>;
+      if (expectedOwnerWallet !== undefined && data.ownerWallet !== expectedOwnerWallet) {
         throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
       }
-      t.update(bookRef, payload);
+      restrictedTerritoriesUpdate = restrictedTerritories === undefined
+        ? undefined
+        : getPublisherRestrictedTerritoriesUpdate(data, restrictedTerritories);
+      const geoblockPayload: any = {};
+      if (restrictedTerritoriesUpdate !== undefined) {
+        const hasTerritories = restrictedTerritoriesUpdate.length > 0;
+        geoblockPayload.restrictedTerritories = hasTerritories
+          ? restrictedTerritoriesUpdate
+          : FieldValue.delete();
+        geoblockPayload.restrictedTerritoriesSetBy = hasTerritories ? 'publisher' : FieldValue.delete();
+      }
+      t.update(bookRef, { ...payload, ...geoblockPayload });
     });
   }
   await syncNFTBookInfoWithISCN(classId);
@@ -848,6 +839,7 @@ export async function updateNftBookInfo(classId: string, {
       await updateStripeProductsFromListing(classId, bookInfo, bookInfo);
     }
   }
+  return { restrictedTerritories: restrictedTerritoriesUpdate };
 }
 
 export async function listLatestNFTBookInfo({
