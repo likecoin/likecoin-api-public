@@ -157,7 +157,7 @@ describe('claimPlusGiftCart', () => {
     mockCustomerCreate.mockResolvedValue({ id: 'cus_claimer' });
   });
 
-  it('marks the gift sales row claimed with the claim payment record', async () => {
+  it('marks the gift sales row claimed', async () => {
     mockSubscriptionCreate.mockResolvedValue({
       id: 'sub_gift',
       start_date: 1747000000,
@@ -170,8 +170,9 @@ describe('claimPlusGiftCart', () => {
         }],
       },
     });
-    mockCreateSubscriptionPayment.mockResolvedValue('recPayment');
     await claimPlusGiftCart({ cartId, token: CLAIM_TOKEN, wallet: CLAIMER_WALLET });
+    // The trial invoice's webhook writes the payment row and links it.
+    expect(mockCreateSubscriptionPayment).not.toHaveBeenCalled();
     expect(mockUpdateGiftSales).toHaveBeenCalledTimes(1);
     expect(mockUpdateGiftSales).toHaveBeenCalledWith({
       giftCartId: cartId,
@@ -179,7 +180,6 @@ describe('claimPlusGiftCart', () => {
       claimedSubscriptionId: 'sub_gift',
       claimerEmail: 'testing@likecoin.store',
       claimerUserId: 'testing',
-      claimPaymentRecordId: 'recPayment',
     });
   });
 

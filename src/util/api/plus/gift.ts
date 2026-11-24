@@ -272,7 +272,6 @@ export async function claimPlusGiftCart({
     giftInfo,
     period,
     quantity,
-    fbc,
   } = cartData;
   if (claimToken !== token) {
     throw new ValidationError('Invalid claim token for plus gift cart');
@@ -406,37 +405,14 @@ export async function claimPlusGiftCart({
       }
     } catch { /* ignore */ }
 
-    const [claimPaymentRecordId] = await Promise.all([
-      createAirtableSubscriptionPaymentRecord({
-        subscriptionId: subscription.id,
-        customerId: stripeCustomerId,
-        customerEmail: likerUserInfo.email || '',
-        customerUserId: likerId,
-        customerWallet: likerUserInfo.evmWallet || '',
-        productId: item.price.product as string,
-        priceId: item.price.id,
-        priceName: item.price.nickname || '',
-        price: 0,
-        currency: 'USD',
-        invoiceId: '',
-        couponId: '',
-        couponName: '',
-        since,
-        periodInterval: period === 'yearly' ? 'year' : 'month',
-        periodStartAt: currentPeriodStart,
-        periodEndAt: currentPeriodEnd,
-        isNew: true,
-        isTrial: true,
-        channel: '',
-        fbc,
-      }),
-      shouldNotifySender ? sendPlusGiftClaimedEmail({
+    if (shouldNotifySender) {
+      await sendPlusGiftClaimedEmail({
         fromEmail: email || '',
         toName: giftInfo.toName,
         fromName: giftInfo.fromName,
         language: senderLocale || 'zh',
-      }) : Promise.resolve(),
-    ]);
+      });
+    }
 
     await updateAirtablePlusGiftSalesRecord({
       giftCartId: cartId,
@@ -444,7 +420,6 @@ export async function claimPlusGiftCart({
       claimedSubscriptionId: subscription.id,
       claimerEmail: likerUserInfo.email,
       claimerUserId: likerId,
-      claimPaymentRecordId,
     });
   } catch (error) {
     await likePlusGiftCartCollection.doc(cartId).update({
@@ -454,6 +429,24 @@ export async function claimPlusGiftCart({
     });
     await updateAirtablePlusGiftSalesRecord({ giftCartId: cartId, status: 'error' });
     throw error;
+  }
+}
+
+// Only the trial invoice's webhook writes a claimed gift's payment row:
+// it alone has the Invoice ID, and a claim racing it on an Airtable lookup could add a second row.
+export async function createPlusGiftClaimPaymentRecord(
+  record: Parameters<typeof createAirtableSubscriptionPaymentRecord>[0],
+  giftCartId: string,
+) {
+  const cartDoc = await likePlusGiftCartCollection.doc(giftCartId).get();
+  const claimPaymentRecordId = await createAirtableSubscriptionPaymentRecord({
+    ...record,
+    // The claim may have written the user's Plus record first, so the webhook sees it as old.
+    isNew: true,
+    fbc: cartDoc.data()?.fbc || record.fbc,
+  });
+  if (claimPaymentRecordId) {
+    await updateAirtablePlusGiftSalesRecord({ giftCartId, claimPaymentRecordId });
   }
 }
 
