@@ -51,7 +51,7 @@ import {
   updateAirtableSubscriptionStatus,
 } from '../../airtable';
 import { createFreeBookCartFromSubscription } from '../likernft/book/cart';
-import { createPlusGiftClaimPaymentRecord } from './gift';
+import { createPlusGiftClaimPaymentRecord, getPlusGiftCartPayment } from './gift';
 import { ValidationError } from '../../ValidationError';
 import { checkUserNameValid, normalizeLikerId } from '../../ValidationHelper';
 import logServerEvents from '../../logServerEvents';
@@ -511,6 +511,7 @@ async function writePlusUserRecordAndAccrual({
   amountPaid,
   amountPaidUSD,
   currency,
+  giftPayment,
 }: {
   ctx: PlusInvoiceContext;
   since: number;
@@ -522,6 +523,8 @@ async function writePlusUserRecordAndAccrual({
   amountPaid: number;
   amountPaidUSD: number;
   currency: string;
+  // Set on a claimed gift's trial term: the giver's payment funds it instead of the invoice.
+  giftPayment?: { amountUSD: number; currency: string };
 }): Promise<void> {
   const {
     user,
@@ -533,23 +536,31 @@ async function writePlusUserRecordAndAccrual({
   } = ctx;
   const { affiliateFrom } = subscriptionMetadata;
   const isCivic = ctx.tier === 'civic';
-  // Flat rev-share: Civic funds the pool at the Plus-tier USD price, so its
-  // 10× sticker never inflates author payouts (see getPlusEquivalentUSDPrice).
-  const fundingAmountPaid = isCivic
-    ? getPlusEquivalentUSDPrice(item.plan.interval)
-    : amountPaid;
+  let fundingAmountPaid = isTrial ? 0 : amountPaid;
+  let fundingAmountPaidUSD = isTrial ? 0 : amountPaidUSD;
+  let fundingCurrency = currency;
+  if (giftPayment) {
+    fundingAmountPaid = giftPayment.amountUSD;
+    fundingAmountPaidUSD = giftPayment.amountUSD;
+    fundingCurrency = 'USD';
+  } else if (isCivic && !isTrial && amountPaid > 0) {
+    // Flat rev-share: Civic funds the pool at the Plus-tier USD price, so its
+    // 10× sticker never inflates author payouts (see getPlusEquivalentUSDPrice).
+    // A 100%-off Civic term pays nothing, so it keeps zero funding.
+    fundingAmountPaid = getPlusEquivalentUSDPrice(item.plan.interval);
+    fundingAmountPaidUSD = fundingAmountPaid;
+    fundingCurrency = 'USD';
+  }
   const dailyValue = isFullTermInvoice
     ? calculatePlusDailyValue({
-      amountPaid: isTrial ? 0 : fundingAmountPaid,
+      amountPaid: fundingAmountPaid,
       currentPeriodStart,
       currentPeriodEnd,
     })
     : (user.likerPlus?.dailyValue ?? 0);
-  let dailyValueCurrency = user.likerPlus?.dailyValueCurrency ?? currency;
-  if (isFullTermInvoice) {
-    // Civic's pinned funding basis is a USD constant, whatever the invoice currency.
-    dailyValueCurrency = isCivic ? 'USD' : currency;
-  }
+  const dailyValueCurrency = isFullTermInvoice
+    ? fundingCurrency
+    : (user.likerPlus?.dailyValueCurrency ?? currency);
   // A user billed by both Stripe and the app keeps the app record while in period:
   // only it knows the app subscription, and a later Stripe cancellation would revoke it.
   // An expired app record is still replaced, as when a user moves from app to web.
@@ -559,6 +570,8 @@ async function writePlusUserRecordAndAccrual({
     // eslint-disable-next-line no-console
     console.warn(`Stripe subscription ${subscriptionId} paid while ${likerId} holds a current app Plus record; keeping the app record`);
   }
+  let currentType = isTrial ? 'trial' : 'paid';
+  if (giftPayment) currentType = 'gift';
   const userUpdate: Record<string, unknown> = isCurrentAppSubscription ? {} : {
     likerPlus: {
       period: item.plan.interval,
@@ -566,7 +579,7 @@ async function writePlusUserRecordAndAccrual({
       since,
       currentPeriodStart,
       currentPeriodEnd,
-      currentType: isTrial ? 'trial' : 'paid',
+      currentType,
       dailyValue,
       dailyValueCurrency,
       subscriptionId,
@@ -588,12 +601,11 @@ async function writePlusUserRecordAndAccrual({
 
   // Accrue this term's USD value to the rev-share pool. Full-term paid charges only:
   // proration invoices reuse the stored dailyValue (already accrued at the cycle), and
-  // trials fund nothing. The charge is normalized from its invoice currency to USD so
-  // the pool stays single-currency.
-  if (isFullTermInvoice && !isTrial && dailyValue > 0) {
+  // trials other than gifts fund nothing. The charge is normalized from its invoice currency
+  // to USD so the pool stays single-currency.
+  if (isFullTermInvoice && dailyValue > 0) {
     const dailyValueUSD = calculatePlusDailyValue({
-      // Civic accrues at the Plus-equivalent rate (already USD), see above.
-      amountPaid: isCivic ? fundingAmountPaid : amountPaidUSD,
+      amountPaid: fundingAmountPaidUSD,
       currentPeriodStart,
       currentPeriodEnd,
     });
@@ -604,7 +616,7 @@ async function writePlusUserRecordAndAccrual({
         likerId,
         subscriptionId,
         dailyValueUSD,
-        currency,
+        currency: giftPayment?.currency ?? currency,
         currentPeriodStart,
         currentPeriodEnd,
         provider: 'stripe',
@@ -955,6 +967,7 @@ export async function processStripeSubscriptionInvoice(
     giftCartId: existingGiftCartId,
     isUpgradingPrice,
     affiliateGiftOnTrial,
+    isGift,
   } = subscriptionMetadata;
 
   const since = startDate * 1000; // Convert to milliseconds
@@ -1013,6 +1026,11 @@ export async function processStripeSubscriptionInvoice(
   const isFullTermInvoice = isSubscriptionCreation
     || isTrialToPaidUpgrade
     || billingReason === 'subscription_cycle';
+  // isGift is only set by a gift claim, whose trial is the term the giver paid for.
+  // Once the trial converts, the renewal is an ordinary paid term.
+  const giftPayment = (isTrial && isGift === 'true' && existingGiftCartId)
+    ? await getPlusGiftCartPayment(existingGiftCartId)
+    : undefined;
   await writePlusUserRecordAndAccrual({
     ctx,
     since,
@@ -1024,6 +1042,7 @@ export async function processStripeSubscriptionInvoice(
     amountPaid,
     amountPaidUSD,
     currency,
+    giftPayment,
   });
 
   // Ahead of the emit claim, which a retry returns early on: a crash after the

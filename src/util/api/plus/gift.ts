@@ -26,8 +26,10 @@ import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo'
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
 import type { BookGiftInfo } from '../../../types/book';
+import type { LikerPlusData, UserData } from '../../../types/user';
 import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
+import { convertCurrencyToUSDPrice } from '../../pricing';
 import logServerEvents from '../../logServerEvents';
 import { sendIntercomEvent, updateIntercomUserAttributes } from '../../intercom';
 import {
@@ -251,6 +253,42 @@ export async function createPlusGiftCart({
   await likePlusGiftCartCollection.doc(paymentId).create(payload);
 }
 
+// The trial invoice webhook writes the complete gift record (with its dailyValue), so the claim
+// only fills the gap until it lands and never overwrites it, whichever arrives first.
+export async function writePlusGiftClaimRecord(likerId: string, likerPlus: LikerPlusData) {
+  const userRef = userCollection.doc(likerId);
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    const current = (userDoc.data() as UserData | undefined)?.likerPlus;
+    if (current?.subscriptionId === likerPlus.subscriptionId) return;
+    transaction.update(userRef, { likerPlus });
+  });
+}
+
+/**
+ * What the giver paid for a gift cart, in USD and in the checkout currency. Prefers the charge's
+ * balance transaction (the settled USD amount) and falls back to tier-based conversion.
+ */
+export async function getPlusGiftCartPayment(
+  cartId: string,
+): Promise<{ amountUSD: number; currency: string }> {
+  const cartDoc = await likePlusGiftCartCollection.doc(cartId).get();
+  const sessionId = cartDoc.data()?.sessionId;
+  if (!sessionId) return { amountUSD: 0, currency: 'USD' };
+  const session = await getStripeClient().checkout.sessions.retrieve(sessionId, {
+    expand: ['payment_intent.latest_charge.balance_transaction'],
+  });
+  const currency = (session.currency || 'usd').toUpperCase();
+  const amount = (session.amount_total || 0) / 100;
+  if (!(amount > 0)) return { amountUSD: 0, currency };
+  const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null;
+  const balanceTx = (paymentIntent?.latest_charge as Stripe.Charge | null)?.balance_transaction;
+  const amountUSD = balanceTx && typeof balanceTx !== 'string'
+    ? balanceTx.amount / 100
+    : convertCurrencyToUSDPrice(amount, currency.toLowerCase() as SupportedPlusCurrency);
+  return { amountUSD, currency };
+}
+
 export async function claimPlusGiftCart({
   cartId,
   token,
@@ -368,16 +406,14 @@ export async function claimPlusGiftCart({
     const since = startDate * 1000; // Convert to milliseconds
     const currentPeriodStart = item.current_period_start * 1000; // Convert to milliseconds
     const currentPeriodEnd = item.current_period_end * 1000; // Convert to milliseconds
-    await userCollection.doc(likerId).update({
-      likerPlus: {
-        period: subscriptionPeriod,
-        since,
-        currentPeriodStart,
-        currentPeriodEnd,
-        currentType: 'gift',
-        subscriptionId: subscription.id,
-        customerId: stripeCustomerId,
-      },
+    await writePlusGiftClaimRecord(likerId, {
+      period: subscriptionPeriod,
+      since,
+      currentPeriodStart,
+      currentPeriodEnd,
+      currentType: 'gift',
+      subscriptionId: subscription.id,
+      customerId: stripeCustomerId,
     });
 
     await Promise.all([
