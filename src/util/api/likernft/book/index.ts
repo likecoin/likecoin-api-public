@@ -686,13 +686,18 @@ export async function syncNFTBookInfoWithISCN(classId) {
 // landing mid-request is never lifted; an empty list clears the geoblock.
 export async function updatePublisherRestrictedTerritories(
   classId: string,
-  requested?: string[],
+  requested: string[] | undefined,
+  { expectedOwnerWallet }: { expectedOwnerWallet: string },
 ): Promise<string[] | undefined> {
   if (requested === undefined) return undefined;
   return db.runTransaction(async (t) => {
     const ref = likeNFTBookCollection.doc(classId);
     const doc = await t.get(ref);
-    const update = getPublisherRestrictedTerritoriesUpdate(doc.data() || {}, requested);
+    const data = (doc.data() || {}) as Partial<NFTBookListingInfo>;
+    if (data.ownerWallet !== expectedOwnerWallet) {
+      throw new ValidationError('NOT_OWNER_OF_NFT_CLASS', 403);
+    }
+    const update = getPublisherRestrictedTerritoriesUpdate(data, requested);
     if (update !== undefined) {
       const hasTerritories = update.length > 0;
       t.update(ref, {

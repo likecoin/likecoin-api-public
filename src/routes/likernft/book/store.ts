@@ -1225,6 +1225,7 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     const restrictedTerritoriesUpdate = await updatePublisherRestrictedTerritories(
       classId,
       restrictedTerritories,
+      { expectedOwnerWallet: ownerWallet },
     );
     await updateNftBookInfo(classId, {
       moderatorWallets,

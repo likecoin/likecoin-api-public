@@ -197,4 +197,33 @@ describe('POST /likernft/book/store/:classId/settings during an ownership transf
     expect(stored?.ownerWallet).toBe(getAddress(NEW_OWNER));
     expect(stored?.connectedWallets).toEqual({ [AUTHOR]: 30, [getAddress(NEW_OWNER)]: 70 });
   });
+
+  it('rejects a geoblock authorized for the old owner once the transfer has landed', async () => {
+    const classId = mockEVMAddress(0xb2);
+    await seedListing(classId);
+    await likeNFTBookUserCollection.doc(getAddress(NEW_OWNER))
+      .set({ isStripeConnectReady: true } as any);
+    mockGetNFTClassOwner.mockResolvedValue(getAddress(NEW_OWNER));
+    mockValidateConnectedWallets.mockImplementationOnce(async () => {
+      expect((await postOwnership(classId, { newOwnerWallet: NEW_OWNER })).status).toBe(200);
+      return true;
+    });
+
+    const res = await axiosist
+      .post(`${BASE_URL}/${classId}/settings`, {
+        connectedWallets: { [OWNER]: 100 },
+        restrictedTerritories: ['JP'],
+      }, {
+        headers: {
+          Authorization: `Bearer ${jwtSign({ wallet: OWNER, permissions: ['read:nftbook', 'write:nftbook'] })}`,
+        },
+      })
+      .catch((err) => (err as any).response);
+    expect(res.status).toBe(403);
+    expect(res.data).toContain('NOT_OWNER_OF_NFT_CLASS');
+
+    const stored = await getStored(classId);
+    expect(stored?.ownerWallet).toBe(getAddress(NEW_OWNER));
+    expect(stored?.restrictedTerritories).toBeUndefined();
+  });
 });
