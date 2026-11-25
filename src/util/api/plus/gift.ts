@@ -25,7 +25,7 @@ import { fetchUserInfoByEmail } from '../users';
 import { getUserWithCivicLikerPropertiesByWallet } from '../users/getPublicInfo';
 import { getCustomerType, getPaymentUpdateFields } from '../users/payment';
 import { getPlusGiftPageURL, getPlusPageURL } from '../../liker-land';
-import type { BookGiftInfo } from '../../../types/book';
+import type { BookGiftInfo, PlusGiftCartData } from '../../../types/book';
 import type { LikerPlusData, UserData } from '../../../types/user';
 import { STRIPE_PAYMENT_INTENT_EXPAND_OBJECTS } from '../../../constant';
 import type { SupportedPlusCurrency } from '../../../constant';
@@ -196,6 +196,17 @@ export async function createPlusGiftCheckoutSession(
   };
 }
 
+const PLUS_GIFT_CART_UTM_KEYS = ['utmCampaign', 'utmSource', 'utmMedium', 'utmContent', 'utmTerm'] as const;
+type PlusGiftCartUTM = Pick<PlusGiftCartData, typeof PLUS_GIFT_CART_UTM_KEYS[number]>;
+
+function pickPlusGiftCartUTM(source: PlusGiftCartUTM | undefined): PlusGiftCartUTM {
+  const utm: PlusGiftCartUTM = {};
+  PLUS_GIFT_CART_UTM_KEYS.forEach((key) => {
+    if (source?.[key]) utm[key] = source[key];
+  });
+  return utm;
+}
+
 async function checkPlusGiftCartExists(
   paymentId: string,
 ) {
@@ -224,6 +235,7 @@ export async function createPlusGiftCart({
   claimToken,
   ipCountry,
   fbc,
+  utm,
 }: {
   period?: PlusPeriod,
   quantity?: number,
@@ -234,6 +246,7 @@ export async function createPlusGiftCart({
   claimToken: string,
   ipCountry?: string,
   fbc?: string,
+  utm?: PlusGiftCartUTM,
 }) {
   const payload: any = {
     id: paymentId,
@@ -248,8 +261,9 @@ export async function createPlusGiftCart({
   };
   if (ipCountry) payload.ipCountry = ipCountry;
   // The recipient's payment record is written from the trial invoice after the claim,
-  // long after the purchase session that carried the buyer's ad click.
+  // long after the purchase session that carried the buyer's ad click and UTM.
   if (fbc) payload.fbc = fbc;
+  Object.assign(payload, pickPlusGiftCartUTM(utm));
   await likePlusGiftCartCollection.doc(paymentId).create(payload);
 }
 
@@ -474,12 +488,13 @@ export async function createPlusGiftClaimPaymentRecord(
   record: Parameters<typeof createAirtableSubscriptionPaymentRecord>[0],
   giftCartId: string,
 ) {
-  const cartDoc = await likePlusGiftCartCollection.doc(giftCartId).get();
+  const cartData = (await likePlusGiftCartCollection.doc(giftCartId).get()).data();
   const claimPaymentRecordId = await createAirtableSubscriptionPaymentRecord({
     ...record,
     // The claim may have written the user's Plus record first, so the webhook sees it as old.
     isNew: true,
-    fbc: cartDoc.data()?.fbc || record.fbc,
+    fbc: cartData?.fbc || record.fbc,
+    ...pickPlusGiftCartUTM(cartData),
   });
   if (claimPaymentRecordId) {
     await updateAirtablePlusGiftSalesRecord({ giftCartId, claimPaymentRecordId });
@@ -600,6 +615,7 @@ export async function processPlusGiftStripePurchase(
     claimToken,
     ipCountry,
     fbc,
+    utm: metadata || undefined,
   });
 
   await createPlusGiftSalesRecord(session, {

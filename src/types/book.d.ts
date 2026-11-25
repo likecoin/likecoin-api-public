@@ -109,6 +109,11 @@ export interface PlusGiftCartData {
   claimToken: string;
   ipCountry?: string;
   fbc?: string;
+  utmCampaign?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmContent?: string;
+  utmTerm?: string;
   timestamp: { toMillis: () => number };
   claimTimestamp?: { toMillis: () => number };
 }

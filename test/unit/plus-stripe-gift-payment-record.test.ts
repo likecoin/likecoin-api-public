@@ -103,7 +103,11 @@ describe('Plus Stripe invoice payment record for gift subscriptions', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockCreatePayment.mockResolvedValue('recPayment');
-    await likePlusGiftCartCollection.doc(GIFT_CART_ID).set({ fbc: 'fb.1.1747000000000.buyer' } as any);
+    await likePlusGiftCartCollection.doc(GIFT_CART_ID).set({
+      fbc: 'fb.1.1747000000000.buyer',
+      utmCampaign: 'gift_campaign',
+      utmSource: 'newsletter',
+    } as any);
     await userCollection.doc('testing').update({
       likerPlus: {
         since: START_DATE * 1000,
@@ -133,6 +137,8 @@ describe('Plus Stripe invoice payment record for gift subscriptions', () => {
       isNew: true,
       isTrial: true,
       fbc: 'fb.1.1747000000000.buyer',
+      utmCampaign: 'gift_campaign',
+      utmSource: 'newsletter',
     }));
     expect(mockUpdateGiftSales).toHaveBeenCalledWith({
       giftCartId: GIFT_CART_ID,
@@ -157,6 +163,7 @@ describe('Plus Stripe invoice payment record for gift subscriptions', () => {
     await processInvoice(billingReason, 6999);
     expect(mockCreatePayment).toHaveBeenCalledTimes(1);
     expect(mockCreatePayment.mock.calls[0][0].fbc).toBeUndefined();
+    expect(mockCreatePayment.mock.calls[0][0].utmCampaign).toBeUndefined();
     expect(mockUpdateGiftSales).not.toHaveBeenCalled();
   });
 });

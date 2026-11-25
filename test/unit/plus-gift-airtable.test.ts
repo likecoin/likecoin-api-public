@@ -124,6 +124,16 @@ describe('processPlusGiftStripePurchase', () => {
     });
   });
 
+  it('keeps the buyer UTM on the cart for the claim payment row', async () => {
+    const session = makeSession();
+    session.metadata.utmCampaign = 'gift_campaign';
+    session.metadata.utmSource = 'newsletter';
+    await processPlusGiftStripePurchase(session);
+    const cartData = (await likePlusGiftCartCollection.doc(cartId).get()).data();
+    expect(cartData).toMatchObject({ utmCampaign: 'gift_campaign', utmSource: 'newsletter' });
+    expect(cartData).not.toHaveProperty('utmMedium');
+  });
+
   it('does not write again on a duplicate webhook', async () => {
     await processPlusGiftStripePurchase(makeSession());
     await processPlusGiftStripePurchase(makeSession());
