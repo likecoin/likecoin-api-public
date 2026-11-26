@@ -32,6 +32,7 @@ import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import { chunkISBNLookupCandidates } from './isbn';
 import { updateListingWithChainMetadata } from './manualMetadata';
+import { updateListingWithPendingMetadata } from './pendingMetadata';
 import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
@@ -588,6 +589,7 @@ export async function syncNFTBookInfoWithISCN(classId) {
     image,
     genre,
     hasPart,
+    recordTimestamp,
   } = metadata as NFTClassData;
   const previewContent = getPreviewContentFromHasPart(hasPart);
   const {
@@ -605,20 +607,19 @@ export async function syncNFTBookInfoWithISCN(classId) {
   // descriptionFull is now a listing-owned field edited via /settings; do not
   // overwrite it from on-chain metadata on refresh.
   payload.previewContent = previewContent || FieldValue.delete();
-  // Always an array here, so truthiness can't tell "chain has none" apart:
-  // legacy books keep keywords only in the listing, and an empty chain read
-  // must not wipe them.
-  if (keywords.length) payload.keywords = keywords;
   if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl;
   if (author) payload.author = author;
   if (publisher) payload.publisher = publisher;
   if (usageInfo) payload.usageInfo = usageInfo;
   if (image) payload.image = image;
-  if (genre) payload.genre = genre;
   const listingMetadata = await updateListingWithChainMetadata(
     classId,
     { name, alternativeHeadline, isbn },
     payload,
+  );
+  const pendingMetadata = await updateListingWithPendingMetadata(
+    classId,
+    { genre, keywords, recordTimestamp },
   );
   await updateStripeProductsFromListing(classId, bookInfo, {
     name: listingMetadata.name, description, image, thumbnailUrl,
@@ -663,10 +664,10 @@ export async function syncNFTBookInfoWithISCN(classId) {
       author: getAuthorNameFromMetadata(author),
       publisher: getPublisherNameFromMetadata(publisher),
       language: inLanguage,
-      keywords,
+      keywords: pendingMetadata.keywords,
       usageInfo,
       isbn: listingMetadata.isbn,
-      genre,
+      genre: pendingMetadata.genre,
       datePublished,
       iscnObject: null,
       iscnContentMetadata: metadata,

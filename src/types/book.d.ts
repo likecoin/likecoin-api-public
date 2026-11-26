@@ -26,6 +26,7 @@ import type {
   NFT_BOOK_COMPLIANCE_REVIEW_ACTIONS,
 } from '../util/api/likernft/book/complianceReview';
 import type { ManualMetadataField } from '../util/api/likernft/book/manualMetadata';
+import type { PendingMetadataField } from '../util/api/likernft/book/pendingMetadata';
 import type { RestrictedTerritoriesSource } from '../util/api/likernft/book/restrictedTerritories';
 
 export type BookGiftInfo = z.infer<typeof BookGiftInfoSchema>;
@@ -265,6 +266,9 @@ export interface NFTBookListingInfo {
   isbn?: string;
   // Fields staff corrected in the listing, which refresh must not overwrite from chain.
   manualMetadataFields?: ManualMetadataField[];
+  // Fields an owner or moderator set via `/settings`, kept over chain until the owner next signs.
+  pendingMetadataFields?: PendingMetadataField[];
+  pendingMetadataUpdatedAt?: { toMillis: () => number };
   image?: string;
   publisher?: BookContributor;
   genre?: string;
