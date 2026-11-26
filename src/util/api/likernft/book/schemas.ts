@@ -10,6 +10,10 @@ import {
 } from '../../../../constant';
 import { BOOK_PRICE_OVERRIDE_CURRENCIES } from '../../../pricing';
 import { expandRestrictedTerritories, RESTRICTED_TERRITORIES_SOURCES } from './restrictedTerritories';
+import { BOOK_CATEGORY_VALUES } from './suggest';
+
+// Keep in sync with MAX_BOOK_KEYWORDS in publish-3ook-com app/constant/index.ts.
+const MAX_BOOK_KEYWORDS = 20;
 
 const LocalizedTextMap = z.record(z.string(), z.string())
   .refine(
@@ -124,9 +128,18 @@ export const ListingSettingsBodySchema = z.object({
     (c) => ISO_ALPHA2_COUNTRY_CODES.has(c),
     { message: 'INVALID_TERRITORY_CODE' },
   )).transform(expandRestrictedTerritories).optional(),
+  // Book only; each replaces the listing value and stays pending until the owner signs it to chain.
+  genre: z.enum(BOOK_CATEGORY_VALUES).optional(),
+  keywords: z.array(z.string())
+    .transform((keywords) => [...new Set(keywords.map((k) => k.trim()).filter(Boolean))])
+    .refine((keywords) => keywords.length <= MAX_BOOK_KEYWORDS, { message: 'TOO_MANY_KEYWORDS' })
+    .optional(),
 });
 
-export const NewListingBodySchema = ListingSettingsBodySchema.extend({
+// A new listing takes genre and keywords from chain metadata.
+export const NewListingBodySchema = ListingSettingsBodySchema.omit({
+  genre: true, keywords: true,
+}).extend({
   successUrl: z.string().optional(),
   cancelUrl: z.string().optional(),
   prices: NFTBookPricesSchema,

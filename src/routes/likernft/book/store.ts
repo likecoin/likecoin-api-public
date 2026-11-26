@@ -1202,6 +1202,8 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       promotionalImages,
       maxQuantityPerOrder,
       restrictedTerritories,
+      genre,
+      keywords,
     } = req.body;
     const merchFields = {
       name, description, thumbnailUrl, image, promotionalImages, maxQuantityPerOrder,
@@ -1219,6 +1221,10 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
     // A book keeps these on chain, where the ISCN sync would overwrite whatever is set here.
     if (!isNonNFTProduct(bookInfo) && Object.values(merchFields).some((v) => v !== undefined)) {
       throw new ValidationError('MERCH_ONLY_FIELDS', 400);
+    }
+    // A non-NFT product has no chain metadata for the owner to sign these into.
+    if (isNonNFTProduct(bookInfo) && (genre !== undefined || keywords !== undefined)) {
+      throw new ValidationError('BOOK_ONLY_FIELDS', 400);
     }
     if (connectedWallets) await validateConnectedWallets(connectedWallets);
     const {
@@ -1245,6 +1251,8 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       descriptionByLocale,
       descriptionFullByLocale,
       restrictedTerritories,
+      genre,
+      keywords,
       ...merchFields,
     }, { expectedOwnerWallet: ownerWallet });
 
@@ -1267,6 +1275,17 @@ router.post(['/:classId/settings', '/class/:classId/settings'], jwtAuth('write:n
       moderatorWalletCount: moderatorWallets ? moderatorWallets.length : 0,
       connectedWalletCount: connectedWallets ? connectedWallets.length : 0,
     });
+
+    if (genre !== undefined || keywords !== undefined) {
+      publisher.publish(PUBSUB_TOPIC_MISC, req, {
+        logType: 'BookNFTListingPendingMetadataUpdate',
+        wallet: req.user.wallet,
+        ownerWallet,
+        classId,
+        genre,
+        keywords,
+      });
+    }
 
     sendValidatedJSON(res, ListingSettingsResponseSchema, {
       classId,

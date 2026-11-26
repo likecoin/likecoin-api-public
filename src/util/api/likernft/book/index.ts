@@ -32,7 +32,7 @@ import { BOOK_LIST_CHAIN } from './adminList';
 import { cacheBookFilesFromNFTClassMetadata } from './cache';
 import { chunkISBNLookupCandidates } from './isbn';
 import { updateListingWithChainMetadata } from './manualMetadata';
-import { updateListingWithPendingMetadata } from './pendingMetadata';
+import { PENDING_METADATA_FIELDS, updateListingWithPendingMetadata } from './pendingMetadata';
 import {
   getListingFlagOverridesForReviewAction,
   reviewBookListingContent,
@@ -714,6 +714,8 @@ export async function updateNftBookInfo(classId: string, {
   promotionalImages,
   maxQuantityPerOrder,
   restrictedTerritories,
+  genre,
+  keywords,
 }: {
   prices?: NFTBookPrice[];
   moderatorWallets?: string[];
@@ -748,6 +750,9 @@ export async function updateNftBookInfo(classId: string, {
   maxQuantityPerOrder?: number;
   // Publisher-requested geoblock; an empty list clears it unless review or admin set it.
   restrictedTerritories?: string[];
+  // Held over chain values by the ISCN sync until the owner next signs.
+  genre?: string;
+  keywords?: string[];
 } = {}, {
   expectedOwnerWallet,
 }: {
@@ -805,6 +810,13 @@ export async function updateNftBookInfo(classId: string, {
     .forEach(([key, value]) => {
       if (value !== undefined) payload[key] = value ?? FieldValue.delete();
     });
+  if (genre !== undefined) payload.genre = genre;
+  if (keywords !== undefined) payload.keywords = keywords.length ? keywords : FieldValue.delete();
+  const pendingFields = PENDING_METADATA_FIELDS.filter((f) => payload[f] !== undefined);
+  if (pendingFields.length) {
+    payload.pendingMetadataFields = FieldValue.arrayUnion(...pendingFields);
+    payload.pendingMetadataUpdatedAt = timestamp;
+  }
   const bookRef = likeNFTBookCollection.doc(classId);
   let restrictedTerritoriesUpdate: string[] | undefined;
   if (expectedOwnerWallet === undefined && restrictedTerritories === undefined) {
