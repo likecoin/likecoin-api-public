@@ -53,8 +53,11 @@ interface CreateAirtablePublicationRecordParams extends AirtablePublicationRecor
   imageURL: string;
 }
 
-interface UpdateAirtablePublicationRecordParams extends AirtablePublicationRecordParams {
+interface UpdateAirtablePublicationRecordParams extends Omit<AirtablePublicationRecordParams, 'keywords' | 'genre'> {
   id: string;
+  // Null clears the field; absent or empty leaves the stored value.
+  keywords?: string[] | null;
+  genre?: string | null;
 }
 
 const BOOK_SALES_TABLE_ID = IS_TESTNET ? 'tblrSSj45M6frGRdM' : 'tblZT0hgK3VYOiHpE';
@@ -387,10 +390,12 @@ export async function updateAirtablePublicationRecord({
     if (author) fields.Author = author;
     if (publisher) fields.Publisher = publisher;
     if (language) fields.Language = language;
-    if (keywords?.length) fields.Keywords = keywords;
+    if (keywords === null) fields.Keywords = [];
+    else if (keywords.length) fields.Keywords = keywords;
     if (usageInfo) fields['Usage Info'] = usageInfo;
     if (isbn) fields.ISBN = isbn;
-    if (genre) fields.Genre = genre;
+    if (genre === null) fields.Genre = null;
+    else if (genre) fields.Genre = genre;
     if (typeof alternativeHeadline === 'string' && alternativeHeadline) {
       fields.Subtitle = alternativeHeadline;
     }
