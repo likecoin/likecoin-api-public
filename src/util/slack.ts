@@ -21,7 +21,7 @@ import {
   NFT_BOOK_SALES_OUT_OF_STOCK_NOTIFICATION_WEBHOOK,
   NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK,
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
-  SLACK_BOT_TOKEN,
+  PUBLISHING_SLACK_BOT_TOKEN,
 } from '../../config/config';
 import { Timestamp } from './firebase';
 import { isNFTBookPriceTippingEnabled } from './ValidationHelper';
@@ -58,7 +58,9 @@ export function escapeSlackText(text: string): string {
 
 // Workflow variables render `<@U…>` as plain text, so listing notifications
 // that mention reviewers go through a bot when one is configured.
-const IS_LISTING_BOT_ENABLED = !!(SLACK_BOT_TOKEN && NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID);
+const IS_LISTING_BOT_ENABLED = !!(
+  PUBLISHING_SLACK_BOT_TOKEN && NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID
+);
 
 // chat.postMessage answers HTTP 200 even on failure, so check `ok` and throw.
 // Callers await this before replying to slash commands, which Slack cuts off at 3s.
@@ -76,7 +78,7 @@ async function postSlackBotMessage({ channel, text, threadTs }: {
       unfurl_links: false,
       unfurl_media: false,
     }, {
-      headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
+      headers: { Authorization: `Bearer ${PUBLISHING_SLACK_BOT_TOKEN}` },
       timeout: 2500,
     }));
   } catch (err) {

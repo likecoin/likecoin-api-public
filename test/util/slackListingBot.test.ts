@@ -13,7 +13,7 @@ vi.mock('../../config/config', async (importOriginal) => ({
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK: 'https://hooks.slack.test/listing',
   NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID: 'CLISTING',
   NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS: ['UHELD'],
-  SLACK_BOT_TOKEN: 'xoxb-test',
+  PUBLISHING_SLACK_BOT_TOKEN: 'xoxb-test',
 }));
 
 vi.mock('axios', () => ({
