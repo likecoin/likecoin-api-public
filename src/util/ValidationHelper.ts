@@ -559,13 +559,24 @@ export function isBookUnlisted(prices: { isUnlisted?: boolean }[] = []) {
   return prices.length > 0 && prices.every((p) => p.isUnlisted);
 }
 
-// Matches the reader mask in `filterNFTBookListingInfo`,
-// so a book with every edition unlisted drops out of library search.
-export function isBookInLibrary(book: {
-  isPlusReadingEnabled?: boolean;
+// Unlike `isBookVisibleToReaders` (listing), this gates reading: a book whose
+// editions are all unlisted, or that is not approved for sale (rejected or held),
+// must not stay borrowable. `undefined` approval is a legacy book, still approved.
+function isBookWithdrawnFromReaders(book: {
+  isApprovedForSale?: boolean;
   prices?: { isUnlisted?: boolean }[];
 }) {
-  return !!book.isPlusReadingEnabled && !isBookUnlisted(book.prices);
+  return book.isApprovedForSale === false || isBookUnlisted(book.prices);
+}
+
+// Matches the reader mask in `filterNFTBookListingInfo`,
+// so a withdrawn book drops out of library search and rev-share.
+export function isBookInLibrary(book: {
+  isPlusReadingEnabled?: boolean;
+  isApprovedForSale?: boolean;
+  prices?: { isUnlisted?: boolean }[];
+}) {
+  return !!book.isPlusReadingEnabled && !isBookWithdrawnFromReaders(book);
 }
 
 // What the listing endpoints hide from a reader. The class endpoint applies none
@@ -656,8 +667,8 @@ export function filterNFTBookListingInfo(
   // Never written back, so the author's opt-in survives a re-listing, and the
   // owner reads it unmasked — publish's settings form would save the mask on.
   // Read `inputPrices`: the filtered copy matches only while it keeps every edition.
-  const isAllEditionsUnlisted = isBookUnlisted(inputPrices);
-  const shouldMaskReaderFlags = !isOwner && isAllEditionsUnlisted;
+  const shouldMaskReaderFlags = !isOwner
+    && isBookWithdrawnFromReaders({ prices: inputPrices, isApprovedForSale });
   const productImageUrl = thumbnailUrl ? parseImageURLFromMetadata(thumbnailUrl) : undefined;
   const payload: NFTBookListingInfoFiltered = {
     id,

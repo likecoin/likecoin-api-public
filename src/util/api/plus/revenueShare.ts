@@ -4,6 +4,7 @@ import {
   FieldValue, Timestamp, db, likeNFTBookCollection, userCollection,
 } from '../../firebase';
 import { ValidationError } from '../../ValidationError';
+import { isBookInLibrary } from '../../ValidationHelper';
 import { parseCountryCode } from '../../misc';
 import { getReadingScoreIncrement } from '../likernft/book/popularity';
 import type { NFTBookListingInfo } from '../../../types/book';
@@ -172,8 +173,8 @@ export async function recordPlusReadingUsage({
   // leave the library mid-borrow, and free books fund no pool.
   const bookData = (bookDoc.data() || {}) as NFTBookListingInfo;
   const isFreeBook = bookData.minPriceInDecimal === 0;
-  // Absent flag = never opted in; legacy listings predate the library.
-  const isInLibrary = !!bookData.isPlusReadingEnabled;
+  // Same gate as the borrow API, so a rejected or fully unlisted book stops accruing.
+  const isInLibrary = isBookInLibrary(bookData);
   const isLibraryEligible = isInLibrary && !isFreeBook && isReaderFunded;
   const libraryReadingTimeMs = isLibraryEligible ? readingTimeMs : 0;
   const libraryTtsTimeMs = isLibraryEligible ? ttsTimeMs : 0;
