@@ -10,7 +10,6 @@ const POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
 vi.mock('../../config/config', async (importOriginal) => ({
   ...(await importOriginal() as object),
-  NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK: 'https://hooks.slack.test/listing',
   NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID: 'CLISTING',
   NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS: ['UHELD'],
   PUBLISHING_SLACK_BOT_TOKEN: 'xoxb-test',
@@ -61,7 +60,7 @@ function getPostedMessages() {
   });
 }
 
-describe('listing notifications via Slack bot', () => {
+describe('listing notifications', () => {
   beforeEach(() => {
     postMock.mockReset();
     postMock.mockResolvedValue({ data: { ok: true, ts: '111.222' } });
@@ -125,6 +124,43 @@ describe('listing notifications via Slack bot', () => {
     expect(JSON.stringify(logged, Object.getOwnPropertyNames(logged[0]))).not.toContain('xoxb-test');
     expect(String(logged[0])).toContain('ECONNABORTED');
     consoleError.mockRestore();
+  });
+
+  // geoblock_hk applies with no human read, so it must always surface for a
+  // second look even when the model did not ask for one.
+  it('mentions reviewers on a geoblock verdict', async () => {
+    await sendNFTBookNewListingSlackNotification({
+      ...baseParams,
+      aiReview: verdictOf({ action: 'geoblock_hk' }),
+    });
+    const [headline, details] = getPostedMessages();
+    expect(headline.text).toMatch(/^<@UHELD> 👀 Published, but the AI screen requests human review/);
+    expect(details.text).toContain('👀 Human review requested');
+  });
+
+  // The reason is model output over user-supplied metadata,
+  // so mention and link syntax must not survive into mrkdwn.
+  it('escapes mrkdwn control characters in the verdict reason', async () => {
+    await sendNFTBookNewListingSlackNotification({
+      ...baseParams,
+      aiReview: verdictOf({
+        needsHumanReview: true,
+        reason: 'Title says <!channel> & <@U123> <http://evil.example|click>',
+      }),
+    });
+    const [, details] = getPostedMessages();
+    expect(details.text).toContain('&lt;!channel&gt; &amp; &lt;@U123&gt;');
+    expect(details.text).not.toContain('<!channel>');
+  });
+
+  it('marks a failed review without mentioning reviewers', async () => {
+    await sendNFTBookNewListingSlackNotification({
+      ...baseParams,
+      aiReview: { status: 'failed' },
+    });
+    const [headline, details] = getPostedMessages();
+    expect(headline.text).toMatch(/^✅ Published/);
+    expect(details.text).toContain('⚠️ AI review failed');
   });
 
   it('posts approval updates through the bot', async () => {
