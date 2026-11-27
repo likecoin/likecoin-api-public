@@ -21,6 +21,7 @@ import {
   NFT_BOOK_SALES_TRANSFER_FAILED_NOTIFICATION_WEBHOOK,
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK,
   PUBLISHING_SLACK_BOT_TOKEN,
+  PUBLISHING_SLACK_SIGNING_SECRET,
 } from '../../config/config';
 import { Timestamp } from './firebase';
 import { isNFTBookPriceTippingEnabled } from './ValidationHelper';
@@ -62,9 +63,15 @@ const IS_LISTING_NOTIFICATION_ENABLED = !!(
 
 // chat.postMessage answers HTTP 200 even on failure, so check `ok` and throw.
 // Callers await this before replying to slash commands, which Slack cuts off at 3s.
-async function postSlackBotMessage({ channel, text, threadTs }: {
+async function postSlackBotMessage({
+  channel,
+  text,
+  blocks,
+  threadTs,
+}: {
   channel: string;
   text: string;
+  blocks?: unknown[];
   threadTs?: string;
 }): Promise<string> {
   let data;
@@ -72,6 +79,7 @@ async function postSlackBotMessage({ channel, text, threadTs }: {
     ({ data } = await axios.post('https://slack.com/api/chat.postMessage', {
       channel,
       text,
+      blocks,
       thread_ts: threadTs,
       unfurl_links: false,
       unfurl_media: false,
@@ -100,6 +108,41 @@ export async function postSlackResponseUrl(responseUrl: string, body: Record<str
 
 export const LISTING_REVIEW_BLOCK_ID = 'listing_review';
 export const LISTING_REVIEW_ACTIONS = ['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'];
+
+const SLACK_SECTION_TEXT_MAX_LENGTH = 3000;
+
+const LISTING_REVIEW_BUTTON_LABELS: Record<string, string> = {
+  approve_with_ads: 'Approve with ads',
+  approve_no_ads: 'Approve (no ads)',
+  approve_hidden: 'Approve hidden',
+  reject: 'Reject',
+};
+
+function getListingReviewBlocks(headline: string, classId: string) {
+  return [
+    { type: 'section', text: { type: 'mrkdwn', text: headline } },
+    {
+      type: 'actions',
+      block_id: LISTING_REVIEW_BLOCK_ID,
+      elements: LISTING_REVIEW_ACTIONS.map((action) => ({
+        type: 'button',
+        action_id: `${LISTING_REVIEW_BLOCK_ID}_${action}`,
+        text: { type: 'plain_text', text: LISTING_REVIEW_BUTTON_LABELS[action] },
+        value: JSON.stringify({ classId, action }),
+        ...(action === 'approve_with_ads' && { style: 'primary' }),
+        ...(action === 'reject' && {
+          style: 'danger',
+          confirm: {
+            title: { type: 'plain_text', text: 'Reject listing?' },
+            text: { type: 'plain_text', text: 'The book will be hidden and taken off sale.' },
+            confirm: { type: 'plain_text', text: 'Reject' },
+            deny: { type: 'plain_text', text: 'Cancel' },
+          },
+        }),
+      })),
+    },
+  ];
+}
 
 // Swaps the review buttons for who did what and when, so nobody presses them twice
 export function getReviewedListingBlocks(
@@ -207,9 +250,18 @@ export async function sendNFTBookNewListingSlackNotification({
     const mentions = needsReviewer
       ? (NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS || []).map((id) => `<@${id}> `).join('')
       : '';
+    const headline = getListingHeadline(`${mentions}${approvalStatusText}`, className, classLink);
+    // Without a signing secret the presses cannot be verified.
+    // Past Slack's section limit the whole post is rejected, so plain text is sent instead.
+    const hasReviewButtons = (
+      needsReviewer
+      && !!PUBLISHING_SLACK_SIGNING_SECRET
+      && headline.length <= SLACK_SECTION_TEXT_MAX_LENGTH
+    );
     const threadTs = await postSlackBotMessage({
       channel: NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID,
-      text: getListingHeadline(`${mentions}${approvalStatusText}`, className, classLink),
+      text: headline,
+      blocks: hasReviewButtons ? getListingReviewBlocks(headline, classId) : undefined,
     });
     const details = [
       isAdultOnly ? '🔞 Adult Content (18+)' : '',
