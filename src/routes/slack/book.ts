@@ -80,7 +80,7 @@ function getRestrictedTerritories(countryCodeList?: string) {
   return expandRestrictedTerritories(codes);
 }
 
-async function approveBook(
+export async function approveBook(
   classId: string,
   action: string,
   slackUserId: string,
