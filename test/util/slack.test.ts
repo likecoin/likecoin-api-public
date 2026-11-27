@@ -16,7 +16,6 @@ vi.mock('../../config/config', async (importOriginal) => ({
   ...(await importOriginal() as object),
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK: WEBHOOK_URL,
   NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK: LISTING_WEBHOOK_URL,
-  NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS: ['UHELD'],
 }));
 
 vi.mock('axios', () => ({
@@ -163,33 +162,33 @@ describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
 
   // geoblock_hk applies with no human read, so it must always surface for a
   // second look even when the model did not ask for one.
-  it('always pings on a geoblock verdict', async () => {
+  it('flags a geoblock verdict for review', async () => {
     await sendNFTBookNewListingSlackNotification({
       ...baseParams,
       aiReview: verdictOf({ action: 'geoblock_hk' }),
     });
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toBe('<@UHELD> 👀 Published, but the AI screen requests human review');
+    expect(payload.approvalStatus).toBe('👀 Published, but the AI screen requests human review');
   });
 
-  it('pings when the verdict asks for human review', async () => {
+  it('flags a verdict that asks for human review', async () => {
     await sendNFTBookNewListingSlackNotification({
       ...baseParams,
       aiReview: verdictOf({ needsHumanReview: true }),
     });
     const payload = getListingPayload();
     expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toBe('<@UHELD> 👀 Published, but the AI screen requests human review');
+    expect(payload.approvalStatus).toBe('👀 Published, but the AI screen requests human review');
   });
 
-  it('renders a held listing as a release request, not a ping', async () => {
+  it('renders a held listing as a release request', async () => {
     await sendNFTBookNewListingSlackNotification({
       ...baseParams,
       aiReview: verdictOf({ action: 'stop_sale_review' }),
     });
     const payload = getListingPayload();
-    expect(payload.approvalStatus).toMatch(/^<@UHELD> 🚫 Held for review/);
+    expect(payload.approvalStatus).toMatch(/^🚫 Held for review/);
     expect(payload.approvalStatus).toContain('/book approve 0xclass');
   });
 
