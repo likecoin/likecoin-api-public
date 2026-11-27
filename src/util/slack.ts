@@ -88,6 +88,43 @@ async function postSlackBotMessage({ channel, text, threadTs }: {
   return data.ts;
 }
 
+// response_url embeds its own token, so failures are rethrown without the request config
+export async function postSlackResponseUrl(responseUrl: string, body: Record<string, unknown>) {
+  try {
+    await axios.post(responseUrl, body, { timeout: 2500 });
+  } catch (err) {
+    const { code, response } = err as { code?: string; response?: { status?: number } };
+    throw new Error(`Slack response_url request failed: ${response?.status || code || 'unknown'}`);
+  }
+}
+
+export const LISTING_REVIEW_BLOCK_ID = 'listing_review';
+export const LISTING_REVIEW_ACTIONS = ['approve_with_ads', 'approve_no_ads', 'approve_hidden', 'reject'];
+
+// Swaps the review buttons for who did what and when, so nobody presses them twice
+export function getReviewedListingBlocks(
+  blocks: { 'block_id'?: string }[],
+  {
+    userId,
+    action,
+    reviewedAt,
+    isDone = true,
+  }: { userId: string; action: string; reviewedAt: Date; isDone?: boolean },
+) {
+  const seconds = Math.floor(reviewedAt.getTime() / 1000);
+  const verb = isDone ? 'ran' : '⏳ is running';
+  return [
+    ...blocks.filter((block) => block.block_id !== LISTING_REVIEW_BLOCK_ID),
+    {
+      type: 'context',
+      elements: [{
+        type: 'mrkdwn',
+        text: `<@${userId}> ${verb} \`${action}\` <!date^${seconds}^{date_short_pretty} {time}|${reviewedAt.toISOString()}>`,
+      }],
+    },
+  ];
+}
+
 function getListingHeadline(statusText: string, className: string, classLink: string): string {
   return `${statusText}《${escapeSlackText(className)}》on <${classLink}|${BOOK3_HOSTNAME}>`;
 }

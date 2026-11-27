@@ -118,6 +118,9 @@ config.NFT_BOOK_MERCH_OWNER_WALLETS = [];
 // both are required, leave either empty to disable them.
 config.PUBLISHING_SLACK_BOT_TOKEN = process.env.PUBLISHING_SLACK_BOT_TOKEN || '';
 config.NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID = '';
+// Signing secret of the same Slack app, for its review buttons (POST /slack/interactive);
+// leave empty to drop the buttons and reject every interactive request.
+config.PUBLISHING_SLACK_SIGNING_SECRET = process.env.PUBLISHING_SLACK_SIGNING_SECRET || '';
 // Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds or flags a listing
 config.NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS = [];
 config.NFT_BOOK_SALES_NOTIFICATION_WEBHOOK = '';
