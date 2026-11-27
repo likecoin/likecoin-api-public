@@ -118,6 +118,8 @@ describe('POST /plus/reading/usage', () => {
     ['delisted', { isPlusReadingEnabled: false }, 0xd4, 15, false],
     // Legacy listing: the field predates the library, so absent must read as opted out.
     ['never-listed', { isPlusReadingEnabled: undefined }, 0xe5, 16, false],
+    // `/book approve … reject` keeps the author's opt-in but withdraws the book.
+    ['rejected', { isApprovedForSale: false }, 0xb8, 18, false],
   ])('reclassifies %s-book reads as non-library engagement (no payout)', async (_label, listing, addrByte, dayOfMonth, expectInLibrary) => {
     const classId = mockEVMAddress(addrByte as number);
     await seedBook(classId, listing as Record<string, unknown>);

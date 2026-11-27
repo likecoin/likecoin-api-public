@@ -104,8 +104,11 @@ describe('filterNFTBookListingInfo library and preview masking', () => {
 
   // The owner reads the stored values: publish.3ook.com seeds its settings form
   // from this payload, so a masked false would be saved back over their opt-in.
-  it('keeps the stored values for the owner', () => {
-    const payload = filterNFTBookListingInfo(bookInfo([UNLISTED]), true);
+  it.each([
+    ['every edition is unlisted', bookInfo([UNLISTED])],
+    ['the book is not approved for sale', { ...bookInfo([LISTED]), isApprovedForSale: false }],
+  ])('keeps the stored values for the owner when %s', (_label, info) => {
+    const payload = filterNFTBookListingInfo(info, true);
     expect(payload.isPlusReadingEnabled).toBe(true);
     expect(payload.isPreviewEnabled).toBe(true);
   });
@@ -113,6 +116,14 @@ describe('filterNFTBookListingInfo library and preview masking', () => {
   it('does not turn a stored false into true', () => {
     const info = { ...bookInfo([LISTED]), isPlusReadingEnabled: false, isPreviewEnabled: false };
     const payload = filterNFTBookListingInfo(info);
+    expect(payload.isPlusReadingEnabled).toBe(false);
+    expect(payload.isPreviewEnabled).toBe(false);
+  });
+
+  // `/book approve … reject` and `pending_review` set this; borrowing must stop
+  // with purchase, or a rejected book stays readable and earns Plus rev-share.
+  it('reports borrowing and preview off when the book is not approved for sale', () => {
+    const payload = filterNFTBookListingInfo({ ...bookInfo([LISTED]), isApprovedForSale: false });
     expect(payload.isPlusReadingEnabled).toBe(false);
     expect(payload.isPreviewEnabled).toBe(false);
   });
@@ -125,6 +136,10 @@ describe('isBookInLibrary', () => {
 
   it('is true when borrowing is on and at least one edition is listed', () => {
     expect(isBookInLibrary(bookInfo([UNLISTED, LISTED]))).toBe(true);
+  });
+
+  it('is false when the book is not approved for sale', () => {
+    expect(isBookInLibrary({ ...bookInfo([LISTED]), isApprovedForSale: false })).toBe(false);
   });
 
   it('is false when borrowing is off', () => {

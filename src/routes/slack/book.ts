@@ -51,6 +51,7 @@ import { BOOK3_HOSTNAME, ISO_ALPHA2_COUNTRY_CODES, PUBSUB_TOPIC_MISC } from '../
 import { expandRestrictedTerritories } from '../../util/api/likernft/book/restrictedTerritories';
 import { updateAirtablePublicationRecord } from '../../util/airtable';
 import { splitByComma } from '../../util/misc';
+import { isBookInLibrary } from '../../util/ValidationHelper';
 
 const router = Router();
 
@@ -212,6 +213,7 @@ async function approveBook(
     id: classId,
     isHidden: approvalUpdate.isHidden,
     isPendingReview: approvalUpdate.isPendingReview,
+    isPlusReadingEnabled: isBookInLibrary({ ...bookData, ...approvalUpdate }),
   });
 
   await Promise.all([
