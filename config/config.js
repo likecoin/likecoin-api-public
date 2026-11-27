@@ -114,9 +114,8 @@ config.LIKER_NFT_BOOK_GLOBAL_READONLY_MODERATOR_ADDRESSES = [];
 // prove ownership. Empty disables merch listing creation.
 config.NFT_BOOK_MERCH_OWNER_WALLETS = [];
 
-config.NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK = '';
-// Bot token (xoxb-…, from a k8s Secret) and channel ID; when both are set,
-// listing notifications go through chat.postMessage so mentions render.
+// Bot token (xoxb-…, from a k8s Secret) and channel ID for listing notifications;
+// both are required, leave either empty to disable them.
 config.PUBLISHING_SLACK_BOT_TOKEN = process.env.PUBLISHING_SLACK_BOT_TOKEN || '';
 config.NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID = '';
 // Slack user IDs (e.g. 'U0123ABCD') mentioned when the AI screen holds or flags a listing

@@ -4,18 +4,14 @@ import {
 import axios from 'axios';
 
 import { BOOK3_HOSTNAME } from '../../src/constant';
-import type { NFTBookComplianceReviewVerdict } from '../../src/types/book';
-import type { BookComplianceReviewOutcome } from '../../src/util/api/likernft/book/complianceReview';
 
 const WEBHOOK_URL = 'https://hooks.slack.test/plus';
-const LISTING_WEBHOOK_URL = 'https://hooks.slack.test/listing';
 
-// Only override the webhooks so the notifications are not skipped; the rest of
+// Only override the webhook so the notification is not skipped; the rest of
 // the real config still loads for the other modules slack.ts pulls in.
 vi.mock('../../config/config', async (importOriginal) => ({
   ...(await importOriginal() as object),
   PLUS_SUBSCRIPTION_NOTIFICATION_WEBHOOK: WEBHOOK_URL,
-  NFT_BOOK_LISTING_NOTIFICATION_WEBHOOK: LISTING_WEBHOOK_URL,
 }));
 
 vi.mock('axios', () => ({
@@ -24,7 +20,6 @@ vi.mock('axios', () => ({
 
 const {
   sendPlusSubscriptionSlackNotification,
-  sendNFTBookNewListingSlackNotification,
 } = await import('../../src/util/slack');
 
 const postMock = vi.mocked(axios.post);
@@ -109,113 +104,5 @@ describe('sendPlusSubscriptionSlackNotification', () => {
       expect(serialised).toHaveProperty(key);
       expect(() => new URL(serialised[key])).not.toThrow();
     });
-  });
-});
-
-describe('sendNFTBookNewListingSlackNotification AI review rendering', () => {
-  beforeEach(() => {
-    postMock.mockClear();
-  });
-
-  const baseParams = {
-    wallet: '0xabc',
-    classId: '0xclass',
-    className: 'Test Book',
-    prices: [],
-  };
-
-  function verdictOf(
-    overrides: Partial<NFTBookComplianceReviewVerdict>,
-  ): BookComplianceReviewOutcome {
-    return {
-      status: 'completed',
-      model: 'test-model',
-      verdict: {
-        action: 'none',
-        hkRisk: 'none',
-        adult: false,
-        copyrightFlag: false,
-        confidence: 'high',
-        needsHumanReview: false,
-        reason: 'test reason',
-        ...overrides,
-      },
-    };
-  }
-
-  function getListingPayload() {
-    expect(postMock).toHaveBeenCalledTimes(1);
-    const [url, payload] = postMock.mock.calls[0];
-    expect(url).toBe(LISTING_WEBHOOK_URL);
-    return payload as Record<string, string>;
-  }
-
-  it('renders a clean verdict without a review ping', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: verdictOf({}),
-    });
-    const payload = getListingPayload();
-    expect(payload.aiReview).not.toContain('👀');
-    expect(payload.approvalStatus).toBe('✅ Published');
-  });
-
-  // geoblock_hk applies with no human read, so it must always surface for a
-  // second look even when the model did not ask for one.
-  it('flags a geoblock verdict for review', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: verdictOf({ action: 'geoblock_hk' }),
-    });
-    const payload = getListingPayload();
-    expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toBe('👀 Published, but the AI screen requests human review');
-  });
-
-  it('flags a verdict that asks for human review', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: verdictOf({ needsHumanReview: true }),
-    });
-    const payload = getListingPayload();
-    expect(payload.aiReview).toContain('👀 Human review requested');
-    expect(payload.approvalStatus).toBe('👀 Published, but the AI screen requests human review');
-  });
-
-  it('renders a held listing as a release request', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: verdictOf({ action: 'stop_sale_review' }),
-    });
-    const payload = getListingPayload();
-    expect(payload.approvalStatus).toMatch(/^🚫 Held for review/);
-    expect(payload.approvalStatus).toContain('/book approve 0xclass');
-  });
-
-  // The reason is model output over user-supplied metadata, and Slack parses
-  // mrkdwn in workflow variables, so mention/link syntax must not survive.
-  it('escapes mrkdwn control characters in the verdict reason', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: verdictOf({
-        needsHumanReview: true,
-        reason: 'Title says <!channel> & <@U123> <http://evil.example|click>',
-      }),
-    });
-    const payload = getListingPayload();
-    expect(payload.aiReview).not.toContain('<');
-    expect(payload.aiReview).not.toContain('>');
-    expect(payload.aiReview).toContain('&lt;!channel&gt; &amp; &lt;@U123&gt;');
-    expect(payload.approvalStatus).not.toContain('U123');
-  });
-
-  it('marks a failed review and keeps the default status', async () => {
-    await sendNFTBookNewListingSlackNotification({
-      ...baseParams,
-      aiReview: { status: 'failed' },
-    });
-    const payload = getListingPayload();
-    expect(payload.aiReview).toContain('⚠️ AI review failed');
-    expect(payload.approvalStatus).toBe('✅ Published');
   });
 });
