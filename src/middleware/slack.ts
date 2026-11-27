@@ -1,6 +1,66 @@
+import { createHmac } from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../util/ValidationError';
 import { getSlackAttachmentFromError } from '../util/slack';
+import { constantTimeEqual } from '../util/misc';
+
+// Slack's recommended replay window for signed requests
+const SLACK_SIGNATURE_MAX_AGE_SECONDS = 5 * 60;
+
+export function isValidSlackSignature({
+  signingSecret,
+  timestamp,
+  signature,
+  rawBody,
+  now = Date.now(),
+}: {
+  signingSecret: string;
+  timestamp?: string;
+  signature?: string;
+  rawBody: Buffer;
+  now?: number;
+}): boolean {
+  const timestampSeconds = Number(timestamp);
+  if (!signingSecret || !signature || !Number.isInteger(timestampSeconds)) return false;
+  if (Math.abs(now / 1000 - timestampSeconds) > SLACK_SIGNATURE_MAX_AGE_SECONDS) return false;
+  const digest = createHmac('sha256', signingSecret)
+    .update(`v0:${timestamp}:`)
+    .update(rawBody)
+    .digest('hex');
+  return constantTimeEqual(signature, `v0=${digest}`);
+}
+
+// The signature covers the raw form body, so capture it while parsing
+const parseSlackFormWithRawBody = express.urlencoded({
+  extended: false,
+  verify: (r, _, buf) => {
+    const raw = r as Request & { rawBody?: Buffer };
+    raw.rawBody = buf;
+  },
+});
+
+// An empty secret rejects every request
+export const slackSignatureChecker = (
+  signingSecret: string,
+) => (req: Request, res: Response, next: NextFunction): void => {
+  parseSlackFormWithRawBody(req, res, (e) => {
+    if (e) {
+      next(e);
+      return;
+    }
+    const { rawBody } = req as Request & { rawBody?: Buffer };
+    if (!rawBody || !isValidSlackSignature({
+      signingSecret,
+      timestamp: req.get('X-Slack-Request-Timestamp'),
+      signature: req.get('X-Slack-Signature'),
+      rawBody,
+    })) {
+      res.sendStatus(401);
+      return;
+    }
+    next();
+  });
+};
 
 export const slackTokenChecker = (
   token: string,

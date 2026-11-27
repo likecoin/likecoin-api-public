@@ -13,6 +13,7 @@ vi.mock('../../config/config', async (importOriginal) => ({
   NFT_BOOK_LISTING_NOTIFICATION_CHANNEL_ID: 'CLISTING',
   NFT_BOOK_LISTING_HELD_MENTION_SLACK_USER_IDS: ['UHELD'],
   PUBLISHING_SLACK_BOT_TOKEN: 'xoxb-test',
+  PUBLISHING_SLACK_SIGNING_SECRET: 'test-signing-secret',
 }));
 
 vi.mock('axios', () => ({
@@ -56,8 +57,13 @@ function getPostedMessages() {
   return postMock.mock.calls.map(([url, body, options]) => {
     expect(url).toBe(POST_MESSAGE_URL);
     expect((options as any).headers.Authorization).toBe('Bearer xoxb-test');
-    return body as Record<string, string>;
+    return body as Record<string, any>;
   });
+}
+
+function getReviewButtons(message: Record<string, any>) {
+  const actions = message.blocks?.find((b: any) => b.block_id === 'listing_review');
+  return (actions?.elements || []).map((e: any) => JSON.parse(e.value));
 }
 
 describe('listing notifications', () => {
@@ -78,6 +84,7 @@ describe('listing notifications', () => {
     expect(headline.text).not.toContain('<@');
     expect(details.thread_ts).toBe('111.222');
     expect(details.text).toContain('*AI Review:*');
+    expect(headline.blocks).toBeUndefined();
   });
 
   it('mentions reviewers when the AI screen asks for human review', async () => {
@@ -87,6 +94,13 @@ describe('listing notifications', () => {
     });
     const [headline] = getPostedMessages();
     expect(headline.text).toMatch(/^<@UHELD> 👀 Published, but the AI screen requests human review/);
+    expect(headline.blocks[0].text.text).toBe(headline.text);
+    expect(getReviewButtons(headline)).toEqual([
+      { classId: '0xclass', action: 'approve_with_ads' },
+      { classId: '0xclass', action: 'approve_no_ads' },
+      { classId: '0xclass', action: 'approve_hidden' },
+      { classId: '0xclass', action: 'reject' },
+    ]);
   });
 
   it('mentions reviewers on a held listing and keeps the command readable', async () => {
@@ -97,6 +111,18 @@ describe('listing notifications', () => {
     const [headline] = getPostedMessages();
     expect(headline.text).toMatch(/^<@UHELD> 🚫 Held for review/);
     expect(headline.text).toContain('/book approve 0xclass approve_with_ads|');
+    expect(getReviewButtons(headline)).toHaveLength(4);
+  });
+
+  it('falls back to a plain headline when the name is too long for a block', async () => {
+    await sendNFTBookNewListingSlackNotification({
+      ...baseParams,
+      className: '書'.repeat(3000),
+      aiReview: verdictOf({ action: 'stop_sale_review' }),
+    });
+    const [headline] = getPostedMessages();
+    expect(headline.text).toMatch(/^<@UHELD> 🚫 Held for review/);
+    expect(headline.blocks).toBeUndefined();
   });
 
   it('escapes the user-supplied book name', async () => {
@@ -160,6 +186,7 @@ describe('listing notifications', () => {
     });
     const [headline, details] = getPostedMessages();
     expect(headline.text).toMatch(/^✅ Published/);
+    expect(headline.blocks).toBeUndefined();
     expect(details.text).toContain('⚠️ AI review failed');
   });
 
