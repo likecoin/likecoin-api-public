@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import { checksumAddress } from 'viem';
 import { migrateLikeWalletToEVMWallet } from '../../src/util/api/wallet';
-import { FieldValue, userCollection } from '../../src/util/firebase';
+import { FieldValue, likeNFTBookUserCollection, userCollection } from '../../src/util/firebase';
 
 // Held by the `testinglikeuser` fixture. See test/data/user.json.
 const LIKER_ID = 'testinglikeuser';
@@ -27,5 +27,18 @@ describe('migrateLikeWalletToEVMWallet', () => {
     expect(res.isMigratedLikerLand).toBe(false);
     expect(res.migratedLikerLandUser).toBeNull();
     expect(res.migrateLikerLandError).toBeNull();
+  });
+
+  it('copies distribution royalties to the EVM wallet', async () => {
+    // Parent docs must exist before their subcollections persist in the firebase stub.
+    await likeNFTBookUserCollection.doc(LIKE_WALLET).set({} as any);
+    await likeNFTBookUserCollection.doc(LIKE_WALLET).collection('distributionRoyalties')
+      .doc('2026Q1').set({ period: '2026Q1', payableUsd: 90, status: 'paid' });
+
+    const res = await migrateLikeWalletToEVMWallet(LIKE_WALLET, NEW_EVM_WALLET, 'auto');
+    expect(res.isMigratedBookUser).toBe(true);
+    const doc = await likeNFTBookUserCollection.doc(NEW_EVM_WALLET)
+      .collection('distributionRoyalties').doc('2026Q1').get();
+    expect(doc.data()).toEqual({ period: '2026Q1', payableUsd: 90, status: 'paid' });
   });
 });

@@ -5,8 +5,9 @@ import {
   getUserWithCivicLikerProperties,
   getUserWithCivicLikerPropertiesByWallet,
 } from '../../users/getPublicInfo';
-import type { NFTBookUserData } from '../../../../types/book';
+import type { DistributionRoyaltyData, NFTBookUserData } from '../../../../types/book';
 import type { BookUserInfoResult } from '../../../../types/firestore';
+import type { BookUserDistributionRoyalty } from './schemas';
 
 export async function getBookUserInfo(wallet: string): Promise<NFTBookUserData | null> {
   const userDoc = await likeNFTBookUserCollection.doc(wallet).get();
@@ -160,4 +161,43 @@ export async function getSubscriptionAffiliateReportForWallet(
       subscriptionCount: payouts.length,
     },
   };
+}
+
+/**
+ * A publisher's royalties from other distribution platforms, newest quarter first.
+ * One doc per quarter, so the whole subcollection is read and sorted in memory.
+ */
+export async function getDistributionRoyaltiesForWallet(
+  wallet: string,
+): Promise<{ royalties: BookUserDistributionRoyalty[] }> {
+  const snap = await likeNFTBookUserCollection
+    .doc(wallet)
+    .collection('distributionRoyalties')
+    .get();
+
+  const royalties: BookUserDistributionRoyalty[] = snap.docs.map((doc) => {
+    const data = doc.data() as Partial<DistributionRoyaltyData>;
+    const payments = Array.isArray(data.payments) ? data.payments : [];
+    // Coerced, not validated: sendValidatedJSON throws on a mismatch,
+    // so one odd doc would blank the whole response.
+    return {
+      period: String(data.period || doc.id),
+      periodStart: data.periodStart?.toMillis?.() ?? 0,
+      grossUsd: Number(data.grossUsd) || 0,
+      feeUsd: Number(data.feeUsd) || 0,
+      payableUsd: Number(data.payableUsd) || 0,
+      status: data.status === 'paid' ? 'paid' : 'unpaid',
+      payments: payments.map((p) => ({
+        paymentId: String(p.paymentId || ''),
+        transferId: String(p.transferId || ''),
+        paidAt: p.paidAt?.toMillis?.() ?? 0,
+        amountUsd: Number(p.amountUsd) || 0,
+        payoutId: p.payoutId || undefined,
+      })),
+      updatedAt: data.updatedAt?.toMillis?.(),
+    };
+  });
+  royalties.sort((a, b) => b.period.localeCompare(a.period));
+
+  return { royalties };
 }
